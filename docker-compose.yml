@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: ticketsystem_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345a
+      POSTGRES_DB: ticketsystemdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ticketsystem_backend
+    ports:
+      - "3001:3001"
+    environment:
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=12345a
+      - DB_NAME=ticketsystemdb
+      - JWT_SECRET=tu_secreto_super_seguro
+      - PORT=3001
+    volumes:
+      - backend_uploads:/app/uploads
+    depends_on:
+      - database
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ticketsystem_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  backend_uploads:

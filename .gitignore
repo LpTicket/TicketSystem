@@ -1,0 +1,37 @@
+# Dependencias
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Entornos y secretos
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Bases de datos y logs
+*.sqlite
+*.log
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Subidas de archivos del backend
+backend/uploads/
+
+# IDEs y editores
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker
+docker-compose.override.yml
