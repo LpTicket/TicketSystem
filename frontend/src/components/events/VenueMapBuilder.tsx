@@ -389,6 +389,214 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     setSections(prev => prev.map(s => s.id === selectedId ? { ...s, [field]: value } : s));
   };
 
+  const loadTemplate = (type: 'small' | 'large' | 'gala') => {
+    let templateSections: Partial<VenueSection>[] = [];
+    
+    if (type === 'small') {
+      templateSections = [
+        {
+          id: `temp-small-1-${Date.now()}`,
+          eventId,
+          name: lang === 'es' ? 'Platea Central' : 'Center Stalls',
+          sectionType: 'seated' as any,
+          rows: 8,
+          seatsPerRow: 14,
+          price: 60,
+          color: '#3b82f6',
+          mapX: 750,
+          mapY: 200,
+          mapWidth: 500,
+          mapHeight: 180,
+          capacity: 112,
+        },
+        {
+          id: `temp-small-2-${Date.now()}`,
+          eventId,
+          name: lang === 'es' ? 'Platea Izquierda' : 'Left Stalls',
+          sectionType: 'seated' as any,
+          rows: 8,
+          seatsPerRow: 6,
+          price: 40,
+          color: '#10b981',
+          mapX: 430,
+          mapY: 200,
+          mapWidth: 260,
+          mapHeight: 180,
+          curve: 20,
+          capacity: 48,
+        },
+        {
+          id: `temp-small-3-${Date.now()}`,
+          eventId,
+          name: lang === 'es' ? 'Platea Derecha' : 'Right Stalls',
+          sectionType: 'seated' as any,
+          rows: 8,
+          seatsPerRow: 6,
+          price: 40,
+          color: '#10b981',
+          mapX: 1310,
+          mapY: 200,
+          mapWidth: 260,
+          mapHeight: 180,
+          curve: -20,
+          capacity: 48,
+        }
+      ];
+    } else if (type === 'large') {
+      templateSections = [
+        {
+          id: `temp-large-1-${Date.now()}`,
+          eventId,
+          name: lang === 'es' ? 'VIP Golden Circle' : 'VIP Golden Circle',
+          sectionType: 'seated' as any,
+          rows: 4,
+          seatsPerRow: 18,
+          price: 150,
+          color: '#a855f7',
+          mapX: 700,
+          mapY: 180,
+          mapWidth: 600,
+          mapHeight: 110,
+          capacity: 72,
+        },
+        {
+          id: `temp-large-2-${Date.now()}`,
+          eventId,
+          name: lang === 'es' ? 'Platea Principal' : 'Main Orchestra',
+          sectionType: 'seated' as any,
+          rows: 10,
+          seatsPerRow: 22,
+          price: 90,
+          color: '#3b82f6',
+          mapX: 600,
+          mapY: 330,
+          mapWidth: 800,
+          mapHeight: 220,
+          curve: 15,
+          capacity: 220,
+        },
+        {
+          id: `temp-large-3-${Date.now()}`,
+          eventId,
+          name: lang === 'es' ? 'Palco Izquierdo' : 'Left Balcony',
+          sectionType: 'seated' as any,
+          rows: 5,
+          seatsPerRow: 8,
+          price: 110,
+          color: '#f97316',
+          mapX: 200,
+          mapY: 330,
+          mapWidth: 340,
+          mapHeight: 130,
+          curve: 30,
+          capacity: 40,
+        },
+        {
+          id: `temp-large-4-${Date.now()}`,
+          eventId,
+          name: lang === 'es' ? 'Palco Derecho' : 'Right Balcony',
+          sectionType: 'seated' as any,
+          rows: 5,
+          seatsPerRow: 8,
+          price: 110,
+          color: '#f97316',
+          mapX: 1460,
+          mapY: 330,
+          mapWidth: 340,
+          mapHeight: 130,
+          curve: -30,
+          capacity: 40,
+        },
+        {
+          id: `temp-large-5-${Date.now()}`,
+          eventId,
+          name: lang === 'es' ? 'General Entrada Libre' : 'General Admission',
+          sectionType: 'standing' as any,
+          price: 45,
+          color: '#6366f1',
+          mapX: 600,
+          mapY: 600,
+          mapWidth: 800,
+          mapHeight: 180,
+          capacity: 500,
+        }
+      ];
+    } else if (type === 'gala') {
+      const tables: Partial<VenueSection>[] = [];
+      
+      // 4 VIP tables
+      for (let i = 0; i < 4; i++) {
+        tables.push({
+          id: `temp-gala-v-${i}-${Date.now()}`,
+          eventId,
+          name: lang === 'es' ? `Mesa VIP ${i + 1}` : `VIP Table ${i + 1}`,
+          sectionType: 'table' as any,
+          rows: 1,
+          seatsPerRow: 8,
+          price: 200,
+          color: '#ec4899',
+          mapX: 600 + i * 250,
+          mapY: 200,
+          mapWidth: 100,
+          mapHeight: 100,
+          tableShape: 'round',
+          capacity: 8,
+        });
+      }
+      
+      // 5 Gold tables
+      for (let i = 0; i < 5; i++) {
+        tables.push({
+          id: `temp-gala-g-${i}-${Date.now()}`,
+          eventId,
+          name: lang === 'es' ? `Mesa Oro ${String.fromCharCode(65 + i)}` : `Gold Table ${String.fromCharCode(65 + i)}`,
+          sectionType: 'table' as any,
+          rows: 1,
+          seatsPerRow: 6,
+          price: 150,
+          color: '#f59e0b',
+          mapX: 450 + i * 250,
+          mapY: 360,
+          mapWidth: 90,
+          mapHeight: 90,
+          tableShape: 'round',
+          capacity: 6,
+        });
+      }
+      
+      // 4 rectangular tables
+      for (let i = 0; i < 4; i++) {
+        tables.push({
+          id: `temp-gala-r-${i}-${Date.now()}`,
+          eventId,
+          name: lang === 'es' ? `Mesa Rectangular ${i + 1}` : `Rectangular Table ${i + 1}`,
+          sectionType: 'table' as any,
+          rows: 1,
+          seatsPerRow: 10,
+          price: 100,
+          color: '#3b82f6',
+          mapX: 550 + i * 300,
+          mapY: 530,
+          mapWidth: 160,
+          mapHeight: 80,
+          tableShape: 'rectangular',
+          capacity: 10,
+        });
+      }
+      
+      templateSections = tables;
+    }
+    
+    setSections(templateSections);
+    setSelectedId(null);
+    setSelectedSeat(null);
+    toast.success(
+      lang === 'es' 
+        ? 'Plantilla cargada con éxito. ¡No olvides guardarla!' 
+        : 'Template loaded successfully. Remember to save!'
+    );
+  };
+
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleDeleteSelected = () => {
@@ -465,6 +673,39 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         </button>
 
         <div className="hidden lg:flex items-center gap-3">
+          {/* Preset Templates Selector */}
+          <div className="relative group/templates">
+            <button className="bg-white hover:bg-gray-50 text-[#1a73e8] text-xs sm:text-sm font-bold py-1.5 px-4 rounded border border-blue-200 shadow-sm transition-colors flex items-center gap-2">
+              <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+              {lang === 'es' ? 'Plantillas Pre-diseñadas' : 'Pre-designed Templates'}
+              <svg className="w-4 h-4 transition-transform group-hover/templates:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+            </button>
+            <div className="absolute top-full right-0 mt-1.5 w-64 bg-white border border-gray-200 rounded-lg shadow-xl py-2 hidden group-hover/templates:block z-50 animate-fade-in divide-y divide-gray-100">
+              <div className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{lang === 'es' ? 'Cargar Layout Completo' : 'Load Complete Layout'}</div>
+              <button onClick={() => loadTemplate('small')} className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-xs font-semibold text-gray-700 flex items-start gap-3 transition-colors">
+                <span className="text-xl">🎪</span>
+                <div>
+                  <div className="font-bold text-gray-900">{lang === 'es' ? 'Teatro Pequeño' : 'Small Theatre'}</div>
+                  <div className="text-[10px] text-gray-400 font-medium">{lang === 'es' ? 'Escenario + 3 Secciones (208 as.)' : 'Stage + 3 Sections (208 seats)'}</div>
+                </div>
+              </button>
+              <button onClick={() => loadTemplate('large')} className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-xs font-semibold text-gray-700 flex items-start gap-3 transition-colors">
+                <span className="text-xl">🏟️</span>
+                <div>
+                  <div className="font-bold text-gray-900">{lang === 'es' ? 'Teatro Grande' : 'Large Theatre'}</div>
+                  <div className="text-[10px] text-gray-400 font-medium">{lang === 'es' ? 'VIP, Palcos laterales, Plateas (872 as.)' : 'VIP, Balconies, Stalls & GA (872 cap.)'}</div>
+                </div>
+              </button>
+              <button onClick={() => loadTemplate('gala')} className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-xs font-semibold text-gray-700 flex items-start gap-3 transition-colors">
+                <span className="text-xl">🍽️</span>
+                <div>
+                  <div className="font-bold text-gray-900">{lang === 'es' ? 'Cena de Gala' : 'Gala Dinner'}</div>
+                  <div className="text-[10px] text-gray-400 font-medium">{lang === 'es' ? '13 mesas redondas y rect. (102 cap.)' : '13 round & rect. tables (102 cap.)'}</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <button className="text-gray-500 hover:text-gray-800 text-sm font-medium px-3 py-1.5 rounded hover:bg-gray-100 transition-colors">
             {lang === 'es' ? 'Descartar' : 'Discard'}
           </button>
@@ -828,6 +1069,78 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         onPointerLeave={onViewportPointerUp}
         onClick={() => setSelectedId(null)}
       >
+        {/* Template Welcome Center Screen for 0 Sections */}
+        {sections.length === 0 && (
+          <div className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center z-30 p-6 md:p-12 animate-fade-in backdrop-blur-sm">
+            <div className="max-w-2xl w-full text-center space-y-6">
+              <div className="space-y-2">
+                <span className="text-5xl block animate-bounce">🎨</span>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight">{lang === 'es' ? 'Comienza tu Diseño de Asientos' : 'Start Your Seating Chart'}</h3>
+                <p className="text-sm text-gray-500 max-w-lg mx-auto">
+                  {lang === 'es' 
+                    ? 'Elige una de nuestras plantillas de teatros o cenas de gala optimizadas al estilo Seats.io para arrancar con un solo clic.' 
+                    : 'Choose one of our premium Seats.io-style theater or dinner templates to kickstart your layout with a single click.'}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-4">
+                {/* Small Theatre Card */}
+                <button 
+                  onClick={(e) => { e.stopPropagation(); loadTemplate('small'); }}
+                  className="bg-white hover:bg-blue-50/40 border border-gray-200 hover:border-[#1a73e8] rounded-xl p-5 text-left transition-all duration-300 shadow-md hover:shadow-lg flex flex-col justify-between group h-full"
+                >
+                  <div className="space-y-2">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🎪</div>
+                    <h4 className="font-bold text-gray-900 text-sm">{lang === 'es' ? 'Teatro Pequeño' : 'Small Theatre'}</h4>
+                    <p className="text-[11px] text-gray-400 font-medium leading-relaxed">{lang === 'es' ? 'Layout acogedor con escenario, bloque central y laterales curvos.' : 'Cozy layout with stage, center block and curved sides.'}</p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] font-bold text-[#1a73e8] flex items-center justify-between w-full">
+                    <span>{lang === 'es' ? '208 Asientos' : '208 Capacity'}</span>
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                  </div>
+                </button>
+
+                {/* Large Theatre Card */}
+                <button 
+                  onClick={(e) => { e.stopPropagation(); loadTemplate('large'); }}
+                  className="bg-white hover:bg-blue-50/40 border border-gray-200 hover:border-[#1a73e8] rounded-xl p-5 text-left transition-all duration-300 shadow-md hover:shadow-lg flex flex-col justify-between group h-full"
+                >
+                  <div className="space-y-2">
+                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🏟️</div>
+                    <h4 className="font-bold text-gray-900 text-sm">{lang === 'es' ? 'Teatro Grande' : 'Large Theatre'}</h4>
+                    <p className="text-[11px] text-gray-400 font-medium leading-relaxed">{lang === 'es' ? 'Layout masivo con VIP frontal, palcos laterales y general de pie.' : 'Massive show layout with frontal VIP, lateral balconies and GA standing.'}</p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] font-bold text-[#1a73e8] flex items-center justify-between w-full">
+                    <span>{lang === 'es' ? '872 Capacidad' : '872 Capacity'}</span>
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                  </div>
+                </button>
+
+                {/* Gala Dinner Card */}
+                <button 
+                  onClick={(e) => { e.stopPropagation(); loadTemplate('gala'); }}
+                  className="bg-white hover:bg-blue-50/40 border border-gray-200 hover:border-[#1a73e8] rounded-xl p-5 text-left transition-all duration-300 shadow-md hover:shadow-lg flex flex-col justify-between group h-full"
+                >
+                  <div className="space-y-2">
+                    <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🍽️</div>
+                    <h4 className="font-bold text-gray-900 text-sm">{lang === 'es' ? 'Cena de Gala' : 'Gala Dinner'}</h4>
+                    <p className="text-[11px] text-gray-400 font-medium leading-relaxed">{lang === 'es' ? 'Elegante distribución de mesas redondas VIP y rectangulares.' : 'Elegant layout with round VIP tables and long rectangular tables.'}</p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] font-bold text-[#1a73e8] flex items-center justify-between w-full">
+                    <span>{lang === 'es' ? '102 Cubiertos' : '102 Capacity'}</span>
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
+                  </div>
+                </button>
+              </div>
+
+              <div className="pt-4 text-[11px] text-gray-400 font-medium flex items-center justify-center gap-2">
+                <span>{lang === 'es' ? 'O si prefieres, arrastra elementos desde la barra lateral izquierda' : 'Or draw custom elements using the left sidebar tools'}</span>
+                <span className="px-1.5 py-0.5 bg-gray-100 border rounded text-[10px] text-gray-500 font-mono font-bold">+</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Infinite Ruler/Grid Background */}
         <div 
           className="absolute inset-0 pointer-events-none"
