@@ -69,6 +69,27 @@ async function seed() {
     console.log('ℹ️  Client user already exists');
   }
 
+  // ── Admin user ──────────────────────────────────────────────────────────
+  let admin = await userRepo.findOne({ where: { email: 'admin@lpticket.com' } });
+  if (!admin) {
+    admin = userRepo.create({
+      email: 'admin@lpticket.com',
+      username: 'lpticket_admin',
+      passwordHash: await bcrypt.hash('12345678', 10),
+      firstName: 'Admin',
+      lastName: 'LPTicket',
+      idType: IdType.V,
+      idNumber: '10000000',
+      phone: '0412-0000000',
+      role: UserRole.ADMIN,
+      isActive: true,
+    });
+    admin = await userRepo.save(admin);
+    console.log('✅ Admin user created: admin@lpticket.com / 12345678');
+  } else {
+    console.log('ℹ️  Admin user already exists');
+  }
+
   // ── Helper: delete + recreate sections/seats for an event ─────────────────
   const resetEvent = async (slug: string) => {
     const ev = await eventRepo.findOne({ where: { slug } });
@@ -394,6 +415,7 @@ async function seed() {
 
   // ── Done ──────────────────────────────────────────────────────────────────
   console.log('\n🎉 Seed completed successfully!');
+  console.log('   Admin login: admin@lpticket.com / 12345678');
   console.log('   Organizer login: organizer@lpticket.com / 123456');
   console.log('   8 events created with sections and seats\n');
 
