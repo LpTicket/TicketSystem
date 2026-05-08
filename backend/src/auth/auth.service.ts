@@ -84,8 +84,8 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, {
-      secret: this.configService.get('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.get('JWT_REFRESH_EXPIRATION'),
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET') || 'fallback-refresh-secret-for-production-please-change-it',
+      expiresIn: (this.configService.get<string>('JWT_REFRESH_EXPIRATION') || '7d') as any,
     });
 
     const { passwordHash, ...userData } = user;
