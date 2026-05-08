@@ -88,7 +88,7 @@ export default function Header() {
             {showSearchResults && searchResults.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.15)] border border-gray-100 py-3 z-[100] animate-fade-in overflow-hidden">
                 <div className="px-4 pb-2 mb-2 border-b border-gray-50 flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('searchResults') || 'Resultados'}</span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('searchResults' as any) || 'Resultados'}</span>
                   <button onClick={() => setShowSearchResults(false)} className="text-gray-400 hover:text-gray-600"><HiOutlineX className="w-3 h-3" /></button>
                 </div>
                 {searchResults.map((event) => (

@@ -40,13 +40,10 @@ export class Order {
   subtotal: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  serviceFee: number;
+  lpFee: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  taxIVA: number;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  taxIGTF: number;
+  processingFee: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   total: number;

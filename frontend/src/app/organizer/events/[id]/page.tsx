@@ -261,6 +261,7 @@ export default function EventDetailPage() {
         <VenueMapBuilder 
           eventId={id} 
           initialSections={sections} 
+          event={event}
           onSaved={(newSections) => {
             setSections(newSections);
           }} 

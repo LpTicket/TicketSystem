@@ -19,10 +19,12 @@ import {
   HiOutlineCreditCard,
   HiOutlineCamera,
   HiOutlineX,
+  HiOutlineDownload,
 } from 'react-icons/hi';
 import PaymentMethods from '@/components/dashboard/PaymentMethods';
+import { Suspense } from 'react';
 
-export default function DashboardPage() {
+function DashboardPageBody() {
   const { user, isAuthenticated, isLoading, updateProfile, mode, setMode } = useAuthStore();
   const { t, lang } = useLang();
   const router = useRouter();
@@ -271,7 +273,7 @@ export default function DashboardPage() {
                 </label>
               </div>
               <h3 className="font-bold text-2xl text-gray-900 mb-1">{user.firstName} {user.lastName}</h3>
-              <p className="text-gray-500 text-sm tracking-wide uppercase font-medium">{t(user.role) || user.role}</p>
+              <p className="text-gray-500 text-sm tracking-wide uppercase font-medium">{t(user.role as any) || user.role}</p>
             </div>
 
             <div className="space-y-6">
@@ -404,5 +406,17 @@ export default function DashboardPage() {
         <PaymentMethods />
       )}
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <DashboardPageBody />
+    </Suspense>
   );
 }

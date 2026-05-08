@@ -3,14 +3,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '@/lib/api';
 import { useLang } from '@/context/LanguageContext';
-import { VenueSection } from '@/types';
+import { VenueSection, SectionType } from '@/types';
 import {
   HiOutlinePlus,
   HiOutlineSave,
   HiOutlineTrash,
   HiOutlineZoomIn,
   HiOutlineZoomOut,
+  HiOutlineEye,
 } from 'react-icons/hi';
+import { FaWheelchair } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -19,23 +21,25 @@ interface VenueMapBuilderProps {
   initialSections: VenueSection[];
   onSaved: (sections: VenueSection[]) => void;
   onChange?: (sections: Partial<VenueSection>[]) => void;
+  event?: any;
 }
 
-const SECTION_COLORS = ['#f97316', '#3b82f6', '#10b981', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#6366f1'];
+const SECTION_COLORS = ['#3b82f6', '#f97316', '#10b981', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#6366f1'];
 
-// Stage is the anchor: centered horizontally at y=60 in canvas space
-const STAGE_W = 320;
-const STAGE_H = 60;
+// Stage is the anchor: centered horizontally at y=80 in canvas space
+const STAGE_W = 400;
+const STAGE_H = 80;
 const CANVAS_W = 2000;
 const CANVAS_H = 1600;
 const STAGE_X = (CANVAS_W - STAGE_W) / 2;
 const STAGE_Y = 60;
 
-export default function VenueMapBuilder({ eventId, initialSections, onSaved, onChange }: VenueMapBuilderProps) {
+export default function VenueMapBuilder({ eventId, initialSections, onSaved, onChange, event }: VenueMapBuilderProps) {
   const { t, lang } = useLang();
   const [sections, setSections] = useState<Partial<VenueSection>[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [customViewport, setCustomViewport] = useState<{ x: number; y: number; scale: number } | null>(null);
 
   // Pan & zoom state stored in refs so we don't re-render on every frame
   const viewRef = useRef({ x: 0, y: 0, scale: 0.6 });
@@ -49,6 +53,48 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   // Pointer-based drag/resize of a section
   const draggingRef = useRef<{ id: string; type: 'move' | 'resize'; startMx: number; startMy: number; origX: number; origY: number; origW: number; origH: number } | null>(null);
 
+  // Dragging individual seat
+  const draggingSeatRef = useRef<{ 
+    secId: string; 
+    seatKey: string; 
+    startMx: number; 
+    startMy: number; 
+    origXOffset: number; 
+    origYOffset: number;
+    angleDeg?: number;
+    isTableSeat?: boolean;
+    tableAngle?: number;
+    isRectTable?: boolean;
+  } | null>(null);
+  const [selectedSeat, setSelectedSeat] = useState<{ secId: string; seatKey: string } | null>(null);
+
+  const getSeatsConfig = (sec: Partial<VenueSection>): Record<string, { xOffset?: number; yOffset?: number; isWheelchair?: boolean; disabled?: boolean; price?: number }> => {
+    try {
+      return sec.seatsConfig ? JSON.parse(sec.seatsConfig) : {};
+    } catch (e) {
+      return {};
+    }
+  };
+
+  const updateSeatConfig = useCallback((secId: string, seatKey: string, key: string, value: any) => {
+    setSections(prev => prev.map(s => {
+      if (s.id !== secId) return s;
+      const currentConfig = getSeatsConfig(s);
+      const seatOverride = currentConfig[seatKey] || {};
+      const newConfig = {
+        ...currentConfig,
+        [seatKey]: {
+          ...seatOverride,
+          [key]: value
+        }
+      };
+      return {
+        ...s,
+        seatsConfig: JSON.stringify(newConfig)
+      };
+    }));
+  }, []);
+
   // Apply the CSS transform without a React re-render
   const applyTransform = useCallback(() => {
     if (!canvasRef.current) return;
@@ -57,6 +103,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   }, []);
 
   const initializedRef = useRef(false);
+  const centeredRef = useRef(false);
 
   useEffect(() => {
     if (!initializedRef.current && initialSections.length > 0) {
@@ -70,18 +117,35 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   }, [sections, onChange]);
 
   useEffect(() => {
+    if (centeredRef.current) return;
     if (!viewportRef.current) return;
     const vw = viewportRef.current.clientWidth;
     const vh = viewportRef.current.clientHeight;
-    const scale = 0.55;
-    // Center so stage top-center is visible
-    viewRef.current = {
-      scale,
-      x: vw / 2 - (STAGE_X + STAGE_W / 2) * scale,
-      y: vh / 4 - STAGE_Y * scale,
-    };
+    if (vw === 0 || vh === 0) return; // Wait until layout is fully ready
+    
+    if (event && typeof event.defaultViewX === 'number' && typeof event.defaultViewY === 'number' && typeof event.defaultViewZoom === 'number') {
+      viewRef.current = {
+        x: event.defaultViewX,
+        y: event.defaultViewY,
+        scale: event.defaultViewZoom,
+      };
+      setCustomViewport({
+        x: event.defaultViewX,
+        y: event.defaultViewY,
+        scale: event.defaultViewZoom
+      });
+    } else {
+      const scale = 0.55;
+      // Center so stage top-center is visible
+      viewRef.current = {
+        scale,
+        x: vw / 2 - (STAGE_X + STAGE_W / 2) * scale,
+        y: vh / 4 - STAGE_Y * scale,
+      };
+    }
     applyTransform();
-  }, [applyTransform]);
+    centeredRef.current = true;
+  }, [applyTransform, event]);
 
   // ── Viewport pointer events (pan + zoom) ─────────────────────────────────
   const onViewportPointerDown = useCallback((e: React.PointerEvent) => {
@@ -94,6 +158,32 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   }, []);
 
   const onViewportPointerMove = useCallback((e: React.PointerEvent) => {
+    if (draggingSeatRef.current) {
+      const { secId, seatKey, startMx, startMy, origXOffset, origYOffset, angleDeg, isTableSeat, tableAngle, isRectTable } = draggingSeatRef.current as any;
+      const scale = viewRef.current.scale;
+      const dx = (e.clientX - startMx) / scale;
+      const dy = (e.clientY - startMy) / scale;
+
+      const el = document.getElementById(`seat-dot-${secId}-${seatKey}`);
+      if (el) {
+        const newX = origXOffset + dx;
+        const newY = origYOffset + dy;
+        
+        if (isTableSeat) {
+          if (isRectTable) {
+            el.style.transform = `translate(-50%, -50%) translate(${newX}px, ${newY}px)`;
+          } else {
+            el.style.transform = `rotate(${tableAngle}deg) translate(0, -210%) rotate(-${tableAngle}deg) translate(${newX}px, ${newY}px)`;
+          }
+        } else {
+          el.style.transform = `translate(-50%, -50%) translate(${newX}px, ${newY}px) rotate(${angleDeg || 0}deg)`;
+        }
+
+        (draggingSeatRef.current as any)._pendingX = newX;
+        (draggingSeatRef.current as any)._pendingY = newY;
+      }
+      return;
+    }
     if (draggingRef.current) {
       const { id, type, startMx, startMy, origX, origY, origW, origH } = draggingRef.current;
       const scale = viewRef.current.scale;
@@ -128,6 +218,19 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   }, [applyTransform]);
 
   const onViewportPointerUp = useCallback((e: React.PointerEvent) => {
+    if (draggingSeatRef.current) {
+      const { secId, seatKey } = draggingSeatRef.current;
+      const pX = (draggingSeatRef.current as any)._pendingX;
+      const pY = (draggingSeatRef.current as any)._pendingY;
+
+      if (pX !== undefined && pY !== undefined) {
+        updateSeatConfig(secId, seatKey, 'xOffset', pX);
+        updateSeatConfig(secId, seatKey, 'yOffset', pY);
+      }
+      draggingSeatRef.current = null;
+      (e.currentTarget as HTMLElement).style.cursor = 'default';
+      return;
+    }
     if (draggingRef.current) {
       const { id } = draggingRef.current;
       const pX = (draggingRef.current as any)._pendingX;
@@ -151,7 +254,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     }
     panningRef.current = false;
     (e.currentTarget as HTMLElement).style.cursor = 'default';
-  }, []);
+  }, [updateSeatConfig]);
 
   const onViewportWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
@@ -197,6 +300,41 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     applyTransform();
   };
 
+  // ── Seat pointer events ──────────────────────────────────────────────────
+  const onSeatPointerDown = (
+    e: React.PointerEvent,
+    secId: string,
+    seatKey: string,
+    currentXOffset: number,
+    currentYOffset: number,
+    angleDeg = 0,
+    isTableSeat = false,
+    tableAngle = 0,
+    isRectTable = false
+  ) => {
+    e.stopPropagation();
+    setSelectedSeat({ secId, seatKey });
+    setSelectedId(secId); // Also select the section to show side panels
+
+    draggingSeatRef.current = {
+      secId,
+      seatKey,
+      startMx: e.clientX,
+      startMy: e.clientY,
+      origXOffset: currentXOffset,
+      origYOffset: currentYOffset,
+      angleDeg,
+      isTableSeat,
+      tableAngle,
+      isRectTable
+    };
+
+    const viewport = viewportRef.current;
+    if (viewport) {
+      viewport.style.cursor = 'move';
+    }
+  };
+
   // ── Section pointer events ───────────────────────────────────────────────
   const onSectionPointerDown = useCallback((e: React.PointerEvent, sec: Partial<VenueSection>, type: 'move' | 'resize' = 'move') => {
     e.stopPropagation();
@@ -217,10 +355,21 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   // ── Section management ──────────────────────────────────────────────────
   const handleAddSection = (type: string) => {
     const colorIndex = sections.length % SECTION_COLORS.length;
+    let defaultName = '';
+    if (type === 'table') {
+      defaultName = lang === 'es' ? 'Nueva Mesa' : 'New Table';
+    } else if (type === 'standing') {
+      defaultName = lang === 'es' ? 'Área General' : 'General Admission';
+    } else if (type === 'vip') {
+      defaultName = lang === 'es' ? 'Nueva Zona VIP' : 'New VIP Section';
+    } else {
+      defaultName = lang === 'es' ? 'Nueva Sección' : 'New Section';
+    }
+
     const newSection: Partial<VenueSection> = {
       id: `temp-${Date.now()}`,
       eventId,
-      name: `Nueva ${type}`,
+      name: defaultName,
       sectionType: type as any,
       rows: type === 'table' ? 1 : 5,
       seatsPerRow: type === 'table' ? 4 : 10,
@@ -252,14 +401,33 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     setShowConfirm(false);
   };
 
+  const handleSetDefaultView = () => {
+    setCustomViewport({
+      x: viewRef.current.x,
+      y: viewRef.current.y,
+      scale: viewRef.current.scale
+    });
+    toast.success(
+      lang === 'es' 
+        ? 'Vista de clientes establecida en base a tu pantalla actual' 
+        : 'Initial user view established based on your current screen'
+    );
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = sections.map(s => {
+      const sectPayload = sections.map(s => {
         const copy = { ...s };
         if (copy.id?.startsWith('temp-')) delete copy.id;
         return copy;
       });
+      const payload = {
+        sections: sectPayload,
+        defaultViewX: customViewport ? customViewport.x : (event?.defaultViewX !== undefined ? event.defaultViewX : null),
+        defaultViewY: customViewport ? customViewport.y : (event?.defaultViewY !== undefined ? event.defaultViewY : null),
+        defaultViewZoom: customViewport ? customViewport.scale : (event?.defaultViewZoom !== undefined ? event.defaultViewZoom : null),
+      };
       const { data } = await api.post(`/events/${eventId}/sections/bulk`, payload);
       toast.success(lang === 'es' ? 'Mapa guardado correctamente' : 'Map saved successfully');
       onSaved(data);
@@ -275,228 +443,384 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-[700px] lg:h-[750px] relative">
-      {/* Mobile Tools Toggle */}
-      <div className="lg:hidden flex gap-2 mb-2">
-        <button 
-          onClick={() => setMobileToolsOpen(!mobileToolsOpen)}
-          className="flex-1 btn-secondary justify-center py-2.5 text-sm"
-        >
-          {mobileToolsOpen ? (lang === 'es' ? 'Ocultar Herramientas' : 'Hide Tools') : (lang === 'es' ? 'Ver Herramientas' : 'Show Tools')}
-        </button>
-      </div>
-
-      {/* ── Sidebar ─────────────────────────────────────────────────── */}
-      <div className={`${mobileToolsOpen ? 'flex' : 'hidden'} lg:flex w-full lg:w-80 flex-col gap-4 shrink-0 overflow-y-auto lg:h-full pb-4 lg:pb-0 z-30`}>
-        {/* Tools */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <h3 className="font-bold text-gray-900 text-sm mb-3 flex items-center justify-between">
-            {lang === 'es' ? 'Herramientas' : 'Tools'}
-            <span className="text-[10px] font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-              {sections.length} total
-            </span>
-          </h3>
-          <div className="space-y-2">
-            <button onClick={() => handleAddSection('seated')} className="w-full btn-secondary text-sm justify-start group">
-              <div className="w-8 h-8 rounded bg-orange-100 text-orange-600 flex items-center justify-center group-hover:bg-orange-200 transition-colors">
-                <HiOutlinePlus className="w-4 h-4" />
-              </div>
-              <div className="text-left ml-2">
-                <p className="font-bold leading-none">{lang === 'es' ? 'Gradería / Bloque' : 'Block Seating'}</p>
-                <p className="text-[10px] text-gray-400 mt-1">{lang === 'es' ? 'Filas y sillas en masa' : 'Mass rows and seats'}</p>
-              </div>
-            </button>
-            <button 
-              onClick={() => {
-                const colorIndex = sections.length % SECTION_COLORS.length;
-                const newSection: Partial<VenueSection> = {
-                  id: `temp-${Date.now()}`,
-                  eventId,
-                  name: lang === 'es' ? 'Silla' : 'Seat',
-                  sectionType: 'seated',
-                  price: 25,
-                  color: SECTION_COLORS[colorIndex],
-                  mapX: STAGE_X + STAGE_W / 2,
-                  mapY: STAGE_Y + STAGE_H + 80,
-                  mapWidth: 35,
-                  mapHeight: 35,
-                  rows: 1,
-                  seatsPerRow: 1,
-                  capacity: 1,
-                };
-                setSections(prev => [...prev, newSection]);
-                setSelectedId(newSection.id!);
-              }}
-              className="w-full btn-secondary text-sm justify-start group"
-            >
-              <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center group-hover:bg-red-200 transition-colors">
-                <HiOutlinePlus className="w-4 h-4" />
-              </div>
-              <div className="text-left ml-2">
-                <p className="font-bold leading-none">{lang === 'es' ? 'Silla Individual' : 'Single Seat'}</p>
-                <p className="text-[10px] text-gray-400 mt-1">{lang === 'es' ? 'Ubicación precisa' : 'Precise location'}</p>
-              </div>
-            </button>
-            <button onClick={() => handleAddSection('table')} className="w-full btn-secondary text-sm justify-start group">
-              <div className="w-8 h-8 rounded bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                <HiOutlinePlus className="w-4 h-4" />
-              </div>
-              <div className="text-left ml-2">
-                <p className="font-bold leading-none">{lang === 'es' ? 'Mesa' : 'Table'}</p>
-                <p className="text-[10px] text-gray-400 mt-1">{lang === 'es' ? 'Circular / VIP' : 'Round / VIP'}</p>
-              </div>
-            </button>
-            <button onClick={() => handleAddSection('standing')} className="w-full btn-secondary text-sm justify-start group">
-              <div className="w-8 h-8 rounded bg-green-100 text-green-600 flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                <HiOutlinePlus className="w-4 h-4" />
-              </div>
-              <div className="text-left ml-2">
-                <p className="font-bold leading-none">{lang === 'es' ? 'Zona General' : 'Standing Area'}</p>
-                <p className="text-[10px] text-gray-400 mt-1">{lang === 'es' ? 'Espacio libre' : 'Open space'}</p>
-              </div>
-            </button>
-            <button onClick={() => handleAddSection('vip')} className="w-full btn-secondary text-sm justify-start group">
-              <div className="w-8 h-8 rounded bg-purple-100 text-purple-600 flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                <HiOutlinePlus className="w-4 h-4" />
-              </div>
-              <div className="text-left ml-2">
-                <p className="font-bold leading-none">{lang === 'es' ? 'Zona VIP' : 'VIP Zone'}</p>
-                <p className="text-[10px] text-gray-400 mt-1">{lang === 'es' ? 'Exclusividad' : 'Exclusivity'}</p>
-              </div>
-            </button>
-
-            <div className="pt-2 border-t border-gray-100 mt-2">
-              <button 
-                onClick={() => {
-                  const name = prompt(lang === 'es' ? 'Nombre de la herramienta personalizada:' : 'Custom tool name:');
-                  if (name) {
-                    const colorIndex = sections.length % SECTION_COLORS.length;
-                    const newSection: Partial<VenueSection> = {
-                      id: `temp-${Date.now()}`,
-                      eventId,
-                      name,
-                      sectionType: 'standing' as any,
-                      price: 50,
-                      color: SECTION_COLORS[colorIndex],
-                      mapX: STAGE_X + STAGE_W / 2,
-                      mapY: STAGE_Y + STAGE_H + 80,
-                      mapWidth: 120,
-                      mapHeight: 80,
-                      capacity: 100,
-                    };
-                    setSections(prev => [...prev, newSection]);
-                    setSelectedId(newSection.id!);
-                  }
-                }} 
-                className="w-full border-2 border-dashed border-primary-200 text-primary-600 hover:border-primary-400 hover:bg-primary-50 rounded-xl py-3 px-4 text-xs font-bold flex flex-col items-center gap-1 transition-all"
-              >
-                <HiOutlinePlus className="w-5 h-5" />
-                {lang === 'es' ? 'CREAR HERRAMIENTA PROPIA' : 'CREATE OWN TOOL'}
-              </button>
-            </div>
+    <div className="flex flex-col h-[100vh] md:h-[800px] border border-gray-300 rounded-lg overflow-hidden bg-white relative font-sans">
+      {/* ── Top Bar (Seats.io Style) ─────────────────────────────────── */}
+      <div className="h-14 bg-white border-b border-gray-300 flex items-center justify-between px-4 shrink-0 z-40 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#1a73e8] rounded flex items-center justify-center text-white font-black text-xs tracking-tighter">
+            LPT
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Chart</span>
+            <h2 className="font-semibold text-gray-800 text-sm leading-tight">{lang === 'es' ? 'Diseñador de Asientos' : 'Seat Designer'}</h2>
           </div>
         </div>
+        
+        {/* Mobile Tools Toggle */}
+        <button 
+          onClick={() => setMobileToolsOpen(!mobileToolsOpen)}
+          className="lg:hidden text-gray-500 hover:text-gray-900"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+        </button>
 
-        {/* Properties */}
+        <div className="hidden lg:flex items-center gap-3">
+          <button className="text-gray-500 hover:text-gray-800 text-sm font-medium px-3 py-1.5 rounded hover:bg-gray-100 transition-colors">
+            {lang === 'es' ? 'Descartar' : 'Discard'}
+          </button>
+          <button onClick={handleSetDefaultView} className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-1.5 px-4 rounded border border-gray-300 shadow-sm transition-colors flex items-center gap-2" title={lang === 'es' ? 'Usa tu zoom y posición actuales para guardar la vista inicial de los clientes' : 'Saves current zoom/position as the starting view for customers'}>
+            <HiOutlineEye className="w-4.5 h-4.5 text-gray-500" />
+            {lang === 'es' ? 'Fijar Vista Inicial' : 'Set Initial View'}
+          </button>
+          <button onClick={handleSave} disabled={saving} className="bg-[#1a73e8] hover:bg-[#1557b0] text-white text-sm font-medium py-1.5 px-5 rounded shadow-sm transition-colors flex items-center gap-2">
+            {saving ? (
+              <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            ) : (
+              <HiOutlineSave className="w-4 h-4" />
+            )}
+            {lang === 'es' ? 'Guardar' : 'Save'}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-1 relative min-h-0 bg-[#f3f4f6]">
+        {/* Infinite Grid Background */}
+        <div 
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px)`,
+            backgroundSize: '20px 20px',
+            backgroundPosition: 'center center'
+          }}
+        />
+
+      {/* ── Left Sidebar (Tools - Seats.io Style) ─────────────────────────────────────────────────── */}
+      <div className={`${mobileToolsOpen ? 'flex absolute inset-y-0 left-0 shadow-2xl' : 'hidden'} lg:flex w-[50px] bg-[#f9fafb] border-r border-[#e5e7eb] flex-col shrink-0 z-30 py-4 items-center`}>
+        <div className="flex flex-col gap-4 w-full px-2">
+          <button 
+            onClick={() => handleAddSection('seated')} 
+            className="w-full aspect-square rounded flex flex-col items-center justify-center text-gray-500 hover:text-[#1a73e8] hover:bg-[#f8f9fa] transition-colors group"
+            title={lang === 'es' ? 'Gradería / Filas' : 'Rows'}
+          >
+            <svg className="w-6 h-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M3 15h18M8 5v14M16 5v14"/></svg>
+            <span className="text-[9px] font-medium leading-none">Filas</span>
+          </button>
+
+          <button 
+            onClick={() => handleAddSection('table')} 
+            className="w-full aspect-square rounded flex flex-col items-center justify-center text-gray-500 hover:text-[#1a73e8] hover:bg-[#f8f9fa] transition-colors group"
+            title={lang === 'es' ? 'Mesa' : 'Table'}
+          >
+            <svg className="w-6 h-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></svg>
+            <span className="text-[9px] font-medium leading-none">Mesa</span>
+          </button>
+
+          <button 
+            onClick={() => handleAddSection('standing')} 
+            className="w-full aspect-square rounded flex flex-col items-center justify-center text-gray-500 hover:text-[#1a73e8] hover:bg-[#f8f9fa] transition-colors group"
+            title={lang === 'es' ? 'Área General' : 'General Admission'}
+          >
+            <svg className="w-6 h-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+            <span className="text-[9px] font-medium leading-none">Área</span>
+          </button>
+
+          <div className="w-full h-px bg-gray-200 my-1" />
+
+          <button 
+            onClick={() => {
+              const colorIndex = sections.length % SECTION_COLORS.length;
+              const newSection: Partial<VenueSection> = {
+                id: `temp-${Date.now()}`,
+                eventId,
+                name: lang === 'es' ? 'Nuevo Asiento' : 'New Seat',
+                sectionType: SectionType.SEATED,
+                price: 25,
+                color: SECTION_COLORS[colorIndex],
+                mapX: STAGE_X + STAGE_W / 2,
+                mapY: STAGE_Y + STAGE_H + 80,
+                mapWidth: 30,
+                mapHeight: 30,
+                rows: 1,
+                seatsPerRow: 1,
+                capacity: 1,
+              };
+              setSections(prev => [...prev, newSection]);
+              setSelectedId(newSection.id!);
+            }}
+            className="w-full aspect-square rounded flex flex-col items-center justify-center text-gray-500 hover:text-[#1a73e8] hover:bg-[#f8f9fa] transition-colors group"
+            title={lang === 'es' ? 'Nuevo Asiento' : 'New Seat'}
+          >
+            <svg className="w-5 h-5 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="6"/></svg>
+            <span className="text-[9px] font-medium leading-none">{lang === 'es' ? 'Asiento' : 'Seat'}</span>
+          </button>
+        </div>
+      </div>
+
+        {/* ── Right Properties Panel (Seats.io Style Inspector) ─────────────────────────────────── */}
         {selectedSection ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 flex-1 overflow-y-auto">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
-              <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">{lang === 'es' ? 'Propiedades de Sección' : 'Section Properties'}</h3>
+          <div className="absolute top-0 right-0 bottom-0 w-[320px] bg-[#ffffff] border-l border-[#e5e7eb] z-40 overflow-y-auto hidden md:flex flex-col">
+            <div className="p-4 border-b border-[#e5e7eb] bg-white flex items-center justify-between sticky top-0 z-10">
+              <div>
+                <h3 className="font-bold text-gray-800 text-[13px] uppercase tracking-wide">{lang === 'es' ? 'Inspector de Objeto' : 'Object Inspector'}</h3>
+                <p className="text-[10px] text-gray-500 font-medium mt-0.5">{selectedSection.id}</p>
+              </div>
               <button 
                 onClick={handleDeleteSelected} 
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-all text-xs font-bold border border-red-100"
+                className="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 hover:text-red-700 rounded transition-colors"
+                title="Eliminar"
               >
                 <HiOutlineTrash className="w-4 h-4" />
-                {lang === 'es' ? 'ELIMINAR' : 'DELETE'}
               </button>
             </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">{t('orgSectionName')}</label>
-                <input type="text" value={selectedSection.name || ''} onChange={e => updateSelected('name', e.target.value)} className="input text-sm" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">{t('orgPrice')}</label>
-                  <input type="number" value={selectedSection.price || 0} onChange={e => updateSelected('price', +e.target.value)} className="input text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'es' ? 'Tipo' : 'Type'}</label>
-                  <select value={selectedSection.sectionType} onChange={e => updateSelected('sectionType', e.target.value)} className="input text-sm">
-                    <option value="seated">Asientos</option>
-                    <option value="standing">General</option>
-                    <option value="table">Mesa</option>
-                    <option value="vip">VIP</option>
-                  </select>
-                </div>
-              </div>
-              {selectedSection.sectionType !== 'standing' && (
-                <div className="bg-orange-50 rounded-lg p-3 border border-orange-100">
-                  <p className="text-[10px] text-orange-700 font-bold uppercase mb-2">Configuración de Capacidad</p>
-                  <div className="grid grid-cols-2 gap-2">
+            
+            {/* Selected Seat Inspector Overlay */}
+            {selectedSeat && selectedSeat.secId === selectedSection.id && (() => {
+              const seatKey = selectedSeat.seatKey;
+              const overrides = getSeatsConfig(selectedSection);
+              const seatOverride = overrides[seatKey] || {};
+              const isSeatWheelchair = seatOverride.isWheelchair || false;
+              const isDisabled = seatOverride.disabled || false;
+              
+              return (
+                <div className="bg-[#eff6ff] border-b border-[#bfdbfe] p-4 space-y-3.5">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-500 mb-1">FILAS</label>
-                      <input type="number" value={selectedSection.rows || 1} onChange={e => updateSelected('rows', +e.target.value)} className="input text-sm h-9" />
+                      <span className="text-[10px] font-bold text-[#1d4ed8] uppercase tracking-wider">{lang === 'es' ? 'Asiento Seleccionado' : 'Selected Seat'}</span>
+                      <h4 className="text-[16px] font-black text-[#1e3a8a]">{seatKey}</h4>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-500 mb-1">SILLAS / FILA</label>
-                      <input type="number" value={selectedSection.seatsPerRow || 1} onChange={e => updateSelected('seatsPerRow', +e.target.value)} className="input text-sm h-9" />
+                    <button 
+                      onClick={() => setSelectedSeat(null)}
+                      className="text-[11px] text-gray-500 hover:text-gray-800 underline font-semibold"
+                    >
+                      {lang === 'es' ? 'Cerrar' : 'Close'}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    {/* Wheelchair toggle */}
+                    <label className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-blue-200 cursor-pointer select-none shadow-sm hover:bg-blue-50/50">
+                      <input 
+                        type="checkbox"
+                        checked={isSeatWheelchair}
+                        onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'isWheelchair', e.target.checked)}
+                        className="w-4 h-4 text-[#1a73e8] rounded focus:ring-blue-500"
+                      />
+                      <span className="text-[12px] font-bold text-gray-700 flex items-center gap-1.5">
+                        <FaWheelchair className="text-blue-500" />
+                        {lang === 'es' ? 'Silla de ruedas' : 'Wheelchair'}
+                      </span>
+                    </label>
+
+                    {/* Disable toggle */}
+                    <label className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-red-100 cursor-pointer select-none shadow-sm hover:bg-red-50/50">
+                      <input 
+                        type="checkbox"
+                        checked={isDisabled}
+                        onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'disabled', e.target.checked)}
+                        className="w-4 h-4 text-red-500 rounded focus:ring-red-500"
+                      />
+                      <span className="text-[12px] font-bold text-gray-700">
+                        {lang === 'es' ? 'Ocultar / Eliminar silla' : 'Hide / Delete seat'}
+                      </span>
+                    </label>
+
+                    {/* Individual Price override */}
+                    <div className="bg-white p-3 rounded border border-blue-200 shadow-sm space-y-1.5">
+                      <label className="block text-[11px] font-bold text-[#1e3a8a]">
+                        {lang === 'es' ? 'Precio de este asiento ($)' : 'Price of this seat ($)'}
+                      </label>
+                      <input 
+                        type="number"
+                        placeholder={String(selectedSection.price || 0)}
+                        value={seatOverride.price !== undefined && seatOverride.price !== null ? seatOverride.price : ''}
+                        onChange={e => {
+                          const val = e.target.value === '' ? undefined : +e.target.value;
+                          updateSeatConfig(selectedSection.id!, seatKey, 'price', val);
+                        }}
+                        className="w-full bg-white border border-gray-300 rounded px-2.5 py-1 text-xs focus:border-blue-500 outline-none font-medium text-gray-800"
+                      />
+                      <span className="text-[10px] text-gray-400 block leading-tight">
+                        {lang === 'es' 
+                          ? 'Dejar vacío para usar el precio general de la sección.' 
+                          : 'Leave blank to use the general section price.'}
+                      </span>
                     </div>
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-2 italic leading-tight">
-                    {lang === 'es' 
-                      ? '* Multiplica filas x sillas para obtener el total de tickets de esta sección.' 
-                      : '* Multiply rows x seats to get the total tickets for this section.'}
-                  </p>
+
+                  {/* Position Fine-tuning */}
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] font-bold text-gray-600 block">{lang === 'es' ? 'Ajuste Fino de Posición' : 'Fine-tuning (Drag or slide)'}</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-gray-500 block">X Offset (px)</label>
+                        <input 
+                          type="number" 
+                          value={seatOverride.xOffset || 0}
+                          onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'xOffset', +e.target.value)}
+                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-500 block">Y Offset (px)</label>
+                        <input 
+                          type="number" 
+                          value={seatOverride.yOffset || 0}
+                          onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'yOffset', +e.target.value)}
+                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs"
+                        />
+                      </div>
+                    </div>
+                    {(seatOverride.xOffset || seatOverride.yOffset) ? (
+                      <button 
+                        onClick={() => {
+                          updateSeatConfig(selectedSection.id!, seatKey, 'xOffset', 0);
+                          updateSeatConfig(selectedSection.id!, seatKey, 'yOffset', 0);
+                        }}
+                        className="w-full text-center text-[11px] text-blue-600 hover:text-blue-800 font-semibold pt-1"
+                      >
+                        {lang === 'es' ? 'Restablecer Posición' : 'Reset Position'}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-              )}
-              {selectedSection.sectionType === 'standing' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">{t('orgCapacity')}</label>
-                  <input type="number" value={selectedSection.capacity || 100} onChange={e => updateSelected('capacity', +e.target.value)} className="input text-sm" />
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Ancho (px)</label>
-                  <input type="number" value={selectedSection.mapWidth || 100} onChange={e => updateSelected('mapWidth', +e.target.value)} className="input text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Alto (px)</label>
-                  <input type="number" value={selectedSection.mapHeight || 100} onChange={e => updateSelected('mapHeight', +e.target.value)} className="input text-sm" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Color</label>
+              );
+            })()}
+
+            <div className="p-5 flex-1 space-y-6">
+              {/* Category / Colors */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">{lang === 'es' ? 'Categoría' : 'Category'}</h4>
                 <div className="flex flex-wrap gap-2">
                   {SECTION_COLORS.map(color => (
                     <button
                       key={color}
                       onClick={() => updateSelected('color', color)}
-                      className={`w-7 h-7 rounded-full transition-transform ${selectedSection.color === color ? 'ring-2 ring-offset-2 ring-gray-500 scale-110' : 'hover:scale-110'}`}
+                      className={`w-7 h-7 rounded-full transition-transform border-2 ${selectedSection.color === color ? 'border-gray-800 scale-110 shadow-sm' : 'border-transparent hover:scale-110'}`}
                       style={{ backgroundColor: color }}
                     />
                   ))}
                 </div>
               </div>
+
+              <hr className="border-gray-100" />
+
+              {/* Labels & Pricing */}
+              <div className="space-y-4">
+                <h4 className="text-[12px] font-bold text-[#4b5563] uppercase tracking-wider">{lang === 'es' ? 'Etiquetas & Precio' : 'Labels & Pricing'}</h4>
+                <div>
+                  <label className="block text-[12px] text-[#4b5563] mb-1.5">{t('orgSectionName')}</label>
+                  <input type="text" value={selectedSection.name || ''} onChange={e => updateSelected('name', e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[12px] text-[#4b5563] mb-1.5">{t('orgPrice')} ($)</label>
+                    <input type="number" value={selectedSection.price || 0} onChange={e => updateSelected('price', +e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none font-medium" />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? 'Tipo' : 'Type'}</label>
+                    <select value={selectedSection.sectionType} onChange={e => updateSelected('sectionType', e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none">
+                      <option value="seated">Asientos</option>
+                      <option value="standing">General</option>
+                      <option value="table">Mesa</option>
+                      <option value="vip">VIP</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <hr className="border-gray-100" />
+
+              {/* Layout Config */}
+              <div className="space-y-4">
+                <h4 className="text-[12px] font-bold text-[#4b5563] uppercase tracking-wider">{lang === 'es' ? 'Diseño (Layout)' : 'Layout'}</h4>
+                {selectedSection.sectionType !== 'standing' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? 'Número de Filas' : 'Rows'}</label>
+                      <input type="number" min="1" value={selectedSection.rows || 1} onChange={e => updateSelected('rows', +e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] outline-none text-center" />
+                    </div>
+                    <div>
+                      <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? 'Asientos / Fila' : 'Seats/Row'}</label>
+                      <input type="number" min="1" value={selectedSection.seatsPerRow || 1} onChange={e => updateSelected('seatsPerRow', +e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] outline-none text-center" />
+                    </div>
+                  </div>
+                )}
+                {selectedSection.sectionType === 'standing' && (
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-600 mb-1.5">{t('orgCapacity')}</label>
+                    <input type="number" value={selectedSection.capacity || 100} onChange={e => updateSelected('capacity', +e.target.value)} className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:border-[#1a73e8] outline-none" />
+                  </div>
+                )}
+
+                {/* Seats.io specific properties: Curvature */}
+                {(selectedSection.sectionType === 'seated' || selectedSection.sectionType === 'vip') && (
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[12px] text-[#4b5563] font-medium">{lang === 'es' ? 'Curvatura' : 'Curvature'}</label>
+                        <span className="text-[11px] text-gray-500 font-mono font-bold">{selectedSection.curve || 0}px</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="-150" 
+                        max="150" 
+                        value={selectedSection.curve || 0} 
+                        onChange={e => updateSelected('curve', +e.target.value)} 
+                        className="w-full accent-[#1a73e8]" 
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <input 
+                        type="checkbox" 
+                        id="isWheelchairCheck"
+                        checked={selectedSection.isWheelchair || false} 
+                        onChange={e => updateSelected('isWheelchair', e.target.checked)} 
+                        className="w-4 h-4 rounded text-[#1a73e8] focus:ring-[#2563eb]" 
+                      />
+                      <label htmlFor="isWheelchairCheck" className="text-[12px] text-[#4b5563] font-medium select-none">{lang === 'es' ? 'Acceso de Silla de Ruedas' : 'Wheelchair Accessible'}</label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Seats.io specific properties: Table Shape */}
+                {selectedSection.sectionType === 'table' && (
+                  <div>
+                    <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? 'Forma de la Mesa' : 'Table Shape'}</label>
+                    <select 
+                      value={selectedSection.tableShape || 'round'} 
+                      onChange={e => updateSelected('tableShape', e.target.value)} 
+                      className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none"
+                    >
+                      <option value="round">{lang === 'es' ? 'Redonda' : 'Round'}</option>
+                      <option value="rectangular">{lang === 'es' ? 'Rectangular' : 'Rectangular'}</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-600 mb-1.5">W (px)</label>
+                    <input type="number" value={selectedSection.mapWidth || 100} onChange={e => updateSelected('mapWidth', +e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-1.5 text-sm outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-600 mb-1.5">H (px)</label>
+                    <input type="number" value={selectedSection.mapHeight || 100} onChange={e => updateSelected('mapHeight', +e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded px-3 py-1.5 text-sm outline-none" />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 p-4 flex-1 flex items-center justify-center text-center text-gray-400">
-            <p className="text-sm">{lang === 'es' ? 'Haz clic en un elemento del mapa para editarlo' : 'Click an element to edit it'}</p>
+          <div className="absolute top-0 right-0 bottom-0 w-[320px] bg-[#f8f9fa] border-l border-gray-300 z-40 hidden md:flex flex-col items-center justify-center text-center text-gray-400 p-6 shadow-[-4px_0_15px_rgba(0,0,0,0.02)]">
+            <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/></svg>
+            <p className="text-[13px] font-medium leading-relaxed">{lang === 'es' ? 'Selecciona un objeto en el mapa para inspeccionar sus propiedades.' : 'Select an object on the chart to inspect its properties.'}</p>
           </div>
         )}
 
-        <button onClick={handleSave} disabled={saving} className="btn-primary py-3 w-full justify-center">
-          <HiOutlineSave className="w-5 h-5" />
-          {saving ? (lang === 'es' ? 'Guardando...' : 'Saving...') : (lang === 'es' ? 'Guardar Mapa' : 'Save Map')}
-        </button>
-      </div>
-
-      {/* ── Canvas Viewport ─────────────────────────────────────────── */}
+      {/* ── Canvas Viewport (Seats.io Light Grid Style) ─────────────────────────────────────────── */}
       <div
         ref={viewportRef}
-        className="flex-1 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl relative overflow-hidden min-h-[450px]"
+        className="flex-1 relative overflow-hidden"
         style={{ cursor: 'default', userSelect: 'none', touchAction: 'none' }}
         onPointerDown={onViewportPointerDown}
         onPointerMove={onViewportPointerMove}
@@ -504,22 +828,49 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         onPointerLeave={onViewportPointerUp}
         onClick={() => setSelectedId(null)}
       >
+        {/* Infinite Ruler/Grid Background */}
+        <div 
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px)`,
+            backgroundSize: '100px 100px',
+            backgroundPosition: 'center center'
+          }}
+        >
+          {/* Subtle minor grid */}
+          <div className="absolute inset-0" style={{
+            backgroundImage: `linear-gradient(#f3f4f6 1px, transparent 1px), linear-gradient(90deg, #f3f4f6 1px, transparent 1px)`,
+            backgroundSize: '20px 20px',
+            backgroundPosition: 'center center'
+          }} />
+        </div>
         {/* Zoom Controls */}
-        <div className="absolute top-3 right-3 z-20 flex flex-col gap-1 bg-white rounded-lg shadow border border-gray-200 p-1">
-          <button onClick={zoomIn} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-gray-700">
-            <HiOutlineZoomIn className="w-4 h-4" />
+        <div className="absolute bottom-6 right-6 z-20 flex bg-white rounded shadow border border-gray-200 overflow-hidden">
+          <button onClick={zoomOut} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 text-gray-600 transition-colors" title="Zoom Out">
+            <HiOutlineZoomOut className="w-5 h-5" />
           </button>
-          <button onClick={zoomOut} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-gray-700">
-            <HiOutlineZoomOut className="w-4 h-4" />
+          <div className="w-px bg-gray-200" />
+          <button onClick={zoomIn} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 text-gray-600 transition-colors" title="Zoom In">
+            <HiOutlineZoomIn className="w-5 h-5" />
           </button>
-          <button onClick={resetView} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-gray-700 text-[10px] font-bold">
-            ⌖
+          <div className="w-px bg-gray-200" />
+          <button onClick={resetView} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 text-gray-600 text-[10px] font-bold uppercase transition-colors" title="Reset">
+            FIT
           </button>
         </div>
 
         {/* Hint */}
-        <div className="absolute bottom-3 left-3 z-20 text-[10px] text-gray-400 bg-white/80 rounded px-2 py-1">
-          {lang === 'es' ? 'Rueda: zoom · Arrastrar fondo: mover · Arrastra secciones' : 'Wheel: zoom · Drag bg: pan · Drag sections'}
+        <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-2 items-start pointer-events-none">
+          <div className="text-[10px] text-gray-400 bg-[#0f172a]/80 backdrop-blur-md rounded-md px-3 py-1.5 border border-white/10 flex items-center gap-2 shadow-lg">
+            <div className="w-2 h-2 rounded-full bg-primary-500 animate-pulse" />
+            {lang === 'es' ? 'Rueda: zoom · Arrastrar fondo: mover' : 'Wheel: zoom · Drag bg: pan'}
+          </div>
+          {customViewport && (
+            <div className="text-[10px] text-green-400 bg-green-950/90 backdrop-blur-md rounded-md px-3 py-1.5 border border-green-500/30 flex items-center gap-2 shadow-lg animate-bounce pointer-events-auto">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              {lang === 'es' ? '✓ Vista inicial fijada (guarda para aplicar)' : '✓ Initial view fixed (save to apply)'}
+            </div>
+          )}
         </div>
 
         {/* Canvas (transformed) */}
@@ -530,8 +881,6 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             width: CANVAS_W,
             height: CANVAS_H,
             transformOrigin: '0 0',
-            backgroundImage: 'radial-gradient(#d1d5db 1.5px, transparent 1.5px)',
-            backgroundSize: '30px 30px',
             willChange: 'transform',
           }}
           onClick={e => e.stopPropagation()}
@@ -544,26 +893,38 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
               top: STAGE_Y,
               width: STAGE_W,
               height: STAGE_H,
-              background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-              borderRadius: '8px 8px 50% 50% / 8px 8px 30px 30px',
+              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
               pointerEvents: 'none',
-              border: '1px solid rgba(255,255,255,0.1)',
+              border: '2.5px solid #3b82f6',
+              boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)',
+              borderRadius: '0 0 40px 40px',
             }}
           >
-            <div className="w-12 h-1 bg-white/20 rounded-full mb-2" />
-            <span style={{ color: '#fff', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-              {lang === 'es' ? 'ESCENARIO PRINCIPAL' : 'MAIN STAGE'}
+            <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 0 10px rgba(96, 165, 250, 0.5)' }}>
+              {lang === 'es' ? 'ESCENARIO' : 'STAGE'}
+            </span>
+            <span style={{ color: '#94a3b8', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginTop: 1 }}>
+              {lang === 'es' ? 'ESCENARIO' : 'STAGE'}
             </span>
           </div>
 
-          {/* ── Sections ───────────────────────────────────────────── */}
           {sections.map(sec => {
             const isSelected = selectedId === sec.id;
+            const isTable = sec.sectionType === 'table';
+            const isStanding = sec.sectionType === 'standing';
+            const isSeated = sec.sectionType === 'seated' || sec.sectionType === 'vip';
+            const rowsCount = sec.rows || 1;
+            const seatsCount = sec.seatsPerRow || 1;
+            
+            // Curve Math
+            const curve = sec.curve || 0;
+            const isWheelchair = sec.isWheelchair || false;
+            const tableShape = sec.tableShape || 'round';
+
             return (
               <div
                 key={sec.id}
@@ -577,30 +938,226 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   top: sec.mapY || (STAGE_Y + STAGE_H + 60),
                   width: sec.mapWidth || 100,
                   height: sec.mapHeight || 100,
-                  backgroundColor: sec.color || '#3b82f6',
-                  borderRadius: (sec.sectionType === 'table' || (sec.mapWidth === sec.mapHeight && sec.mapWidth < 50)) ? '50%' : 10,
+                  backgroundColor: isStanding ? sec.color : 'transparent',
+                  opacity: isStanding ? 0.85 : 1,
+                  border: isStanding ? `none` : isSelected ? `2px solid #1a73e8` : `1px solid transparent`,
+                  borderRadius: isStanding ? 8 : (isTable && tableShape === 'round') ? '50%' : 4,
                   cursor: 'move',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#fff',
-                  boxShadow: isSelected
-                    ? `0 0 0 3px #fff, 0 0 0 6px ${sec.color}, 0 12px 32px rgba(0,0,0,0.3)`
-                    : '0 4px 12px rgba(0,0,0,0.15)',
                   outline: 'none',
                   zIndex: isSelected ? 20 : 10,
-                  transition: 'box-shadow 0.15s ease',
                   willChange: 'left, top',
                   touchAction: 'none',
+                  boxShadow: isStanding ? '0 4px 10px rgba(0,0,0,0.08)' : 'none',
                 }}
               >
-                <span style={{ fontWeight: 700, fontSize: 12, textAlign: 'center', padding: '0 6px', pointerEvents: 'none', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
-                  {sec.name}
-                </span>
-                <span style={{ fontSize: 10, opacity: 0.9, pointerEvents: 'none' }}>
-                  ${sec.price}
-                </span>
+                {/* Visual Representation of Seats (Seats.io Style circles) */}
+                {isSeated && (
+                  <div className="absolute inset-0 pointer-events-none">
+                    {/* Render exact dots curved */}
+                    {Array.from({ length: rowsCount }).map((_, rIdx) => {
+                      const rowLabel = String.fromCharCode(64 + rIdx + 1); // A, B, C...
+                      return Array.from({ length: seatsCount }).map((_, sIdx) => {
+                        const seatNumber = sIdx + 1;
+                        const seatKey = `${rowLabel}-${seatNumber}`;
+                        const overrides = getSeatsConfig(sec);
+                        const seatOverride = overrides[seatKey] || {};
+
+                        // Math for curving seats
+                        const t = seatsCount > 1 ? (sIdx - (seatsCount - 1) / 2) / ((seatsCount - 1) / 2) : 0;
+                        const x = seatsCount > 1 
+                          ? 12 + sIdx * ((sec.mapWidth! - 24) / (seatsCount - 1))
+                          : sec.mapWidth! / 2;
+                        
+                        const baseSpacingY = rowsCount > 1 ? (sec.mapHeight! - 32) / (rowsCount - 1) : 0;
+                        const baseY = 16 + rIdx * baseSpacingY;
+                        const curveOffset = curve * (t * t - 1);
+                        const y = baseY + curveOffset;
+                        
+                        const angleRad = Math.atan2(2 * curve * t, sec.mapWidth! / 2);
+                        const angleDeg = angleRad * (180 / Math.PI);
+
+                        // Position with drag offsets
+                        const finalXOffset = seatOverride.xOffset || 0;
+                        const finalYOffset = seatOverride.yOffset || 0;
+                        const isSeatWheelchair = seatOverride.isWheelchair !== undefined ? seatOverride.isWheelchair : isWheelchair;
+                        const isDisabled = seatOverride.disabled || false;
+                        const isSeatSelected = selectedSeat?.secId === sec.id && selectedSeat?.seatKey === seatKey;
+
+                        return (
+                          <div
+                            key={seatKey}
+                            id={`seat-dot-${sec.id}-${seatKey}`}
+                            className="absolute rounded-full flex items-center justify-center pointer-events-auto cursor-grab active:cursor-grabbing group/seat"
+                            onPointerDown={e => onSeatPointerDown(e, sec.id!, seatKey, finalXOffset, finalYOffset, angleDeg, false, 0, false)}
+                            style={{
+                              left: x,
+                              top: y,
+                              width: Math.max(10, Math.min(22, (sec.mapWidth! - 24) / seatsCount - 2)),
+                              height: Math.max(10, Math.min(22, (sec.mapWidth! - 24) / seatsCount - 2)),
+                              transform: `translate(-50%, -50%) translate(${finalXOffset}px, ${finalYOffset}px) rotate(${angleDeg}deg)`,
+                              backgroundColor: isSeatWheelchair ? '#1a73e8' : sec.color,
+                              boxShadow: isSeatSelected ? '0 0 0 3px #3b82f6, 0 4px 10px rgba(59,130,246,0.5)' : '0 1px 3px rgba(0,0,0,0.15)',
+                              border: isSeatSelected ? '2px solid #fff' : '1.5px solid #fff',
+                              opacity: isDisabled ? 0.25 : 1,
+                              zIndex: isSeatSelected ? 30 : 10,
+                            }}
+                          >
+                            {isSeatWheelchair && (
+                              <FaWheelchair className="w-[70%] h-[70%] text-white" />
+                            )}
+                            {/* Seat label on hover */}
+                            <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                              {seatKey}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })}
+                  </div>
+                )}
+
+                {isTable && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    {/* Table Surface */}
+                    {tableShape === 'round' ? (
+                      <>
+                        <div className="absolute rounded-full bg-[#f1f5f9] border shadow-inner flex items-center justify-center pointer-events-none" style={{
+                          width: '60%', height: '60%', borderColor: '#cbd5e1'
+                        }}>
+                          <span className="text-[10px] font-bold text-gray-400">TABLE</span>
+                        </div>
+                        {/* Seats around the round table */}
+                        {Array.from({ length: seatsCount }).map((_, i) => {
+                          const seatNumber = i + 1;
+                          const seatKey = `seat-${seatNumber}`;
+                          const overrides = getSeatsConfig(sec);
+                          const seatOverride = overrides[seatKey] || {};
+
+                          const angle = (i * 360) / seatsCount;
+                          const finalXOffset = seatOverride.xOffset || 0;
+                          const finalYOffset = seatOverride.yOffset || 0;
+                          const isSeatWheelchair = seatOverride.isWheelchair || false;
+                          const isDisabled = seatOverride.disabled || false;
+                          const isSeatSelected = selectedSeat?.secId === sec.id && selectedSeat?.seatKey === seatKey;
+
+                          return (
+                            <div
+                              key={seatKey}
+                              id={`seat-dot-${sec.id}-${seatKey}`}
+                              className="absolute rounded-full pointer-events-auto cursor-grab active:cursor-grabbing group/seat"
+                              onPointerDown={e => onSeatPointerDown(e, sec.id!, seatKey, finalXOffset, finalYOffset, 0, true, angle, false)}
+                              style={{
+                                width: '20%',
+                                height: '20%',
+                                backgroundColor: isSeatWheelchair ? '#1a73e8' : sec.color,
+                                transform: `rotate(${angle}deg) translate(0, -210%) rotate(-${angle}deg) translate(${finalXOffset}px, ${finalYOffset}px)`,
+                                boxShadow: isSeatSelected ? '0 0 0 3px #3b82f6, 0 4px 10px rgba(59,130,246,0.5)' : '0 1px 3px rgba(0,0,0,0.15)',
+                                border: isSeatSelected ? '2px solid #fff' : '1.5px solid #fff',
+                                opacity: isDisabled ? 0.25 : 1,
+                                zIndex: isSeatSelected ? 30 : 10,
+                              }}
+                            >
+                              {isSeatWheelchair && (
+                                <FaWheelchair className="w-[70%] h-[70%] text-white absolute inset-0 m-auto" />
+                              )}
+                              <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                {seatNumber}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </>
+                    ) : (
+                      <>
+                        <div className="absolute rounded bg-[#f1f5f9] border shadow-inner flex items-center justify-center pointer-events-none" style={{
+                          width: '70%', height: '45%', borderColor: '#cbd5e1'
+                        }}>
+                          <span className="text-[10px] font-bold text-gray-400">TABLE</span>
+                        </div>
+                        {/* Seats around the rectangular table */}
+                        {Array.from({ length: seatsCount }).map((_, i) => {
+                          const seatNumber = i + 1;
+                          const seatKey = `seat-${seatNumber}`;
+                          const overrides = getSeatsConfig(sec);
+                          const seatOverride = overrides[seatKey] || {};
+
+                          const perimeter = 2 * (1 + 0.55);
+                          const step = perimeter / seatsCount;
+                          const pos = i * step;
+                          let x = 50;
+                          let y = 50;
+                          if (pos < 1) { // Top
+                            x = 15 + pos * 70;
+                            y = 12;
+                          } else if (pos < 1.55) { // Right
+                            x = 88;
+                            y = 15 + (pos - 1) / 0.55 * 70;
+                          } else if (pos < 2.55) { // Bottom
+                            x = 85 - (pos - 1.55) * 70;
+                            y = 88;
+                          } else { // Left
+                            x = 12;
+                            y = 85 - (pos - 2.55) / 0.55 * 70;
+                          }
+
+                          const finalXOffset = seatOverride.xOffset || 0;
+                          const finalYOffset = seatOverride.yOffset || 0;
+                          const isSeatWheelchair = seatOverride.isWheelchair || false;
+                          const isDisabled = seatOverride.disabled || false;
+                          const isSeatSelected = selectedSeat?.secId === sec.id && selectedSeat?.seatKey === seatKey;
+
+                          return (
+                            <div
+                              key={seatKey}
+                              id={`seat-dot-${sec.id}-${seatKey}`}
+                              className="absolute rounded-full pointer-events-auto cursor-grab active:cursor-grabbing group/seat"
+                              onPointerDown={e => onSeatPointerDown(e, sec.id!, seatKey, finalXOffset, finalYOffset, 0, true, 0, true)}
+                              style={{
+                                width: '18%',
+                                height: '18%',
+                                backgroundColor: isSeatWheelchair ? '#1a73e8' : sec.color,
+                                left: `${x}%`,
+                                top: `${y}%`,
+                                transform: `translate(-50%, -50%) translate(${finalXOffset}px, ${finalYOffset}px)`,
+                                boxShadow: isSeatSelected ? '0 0 0 3px #3b82f6, 0 4px 10px rgba(59,130,246,0.5)' : '0 1px 3px rgba(0,0,0,0.15)',
+                                border: isSeatSelected ? '2px solid #fff' : '1.5px solid #fff',
+                                opacity: isDisabled ? 0.25 : 1,
+                                zIndex: isSeatSelected ? 30 : 10,
+                              }}
+                            >
+                              {isSeatWheelchair && (
+                                <FaWheelchair className="w-[70%] h-[70%] text-white absolute inset-0 m-auto" />
+                              )}
+                              <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                {seatNumber}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Section Label overlay */}
+                <div className="relative z-10 flex flex-col items-center justify-center pointer-events-none">
+                  <span style={{ 
+                    fontWeight: 800, 
+                    fontSize: 12, 
+                    textAlign: 'center', 
+                    color: isStanding ? '#fff' : '#1e293b', 
+                    backgroundColor: isStanding ? 'transparent' : 'rgba(255,255,255,0.9)', 
+                    padding: '2px 8px', 
+                    borderRadius: '12px',
+                    boxShadow: isStanding ? 'none' : '0 2px 5px rgba(0,0,0,0.1)',
+                  }}>
+                    {sec.name}
+                  </span>
+                </div>
 
                 {/* Resize Handle */}
                 {isSelected && (
@@ -608,24 +1165,19 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                     onPointerDown={e => { e.stopPropagation(); onSectionPointerDown(e, sec, 'resize'); }}
                     style={{
                       position: 'absolute',
-                      bottom: -8,
-                      right: -8,
-                      width: 24,
-                      height: 24,
+                      bottom: -4,
+                      right: -4,
+                      width: 12,
+                      height: 12,
                       backgroundColor: '#fff',
-                      border: `2px solid ${sec.color}`,
+                      border: `2px solid #1a73e8`,
                       borderRadius: '50%',
                       cursor: 'nwse-resize',
                       zIndex: 100,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
                       touchAction: 'none'
                     }}
-                  >
-                    <div className="w-2 h-2 bg-gray-400 rounded-full" />
-                  </div>
+                  />
                 )}
               </div>
             );
@@ -679,6 +1231,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           </div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

@@ -21,14 +21,11 @@ export default function ModeToggle({ variant = 'pill' }: ModeToggleProps) {
     const newMode: UserMode = mode === 'buyer' ? 'organizer' : 'buyer';
     setMode(newMode);
     
-    // Remove auto-redirection logic as requested
-    /*
     if (newMode === 'organizer' && !pathname.startsWith('/organizer')) {
       router.push('/organizer');
     } else if (newMode === 'buyer' && pathname.startsWith('/organizer')) {
       router.push('/dashboard');
     }
-    */
   };
 
   if (variant === 'dropdown') {
@@ -58,6 +55,9 @@ export default function ModeToggle({ variant = 'pill' }: ModeToggleProps) {
       <button
         onClick={() => {
           setMode('buyer');
+          if (pathname.startsWith('/organizer')) {
+            router.push('/dashboard');
+          }
         }}
         className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
           mode === 'buyer'
@@ -71,6 +71,9 @@ export default function ModeToggle({ variant = 'pill' }: ModeToggleProps) {
       <button
         onClick={() => {
           setMode('organizer');
+          if (!pathname.startsWith('/organizer')) {
+            router.push('/organizer');
+          }
         }}
         className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
           mode === 'organizer'

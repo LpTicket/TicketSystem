@@ -67,4 +67,16 @@ export class VenueSection {
 
   @Column({ type: 'float', default: 100 })
   mapHeight: number;
+
+  @Column({ type: 'float', default: 0 })
+  curve: number;
+
+  @Column({ type: 'boolean', default: false })
+  isWheelchair: boolean;
+
+  @Column({ length: 20, default: 'round' })
+  tableShape: string;
+
+  @Column({ type: 'text', nullable: true })
+  seatsConfig: string;
 }

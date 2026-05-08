@@ -146,10 +146,28 @@ export class EventsController {
   @Post(':eventId/sections/bulk')
   syncSections(
     @Param('eventId') eventId: string,
-    @Body() data: any[],
+    @Body() body: any,
     @Request() req: any,
   ) {
-    return this.eventsService.syncSections(eventId, data, req.user.id);
+    let sections = [];
+    let defaultViewX = null;
+    let defaultViewY = null;
+    let defaultViewZoom = null;
+
+    if (Array.isArray(body)) {
+      sections = body;
+    } else if (body && typeof body === 'object') {
+      sections = body.sections || [];
+      defaultViewX = body.defaultViewX;
+      defaultViewY = body.defaultViewY;
+      defaultViewZoom = body.defaultViewZoom;
+    }
+
+    return this.eventsService.syncSections(eventId, sections, req.user.id, {
+      defaultViewX,
+      defaultViewY,
+      defaultViewZoom,
+    });
   }
 
   @Get('sections/:sectionId/seats')

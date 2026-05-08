@@ -10,14 +10,9 @@ interface InvoiceItem {
 
 export interface InvoiceData {
   baseTotal: number;
-  serviceFee: number;
-  subtotalWithFees?: number;
-  taxIVA: number;
-  taxIGTF: number;
+  lpFee: number;
+  processingFee: number;
   total: number;
-  ivaRate: number;
-  igtfRate: number;
-  serviceFeeRate: number;
   seatsInfo: InvoiceItem[];
   currency?: string;
 }
@@ -32,7 +27,6 @@ const fmt = (n: number, currency = 'USD') =>
 
 export default function InvoiceBreakdown({ invoice, eventTitle }: InvoiceBreakdownProps) {
   const cur = invoice.currency || 'USD';
-  const subtotalWithFees = invoice.subtotalWithFees ?? (invoice.baseTotal + invoice.serviceFee);
 
   return (
     <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
@@ -66,28 +60,18 @@ export default function InvoiceBreakdown({ invoice, eventTitle }: InvoiceBreakdo
         {/* Calculations */}
         <div className="space-y-2.5">
           <div className="flex justify-between text-xs">
-            <span className="text-gray-400 font-medium">Precio Base</span>
+            <span className="text-gray-400 font-medium">Ticket</span>
             <span className="text-gray-700 font-bold">{fmt(invoice.baseTotal, cur)}</span>
           </div>
           
           <div className="flex justify-between text-xs">
-            <span className="text-gray-400 font-medium">Cargo por Servicio ({(invoice.serviceFeeRate * 100).toFixed(0)}%)</span>
-            <span className="text-gray-700 font-bold">+ {fmt(invoice.serviceFee, cur)}</span>
-          </div>
-
-          <div className="flex justify-between items-center py-2 border-y border-gray-50 my-1">
-            <span className="text-xs font-bold text-gray-900">Subtotal</span>
-            <span className="text-sm font-black text-gray-900">{fmt(subtotalWithFees, cur)}</span>
+            <span className="text-gray-400 font-medium">LPTicket Fee (12%)</span>
+            <span className="text-gray-700 font-bold">{fmt(invoice.lpFee, cur)}</span>
           </div>
 
           <div className="flex justify-between text-xs">
-            <span className="text-gray-400 font-medium">IVA ({(invoice.ivaRate * 100).toFixed(0)}%)</span>
-            <span className="text-gray-700 font-bold">+ {fmt(invoice.taxIVA, cur)}</span>
-          </div>
-
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-400 font-medium">IGTF ({(invoice.igtfRate * 100).toFixed(0)}%)</span>
-            <span className="text-gray-700 font-bold">+ {fmt(invoice.taxIGTF, cur)}</span>
+            <span className="text-gray-400 font-medium">Processing Fee (Stripe)</span>
+            <span className="text-gray-700 font-bold">{fmt(invoice.processingFee, cur)}</span>
           </div>
         </div>
 

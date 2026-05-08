@@ -83,6 +83,15 @@ export class Event {
   @Column({ nullable: true, length: 10 })
   currency: string;
 
+  @Column({ type: 'float', nullable: true })
+  defaultViewX: number;
+
+  @Column({ type: 'float', nullable: true })
+  defaultViewY: number;
+
+  @Column({ type: 'float', nullable: true })
+  defaultViewZoom: number;
+
   @Column('uuid')
   organizerId: string;
 

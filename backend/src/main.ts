@@ -27,8 +27,18 @@ async function bootstrap() {
   );
 
   // CORS
+  const appUrl = configService.get('APP_URL') || 'http://localhost:3000';
+  const origins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    appUrl
+  ];
+  if (appUrl.includes(',')) {
+    origins.push(...appUrl.split(',').map((o: string) => o.trim()));
+  }
+
   app.enableCors({
-    origin: configService.get('APP_URL') || 'http://localhost:3000',
+    origin: origins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
@@ -43,7 +53,7 @@ async function bootstrap() {
   }
 
   const port = configService.get('PORT') || 3001;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`🚀 TicketPro API running on http://localhost:${port}`);
 }
 bootstrap();

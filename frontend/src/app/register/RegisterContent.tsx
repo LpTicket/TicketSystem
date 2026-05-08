@@ -63,9 +63,9 @@ export default function RegisterContent() {
         firstName: form.firstName,
         lastName: form.lastName,
         phone: form.phone,
-        address: form.address,
+        address: form.address as any,
         role: 'client' as any,
-      });
+      } as any);
       router.push('/');
     } catch (err: any) {
       setError(err.response?.data?.message || t('registerError'));
@@ -157,7 +157,7 @@ export default function RegisterContent() {
               {t('captcha')}
             </label>
             <div className="space-y-3">
-              <VisualCaptcha ref={captchaRef} />
+              <VisualCaptcha ref={captchaRef} onVerify={() => {}} />
               <input
                 type="text"
                 value={captchaInput}

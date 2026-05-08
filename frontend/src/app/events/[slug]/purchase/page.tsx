@@ -29,6 +29,26 @@ export default function PurchasePage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
 
+  const getSeatPrice = (seat: Seat, section?: VenueSection) => {
+    if (!section) return 0;
+    try {
+      if (section.seatsConfig) {
+        const config = JSON.parse(section.seatsConfig);
+        let seatKey = '';
+        if (seat.rowLabel && seat.rowLabel !== 'GA') {
+          seatKey = `${seat.rowLabel}-${seat.seatNumber}`;
+        } else {
+          seatKey = `seat-${seat.seatNumber}`;
+        }
+        const override = config[seatKey];
+        if (override && override.price !== undefined && override.price !== null) {
+          return Number(override.price);
+        }
+      }
+    } catch (e) {}
+    return Number(section.price || 0);
+  };
+
   const [event, setEvent] = useState<Event | null>(null);
   const [seatMap, setSeatMap] = useState<(VenueSection & { seats: Seat[] })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +106,27 @@ export default function PurchasePage() {
     } catch { router.push('/events'); }
     finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    if (event?.id && seatMap.length > 0) {
+      const saved = localStorage.getItem(`selectedSeats_${event.id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.length > 0) {
+            setSelectedSeats(parsed);
+            const firstSeat = parsed[0];
+            const section = seatMap.find((s) => s.id === firstSeat.sectionId);
+            if (section) {
+              setSelectedSection(section);
+              setStep('seats');
+            }
+          }
+        } catch (e) {}
+        localStorage.removeItem(`selectedSeats_${event.id}`);
+      }
+    }
+  }, [event, seatMap]);
 
   // ── Step navigation ────────────────────────────────────────────────────────
   const stepIndex = STEPS.findIndex((s) => s.key === step);
@@ -305,6 +346,9 @@ export default function PurchasePage() {
                 selectedSeats={selectedSeats}
                 onToggleSeat={toggleSeat}
                 filterSectionId={selectedSection.id}
+                defaultViewX={event.defaultViewX}
+                defaultViewY={event.defaultViewY}
+                defaultViewZoom={event.defaultViewZoom}
               />
 
               {/* Selected seats chips */}
@@ -480,7 +524,7 @@ export default function PurchasePage() {
                     return (
                       <div key={seat.id} className="flex justify-between text-xs">
                         <span className="text-gray-600">{sec?.name} — {seat.rowLabel}{seat.seatNumber}</span>
-                        <span className="font-medium text-gray-800">${Number(sec?.price || 0).toFixed(2)}</span>
+                        <span className="font-medium text-gray-800">${getSeatPrice(seat, sec).toFixed(2)}</span>
                       </div>
                     );
                   })}

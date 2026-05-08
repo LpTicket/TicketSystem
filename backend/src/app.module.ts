@@ -19,17 +19,24 @@ import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, Pa
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get('DB_HOST'),
-        port: config.get<number>('DB_PORT'),
-        username: config.get('DB_USERNAME'),
-        password: config.get('DB_PASSWORD'),
-        database: config.get('DB_NAME'),
-        entities: [User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod],
-        synchronize: true, // Set to false in production, use migrations
-        logging: false,
-      }),
+      useFactory: (config: ConfigService) => {
+        const url = config.get<string>('DATABASE_URL') || config.get<string>('DB_URL');
+        const isProd = config.get<string>('NODE_ENV') === 'production';
+        return {
+          type: 'postgres',
+          ...(url ? { url } : {
+            host: config.get<string>('DB_HOST'),
+            port: config.get<number>('DB_PORT'),
+            username: config.get<string>('DB_USERNAME'),
+            password: config.get<string>('DB_PASSWORD'),
+            database: config.get<string>('DB_NAME'),
+          }),
+          entities: [User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod],
+          synchronize: true,
+          logging: false,
+          ssl: isProd ? { rejectUnauthorized: false } : false,
+        };
+      },
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),

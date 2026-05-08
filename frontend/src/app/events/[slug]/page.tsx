@@ -9,10 +9,13 @@ import { useCategories } from '@/context/CategoryContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineClock, HiOutlineTicket } from 'react-icons/hi';
+import SeatMapInteractive from '@/components/events/SeatMapInteractive';
+import { useLang } from '@/context/LanguageContext';
 
 export default function EventDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
+  const { lang } = useLang();
   const { user, isAuthenticated } = useAuthStore();
   const { getCategoryInfo } = useCategories();
   const [event, setEvent] = useState<Event | null>(null);
@@ -35,6 +38,26 @@ export default function EventDetailPage() {
     finally { setLoading(false); }
   };
 
+  const getSeatPrice = (seat: Seat, section?: VenueSection) => {
+    if (!section) return 0;
+    try {
+      if (section.seatsConfig) {
+        const config = JSON.parse(section.seatsConfig);
+        let seatKey = '';
+        if (seat.rowLabel && seat.rowLabel !== 'GA') {
+          seatKey = `${seat.rowLabel}-${seat.seatNumber}`;
+        } else {
+          seatKey = `seat-${seat.seatNumber}`;
+        }
+        const override = config[seatKey];
+        if (override && override.price !== undefined && override.price !== null) {
+          return Number(override.price);
+        }
+      }
+    } catch (e) {}
+    return Number(section.price || 0);
+  };
+
   const toggleSeat = (seat: Seat) => {
     if (seat.status !== SeatStatus.AVAILABLE) return;
     setSelectedSeats((prev) => prev.find((s) => s.id === seat.id) ? prev.filter((s) => s.id !== seat.id) : [...prev, seat]);
@@ -44,10 +67,13 @@ export default function EventDetailPage() {
 
   const getTotalPrice = () => selectedSeats.reduce((total, seat) => {
     const section = seatMap.find((s) => s.id === seat.sectionId);
-    return total + (section ? Number(section.price) : 0);
+    return total + getSeatPrice(seat, section);
   }, 0);
 
   const handleBuyTickets = () => {
+    if (selectedSeats.length > 0 && event?.id) {
+      localStorage.setItem(`selectedSeats_${event.id}`, JSON.stringify(selectedSeats));
+    }
     if (!isAuthenticated) { router.push(`/login?redirect=/events/${slug}/purchase`); return; }
     router.push(`/events/${slug}/purchase`);
   };
@@ -116,46 +142,19 @@ export default function EventDetailPage() {
 
           {/* Seat Map */}
           {seatMap.length > 0 && (
-            <div className="border border-gray-200 rounded-lg p-6">
-              <h2 className="font-bold text-lg text-gray-900 mb-4">Selecciona tus asientos</h2>
-              <div className="stage mb-6 mx-auto max-w-md">ESCENARIO</div>
-
-              {/* Legend */}
-              <div className="flex flex-wrap gap-4 mb-6 justify-center">
-                <div className="flex items-center gap-2 text-xs text-gray-600"><div className="seat seat-available w-5 h-5" /> Disponible</div>
-                <div className="flex items-center gap-2 text-xs text-gray-600"><div className="seat seat-selected w-5 h-5" /> Seleccionado</div>
-                <div className="flex items-center gap-2 text-xs text-gray-600"><div className="seat seat-sold w-5 h-5" /> Vendido</div>
-                <div className="flex items-center gap-2 text-xs text-gray-600"><div className="seat seat-locked w-5 h-5" /> Reservado</div>
-              </div>
-
-              {seatMap.map((section) => (
-                <div key={section.id} className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full" style={{ background: section.color }} />{section.name}
-                    </h3>
-                    <span className="text-xs text-primary-600 font-bold">${Number(section.price).toFixed(2)} {event.currency || 'USD'}</span>
-                  </div>
-                  {section.seats && section.seats.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <div className="flex flex-col items-center gap-1 min-w-fit px-4">
-                        {Array.from(new Set(section.seats.map((s) => s.rowLabel))).map((row) => (
-                          <div key={row} className="flex items-center gap-1">
-                            <span className="w-6 text-xs text-gray-400 text-right font-mono">{row}</span>
-                            {section.seats.filter((s) => s.rowLabel === row).sort((a, b) => a.seatNumber - b.seatNumber).map((seat) => (
-                              <button key={seat.id} onClick={() => toggleSeat(seat)} disabled={seat.status !== SeatStatus.AVAILABLE && !isSeatSelected(seat.id)}
-                                className={`seat ${isSeatSelected(seat.id) ? 'seat-selected' : seat.status === SeatStatus.AVAILABLE ? 'seat-available' : seat.status === SeatStatus.SOLD ? 'seat-sold' : 'seat-locked'}`}
-                                title={`${section.name} — Fila ${seat.rowLabel}, Asiento ${seat.seatNumber}`}>
-                                <span className="text-[9px] font-mono">{seat.seatNumber}</span>
-                              </button>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : <p className="text-gray-400 text-sm">Entrada general</p>}
-                </div>
-              ))}
+            <div className="border border-gray-200 rounded-lg p-6 bg-white shadow-sm space-y-4">
+              <h2 className="font-bold text-lg text-gray-900">
+                {lang === 'es' ? 'Selecciona tus asientos' : 'Select your seats'}
+              </h2>
+              
+              <SeatMapInteractive
+                seatMap={seatMap}
+                selectedSeats={selectedSeats}
+                onToggleSeat={toggleSeat}
+                defaultViewX={event.defaultViewX}
+                defaultViewY={event.defaultViewY}
+                defaultViewZoom={event.defaultViewZoom}
+              />
             </div>
           )}
         </div>
@@ -187,7 +186,7 @@ export default function EventDetailPage() {
                       return (
                         <div key={seat.id} className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">{section?.name} — {seat.rowLabel}{seat.seatNumber}</span>
-                          <span className="font-medium text-gray-800">${section ? Number(section.price).toFixed(2) : '0.00'}</span>
+                        <span className="font-medium text-gray-800">${getSeatPrice(seat, section).toFixed(2)}</span>
                         </div>
                       );
                     })}

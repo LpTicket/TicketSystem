@@ -55,6 +55,9 @@ export interface Event {
   organizerId: string;
   organizer?: User;
   sections?: VenueSection[];
+  defaultViewX?: number;
+  defaultViewY?: number;
+  defaultViewZoom?: number;
   createdAt: string;
   updatedAt?: string;
 }
@@ -81,6 +84,10 @@ export interface VenueSection {
   mapY: number;
   mapWidth: number;
   mapHeight: number;
+  curve?: number;
+  isWheelchair?: boolean;
+  tableShape?: 'round' | 'rectangular';
+  seatsConfig?: string;
   seats?: Seat[];
 }
 

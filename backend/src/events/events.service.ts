@@ -211,11 +211,23 @@ export class EventsService {
     });
   }
 
-  async syncSections(eventId: string, sectionsData: any[], userId: string) {
+  async syncSections(
+    eventId: string,
+    sectionsData: any[],
+    userId: string,
+    viewportOpts?: { defaultViewX?: number; defaultViewY?: number; defaultViewZoom?: number },
+  ) {
     const event = await this.findById(eventId);
     const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
     if (event.organizerId !== userId && user?.role !== 'admin') {
       throw new ForbiddenException('No tienes permiso para gestionar este mapa');
+    }
+
+    if (viewportOpts) {
+      if (typeof viewportOpts.defaultViewX === 'number') event.defaultViewX = viewportOpts.defaultViewX;
+      if (typeof viewportOpts.defaultViewY === 'number') event.defaultViewY = viewportOpts.defaultViewY;
+      if (typeof viewportOpts.defaultViewZoom === 'number') event.defaultViewZoom = viewportOpts.defaultViewZoom;
+      await this.eventRepo.save(event);
     }
 
     const existingSections = await this.sectionRepo.find({ where: { eventId } });

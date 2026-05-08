@@ -11,6 +11,7 @@ import {
   HiOutlineArrowLeft,
   HiOutlinePhotograph,
   HiOutlineMap,
+  HiOutlineX,
 } from 'react-icons/hi';
 import Link from 'next/link';
 import VenueMapBuilder from '@/components/events/VenueMapBuilder';

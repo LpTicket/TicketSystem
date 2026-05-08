@@ -9,9 +9,9 @@ import { nanoid } from 'nanoid';
 import * as QRCode from 'qrcode';
 import { MailService } from '../common/services/mail.service';
 
-const IVA_RATE = 0.16;   // 16%
-const IGTF_RATE = 0.03;  // 3%
-const SERVICE_FEE_RATE = 0.10; // 10%
+const LPTICKET_FEE_RATE = 0.12; // 12%
+const STRIPE_PERCENTAGE = 0.029; // 2.9%
+const STRIPE_FIXED = 0.30; // $0.30
 
 @Injectable()
 export class OrdersService {
@@ -36,6 +36,29 @@ export class OrdersService {
     this.stripe = new Stripe(key || '', {
       apiVersion: '2024-12-18.acacia' as any,
     });
+  }
+
+  getSeatPrice(seat: Seat): number {
+    const defaultPrice = Number(seat.section.price);
+    try {
+      if (!seat.section.seatsConfig) return defaultPrice;
+      const config = JSON.parse(seat.section.seatsConfig);
+      
+      let seatKey = '';
+      if (seat.rowLabel && seat.rowLabel !== 'GA') {
+        seatKey = `${seat.rowLabel}-${seat.seatNumber}`;
+      } else {
+        seatKey = `seat-${seat.seatNumber}`;
+      }
+
+      const override = config[seatKey];
+      if (override && override.price !== undefined && override.price !== null) {
+        return Number(override.price);
+      }
+    } catch (e) {
+      // JSON parse fallback
+    }
+    return defaultPrice;
   }
 
   async createCheckoutSession(
@@ -69,7 +92,7 @@ export class OrdersService {
         if (!seat) throw new NotFoundException('Asiento no encontrado');
         if (seat.status === SeatStatus.SOLD) throw new BadRequestException('Asiento ya vendido');
 
-        const price = Number(seat.section.price);
+        const price = this.getSeatPrice(seat);
         baseTotal += price;
         seatsInfo.push({
           seatId: seat.id,
@@ -101,11 +124,19 @@ export class OrdersService {
     }
 
     // Calculate fees & taxes
-    const serviceFee = Math.round(baseTotal * SERVICE_FEE_RATE * 100) / 100;
-    const subtotalWithFees = baseTotal + serviceFee;
-    const taxIVA = Math.round(subtotalWithFees * IVA_RATE * 100) / 100;
-    const taxIGTF = Math.round(subtotalWithFees * IGTF_RATE * 100) / 100;
-    const total = Math.round((subtotalWithFees + taxIVA + taxIGTF) * 100) / 100;
+    let lpFee = 0;
+    let processingFee = 0;
+    let total = 0;
+
+    if (baseTotal > 0) {
+      lpFee = Math.round(baseTotal * LPTICKET_FEE_RATE * 100) / 100;
+      const subtotalWithLp = baseTotal + lpFee;
+      // Stripe processing fee calculates backwards so the organizer gets exactly baseTotal + lpFee
+      // Total = (Subtotal + 0.30) / (1 - 0.029)
+      const exactTotal = (subtotalWithLp + STRIPE_FIXED) / (1 - STRIPE_PERCENTAGE);
+      total = Math.round(exactTotal * 100) / 100;
+      processingFee = Math.round((total - subtotalWithLp) * 100) / 100;
+    }
 
     const currency = (event.currency || 'USD').toLowerCase();
 
@@ -126,34 +157,23 @@ export class OrdersService {
       },
     ];
 
-    if (serviceFee > 0) {
+    if (lpFee > 0) {
       lineItems.push({
         price_data: {
           currency,
-          product_data: { name: 'Cargo por servicio (10%)' },
-          unit_amount: Math.round(serviceFee * 100),
+          product_data: { name: 'LPTicket Fee (12%)' },
+          unit_amount: Math.round(lpFee * 100),
         },
         quantity: 1,
       });
     }
 
-    if (taxIVA > 0) {
+    if (processingFee > 0) {
       lineItems.push({
         price_data: {
           currency,
-          product_data: { name: 'IVA (16%)' },
-          unit_amount: Math.round(taxIVA * 100),
-        },
-        quantity: 1,
-      });
-    }
-
-    if (taxIGTF > 0) {
-      lineItems.push({
-        price_data: {
-          currency,
-          product_data: { name: 'IGTF (3%)' },
-          unit_amount: Math.round(taxIGTF * 100),
+          product_data: { name: 'Processing Fee (Stripe)' },
+          unit_amount: Math.round(processingFee * 100),
         },
         quantity: 1,
       });
@@ -164,9 +184,8 @@ export class OrdersService {
       userId,
       eventId,
       subtotal: baseTotal,
-      serviceFee,
-      taxIVA,
-      taxIGTF,
+      lpFee,
+      processingFee,
       total,
       status: OrderStatus.PENDING,
       ticketCount: seatsInfo.length,
@@ -195,13 +214,9 @@ export class OrdersService {
       // Also return full invoice breakdown for frontend display
       invoice: {
         baseTotal,
-        serviceFee,
-        taxIVA,
-        taxIGTF,
+        lpFee,
+        processingFee,
         total,
-        ivaRate: IVA_RATE,
-        igtfRate: IGTF_RATE,
-        serviceFeeRate: SERVICE_FEE_RATE,
         seatsInfo,
       },
     };
@@ -224,7 +239,7 @@ export class OrdersService {
           relations: ['section'],
         });
         if (!seat) throw new NotFoundException('Asiento no encontrado');
-        const price = Number(seat.section.price);
+        const price = this.getSeatPrice(seat);
         baseTotal += price;
         seatsInfo.push({
           seatId: seat.id,
@@ -252,22 +267,23 @@ export class OrdersService {
       }
     }
 
-    const serviceFee = Math.round(baseTotal * SERVICE_FEE_RATE * 100) / 100;
-    const subtotalWithFees = baseTotal + serviceFee;
-    const taxIVA = Math.round(subtotalWithFees * IVA_RATE * 100) / 100;
-    const taxIGTF = Math.round(subtotalWithFees * IGTF_RATE * 100) / 100;
-    const total = Math.round((subtotalWithFees + taxIVA + taxIGTF) * 100) / 100;
+    let lpFee = 0;
+    let processingFee = 0;
+    let total = 0;
+
+    if (baseTotal > 0) {
+      lpFee = Math.round(baseTotal * LPTICKET_FEE_RATE * 100) / 100;
+      const subtotalWithLp = baseTotal + lpFee;
+      const exactTotal = (subtotalWithLp + STRIPE_FIXED) / (1 - STRIPE_PERCENTAGE);
+      total = Math.round(exactTotal * 100) / 100;
+      processingFee = Math.round((total - subtotalWithLp) * 100) / 100;
+    }
 
     return {
       baseTotal,
-      serviceFee,
-      subtotalWithFees,
-      taxIVA,
-      taxIGTF,
+      lpFee,
+      processingFee,
       total,
-      ivaRate: IVA_RATE,
-      igtfRate: IGTF_RATE,
-      serviceFeeRate: SERVICE_FEE_RATE,
       seatsInfo,
     };
   }

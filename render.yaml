@@ -1,0 +1,75 @@
+# Render Blueprint Specification for TicketSystem
+# Read the complete deployment walkthrough for setup details.
+
+services:
+  # ────────────────────────────────────────────────────────────────────────────
+  # 1. NestJS Backend Web Service
+  # ────────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: ticketpro-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ticketpro-db
+          property: connectionString
+      - key: APP_URL
+        value: https://ticketpro-client.onrender.com # Change this to your actual Render frontend URL
+      - key: API_URL
+        value: https://ticketpro-api.onrender.com # Change this to your actual Render backend URL
+      # Sensitive secrets - generated on creation or filled in Render Dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: 1h
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_EXPIRATION
+        value: 7d
+      # External Integrations (Stripe, Email)
+      - key: STRIPE_SECRET_KEY
+        sync: false # Set this in Render Dashboard
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false # Set this in Render Dashboard
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false # Set this in Render Dashboard
+      - key: RESEND_API_KEY
+        sync: false # Set this in Render Dashboard
+      - key: EMAIL_FROM
+        value: tickets@ticketpro.com
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 2. Next.js Frontend Web Service
+  # ────────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: ticketpro-frontend
+    runtime: node
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: https://ticketpro-api.onrender.com/api # Change to your actual Render API URL /api
+      - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+        sync: false # Set this in Render Dashboard
+
+databases:
+  # ────────────────────────────────────────────────────────────────────────────
+  # 3. PostgreSQL Database
+  # ────────────────────────────────────────────────────────────────────────────
+  - name: ticketpro-db
+    plan: free
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: Allow external database traffic and local migrations
