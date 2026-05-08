@@ -11,72 +11,7 @@ import { useLang } from '@/context/LanguageContext';
 import { HiOutlineTicket } from 'react-icons/hi';
 
 // Demo events — se muestran cuando no hay eventos reales del API
-const DEMO_EVENTS: Event[] = [
-  {
-    id: 'demo-1', title: 'Noche de Salsa — Gran Concierto', slug: 'noche-de-salsa',
-    category: 'concierto', venueName: 'Teatro Baralt', venueAddress: 'Maracaibo',
-    eventDate: new Date(Date.now() + 7 * 86400000).toISOString(),
-    imageUrl: 'https://images.unsplash.com/photo-1540039155732-684735084730?w=800&q=80', minPrice: 15, currency: 'USD',
-    status: EventStatus.PUBLISHED, isFeatured: true, organizerId: '', description: '',
-    createdAt: '', updatedAt: '',
-  },
-  {
-    id: 'demo-2', title: '¡NO ME JODAS! Stand Up Comedy', slug: 'no-me-jodas',
-    category: 'teatro', venueName: 'V-House Grill & Bar', venueAddress: 'Maracaibo',
-    eventDate: new Date(Date.now() + 10 * 86400000).toISOString(),
-    imageUrl: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=800&q=80', minPrice: 20, currency: 'USD',
-    status: EventStatus.PUBLISHED, isFeatured: true, organizerId: '', description: '',
-    createdAt: '', updatedAt: '',
-  },
-  {
-    id: 'demo-3', title: 'El Fantasma de la Ópera', slug: 'el-fantasma',
-    category: 'teatro', venueName: 'Teatro Bellas Artes', venueAddress: 'Caracas',
-    eventDate: new Date(Date.now() + 14 * 86400000).toISOString(),
-    imageUrl: 'https://images.unsplash.com/photo-1507676184212-d0330a15233c?w=800&q=80', minPrice: 25, currency: 'USD',
-    status: EventStatus.PUBLISHED, isFeatured: false, organizerId: '', description: '',
-    createdAt: '', updatedAt: '',
-  },
-  {
-    id: 'demo-4', title: 'Gran Final — Copa Nacional', slug: 'copa-nacional',
-    category: 'deporte', venueName: 'Estadio Pachencho Romero', venueAddress: 'Maracaibo',
-    eventDate: new Date(Date.now() + 21 * 86400000).toISOString(),
-    imageUrl: 'https://images.unsplash.com/photo-1508344928928-7165b67de128?w=800&q=80', minPrice: 10, currency: 'USD',
-    status: EventStatus.PUBLISHED, isFeatured: false, organizerId: '', description: '',
-    createdAt: '', updatedAt: '',
-  },
-  {
-    id: 'demo-5', title: 'Festival de Jazz Nocturno', slug: 'festival-jazz',
-    category: 'concierto', venueName: 'Centro de Arte', venueAddress: 'Valencia',
-    eventDate: new Date(Date.now() + 5 * 86400000).toISOString(),
-    imageUrl: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=800&q=80', minPrice: 30, currency: 'USD',
-    status: EventStatus.PUBLISHED, isFeatured: false, organizerId: '', description: '',
-    createdAt: '', updatedAt: '',
-  },
-  {
-    id: 'demo-6', title: 'Show de Comedia con Luis Pérez', slug: 'luis-perez',
-    category: 'teatro', venueName: 'Teatro Baralt', venueAddress: 'Maracaibo',
-    eventDate: new Date(Date.now() + 12 * 86400000).toISOString(),
-    imageUrl: 'https://images.unsplash.com/photo-1585699324551-f6c309eedeca?w=800&q=80', minPrice: 12, currency: 'USD',
-    status: EventStatus.PUBLISHED, isFeatured: false, organizerId: '', description: '',
-    createdAt: '', updatedAt: '',
-  },
-  {
-    id: 'demo-7', title: 'Obra de Teatro Infantil: El Mundo de Oz', slug: 'mundo-oz',
-    category: 'infantil', venueName: 'Teatro Municipal', venueAddress: 'Barquisimeto',
-    eventDate: new Date(Date.now() + 8 * 86400000).toISOString(),
-    imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80', minPrice: 8, currency: 'USD',
-    status: EventStatus.PUBLISHED, isFeatured: false, organizerId: '', description: '',
-    createdAt: '', updatedAt: '',
-  },
-  {
-    id: 'demo-8', title: 'Campeonato de Fútbol Sala', slug: 'futbol-sala',
-    category: 'deporte', venueName: 'Polideportivo Municipal', venueAddress: 'Mérida',
-    eventDate: new Date(Date.now() + 18 * 86400000).toISOString(),
-    imageUrl: 'https://images.unsplash.com/photo-1536560035542-1326fab3a507?w=800&q=80', minPrice: 5, currency: 'USD',
-    status: EventStatus.PUBLISHED, isFeatured: false, organizerId: '', description: '',
-    createdAt: '', updatedAt: '',
-  },
-];
+const DEMO_EVENTS: Event[] = [];
 
 export default function HomePage() {
   const { t, lang } = useLang();
@@ -143,7 +78,24 @@ export default function HomePage() {
   return (
     <div>
       {/* Banner */}
-      {bannerEvent && (
+      {loading ? (
+        <section className="bg-white">
+          <div className="max-w-[1400px] mx-auto">
+            <div className="relative aspect-[21/8] overflow-hidden bg-gray-100 animate-pulse flex items-center">
+              <div className="pl-6 sm:pl-16 max-w-lg space-y-3 w-full">
+                <div className="h-8 sm:h-12 bg-gray-200 rounded w-3/4" />
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+                <div className="h-9 sm:h-11 bg-gray-200 rounded w-1/3" />
+              </div>
+            </div>
+          </div>
+          <div className="hidden sm:flex justify-center gap-1.5 py-4 bg-white max-w-[1400px] mx-auto flex-wrap px-4">
+            {[...Array(20)].map((_, i) => (
+              <div key={i} className="h-1 w-6 sm:w-8 bg-gray-100 animate-pulse" />
+            ))}
+          </div>
+        </section>
+      ) : bannerEvent ? (
         <section className="bg-white">
           <div className="max-w-[1400px] mx-auto">
             <Link href={usingDemo ? '#' : `/events/${bannerEvent.slug}`} className="block">
@@ -181,7 +133,7 @@ export default function HomePage() {
             )}
           </div>
         </section>
-      )}
+      ) : null}
 
 
       {/* Category pills & Sort */}
