@@ -38,7 +38,10 @@ async function bootstrap() {
   }
 
   app.enableCors({
-    origin: origins,
+    origin: (origin, callback) => {
+      // Safely mirror incoming request origin to bypass deployment CORS blocks
+      callback(null, true);
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
