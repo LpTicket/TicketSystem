@@ -14,6 +14,8 @@ import {
   HiOutlineCalendar,
   HiOutlineTrash,
   HiOutlinePencilAlt,
+  HiOutlineStar,
+  HiStar,
 } from 'react-icons/hi';
 import Link from 'next/link';
 
@@ -55,6 +57,15 @@ export default function AdminEventsPage() {
     if (!confirm(lang === 'es' ? `¿Estás seguro de eliminar el evento "${title}"?` : `Are you sure you want to delete "${title}"?`)) return;
     try { await api.delete(`/admin/events/${id}`); await loadEvents(); }
     catch (err: any) { alert(err.response?.data?.message || 'Error'); }
+  };
+
+  const handleToggleFeatured = async (id: string) => {
+    try {
+      await api.patch(`/admin/events/${id}/toggle-featured`);
+      await loadEvents();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error');
+    }
   };
 
   const dateFnsLocale = lang === 'es' ? es : enUS;
@@ -175,9 +186,23 @@ export default function AdminEventsPage() {
                             </>
                           )}
                           {ev.status === 'published' && (
-                            <span className="text-xs text-green-600 font-medium flex items-center gap-1 mr-2">
-                              <HiOutlineCheckCircle className="w-4 h-4" /> {t('adminPublished')}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-green-600 font-semibold flex items-center gap-1 mr-1">
+                                <HiOutlineCheckCircle className="w-4 h-4" /> {t('adminPublished')}
+                              </span>
+                              <button
+                                onClick={() => handleToggleFeatured(ev.id)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 active:scale-95 ${
+                                  ev.isFeatured
+                                    ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200 shadow-sm'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-transparent'
+                                }`}
+                                title={lang === 'es' ? 'Mostrar en banner de inicio' : 'Show in homepage banner'}
+                              >
+                                {ev.isFeatured ? <HiStar className="w-4.5 h-4.5 text-amber-500 fill-amber-500 shrink-0" /> : <HiOutlineStar className="w-4.5 h-4.5 text-gray-500 shrink-0" />}
+                                <span>{ev.isFeatured ? (lang === 'es' ? 'Banner Activo' : 'Banner Active') : (lang === 'es' ? 'Poner Banner' : 'Set Banner')}</span>
+                              </button>
+                            </div>
                           )}
                           <Link
                             href={`/organizer/events/${ev.id}`}

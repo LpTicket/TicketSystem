@@ -8,6 +8,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineTag } from 'react-icons/hi';
 
+import { getImageUrl } from '@/lib/api';
+
 interface EventCardProps {
   event: Event;
 }
@@ -28,7 +30,7 @@ export default function EventCard({ event }: EventCardProps) {
       <div className="relative aspect-[4/3] sm:aspect-[3/4] overflow-hidden">
         {event.imageUrl ? (
           <img
-            src={event.imageUrl.startsWith('http') ? event.imageUrl : event.imageUrl.startsWith('/demo') ? event.imageUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${event.imageUrl}`}
+            src={getImageUrl(event.imageUrl)}
             alt={event.title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             onError={(e) => {

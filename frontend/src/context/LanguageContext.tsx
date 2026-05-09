@@ -466,13 +466,13 @@ interface LanguageContextType {
 }
 
 const LanguageContext = createContext<LanguageContextType>({
-  lang: 'es',
+  lang: 'en',
   setLang: () => { },
-  t: (key) => translations.es[key],
+  t: (key) => translations.en[key] ?? translations.es[key],
 });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>('es');
+  const [lang, setLangState] = useState<Lang>('en');
 
   useEffect(() => {
     const stored = localStorage.getItem('lpticket_lang') as Lang;

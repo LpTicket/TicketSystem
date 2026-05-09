@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
-import { HiOutlineSearch, HiOutlineMenu, HiOutlineX, HiOutlineUser, HiOutlineLogout, HiOutlineCog, HiOutlineTicket } from 'react-icons/hi';
+import { HiOutlineSearch, HiOutlineMenu, HiOutlineX, HiOutlineUser, HiOutlineLogout, HiOutlineCog, HiOutlineTicket, HiOutlineShoppingCart, HiOutlineQrcode } from 'react-icons/hi';
 import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
 import api from '@/lib/api';
 
@@ -63,9 +63,11 @@ export default function Header() {
                 className="h-14 sm:h-16 w-auto object-contain" 
               />
             </Link>
-            <nav className="hidden lg:flex items-center gap-2 ml-6">
-              <Link href="/about" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors w-[120px] text-center">{t('whoWeAre')}</Link>
-              <Link href="/contact" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors w-[80px] text-center">{t('contact')}</Link>
+            <nav className="hidden lg:flex items-center gap-1.5 ml-6">
+              <Link href="/about" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors px-3 text-center shrink-0">{t('whoWeAre')}</Link>
+              <Link href={isAuthenticated ? "/dashboard?tab=tickets" : "/login?redirect=/dashboard?tab=tickets"} className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors px-3 text-center shrink-0">{lang === 'es' ? 'Mis Tickets' : 'My Tickets'}</Link>
+              <Link href="/contact" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors px-3 text-center shrink-0">{t('contact')}</Link>
+              <Link href="/support" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors px-3 text-center shrink-0">{lang === 'es' ? 'Soporte' : 'Support'}</Link>
             </nav>
           </div>
 
@@ -125,7 +127,40 @@ export default function Header() {
           </div>
 
           {/* Right Side */}
-          <div className="hidden lg:flex items-center gap-4 w-[450px] justify-end shrink-0">
+          <div className="hidden lg:flex items-center gap-3 w-[450px] justify-end shrink-0">
+            {/* NEW: Scanner Portal (Only if logged in) */}
+            {isAuthenticated && (
+              <Link 
+                href="/verify" 
+                className="w-9 h-9 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-all shadow-sm group relative"
+                title={lang === 'es' ? 'Escanear Entradas' : 'Scan Tickets'}
+              >
+                <HiOutlineQrcode className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span className="absolute bottom-11 scale-0 group-hover:scale-100 transition-all bg-gray-900 text-white text-[10px] font-bold py-1 px-2.5 rounded shadow-lg whitespace-nowrap z-50">
+                  {lang === 'es' ? 'Escáner de Entradas' : 'Ticket Scanner'}
+                </span>
+              </Link>
+            )}
+
+            {/* NEW: Shopping Cart */}
+            <div className="relative group shrink-0">
+              <Link 
+                href="/dashboard?tab=orders" 
+                className="w-9 h-9 rounded-full bg-gray-50 hover:bg-gray-100 text-gray-600 hover:text-blue-600 flex items-center justify-center transition-all relative"
+                title={lang === 'es' ? 'Carrito de Compra' : 'Shopping Cart'}
+              >
+                <HiOutlineShoppingCart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary-600 text-white rounded-full text-[9px] font-bold flex items-center justify-center animate-pulse">
+                  0
+                </span>
+              </Link>
+              {/* Dropdown on hover */}
+              <div className="absolute right-0 top-11 w-64 bg-white rounded-2xl shadow-elevated border border-gray-100 p-4 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all duration-200 z-50">
+                <h4 className="font-bold text-xs text-gray-900 mb-1">{lang === 'es' ? 'Carrito de Compra' : 'Shopping Cart'}</h4>
+                <p className="text-[11px] text-gray-500">{lang === 'es' ? 'No tienes entradas en el carrito listas para pagar.' : 'No tickets in your cart ready for checkout.'}</p>
+              </div>
+            </div>
+
             {/* Language switcher */}
             <div className="flex items-center border border-gray-300 rounded overflow-hidden text-xs font-bold shrink-0">
               <button

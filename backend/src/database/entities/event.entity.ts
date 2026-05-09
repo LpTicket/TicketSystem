@@ -92,6 +92,9 @@ export class Event {
   @Column({ type: 'float', nullable: true })
   defaultViewZoom: number;
 
+  @Column({ default: false })
+  hasSeatMap: boolean;
+
   @Column('uuid')
   organizerId: string;
 

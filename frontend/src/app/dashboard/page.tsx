@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import api from '@/lib/api';
+import api, { getImageUrl } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { Ticket, Order } from '@/types';
@@ -247,7 +247,7 @@ function DashboardPageBody() {
               <div className="relative group mb-4">
                 <div className="w-24 h-24 rounded-full bg-primary-100 border-4 border-white shadow-lg flex items-center justify-center overflow-hidden">
                   {user.avatarUrl ? (
-                    <img src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/uploads/${user.avatarUrl}`} alt="Profile" className="w-full h-full object-cover" />
+                    <img src={getImageUrl(`/uploads/${user.avatarUrl}`)} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-3xl font-bold text-primary-600 uppercase">{user.firstName[0]}{user.lastName[0]}</span>
                   )}
@@ -310,17 +310,7 @@ function DashboardPageBody() {
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('phone')}</label>
                     <input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} className="input bg-gray-50 border-transparent focus:bg-white" />
                   </div>
-                  <div className="space-y-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Identificación' : 'Identification'}</label>
-                    <div className="flex gap-2">
-                      <select value={profileForm.idType} onChange={(e) => setProfileForm({ ...profileForm, idType: e.target.value })} className="w-20 input bg-gray-50 border-transparent focus:bg-white px-2 text-center">
-                        <option value="V">V</option>
-                        <option value="E">E</option>
-                        <option value="P">P</option>
-                      </select>
-                      <input type="text" value={profileForm.idNumber} onChange={(e) => setProfileForm({ ...profileForm, idNumber: e.target.value })} className="flex-1 input bg-gray-50 border-transparent focus:bg-white" />
-                    </div>
-                  </div>
+
                   <div className="sm:col-span-2 space-y-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Dirección' : 'Address'}</label>
                     <textarea value={profileForm.address} onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })} className="w-full input bg-gray-50 border-transparent focus:bg-white min-h-[80px] py-3" />
@@ -376,15 +366,7 @@ function DashboardPageBody() {
                       <HiOutlinePencil className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => setEditMode(true)} />
                     </p>
                   </div>
-                  <div className="group cursor-default">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'es' ? 'Identificación' : 'Identification'}</span>
-                    </div>
-                    <p className="text-gray-900 font-semibold flex items-center justify-between">
-                      {user.idType || 'V'}-{user.idNumber || '—'}
-                      <HiOutlinePencil className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => setEditMode(true)} />
-                    </p>
-                  </div>
+
                   <div className="group cursor-default sm:col-span-2">
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{lang === 'es' ? 'Dirección' : 'Address'}</span>

@@ -89,6 +89,13 @@ export class OrdersController {
     return this.ordersService.getUserTickets(req.user.id);
   }
 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('user/:userId/tickets')
+  getUserTicketsForAdmin(@Param('userId') userId: string) {
+    return this.ordersService.getUserTickets(userId);
+  }
+
   @Get('ticket/:code')
   getTicketByCode(@Param('code') code: string) {
     return this.ordersService.getTicketByCode(code);
@@ -136,5 +143,26 @@ export class OrdersController {
   @Get(':id')
   getOrder(@Param('id') id: string) {
     return this.ordersService.getOrderById(id);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Post('seats/:seatId/toggle-block')
+  toggleBlockSeat(
+    @Param('seatId') seatId: string,
+    @Request() req: any
+  ) {
+    return this.ordersService.toggleBlockSeat(seatId, req.user.id);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Post('event/:eventId/free-tickets')
+  issueFreeTickets(
+    @Param('eventId') eventId: string,
+    @Body() body: { seatIds: string[]; email: string; name: string },
+    @Request() req: any
+  ) {
+    return this.ordersService.issueFreeTickets(eventId, body.seatIds, body.email, body.name, req.user.id);
   }
 }

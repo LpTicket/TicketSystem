@@ -29,6 +29,10 @@ export class CreateEventDto {
   @IsOptional()
   @IsString()
   currency?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  hasSeatMap?: boolean;
 }
 
 export class UpdateEventDto {
@@ -67,6 +71,10 @@ export class UpdateEventDto {
   @IsOptional()
   @IsString()
   currency?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  hasSeatMap?: boolean;
 }
 
 export class EventQueryDto {

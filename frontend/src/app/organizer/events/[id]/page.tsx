@@ -22,6 +22,11 @@ import {
   HiOutlineCalendar,
   HiOutlineLocationMarker,
   HiOutlineMap,
+  HiOutlinePencil,
+  HiOutlineCamera,
+  HiOutlineX,
+  HiOutlineBan,
+  HiOutlineMail,
 } from 'react-icons/hi';
 import VenueMapBuilder from '@/components/events/VenueMapBuilder';
 
@@ -46,8 +51,26 @@ export default function EventDetailPage() {
   const [sections, setSections] = useState<VenueSection[]>([]);
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'attendees' | 'map'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'attendees' | 'map' | 'blocks'>('overview');
+  const [selectedBlockSection, setSelectedBlockSection] = useState('');
+  const [selectedBlockSeats, setSelectedBlockSeats] = useState<string[]>([]);
+  const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
+  const [blockingActionLoading, setBlockingActionLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Edit Event States
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    venueName: '',
+    eventDate: '',
+    category: '',
+    hasSeatMap: false,
+  });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => { loadEvent(); }, [id]);
 
@@ -58,12 +81,25 @@ export default function EventDetailPage() {
       const ev = (events.events || []).find((e: Event) => e.id === id);
       if (!ev || ev.organizerId !== user?.id) { router.push('/organizer/events'); return; }
       setEvent(ev);
+      setEditForm({
+        title: ev.title || '',
+        description: ev.description || '',
+        venueName: ev.venueName || '',
+        eventDate: ev.eventDate ? ev.eventDate.substring(0, 16) : '',
+        category: ev.category || '',
+        hasSeatMap: ev.hasSeatMap || false,
+      });
 
-      // Load sections
+      // Load sections and seats
       try {
-        const { data: secs } = await api.get(`/events/${id}/sections`);
+        const { data: secs } = await api.get(`/events/${id}/seatmap`);
         setSections(secs);
-      } catch {}
+      } catch {
+        try {
+          const { data: secs } = await api.get(`/events/${id}/sections`);
+          setSections(secs);
+        } catch {}
+      }
 
       // Load sales
       try {
@@ -99,6 +135,90 @@ export default function EventDetailPage() {
       router.push('/organizer/events');
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error');
+    }
+  };
+
+  const handleBulkBlockSeats = async () => {
+    if (selectedBlockSeats.length === 0) return;
+    setBlockingActionLoading(true);
+    try {
+      for (const seatId of selectedBlockSeats) {
+        await api.post(`/orders/seats/${seatId}/toggle-block`);
+      }
+      alert(lang === 'es' ? '¡Estado de bloqueo de asientos actualizado!' : 'Seat block statuses updated successfully!');
+      setSelectedBlockSeats([]);
+      await loadEvent();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error updating seat blocks');
+    } finally {
+      setBlockingActionLoading(false);
+    }
+  };
+
+  const handleSendFreeInvitations = async () => {
+    if (selectedBlockSeats.length === 0) return;
+    if (!inviteForm.name || !inviteForm.email) {
+      alert(lang === 'es' ? 'Por favor ingresa nombre y correo del invitado' : 'Please fill in the guest name and email address');
+      return;
+    }
+    setBlockingActionLoading(true);
+    try {
+      await api.post(`/orders/event/${id}/free-tickets`, {
+        seatIds: selectedBlockSeats,
+        email: inviteForm.email,
+        name: inviteForm.name,
+      });
+      alert(lang === 'es' ? '¡Invitación enviada con éxito por correo!' : 'Complimentary tickets issued and sent successfully!');
+      setInviteForm({ name: '', email: '' });
+      setSelectedBlockSeats([]);
+      await loadEvent();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error issuing free tickets');
+    } finally {
+      setBlockingActionLoading(false);
+    }
+  };
+
+  const handleSaveEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingEdit(true);
+    try {
+      // 1. Save text fields
+      await api.patch(`/events/${id}`, {
+        title: editForm.title,
+        description: editForm.description,
+        venueName: editForm.venueName,
+        eventDate: new Date(editForm.eventDate).toISOString(),
+        category: editForm.category,
+        hasSeatMap: editForm.hasSeatMap,
+      });
+
+      // 2. Upload cover image if selected
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        await api.post(`/events/${id}/image`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
+
+      // 3. Upload banner image if selected
+      if (bannerFile) {
+        const formData = new FormData();
+        formData.append('image', bannerFile);
+        await api.post(`/events/${id}/image/banner`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
+
+      setIsEditing(false);
+      setImageFile(null);
+      setBannerFile(null);
+      await loadEvent();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al guardar los cambios');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -165,6 +285,9 @@ export default function EventDetailPage() {
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
+            <button onClick={() => setIsEditing(true)} className="btn-secondary text-xs py-2 px-4 flex items-center gap-1.5 font-semibold text-gray-700 hover:bg-gray-50 border-gray-300">
+              <HiOutlinePencil className="w-4 h-4" /> {lang === 'es' ? 'Editar Detalle' : 'Edit Details'}
+            </button>
             {event.status === 'draft' && (
               <button onClick={handlePublish} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5">
                 <HiOutlineGlobe className="w-4 h-4" /> {t('orgSendApproval')}
@@ -232,6 +355,17 @@ export default function EventDetailPage() {
         >
           <HiOutlineMap className="w-4 h-4" />
           {lang === 'es' ? 'Mapa Visual' : 'Venue Map'}
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('blocks');
+            setSelectedBlockSection('');
+            setSelectedBlockSeats([]);
+          }}
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'blocks' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <HiOutlineBan className="w-4 h-4" />
+          {lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}
         </button>
       </div>
 
@@ -344,6 +478,335 @@ export default function EventDetailPage() {
               <p className="text-gray-600 text-sm">{lang === 'es' ? 'Aún no hay asistentes para este evento' : 'No attendees yet for this event'}</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Blocks & Invitations Tab */}
+      {activeTab === 'blocks' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="font-bold text-lg text-gray-900">{lang === 'es' ? 'Gestión de Bloqueos e Invitaciones' : 'Blocks & Free Invitations'}</h2>
+              <p className="text-xs text-gray-500 mt-1">{lang === 'es' ? 'Selecciona una sección para bloquear mesas/sillas o enviar cortesías gratis' : 'Select a section to block seats or tables or send free complimentary tickets'}</p>
+            </div>
+            
+            {/* Section Selector */}
+            <div className="shrink-0">
+              <select
+                value={selectedBlockSection}
+                onChange={(e) => {
+                  setSelectedBlockSection(e.target.value);
+                  setSelectedBlockSeats([]);
+                }}
+                className="w-full sm:w-64 px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+              >
+                <option value="">{lang === 'es' ? 'Selecciona una sección...' : 'Select a section...'}</option>
+                {sections.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} (${Number(s.price).toFixed(2)})</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {selectedBlockSection ? (
+            (() => {
+              const sec = sections.find(s => s.id === selectedBlockSection);
+              if (!sec) return null;
+              const seats = sec.seats || [];
+              
+              return (
+                <div className="space-y-6">
+                  {/* Grid of seats */}
+                  <div className="p-6 bg-gray-50 border border-gray-100 rounded-2xl flex flex-col items-center">
+                    <h3 className="font-bold text-xs text-gray-500 uppercase tracking-widest mb-4">{lang === 'es' ? 'Escenario / Stage' : 'Stage / Front'}</h3>
+                    <div className="w-full max-w-md bg-gray-300 h-2 rounded-full mb-10" />
+                    
+                    <div className="grid gap-3 justify-center" style={{ gridTemplateColumns: `repeat(${sec.seatsPerRow || 8}, minmax(0, 1fr))` }}>
+                      {seats.map((seat) => {
+                        const isBlocked = seat.status === 'locked' && !seat.lockExpiresAt;
+                        const isSold = seat.status === 'sold';
+                        const isSelected = selectedBlockSeats.includes(seat.id);
+                        
+                        let bgClass = 'bg-white border-gray-200 hover:border-blue-500 text-gray-700';
+                        if (isBlocked) bgClass = 'bg-amber-100 border-amber-300 text-amber-800 font-bold';
+                        if (isSold) bgClass = 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed';
+                        if (isSelected) bgClass = 'bg-blue-600 border-blue-600 text-white font-bold scale-105 shadow-md shadow-blue-500/20';
+
+                        return (
+                          <button
+                            key={seat.id}
+                            disabled={isSold && !isSelected}
+                            onClick={() => {
+                              if (selectedBlockSeats.includes(seat.id)) {
+                                setSelectedBlockSeats(prev => prev.filter(id => id !== seat.id));
+                              } else {
+                                setSelectedBlockSeats(prev => [...prev, seat.id]);
+                              }
+                            }}
+                            className={`w-10 h-10 rounded-xl border flex flex-col items-center justify-center text-xs transition-all relative group ${bgClass}`}
+                            title={`${seat.rowLabel}-${seat.seatNumber} (${seat.status})`}
+                          >
+                            <span className="text-[9px] opacity-75">{seat.rowLabel}</span>
+                            <span className="font-bold">{seat.seatNumber}</span>
+                            
+                            {/* Hover tooltip */}
+                            <div className="absolute bottom-11 scale-0 group-hover:scale-100 transition-all bg-gray-900 text-white text-[9px] py-1 px-2 rounded shadow-md z-10 whitespace-nowrap">
+                              {seat.rowLabel}{seat.seatNumber} — {isBlocked ? (lang === 'es' ? 'Bloqueado permanentemente' : 'Permanently Blocked') : isSold ? (lang === 'es' ? 'Vendido' : 'Sold') : (lang === 'es' ? 'Disponible' : 'Available')}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Actions for selected seats */}
+                  {selectedBlockSeats.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4 animate-fade-in">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-800">
+                          {selectedBlockSeats.length} {lang === 'es' ? 'asientos seleccionados' : 'seats selected'}
+                        </p>
+                        <button 
+                          onClick={() => setSelectedBlockSeats([])}
+                          className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+                        >
+                          {lang === 'es' ? 'Limpiar Selección' : 'Clear Selection'}
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        {/* Block / Unblock Toggle */}
+                        <div className="border border-gray-100 rounded-2xl p-4 bg-gray-50/50 space-y-3">
+                          <h4 className="font-bold text-xs text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Bloquear / Desbloquear' : 'Block / Unblock'}</h4>
+                          <p className="text-xs text-gray-500">{lang === 'es' ? 'Bloquea estos asientos permanentemente para evitar que salgan a la venta general.' : 'Permanently blocks these seats from general public sales.'}</p>
+                          <button
+                            onClick={handleBulkBlockSeats}
+                            disabled={blockingActionLoading}
+                            className="btn-secondary w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5"
+                          >
+                            <HiOutlineBan className="w-4 h-4" />
+                            {lang === 'es' ? 'Alternar Bloqueo de Asientos' : 'Toggle Permanently Blocked'}
+                          </button>
+                        </div>
+
+                        {/* Send Free Invitation Tickets */}
+                        <div className="border border-gray-100 rounded-2xl p-4 bg-gray-50/50 space-y-3">
+                          <h4 className="font-bold text-xs text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Enviar Invitaciones de Cortesía (Gratis)' : 'Send Complimentary Tickets (Free)'}</h4>
+                          <p className="text-xs text-gray-500">{lang === 'es' ? 'Emite entradas a costo cero y envíalas directamente por correo a un cliente.' : 'Issue tickets at zero cost and send them via email to a guest.'}</p>
+                          
+                          <div className="space-y-2.5">
+                            <input
+                              type="text"
+                              placeholder={lang === 'es' ? 'Nombre completo del invitado' : 'Guest Full Name'}
+                              value={inviteForm.name}
+                              onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none"
+                            />
+                            <input
+                              type="email"
+                              placeholder={lang === 'es' ? 'Correo electrónico' : 'Email Address'}
+                              value={inviteForm.email}
+                              onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none"
+                            />
+                            <button
+                              onClick={handleSendFreeInvitations}
+                              disabled={blockingActionLoading}
+                              className="btn-primary w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5"
+                            >
+                              <HiOutlineMail className="w-4 h-4" />
+                              {blockingActionLoading ? (lang === 'es' ? 'Enviando...' : 'Sending...') : (lang === 'es' ? 'Emitir y Enviar Entradas Gratis' : 'Issue & Send Free Tickets')}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()
+          ) : (
+            <div className="py-12 text-center text-gray-400 text-sm font-medium">
+              {lang === 'es' ? 'Selecciona una sección para ver la distribución y comenzar' : 'Select a section to view layout and begin'}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit Event Modal / Slide-Over */}
+      {isEditing && (
+        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsEditing(false)}
+          />
+          
+          {/* Drawer Panel */}
+          <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col z-10 animate-[slideOver_0.3s_ease-out]">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <div>
+                <h2 className="font-bold text-lg text-gray-900">{lang === 'es' ? 'Editar Información del Evento' : 'Edit Event Information'}</h2>
+                <p className="text-xs text-gray-500 mt-0.5">{lang === 'es' ? 'Actualiza los campos de texto y las imágenes del evento' : 'Update text fields and event images'}</p>
+              </div>
+              <button 
+                onClick={() => setIsEditing(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <HiOutlineX className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Drawer Content */}
+            <form onSubmit={handleSaveEvent} className="flex-1 overflow-y-auto p-6 space-y-5">
+              {/* Title */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Título' : 'Title'}</label>
+                <input
+                  type="text"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Descripción' : 'Description'}</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none h-28 resize-none"
+                  required
+                />
+              </div>
+
+              {/* Row: Category & Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Categoría' : 'Category'}</label>
+                  <select
+                    value={editForm.category}
+                    onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
+                  >
+                    <option value="music">{lang === 'es' ? 'Música' : 'Music'}</option>
+                    <option value="sports">{lang === 'es' ? 'Deportes' : 'Sports'}</option>
+                    <option value="theater">{lang === 'es' ? 'Teatro' : 'Theater'}</option>
+                    <option value="party">{lang === 'es' ? 'Fiesta' : 'Party'}</option>
+                    <option value="other">{lang === 'es' ? 'Otro' : 'Other'}</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Fecha y Hora' : 'Date & Time'}</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.eventDate}
+                    onChange={(e) => setEditForm({ ...editForm, eventDate: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Venue Name */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Lugar / Venue' : 'Venue Name'}</label>
+                <input
+                  type="text"
+                  value={editForm.venueName}
+                  onChange={(e) => setEditForm({ ...editForm, venueName: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              {/* Toggle Seat Map */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-2xl">
+                <div>
+                  <h4 className="font-bold text-xs text-gray-800">{lang === 'es' ? 'Habilitar Mapa de Asientos Interactivo' : 'Enable Interactive Seating Chart'}</h4>
+                  <p className="text-[10px] text-gray-500">{lang === 'es' ? 'Permite a los usuarios seleccionar asientos en un lienzo interactivo.' : 'Allows users to choose specific seats on an interactive canvas.'}</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editForm.hasSeatMap}
+                    onChange={(e) => setEditForm({ ...editForm, hasSeatMap: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+
+              {/* Cover Image Upload */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Foto de Portada' : 'Cover Image'}</label>
+                <div className="border-2 border-dashed border-gray-200 hover:border-gray-300 rounded-2xl p-4 transition-all text-center relative cursor-pointer group bg-gray-50/50">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <HiOutlineCamera className="w-8 h-8 text-gray-400 mx-auto mb-2 group-hover:scale-105 transition-transform" />
+                  <p className="text-xs text-gray-600 font-medium">
+                    {imageFile ? imageFile.name : (lang === 'es' ? 'Seleccionar archivo de imagen' : 'Select an image file')}
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-1">{lang === 'es' ? 'Formatos recomendados: JPG, PNG de alta resolución' : 'Recommended formats: high-res JPG, PNG'}</p>
+                </div>
+              </div>
+
+              {/* Banner Image Upload */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Foto de Banner de Inicio' : 'Homepage Banner Image'}</label>
+                <div className="border-2 border-dashed border-gray-200 hover:border-gray-300 rounded-2xl p-4 transition-all text-center relative cursor-pointer group bg-gray-50/50">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setBannerFile(e.target.files?.[0] || null)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <HiOutlineCamera className="w-8 h-8 text-gray-400 mx-auto mb-2 group-hover:scale-105 transition-transform" />
+                  <p className="text-xs text-gray-600 font-medium">
+                    {bannerFile ? bannerFile.name : (lang === 'es' ? 'Seleccionar banner promocional' : 'Select a promotional banner')}
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-1">{lang === 'es' ? 'Formato alargado panorámico ideal para carrusel' : 'Panoramic aspect ratio ideal for home carousel'}</p>
+                </div>
+              </div>
+
+              {/* Save & Cancel */}
+              <div className="pt-4 border-t border-gray-100 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="flex-1 py-3 text-sm font-semibold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+                >
+                  {lang === 'es' ? 'Cancelar' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="flex-1 py-3 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                >
+                  {savingEdit ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    lang === 'es' ? 'Guardar Cambios' : 'Save Changes'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <style jsx>{`
+            @keyframes slideOver {
+              from { transform: translateX(100%); }
+              to { transform: translateX(0); }
+            }
+          `}</style>
         </div>
       )}
     </div>

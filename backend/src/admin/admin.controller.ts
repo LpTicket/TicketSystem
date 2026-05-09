@@ -56,6 +56,11 @@ export class AdminController {
     return this.adminService.rejectEvent(id);
   }
 
+  @Patch('events/:id/toggle-featured')
+  toggleFeatured(@Param('id') id: string) {
+    return this.adminService.toggleFeatured(id);
+  }
+
   @Delete('events/:id')
   deleteEvent(@Param('id') id: string) {
     return this.adminService.deleteEvent(id);

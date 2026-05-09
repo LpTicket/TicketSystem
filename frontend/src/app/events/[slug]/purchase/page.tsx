@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import api from '@/lib/api';
+import api, { getImageUrl } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
 import { Event, VenueSection, Seat, SeatStatus } from '@/types';
 import { format } from 'date-fns';
@@ -387,7 +387,6 @@ export default function PurchasePage() {
               {/* Read-only summary */}
               <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm space-y-1">
                 <div><span className="text-gray-500">Nombre y apellido:</span> <strong>{personalInfo.firstName} {personalInfo.lastName}</strong></div>
-                <div><span className="text-gray-500">Identificación:</span> <strong>{personalInfo.idType}{personalInfo.idNumber}</strong></div>
                 <div><span className="text-gray-500">Email:</span> <strong>{personalInfo.email}</strong></div>
                 <div><span className="text-gray-500">Teléfono:</span> <strong>{personalInfo.phone || 'No registrado'}</strong></div>
               </div>
@@ -403,22 +402,6 @@ export default function PurchasePage() {
                   <label className="block text-xs font-medium text-gray-600 mb-1">Apellido:</label>
                   <input className="input text-sm" value={personalInfo.lastName}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, lastName: e.target.value }))} required />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Tipo:</label>
-                  <select className="input text-sm" value={personalInfo.idType}
-                    onChange={(e) => setPersonalInfo((p) => ({ ...p, idType: e.target.value }))}>
-                    <option value="V">V</option>
-                    <option value="E">E</option>
-                    <option value="P">P</option>
-                    <option value="J">J</option>
-                    <option value="G">G</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Identificación:</label>
-                  <input className="input text-sm" value={personalInfo.idNumber}
-                    onChange={(e) => setPersonalInfo((p) => ({ ...p, idNumber: e.target.value }))} />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-gray-600 mb-1">Correo electrónico:</label>
@@ -554,7 +537,7 @@ export default function PurchasePage() {
             {event.imageUrl && (
               <div className="rounded-lg overflow-hidden border border-gray-200">
                 <img
-                  src={event.imageUrl.startsWith('http') ? event.imageUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001'}${event.imageUrl}`}
+                  src={getImageUrl(event.imageUrl)}
                   alt={event.title}
                   className="w-full object-cover aspect-[4/3]"
                 />

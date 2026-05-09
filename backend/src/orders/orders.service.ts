@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -418,5 +418,126 @@ export class OrdersService {
       where: { id: orderId },
       relations: ['event', 'user'],
     });
+  }
+
+  async toggleBlockSeat(seatId: string, userId: string) {
+    const seat = await this.seatRepo.findOne({ where: { id: seatId }, relations: ['section', 'section.event'] });
+    if (!seat) throw new NotFoundException('Asiento no encontrado');
+    
+    // Check if user is organizer or admin
+    if (seat.section.event.organizerId !== userId) {
+      const user = await this.eventRepo.manager.findOne('User' as any, { where: { id: userId } }) as any;
+      if (user?.role !== 'admin') {
+        throw new ForbiddenException('No tienes permiso para bloquear asientos de este evento');
+      }
+    }
+
+    if (seat.status === SeatStatus.SOLD) {
+      throw new BadRequestException('El asiento ya fue vendido y no puede bloquearse');
+    }
+
+    if (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt) {
+      // It is permanently locked, let's unlock it!
+      seat.status = SeatStatus.AVAILABLE;
+      seat.lockedBy = null as any;
+      seat.lockExpiresAt = null as any;
+    } else {
+      // Lock it permanently (lockExpiresAt: null)
+      seat.status = SeatStatus.LOCKED;
+      seat.lockedBy = userId;
+      seat.lockExpiresAt = null as any;
+    }
+
+    await this.seatRepo.save(seat);
+    return { status: seat.status, message: seat.status === SeatStatus.LOCKED ? 'Asiento bloqueado permanentemente' : 'Asiento desbloqueado' };
+  }
+
+  async issueFreeTickets(eventId: string, seatIds: string[], email: string, name: string, organizerId: string) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Evento no encontrado');
+    
+    // Check permission
+    if (event.organizerId !== organizerId) {
+      const user = await this.eventRepo.manager.findOne('User' as any, { where: { id: organizerId } }) as any;
+      if (user?.role !== 'admin') {
+        throw new ForbiddenException('No tienes permiso para emitir invitaciones para este evento');
+      }
+    }
+
+    // Find or create user by email
+    let recipientUser = await this.eventRepo.manager.findOne('User' as any, { where: { email } }) as any;
+    if (!recipientUser) {
+      // Create a dummy user
+      const [firstName, ...lastNameParts] = name.split(' ');
+      const lastName = lastNameParts.join(' ') || 'Invitado';
+      const username = `inv_${nanoid(6)}`;
+      recipientUser = this.eventRepo.manager.create('User' as any, {
+        firstName,
+        lastName,
+        email,
+        username,
+        role: 'client',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      });
+      await this.eventRepo.manager.save(recipientUser);
+    }
+
+    // 1. Create a dummy Order of status PAID with total = 0
+    const order = this.orderRepo.create({
+      userId: recipientUser.id,
+      eventId,
+      subtotal: 0,
+      lpFee: 0,
+      processingFee: 0,
+      total: 0,
+      status: OrderStatus.PAID,
+      ticketCount: seatIds.length,
+    });
+    const savedOrder = await this.orderRepo.save(order);
+    const orderId = savedOrder.id;
+
+    const createdTickets: any[] = [];
+    const appUrl = this.configService.get('APP_URL') || 'http://localhost:3000';
+
+    for (const seatId of seatIds) {
+      const seat = await this.seatRepo.findOne({ where: { id: seatId }, relations: ['section'] });
+      if (!seat) throw new NotFoundException('Asiento no encontrado');
+
+      // Change status to SOLD
+      seat.status = SeatStatus.SOLD;
+      seat.lockedBy = null as any;
+      seat.lockExpiresAt = null as any;
+      await this.seatRepo.save(seat);
+
+      const ticketCode = nanoid(12).toUpperCase();
+      const qrData = await QRCode.toDataURL(`${appUrl}/verify/${ticketCode}`);
+
+      const ticket = this.ticketRepo.create({
+        ticketCode,
+        orderId,
+        eventId,
+        userId: recipientUser.id,
+        seatId: seat.id,
+        sectionId: seat.sectionId,
+        sectionName: seat.section.name,
+        rowLabel: seat.rowLabel,
+        seatNumber: seat.seatNumber,
+        qrData,
+        price: 0, // Free ticket
+        status: TicketStatus.ACTIVE,
+      });
+      const savedTicket = await this.ticketRepo.save(ticket);
+      createdTickets.push(savedTicket);
+    }
+
+    // Send Email notification using template service
+    try {
+      await this.mailService.sendTicketEmail(email, name, event.title, createdTickets);
+    } catch (e) {
+      console.error('Error sending free ticket email:', e);
+    }
+
+    return { success: true, count: createdTickets.length, tickets: createdTickets };
   }
 }

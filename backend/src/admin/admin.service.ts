@@ -151,6 +151,13 @@ export class AdminService {
     return this.eventRepo.save(event);
   }
 
+  async toggleFeatured(eventId: string) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Evento no encontrado');
+    event.isFeatured = !event.isFeatured;
+    return this.eventRepo.save(event);
+  }
+
   async deleteEvent(eventId: string) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Evento no encontrado');

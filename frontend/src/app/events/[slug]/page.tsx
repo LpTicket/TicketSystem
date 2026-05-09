@@ -12,6 +12,8 @@ import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineClock, HiOutlineTi
 import SeatMapInteractive from '@/components/events/SeatMapInteractive';
 import { useLang } from '@/context/LanguageContext';
 
+import { getImageUrl } from '@/lib/api';
+
 export default function EventDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
@@ -91,7 +93,7 @@ export default function EventDetailPage() {
       {/* Hero Image */}
       <div className="relative rounded-lg overflow-hidden mb-8 aspect-[21/9]">
         {event.imageUrl ? (
-          <img src={event.imageUrl.startsWith('http') ? event.imageUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${event.imageUrl}`} alt={event.title} className="w-full h-full object-cover" />
+          <img src={getImageUrl(event.imageUrl)} alt={event.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-blue-600 to-primary-500 flex items-center justify-center">
             <span className="text-8xl">{categoryInfo.icon}</span>

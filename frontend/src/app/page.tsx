@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import api from '@/lib/api';
+import api, { getImageUrl } from '@/lib/api';
 import EventCard from '@/components/events/EventCard';
 import { Event, EventStatus } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
@@ -101,7 +101,7 @@ export default function HomePage() {
             <Link href={usingDemo ? '#' : `/events/${bannerEvent.slug}`} className="block">
               <div className="relative aspect-[21/8] overflow-hidden">
                 <img
-                  src={bannerEvent.bannerImageUrl || bannerEvent.imageUrl || '/demo/concert.png'}
+                  src={getImageUrl(bannerEvent.bannerImageUrl || bannerEvent.imageUrl) || '/demo/concert.png'}
                   alt={bannerEvent.title}
                   className="w-full h-full object-cover"
                   onError={(e) => { (e.target as HTMLImageElement).src = '/demo/concert.png'; }}

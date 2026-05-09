@@ -39,4 +39,18 @@ api.interceptors.response.use(
   },
 );
 
+export function getImageUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  
+  // Extract base server url (strip /api if present)
+  let base = API_URL.replace(/\/api\/?$/, '');
+  
+  // Ensure we don't double slash
+  const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+  return `${base}${cleanUrl}`;
+}
+
 export default api;

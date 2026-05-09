@@ -37,6 +37,7 @@ const STAGE_Y = 60;
 export default function VenueMapBuilder({ eventId, initialSections, onSaved, onChange, event }: VenueMapBuilderProps) {
   const { t, lang } = useLang();
   const [sections, setSections] = useState<Partial<VenueSection>[]>([]);
+  const [dismissWelcome, setDismissWelcome] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [customViewport, setCustomViewport] = useState<{ x: number; y: number; scale: number } | null>(null);
@@ -1086,7 +1087,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         onClick={() => setSelectedId(null)}
       >
         {/* Template Welcome Center Screen for 0 Sections */}
-        {sections.length === 0 && (
+        {sections.length === 0 && !dismissWelcome && (
           <div className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center z-30 p-6 md:p-12 animate-fade-in backdrop-blur-sm">
             <div className="max-w-2xl w-full text-center space-y-6">
               <div className="space-y-2">
@@ -1149,9 +1150,18 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 </button>
               </div>
 
-              <div className="pt-4 text-[11px] text-gray-400 font-medium flex items-center justify-center gap-2">
-                <span>{lang === 'es' ? 'O si prefieres, arrastra elementos desde la barra lateral izquierda' : 'Or draw custom elements using the left sidebar tools'}</span>
-                <span className="px-1.5 py-0.5 bg-gray-100 border rounded text-[10px] text-gray-500 font-mono font-bold">+</span>
+              <div className="pt-4 text-[11px] text-gray-400 font-medium flex flex-col items-center justify-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span>{lang === 'es' ? 'O si prefieres, arrastra elementos desde la barra lateral izquierda' : 'Or draw custom elements using the left sidebar tools'}</span>
+                  <span className="px-1.5 py-0.5 bg-gray-100 border rounded text-[10px] text-gray-500 font-mono font-bold">+</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDismissWelcome(true)}
+                  className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-700 underline flex items-center gap-1.5"
+                >
+                  ✨ {lang === 'es' ? 'Comenzar con lienzo en blanco' : 'Start with a blank canvas'}
+                </button>
               </div>
             </div>
           </div>

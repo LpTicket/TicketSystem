@@ -13,6 +13,12 @@ import {
   HiOutlineCheckCircle,
   HiOutlineShieldCheck,
   HiOutlineTrash,
+  HiOutlineX,
+  HiOutlineMail,
+  HiOutlinePhone,
+  HiOutlineLocationMarker,
+  HiOutlineCalendar,
+  HiOutlineTicket,
 } from 'react-icons/hi';
 
 export default function AdminUsersPage() {
@@ -23,6 +29,23 @@ export default function AdminUsersPage() {
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUserTickets, setSelectedUserTickets] = useState<any[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+
+  const handleSelectUser = async (u: User) => {
+    setSelectedUser(u);
+    setLoadingTickets(true);
+    setSelectedUserTickets([]);
+    try {
+      const { data } = await api.get(`/orders/user/${u.id}/tickets`);
+      setSelectedUserTickets(data);
+    } catch (err) {
+      console.error('Error loading tickets for user profile:', err);
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
 
   useEffect(() => { loadUsers(); }, [page, filter]);
 
@@ -135,15 +158,19 @@ export default function AdminUsersPage() {
                 {filteredUsers.map((u) => {
                   const roleBadge = getRoleBadge(u.role);
                   return (
-                    <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                    <tr 
+                      key={u.id} 
+                      onClick={() => handleSelectUser(u)}
+                      className="hover:bg-gray-50/75 transition-colors cursor-pointer"
+                    >
                       <td className="px-6 py-3">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 shrink-0">
                             {u.firstName[0]}{u.lastName[0]}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-medium text-gray-900 text-sm truncate">{u.firstName} {u.lastName}</p>
-                            <p className="text-xs text-gray-500">@{u.username}</p>
+                            <p className="font-semibold text-gray-900 text-sm truncate">{u.firstName} {u.lastName}</p>
+                            <p className="text-xs text-gray-500 font-medium">@{u.username}</p>
                           </div>
                         </div>
                       </td>
@@ -159,7 +186,7 @@ export default function AdminUsersPage() {
                       <td className="px-4 py-3 text-sm text-gray-500">
                         {format(new Date(u.createdAt), "dd MMM yyyy", { locale: dateFnsLocale })}
                       </td>
-                      <td className="px-6 py-3">
+                      <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
                           {/* Role selector */}
                           <select
@@ -210,6 +237,105 @@ export default function AdminUsersPage() {
         <div className="bg-white rounded-xl border border-gray-200 px-6 py-16 text-center">
           <HiOutlineUsers className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-600 font-medium">{t('adminNoUsers')}</p>
+        </div>
+      )}
+      {/* Selected User Detail Drawer Slide-Over */}
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
+            onClick={() => setSelectedUser(null)}
+          />
+          
+          {/* Drawer Panel */}
+          <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col z-10 animate-[slideOver_0.3s_ease-out]">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-base shrink-0">
+                  {selectedUser.firstName[0]}{selectedUser.lastName[0]}
+                </div>
+                <div>
+                  <h2 className="font-bold text-base text-gray-900 leading-tight">{selectedUser.firstName} {selectedUser.lastName}</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">@{selectedUser.username} · {selectedUser.role.toUpperCase()}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedUser(null)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <HiOutlineX className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Drawer Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Profile Fields Card */}
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-3.5">
+                <h3 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Datos de Contacto' : 'Contact Information'}</h3>
+                
+                <div className="grid grid-cols-1 gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 text-gray-600">
+                    <HiOutlineMail className="w-4 h-4 text-gray-400 shrink-0" />
+                    <span className="font-medium text-gray-900 truncate">{selectedUser.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-gray-600">
+                    <HiOutlinePhone className="w-4 h-4 text-gray-400 shrink-0" />
+                    <span>{selectedUser.phone || (lang === 'es' ? 'No ingresado' : 'Not configured')}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-gray-600">
+                    <HiOutlineLocationMarker className="w-4 h-4 text-gray-400 shrink-0" />
+                    <span className="truncate">{selectedUser.address || (lang === 'es' ? 'No ingresado' : 'Not configured')}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-gray-600">
+                    <HiOutlineCalendar className="w-4 h-4 text-gray-400 shrink-0" />
+                    <span>{lang === 'es' ? 'Registrado el' : 'Registered on'} {format(new Date(selectedUser.createdAt), "dd MMM yyyy", { locale: dateFnsLocale })}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Purchase History Section */}
+              <div className="space-y-3">
+                <h3 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Historial de Boletos' : 'Tickets Purchase History'}</h3>
+
+                {loadingTickets ? (
+                  <div className="space-y-2">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-16 skeleton rounded-xl" />
+                    ))}
+                  </div>
+                ) : selectedUserTickets.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedUserTickets.map((t: any) => (
+                      <div key={t.id} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-start justify-between gap-3 shadow-[0_4px_15px_rgba(0,0,0,0.015)] hover:border-gray-200 transition-all">
+                        <div className="min-w-0 space-y-1">
+                          <p className="font-bold text-xs text-gray-900 truncate">{t.eventName || (lang === 'es' ? 'Evento' : 'Event')}</p>
+                          <p className="text-[10px] text-gray-500">
+                            {t.sectionName} · {lang === 'es' ? 'Asiento' : 'Seat'}: <span className="font-bold text-gray-700">{t.rowLabel}{t.seatNumber}</span>
+                          </p>
+                          <p className="text-[10px] font-mono text-primary-600 font-semibold">{t.ticketCode}</p>
+                        </div>
+                        <div className="text-right shrink-0 space-y-1.5">
+                          <p className="text-xs font-bold text-gray-900">${Number(t.price || 0).toFixed(2)}</p>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                            t.status === 'active' ? 'bg-green-100 text-green-700' :
+                            t.status === 'used' ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {t.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 border border-gray-100 rounded-2xl text-gray-400 text-xs">
+                    {lang === 'es' ? 'No se registran boletos comprados' : 'No ticket purchases found for this client'}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
