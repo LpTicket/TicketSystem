@@ -42,6 +42,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [saving, setSaving] = useState(false);
   const [customViewport, setCustomViewport] = useState<{ x: number; y: number; scale: number } | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [showStage, setShowStage] = useState(event?.showStage ?? false);
   const templatesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -162,8 +163,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
   // ── Viewport pointer events (pan + zoom) ─────────────────────────────────
   const onViewportPointerDown = useCallback((e: React.PointerEvent) => {
-    // Only pan when clicking the viewport background, not a section
+    // Only pan when clicking the viewport background, not a section or welcome screen
     if ((e.target as HTMLElement).closest('[data-section]')) return;
+    if ((e.target as HTMLElement).closest('[data-welcome]')) return;
     panningRef.current = true;
     panStartRef.current = { mx: e.clientX, my: e.clientY, vx: viewRef.current.x, vy: viewRef.current.y };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -601,6 +603,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     }
     
     setSections(templateSections);
+    setShowStage(true);
     setSelectedId(null);
     setSelectedSeat(null);
     setTemplatesOpen(false);
@@ -646,6 +649,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       });
       const payload = {
         sections: sectPayload,
+        showStage,
         defaultViewX: customViewport ? customViewport.x : (event?.defaultViewX !== undefined ? event.defaultViewX : null),
         defaultViewY: customViewport ? customViewport.y : (event?.defaultViewY !== undefined ? event.defaultViewY : null),
         defaultViewZoom: customViewport ? customViewport.scale : (event?.defaultViewZoom !== undefined ? event.defaultViewZoom : null),
@@ -730,6 +734,25 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             <HiOutlineEye className="w-4.5 h-4.5 text-gray-500" />
             {lang === 'es' ? 'Fijar Vista Inicial' : 'Set Initial View'}
           </button>
+
+          <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded px-3.5 py-1.5 transition-colors shadow-sm select-none">
+            <input 
+              type="checkbox" 
+              checked={showStage} 
+              onChange={(e) => {
+                setShowStage(e.target.checked);
+                toast.success(e.target.checked 
+                  ? (lang === 'es' ? 'Escenario visible' : 'Stage enabled') 
+                  : (lang === 'es' ? 'Escenario oculto (mapa vacío por defecto)' : 'Stage disabled (empty map by default)')
+                );
+              }}
+              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300" 
+            />
+            <span className="text-xs font-bold text-gray-700">
+              {lang === 'es' ? 'Mostrar Escenario' : 'Show Stage'}
+            </span>
+          </label>
+
           <button onClick={handleSave} disabled={saving} className="bg-[#1a73e8] hover:bg-[#1557b0] text-white text-sm font-medium py-1.5 px-5 rounded shadow-sm transition-colors flex items-center gap-2">
             {saving ? (
               <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -1068,12 +1091,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
               </div>
             </div>
           </div>
-        ) : (
-          <div className="absolute top-0 right-0 bottom-0 w-[320px] bg-[#f8f9fa] border-l border-gray-300 z-40 hidden md:flex flex-col items-center justify-center text-center text-gray-400 p-6 shadow-[-4px_0_15px_rgba(0,0,0,0.02)]">
-            <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/></svg>
-            <p className="text-[13px] font-medium leading-relaxed">{lang === 'es' ? 'Selecciona un objeto en el mapa para inspeccionar sus propiedades.' : 'Select an object on the chart to inspect its properties.'}</p>
-          </div>
-        )}
+        ) : null}
 
       {/* ── Canvas Viewport (Seats.io Light Grid Style) ─────────────────────────────────────────── */}
       <div
@@ -1088,7 +1106,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       >
         {/* Template Welcome Center Screen for 0 Sections */}
         {sections.length === 0 && !dismissWelcome && (
-          <div className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center z-30 p-6 md:p-12 animate-fade-in backdrop-blur-sm">
+          <div data-welcome="true" className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center z-30 p-6 md:p-12 animate-fade-in backdrop-blur-sm">
             <div className="max-w-2xl w-full text-center space-y-6">
               <div className="space-y-2">
                 <span className="text-5xl block animate-bounce">🎨</span>
@@ -1225,31 +1243,33 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           onClick={e => e.stopPropagation()}
         >
           {/* ── STAGE (anchor) ─────────────────────────────────────── */}
-          <div
-            style={{
-              position: 'absolute',
-              left: STAGE_X,
-              top: STAGE_Y,
-              width: STAGE_W,
-              height: STAGE_H,
-              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-              border: '2.5px solid #3b82f6',
-              boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)',
-              borderRadius: '0 0 40px 40px',
-            }}
-          >
-            <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 0 10px rgba(96, 165, 250, 0.5)' }}>
-              {lang === 'es' ? 'ESCENARIO' : 'STAGE'}
-            </span>
-            <span style={{ color: '#94a3b8', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginTop: 1 }}>
-              {lang === 'es' ? 'ESCENARIO' : 'STAGE'}
-            </span>
-          </div>
+          {showStage && (
+            <div
+              style={{
+                position: 'absolute',
+                left: STAGE_X,
+                top: STAGE_Y,
+                width: STAGE_W,
+                height: STAGE_H,
+                background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+                border: '2.5px solid #3b82f6',
+                boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)',
+                borderRadius: '0 0 40px 40px',
+              }}
+            >
+              <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 0 10px rgba(96, 165, 250, 0.5)' }}>
+                {lang === 'es' ? 'ESCENARIO' : 'STAGE'}
+              </span>
+              <span style={{ color: '#94a3b8', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginTop: 1 }}>
+                {lang === 'es' ? 'ESCENARIO' : 'STAGE'}
+              </span>
+            </div>
+          )}
 
           {sections.map(sec => {
             const isSelected = selectedId === sec.id;

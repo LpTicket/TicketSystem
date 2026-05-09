@@ -349,6 +349,7 @@ export default function PurchasePage() {
                 defaultViewX={event.defaultViewX}
                 defaultViewY={event.defaultViewY}
                 defaultViewZoom={event.defaultViewZoom}
+                showStage={event?.showStage}
               />
 
               {/* Selected seats chips */}

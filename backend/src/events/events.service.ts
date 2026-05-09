@@ -113,16 +113,19 @@ export class EventsService {
 
   async update(id: string, dto: UpdateEventDto, userId: string) {
     const event = await this.findById(id);
-    if (event.organizerId !== userId) {
+    const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
+    if (event.organizerId !== userId && user?.role !== 'admin') {
       throw new ForbiddenException('No tienes permiso para editar este evento');
     }
-    await this.eventRepo.update(id, dto);
+    const status = event.status === EventStatus.PUBLISHED ? EventStatus.DRAFT : event.status;
+    await this.eventRepo.update(id, { ...dto, status });
     return this.findById(id);
   }
 
   async publish(id: string, userId: string) {
     const event = await this.findById(id);
-    if (event.organizerId !== userId) {
+    const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
+    if (event.organizerId !== userId && user?.role !== 'admin') {
       throw new ForbiddenException();
     }
 
@@ -142,7 +145,8 @@ export class EventsService {
 
   async delete(id: string, userId: string) {
     const event = await this.findById(id);
-    if (event.organizerId !== userId) {
+    const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
+    if (event.organizerId !== userId && user?.role !== 'admin') {
       throw new ForbiddenException();
     }
     await this.eventRepo.delete(id);
@@ -151,21 +155,25 @@ export class EventsService {
 
   async uploadImage(id: string, filename: string, userId: string) {
     const event = await this.findById(id);
-    if (event.organizerId !== userId) {
+    const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
+    if (event.organizerId !== userId && user?.role !== 'admin') {
       throw new ForbiddenException();
     }
     const imageUrl = `/uploads/${filename}`;
-    await this.eventRepo.update(id, { imageUrl });
+    const status = event.status === EventStatus.PUBLISHED ? EventStatus.DRAFT : event.status;
+    await this.eventRepo.update(id, { imageUrl, status });
     return { imageUrl };
   }
 
   async uploadBannerImage(id: string, filename: string, userId: string) {
     const event = await this.findById(id);
-    if (event.organizerId !== userId) {
+    const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
+    if (event.organizerId !== userId && user?.role !== 'admin') {
       throw new ForbiddenException();
     }
     const bannerImageUrl = `/uploads/${filename}`;
-    await this.eventRepo.update(id, { bannerImageUrl });
+    const status = event.status === EventStatus.PUBLISHED ? EventStatus.DRAFT : event.status;
+    await this.eventRepo.update(id, { bannerImageUrl, status });
     return { bannerImageUrl };
   }
 
@@ -215,7 +223,7 @@ export class EventsService {
     eventId: string,
     sectionsData: any[],
     userId: string,
-    viewportOpts?: { defaultViewX?: number; defaultViewY?: number; defaultViewZoom?: number },
+    viewportOpts?: { defaultViewX?: number; defaultViewY?: number; defaultViewZoom?: number; showStage?: boolean },
   ) {
     const event = await this.findById(eventId);
     const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
@@ -227,6 +235,7 @@ export class EventsService {
       if (typeof viewportOpts.defaultViewX === 'number') event.defaultViewX = viewportOpts.defaultViewX;
       if (typeof viewportOpts.defaultViewY === 'number') event.defaultViewY = viewportOpts.defaultViewY;
       if (typeof viewportOpts.defaultViewZoom === 'number') event.defaultViewZoom = viewportOpts.defaultViewZoom;
+      if (typeof viewportOpts.showStage === 'boolean') event.showStage = viewportOpts.showStage;
       await this.eventRepo.save(event);
     }
 

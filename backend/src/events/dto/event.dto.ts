@@ -33,6 +33,10 @@ export class CreateEventDto {
   @IsOptional()
   @IsBoolean()
   hasSeatMap?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showStage?: boolean;
 }
 
 export class UpdateEventDto {
@@ -75,6 +79,10 @@ export class UpdateEventDto {
   @IsOptional()
   @IsBoolean()
   hasSeatMap?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showStage?: boolean;
 }
 
 export class EventQueryDto {

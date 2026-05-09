@@ -29,6 +29,7 @@ import {
   HiOutlineMail,
 } from 'react-icons/hi';
 import VenueMapBuilder from '@/components/events/VenueMapBuilder';
+import toast from 'react-hot-toast';
 
 interface Attendee {
   id: string;
@@ -122,9 +123,10 @@ export default function EventDetailPage() {
   const handlePublish = async () => {
     try {
       await api.post(`/events/${id}/publish`);
+      toast.success(lang === 'es' ? '¡Evento publicado con éxito!' : 'Event published successfully!');
       await loadEvent();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error');
+      toast.error(err.response?.data?.message || 'Error');
     }
   };
 
@@ -132,9 +134,10 @@ export default function EventDetailPage() {
     if (!confirm(lang === 'es' ? '¿Eliminar este evento permanentemente?' : 'Delete this event permanently?')) return;
     try {
       await api.delete(`/events/${id}`);
+      toast.success(lang === 'es' ? 'Evento eliminado con éxito' : 'Event deleted successfully');
       router.push('/organizer/events');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error');
+      toast.error(err.response?.data?.message || 'Error');
     }
   };
 
@@ -145,11 +148,11 @@ export default function EventDetailPage() {
       for (const seatId of selectedBlockSeats) {
         await api.post(`/orders/seats/${seatId}/toggle-block`);
       }
-      alert(lang === 'es' ? '¡Estado de bloqueo de asientos actualizado!' : 'Seat block statuses updated successfully!');
+      toast.success(lang === 'es' ? '¡Estado de bloqueo de asientos actualizado!' : 'Seat block statuses updated successfully!');
       setSelectedBlockSeats([]);
       await loadEvent();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error updating seat blocks');
+      toast.error(err.response?.data?.message || 'Error updating seat blocks');
     } finally {
       setBlockingActionLoading(false);
     }
@@ -158,7 +161,7 @@ export default function EventDetailPage() {
   const handleSendFreeInvitations = async () => {
     if (selectedBlockSeats.length === 0) return;
     if (!inviteForm.name || !inviteForm.email) {
-      alert(lang === 'es' ? 'Por favor ingresa nombre y correo del invitado' : 'Please fill in the guest name and email address');
+      toast.error(lang === 'es' ? 'Por favor ingresa nombre y correo del invitado' : 'Please fill in the guest name and email address');
       return;
     }
     setBlockingActionLoading(true);
@@ -168,12 +171,12 @@ export default function EventDetailPage() {
         email: inviteForm.email,
         name: inviteForm.name,
       });
-      alert(lang === 'es' ? '¡Invitación enviada con éxito por correo!' : 'Complimentary tickets issued and sent successfully!');
+      toast.success(lang === 'es' ? '¡Invitación enviada con éxito por correo!' : 'Complimentary tickets issued and sent successfully!');
       setInviteForm({ name: '', email: '' });
       setSelectedBlockSeats([]);
       await loadEvent();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error issuing free tickets');
+      toast.error(err.response?.data?.message || 'Error issuing free tickets');
     } finally {
       setBlockingActionLoading(false);
     }
@@ -214,9 +217,10 @@ export default function EventDetailPage() {
       setIsEditing(false);
       setImageFile(null);
       setBannerFile(null);
+      toast.success(lang === 'es' ? '¡Cambios guardados con éxito! Debes esperar la aprobación del administrador.' : 'Changes saved successfully! Waiting for admin approval.');
       await loadEvent();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al guardar los cambios');
+      toast.error(err.response?.data?.message || 'Error al guardar los cambios');
     } finally {
       setSavingEdit(false);
     }
@@ -520,6 +524,35 @@ export default function EventDetailPage() {
                   <div className="p-6 bg-gray-50 border border-gray-100 rounded-2xl flex flex-col items-center">
                     <h3 className="font-bold text-xs text-gray-500 uppercase tracking-widest mb-4">{lang === 'es' ? 'Escenario / Stage' : 'Stage / Front'}</h3>
                     <div className="w-full max-w-md bg-gray-300 h-2 rounded-full mb-10" />
+                    
+                    <div className="flex justify-between items-center w-full mb-6 max-w-lg select-none">
+                      <span className="text-xs font-semibold text-gray-500">
+                        {lang === 'es' ? 'Haz clic en los asientos para seleccionarlos' : 'Click seats to select them'}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const availableSeatIds = seats.filter(s => s.status !== 'sold').map(s => s.id);
+                            setSelectedBlockSeats(availableSeatIds);
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-bold bg-white border border-gray-200 hover:border-gray-300 rounded-lg text-gray-700 transition-colors shadow-sm cursor-pointer"
+                        >
+                          {sec.sectionType === 'table' 
+                            ? (lang === 'es' ? '✓ Seleccionar Mesa Completa' : '✓ Select Entire Table') 
+                            : (lang === 'es' ? '✓ Seleccionar Todos' : '✓ Select All')}
+                        </button>
+                        {selectedBlockSeats.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedBlockSeats([])}
+                            className="px-2.5 py-1 text-[11px] font-bold bg-white border border-red-200 hover:border-red-300 text-red-600 rounded-lg transition-colors shadow-sm cursor-pointer"
+                          >
+                            {lang === 'es' ? '✕ Deseleccionar' : '✕ Deselect'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                     
                     <div className="grid gap-3 justify-center" style={{ gridTemplateColumns: `repeat(${sec.seatsPerRow || 8}, minmax(0, 1fr))` }}>
                       {seats.map((seat) => {

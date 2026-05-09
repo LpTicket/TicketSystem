@@ -39,7 +39,7 @@ import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, Pa
       },
     }),
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
     ScheduleModule.forRoot(),

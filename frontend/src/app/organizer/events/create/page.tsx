@@ -52,7 +52,7 @@ export default function CreateEventPage() {
   });
 
   const [sections, setSections] = useState<SectionForm[]>([{ ...DEFAULT_SECTION }]);
-  const [hasSeatMap, setHasSeatMap] = useState(false);
+  const [hasSeatMap, setHasSeatMap] = useState(true);
   const [step, setStep] = useState<1 | 2>(1);
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);

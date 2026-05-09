@@ -167,6 +167,7 @@ export class EventsController {
       defaultViewX,
       defaultViewY,
       defaultViewZoom,
+      showStage: body?.showStage,
     });
   }
 

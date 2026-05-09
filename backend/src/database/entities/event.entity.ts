@@ -95,6 +95,9 @@ export class Event {
   @Column({ default: false })
   hasSeatMap: boolean;
 
+  @Column({ default: false })
+  showStage: boolean;
+
   @Column('uuid')
   organizerId: string;
 

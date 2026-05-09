@@ -58,6 +58,7 @@ export interface Event {
   defaultViewX?: number;
   defaultViewY?: number;
   defaultViewZoom?: number;
+  showStage?: boolean;
   createdAt: string;
   updatedAt?: string;
 }

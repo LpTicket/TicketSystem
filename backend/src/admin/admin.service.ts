@@ -80,6 +80,21 @@ export class AdminService {
     return userData;
   }
 
+  async updateUserProfile(userId: string, updateData: { firstName?: string; lastName?: string; email?: string; phone?: string; address?: string }) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    
+    if (updateData.firstName !== undefined) user.firstName = updateData.firstName;
+    if (updateData.lastName !== undefined) user.lastName = updateData.lastName;
+    if (updateData.email !== undefined) user.email = updateData.email;
+    if (updateData.phone !== undefined) user.phone = updateData.phone;
+    if (updateData.address !== undefined) user.address = updateData.address;
+    
+    await this.userRepo.save(user);
+    const { passwordHash, ...userData } = user;
+    return userData;
+  }
+
   async deleteUser(userId: string) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('Usuario no encontrado');

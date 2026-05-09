@@ -106,6 +106,23 @@ export default function OrganizerEventsPage() {
 
   return (
     <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+      {/* Alert Banner / Cartel */}
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 lg:p-5 flex items-start gap-3.5 shadow-sm select-none">
+        <div className="bg-amber-100 rounded-xl p-2 shrink-0 text-amber-800 text-lg">
+          🔔
+        </div>
+        <div>
+          <h4 className="font-bold text-sm text-amber-900">
+            {lang === 'es' ? 'Recordatorio Importante sobre la Publicación de Eventos' : 'Important Event Publication Reminder'}
+          </h4>
+          <p className="text-xs text-amber-800/90 mt-1 leading-relaxed">
+            {lang === 'es' 
+              ? 'Cuando creas o editas un evento, este se guardará en estado de borrador (Draft). Debes esperar a que el administrador de la plataforma apruebe y autorice tu evento para que aparezca publicado al público general.' 
+              : 'When you create or edit an event, it will be saved as a draft (Draft). You must wait for the platform administrator to approve and authorize your event before it is published to the general public.'}
+          </p>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="font-bold text-2xl text-gray-900">{t('orgMyEvents')}</h1>

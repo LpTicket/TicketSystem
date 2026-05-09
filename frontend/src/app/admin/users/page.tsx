@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
+import { toast } from 'react-hot-toast';
 import { useLang } from '@/context/LanguageContext';
 import { User } from '@/types';
 import { format } from 'date-fns';
@@ -19,6 +20,7 @@ import {
   HiOutlineLocationMarker,
   HiOutlineCalendar,
   HiOutlineTicket,
+  HiOutlinePencil,
 } from 'react-icons/hi';
 
 export default function AdminUsersPage() {
@@ -33,8 +35,24 @@ export default function AdminUsersPage() {
   const [selectedUserTickets, setSelectedUserTickets] = useState<any[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
 
+  // User Profile Editing states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const handleSelectUser = async (u: User) => {
     setSelectedUser(u);
+    setIsEditing(false);
+    setEditFirstName(u.firstName || '');
+    setEditLastName(u.lastName || '');
+    setEditEmail(u.email || '');
+    setEditPhone(u.phone || '');
+    setEditAddress(u.address || '');
+
     setLoadingTickets(true);
     setSelectedUserTickets([]);
     try {
@@ -44,6 +62,36 @@ export default function AdminUsersPage() {
       console.error('Error loading tickets for user profile:', err);
     } finally {
       setLoadingTickets(false);
+    }
+  };
+
+  const handleSaveUserEdit = async () => {
+    if (!selectedUser) return;
+    if (!editFirstName.trim() || !editLastName.trim() || !editEmail.trim()) {
+      toast.error(lang === 'es' ? 'Nombre, Apellido y Correo son requeridos.' : 'First Name, Last Name and Email are required.');
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const payload = {
+        firstName: editFirstName,
+        lastName: editLastName,
+        email: editEmail,
+        phone: editPhone,
+        address: editAddress,
+      };
+      
+      const { data } = await api.patch(`/admin/users/${selectedUser.id}`, payload);
+      
+      toast.success(lang === 'es' ? 'Datos del cliente actualizados exitosamente.' : 'Client profile updated successfully.');
+      setSelectedUser(prev => prev ? { ...prev, ...data } : null);
+      setIsEditing(false);
+      await loadUsers();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || (lang === 'es' ? 'Error al actualizar' : 'Failed to update'));
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -205,6 +253,14 @@ export default function AdminUsersPage() {
                           >
                             {u.isActive ? <HiOutlineBan className="w-4 h-4" /> : <HiOutlineCheckCircle className="w-4 h-4" />}
                           </button>
+                          {/* Details Pencil */}
+                          <button
+                            onClick={() => handleSelectUser(u)}
+                            className="p-1.5 rounded-lg transition-colors text-blue-500 hover:bg-blue-50 cursor-pointer"
+                            title={lang === 'es' ? 'Ver detalles' : 'View details'}
+                          >
+                            <HiOutlinePencil className="w-4 h-4" />
+                          </button>
                           {/* Delete user */}
                           <button
                             onClick={() => handleDeleteUser(u.id, u.firstName)}
@@ -239,18 +295,18 @@ export default function AdminUsersPage() {
           <p className="text-gray-600 font-medium">{t('adminNoUsers')}</p>
         </div>
       )}
-      {/* Selected User Detail Drawer Slide-Over */}
+      {/* Selected User Detail Centered Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
+        <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
           {/* Backdrop */}
           <div 
-            className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
+            className="absolute inset-0 bg-gray-950/40 backdrop-blur-md transition-opacity"
             onClick={() => setSelectedUser(null)}
           />
           
-          {/* Drawer Panel */}
-          <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col z-10 animate-[slideOver_0.3s_ease-out]">
-            {/* Drawer Header */}
+          {/* Centered Modal Panel */}
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl flex flex-col z-10 max-h-[85vh] overflow-hidden animate-[scaleIn_0.2s_ease-out]">
+            {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-base shrink-0">
@@ -263,77 +319,188 @@ export default function AdminUsersPage() {
               </div>
               <button 
                 onClick={() => setSelectedUser(null)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 <HiOutlineX className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Drawer Content */}
+            {/* Modal Content */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Profile Fields Card */}
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-3.5">
-                <h3 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Datos de Contacto' : 'Contact Information'}</h3>
-                
-                <div className="grid grid-cols-1 gap-3 text-xs">
-                  <div className="flex items-center gap-2.5 text-gray-600">
-                    <HiOutlineMail className="w-4 h-4 text-gray-400 shrink-0" />
-                    <span className="font-medium text-gray-900 truncate">{selectedUser.email}</span>
+              {isEditing ? (
+                <div className="bg-white border-2 border-primary-100 rounded-2xl p-5 space-y-4 shadow-sm animate-fade-in">
+                  <h3 className="font-bold text-[11px] text-primary-600 uppercase tracking-widest">{lang === 'es' ? 'Editar Perfil de Cliente' : 'Edit Client Profile'}</h3>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Nombre' : 'First Name'}</label>
+                      <input 
+                        type="text" 
+                        value={editFirstName} 
+                        onChange={e => setEditFirstName(e.target.value)} 
+                        className="w-full bg-gray-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl px-3 py-2 text-xs outline-none transition-all font-medium text-gray-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Apellido' : 'Last Name'}</label>
+                      <input 
+                        type="text" 
+                        value={editLastName} 
+                        onChange={e => setEditLastName(e.target.value)} 
+                        className="w-full bg-gray-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl px-3 py-2 text-xs outline-none transition-all font-medium text-gray-800"
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2.5 text-gray-600">
-                    <HiOutlinePhone className="w-4 h-4 text-gray-400 shrink-0" />
-                    <span>{selectedUser.phone || (lang === 'es' ? 'No ingresado' : 'Not configured')}</span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Correo Electrónico' : 'Email Address'}</label>
+                      <input 
+                        type="email" 
+                        value={editEmail} 
+                        onChange={e => setEditEmail(e.target.value)} 
+                        className="w-full bg-gray-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl px-3 py-2 text-xs outline-none transition-all font-medium text-gray-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Teléfono' : 'Phone'}</label>
+                      <input 
+                        type="text" 
+                        value={editPhone} 
+                        onChange={e => setEditPhone(e.target.value)} 
+                        className="w-full bg-gray-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl px-3 py-2 text-xs outline-none transition-all font-medium text-gray-800"
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2.5 text-gray-600">
-                    <HiOutlineLocationMarker className="w-4 h-4 text-gray-400 shrink-0" />
-                    <span className="truncate">{selectedUser.address || (lang === 'es' ? 'No ingresado' : 'Not configured')}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 text-gray-600">
-                    <HiOutlineCalendar className="w-4 h-4 text-gray-400 shrink-0" />
-                    <span>{lang === 'es' ? 'Registrado el' : 'Registered on'} {format(new Date(selectedUser.createdAt), "dd MMM yyyy", { locale: dateFnsLocale })}</span>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Dirección' : 'Address'}</label>
+                    <input 
+                      type="text" 
+                      value={editAddress} 
+                      onChange={e => setEditAddress(e.target.value)} 
+                      className="w-full bg-gray-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl px-3 py-2 text-xs outline-none transition-all font-medium text-gray-800"
+                    />
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-3.5">
+                  <h3 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Datos de Contacto' : 'Contact Information'}</h3>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div className="flex items-center gap-2.5 text-gray-600">
+                      <HiOutlineMail className="w-4 h-4 text-gray-400 shrink-0" />
+                      <span className="font-medium text-gray-900 truncate">{selectedUser.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-gray-600">
+                      <HiOutlinePhone className="w-4 h-4 text-gray-400 shrink-0" />
+                      <span>{selectedUser.phone || (lang === 'es' ? 'No ingresado' : 'Not configured')}</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-gray-600">
+                      <HiOutlineLocationMarker className="w-4 h-4 text-gray-400 shrink-0" />
+                      <span className="truncate">{selectedUser.address || (lang === 'es' ? 'No ingresado' : 'Not configured')}</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-gray-600">
+                      <HiOutlineCalendar className="w-4 h-4 text-gray-400 shrink-0" />
+                      <span>{lang === 'es' ? 'Registrado el' : 'Registered on'} {format(new Date(selectedUser.createdAt), "dd MMM yyyy", { locale: dateFnsLocale })}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Purchase History Section */}
               <div className="space-y-3">
                 <h3 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Historial de Boletos' : 'Tickets Purchase History'}</h3>
-
-                {loadingTickets ? (
-                  <div className="space-y-2">
-                    {[...Array(3)].map((_, i) => (
-                      <div key={i} className="h-16 skeleton rounded-xl" />
-                    ))}
-                  </div>
-                ) : selectedUserTickets.length > 0 ? (
-                  <div className="space-y-3">
-                    {selectedUserTickets.map((t: any) => (
-                      <div key={t.id} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-start justify-between gap-3 shadow-[0_4px_15px_rgba(0,0,0,0.015)] hover:border-gray-200 transition-all">
-                        <div className="min-w-0 space-y-1">
-                          <p className="font-bold text-xs text-gray-900 truncate">{t.eventName || (lang === 'es' ? 'Evento' : 'Event')}</p>
-                          <p className="text-[10px] text-gray-500">
-                            {t.sectionName} · {lang === 'es' ? 'Asiento' : 'Seat'}: <span className="font-bold text-gray-700">{t.rowLabel}{t.seatNumber}</span>
-                          </p>
-                          <p className="text-[10px] font-mono text-primary-600 font-semibold">{t.ticketCode}</p>
+                
+                <div className="min-h-[180px] max-h-[280px] overflow-y-auto pr-1 select-none mt-2">
+                  {loadingTickets ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[...Array(4)].map((_, i) => (
+                        <div key={i} className="h-20 skeleton rounded-2xl" />
+                      ))}
+                    </div>
+                  ) : selectedUserTickets.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {selectedUserTickets.map((t: any) => (
+                        <div key={t.id} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-start justify-between gap-3 shadow-[0_4px_15px_rgba(0,0,0,0.015)] hover:border-gray-200 transition-all">
+                          <div className="min-w-0 space-y-1">
+                            <p className="font-bold text-xs text-gray-900 truncate">{t.eventName || (lang === 'es' ? 'Evento' : 'Event')}</p>
+                            <p className="text-[10px] text-gray-500">
+                              {t.sectionName} · {lang === 'es' ? 'Asiento' : 'Seat'}: <span className="font-bold text-gray-700">{t.rowLabel}{t.seatNumber}</span>
+                            </p>
+                            <p className="text-[10px] font-mono text-primary-600 font-semibold">{t.ticketCode}</p>
+                          </div>
+                          <div className="text-right shrink-0 space-y-1.5">
+                            <p className="text-xs font-bold text-gray-900">${Number(t.price || 0).toFixed(2)}</p>
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                              t.status === 'active' ? 'bg-green-100 text-green-700' :
+                              t.status === 'used' ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
+                            }`}>
+                              {t.status}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-right shrink-0 space-y-1.5">
-                          <p className="text-xs font-bold text-gray-900">${Number(t.price || 0).toFixed(2)}</p>
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                            t.status === 'active' ? 'bg-green-100 text-green-700' :
-                            t.status === 'used' ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
-                          }`}>
-                            {t.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 border border-gray-100 rounded-2xl text-gray-400 text-xs">
-                    {lang === 'es' ? 'No se registran boletos comprados' : 'No ticket purchases found for this client'}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 border border-dashed border-gray-200 rounded-2xl text-gray-400 text-xs font-medium">
+                      {lang === 'es' ? 'No se registran boletos comprados' : 'No ticket purchases found for this client'}
+                    </div>
+                  )}
+                </div>
               </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+              {isEditing ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    disabled={savingEdit}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {lang === 'es' ? 'Cancelar' : 'Cancel'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveUserEdit}
+                    disabled={savingEdit}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-primary-500 text-white hover:bg-primary-600 active:scale-95 transition-all shadow-md shadow-primary-500/15 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {savingEdit ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        {lang === 'es' ? 'Guardando...' : 'Saving...'}
+                      </>
+                    ) : (
+                      <>
+                        <span>💾</span>
+                        {lang === 'es' ? 'Guardar Cambios' : 'Save Changes'}
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-primary-600 hover:text-primary-700 hover:bg-primary-50/50 flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <HiOutlinePencil className="w-4 h-4" />
+                    {lang === 'es' ? 'Editar Datos' : 'Edit Profile'}
+                  </button>
+                  <button
+                    onClick={() => setSelectedUser(null)}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gray-900 text-white hover:bg-gray-800 transition-all shadow-sm cursor-pointer"
+                  >
+                    {lang === 'es' ? 'Cerrar' : 'Close'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

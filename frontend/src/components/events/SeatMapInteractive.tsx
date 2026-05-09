@@ -5,6 +5,7 @@ import { VenueSection, Seat, SeatStatus } from '@/types';
 import { HiOutlineZoomIn, HiOutlineZoomOut, HiOutlineArrowLeft } from 'react-icons/hi';
 import { FaWheelchair } from 'react-icons/fa';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useLang } from '@/context/LanguageContext';
 
 interface SeatMapInteractiveProps {
   seatMap: (VenueSection & { seats: Seat[] })[];
@@ -15,6 +16,7 @@ interface SeatMapInteractiveProps {
   defaultViewX?: number;
   defaultViewY?: number;
   defaultViewZoom?: number;
+  showStage?: boolean;
 }
 
 const MIN_ZOOM = 0.5;
@@ -29,11 +31,14 @@ export default function SeatMapInteractive({
   defaultViewX,
   defaultViewY,
   defaultViewZoom,
+  showStage = false,
 }: SeatMapInteractiveProps) {
+  const { lang } = useLang();
   const [zoom, setZoom] = useState(0.8);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [hoveredSeat, setHoveredSeat] = useState<string | null>(null);
   const [focusedSection, setFocusedSection] = useState<string | null>(null);
+  const [mobileMode, setMobileMode] = useState<'scroll' | 'pan'>('scroll');
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -295,6 +300,12 @@ export default function SeatMapInteractive({
 
   const onTouchMove = (e: React.TouchEvent) => {
     if (!containerRef.current) return;
+    
+    // If the user is in scroll mode on mobile, allow natural browser scrolling and do not pan the map
+    if (mobileMode === 'scroll' && e.touches.length === 1) {
+      return;
+    }
+
     if (e.cancelable) e.preventDefault();
 
     const rect = containerRef.current.getBoundingClientRect();
@@ -383,6 +394,39 @@ export default function SeatMapInteractive({
         </div>
       </div>
 
+      {/* Mobile Navigation Helpers */}
+      <div className="md:hidden flex items-center justify-between bg-white border border-gray-200 rounded-2xl p-2 mb-3.5 shadow-[0_4px_12px_rgba(0,0,0,0.02)] select-none">
+        <span className="text-xs font-semibold text-gray-500 pl-2">
+          {lang === 'es' ? '📱 Navegación móvil:' : '📱 Mobile controls:'}
+        </span>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => setMobileMode('scroll')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+              mobileMode === 'scroll' 
+                ? 'bg-gray-900 text-white shadow-sm' 
+                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+            }`}
+          >
+            <span>📜</span>
+            {lang === 'es' ? 'Deslizar Web' : 'Scroll Web'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileMode('pan')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
+              mobileMode === 'pan' 
+                ? 'bg-primary-500 text-white shadow-sm' 
+                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+            }`}
+          >
+            <span>🖐️</span>
+            {lang === 'es' ? 'Mover Mapa' : 'Pan Map'}
+          </button>
+        </div>
+      </div>
+
       {/* Map container (Seats.io Style) */}
       <div
         ref={containerRef}
@@ -432,31 +476,33 @@ export default function SeatMapInteractive({
           }}
         >
           {/* Main Stage anchor */}
-          <div
-            style={{
-              position: 'absolute',
-              left: (2000 - 400) / 2,
-              top: 60,
-              width: 400,
-              height: 80,
-              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-              border: '2.5px solid #3b82f6',
-              boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)',
-              borderRadius: '0 0 40px 40px',
-            }}
-          >
-            <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 0 10px rgba(96, 165, 250, 0.5)' }}>
-              ESCENARIO
-            </span>
-            <span style={{ color: '#94a3b8', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginTop: 1 }}>
-              STAGE
-            </span>
-          </div>
+          {showStage && (
+            <div
+              style={{
+                position: 'absolute',
+                left: (2000 - 400) / 2,
+                top: 60,
+                width: 400,
+                height: 80,
+                background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+                border: '2.5px solid #3b82f6',
+                boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)',
+                borderRadius: '0 0 40px 40px',
+              }}
+            >
+              <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 0 10px rgba(96, 165, 250, 0.5)' }}>
+                ESCENARIO
+              </span>
+              <span style={{ color: '#94a3b8', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginTop: 1 }}>
+                STAGE
+              </span>
+            </div>
+          )}
 
           {sections.map((section) => {
             const rows = Array.from(new Set(section.seats?.map((s) => s.rowLabel) ?? [])).sort();
