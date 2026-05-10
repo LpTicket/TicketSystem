@@ -837,6 +837,26 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             <svg className="w-5 h-5 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="6"/></svg>
             <span className="text-[9px] font-medium leading-none">{lang === 'es' ? 'Asiento' : 'Seat'}</span>
           </button>
+
+          {/* Mobile-only action buttons */}
+          <div className="lg:hidden w-full space-y-4 pt-4 border-t border-gray-200">
+            <button 
+              onClick={handleSave}
+              className="w-full aspect-square rounded flex flex-col items-center justify-center text-blue-600 hover:bg-blue-50 transition-colors"
+              title={lang === 'es' ? 'Guardar' : 'Save'}
+            >
+              <HiOutlineSave className="w-6 h-6 mb-1" />
+              <span className="text-[9px] font-bold">SAVE</span>
+            </button>
+            <button 
+              onClick={handleSetDefaultView}
+              className="w-full aspect-square rounded flex flex-col items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
+              title={lang === 'es' ? 'Fijar Vista' : 'Set View'}
+            >
+              <HiOutlineEye className="w-6 h-6 mb-1" />
+              <span className="text-[9px] font-bold">VIEW</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1109,7 +1129,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       >
         {/* Template Welcome Center Screen for 0 Sections */}
         {sections.length === 0 && !dismissWelcome && (
-          <div data-welcome="true" className="absolute inset-0 bg-white/95 flex flex-col items-center justify-center z-30 p-6 md:p-12 animate-fade-in backdrop-blur-sm">
+          <div data-welcome="true" className="absolute inset-0 bg-white/95 flex flex-col items-center lg:justify-center z-30 p-6 md:p-12 animate-fade-in backdrop-blur-sm overflow-y-auto">
             <div className="max-w-2xl w-full text-center space-y-6">
               <div className="space-y-2">
                 <span className="text-5xl block animate-bounce">🎨</span>

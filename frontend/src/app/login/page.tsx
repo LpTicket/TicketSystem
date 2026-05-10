@@ -33,7 +33,11 @@ export default function LoginPage() {
 
   const handleSocialLogin = (provider: 'google' | 'facebook') => {
     if (provider === 'google') {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://ticketsystembackend-1021.onrender.com/api';
+      // Ensure it ends with /api
+      if (!apiUrl.endsWith('/api')) {
+        apiUrl = apiUrl.endsWith('/') ? `${apiUrl}api` : `${apiUrl}/api`;
+      }
       window.location.href = `${apiUrl}/auth/google`;
     } else {
       alert(lang === 'es' ? 'Facebook aún no está configurado' : 'Facebook not configured yet');
