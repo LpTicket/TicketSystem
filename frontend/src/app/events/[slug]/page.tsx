@@ -92,8 +92,12 @@ export default function EventDetailPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Hero Image */}
       <div className="relative rounded-lg overflow-hidden mb-8 aspect-[21/9]">
-        {event.imageUrl ? (
-          <img src={getImageUrl(event.imageUrl)} alt={event.title} className="w-full h-full object-cover" />
+        {(event.bannerImageUrl || event.imageUrl) ? (
+          <img 
+            src={getImageUrl(event.bannerImageUrl || event.imageUrl)} 
+            alt={event.title} 
+            className="w-full h-full object-cover" 
+          />
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-blue-600 to-primary-500 flex items-center justify-center">
             <span className="text-8xl">{categoryInfo.icon}</span>
