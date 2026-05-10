@@ -17,7 +17,6 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, UpdateProfileDto } from './dto/auth.dto';
-import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -50,7 +49,7 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Request() req: any, @Res() res: Response) {
+  async googleAuthRedirect(@Request() req: any, @Res() res: any) {
     const result = await this.authService.validateOAuthUser(req.user);
     
     // Redirect to frontend with tokens in URL

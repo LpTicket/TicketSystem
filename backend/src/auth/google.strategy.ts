@@ -11,7 +11,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET'),
       callbackURL: 'https://ticketsystembackend-1021.onrender.com/api/auth/google/callback',
       scope: ['email', 'profile'],
-    });
+    } as any);
   }
 
   async validate(
