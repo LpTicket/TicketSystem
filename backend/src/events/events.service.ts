@@ -117,7 +117,7 @@ export class EventsService {
     if (event.organizerId !== userId && user?.role !== 'admin') {
       throw new ForbiddenException('No tienes permiso para editar este evento');
     }
-    if (event.status === EventStatus.PUBLISHED) {
+    if (event.status === EventStatus.PUBLISHED && user?.role !== 'admin') {
       await this.eventRepo.update(id, {
         pendingTitle: dto.title,
         pendingDescription: dto.description,
@@ -169,7 +169,7 @@ export class EventsService {
       throw new ForbiddenException();
     }
     const imageUrl = `/uploads/${filename}`;
-    if (event.status === EventStatus.PUBLISHED) {
+    if (event.status === EventStatus.PUBLISHED && user?.role !== 'admin') {
       await this.eventRepo.update(id, { pendingImageUrl: imageUrl });
     } else {
       await this.eventRepo.update(id, { imageUrl });
@@ -184,7 +184,7 @@ export class EventsService {
       throw new ForbiddenException();
     }
     const bannerImageUrl = `/uploads/${filename}`;
-    if (event.status === EventStatus.PUBLISHED) {
+    if (event.status === EventStatus.PUBLISHED && user?.role !== 'admin') {
       await this.eventRepo.update(id, { pendingBannerImageUrl: bannerImageUrl });
     } else {
       await this.eventRepo.update(id, { bannerImageUrl });

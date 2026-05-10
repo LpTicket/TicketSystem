@@ -9,6 +9,7 @@ const translations = {
     // Navbar
     whoWeAre: 'Quiénes Somos',
     contact: 'Contacto',
+    support: 'Soporte',
     login: 'INICIAR SESIÓN',
     register: 'REGISTRARSE',
     myProfile: 'Mi Perfil',
@@ -234,6 +235,7 @@ const translations = {
     // Navbar
     whoWeAre: 'About Us',
     contact: 'Contact',
+    support: 'Support',
     login: 'LOG IN',
     register: 'SIGN UP',
     myProfile: 'My Profile',

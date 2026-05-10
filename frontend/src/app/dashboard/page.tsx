@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
@@ -57,7 +58,8 @@ function DashboardPageBody() {
           username: user.username || '',
           idType: user.idType || 'V',
           idNumber: user.idNumber || '',
-          address: user.address || ''
+          address: user.address || '',
+          password: ''
         });
       }
     }
@@ -80,8 +82,18 @@ function DashboardPageBody() {
   };
 
   const handleSaveProfile = async () => {
-    try { await updateProfile(profileForm); setEditMode(false); }
-    catch { alert(lang === 'es' ? 'Error al actualizar perfil' : 'Error updating profile'); }
+    try { 
+      // Si la contraseña está vacía, la omitimos de la actualización
+      const dataToUpdate = { ...profileForm };
+      if (!dataToUpdate.password) {
+        delete dataToUpdate.password;
+      }
+      await updateProfile(dataToUpdate); 
+      setEditMode(false); 
+      setProfileForm({ ...profileForm, password: '' });
+      toast.success(lang === 'es' ? 'Perfil actualizado' : 'Profile updated');
+    }
+    catch { toast.error(lang === 'es' ? 'Error al actualizar perfil' : 'Error updating profile'); }
   };
 
   const dateFnsLocale = lang === 'es' ? es : enUS;
@@ -314,6 +326,10 @@ function DashboardPageBody() {
                   <div className="sm:col-span-2 space-y-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Dirección' : 'Address'}</label>
                     <textarea value={profileForm.address} onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })} className="w-full input bg-gray-50 border-transparent focus:bg-white min-h-[80px] py-3" />
+                  </div>
+                  <div className="sm:col-span-2 space-y-2">
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Nueva Contraseña (Opcional)' : 'New Password (Optional)'}</label>
+                    <input type="password" value={profileForm.password || ''} onChange={(e) => setProfileForm({ ...profileForm, password: e.target.value })} placeholder="******" className="input bg-gray-50 border-transparent focus:bg-white" />
                   </div>
                   <div className="sm:col-span-2 pt-4">
                     <button onClick={handleSaveProfile} className="btn-primary w-full py-3.5 rounded-xl font-bold shadow-lg shadow-primary-500/20">{t('clientSave')}</button>

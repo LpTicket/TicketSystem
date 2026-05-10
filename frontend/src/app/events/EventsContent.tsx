@@ -39,30 +39,41 @@ export default function EventsContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Search + Category filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <form onSubmit={handleSearch} className="flex-1 relative">
-          <HiOutlineSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
+      {/* Main Bar: Search + Categories */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 bg-white p-3 rounded-2xl border border-gray-200 shadow-sm mb-8">
+        
+        {/* Search (Pill style) */}
+        <form onSubmit={handleSearch} className="relative flex items-center bg-white rounded-xl border border-gray-300 w-full lg:w-[450px] shrink-0 transition-all focus-within:border-primary-400 focus-within:shadow-md">
+          <div className="pl-4 text-gray-400">
+            <HiOutlineSearch className="w-4 h-4" />
+          </div>
           <input 
             type="text" 
             value={search} 
             onChange={(e) => setSearch(e.target.value)} 
             placeholder="Buscar eventos..." 
-            className="input pr-24 py-2.5" 
-            style={{ paddingLeft: '3rem' }}
+            className="flex-1 py-3 px-3 text-gray-700 focus:outline-none text-sm bg-transparent" 
           />
-          <button type="submit" className="btn-primary absolute right-1 top-1/2 -translate-y-1/2 text-xs py-1.5 px-4 rounded-lg">Buscar</button>
         </form>
-      </div>
 
-      {/* Category pills */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        <button onClick={() => { setCategory(''); setPage(1); }} className={`category-pill ${!category ? 'active' : ''}`}>Todos</button>
-        {categories.map((cat) => (
-          <button key={cat.slug} onClick={() => { setCategory(cat.slug); setPage(1); }} className={`category-pill ${category === cat.slug ? 'active' : ''}`}>
-            {cat.labelEs}
+        {/* Categories (Scrollable) */}
+        <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <button 
+            onClick={() => { setCategory(''); setPage(1); }} 
+            className={`category-pill whitespace-nowrap !py-2.5 ${!category ? 'active' : ''}`}
+          >
+            Todos
           </button>
-        ))}
+          {categories.map((cat) => (
+            <button 
+              key={cat.slug} 
+              onClick={() => { setCategory(cat.slug); setPage(1); }} 
+              className={`category-pill whitespace-nowrap !py-2.5 ${category === cat.slug ? 'active' : ''}`}
+            >
+              {cat.labelEs}
+            </button>
+          ))}
+        </div>
       </div>
 
       <p className="text-sm text-gray-500 mb-4">{total} {total === 1 ? 'evento encontrado' : 'eventos encontrados'}</p>

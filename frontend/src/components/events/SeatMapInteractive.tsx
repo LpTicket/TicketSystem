@@ -184,38 +184,45 @@ export default function SeatMapInteractive({
   };
 
   // Mouse wheel zoom relative to cursor position
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    if (!containerRef.current) return;
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
-    const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-    const oldZoom = zoom;
-    const newZoom = Math.min(Math.max(oldZoom + delta, MIN_ZOOM), MAX_ZOOM);
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      
+      // Calculate zoom
+      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+      const oldZoom = zoom;
+      const newZoom = Math.min(Math.max(oldZoom + delta, MIN_ZOOM), MAX_ZOOM);
 
-    if (newZoom === oldZoom) return;
+      if (newZoom === oldZoom) return;
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+      const rect = container.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
 
-    const ratio = newZoom / oldZoom;
-    
-    // Constrain pan coordinates within dragging bounds to prevent drifting off-screen
-    const cw = rect.width || 800;
-    const ch = rect.height || 500;
-    const newX = mx - (mx - pan.x) * ratio;
-    const newY = my - (my - pan.y) * ratio;
+      const ratio = newZoom / oldZoom;
+      
+      const cw = rect.width || 800;
+      const ch = rect.height || 500;
+      const newX = mx - (mx - pan.x) * ratio;
+      const newY = my - (my - pan.y) * ratio;
 
-    const minX = -2000 * newZoom + 100;
-    const maxX = cw - 100;
-    const minY = -1600 * newZoom + 100;
-    const maxY = ch - 100;
+      const minX = -2000 * newZoom + 100;
+      const maxX = cw - 100;
+      const minY = -1600 * newZoom + 100;
+      const maxY = ch - 100;
 
-    setZoom(newZoom);
-    setPan({
-      x: Math.min(maxX, Math.max(minX, newX)),
-      y: Math.min(maxY, Math.max(minY, newY)),
-    });
+      setZoom(newZoom);
+      setPan({
+        x: Math.min(maxX, Math.max(minX, newX)),
+        y: Math.min(maxY, Math.max(minY, newY)),
+      });
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
   }, [zoom, pan]);
 
   // Pan drag
@@ -432,7 +439,6 @@ export default function SeatMapInteractive({
         ref={containerRef}
         className="relative bg-[#f0f2f5] border border-gray-300 rounded overflow-hidden shadow-inner"
         style={{ height: '65vh', minHeight: 450, cursor: isDragging.current ? 'grabbing' : 'grab', touchAction: 'none' }}
-        onWheel={onWheel}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}

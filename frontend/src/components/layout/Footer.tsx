@@ -27,6 +27,7 @@ export default function Footer() {
             </div>
             <div className="space-y-6">
               <Link href="/contact" className="block text-white/90 hover:text-white text-[15px] font-medium transition-colors">{t('contact')}</Link>
+              <Link href="/support" className="block text-white/90 hover:text-white text-[15px] font-medium transition-colors">{t('support')}</Link>
             </div>
           </div>
 

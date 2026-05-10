@@ -233,7 +233,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     const newY = vy + (e.clientY - my);
     
     // Apply boundaries so the user doesn't lose the canvas infinitely
-    const LIMIT = 2500;
+    const LIMIT = 1200;
     viewRef.current.x = Math.max(-LIMIT, Math.min(LIMIT, newX));
     viewRef.current.y = Math.max(-LIMIT, Math.min(LIMIT, newY));
     
@@ -379,7 +379,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const handleAddSection = (type: string) => {
     const colorIndex = sections.length % SECTION_COLORS.length;
     let defaultName = '';
-    if (type === 'table') {
+    if (type === 'stage') {
+      defaultName = lang === 'es' ? 'Escenario' : 'Stage';
+    } else if (type === 'table') {
       defaultName = lang === 'es' ? 'Nueva Mesa' : 'New Table';
     } else if (type === 'standing') {
       defaultName = lang === 'es' ? 'Área General' : 'General Admission';
@@ -396,12 +398,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       sectionType: type as any,
       rows: type === 'table' ? 1 : 5,
       seatsPerRow: type === 'table' ? 4 : 10,
-      price: 50,
-      color: SECTION_COLORS[colorIndex],
+      price: type === 'stage' ? 0 : 50,
+      color: type === 'stage' ? '#1e293b' : SECTION_COLORS[colorIndex],
       mapX: STAGE_X + Math.random() * 300 - 150 + STAGE_W / 2,
       mapY: STAGE_Y + STAGE_H + 80 + sections.length * 30,
-      mapWidth: type === 'table' ? 80 : 160,
-      mapHeight: type === 'table' ? 80 : 100,
+      mapWidth: type === 'table' ? 80 : (type === 'stage' ? 400 : 160),
+      mapHeight: type === 'table' ? 80 : (type === 'stage' ? 80 : 100),
       capacity: 0,
     };
     setSections(prev => [...prev, newSection]);
@@ -743,23 +745,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             {lang === 'es' ? 'Fijar Vista Inicial' : 'Set Initial View'}
           </button>
 
-          <label className="flex items-center gap-2 cursor-pointer bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded px-3.5 py-1.5 transition-colors shadow-sm select-none">
-            <input 
-              type="checkbox" 
-              checked={showStage} 
-              onChange={(e) => {
-                setShowStage(e.target.checked);
-                toast.success(e.target.checked 
-                  ? (lang === 'es' ? 'Escenario visible' : 'Stage enabled') 
-                  : (lang === 'es' ? 'Escenario oculto (mapa vacío por defecto)' : 'Stage disabled (empty map by default)')
-                );
-              }}
-              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300" 
-            />
-            <span className="text-xs font-bold text-gray-700">
-              {lang === 'es' ? 'Mostrar Escenario' : 'Show Stage'}
-            </span>
-          </label>
+
 
           <button onClick={handleSave} disabled={saving} className="bg-[#1a73e8] hover:bg-[#1557b0] text-white text-sm font-medium py-1.5 px-5 rounded shadow-sm transition-colors flex items-center gap-2">
             {saving ? (
@@ -811,6 +797,15 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           >
             <svg className="w-6 h-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
             <span className="text-[9px] font-medium leading-none">Área</span>
+          </button>
+
+          <button 
+            onClick={() => handleAddSection('stage')} 
+            className="w-full aspect-square rounded flex flex-col items-center justify-center text-gray-500 hover:text-[#1a73e8] hover:bg-[#f8f9fa] transition-colors group"
+            title={lang === 'es' ? 'Escenario' : 'Stage'}
+          >
+            <svg className="w-6 h-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 14h16v6H4z"/><path d="M4 14l2-8h12l2 8"/></svg>
+            <span className="text-[9px] font-medium leading-none">Escenario</span>
           </button>
 
           <div className="w-full h-px bg-gray-200 my-1" />
@@ -1250,39 +1245,13 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           }}
           onClick={e => e.stopPropagation()}
         >
-          {/* ── STAGE (anchor) ─────────────────────────────────────── */}
-          {showStage && (
-            <div
-              style={{
-                position: 'absolute',
-                left: STAGE_X,
-                top: STAGE_Y,
-                width: STAGE_W,
-                height: STAGE_H,
-                background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-                border: '2.5px solid #3b82f6',
-                boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)',
-                borderRadius: '0 0 40px 40px',
-              }}
-            >
-              <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 0 10px rgba(96, 165, 250, 0.5)' }}>
-                {lang === 'es' ? 'ESCENARIO' : 'STAGE'}
-              </span>
-              <span style={{ color: '#94a3b8', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginTop: 1 }}>
-                {lang === 'es' ? 'ESCENARIO' : 'STAGE'}
-              </span>
-            </div>
-          )}
+
 
           {sections.map(sec => {
             const isSelected = selectedId === sec.id;
             const isTable = sec.sectionType === 'table';
             const isStanding = sec.sectionType === 'standing';
+            const isStage = sec.sectionType === 'stage';
             const isSeated = sec.sectionType === 'seated' || sec.sectionType === 'vip';
             const rowsCount = sec.rows || 1;
             const seatsCount = sec.seatsPerRow || 1;
@@ -1305,10 +1274,10 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   top: sec.mapY || (STAGE_Y + STAGE_H + 60),
                   width: sec.mapWidth || 100,
                   height: sec.mapHeight || 100,
-                  backgroundColor: isStanding ? sec.color : 'transparent',
+                  background: isStage ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : (isStanding ? sec.color : 'transparent'),
                   opacity: isStanding ? 0.85 : 1,
-                  border: isStanding ? `none` : isSelected ? `2px solid #1a73e8` : `1px solid transparent`,
-                  borderRadius: isStanding ? 8 : (isTable && tableShape === 'round') ? '50%' : 4,
+                  border: isStage ? (isSelected ? '2.5px solid #60a5fa' : '2.5px solid #3b82f6') : (isStanding ? `none` : isSelected ? `2px solid #1a73e8` : `1px solid transparent`),
+                  borderRadius: isStage ? '0 0 40px 40px' : (isStanding ? 8 : (isTable && tableShape === 'round') ? '50%' : 4),
                   cursor: 'move',
                   display: 'flex',
                   flexDirection: 'column',
@@ -1318,9 +1287,19 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   zIndex: isSelected ? 20 : isStanding ? 5 : 10,
                   willChange: 'left, top',
                   touchAction: 'none',
-                  boxShadow: isStanding ? '0 4px 10px rgba(0,0,0,0.08)' : 'none',
+                  boxShadow: isStage ? '0 0 20px rgba(59, 130, 246, 0.4)' : (isStanding ? '0 4px 10px rgba(0,0,0,0.08)' : 'none'),
                 }}
               >
+                {isStage && (
+                  <>
+                    <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 0 10px rgba(96, 165, 250, 0.5)' }}>
+                      {sec.name}
+                    </span>
+                    <span style={{ color: '#94a3b8', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginTop: 1 }}>
+                      {lang === 'es' ? 'ESCENARIO' : 'STAGE'}
+                    </span>
+                  </>
+                )}
                 {/* Visual Representation of Seats (Seats.io Style circles) */}
                 {isSeated && (
                   <div className="absolute inset-0 pointer-events-none">

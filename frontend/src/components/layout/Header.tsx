@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineSearch, HiOutlineMenu, HiOutlineX, HiOutlineUser, HiOutlineLogout, HiOutlineCog, HiOutlineTicket, HiOutlineShoppingCart, HiOutlineQrcode } from 'react-icons/hi';
@@ -18,148 +18,50 @@ export default function Header() {
   const { lang, setLang, t } = useLang();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdown, setProfileDropdown] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [cartDropdown, setCartDropdown] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (searchQuery.trim().length >= 2) {
-        try {
-          const { data } = await api.get(`/events?search=${searchQuery}&limit=5`);
-          setSearchResults(data.events || []);
-          setShowSearchResults(true);
-        } catch (err) {
-          console.error('Error fetching search results', err);
-        }
-      } else {
-        setSearchResults([]);
-        setShowSearchResults(false);
-      }
-    }, 300);
 
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      setShowSearchResults(false);
-      window.location.href = `/events?search=${encodeURIComponent(searchQuery)}`;
-    }
-  };
+  const pathname = usePathname();
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-b border-gray-200/50">
-      <div className="w-full px-4 md:px-8 lg:px-12">
-        <div className="flex items-center justify-between h-20">
+      <div className="max-w-[1400px] mx-auto px-3 sm:px-6 md:px-8">
+        <div className="flex lg:grid lg:grid-cols-3 items-center justify-between h-20">
           
-          {/* Logo + Nav */}
-          <div className="flex items-center lg:w-[450px] shrink-0">
+          {/* Left: Logo */}
+          <div className="flex items-center justify-start shrink-0 min-w-0">
             <Link href="/" className="flex shrink-0">
               <img 
                 src="/logo.png" 
                 alt="LPTicket" 
-                className="h-14 sm:h-16 w-auto object-contain" 
+                className="h-10 sm:h-12 md:h-14 w-auto object-contain" 
               />
             </Link>
-            <nav className="hidden lg:flex items-center gap-1.5 ml-6">
-              <Link href="/about" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors px-3 text-center shrink-0">{t('whoWeAre')}</Link>
-              <Link href={isAuthenticated ? "/dashboard?tab=tickets" : "/login?redirect=/dashboard?tab=tickets"} className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors px-3 text-center shrink-0">{lang === 'es' ? 'Mis Tickets' : 'My Tickets'}</Link>
-              <Link href="/contact" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors px-3 text-center shrink-0">{t('contact')}</Link>
-              <Link href="/support" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors px-3 text-center shrink-0">{lang === 'es' ? 'Soporte' : 'Support'}</Link>
-            </nav>
           </div>
 
-          {/* Center Search Bar */}
-          <div className={`hidden md:flex flex-1 max-w-md relative ${lang === 'es' ? 'lg:ml-28 lg:mr-2' : 'mx-6'}`}>
-            <form onSubmit={handleSearch} className="w-full relative">
-              <HiOutlineSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary-500 font-bold z-10" />
-              <input
-                type="text"
-                placeholder={t('searchPlaceholder')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
-                className="w-full pr-5 py-2.5 rounded-full border-[1.5px] border-primary-500 bg-white text-gray-800 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                style={{ paddingLeft: '3rem' }}
-              />
-            </form>
+          {/* Center: Nav Links */}
+          <nav className="hidden lg:flex items-center justify-center gap-10">
+            <Link href="/about" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors whitespace-nowrap">{t('whoWeAre')}</Link>
+            <Link href={isAuthenticated ? "/dashboard?tab=tickets" : "/login?redirect=/dashboard?tab=tickets"} className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors whitespace-nowrap">{t('myTickets')}</Link>
+            <Link href="/contact" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors whitespace-nowrap">{t('contact')}</Link>
+            <Link href="/support" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors whitespace-nowrap">{t('support')}</Link>
+          </nav>
 
-            {/* Real-time Search Results */}
-            {showSearchResults && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-[0_15px_50px_rgba(0,0,0,0.15)] border border-gray-100 py-3 z-[100] animate-fade-in overflow-hidden">
-                <div className="px-4 pb-2 mb-2 border-b border-gray-50 flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('searchResults' as any) || 'Resultados'}</span>
-                  <button onClick={() => setShowSearchResults(false)} className="text-gray-400 hover:text-gray-600"><HiOutlineX className="w-3 h-3" /></button>
-                </div>
-                {searchResults.map((event) => (
-                  <div 
-                    key={event.id} 
-                    onClick={() => {
-                      router.push(`/events/${event.slug || event.id}`);
-                      setShowSearchResults(false);
-                      setSearchQuery('');
-                    }}
-                    className="flex items-center gap-4 px-4 py-3 hover:bg-primary-50 cursor-pointer transition-all group"
-                  >
-                    <div className="w-12 h-12 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
-                      {event.imageUrl ? (
-                        <img src={event.imageUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-xs">LP</div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[14px] font-bold text-gray-900 truncate group-hover:text-primary-600 transition-colors">{event.title}</p>
-                      <p className="text-[11px] text-gray-500 truncate flex items-center gap-1">
-                        <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                        {event.venueName}
-                      </p>
-                    </div>
-                    <div className="text-primary-500 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
-                      <HiOutlineSearch className="w-4 h-4" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Right Side */}
-          <div className="hidden lg:flex items-center gap-3 w-[450px] justify-end shrink-0">
-            {/* NEW: Scanner Portal (Only if logged in) */}
-            {isAuthenticated && (
+          {/* Right: Tools */}
+          <div className="hidden lg:flex items-center justify-end gap-6 shrink-0">
+            {/* NEW: Scanner Portal (Only for Admins) */}
+            {user?.role === 'admin' && (
               <Link 
                 href="/verify" 
-                className="w-9 h-9 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-all shadow-sm group relative"
-                title={lang === 'es' ? 'Escanear Entradas' : 'Scan Tickets'}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-primary-500 text-white rounded-full hover:bg-primary-600 transition-all shadow-md active:scale-95 group"
               >
-                <HiOutlineQrcode className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="absolute bottom-11 scale-0 group-hover:scale-100 transition-all bg-gray-900 text-white text-[10px] font-bold py-1 px-2.5 rounded shadow-lg whitespace-nowrap z-50">
-                  {lang === 'es' ? 'Escáner de Entradas' : 'Ticket Scanner'}
+                <HiOutlineQrcode className="w-4 h-4 text-primary-100 group-hover:text-white transition-colors" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">
+                  {lang === 'es' ? 'Escanear' : 'Scan'}
                 </span>
               </Link>
             )}
-
-            {/* NEW: Shopping Cart */}
-            <div className="relative group shrink-0">
-              <Link 
-                href="/dashboard?tab=orders" 
-                className="w-9 h-9 rounded-full bg-gray-50 hover:bg-gray-100 text-gray-600 hover:text-blue-600 flex items-center justify-center transition-all relative"
-                title={lang === 'es' ? 'Carrito de Compra' : 'Shopping Cart'}
-              >
-                <HiOutlineShoppingCart className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary-600 text-white rounded-full text-[9px] font-bold flex items-center justify-center animate-pulse">
-                  0
-                </span>
-              </Link>
-              {/* Dropdown on hover */}
-              <div className="absolute right-0 top-11 w-64 bg-white rounded-2xl shadow-elevated border border-gray-100 p-4 opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all duration-200 z-50">
-                <h4 className="font-bold text-xs text-gray-900 mb-1">{lang === 'es' ? 'Carrito de Compra' : 'Shopping Cart'}</h4>
-                <p className="text-[11px] text-gray-500">{lang === 'es' ? 'No tienes entradas en el carrito listas para pagar.' : 'No tickets in your cart ready for checkout.'}</p>
-              </div>
-            </div>
 
             {/* Language switcher */}
             <div className="flex items-center border border-gray-300 rounded overflow-hidden text-xs font-bold shrink-0">
@@ -226,13 +128,28 @@ export default function Header() {
           </div>
 
           {/* Mobile toggle */}
-          <div className="lg:hidden flex items-center gap-3 shrink-0">
+          <div className="lg:hidden flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Mobile Scanner */}
+            {user?.role === 'admin' && (
+              <Link 
+                href="/verify" 
+                className="flex items-center gap-1 px-2.5 py-1 bg-primary-500 text-white rounded-full shadow-sm active:scale-95"
+              >
+                <HiOutlineQrcode className="w-3.5 h-3.5 text-primary-100" />
+                <span className="text-[9px] font-bold uppercase tracking-tight">
+                  {lang === 'es' ? 'Escanear' : 'Scan'}
+                </span>
+              </Link>
+            )}
+
+
+
             {/* Mobile language switcher */}
-            <div className="flex items-center border border-gray-300 rounded overflow-hidden text-xs font-bold">
-              <button onClick={() => setLang('es')} className={`w-8 text-center py-1 transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>ES</button>
-              <button onClick={() => setLang('en')} className={`w-8 text-center py-1 transition-colors ${lang === 'en' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>EN</button>
+            <div className="flex items-center border border-gray-300 rounded overflow-hidden text-[10px] font-bold">
+              <button onClick={() => setLang('es')} className={`w-7 text-center py-1 transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>ES</button>
+              <button onClick={() => setLang('en')} className={`w-7 text-center py-1 transition-colors ${lang === 'en' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>EN</button>
             </div>
-            <button className="p-2 text-blue-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <button className="p-1 text-blue-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <HiOutlineX className="w-7 h-7" /> : <HiOutlineMenu className="w-7 h-7" />}
             </button>
           </div>
@@ -243,53 +160,12 @@ export default function Header() {
       {mobileMenuOpen && (
         <div className="lg:hidden bg-white border-t border-gray-100 shadow-lg animate-fade-in absolute w-full left-0">
           <div className="px-4 py-4 space-y-3">
-            <div className="relative mb-4">
-              <form onSubmit={(e) => { handleSearch(e); setMobileMenuOpen(false); }} className="relative">
-                <HiOutlineSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-primary-500 z-10" />
-                <input 
-                  type="text" 
-                  placeholder={t('searchMobile')} 
-                  value={searchQuery} 
-                  onChange={(e) => setSearchQuery(e.target.value)} 
-                  onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
-                  className="w-full pr-4 py-2.5 rounded-full border border-primary-500 text-sm focus:outline-none" 
-                  style={{ paddingLeft: '3rem' }}
-                />
-              </form>
 
-              {/* Mobile Search Results */}
-              {showSearchResults && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 overflow-hidden max-h-[300px] overflow-y-auto">
-                  {searchResults.map((event) => (
-                    <div 
-                      key={event.id} 
-                      onClick={() => {
-                        router.push(`/events/${event.slug || event.id}`);
-                        setShowSearchResults(false);
-                        setMobileMenuOpen(false);
-                        setSearchQuery('');
-                      }}
-                      className="flex items-center gap-3 px-4 py-3 hover:bg-primary-50 active:bg-primary-100 cursor-pointer transition-colors"
-                    >
-                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex-shrink-0 overflow-hidden">
-                        {event.imageUrl ? (
-                          <img src={event.imageUrl} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-[10px]">LP</div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-gray-900 truncate">{event.title}</p>
-                        <p className="text-[10px] text-gray-500 truncate">{event.venueName}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
             <Link href="/events" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('events')}</Link>
             <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('whoWeAre')}</Link>
+            <Link href="/dashboard?tab=tickets" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('myTickets')}</Link>
             <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('contact')}</Link>
+            <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('support')}</Link>
             <div className="py-2 border-b border-gray-100 flex justify-center">
               {isAuthenticated && user?.role !== 'admin' && (
                 <ModeToggle variant="pill" />
@@ -320,6 +196,54 @@ export default function Header() {
               </div>
             )}
           </div>
+        </div>
+      )}
+      {/* Floating Shopping Cart Popup (Bottom Right) - Hidden in Panels */}
+      {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && (
+        <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3">
+          {cartDropdown && (
+            <div className="w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 animate-fade-in-up mb-2">
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
+                    <HiOutlineShoppingCart className="w-4 h-4" />
+                  </div>
+                  <h4 className="font-bold text-sm text-gray-900">{lang === 'es' ? 'Mi Carrito' : 'My Cart'}</h4>
+                </div>
+                <button 
+                  onClick={() => setCartDropdown(false)}
+                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <HiOutlineX className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+              <div className="py-4 text-center border-y border-gray-50 my-2">
+                <p className="text-xs text-gray-500 italic">
+                  {lang === 'es' ? 'No tienes entradas en el carrito listas para pagar.' : 'No tickets in your cart ready for checkout.'}
+                </p>
+              </div>
+              <button 
+                className="w-full py-2.5 bg-gray-100 text-gray-400 font-bold text-xs rounded-xl cursor-not-allowed uppercase tracking-wider"
+                disabled
+              >
+                {lang === 'es' ? 'Continuar Compra' : 'Checkout'}
+              </button>
+            </div>
+          )}
+          
+          <button 
+            onClick={() => setCartDropdown(!cartDropdown)}
+            className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 relative group active:scale-90 ${
+              cartDropdown ? 'bg-gray-900 text-white rotate-90' : 'bg-primary-500 text-white hover:bg-primary-600'
+            }`}
+          >
+            {cartDropdown ? <HiOutlineX className="w-6 h-6" /> : <HiOutlineShoppingCart className="w-7 h-7" />}
+            {!cartDropdown && (
+              <span className="absolute -top-1 -right-1 w-6 h-6 bg-blue-600 text-white rounded-full text-[11px] font-bold flex items-center justify-center border-2 border-white shadow-lg animate-bounce">
+                0
+              </span>
+            )}
+          </button>
         </div>
       )}
     </header>

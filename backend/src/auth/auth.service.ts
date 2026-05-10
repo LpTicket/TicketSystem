@@ -71,7 +71,13 @@ export class AuthService {
       const existingUser = await this.userRepo.findOne({ where: { username: dto.username } });
       if (existingUser && existingUser.id !== userId) throw new ConflictException('El usuario ya está en uso');
     }
-    await this.userRepo.update(userId, dto as any);
+    const updateData: any = { ...dto };
+    if (dto.password) {
+      updateData.passwordHash = await bcrypt.hash(dto.password, 12);
+      delete updateData.password;
+    }
+    
+    await this.userRepo.update(userId, updateData);
     return this.getProfile(userId);
   }
 

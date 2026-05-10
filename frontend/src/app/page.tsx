@@ -21,6 +21,7 @@ export default function HomePage() {
   const [activeCategory, setActiveCategory] = useState('');
   const [usingDemo, setUsingDemo] = useState(false);
   const [currentBannerIdx, setCurrentBannerIdx] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => { loadEvents(); }, []);
 
@@ -50,6 +51,13 @@ export default function HomePage() {
     } finally {
       clearTimeout(safetyTimeout);
       setLoading(false);
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      window.location.href = `/events?search=${encodeURIComponent(searchQuery)}`;
     }
   };
 
@@ -135,16 +143,31 @@ export default function HomePage() {
         </section>
       ) : null}
 
-
-      {/* Category pills & Sort */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex justify-between items-center gap-4">
+      {/* Main Bar: Search + Categories + Sort */}
+      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 bg-white p-3 rounded-2xl border border-gray-200 shadow-sm">
           
-          {/* Desktop Categories */}
-          <div className="hidden sm:flex flex-wrap gap-2">
+          {/* Search (Pill style) */}
+          <form onSubmit={handleSearch} className="relative flex items-center bg-white rounded-xl border border-gray-300 w-full lg:w-[450px] shrink-0 transition-all focus-within:border-primary-400 focus-within:shadow-md">
+            <div className="pl-4 text-gray-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input 
+              type="text"
+              placeholder={lang === 'es' ? 'Buscar eventos...' : 'Search events...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 py-3 px-3 text-gray-700 focus:outline-none text-sm bg-transparent"
+            />
+          </form>
+
+          {/* Categories (Scrollable) */}
+          <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
             <button
               onClick={() => setActiveCategory('')}
-              className={`category-pill ${activeCategory === '' ? 'active' : ''}`}
+              className={`category-pill whitespace-nowrap !py-2.5 ${activeCategory === '' ? 'active' : ''}`}
             >
               {t('catAll')}
             </button>
@@ -152,69 +175,46 @@ export default function HomePage() {
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(activeCategory === cat.slug ? '' : cat.slug)}
-                className={`category-pill ${activeCategory === cat.slug ? 'active' : ''}`}
+                className={`category-pill whitespace-nowrap !py-2.5 ${activeCategory === cat.slug ? 'active' : ''}`}
               >
                 {lang === 'en' ? cat.labelEn : cat.labelEs}
               </button>
             ))}
           </div>
 
-          {/* Mobile Categories Dropdown */}
-          <div className="sm:hidden relative">
-            <button 
-              onClick={() => setCategoryOpen(!categoryOpen)}
-              className="bg-white border border-primary-500 text-primary-500 text-sm py-2 px-4 flex items-center gap-2 font-bold"
-            >
-              {t('categories')}
-              <span className="text-xs">▼</span>
-            </button>
-            {categoryOpen && (
-              <div className="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-20 animate-fade-in">
-                <button
-                  onClick={() => { setActiveCategory(''); setCategoryOpen(false); }}
-                  className={`w-full text-left px-4 py-2 text-sm ${activeCategory === '' ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}
-                >
-                  {t('catAll')}
-                </button>
-                {displayCategories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => { setActiveCategory(activeCategory === cat.slug ? '' : cat.slug); setCategoryOpen(false); }}
-                    className={`w-full text-left px-4 py-2 text-sm ${activeCategory === cat.slug ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    {lang === 'en' ? cat.labelEn : cat.labelEs}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="relative">
+          {/* Sort (Desktop/Mobile) */}
+          <div className="relative shrink-0 w-full lg:w-auto">
             <button 
               onClick={() => setSortOpen(!sortOpen)}
-              className="btn-primary text-sm py-2 px-4 flex items-center gap-2"
+              className="w-full lg:w-auto bg-primary-500 hover:bg-primary-600 text-white font-black text-[10px] py-3 px-5 flex items-center justify-center lg:justify-between gap-2 rounded-xl transition-all shadow-sm tracking-widest uppercase"
             >
               {t('sortBy')}
-              <span className="text-xs">▼</span>
+              <span className="text-[8px] opacity-70">▼</span>
             </button>
             {sortOpen && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-20 animate-fade-in">
+              <div className="absolute right-0 top-full mt-2 w-full lg:w-44 bg-white border border-gray-100 rounded-2xl shadow-elevated overflow-hidden z-[60] animate-fade-in-up">
+                <div className="px-4 py-2 border-b border-gray-50 bg-gray-50/50">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{lang === 'es' ? 'Ordenar por' : 'Sort by'}</span>
+                </div>
                 <button
                   onClick={() => { setSortBy('fecha'); setSortOpen(false); }}
-                  className={`w-full text-left px-4 py-2 text-sm ${sortBy === 'fecha' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                  className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'fecha' ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}
                 >
-                  {t('date')}
+                  📅 {t('date')}
                 </button>
                 <button
                   onClick={() => { setSortBy('precio'); setSortOpen(false); }}
-                  className={`w-full text-left px-4 py-2 text-sm ${sortBy === 'precio' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                  className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'precio' ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}
                 >
-                  {t('price')}
+                  💰 {t('price')}
                 </button>
               </div>
             )}
           </div>
         </div>
       </section>
+
+
 
       {/* Events Grid — 4 columns */}
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-12">

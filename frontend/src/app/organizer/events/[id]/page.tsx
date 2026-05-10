@@ -352,7 +352,7 @@ export default function EventDetailPage() {
       )}
 
       {/* Pending Changes Notice */}
-      {(event.pendingTitle || event.pendingDescription || event.pendingImageUrl || event.pendingBannerImageUrl || event.pendingVenueName || event.pendingCategory || event.pendingEventDate) && (
+      {user?.role !== 'admin' && (event.pendingTitle || event.pendingDescription || event.pendingImageUrl || event.pendingBannerImageUrl || event.pendingVenueName || event.pendingCategory || event.pendingEventDate) && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-sm text-amber-800 shadow-sm animate-fade-in">
           <span className="text-lg">⏳</span>
           <div className="space-y-1">
@@ -367,23 +367,23 @@ export default function EventDetailPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
+      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto pb-px no-scrollbar">
         <button
           onClick={() => setActiveTab('details')}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'details' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'details' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           <HiOutlinePencil className="w-4 h-4" />
           {lang === 'es' ? 'Detalles e Imágenes' : 'Details & Media'}
         </button>
         <button
           onClick={() => setActiveTab('overview')}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${activeTab === 'overview' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'overview' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           {t('orgSections')}
         </button>
         <button
           onClick={() => setActiveTab('attendees')}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'attendees' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'attendees' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           <HiOutlineUsers className="w-4 h-4" />
           {t('orgAttendees')}
@@ -391,7 +391,7 @@ export default function EventDetailPage() {
         </button>
         <button
           onClick={() => setActiveTab('map')}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'map' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'map' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           <HiOutlineMap className="w-4 h-4" />
           {lang === 'es' ? 'Mapa Visual' : 'Venue Map'}
@@ -402,7 +402,7 @@ export default function EventDetailPage() {
             setSelectedBlockSection('');
             setSelectedBlockSeats([]);
           }}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'blocks' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'blocks' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           <HiOutlineBan className="w-4 h-4" />
           {lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}
