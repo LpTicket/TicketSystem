@@ -216,7 +216,7 @@ export default function EventDetailPage() {
       setImageFile(null);
       setBannerFile(null);
       
-      const isAutoApproved = user?.role === 'admin' || event.status === 'draft';
+      const isAutoApproved = user?.role === 'admin' || event?.status === 'draft';
       const successMsg = isAutoApproved 
         ? (lang === 'es' ? '¡Cambios guardados y publicados con éxito!' : 'Changes saved and published successfully!')
         : (lang === 'es' ? '¡Cambios guardados! Debes esperar la aprobación del administrador.' : 'Changes saved! Waiting for admin approval.');
