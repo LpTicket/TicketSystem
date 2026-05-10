@@ -18,6 +18,7 @@ interface AuthState {
   loadUser: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
   uploadAvatar: (file: File) => Promise<void>;
+  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -77,5 +78,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     set({ user: data });
+  },
+
+  setAuth: (user, accessToken, refreshToken) => {
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    set({ user, isAuthenticated: true, isLoading: false });
   },
 }));
