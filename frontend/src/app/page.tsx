@@ -89,7 +89,7 @@ export default function HomePage() {
       {loading ? (
         <section className="bg-white">
           <div className="max-w-[1400px] mx-auto">
-            <div className="relative aspect-[21/8] overflow-hidden bg-gray-100 animate-pulse flex items-center">
+            <div className="relative aspect-[16/9] sm:aspect-[21/8] min-h-[220px] sm:min-h-[400px] overflow-hidden bg-gray-100 animate-pulse flex items-center">
               <div className="pl-6 sm:pl-16 max-w-lg space-y-3 w-full">
                 <div className="h-8 sm:h-12 bg-gray-200 rounded w-3/4" />
                 <div className="h-4 bg-gray-200 rounded w-1/2" />
@@ -97,7 +97,7 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          <div className="hidden sm:flex justify-center gap-1.5 py-4 bg-white max-w-[1400px] mx-auto flex-wrap px-4">
+          <div className="flex justify-center gap-1.5 py-4 bg-white max-w-[1400px] mx-auto flex-wrap px-4">
             {[...Array(20)].map((_, i) => (
               <div key={i} className="h-1 w-6 sm:w-8 bg-gray-100 animate-pulse" />
             ))}
@@ -107,11 +107,13 @@ export default function HomePage() {
         <section className="bg-white">
           <div className="max-w-[1400px] mx-auto">
             <Link href={usingDemo ? '#' : `/events/${bannerEvent.slug}`} className="block">
-              <div className="relative aspect-[21/8] overflow-hidden">
+              <div className="relative aspect-[16/9] sm:aspect-[21/8] min-h-[220px] sm:min-h-[400px] overflow-hidden bg-gray-100">
                 <img
                   src={getImageUrl(bannerEvent.bannerImageUrl || bannerEvent.imageUrl) || '/demo/concert.png'}
                   alt={bannerEvent.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover block"
+                  loading="eager"
+                  fetchPriority="high"
                   onError={(e) => { (e.target as HTMLImageElement).src = '/demo/concert.png'; }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-center">
@@ -124,8 +126,8 @@ export default function HomePage() {
               </div>
             </Link>
           </div>
-          {/* Dashes indicator (mdticket style) — hidden on mobile */}
-          <div className="hidden sm:flex justify-center gap-1.5 py-4 bg-white max-w-[1400px] mx-auto flex-wrap px-4">
+          {/* Dashes indicator (mdticket style) */}
+          <div className="flex justify-center gap-1.5 py-4 bg-white max-w-[1400px] mx-auto flex-wrap px-4">
             {bannerEvents.length > 1 ? (
               bannerEvents.map((_, i) => (
                 <button
@@ -216,16 +218,16 @@ export default function HomePage() {
 
 
 
-      {/* Events Grid — 4 columns */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      {/* Events Grid — 4 columns (1 on mobile for larger cards) */}
+      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-12 mt-12">
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="card"><div className="aspect-[3/4] skeleton" /><div className="p-4 space-y-2"><div className="h-4 skeleton rounded w-3/4" /><div className="h-3 skeleton rounded w-1/2" /><div className="h-9 skeleton rounded mt-2" /></div></div>
             ))}
           </div>
         ) : filteredEvents.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5">
             {filteredEvents.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}

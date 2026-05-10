@@ -79,19 +79,21 @@ export default function EventsContent() {
       <p className="text-sm text-gray-500 mb-4">{total} {total === 1 ? 'evento encontrado' : 'eventos encontrados'}</p>
 
       {/* Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="card"><div className="aspect-[3/4] skeleton" /><div className="p-4 space-y-2"><div className="h-4 skeleton rounded w-3/4" /><div className="h-3 skeleton rounded w-1/2" /></div></div>
-          ))}
-        </div>
-      ) : events.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {events.map((event) => <EventCard key={event.id} event={event} />)}
-        </div>
-      ) : (
-        <div className="text-center py-20 border border-gray-200 rounded-lg"><p className="text-gray-500">No se encontraron eventos</p></div>
-      )}
+      <div className="mt-12">
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="card"><div className="aspect-[3/4] skeleton" /><div className="p-4 space-y-2"><div className="h-4 skeleton rounded w-3/4" /><div className="h-3 skeleton rounded w-1/2" /></div></div>
+            ))}
+          </div>
+        ) : events.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5">
+            {events.map((event) => <EventCard key={event.id} event={event} />)}
+          </div>
+        ) : (
+          <div className="text-center py-20 border border-gray-200 rounded-lg"><p className="text-gray-500">No se encontraron eventos</p></div>
+        )}
+      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (

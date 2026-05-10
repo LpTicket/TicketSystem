@@ -25,6 +25,7 @@ export default function Header() {
   const pathname = usePathname();
 
   return (
+    <>
     <header className="sticky top-0 z-50 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-b border-gray-200/50">
       <div className="max-w-[1400px] mx-auto px-3 sm:px-6 md:px-8">
         <div className="flex lg:grid lg:grid-cols-3 items-center justify-between h-20">
@@ -35,7 +36,7 @@ export default function Header() {
               <img 
                 src="/logo.png" 
                 alt="LPTicket" 
-                className="h-10 sm:h-12 md:h-14 w-auto object-contain" 
+                className="h-8 xs:h-10 sm:h-12 md:h-14 w-auto object-contain" 
               />
             </Link>
           </div>
@@ -127,28 +128,27 @@ export default function Header() {
           </div>
 
           {/* Mobile toggle */}
-          <div className="lg:hidden flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="lg:hidden flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Mobile Scanner */}
             {isAuthenticated && (
               <Link 
                 href="/verify" 
-                className="flex items-center gap-1 px-2.5 py-1 bg-primary-500 text-white rounded-full shadow-sm active:scale-95"
+                className="flex items-center gap-1 px-2 py-1 bg-primary-500 text-white rounded-full shadow-sm active:scale-95"
               >
                 <HiOutlineQrcode className="w-3.5 h-3.5 text-primary-100" />
-                <span className="text-[9px] font-bold uppercase tracking-tight">
+                <span className="hidden xs:inline text-[9px] font-bold uppercase tracking-tight">
                   {lang === 'es' ? 'Escanear' : 'Scan'}
                 </span>
+                <span className="xs:hidden text-[9px] font-bold uppercase tracking-tight">SCAN</span>
               </Link>
             )}
 
-
-
             {/* Mobile language switcher */}
-            <div className="flex items-center border border-gray-300 rounded overflow-hidden text-[10px] font-bold">
-              <button onClick={() => setLang('es')} className={`w-7 text-center py-1 transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>ES</button>
-              <button onClick={() => setLang('en')} className={`w-7 text-center py-1 transition-colors ${lang === 'en' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>EN</button>
+            <div className="flex items-center border border-gray-300 rounded overflow-hidden text-[10px] font-bold shrink-0">
+              <button onClick={() => setLang('es')} className={`w-6 text-center py-1 transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>ES</button>
+              <button onClick={() => setLang('en')} className={`w-6 text-center py-1 transition-colors ${lang === 'en' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>EN</button>
             </div>
-            <button className="p-1 text-blue-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <button className="p-0.5 text-blue-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <HiOutlineX className="w-7 h-7" /> : <HiOutlineMenu className="w-7 h-7" />}
             </button>
           </div>
@@ -197,54 +197,56 @@ export default function Header() {
           </div>
         </div>
       )}
-      {/* Floating Shopping Cart Popup (Bottom Right) - Hidden in Panels */}
-      {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && (
-        <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3">
-          {cartDropdown && (
-            <div className="w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 animate-fade-in-up mb-2">
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
-                    <HiOutlineShoppingCart className="w-4 h-4" />
-                  </div>
-                  <h4 className="font-bold text-sm text-gray-900">{lang === 'es' ? 'Mi Carrito' : 'My Cart'}</h4>
+    </header>
+    
+    {/* Floating Shopping Cart Popup (Bottom Right) - Fixed position stable sibling */}
+    {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && (
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3">
+        {cartDropdown && (
+          <div className="w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 animate-fade-in-up mb-2">
+            <div className="flex justify-between items-center mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
+                  <HiOutlineShoppingCart className="w-4 h-4" />
                 </div>
-                <button 
-                  onClick={() => setCartDropdown(false)}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <HiOutlineX className="w-4 h-4 text-gray-400" />
-                </button>
-              </div>
-              <div className="py-4 text-center border-y border-gray-50 my-2">
-                <p className="text-xs text-gray-500 italic">
-                  {lang === 'es' ? 'No tienes entradas en el carrito listas para pagar.' : 'No tickets in your cart ready for checkout.'}
-                </p>
+                <h4 className="font-bold text-sm text-gray-900">{lang === 'es' ? 'Mi Carrito' : 'My Cart'}</h4>
               </div>
               <button 
-                className="w-full py-2.5 bg-gray-100 text-gray-400 font-bold text-xs rounded-xl cursor-not-allowed uppercase tracking-wider"
-                disabled
+                onClick={() => setCartDropdown(false)}
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
               >
-                {lang === 'es' ? 'Continuar Compra' : 'Checkout'}
+                <HiOutlineX className="w-4 h-4 text-gray-400" />
               </button>
             </div>
+            <div className="py-4 text-center border-y border-gray-50 my-2">
+              <p className="text-xs text-gray-500 italic">
+                {lang === 'es' ? 'No tienes entradas en el carrito listas para pagar.' : 'No tickets in your cart ready for checkout.'}
+              </p>
+            </div>
+            <button 
+              className="w-full py-2.5 bg-gray-100 text-gray-400 font-bold text-xs rounded-xl cursor-not-allowed uppercase tracking-wider"
+              disabled
+            >
+              {lang === 'es' ? 'Continuar Compra' : 'Checkout'}
+            </button>
+          </div>
+        )}
+        
+        <button 
+          onClick={() => setCartDropdown(!cartDropdown)}
+          className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 relative group active:scale-90 ${
+            cartDropdown ? 'bg-gray-900 text-white rotate-90' : 'bg-primary-500 text-white hover:bg-primary-600'
+          }`}
+        >
+          {cartDropdown ? <HiOutlineX className="w-6 h-6" /> : <HiOutlineShoppingCart className="w-7 h-7" />}
+          {!cartDropdown && (
+            <span className="absolute -top-1 -right-1 w-6 h-6 bg-blue-600 text-white rounded-full text-[11px] font-bold flex items-center justify-center border-2 border-white shadow-lg animate-bounce">
+              0
+            </span>
           )}
-          
-          <button 
-            onClick={() => setCartDropdown(!cartDropdown)}
-            className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 relative group active:scale-90 ${
-              cartDropdown ? 'bg-gray-900 text-white rotate-90' : 'bg-primary-500 text-white hover:bg-primary-600'
-            }`}
-          >
-            {cartDropdown ? <HiOutlineX className="w-6 h-6" /> : <HiOutlineShoppingCart className="w-7 h-7" />}
-            {!cartDropdown && (
-              <span className="absolute -top-1 -right-1 w-6 h-6 bg-blue-600 text-white rounded-full text-[11px] font-bold flex items-center justify-center border-2 border-white shadow-lg animate-bounce">
-                0
-              </span>
-            )}
-          </button>
-        </div>
-      )}
-    </header>
+        </button>
+      </div>
+    )}
+    </>
   );
 }
