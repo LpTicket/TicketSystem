@@ -17,12 +17,14 @@ import {
   HiOutlineTag,
 } from 'react-icons/hi';
 
+import { useUIStore } from '@/stores/ui';
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isLoading } = useAuthStore();
   const { t, lang } = useLang();
+  const { sidebarOpen, setSidebarOpen } = useUIStore();
   const router = useRouter();
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && (!isAuthenticated || user?.role !== 'admin')) {

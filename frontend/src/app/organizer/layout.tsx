@@ -17,12 +17,14 @@ import {
   HiOutlineArrowLeft,
 } from 'react-icons/hi';
 
+import { useUIStore } from '@/stores/ui';
+
 export default function OrganizerLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isLoading, mode, setMode } = useAuthStore();
   const { t } = useLang();
+  const { sidebarOpen, setSidebarOpen } = useUIStore();
   const router = useRouter();
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && (!isAuthenticated || (user?.role !== 'client' && user?.role !== 'admin'))) {

@@ -12,11 +12,13 @@ import api from '@/lib/api';
 
 import ModeToggle from './ModeToggle';
 
+import { useUIStore } from '@/stores/ui';
+
 export default function Header() {
   const router = useRouter();
   const { user, isAuthenticated, logout, mode } = useAuthStore();
   const { lang, setLang, t } = useLang();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { mobileMenuOpen, setMobileMenuOpen } = useUIStore();
   const [profileDropdown, setProfileDropdown] = useState(false);
   const [cartDropdown, setCartDropdown] = useState(false);
 
@@ -54,7 +56,7 @@ export default function Header() {
             {isAuthenticated && (
               <Link 
                 href="/verify" 
-                className="flex items-center gap-1.5 px-4 py-1.5 bg-primary-500 text-white rounded-full hover:bg-primary-600 transition-all shadow-md active:scale-95 group"
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-all shadow-md active:scale-95 group"
               >
                 <HiOutlineQrcode className="w-4 h-4 text-primary-100 group-hover:text-white transition-colors" />
                 <span className="text-[10px] font-bold uppercase tracking-wider">
@@ -64,7 +66,7 @@ export default function Header() {
             )}
 
             {/* Language switcher */}
-            <div className="flex items-center border border-gray-300 rounded overflow-hidden text-xs font-bold shrink-0">
+            <div className="flex items-center border border-gray-300 rounded-md overflow-hidden text-xs font-bold shrink-0">
               <button
                 onClick={() => setLang('es')}
                 className={`w-9 text-center py-1.5 transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
@@ -144,7 +146,7 @@ export default function Header() {
             )}
 
             {/* Mobile language switcher */}
-            <div className="flex items-center border border-gray-300 rounded overflow-hidden text-[10px] font-bold shrink-0">
+            <div className="flex items-center border border-gray-300 rounded-md overflow-hidden text-[10px] font-bold shrink-0">
               <button onClick={() => setLang('es')} className={`w-6 text-center py-1 transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>ES</button>
               <button onClick={() => setLang('en')} className={`w-6 text-center py-1 transition-colors ${lang === 'en' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>EN</button>
             </div>

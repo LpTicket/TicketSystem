@@ -192,17 +192,18 @@ export class OrdersService {
     });
     const savedOrder = await this.orderRepo.save(order);
 
-    const rawAppUrl = this.configService.get('APP_URL') || 'http://localhost:3000';
-    const appUrl = (rawAppUrl.startsWith('http://') || rawAppUrl.startsWith('https://')) 
-      ? rawAppUrl 
-      : `https://${rawAppUrl}`;
+    const rawAppUrl = this.configService.get('APP_URL');
+    // Force production URL if we are on Render, otherwise fallback
+    const appUrl = rawAppUrl && !rawAppUrl.includes('localhost') 
+      ? (rawAppUrl.startsWith('http') ? rawAppUrl : `https://${rawAppUrl}`)
+      : 'https://ticketsystem-jzgf.onrender.com'; // Your Render Frontend URL
 
     const session = await this.stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
-      success_url: `${appUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/checkout/cancel`,
+      success_url: `${appUrl.replace(/\/$/, '')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl.replace(/\/$/, '')}/checkout/cancel`,
       metadata: {
         orderId: savedOrder.id,
         userId,

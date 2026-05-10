@@ -73,7 +73,7 @@ export default function HomePage() {
   // bannerEvents: 15 random published events
   const bannerEvents = useMemo(() => {
     return allEvents
-      .filter((e) => e.status === EventStatus.PUBLISHED)
+      .filter((e) => e.status === EventStatus.PUBLISHED && e.isFeatured)
       .sort(() => Math.random() - 0.5)
       .slice(0, 15);
   }, [allEvents]);
