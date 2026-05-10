@@ -213,7 +213,6 @@ export default function EventDetailPage() {
         });
       }
 
-      setIsEditing(false);
       setImageFile(null);
       setBannerFile(null);
       toast.success(lang === 'es' ? '¡Cambios guardados con éxito! Debes esperar la aprobación del administrador.' : 'Changes saved successfully! Waiting for admin approval.');
