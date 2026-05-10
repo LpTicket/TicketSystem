@@ -83,7 +83,7 @@ export default function Header() {
 
             {isAuthenticated && user ? (
               <div className="relative">
-                <button onClick={() => setProfileDropdown(!profileDropdown)} className="w-9 h-9 rounded-full border border-blue-600 flex items-center justify-center text-blue-600 hover:bg-blue-50 transition-colors">
+                <button onClick={() => setProfileDropdown(!profileDropdown)} className="w-9 h-9 rounded-md border border-blue-600 flex items-center justify-center text-blue-600 hover:bg-blue-50 transition-colors">
                   <HiOutlineUser className="w-5 h-5" />
                 </button>
                 {profileDropdown && (
@@ -135,7 +135,7 @@ export default function Header() {
             {isAuthenticated && (
               <Link 
                 href="/verify" 
-                className="flex items-center gap-1 px-2 py-1 bg-primary-500 text-white rounded-full shadow-sm active:scale-95"
+                className="flex items-center gap-1 px-2 py-1 bg-primary-500 text-white rounded-md shadow-sm active:scale-95"
               >
                 <HiOutlineQrcode className="w-3.5 h-3.5 text-primary-100" />
                 <span className="hidden xs:inline text-[9px] font-bold uppercase tracking-tight">

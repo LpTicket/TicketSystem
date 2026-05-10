@@ -50,13 +50,15 @@ export class OrdersController {
     let event: any;
 
     try {
+      const rawBody = req.rawBody || req.body;
       event = this.stripe.webhooks.constructEvent(
-        req.rawBody! as any,
+        rawBody,
         signature,
         webhookSecret!,
       );
-    } catch (err) {
-      return { received: false, error: 'Webhook signature verification failed' };
+    } catch (err: any) {
+      console.error('❌ Webhook Signature Error:', err.message);
+      return { received: false, error: `Webhook signature verification failed: ${err.message}` };
     }
 
     await this.ordersService.handleStripeWebhook(event);
