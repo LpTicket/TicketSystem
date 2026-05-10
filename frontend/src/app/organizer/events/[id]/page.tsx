@@ -23,6 +23,8 @@ import {
   HiOutlineLocationMarker,
   HiOutlineMap,
   HiOutlinePencil,
+  HiOutlineXCircle,
+  HiOutlineCheckCircle,
   HiOutlineCamera,
   HiOutlineX,
   HiOutlineBan,
