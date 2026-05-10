@@ -81,6 +81,26 @@ export class AuthService {
     return this.getProfile(userId);
   }
 
+  async validateOAuthUser(profile: any) {
+    const { email, firstName, lastName } = profile;
+    let user = await this.userRepo.findOne({ where: { email } });
+
+    if (!user) {
+      // Create new user if not exists
+      user = this.userRepo.create({
+        email,
+        username: email.split('@')[0] + '_' + Math.floor(Math.random() * 1000),
+        firstName,
+        lastName,
+        role: UserRole.CLIENT,
+        isActive: true,
+      });
+      user = await this.userRepo.save(user);
+    }
+
+    return this.generateTokens(user);
+  }
+
   async validateUser(userId: string): Promise<User | null> {
     return this.userRepo.findOne({ where: { id: userId, isActive: true } });
   }

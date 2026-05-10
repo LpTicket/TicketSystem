@@ -8,17 +8,23 @@ import {
   Request,
   UploadedFile,
   UseInterceptors,
+  Res,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nest-lab/fastify-multer';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, UpdateProfileDto } from './dto/auth.dto';
+import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
@@ -34,6 +40,24 @@ export class AuthController {
   @Get('profile')
   getProfile(@Request() req: any) {
     return this.authService.getProfile(req.user.id);
+  }
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth(@Request() req: any) {
+    // This initiates the Google OAuth flow
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Request() req: any, @Res() res: Response) {
+    const result = await this.authService.validateOAuthUser(req.user);
+    
+    // Redirect to frontend with tokens in URL
+    const frontendUrl = this.configService.get('FRONTEND_URL') || 'https://ticketsystem-jzgf.onrender.com';
+    const redirectUrl = `${frontendUrl}/login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`;
+    
+    return res.redirect(redirectUrl);
   }
 
   @UseGuards(AuthGuard('jwt'))

@@ -31,23 +31,12 @@ export default function LoginPage() {
     } finally { setLoading(false); }
   };
 
-  const handleSocialLogin = async (provider: 'google' | 'facebook') => {
-    setError('');
-    setLoading(true);
-    try {
-      // Simulate interactive OAuth popup redirect
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      // Log in with pre-configured developer client credentials
-      await login('client@test.com', 'password');
-      alert(lang === 'es' 
-        ? `Iniciando sesión con tu cuenta de ${provider === 'google' ? 'Google' : 'Facebook'} (Simulado)` 
-        : `Logging in with your ${provider === 'google' ? 'Google' : 'Facebook'} account (Simulated)`
-      );
-      router.push('/');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Social login failed');
-    } finally {
-      setLoading(false);
+  const handleSocialLogin = (provider: 'google' | 'facebook') => {
+    if (provider === 'google') {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      window.location.href = `${apiUrl}/auth/google`;
+    } else {
+      alert(lang === 'es' ? 'Facebook aún no está configurado' : 'Facebook not configured yet');
     }
   };
 
