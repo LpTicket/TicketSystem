@@ -3,7 +3,8 @@ import {
   UseGuards, Request, UseInterceptors, UploadedFile,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { FileInterceptor, memoryStorage } from '@nest-lab/fastify-multer';
+import { FileInterceptor } from '@nest-lab/fastify-multer';
+import { memoryStorage } from 'multer';
 import { EventsService } from './events.service';
 import { StorageService } from '../common/services/storage.service';
 import { CreateEventDto, UpdateEventDto, EventQueryDto } from './dto/event.dto';
@@ -73,7 +74,7 @@ export class EventsController {
   @Post(':id/image')
   @UseInterceptors(
     FileInterceptor('image', {
-      storage: memoryStorage(),
+      storage: memoryStorage() as any,
       fileFilter: (_req: any, file: any, cb: any) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
           cb(new Error('Solo se permiten imágenes'), false);
@@ -97,7 +98,7 @@ export class EventsController {
   @Post(':id/image/banner')
   @UseInterceptors(
     FileInterceptor('image', {
-      storage: memoryStorage(),
+      storage: memoryStorage() as any,
       fileFilter: (_req: any, file: any, cb: any) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
           cb(new Error('Solo se permiten imágenes'), false);
