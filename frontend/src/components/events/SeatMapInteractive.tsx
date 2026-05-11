@@ -26,7 +26,7 @@ const ZOOM_STEP = 0.25;
 export default function SeatMapInteractive({
   seatMap,
   selectedSeats,
-  onToggleSeat,
+  onToggleSeats,
   filterSectionId,
   defaultViewX,
   defaultViewY,
