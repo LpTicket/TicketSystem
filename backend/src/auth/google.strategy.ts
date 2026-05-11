@@ -10,11 +10,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const clientSecret = configService.get<string>('GOOGLE_CLIENT_SECRET');
     const apiUrl = configService.get<string>('API_URL') || 'https://ticketsystembackend-102j.onrender.com';
     
-    console.log('Initializing GoogleStrategy with ID:', clientID ? 'OK' : 'MISSING');
+    // Safety check to prevent crash on local startup without keys
+    const finalID = (!clientID || clientID.includes('placeholder')) ? 'local-placeholder-id' : clientID;
+    const finalSecret = (!clientSecret || clientSecret.includes('placeholder')) ? 'local-placeholder-secret' : clientSecret;
+
+    console.log('Initializing GoogleStrategy with ID:', finalID === 'local-placeholder-id' ? 'MISSING (Local Placeholder)' : 'OK');
     
     super({
-      clientID,
-      clientSecret,
+      clientID: finalID,
+      clientSecret: finalSecret,
       callbackURL: `${apiUrl}/api/auth/google/callback`,
       scope: ['email', 'profile'],
     } as any);

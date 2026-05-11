@@ -801,11 +801,13 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
           <button 
             onClick={() => handleAddSection('stage')} 
-            className="w-full aspect-square rounded flex flex-col items-center justify-center text-gray-500 hover:text-[#1a73e8] hover:bg-[#f8f9fa] transition-colors group"
-            title={lang === 'es' ? 'Escenario' : 'Stage'}
+            className="w-full aspect-square rounded flex flex-col items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors group border-b border-gray-100"
+            title={lang === 'es' ? 'Escenario / Stage' : 'Stage'}
           >
-            <svg className="w-6 h-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 14h16v6H4z"/><path d="M4 14l2-8h12l2 8"/></svg>
-            <span className="text-[9px] font-medium leading-none">Escenario</span>
+            <div className="w-8 h-6 bg-slate-700 rounded-sm mb-1 border border-blue-400/30 flex items-center justify-center">
+              <div className="w-4 h-0.5 bg-blue-400/50" />
+            </div>
+            <span className="text-[9px] font-bold leading-none">ESCENARIO</span>
           </button>
 
           <div className="w-full h-px bg-gray-200 my-1" />
@@ -915,16 +917,29 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                       </span>
                     </label>
 
-                    {/* Disable toggle */}
-                    <label className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-red-100 cursor-pointer select-none shadow-sm hover:bg-red-50/50">
+                    {/* Reserved/Blocked toggle */}
+                    <label className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-orange-100 cursor-pointer select-none shadow-sm hover:bg-orange-50/50">
+                      <input 
+                        type="checkbox"
+                        checked={seatOverride.reserved || false}
+                        onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'reserved', e.target.checked)}
+                        className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+                      />
+                      <span className="text-[12px] font-bold text-gray-700">
+                        {lang === 'es' ? 'Bloquear para venta' : 'Block / Reserve seat'}
+                      </span>
+                    </label>
+
+                    {/* Disable/Hide toggle */}
+                    <label className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-gray-100 cursor-pointer select-none shadow-sm hover:bg-gray-50">
                       <input 
                         type="checkbox"
                         checked={isDisabled}
                         onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'disabled', e.target.checked)}
-                        className="w-4 h-4 text-red-500 rounded focus:ring-red-500"
+                        className="w-4 h-4 text-gray-400 rounded focus:ring-gray-500"
                       />
-                      <span className="text-[12px] font-bold text-gray-700">
-                        {lang === 'es' ? 'Ocultar / Eliminar silla' : 'Hide / Delete seat'}
+                      <span className="text-[12px] font-bold text-gray-500">
+                        {lang === 'es' ? 'Ocultar silla' : 'Hide seat'}
                       </span>
                     </label>
 
@@ -1030,6 +1045,38 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                     </select>
                   </div>
                 </div>
+
+                <button
+                  onClick={() => {
+                    const allReserved = !selectedSection.isWheelchair; // Using isWheelchair as a proxy for "All Blocked" for now or just toggle
+                    // Actually, let's just toggle a new property or iterate all seats
+                    // For simplicity, let's add a button that updates the seatsConfig for ALL seats
+                    const rows = selectedSection.rows || 1;
+                    const seatsPerRow = selectedSection.seatsPerRow || 1;
+                    const config = { ...getSeatsConfig(selectedSection) };
+                    
+                    let anyUnreserved = false;
+                    for(let r=1; r<=rows; r++) {
+                      const rowLabel = selectedSection.sectionType === 'table' ? 'Mesa' : String.fromCharCode(64 + r);
+                      for(let s=1; s<=seatsPerRow; s++) {
+                        const key = selectedSection.sectionType === 'table' ? `seat-${s}` : `${rowLabel}-${s}`;
+                        if (!config[key]?.reserved) anyUnreserved = true;
+                      }
+                    }
+
+                    for(let r=1; r<=rows; r++) {
+                      const rowLabel = selectedSection.sectionType === 'table' ? 'Mesa' : String.fromCharCode(64 + r);
+                      for(let s=1; s<=seatsPerRow; s++) {
+                        const key = selectedSection.sectionType === 'table' ? `seat-${s}` : `${rowLabel}-${s}`;
+                        config[key] = { ...config[key], reserved: anyUnreserved };
+                      }
+                    }
+                    updateSelected('seatsConfig', JSON.stringify(config));
+                  }}
+                  className="w-full py-2 bg-orange-50 text-orange-600 border border-orange-200 rounded text-xs font-bold hover:bg-orange-100 transition-colors"
+                >
+                  {lang === 'es' ? 'BLOQUEAR / DESBLOQUEAR TODO' : 'BLOCK / UNBLOCK ALL SEATS'}
+                </button>
               </div>
 
               <hr className="border-gray-100" />
@@ -1351,6 +1398,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                         const finalYOffset = seatOverride.yOffset || 0;
                         const isSeatWheelchair = seatOverride.isWheelchair !== undefined ? seatOverride.isWheelchair : isWheelchair;
                         const isDisabled = seatOverride.disabled || false;
+                        const isReserved = seatOverride.reserved || false;
                         const isSeatSelected = selectedSeat?.secId === sec.id && selectedSeat?.seatKey === seatKey;
 
                         return (
@@ -1365,14 +1413,15 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               width: Math.max(10, Math.min(22, (sec.mapWidth! - 24) / seatsCount - 2)),
                               height: Math.max(10, Math.min(22, (sec.mapWidth! - 24) / seatsCount - 2)),
                               transform: `translate(-50%, -50%) translate(${finalXOffset}px, ${finalYOffset}px) rotate(${angleDeg}deg)`,
-                              backgroundColor: isSeatWheelchair ? '#1a73e8' : sec.color,
+                              backgroundColor: isReserved ? '#f97316' : (isSeatWheelchair ? '#1a73e8' : sec.color),
                               boxShadow: isSeatSelected ? '0 0 0 3px #3b82f6, 0 4px 10px rgba(59,130,246,0.5)' : '0 1px 3px rgba(0,0,0,0.15)',
                               border: isSeatSelected ? '2px solid #fff' : '1.5px solid #fff',
                               opacity: isDisabled ? 0.25 : 1,
                               zIndex: isSeatSelected ? 30 : 10,
                             }}
                           >
-                            {isSeatWheelchair && (
+                            {isReserved && <div className="w-[60%] h-[60%] bg-white rounded-full flex items-center justify-center text-[8px] font-bold text-orange-600">B</div>}
+                            {isSeatWheelchair && !isReserved && (
                               <FaWheelchair className="w-[70%] h-[70%] text-white" />
                             )}
                             {/* Seat label on hover */}
@@ -1419,7 +1468,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               style={{
                                 width: '20%',
                                 height: '20%',
-                                backgroundColor: isSeatWheelchair ? '#1a73e8' : sec.color,
+                                backgroundColor: isReserved ? '#f97316' : (isSeatWheelchair ? '#1a73e8' : sec.color),
                                 transform: `rotate(${angle}deg) translate(0, -210%) rotate(-${angle}deg) translate(${finalXOffset}px, ${finalYOffset}px)`,
                                 boxShadow: isSeatSelected ? '0 0 0 3px #3b82f6, 0 4px 10px rgba(59,130,246,0.5)' : '0 1px 3px rgba(0,0,0,0.15)',
                                 border: isSeatSelected ? '2px solid #fff' : '1.5px solid #fff',
@@ -1427,7 +1476,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                                 zIndex: isSeatSelected ? 30 : 10,
                               }}
                             >
-                              {isSeatWheelchair && (
+                              {isReserved && <div className="w-[70%] h-[70%] bg-white rounded-full flex items-center justify-center text-[8px] font-bold text-orange-600 absolute inset-0 m-auto">B</div>}
+                              {isSeatWheelchair && !isReserved && (
                                 <FaWheelchair className="w-[70%] h-[70%] text-white absolute inset-0 m-auto" />
                               )}
                               <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
@@ -1474,6 +1524,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                           const finalYOffset = seatOverride.yOffset || 0;
                           const isSeatWheelchair = seatOverride.isWheelchair || false;
                           const isDisabled = seatOverride.disabled || false;
+                          const isReserved = seatOverride.reserved || false;
                           const isSeatSelected = selectedSeat?.secId === sec.id && selectedSeat?.seatKey === seatKey;
 
                           return (
@@ -1485,7 +1536,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               style={{
                                 width: '18%',
                                 height: '18%',
-                                backgroundColor: isSeatWheelchair ? '#1a73e8' : sec.color,
+                                backgroundColor: isReserved ? '#f97316' : (isSeatWheelchair ? '#1a73e8' : sec.color),
                                 left: `${x}%`,
                                 top: `${y}%`,
                                 transform: `translate(-50%, -50%) translate(${finalXOffset}px, ${finalYOffset}px)`,
@@ -1495,7 +1546,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                                 zIndex: isSeatSelected ? 30 : 10,
                               }}
                             >
-                              {isSeatWheelchair && (
+                              {isReserved && <div className="w-[70%] h-[70%] bg-white rounded-full flex items-center justify-center text-[8px] font-bold text-orange-600 absolute inset-0 m-auto">B</div>}
+                              {isSeatWheelchair && !isReserved && (
                                 <FaWheelchair className="w-[70%] h-[70%] text-white absolute inset-0 m-auto" />
                               )}
                               <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">

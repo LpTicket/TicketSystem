@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
+import { useLang } from '@/context/LanguageContext';
 
 interface VisualCaptchaProps {
   onVerify: (isValid: boolean) => void;
@@ -13,6 +14,7 @@ export interface VisualCaptchaHandle {
 }
 
 const VisualCaptcha = forwardRef<VisualCaptchaHandle, VisualCaptchaProps>(({ onAnswerChange }, ref) => {
+  const { t } = useLang();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [answer, setAnswer] = useState('');
 
@@ -88,14 +90,14 @@ const VisualCaptcha = forwardRef<VisualCaptchaHandle, VisualCaptchaProps>(({ onA
           height={50} 
           className="rounded border border-gray-200 cursor-pointer" 
           onClick={generateCaptcha}
-          title="Click to refresh"
+          title={t('clickToRefresh' as any)}
         />
         <button 
           type="button" 
           onClick={generateCaptcha}
           className="text-xs text-blue-600 hover:underline font-medium"
         >
-          Refrescar
+          {t('refresh' as any)}
         </button>
       </div>
     </div>

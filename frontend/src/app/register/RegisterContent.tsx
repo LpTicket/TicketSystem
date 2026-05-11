@@ -79,11 +79,8 @@ export default function RegisterContent() {
   return (
     <div className="flex items-start justify-center px-4 py-8 bg-gray-50 min-h-[calc(100vh-80px)]">
       <div className="w-full max-w-md">
-        {/* Logo */}
+        {/* Logo removed */}
         <div className="text-center mb-8">
-          <Link href="/">
-            <img src="/logo.png" alt="LPTicket" className="h-14 w-auto object-contain mx-auto" />
-          </Link>
           <h1 className="font-bold text-2xl text-gray-900 mt-4 tracking-tight">{t('registerTitle')}</h1>
           <p className="text-gray-500 text-sm mt-1">
             {t('registerSubtitle')}
@@ -163,7 +160,7 @@ export default function RegisterContent() {
                 value={captchaInput}
                 onChange={(e) => setCaptchaInput(e.target.value)}
                 className="input text-center tracking-widest font-bold uppercase"
-                placeholder="Escribe el código"
+                placeholder={t('enterCode' as any)}
                 required
               />
             </div>

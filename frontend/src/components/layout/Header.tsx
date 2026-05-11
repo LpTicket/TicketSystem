@@ -202,7 +202,7 @@ export default function Header() {
     </header>
     
     {/* Floating Shopping Cart Popup (Bottom Right) - Fixed position stable sibling */}
-    {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && (
+    {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && !pathname.includes('/login') && !pathname.includes('/register') && (
       <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3">
         {cartDropdown && (
           <div className="w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 animate-fade-in-up mb-2">

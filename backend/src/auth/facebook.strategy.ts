@@ -8,9 +8,15 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
   constructor(private configService: ConfigService) {
     const apiUrl = configService.get<string>('API_URL') || 'https://ticketsystembackend-102j.onrender.com';
     
+    const clientID = configService.get<string>('FACEBOOK_APP_ID');
+    const clientSecret = configService.get<string>('FACEBOOK_APP_SECRET');
+
+    const finalID = (!clientID || clientID.includes('placeholder')) ? 'local-fb-id' : clientID;
+    const finalSecret = (!clientSecret || clientSecret.includes('placeholder')) ? 'local-fb-secret' : clientSecret;
+
     super({
-      clientID: configService.get<string>('FACEBOOK_APP_ID')!,
-      clientSecret: configService.get<string>('FACEBOOK_APP_SECRET')!,
+      clientID: finalID,
+      clientSecret: finalSecret,
       callbackURL: `${apiUrl}/api/auth/facebook/callback`,
       scope: ['email', 'public_profile'],
       profileFields: ['emails', 'name', 'photos'],

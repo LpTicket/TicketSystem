@@ -47,13 +47,8 @@ function DashboardPageBody() {
   });
 
   useEffect(() => {
-
     if (!isLoading && !isAuthenticated) router.push('/login');
-    // Ensure mode is buyer when in this page
-    if (!isLoading && isAuthenticated && mode !== 'buyer') {
-      setMode('buyer');
-    }
-  }, [isLoading, isAuthenticated, mode, setMode]);
+  }, [isLoading, isAuthenticated]);
 
 
   useEffect(() => {

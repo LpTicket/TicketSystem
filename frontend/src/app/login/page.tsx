@@ -49,11 +49,8 @@ export default function LoginPage() {
   return (
     <div className="flex items-start justify-center px-4 py-10 bg-gray-50 min-h-[calc(100vh-80px)]">
       <div className="w-full max-w-md">
-        {/* Logo */}
+        {/* Logo removed */}
         <div className="text-center mb-6">
-          <Link href="/">
-            <img src="/logo.png" alt="LPTicket" className="h-12 w-auto object-contain mx-auto" />
-          </Link>
           <h1 className="font-bold text-2xl text-gray-900 mt-3">{t('loginTitle')}</h1>
           <p className="text-gray-500 text-sm mt-1">{t('loginSubtitle')}</p>
         </div>
@@ -92,7 +89,7 @@ export default function LoginPage() {
           {/* Social Divider */}
           <div className="relative flex py-2 items-center">
             <div className="flex-grow border-t border-gray-100"></div>
-            <span className="flex-shrink mx-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'O CONTINUAR CON' : 'OR CONTINUE WITH'}</span>
+            <span className="flex-shrink mx-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('orContinueWith' as any)}</span>
             <div className="flex-grow border-t border-gray-100"></div>
           </div>
 

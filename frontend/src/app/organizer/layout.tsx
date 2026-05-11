@@ -30,11 +30,7 @@ export default function OrganizerLayout({ children }: { children: React.ReactNod
     if (!isLoading && (!isAuthenticated || (user?.role !== 'client' && user?.role !== 'admin'))) {
       router.push('/');
     }
-    // Ensure mode is organizer when in this layout
-    if (!isLoading && isAuthenticated && mode !== 'organizer') {
-      setMode('organizer');
-    }
-  }, [isLoading, isAuthenticated, user, mode, setMode]);
+  }, [isLoading, isAuthenticated, user]);
 
 
   if (isLoading || !user) {

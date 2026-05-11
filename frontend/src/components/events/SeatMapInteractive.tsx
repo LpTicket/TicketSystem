@@ -364,9 +364,19 @@ export default function SeatMapInteractive({
   };
 
   // Determine seat class
-  const seatClass = (seat: Seat) => {
+  const seatClass = (seat: Seat, section: VenueSection) => {
+    // Check for reserved override in config
+    let isReserved = false;
+    try {
+      if (section.seatsConfig) {
+        const config = JSON.parse(section.seatsConfig);
+        const seatKey = seat.rowLabel === 'Mesa' ? `seat-${seat.seatNumber}` : `${seat.rowLabel}-${seat.seatNumber}`;
+        if (config[seatKey]?.reserved) isReserved = true;
+      }
+    } catch (e) {}
+
     if (isSeatSelected(seat.id)) return 'seat seat-selected';
-    if (seat.status === SeatStatus.SOLD) return 'seat seat-sold';
+    if (seat.status === SeatStatus.SOLD || isReserved) return 'seat seat-sold';
     if (seat.status === SeatStatus.LOCKED) return 'seat seat-locked';
     return 'seat seat-available';
   };
@@ -593,11 +603,11 @@ export default function SeatMapInteractive({
                                   }}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if (seat.status === SeatStatus.AVAILABLE || selected) onToggleSeat(seat);
+                                    if ((seat.status === SeatStatus.AVAILABLE && !seatOverride.reserved) || selected) onToggleSeat(seat);
                                   }}
                                   onMouseEnter={() => setHoveredSeat(seat.id)}
                                   onMouseLeave={() => setHoveredSeat(null)}
-                                  disabled={seat.status === SeatStatus.SOLD}
+                                  disabled={seat.status === SeatStatus.SOLD || seatOverride.reserved}
                                 >
                                   {isSeatWheelchair && (
                                     <FaWheelchair className="w-[65%] h-[65%] shrink-0 text-white" />
@@ -660,11 +670,11 @@ export default function SeatMapInteractive({
                                   }}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if (seat.status === SeatStatus.AVAILABLE || selected) onToggleSeat(seat);
+                                    if ((seat.status === SeatStatus.AVAILABLE && !seatOverride.reserved) || selected) onToggleSeat(seat);
                                   }}
                                   onMouseEnter={() => setHoveredSeat(seat.id)}
                                   onMouseLeave={() => setHoveredSeat(null)}
-                                  disabled={seat.status === SeatStatus.SOLD}
+                                  disabled={seat.status === SeatStatus.SOLD || seatOverride.reserved}
                                 >
                                   {isSeatWheelchair && (
                                     <FaWheelchair className="w-[65%] h-[65%] shrink-0 text-white" />
@@ -753,11 +763,11 @@ export default function SeatMapInteractive({
                               }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (seat.status === SeatStatus.AVAILABLE || selected) onToggleSeat(seat);
+                                if ((seat.status === SeatStatus.AVAILABLE && !seatOverride.reserved) || selected) onToggleSeat(seat);
                               }}
                               onMouseEnter={() => setHoveredSeat(seat.id)}
                               onMouseLeave={() => setHoveredSeat(null)}
-                              disabled={seat.status === SeatStatus.SOLD}
+                              disabled={seat.status === SeatStatus.SOLD || seatOverride.reserved}
                             >
                               {isSeatWheelchair && (
                                 <FaWheelchair className="w-[65%] h-[65%] shrink-0 text-white" />

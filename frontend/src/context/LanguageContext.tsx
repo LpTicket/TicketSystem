@@ -64,6 +64,10 @@ const translations = {
     creating: 'Creando cuenta...',
     haveAccount: '¿Ya tienes una cuenta?',
     signIn: 'Inicia sesión',
+    orContinueWith: 'O CONTINUAR CON',
+    refresh: 'Refrescar',
+    clickToRefresh: 'Clic para refrescar',
+    enterCode: 'Escribe el código',
 
     // Errors
     registerError: 'Error al registrarse',
@@ -293,6 +297,10 @@ const translations = {
     creating: 'Creating account...',
     haveAccount: 'Already have an account?',
     signIn: 'Sign in',
+    orContinueWith: 'OR CONTINUE WITH',
+    refresh: 'Refresh',
+    clickToRefresh: 'Click to refresh',
+    enterCode: 'Enter the code',
 
     // Errors
     registerError: 'Registration error',

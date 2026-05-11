@@ -241,21 +241,39 @@ export class EventsService {
     const section = this.sectionRepo.create({ ...data, eventId });
     const saved = await this.sectionRepo.save(section);
 
-    // Generate seats for seated sections
-    if (saved.sectionType === 'seated' || saved.sectionType === 'vip') {
+    // Generate seats for seated, vip OR table sections
+    if (saved.sectionType === 'seated' || saved.sectionType === 'vip' || saved.sectionType === 'table') {
       const seats: Partial<Seat>[] = [];
-      for (let r = 1; r <= saved.rows; r++) {
-        const rowLabel = String.fromCharCode(64 + r); // A, B, C...
-        for (let s = 1; s <= saved.seatsPerRow; s++) {
+      
+      if (saved.sectionType === 'table') {
+        // For tables, we use capacity as the number of seats around the table
+        const seatCount = saved.seatsPerRow || 6; // Default to 6 if not specified
+        for (let s = 1; s <= seatCount; s++) {
           seats.push({
             sectionId: saved.id,
-            rowLabel,
+            rowLabel: 'Mesa',
             seatNumber: s,
             status: SeatStatus.AVAILABLE,
           });
         }
+      } else {
+        // Standard grid for seated/vip
+        for (let r = 1; r <= saved.rows; r++) {
+          const rowLabel = String.fromCharCode(64 + r); // A, B, C...
+          for (let s = 1; s <= saved.seatsPerRow; s++) {
+            seats.push({
+              sectionId: saved.id,
+              rowLabel,
+              seatNumber: s,
+              status: SeatStatus.AVAILABLE,
+            });
+          }
+        }
       }
-      await this.seatRepo.save(seats);
+      
+      if (seats.length > 0) {
+        await this.seatRepo.save(seats);
+      }
     }
 
     return saved;
@@ -310,7 +328,37 @@ export class EventsService {
         // Only update if it belongs to this event
         const exists = existingSections.find(s => s.id === data.id);
         if (exists) {
+          // Check if layout changed to regenerate seats
+          const layoutChanged = 
+            exists.rows !== sectionData.rows || 
+            exists.seatsPerRow !== sectionData.seatsPerRow ||
+            exists.sectionType !== sectionData.sectionType;
+
           await this.sectionRepo.update(data.id, sectionData);
+
+          if (layoutChanged) {
+            // Delete old seats and regenerate
+            await this.seatRepo.delete({ sectionId: data.id });
+            
+            const updated = await this.sectionRepo.findOne({ where: { id: data.id } });
+            if (updated && (updated.sectionType === 'seated' || updated.sectionType === 'vip' || updated.sectionType === 'table')) {
+               const seats: Partial<Seat>[] = [];
+               if (updated.sectionType === 'table') {
+                 const seatCount = updated.seatsPerRow || 6;
+                 for (let s = 1; s <= seatCount; s++) {
+                   seats.push({ sectionId: updated.id, rowLabel: 'Mesa', seatNumber: s, status: SeatStatus.AVAILABLE });
+                 }
+               } else {
+                 for (let r = 1; r <= updated.rows; r++) {
+                   const rowLabel = String.fromCharCode(64 + r);
+                   for (let s = 1; s <= updated.seatsPerRow; s++) {
+                     seats.push({ sectionId: updated.id, rowLabel, seatNumber: s, status: SeatStatus.AVAILABLE });
+                   }
+                 }
+               }
+               if (seats.length > 0) await this.seatRepo.save(seats);
+            }
+          }
         }
       }
     }
