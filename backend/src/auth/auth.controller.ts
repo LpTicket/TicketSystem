@@ -51,13 +51,26 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   async googleAuthRedirect(@Request() req: any, @Res() res: any) {
-    const result = await this.authService.validateOAuthUser(req.user);
-    
-    // Redirect to frontend with tokens in URL
-    const frontendUrl = this.configService.get('FRONTEND_URL') || 'https://ticketsystem-jzgf.onrender.com';
-    const redirectUrl = `${frontendUrl}/login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`;
-    
-    return res.redirect(redirectUrl);
+    try {
+      const result = await this.authService.validateOAuthUser(req.user);
+      
+      // Support both variable names
+      const frontendUrl = 
+        this.configService.get('FRONTEND_URL') || 
+        this.configService.get('APP_URL') || 
+        'https://ticketsystem-jzgf.onrender.com';
+        
+      const redirectUrl = `${frontendUrl}/login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`;
+      
+      console.log('Redirecting to:', redirectUrl);
+      
+      // Use Fastify direct redirect
+      return res.status(302).redirect(redirectUrl);
+    } catch (error) {
+      console.error('Error in Google Redirect:', error);
+      const frontendUrl = this.configService.get('APP_URL') || 'https://ticketsystem-jzgf.onrender.com';
+      return res.status(302).redirect(`${frontendUrl}/login?error=auth_failed`);
+    }
   }
 
   @UseGuards(AuthGuard('jwt'))
