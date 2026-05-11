@@ -54,9 +54,9 @@ export default function Header() {
           <div className="hidden lg:flex items-center justify-end gap-6 shrink-0">
             {/* Scanner Portal (Available for all authenticated users) */}
             {isAuthenticated && (
-              <Link 
-                href="/verify" 
-                className="flex items-center gap-1.5 px-4 py-1.5 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-all shadow-md active:scale-95 group"
+              <Link
+                href="/verify"
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-all shadow-md active:scale-95 border border-primary-600 group"
               >
                 <HiOutlineQrcode className="w-4 h-4 text-primary-100 group-hover:text-white transition-colors" />
                 <span className="text-[10px] font-bold uppercase tracking-wider">
@@ -133,22 +133,19 @@ export default function Header() {
           <div className="lg:hidden flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Mobile Scanner */}
             {isAuthenticated && (
-              <Link 
-                href="/verify" 
-                className="flex items-center gap-1 px-2 py-1 bg-primary-500 text-white rounded-md shadow-sm active:scale-95"
+              <Link
+                href="/verify"
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-primary-500 text-white rounded-md border border-gray-300 shadow-sm active:scale-95"
               >
-                <HiOutlineQrcode className="w-3.5 h-3.5 text-primary-100" />
-                <span className="hidden xs:inline text-[9px] font-bold uppercase tracking-tight">
-                  {lang === 'es' ? 'Escanear' : 'Scan'}
-                </span>
-                <span className="xs:hidden text-[9px] font-bold uppercase tracking-tight">SCAN</span>
+                <HiOutlineQrcode className="w-4 h-4 text-primary-100" />
+                <span className="text-[10px] font-bold uppercase tracking-tight">SCAN</span>
               </Link>
             )}
 
             {/* Mobile language switcher */}
             <div className="flex items-center border border-gray-300 rounded-md overflow-hidden text-[10px] font-bold shrink-0">
-              <button onClick={() => setLang('es')} className={`w-6 text-center py-1 transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>ES</button>
-              <button onClick={() => setLang('en')} className={`w-6 text-center py-1 transition-colors ${lang === 'en' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>EN</button>
+              <button onClick={() => setLang('es')} className={`w-8 text-center py-1.5 transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>ES</button>
+              <button onClick={() => setLang('en')} className={`w-8 text-center py-1.5 transition-colors ${lang === 'en' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>EN</button>
             </div>
             <button className="p-0.5 text-blue-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <HiOutlineX className="w-7 h-7" /> : <HiOutlineMenu className="w-7 h-7" />}
