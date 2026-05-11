@@ -89,6 +89,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   } | null>(null);
   const [selectedSeat, setSelectedSeat] = useState<{ secId: string; seatKey: string } | null>(null);
 
+  // Multi-touch tracking
+  const activePointersRef = useRef<Map<number, { x: number, y: number }>>(new Map());
+  const initialPinchDistanceRef = useRef<number | null>(null);
+  const initialPinchScaleRef = useRef<number>(1);
+  const initialPinchMidpointRef = useRef<{ x: number, y: number } | null>(null);
+
   const getSeatsConfig = (sec: Partial<VenueSection>): Record<string, { xOffset?: number; yOffset?: number; isWheelchair?: boolean; disabled?: boolean; reserved?: boolean; price?: number }> => {
     try {
       return sec.seatsConfig ? JSON.parse(sec.seatsConfig) : {};
@@ -262,17 +268,65 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
   // ── Viewport pointer events (pan + zoom) ─────────────────────────────────
   const onViewportPointerDown = useCallback((e: React.PointerEvent) => {
+    // Add to active pointers
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
     // Only pan when clicking the viewport background, not a section or welcome screen
     if ((e.target as HTMLElement).closest('[data-section]')) return;
     if ((e.target as HTMLElement).closest('[data-welcome]')) return;
-    panningRef.current = true;
-    setHasMoved(false); // Reset movement on each new touch
-    panStartRef.current = { mx: e.clientX, my: e.clientY, vx: viewRef.current.x, vy: viewRef.current.y };
+
+    if (activePointersRef.current.size === 1) {
+      panningRef.current = true;
+      setHasMoved(false);
+      panStartRef.current = { mx: e.clientX, my: e.clientY, vx: viewRef.current.x, vy: viewRef.current.y };
+      (e.currentTarget as HTMLElement).style.cursor = 'grabbing';
+    } else if (activePointersRef.current.size === 2) {
+      // Start pinch
+      panningRef.current = false;
+      const pointers = Array.from(activePointersRef.current.values());
+      const p1 = pointers[0];
+      const p2 = pointers[1];
+      initialPinchDistanceRef.current = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+      initialPinchScaleRef.current = viewRef.current.scale;
+      
+      const rect = viewportRef.current!.getBoundingClientRect();
+      initialPinchMidpointRef.current = {
+        x: (p1.x + p2.x) / 2 - rect.left,
+        y: (p1.y + p2.y) / 2 - rect.top
+      };
+    }
+    
+    // Always capture the pointer to receive events even outside the element
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    (e.currentTarget as HTMLElement).style.cursor = 'grabbing';
   }, []);
 
   const onViewportPointerMove = useCallback((e: React.PointerEvent) => {
+    // Update pointer position
+    if (activePointersRef.current.has(e.pointerId)) {
+      activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    if (activePointersRef.current.size === 2 && initialPinchDistanceRef.current !== null) {
+      // Handle Pinch Zoom
+      const pointers = Array.from(activePointersRef.current.values());
+      const p1 = pointers[0];
+      const p2 = pointers[1];
+      const currentDist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+      const ratio = currentDist / initialPinchDistanceRef.current;
+      
+      const oldScale = viewRef.current.scale;
+      const newScale = Math.min(3, Math.max(0.35, initialPinchScaleRef.current * ratio));
+      
+      if (newScale !== oldScale) {
+        const midpoint = initialPinchMidpointRef.current!;
+        const scaleRatio = newScale / oldScale;
+        viewRef.current.x = midpoint.x - (midpoint.x - viewRef.current.x) * scaleRatio;
+        viewRef.current.y = midpoint.y - (midpoint.y - viewRef.current.y) * scaleRatio;
+        viewRef.current.scale = newScale;
+        applyTransform();
+      }
+      return;
+    }
     if (draggingSeatRef.current) {
       const { secId, seatKey, startMx, startMy, origXOffset, origYOffset, angleDeg, isTableSeat, tableAngle, isRectTable } = draggingSeatRef.current as any;
       const scale = viewRef.current.scale;
@@ -355,6 +409,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   }, [applyTransform]);
 
   const onViewportPointerUp = useCallback((e: React.PointerEvent) => {
+    activePointersRef.current.delete(e.pointerId);
+    if (activePointersRef.current.size < 2) {
+      initialPinchDistanceRef.current = null;
+      initialPinchMidpointRef.current = null;
+    }
+
     if (draggingSeatRef.current) {
       const { secId, seatKey } = draggingSeatRef.current;
       const pX = (draggingSeatRef.current as any)._pendingX;
@@ -1115,6 +1175,21 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   </div>
                 )}
 
+                {/* Table Purchase Mode */}
+                {selectedSection.sectionType === 'table' && (
+                  <div>
+                    <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? 'Modo de Venta' : 'Purchase Mode'}</label>
+                    <select 
+                      value={selectedSection.tablePurchaseMode || 'individual'} 
+                      onChange={e => updateSelected('tablePurchaseMode', e.target.value)} 
+                      className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none"
+                    >
+                      <option value="individual">{lang === 'es' ? 'Por Silla' : 'By Seat'}</option>
+                      <option value="whole">{lang === 'es' ? 'Por Mesa Completa' : 'Whole Table'}</option>
+                    </select>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <div>
                     <label className="block text-[11px] font-semibold text-gray-600 mb-1.5">W (px)</label>
@@ -1139,6 +1214,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         onPointerMove={onViewportPointerMove}
         onPointerUp={onViewportPointerUp}
         onPointerLeave={onViewportPointerUp}
+        onPointerCancel={onViewportPointerUp}
         onClick={() => { setSelectedId(null); setSelectedSeat(null); }}
       >
         {/* Canvas Content */}

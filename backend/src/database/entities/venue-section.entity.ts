@@ -78,6 +78,9 @@ export class VenueSection {
   @Column({ length: 20, default: 'round' })
   tableShape: string;
 
+  @Column({ length: 20, default: 'individual' })
+  tablePurchaseMode: string; // 'individual' | 'whole'
+
   @Column({ type: 'text', nullable: true })
   seatsConfig: string;
 }

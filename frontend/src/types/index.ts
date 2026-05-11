@@ -97,6 +97,7 @@ export interface VenueSection {
   curve?: number;
   isWheelchair?: boolean;
   tableShape?: 'round' | 'rectangular';
+  tablePurchaseMode?: 'individual' | 'whole';
   seatsConfig?: string;
   seats?: Seat[];
 }

@@ -142,13 +142,19 @@ export default function PurchasePage() {
   };
 
   // ── Step 2: toggle seat ────────────────────────────────────────────────────
-  const toggleSeat = useCallback((seat: Seat) => {
-    if (seat.status === SeatStatus.SOLD) return;
-    setSelectedSeats((prev) =>
-      prev.find((s) => s.id === seat.id)
-        ? prev.filter((s) => s.id !== seat.id)
-        : [...prev, seat],
-    );
+  const toggleSeats = useCallback((seats: Seat[]) => {
+    setSelectedSeats((prev) => {
+      let next = [...prev];
+      for (const seat of seats) {
+        const exists = next.find(s => s.id === seat.id);
+        if (exists) {
+          next = next.filter(s => s.id !== seat.id);
+        } else {
+          next.push(seat);
+        }
+      }
+      return next;
+    });
   }, []);
 
   const handleConfirmSeats = async () => {
@@ -344,7 +350,7 @@ export default function PurchasePage() {
               <SeatMapInteractive
                 seatMap={seatMap}
                 selectedSeats={selectedSeats}
-                onToggleSeat={toggleSeat}
+                onToggleSeats={toggleSeats}
                 filterSectionId={selectedSection.id}
                 defaultViewX={event.defaultViewX}
                 defaultViewY={event.defaultViewY}
@@ -358,7 +364,7 @@ export default function PurchasePage() {
                   {selectedSeats.map((seat) => (
                     <span key={seat.id} className="seat-chip">
                       {selectedSection.name} {seat.rowLabel}{seat.seatNumber}
-                      <button onClick={() => toggleSeat(seat)}>×</button>
+                      <button onClick={() => toggleSeats([seat])}>×</button>
                     </span>
                   ))}
                 </div>
