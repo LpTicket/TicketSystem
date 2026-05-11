@@ -60,9 +60,20 @@ export default function EventDetailPage() {
     return Number(section.price || 0);
   };
 
-  const toggleSeat = (seat: Seat) => {
-    if (seat.status !== SeatStatus.AVAILABLE) return;
-    setSelectedSeats((prev) => prev.find((s) => s.id === seat.id) ? prev.filter((s) => s.id !== seat.id) : [...prev, seat]);
+  const toggleSeats = (seats: Seat[]) => {
+    setSelectedSeats((prev) => {
+      let next = [...prev];
+      for (const seat of seats) {
+        if (seat.status !== SeatStatus.AVAILABLE) continue;
+        const exists = next.find(s => s.id === seat.id);
+        if (exists) {
+          next = next.filter(s => s.id !== seat.id);
+        } else {
+          next.push(seat);
+        }
+      }
+      return next;
+    });
   };
 
   const isSeatSelected = (seatId: string) => selectedSeats.some((s) => s.id === seatId);
@@ -156,7 +167,7 @@ export default function EventDetailPage() {
               <SeatMapInteractive
                 seatMap={seatMap}
                 selectedSeats={selectedSeats}
-                onToggleSeat={toggleSeat}
+                onToggleSeats={toggleSeats}
                 defaultViewX={event.defaultViewX}
                 defaultViewY={event.defaultViewY}
                 defaultViewZoom={event.defaultViewZoom}

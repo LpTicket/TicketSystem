@@ -37,6 +37,7 @@ export default function SeatMapInteractive({
   const [zoom, setZoom] = useState(0.8);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [hoveredSeat, setHoveredSeat] = useState<string | null>(null);
+  const [hoveredTable, setHoveredTable] = useState<string | null>(null);
   const [focusedSection, setFocusedSection] = useState<string | null>(null);
   const [mobileMode, setMobileMode] = useState<'scroll' | 'pan'>('scroll');
   const isDragging = useRef(false);
@@ -577,17 +578,17 @@ export default function SeatMapInteractive({
                             style={{
                               width: '60%', height: '60%', borderColor: section.color
                             }}
+                            onMouseEnter={() => setHoveredTable(section.id)}
+                            onMouseLeave={() => setHoveredTable(null)}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (section.tablePurchaseMode === 'whole') {
-                                const allSeats = section.seats || [];
-                                const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
-                                if (isTableSelected) {
-                                  onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
-                                } else {
-                                  const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
-                                  onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
-                                }
+                              const allSeats = section.seats || [];
+                              const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                              if (isTableSelected) {
+                                onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
+                              } else {
+                                const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
+                                onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
                               }
                             }}
                           >
@@ -625,19 +626,8 @@ export default function SeatMapInteractive({
 
                                     if (seat.status === SeatStatus.SOLD || seatOverride.reserved) return;
 
-                                    if (section.tablePurchaseMode === 'whole') {
-                                      const allSeats = section.seats || [];
-                                      const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
-                                      if (isTableSelected) {
-                                        // Deselect all seats of this table
-                                        onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
-                                      } else {
-                                        // Select all available seats of this table
-                                        onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
-                                      }
-                                    } else {
-                                      onToggleSeats([seat]);
-                                    }
+                                    // Clicking a seat always toggles just that seat (Individual mode)
+                                    onToggleSeats([seat]);
                                   }}
                                   onMouseEnter={() => setHoveredSeat(seat.id)}
                                   onMouseLeave={() => setHoveredSeat(null)}
@@ -658,17 +648,17 @@ export default function SeatMapInteractive({
                             style={{
                               width: '70%', height: '45%', borderColor: section.color
                             }}
+                            onMouseEnter={() => setHoveredTable(section.id)}
+                            onMouseLeave={() => setHoveredTable(null)}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (section.tablePurchaseMode === 'whole') {
-                                const allSeats = section.seats || [];
-                                const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
-                                if (isTableSelected) {
-                                  onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
-                                } else {
-                                  const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
-                                  onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
-                                }
+                              const allSeats = section.seats || [];
+                              const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                              if (isTableSelected) {
+                                onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
+                              } else {
+                                const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
+                                onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
                               }
                             }}
                           >
@@ -726,17 +716,7 @@ export default function SeatMapInteractive({
 
                                     if (seat.status === SeatStatus.SOLD || seatOverride.reserved) return;
 
-                                    if (section.tablePurchaseMode === 'whole') {
-                                      const allSeats = section.seats || [];
-                                      const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
-                                      if (isTableSelected) {
-                                        onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
-                                      } else {
-                                        onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
-                                      }
-                                    } else {
-                                      onToggleSeats([seat]);
-                                    }
+                                    onToggleSeats([seat]);
                                   }}
                                   onMouseEnter={() => setHoveredSeat(seat.id)}
                                   onMouseLeave={() => setHoveredSeat(null)}
@@ -853,6 +833,12 @@ export default function SeatMapInteractive({
                      Fila {seat.rowLabel}, Asiento {seat.seatNumber} — ${getSeatPrice(seat, section).toFixed(2)}
                    </div>
                  ))}
+
+                 {hoveredTable === section.id && (
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-gray-900/95 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-2xl whitespace-nowrap pointer-events-none border border-white/20 backdrop-blur-sm scale-110">
+                      ✨ {lang === 'es' ? 'Seleccionar Mesa Completa' : 'Select Whole Table'}
+                    </div>
+                  )}
               </div>
             );
           })}

@@ -64,6 +64,9 @@ export class Order {
   @Column({ type: 'int', default: 1 })
   ticketCount: number;
 
+  @Column({ type: 'text', nullable: true })
+  seatsData: string;
+
   @CreateDateColumn()
   createdAt: Date;
 }

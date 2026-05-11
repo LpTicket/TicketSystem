@@ -189,6 +189,7 @@ export class OrdersService {
       total,
       status: OrderStatus.PENDING,
       ticketCount: seatsInfo.length,
+      seatsData: JSON.stringify(seatsInfo),
     });
     const savedOrder = await this.orderRepo.save(order);
 
@@ -208,7 +209,6 @@ export class OrdersService {
         orderId: savedOrder.id,
         userId,
         eventId,
-        seatsInfo: JSON.stringify(seatsInfo),
       },
     });
 
@@ -309,7 +309,7 @@ export class OrdersService {
         stripePaymentIntent: session.payment_intent as string,
       });
 
-      const seatsInfo = JSON.parse(session.metadata?.seatsInfo || '[]');
+      const seatsInfo = JSON.parse(order.seatsData || '[]');
 
       const createdTickets: any[] = [];
       for (const seatInfo of seatsInfo) {
