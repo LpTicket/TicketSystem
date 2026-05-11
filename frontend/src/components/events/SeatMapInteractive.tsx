@@ -39,7 +39,7 @@ export default function SeatMapInteractive({
   const [hoveredSeat, setHoveredSeat] = useState<string | null>(null);
   const [hoveredTable, setHoveredTable] = useState<string | null>(null);
   const [focusedSection, setFocusedSection] = useState<string | null>(null);
-  const [mobileMode, setMobileMode] = useState<'scroll' | 'pan'>('scroll');
+  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -309,10 +309,7 @@ export default function SeatMapInteractive({
   const onTouchMove = (e: React.TouchEvent) => {
     if (!containerRef.current) return;
     
-    // If the user is in scroll mode on mobile, allow natural browser scrolling and do not pan the map
-    if (mobileMode === 'scroll' && e.touches.length === 1) {
-      return;
-    }
+    // On mobile: always pan the map with a single finger (no toggle needed)
 
     if (e.cancelable) e.preventDefault();
 
@@ -412,38 +409,10 @@ export default function SeatMapInteractive({
         </div>
       </div>
 
-      {/* Mobile Navigation Helpers */}
-      <div className="md:hidden flex items-center justify-between bg-white border border-gray-200 rounded-2xl p-2 mb-3.5 shadow-[0_4px_12px_rgba(0,0,0,0.02)] select-none">
-        <span className="text-xs font-semibold text-gray-500 pl-2">
-          {lang === 'es' ? '📱 Navegación móvil:' : '📱 Mobile controls:'}
-        </span>
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => setMobileMode('scroll')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-              mobileMode === 'scroll' 
-                ? 'bg-gray-900 text-white shadow-sm' 
-                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-            }`}
-          >
-            <span>📜</span>
-            {lang === 'es' ? 'Deslizar Web' : 'Scroll Web'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileMode('pan')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-              mobileMode === 'pan' 
-                ? 'bg-primary-500 text-white shadow-sm' 
-                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-            }`}
-          >
-            <span>🖐️</span>
-            {lang === 'es' ? 'Mover Mapa' : 'Pan Map'}
-          </button>
-        </div>
-      </div>
+      {/* Mobile hint — shown once so users know they can drag */}
+      <p className="md:hidden text-[10px] text-gray-400 text-center -mt-1 mb-1 select-none">
+        {lang === 'es' ? '👆 Desliza con un dedo para mover · Pellizca para zoom' : '👆 Drag to pan · Pinch to zoom'}
+      </p>
 
       {/* Map container (Seats.io Style) */}
       <div
