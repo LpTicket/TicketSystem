@@ -13,6 +13,7 @@ import {
   HiOutlineEye,
   HiOutlineX,
   HiOutlineArrowLeft,
+  HiOutlineCamera,
 } from 'react-icons/hi';
 import { FaWheelchair } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -94,6 +95,34 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     } catch (e) {
       return {};
     }
+  };
+
+  const getSeatStatus = (section: Partial<VenueSection>, seatKey: string) => {
+    const overrides = getSeatsConfig(section);
+    const seatOverride = overrides[seatKey] || {};
+    
+    // 1. Check if it's explicitly reserved in the design config
+    if (seatOverride.reserved) return 'reserved';
+    
+    // 2. Otherwise, check the actual seat status from the database if available
+    if (section.seats) {
+      let foundSeat;
+      if (section.sectionType === 'table') {
+        const num = parseInt(seatKey.replace('seat-', ''), 10);
+        foundSeat = section.seats.find(s => s.seatNumber === num);
+      } else {
+        const [row, num] = seatKey.split('-');
+        foundSeat = section.seats.find(s => s.rowLabel === row && s.seatNumber === parseInt(num, 10));
+      }
+      
+      if (foundSeat) {
+        if (foundSeat.status === 'sold') return 'sold';
+        // Permanent block if locked and no expiry
+        if (foundSeat.status === 'locked' && !foundSeat.lockExpiresAt) return 'reserved';
+      }
+    }
+    
+    return 'available';
   };
 
   const updateSeatConfig = useCallback((secId: string, seatKey: string, key: string, value: any) => {
@@ -834,7 +863,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                     <label className="flex items-center gap-2 bg-white px-3 py-2 rounded border border-orange-100 cursor-pointer select-none shadow-sm hover:bg-orange-50/50">
                       <input 
                         type="checkbox"
-                        checked={seatOverride.reserved || false}
+                        checked={getSeatStatus(selectedSection, seatKey) === 'reserved'}
                         onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'reserved', e.target.checked)}
                         className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
                       />
@@ -1087,86 +1116,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         onPointerLeave={onViewportPointerUp}
         onClick={() => { setSelectedId(null); setSelectedSeat(null); }}
       >
-        {/* Template Welcome Center Screen for 0 Sections */}
-        {sections.length === 0 && !dismissWelcome && (
-          <div data-welcome="true" className="absolute inset-0 bg-white/95 flex flex-col items-center lg:justify-center z-30 p-6 md:p-12 animate-fade-in backdrop-blur-sm overflow-y-auto">
-            <div className="max-w-2xl w-full text-center space-y-6">
-              <div className="space-y-2">
-                <span className="text-5xl block animate-bounce">🎨</span>
-                <h3 className="text-2xl font-black text-gray-900 tracking-tight">{lang === 'es' ? 'Comienza tu Diseño de Asientos' : 'Start Your Seating Chart'}</h3>
-                <p className="text-sm text-gray-500 max-w-lg mx-auto">
-                  {lang === 'es' 
-                    ? 'Elige una de nuestras plantillas de teatros o cenas de gala optimizadas al estilo Seats.io para arrancar con un solo clic.' 
-                    : 'Choose one of our premium Seats.io-style theater or dinner templates to kickstart your layout with a single click.'}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-4">
-                {/* Small Theatre Card */}
-                <button 
-                  onClick={(e) => { e.stopPropagation(); loadTemplate('small'); }}
-                  className="bg-white hover:bg-blue-50/40 border border-gray-200 hover:border-[#1a73e8] rounded-xl p-5 text-left transition-all duration-300 shadow-md hover:shadow-lg flex flex-col justify-between group h-full"
-                >
-                  <div className="space-y-2">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🎪</div>
-                    <h4 className="font-bold text-gray-900 text-sm">{lang === 'es' ? 'Teatro Pequeño' : 'Small Theatre'}</h4>
-                    <p className="text-[11px] text-gray-400 font-medium leading-relaxed">{lang === 'es' ? 'Layout acogedor con escenario, bloque central y laterales curvos.' : 'Cozy layout with stage, center block and curved sides.'}</p>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] font-bold text-[#1a73e8] flex items-center justify-between w-full">
-                    <span>{lang === 'es' ? '208 Asientos' : '208 Capacity'}</span>
-                    <span className="group-hover:translate-x-1 transition-transform">→</span>
-                  </div>
-                </button>
-
-                {/* Large Theatre Card */}
-                <button 
-                  onClick={(e) => { e.stopPropagation(); loadTemplate('large'); }}
-                  className="bg-white hover:bg-blue-50/40 border border-gray-200 hover:border-[#1a73e8] rounded-xl p-5 text-left transition-all duration-300 shadow-md hover:shadow-lg flex flex-col justify-between group h-full"
-                >
-                  <div className="space-y-2">
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🏟️</div>
-                    <h4 className="font-bold text-gray-900 text-sm">{lang === 'es' ? 'Teatro Grande' : 'Large Theatre'}</h4>
-                    <p className="text-[11px] text-gray-400 font-medium leading-relaxed">{lang === 'es' ? 'Layout masivo con VIP frontal, palcos laterales y general de pie.' : 'Massive show layout with frontal VIP, lateral balconies and GA standing.'}</p>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] font-bold text-[#1a73e8] flex items-center justify-between w-full">
-                    <span>{lang === 'es' ? '872 Capacidad' : '872 Capacity'}</span>
-                    <span className="group-hover:translate-x-1 transition-transform">→</span>
-                  </div>
-                </button>
-
-                {/* Gala Dinner Card */}
-                <button 
-                  onClick={(e) => { e.stopPropagation(); loadTemplate('gala'); }}
-                  className="bg-white hover:bg-blue-50/40 border border-gray-200 hover:border-[#1a73e8] rounded-xl p-5 text-left transition-all duration-300 shadow-md hover:shadow-lg flex flex-col justify-between group h-full"
-                >
-                  <div className="space-y-2">
-                    <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🍽️</div>
-                    <h4 className="font-bold text-gray-900 text-sm">{lang === 'es' ? 'Cena de Gala' : 'Gala Dinner'}</h4>
-                    <p className="text-[11px] text-gray-400 font-medium leading-relaxed">{lang === 'es' ? 'Elegante distribución de mesas redondas VIP y rectangulares.' : 'Elegant layout with round VIP tables and long rectangular tables.'}</p>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-gray-100 text-[10px] font-bold text-[#1a73e8] flex items-center justify-between w-full">
-                    <span>{lang === 'es' ? '102 Cubiertos' : '102 Capacity'}</span>
-                    <span className="group-hover:translate-x-1 transition-transform">→</span>
-                  </div>
-                </button>
-              </div>
-
-              <div className="pt-4 text-[11px] text-gray-400 font-medium flex flex-col items-center justify-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span>{lang === 'es' ? 'O si prefieres, arrastra elementos desde la barra lateral izquierda' : 'Or draw custom elements using the left sidebar tools'}</span>
-                  <span className="px-1.5 py-0.5 bg-gray-100 border rounded text-[10px] text-gray-500 font-mono font-bold">+</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setDismissWelcome(true)}
-                  className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-700 underline flex items-center gap-1.5"
-                >
-                  ✨ {lang === 'es' ? 'Comenzar con lienzo en blanco' : 'Start with a blank canvas'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Canvas Content */}
 
         {/* Infinite Ruler/Grid Background */}
         <div 
@@ -1197,6 +1147,15 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           <button onClick={resetView} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 text-gray-600 text-[10px] font-bold uppercase transition-colors" title="Reset">
             FIT
           </button>
+          <div className="w-px bg-gray-200" />
+          <button 
+            onClick={handleSetDefaultView} 
+            className="h-10 px-3 flex items-center gap-2 hover:bg-blue-50 text-blue-600 transition-colors" 
+            title={lang === 'es' ? 'Fijar vista para clientes' : 'Set client default view'}
+          >
+            <HiOutlineCamera className="w-5 h-5" />
+            <span className="text-[10px] font-bold uppercase whitespace-nowrap">{lang === 'es' ? 'Fijar Vista' : 'Set View'}</span>
+          </button>
         </div>
 
         {/* Hint */}
@@ -1205,6 +1164,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             <div className="w-2 h-2 rounded-full bg-primary-500 animate-pulse" />
             {lang === 'es' ? 'Rueda: zoom · Arrastrar fondo: mover' : 'Wheel: zoom · Drag bg: pan'}
           </div>
+          {!customViewport && (
+            <div className="text-[10px] text-amber-400 bg-amber-950/80 backdrop-blur-md rounded-md px-3 py-1.5 border border-amber-500/30 flex items-center gap-2 shadow-lg animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              {lang === 'es' ? 'Tip: Encuadra el mapa y pulsa "FIJAR VISTA" para los clientes' : 'Tip: Frame the map & click "SET VIEW" for buyers'}
+            </div>
+          )}
           {customViewport && (
             <div className="text-[10px] text-green-400 bg-green-950/90 backdrop-blur-md rounded-md px-3 py-1.5 border border-green-500/30 flex items-center gap-2 shadow-lg animate-bounce pointer-events-auto">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -1315,7 +1280,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                         const finalYOffset = seatOverride.yOffset || 0;
                         const isSeatWheelchair = seatOverride.isWheelchair !== undefined ? seatOverride.isWheelchair : isWheelchair;
                         const isDisabled = seatOverride.disabled || false;
-                        const isReserved = seatOverride.reserved || false;
+                        const sStatus = getSeatStatus(sec, seatKey);
+                        const isReserved = sStatus === 'reserved';
+                        const isSold = sStatus === 'sold';
                         const isSeatSelected = selectedSeat?.secId === sec.id && selectedSeat?.seatKey === seatKey;
 
                         return (
@@ -1336,7 +1303,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               width: Math.max(10, Math.min(22, (sec.mapWidth! - 24) / seatsCount - 2)),
                               height: Math.max(10, Math.min(22, (sec.mapWidth! - 24) / seatsCount - 2)),
                               transform: `translate(-50%, -50%) translate(${finalXOffset}px, ${finalYOffset}px) rotate(${angleDeg}deg)`,
-                              backgroundColor: isReserved ? '#f97316' : (isSeatWheelchair ? '#1a73e8' : sec.color),
+                              backgroundColor: isSold ? '#94a3b8' : (isReserved ? '#f97316' : (isSeatWheelchair ? '#1a73e8' : sec.color)),
                               boxShadow: isSeatSelected ? '0 0 0 3px #3b82f6, 0 4px 10px rgba(59,130,246,0.5)' : '0 1px 3px rgba(0,0,0,0.15)',
                               border: isSeatSelected ? '2px solid #fff' : '1.5px solid #fff',
                               opacity: isDisabled ? 0.25 : 1,
@@ -1344,6 +1311,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                             }}
                           >
                             {isReserved && <div className="w-[60%] h-[60%] bg-white rounded-full flex items-center justify-center text-[8px] font-bold text-orange-600">B</div>}
+                            {isSold && <div className="w-[60%] h-[60%] bg-white rounded-full flex items-center justify-center text-[8px] font-bold text-slate-500">S</div>}
                             {isSeatWheelchair && !isReserved && (
                               <FaWheelchair className="w-[70%] h-[70%] text-white" />
                             )}
@@ -1380,7 +1348,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                           const finalYOffset = seatOverride.yOffset || 0;
                           const isSeatWheelchair = seatOverride.isWheelchair || false;
                           const isDisabled = seatOverride.disabled || false;
-                          const isReserved = seatOverride.reserved || false;
+                          const sStatus = getSeatStatus(sec, seatKey);
+                          const isReserved = sStatus === 'reserved';
+                          const isSold = sStatus === 'sold';
                           const isSeatSelected = selectedSeat?.secId === sec.id && selectedSeat?.seatKey === seatKey;
 
                           return (
@@ -1398,7 +1368,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               style={{
                                 width: '20%',
                                 height: '20%',
-                                backgroundColor: isReserved ? '#f97316' : (isSeatWheelchair ? '#1a73e8' : sec.color),
+                                backgroundColor: isSold ? '#94a3b8' : (isReserved ? '#f97316' : (isSeatWheelchair ? '#1a73e8' : sec.color)),
                                 transform: `rotate(${angle}deg) translate(0, -210%) rotate(-${angle}deg) translate(${finalXOffset}px, ${finalYOffset}px)`,
                                 boxShadow: isSeatSelected ? '0 0 0 3px #3b82f6, 0 4px 10px rgba(59,130,246,0.5)' : '0 1px 3px rgba(0,0,0,0.15)',
                                 border: isSeatSelected ? '2px solid #fff' : '1.5px solid #fff',
@@ -1454,7 +1424,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                           const finalYOffset = seatOverride.yOffset || 0;
                           const isSeatWheelchair = seatOverride.isWheelchair || false;
                           const isDisabled = seatOverride.disabled || false;
-                          const isReserved = seatOverride.reserved || false;
+                          const sStatus = getSeatStatus(sec, seatKey);
+                          const isReserved = sStatus === 'reserved';
+                          const isSold = sStatus === 'sold';
                           const isSeatSelected = selectedSeat?.secId === sec.id && selectedSeat?.seatKey === seatKey;
 
                           return (
@@ -1472,7 +1444,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               style={{
                                 width: '18%',
                                 height: '18%',
-                                backgroundColor: isReserved ? '#f97316' : (isSeatWheelchair ? '#1a73e8' : sec.color),
+                                backgroundColor: isSold ? '#94a3b8' : (isReserved ? '#f97316' : (isSeatWheelchair ? '#1a73e8' : sec.color)),
                                 left: `${x}%`,
                                 top: `${y}%`,
                                 transform: `translate(-50%, -50%) translate(${finalXOffset}px, ${finalYOffset}px)`,
@@ -1483,7 +1455,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               }}
                             >
                               {isReserved && <div className="w-[70%] h-[70%] bg-white rounded-full flex items-center justify-center text-[8px] font-bold text-orange-600 absolute inset-0 m-auto">B</div>}
-                              {isSeatWheelchair && !isReserved && (
+                              {isSold && <div className="w-[70%] h-[70%] bg-white rounded-full flex items-center justify-center text-[8px] font-bold text-slate-500 absolute inset-0 m-auto">S</div>}
+                              {isSeatWheelchair && !isReserved && !isSold && (
                                 <FaWheelchair className="w-[70%] h-[70%] text-white absolute inset-0 m-auto" />
                               )}
                               <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">

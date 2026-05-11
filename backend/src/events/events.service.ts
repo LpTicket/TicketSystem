@@ -343,27 +343,70 @@ export class EventsService {
             const updated = await this.sectionRepo.findOne({ where: { id: data.id } });
             if (updated && (updated.sectionType === 'seated' || updated.sectionType === 'vip' || updated.sectionType === 'table')) {
                const seats: Partial<Seat>[] = [];
+               const overrides = updated.seatsConfig ? JSON.parse(updated.seatsConfig) : {};
+               
                if (updated.sectionType === 'table') {
                  const seatCount = updated.seatsPerRow || 6;
                  for (let s = 1; s <= seatCount; s++) {
-                   seats.push({ sectionId: updated.id, rowLabel: 'Mesa', seatNumber: s, status: SeatStatus.AVAILABLE });
+                   const key = `seat-${s}`;
+                   const isReserved = overrides[key]?.reserved || false;
+                   seats.push({ 
+                     sectionId: updated.id, 
+                     rowLabel: 'Mesa', 
+                     seatNumber: s, 
+                     status: isReserved ? SeatStatus.LOCKED : SeatStatus.AVAILABLE,
+                     lockExpiresAt: null // Permanent block if reserved
+                   });
                  }
                } else {
                  for (let r = 1; r <= updated.rows; r++) {
                    const rowLabel = String.fromCharCode(64 + r);
                    for (let s = 1; s <= updated.seatsPerRow; s++) {
-                     seats.push({ sectionId: updated.id, rowLabel, seatNumber: s, status: SeatStatus.AVAILABLE });
+                     const key = `${rowLabel}-${s}`;
+                     const isReserved = overrides[key]?.reserved || false;
+                     seats.push({ 
+                       sectionId: updated.id, 
+                       rowLabel, 
+                       seatNumber: s, 
+                       status: isReserved ? SeatStatus.LOCKED : SeatStatus.AVAILABLE,
+                       lockExpiresAt: null
+                     });
                    }
                  }
                }
                if (seats.length > 0) await this.seatRepo.save(seats);
+            }
+          } else {
+            // Layout didn't change, but seat blocks (seatsConfig) might have.
+            // Sync status for existing seats based on seatsConfig overrides.
+            const overrides = sectionData.seatsConfig ? JSON.parse(sectionData.seatsConfig) : null;
+            if (overrides) {
+              const currentSeats = await this.seatRepo.find({ where: { sectionId: data.id } });
+              for (const seat of currentSeats) {
+                // Skip sold seats
+                if (seat.status === SeatStatus.SOLD) continue;
+
+                const key = exists.sectionType === 'table' ? `seat-${seat.seatNumber}` : `${seat.rowLabel}-${seat.seatNumber}`;
+                const isReservedInConfig = overrides[key]?.reserved || false;
+                
+                // If it's a permanent lock (no expiry) or available, sync it.
+                // We don't want to overwrite temporary locks (lockExpiresAt != null) held by buyers.
+                if (seat.status === SeatStatus.AVAILABLE || (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt)) {
+                  const newStatus = isReservedInConfig ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
+                  if (seat.status !== newStatus) {
+                    seat.status = newStatus;
+                    seat.lockExpiresAt = null; // Ensure it's permanent
+                    await this.seatRepo.save(seat);
+                  }
+                }
+              }
             }
           }
         }
       }
     }
 
-    return this.getSections(eventId);
+    return this.getSeatMap(eventId);
   }
 
   async getSeats(sectionId: string) {
