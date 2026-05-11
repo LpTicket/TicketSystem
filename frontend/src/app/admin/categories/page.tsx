@@ -243,114 +243,170 @@ export default function AdminCategoriesPage() {
         </form>
       )}
 
-      {/* Categories table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Categoría</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden sm:table-cell">Slug</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">EN</th>
-              <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {categories.map((cat) => (
-              <tr key={cat.id} className="hover:bg-gray-50 transition-colors">
-                {editingId === cat.id ? (
-                  /* Inline edit row */
-                  <td colSpan={5} className="px-5 py-3">
-                    {error && <div className="p-2 mb-2 bg-red-50 border border-red-200 rounded text-red-600 text-xs">{error}</div>}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 items-end">
-                      <div>
-                        <label className="text-[10px] text-gray-500 block mb-1">Nombre ES</label>
-                        <input className="input text-sm" value={form.labelEs} onChange={(e) => setForm({ ...form, labelEs: e.target.value })} />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-500 block mb-1">Nombre EN</label>
-                        <input className="input text-sm" value={form.labelEn} onChange={(e) => setForm({ ...form, labelEn: e.target.value })} />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-500 block mb-1">Ícono</label>
-                        <input className="input text-sm" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-gray-500 block mb-1">Color</label>
-                        <div className="flex items-center gap-2">
-                          <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })}
-                            className="w-9 h-9 rounded cursor-pointer border border-gray-200" />
-                          <span className="text-xs font-mono text-gray-500">{form.color}</span>
+      {/* Categories list */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        {/* Desktop Table View */}
+        <div className="hidden sm:block overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Categoría</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Slug</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">EN</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Estado</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {categories.map((cat) => (
+                <tr key={cat.id} className="hover:bg-gray-50 transition-colors">
+                  {editingId === cat.id ? (
+                    <td colSpan={5} className="px-5 py-6 bg-blue-50/30">
+                      {error && <div className="p-2 mb-4 bg-red-50 border border-red-200 rounded text-red-600 text-xs">{error}</div>}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase">Nombre ES</label>
+                          <input className="input text-sm" value={form.labelEs} onChange={(e) => setForm({ ...form, labelEs: e.target.value })} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase">Nombre EN</label>
+                          <input className="input text-sm" value={form.labelEn} onChange={(e) => setForm({ ...form, labelEn: e.target.value })} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase">Ícono / Color</label>
+                          <div className="flex items-center gap-2">
+                            <input className="input text-sm w-16" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
+                            <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })}
+                              className="w-10 h-10 rounded cursor-pointer border border-gray-200" />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleSaveEdit(cat.id)} disabled={saving}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#1a73e8] text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
+                            <HiOutlineCheck className="w-4 h-4" /> {saving ? '...' : 'Guardar'}
+                          </button>
+                          <button onClick={() => setEditingId(null)}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-50 transition-colors">
+                            <HiOutlineX className="w-4 h-4" /> Cancelar
+                          </button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => handleSaveEdit(cat.id)} disabled={saving}
-                          className="flex items-center gap-1 px-3 py-2 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 transition-colors">
-                          <HiOutlineCheck className="w-3.5 h-3.5" /> Guardar
-                        </button>
-                        <button onClick={() => setEditingId(null)}
-                          className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 transition-colors">
-                          <HiOutlineX className="w-3.5 h-3.5" /> Cancelar
-                        </button>
-                      </div>
-                    </div>
-                  </td>
-                ) : (
-                  <>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0"
-                          style={{ background: `${cat.color}20`, border: `2px solid ${cat.color}40` }}
-                        >
-                          {cat.icon}
-                        </span>
-                        <div>
-                          <p className="font-semibold text-sm text-gray-900">{cat.labelEs}</p>
-                          <span className="section-badge text-[10px]" style={{ background: cat.color }}>
-                            {cat.icon} {cat.labelEs}
+                    </td>
+                  ) : (
+                    <>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-4">
+                          <span
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 shadow-sm"
+                            style={{ background: `${cat.color}15`, border: `1.5px solid ${cat.color}30` }}
+                          >
+                            {cat.icon}
                           </span>
+                          <div>
+                            <p className="font-bold text-gray-900 text-sm leading-none mb-1.5">{cat.labelEs}</p>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider text-white" style={{ background: cat.color }}>
+                              {cat.slug}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-600">{cat.slug}</code>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 hidden md:table-cell">{cat.labelEn}</td>
-                    <td className="px-4 py-3 text-center">
+                      </td>
+                      <td className="px-4 py-4 hidden md:table-cell">
+                        <code className="text-[11px] bg-gray-100 px-2 py-1 rounded font-mono text-gray-500">{cat.slug}</code>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-500 hidden lg:table-cell">{cat.labelEn}</td>
+                      <td className="px-4 py-4 text-center">
+                        <button
+                          onClick={() => handleUpdate(cat.id, { isActive: !cat.isActive })}
+                          className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight transition-all ${
+                            cat.isActive ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                          }`}
+                        >
+                          {cat.isActive ? 'Activa' : 'Inactiva'}
+                        </button>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => startEdit(cat)}
+                            className="p-2 rounded-lg text-gray-400 hover:text-[#1a73e8] hover:bg-blue-50 transition-colors"
+                          >
+                            <HiOutlinePencil className="w-4.5 h-4.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(cat.id, cat.labelEs)}
+                            className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                          >
+                            <HiOutlineTrash className="w-4.5 h-4.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="sm:hidden divide-y divide-gray-100">
+          {categories.map((cat) => (
+            <div key={cat.id} className="p-4 space-y-4">
+              {editingId === cat.id ? (
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <input className="input text-sm" placeholder="Nombre ES" value={form.labelEs} onChange={(e) => setForm({ ...form, labelEs: e.target.value })} />
+                    <input className="input text-sm" placeholder="Nombre EN" value={form.labelEn} onChange={(e) => setForm({ ...form, labelEn: e.target.value })} />
+                    <div className="flex gap-2">
+                      <input className="input text-sm w-full" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
+                      <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })}
+                        className="w-12 h-10 rounded cursor-pointer border border-gray-200 shrink-0" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleSaveEdit(cat.id)} disabled={saving} className="flex-1 btn-primary text-xs py-2.5">
+                      {saving ? '...' : 'Guardar'}
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="flex-1 btn-secondary text-xs py-2.5">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0"
+                      style={{ background: `${cat.color}15`, border: `1.5px solid ${cat.color}30` }}
+                    >
+                      {cat.icon}
+                    </span>
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-sm leading-tight">{cat.labelEs}</h3>
+                      <p className="text-[10px] text-gray-400 font-mono mt-1 uppercase tracking-wider">{cat.slug}</p>
                       <button
                         onClick={() => handleUpdate(cat.id, { isActive: !cat.isActive })}
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                          cat.isActive ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        className={`mt-2 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                          cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
                         }`}
                       >
                         {cat.isActive ? 'Activa' : 'Inactiva'}
                       </button>
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => startEdit(cat)}
-                          className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors"
-                          title="Editar"
-                        >
-                          <HiOutlinePencil className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(cat.id, cat.labelEs)}
-                          className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
-                          title="Eliminar"
-                        >
-                          <HiOutlineTrash className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <button onClick={() => startEdit(cat)} className="p-2 text-gray-400 hover:text-blue-600">
+                      <HiOutlinePencil className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => handleDelete(cat.id, cat.labelEs)} className="p-2 text-gray-400 hover:text-red-500">
+                      <HiOutlineTrash className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
 
         {categories.length === 0 && (
           <div className="px-6 py-16 text-center">

@@ -46,6 +46,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [customViewport, setCustomViewport] = useState<{ x: number; y: number; scale: number } | null>(null);
+  const [hasMoved, setHasMoved] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [showStage, setShowStage] = useState(event?.showStage ?? false);
   const templatesRef = useRef<HTMLDivElement>(null);
@@ -211,6 +212,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     if ((e.target as HTMLElement).closest('[data-section]')) return;
     if ((e.target as HTMLElement).closest('[data-welcome]')) return;
     panningRef.current = true;
+    setHasMoved(false); // Reset movement on each new touch
     panStartRef.current = { mx: e.clientX, my: e.clientY, vx: viewRef.current.x, vy: viewRef.current.y };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     (e.currentTarget as HTMLElement).style.cursor = 'grabbing';
@@ -225,8 +227,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
       const el = document.getElementById(`seat-dot-${secId}-${seatKey}`);
       if (el) {
-        const newX = origXOffset + dx;
-        const newY = origYOffset + dy;
+        const dx = Math.abs(e.clientX - startMx);
+        const dy = Math.abs(e.clientY - startMy);
+        if (dx > 5 || dy > 5) setHasMoved(true);
+
+        const newX = origXOffset + (e.clientX - startMx) / scale;
+        const newY = origYOffset + (e.clientY - startMy) / scale;
         
         if (isTableSeat) {
           if (isRectTable) {
@@ -250,38 +256,48 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       const dy = (e.clientY - startMy) / scale;
 
       const el = document.getElementById(`sec-${id}`);
-      if (!el) return;
+      if (el) {
+        const dx_abs = Math.abs(e.clientX - startMx);
+        const dy_abs = Math.abs(e.clientY - startMy);
+        if (dx_abs > 5 || dy_abs > 5) setHasMoved(true);
 
-      if (type === 'move') {
-        const newX = Math.max(0, origX + dx);
-        const newY = Math.max(STAGE_Y + STAGE_H + 10, origY + dy);
-        el.style.left = `${newX}px`;
-        el.style.top = `${newY}px`;
-        (draggingRef.current as any)._pendingX = newX;
-        (draggingRef.current as any)._pendingY = newY;
-      } else {
-        const newW = Math.max(40, origW + dx);
-        const newH = Math.max(40, origH + dy);
-        el.style.width = `${newW}px`;
-        el.style.height = `${newH}px`;
-        (draggingRef.current as any)._pendingW = newW;
-        (draggingRef.current as any)._pendingH = newH;
+        if (type === 'move') {
+          const newX = Math.max(0, origX + dx);
+          const newY = Math.max(STAGE_Y + STAGE_H + 10, origY + dy);
+          el.style.left = `${newX}px`;
+          el.style.top = `${newY}px`;
+          (draggingRef.current as any)._pendingX = newX;
+          (draggingRef.current as any)._pendingY = newY;
+        } else {
+          const newW = Math.max(40, origW + dx);
+          const newH = Math.max(40, origH + dy);
+          el.style.width = `${newW}px`;
+          el.style.height = `${newH}px`;
+          (draggingRef.current as any)._pendingW = newW;
+          (draggingRef.current as any)._pendingH = newH;
+        }
       }
       return;
     }
-    if (!panningRef.current) return;
-    const { mx, my, vx, vy } = panStartRef.current;
-    
-    // Calculate new position
-    const newX = vx + (e.clientX - mx);
-    const newY = vy + (e.clientY - my);
-    
-    // Apply boundaries so the user doesn't lose the canvas infinitely
-    const LIMIT = 500;
-    viewRef.current.x = Math.max(-LIMIT, Math.min(LIMIT, newX));
-    viewRef.current.y = Math.max(-LIMIT, Math.min(LIMIT, newY));
-    
-    applyTransform();
+    if (panningRef.current) {
+      const { mx, my, vx, vy } = panStartRef.current;
+      
+      // Calculate movement
+      const dx = Math.abs(e.clientX - mx);
+      const dy = Math.abs(e.clientY - my);
+      if (dx > 5 || dy > 5) setHasMoved(true);
+
+      // Calculate new position
+      const newX = vx + (e.clientX - mx);
+      const newY = vy + (e.clientY - my);
+      
+      // Apply boundaries so the user doesn't lose the canvas infinitely
+      const LIMIT = 1000;
+      viewRef.current.x = Math.max(-LIMIT, Math.min(LIMIT, newX));
+      viewRef.current.y = Math.max(-LIMIT, Math.min(LIMIT, newY));
+      
+      applyTransform();
+    }
   }, [applyTransform]);
 
   const onViewportPointerUp = useCallback((e: React.PointerEvent) => {
@@ -380,8 +396,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     isRectTable = false
   ) => {
     e.stopPropagation();
-    setSelectedSeat({ secId, seatKey });
-    setSelectedId(secId); // Also select the section to show side panels
+    // Don't select immediately, wait for pointer up to see if it was a drag or tap
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setHasMoved(false);
 
     draggingSeatRef.current = {
       secId,
@@ -953,17 +970,17 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                     
                     let anyUnreserved = false;
                     for(let r=1; r<=rows; r++) {
-                      const rowLabel = selectedSection.sectionType === 'table' ? 'Mesa' : String.fromCharCode(64 + r);
+                      const rowLabel: string = selectedSection?.sectionType === 'table' ? 'Mesa' : String.fromCharCode(64 + r);
                       for(let s=1; s<=seatsPerRow; s++) {
-                        const key = selectedSection.sectionType === 'table' ? `seat-${s}` : `${rowLabel}-${s}`;
+                        const key = selectedSection?.sectionType === 'table' ? `seat-${s}` : `${rowLabel}-${s}`;
                         if (!config[key]?.reserved) anyUnreserved = true;
                       }
                     }
 
                     for(let r=1; r<=rows; r++) {
-                      const rowLabel = selectedSection.sectionType === 'table' ? 'Mesa' : String.fromCharCode(64 + r);
+                      const rowLabel: string = selectedSection?.sectionType === 'table' ? 'Mesa' : String.fromCharCode(64 + r);
                       for(let s=1; s<=seatsPerRow; s++) {
-                        const key = selectedSection.sectionType === 'table' ? `seat-${s}` : `${rowLabel}-${s}`;
+                        const key = selectedSection?.sectionType === 'table' ? `seat-${s}` : `${rowLabel}-${s}`;
                         config[key] = { ...config[key], reserved: anyUnreserved };
                       }
                     }
@@ -1229,8 +1246,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 key={sec.id}
                 id={`sec-${sec.id}`}
                 data-section="true"
-                onPointerDown={e => { e.stopPropagation(); onSectionPointerDown(e, sec); }}
-                onClick={e => { e.stopPropagation(); setSelectedId(sec.id!); }}
+                onPointerDown={e => { e.stopPropagation(); setHasMoved(false); onSectionPointerDown(e, sec); }}
+                onClick={e => { 
+                  if (hasMoved) return;
+                  e.stopPropagation(); 
+                  setSelectedId(sec.id!); 
+                }}
                 style={{
                   position: 'absolute',
                   left: sec.mapX ?? ((CANVAS_W / 2) - (sec.mapWidth || 100) / 2),
@@ -1268,7 +1289,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   <div className="absolute inset-0 pointer-events-none">
                     {/* Render exact dots curved */}
                     {Array.from({ length: rowsCount }).map((_, rIdx) => {
-                      const rowLabel = String.fromCharCode(64 + rIdx + 1); // A, B, C...
+                      const rowLabel: string = String.fromCharCode(64 + rIdx + 1); // A, B, C...
                       return Array.from({ length: seatsCount }).map((_, sIdx) => {
                         const seatNumber = sIdx + 1;
                         const seatKey = `${rowLabel}-${seatNumber}`;
@@ -1303,6 +1324,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                             id={`seat-dot-${sec.id}-${seatKey}`}
                             className="absolute rounded-full flex items-center justify-center pointer-events-auto cursor-grab active:cursor-grabbing group/seat"
                             onPointerDown={e => onSeatPointerDown(e, sec.id!, seatKey, finalXOffset, finalYOffset, angleDeg, false, 0, false)}
+                            onClick={e => {
+                              if (hasMoved) return;
+                              e.stopPropagation();
+                              setSelectedSeat({ secId: sec.id!, seatKey });
+                              setSelectedId(sec.id!);
+                            }}
                             style={{
                               left: x,
                               top: y,
@@ -1362,6 +1389,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               id={`seat-dot-${sec.id}-${seatKey}`}
                               className="absolute rounded-full pointer-events-auto cursor-grab active:cursor-grabbing group/seat"
                               onPointerDown={e => onSeatPointerDown(e, sec.id!, seatKey, finalXOffset, finalYOffset, 0, true, angle, false)}
+                              onClick={e => {
+                                if (hasMoved) return;
+                                e.stopPropagation();
+                                setSelectedSeat({ secId: sec.id!, seatKey });
+                                setSelectedId(sec.id!);
+                              }}
                               style={{
                                 width: '20%',
                                 height: '20%',
@@ -1430,6 +1463,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               id={`seat-dot-${sec.id}-${seatKey}`}
                               className="absolute rounded-full pointer-events-auto cursor-grab active:cursor-grabbing group/seat"
                               onPointerDown={e => onSeatPointerDown(e, sec.id!, seatKey, finalXOffset, finalYOffset, 0, true, 0, true)}
+                              onClick={e => {
+                                if (hasMoved) return;
+                                e.stopPropagation();
+                                setSelectedSeat({ secId: sec.id!, seatKey });
+                                setSelectedId(sec.id!);
+                              }}
                               style={{
                                 width: '18%',
                                 height: '18%',
