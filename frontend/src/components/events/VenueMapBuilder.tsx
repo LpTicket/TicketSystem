@@ -1015,16 +1015,26 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                           className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs"
                         />
                       </div>
+                      <div>
+                        <label className="text-[10px] text-gray-500 block">{lang === 'es' ? 'Precio Individual' : 'Individual Price'}</label>
+                        <input 
+                          type="number" 
+                          value={seatOverride.price !== undefined ? seatOverride.price : selectedSection.price || 0}
+                          onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'price', +e.target.value)}
+                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-bold text-blue-600"
+                        />
+                      </div>
                     </div>
-                    {(seatOverride.xOffset || seatOverride.yOffset) ? (
+                    {(seatOverride.xOffset || seatOverride.yOffset || seatOverride.price !== undefined) ? (
                       <button 
                         onClick={() => {
                           updateSeatConfig(selectedSection.id!, seatKey, 'xOffset', 0);
                           updateSeatConfig(selectedSection.id!, seatKey, 'yOffset', 0);
+                          updateSeatConfig(selectedSection.id!, seatKey, 'price', undefined);
                         }}
                         className="w-full text-center text-[11px] text-blue-600 hover:text-blue-800 font-semibold pt-1"
                       >
-                        {lang === 'es' ? 'Restablecer Posición' : 'Reset Position'}
+                        {lang === 'es' ? 'Restablecer Valores' : 'Reset Values'}
                       </button>
                     ) : null}
                   </div>
@@ -1058,10 +1068,57 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   <input type="text" value={selectedSection.name || ''} onChange={e => updateSelected('name', e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[12px] text-[#4b5563] mb-1.5">{t('orgPrice')} ($)</label>
-                    <input type="number" value={selectedSection.price || 0} onChange={e => updateSelected('price', +e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none font-medium" />
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? (selectedSection.sectionType === 'table' ? 'Precio/Silla' : 'Precio ($)') : (selectedSection.sectionType === 'table' ? 'Price/Seat' : 'Price ($)')}</label>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                        <input 
+                          type="number" 
+                          value={selectedSection.price || 0} 
+                          onChange={e => updateSelected('price', +e.target.value)} 
+                          className="w-full bg-white border border-[#e5e7eb] rounded-[4px] pl-5 pr-2 py-1 text-[13px] focus:border-[#2563eb] outline-none font-bold text-[#1a73e8]" 
+                        />
+                      </div>
+                    </div>
+
+                    {selectedSection.sectionType === 'table' && (
+                      <div>
+                        <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? 'Total Mesa' : 'Table Total'}</label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                          <input 
+                            type="number" 
+                            value={(() => {
+                              const seatsCount = selectedSection.seatsPerRow || 0;
+                              let total = 0;
+                              const config = getSeatsConfig(selectedSection);
+                              for (let i = 1; i <= seatsCount; i++) {
+                                const key = `seat-${i}`;
+                                total += config[key]?.price !== undefined ? +config[key].price : (selectedSection.price || 0);
+                              }
+                              return total.toFixed(2);
+                            })()} 
+                            onChange={e => {
+                              const total = +e.target.value;
+                              const perSeat = total / (selectedSection.seatsPerRow || 1);
+                              // When setting total, reset overrides and update base price
+                              const config = getSeatsConfig(selectedSection);
+                              const newConfig = { ...config };
+                              for (let i = 1; i <= (selectedSection.seatsPerRow || 1); i++) {
+                                delete newConfig[`seat-${i}`].price;
+                              }
+                              updateSelected('seatsConfig', JSON.stringify(newConfig));
+                              updateSelected('price', perSeat);
+                            }} 
+                            className="w-full bg-white border border-green-200 rounded-[4px] pl-5 pr-2 py-1 text-[13px] focus:border-green-500 outline-none font-bold text-green-600 bg-green-50/30" 
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
+                </div>
                   <div>
                     <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? 'Tipo' : 'Type'}</label>
                     <select value={selectedSection.sectionType} onChange={e => updateSelected('sectionType', e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none">
@@ -1118,7 +1175,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                       <input type="number" min="1" value={selectedSection.rows || 1} onChange={e => updateSelected('rows', +e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] outline-none text-center" />
                     </div>
                     <div>
-                      <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? 'Asientos / Fila' : 'Seats/Row'}</label>
+                      <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? (selectedSection.sectionType === 'table' ? 'Asientos por Mesa' : 'Asientos / Fila') : (selectedSection.sectionType === 'table' ? 'Seats per Table' : 'Seats/Row')}</label>
                       <input type="number" min="1" value={selectedSection.seatsPerRow || 1} onChange={e => updateSelected('seatsPerRow', +e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] outline-none text-center" />
                     </div>
                   </div>

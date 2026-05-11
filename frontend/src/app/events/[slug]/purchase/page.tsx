@@ -494,7 +494,14 @@ export default function PurchasePage() {
                         <span className="font-medium text-gray-800">{sec.name}</span>
                       </td>
                       <td className="py-1.5 text-right font-semibold text-gray-700">
-                        {Number(sec.price).toFixed(2)} {event.currency || 'USD'}
+                        {sec.sectionType === 'table' ? (
+                          <span className="flex flex-col items-end gap-0.5">
+                            <span className="text-xs text-gray-500">${Number(sec.price).toFixed(2)}/silla</span>
+                            <span className="text-xs text-green-600 font-bold">Total: ${(Number(sec.price) * (sec.seatsPerRow || 1)).toFixed(2)}</span>
+                          </span>
+                        ) : (
+                          <>{Number(sec.price).toFixed(2)} {event.currency || 'USD'}</>
+                        )}
                       </td>
                     </tr>
                   ))}
