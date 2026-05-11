@@ -278,27 +278,30 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     if (activePointersRef.current.size === 1) {
       panningRef.current = true;
       setHasMoved(false);
+      // Store raw clientX/Y — delta is computed in PointerMove so no rect offset needed here
       panStartRef.current = { mx: e.clientX, my: e.clientY, vx: viewRef.current.x, vy: viewRef.current.y };
       (e.currentTarget as HTMLElement).style.cursor = 'grabbing';
     } else if (activePointersRef.current.size === 2) {
-      // Start pinch
+      // Start pinch — cancel single-finger pan
       panningRef.current = false;
       const pointers = Array.from(activePointersRef.current.values());
       const p1 = pointers[0];
       const p2 = pointers[1];
-      initialPinchDistanceRef.current = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+      initialPinchDistanceRef.current = Math.hypot(p2.x - p1.x, p2.y - p1.y);
       initialPinchScaleRef.current = viewRef.current.scale;
-      
-      const rect = viewportRef.current!.getBoundingClientRect();
+
+      // Midpoint relative to the viewport element — use currentTarget so it's always correct
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       initialPinchMidpointRef.current = {
-        x: (p1.x + p2.x) / 2 - rect.left,
-        y: (p1.y + p2.y) / 2 - rect.top
+        x: ((p1.x + p2.x) / 2) - rect.left,
+        y: ((p1.y + p2.y) / 2) - rect.top,
       };
     }
-    
+
     // Always capture the pointer to receive events even outside the element
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }, []);
+
 
   const onViewportPointerMove = useCallback((e: React.PointerEvent) => {
     // Update pointer position
@@ -1292,8 +1295,11 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             backgroundPosition: 'center center'
           }} />
         </div>
-        {/* Zoom Controls */}
-        <div className="absolute bottom-6 right-6 z-20 flex bg-white rounded shadow border border-gray-200 overflow-hidden">
+        {/* Zoom Controls — safe-area aware so they don't overlap mobile browser chrome */}
+        <div
+          className="absolute right-3 z-20 flex bg-white rounded shadow border border-gray-200 overflow-hidden"
+          style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <button onClick={zoomOut} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 text-gray-600 transition-colors" title="Zoom Out">
             <HiOutlineZoomOut className="w-5 h-5" />
           </button>
@@ -1306,18 +1312,21 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             FIT
           </button>
           <div className="w-px bg-gray-200" />
-          <button 
-            onClick={handleSetDefaultView} 
-            className="h-10 px-3 flex items-center gap-2 hover:bg-blue-50 text-blue-600 transition-colors" 
+          <button
+            onClick={handleSetDefaultView}
+            className="h-10 px-3 flex items-center gap-2 hover:bg-blue-50 text-blue-600 transition-colors"
             title={lang === 'es' ? 'Fijar vista para clientes' : 'Set client default view'}
           >
             <HiOutlineCamera className="w-5 h-5" />
-            <span className="text-[10px] font-bold uppercase whitespace-nowrap">{lang === 'es' ? 'Fijar Vista' : 'Set View'}</span>
+            <span className="hidden sm:inline text-[10px] font-bold uppercase whitespace-nowrap">{lang === 'es' ? 'Fijar Vista' : 'Set View'}</span>
           </button>
         </div>
 
-        {/* Hint */}
-        <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-2 items-start pointer-events-none">
+        {/* Hints — hidden on small screens to avoid overlap */}
+        <div
+          className="hidden sm:flex absolute left-4 z-20 flex-col gap-2 items-start pointer-events-none"
+          style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <div className="text-[10px] text-gray-400 bg-[#0f172a]/80 backdrop-blur-md rounded-md px-3 py-1.5 border border-white/10 flex items-center gap-2 shadow-lg">
             <div className="w-2 h-2 rounded-full bg-primary-500 animate-pulse" />
             {lang === 'es' ? 'Rueda: zoom · Arrastrar fondo: mover' : 'Wheel: zoom · Drag bg: pan'}
