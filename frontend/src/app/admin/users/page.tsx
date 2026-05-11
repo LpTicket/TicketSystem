@@ -185,106 +185,165 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Users Table */}
+      {/* Users Table / Cards */}
       {loading ? (
         <div className="space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-14 skeleton rounded-lg" />)}</div>
       ) : filteredUsers.length > 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Usuario' : 'User'}</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Email</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{t('adminRole')}</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Estado' : 'Status'}</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Registro' : 'Registered'}</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{t('adminActions')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredUsers.map((u) => {
-                  const roleBadge = getRoleBadge(u.role);
-                  return (
-                    <tr 
-                      key={u.id} 
-                      onClick={() => handleSelectUser(u)}
-                      className="hover:bg-gray-50/75 transition-colors cursor-pointer"
+        <div className="space-y-4">
+          {/* Desktop Table View */}
+          <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Usuario' : 'User'}</th>
+                    <th className="text-left px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Email</th>
+                    <th className="text-center px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t('adminRole')}</th>
+                    <th className="text-center px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Estado' : 'Status'}</th>
+                    <th className="text-left px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider hidden xl:table-cell">{lang === 'es' ? 'Registro' : 'Registered'}</th>
+                    <th className="text-right px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t('adminActions')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredUsers.map((u) => {
+                    const roleBadge = getRoleBadge(u.role);
+                    return (
+                      <tr 
+                        key={u.id} 
+                        onClick={() => handleSelectUser(u)}
+                        className="hover:bg-gray-50/75 transition-colors cursor-pointer group"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center text-sm font-bold text-primary-700 shrink-0 shadow-sm border border-primary-100 uppercase">
+                              {u.firstName[0]}{u.lastName[0]}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-gray-900 text-sm truncate">{u.firstName} {u.lastName}</p>
+                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">@{u.username}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600 hidden lg:table-cell font-medium">{u.email}</td>
+                        <td className="px-4 py-4 text-center">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${roleBadge.classes}`}>{roleBadge.label}</span>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {u.isActive ? t('adminActive') : t('adminInactive')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-500 hidden xl:table-cell font-medium">
+                          {format(new Date(u.createdAt), "dd MMM yyyy", { locale: dateFnsLocale })}
+                        </td>
+                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1">
+                            <select
+                              value={u.role}
+                              onChange={(e) => handleChangeRole(u.id, e.target.value)}
+                              className="text-[11px] font-bold border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
+                            >
+                              <option value="client">{lang === 'es' ? 'Cliente' : 'Client'}</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                            <button
+                              onClick={() => handleToggleActive(u.id)}
+                              className={`p-2 rounded-lg transition-colors ${u.isActive ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-green-400 hover:text-green-600 hover:bg-green-50'}`}
+                            >
+                              {u.isActive ? <HiOutlineBan className="w-5 h-5" /> : <HiOutlineCheckCircle className="w-5 h-5" />}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(u.id, u.firstName)}
+                              className="p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50"
+                            >
+                              <HiOutlineTrash className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {filteredUsers.map((u) => {
+              const roleBadge = getRoleBadge(u.role);
+              return (
+                <div 
+                  key={u.id}
+                  onClick={() => handleSelectUser(u)}
+                  className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-sm font-bold text-primary-700 uppercase">
+                        {u.firstName[0]}{u.lastName[0]}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900 text-sm leading-tight">{u.firstName} {u.lastName}</h3>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">@{u.username}</p>
+                      </div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${roleBadge.classes}`}>
+                      {roleBadge.label}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-[11px] text-gray-500 font-medium">
+                      <HiOutlineMail className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{u.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {u.isActive ? t('adminActive') : t('adminInactive')}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-medium italic">
+                        {format(new Date(u.createdAt), "dd/MM/yy", { locale: dateFnsLocale })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-100 gap-2" onClick={e => e.stopPropagation()}>
+                    <select
+                      value={u.role}
+                      onChange={(e) => handleChangeRole(u.id, e.target.value)}
+                      className="flex-1 text-[11px] font-bold border border-gray-200 rounded-lg px-2 py-2 bg-gray-50"
                     >
-                      <td className="px-6 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 shrink-0">
-                            {u.firstName[0]}{u.lastName[0]}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-gray-900 text-sm truncate">{u.firstName} {u.lastName}</p>
-                            <p className="text-xs text-gray-500 font-medium">@{u.username}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 truncate max-w-[180px]">{u.email}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${roleBadge.classes}`}>{roleBadge.label}</span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {u.isActive ? t('adminActive') : t('adminInactive')}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        {format(new Date(u.createdAt), "dd MMM yyyy", { locale: dateFnsLocale })}
-                      </td>
-                      <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* Role selector */}
-                          <select
-                            value={u.role}
-                            onChange={(e) => handleChangeRole(u.id, e.target.value)}
-                            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white"
-                          >
-                            <option value="client">{lang === 'es' ? 'Cliente' : 'Client'}</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                          {/* Toggle active */}
-                          <button
-                            onClick={() => handleToggleActive(u.id)}
-                            className={`p-1.5 rounded-lg transition-colors ${u.isActive ? 'text-red-500 hover:bg-red-50' : 'text-green-500 hover:bg-green-50'}`}
-                            title={u.isActive ? t('adminBlock') : t('adminUnblock')}
-                          >
-                            {u.isActive ? <HiOutlineBan className="w-4 h-4" /> : <HiOutlineCheckCircle className="w-4 h-4" />}
-                          </button>
-                          {/* Details Pencil */}
-                          <button
-                            onClick={() => handleSelectUser(u)}
-                            className="p-1.5 rounded-lg transition-colors text-blue-500 hover:bg-blue-50 cursor-pointer"
-                            title={lang === 'es' ? 'Ver detalles' : 'View details'}
-                          >
-                            <HiOutlinePencil className="w-4 h-4" />
-                          </button>
-                          {/* Delete user */}
-                          <button
-                            onClick={() => handleDeleteUser(u.id, u.firstName)}
-                            className="p-1.5 rounded-lg transition-colors text-red-500 hover:bg-red-50"
-                            title={lang === 'es' ? 'Eliminar usuario' : 'Delete user'}
-                          >
-                            <HiOutlineTrash className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      <option value="client">{lang === 'es' ? 'Cliente' : 'Client'}</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleToggleActive(u.id)}
+                        className={`p-2.5 rounded-xl border ${u.isActive ? 'border-red-100 text-red-500 bg-red-50' : 'border-green-100 text-green-500 bg-green-50'}`}
+                      >
+                        {u.isActive ? <HiOutlineBan className="w-5 h-5" /> : <HiOutlineCheckCircle className="w-5 h-5" />}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(u.id, u.firstName)}
+                        className="p-2.5 rounded-xl border border-gray-100 text-gray-400 bg-gray-50"
+                      >
+                        <HiOutlineTrash className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Pagination */}
           {total > 20 && (
-            <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-t border-gray-200">
-              <p className="text-xs text-gray-500">{total} {lang === 'es' ? 'usuarios' : 'users'}</p>
-              <div className="flex gap-1">
-                <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1} className="px-3 py-1 text-xs border rounded hover:bg-white disabled:opacity-50">{lang === 'es' ? 'Anterior' : 'Previous'}</button>
-                <button onClick={() => setPage(page + 1)} disabled={users.length < 20} className="px-3 py-1 text-xs border rounded hover:bg-white disabled:opacity-50">{lang === 'es' ? 'Siguiente' : 'Next'}</button>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{total} {lang === 'es' ? 'usuarios' : 'users'}</p>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1} className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors uppercase tracking-tight">{lang === 'es' ? 'Anterior' : 'Prev'}</button>
+                <button onClick={() => setPage(page + 1)} disabled={users.length < 20} className="px-3 py-1 text-xs border rounded hover:bg-white disabled:opacity-50 transition-colors">{lang === 'es' ? 'Siguiente' : 'Next'}</button>
               </div>
             </div>
           )}
