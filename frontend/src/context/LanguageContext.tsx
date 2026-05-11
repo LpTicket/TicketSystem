@@ -106,7 +106,7 @@ const translations = {
     contactAddressText1: '123 Lorem Ipsum Street',
     contactAddressText2: 'Fake City, 12345, Lorem Ipsum Country.',
     contactEmailTitle: 'E-mail',
-    contactEmail: 'info@loremipsum.com',
+    contactEmail: 'sundingalue@gmail.com',
     contactPhone: '+1 (555) 123-4567',
     contactFollowUs: '¡Síguenos en nuestras redes sociales!',
 
@@ -339,7 +339,7 @@ const translations = {
     contactAddressText1: '123 Lorem Ipsum Street',
     contactAddressText2: 'Fake City, 12345, Lorem Ipsum Country.',
     contactEmailTitle: 'E-mail',
-    contactEmail: 'info@loremipsum.com',
+    contactEmail: 'sundingalue@gmail.com',
     contactPhone: '+1 (555) 123-4567',
     contactFollowUs: 'Follow us on our social networks!',
 
