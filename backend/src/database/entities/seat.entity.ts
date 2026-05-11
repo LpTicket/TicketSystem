@@ -42,5 +42,5 @@ export class Seat {
   lockedBy: string;
 
   @Column({ type: 'timestamp', nullable: true })
-  lockExpiresAt: Date;
+  lockExpiresAt: Date | null;
 }

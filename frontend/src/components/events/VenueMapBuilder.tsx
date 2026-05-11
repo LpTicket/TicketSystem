@@ -156,7 +156,32 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
   useEffect(() => {
     if (!initializedRef.current && initialSections.length > 0) {
-      setSections(JSON.parse(JSON.stringify(initialSections)));
+      const syncedSections = initialSections.map(s => {
+        if (!s.seats || s.seats.length === 0) return s;
+        
+        const config = s.seatsConfig ? JSON.parse(s.seatsConfig) : {};
+        let changed = false;
+        
+        s.seats.forEach(seat => {
+          const key = s.sectionType === 'table' ? `seat-${seat.seatNumber}` : `${seat.rowLabel}-${seat.seatNumber}`;
+          const isDBBlocked = seat.status === 'locked' && !seat.lockExpiresAt;
+          
+          // If DB says blocked but config doesn't, sync it.
+          if (isDBBlocked && !config[key]?.reserved) {
+            config[key] = { ...config[key], reserved: true };
+            changed = true;
+          }
+          // If DB says available but config says reserved, respect the DB (the viceversa part)
+          if (seat.status === 'available' && config[key]?.reserved) {
+             config[key] = { ...config[key], reserved: false };
+             changed = true;
+          }
+        });
+        
+        return changed ? { ...s, seatsConfig: JSON.stringify(config) } : s;
+      });
+
+      setSections(JSON.parse(JSON.stringify(syncedSections)));
       initializedRef.current = true;
     }
   }, [initialSections]);
