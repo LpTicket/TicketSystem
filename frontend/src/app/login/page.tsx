@@ -32,15 +32,17 @@ export default function LoginPage() {
   };
 
   const handleSocialLogin = (provider: 'google' | 'facebook') => {
+    let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://ticketsystembackend-102j.onrender.com/api';
+    
+    // Ensure it ends with /api
+    if (!apiUrl.endsWith('/api')) {
+      apiUrl = apiUrl.endsWith('/') ? `${apiUrl}api` : `${apiUrl}/api`;
+    }
+
     if (provider === 'google') {
-      let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://ticketsystembackend-102j.onrender.com/api';
-      // Ensure it ends with /api
-      if (!apiUrl.endsWith('/api')) {
-        apiUrl = apiUrl.endsWith('/') ? `${apiUrl}api` : `${apiUrl}/api`;
-      }
       window.location.href = `${apiUrl}/auth/google`;
-    } else {
-      alert(lang === 'es' ? 'Facebook aún no está configurado' : 'Facebook not configured yet');
+    } else if (provider === 'facebook') {
+      window.location.href = `${apiUrl}/auth/facebook`;
     }
   };
 

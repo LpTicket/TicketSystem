@@ -50,6 +50,11 @@ services:
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
+      # Facebook OAuth
+      - key: FACEBOOK_APP_ID
+        sync: false
+      - key: FACEBOOK_APP_SECRET
+        sync: false
       - key: FRONTEND_URL
         value: https://ticketsystem-jzgf.onrender.com
 
