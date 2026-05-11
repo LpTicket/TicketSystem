@@ -11,6 +11,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nest-lab/fastify-multer';
 import { diskStorage } from 'multer';
@@ -42,13 +43,13 @@ export class AuthController {
   }
 
   @Get('google')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   async googleAuth(@Request() req: any) {
     // This initiates the Google OAuth flow
   }
 
   @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   async googleAuthRedirect(@Request() req: any, @Res() res: any) {
     const result = await this.authService.validateOAuthUser(req.user);
     
