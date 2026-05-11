@@ -30,7 +30,7 @@ export class User {
   @Column({ unique: true, length: 40 })
   username: string;
 
-  @Column({ length: 255 })
+  @Column({ length: 255, nullable: true })
   @Exclude()
   passwordHash: string;
 
