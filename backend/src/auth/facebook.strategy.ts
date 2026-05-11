@@ -9,8 +9,8 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
     const apiUrl = configService.get<string>('API_URL') || 'https://ticketsystembackend-102j.onrender.com';
     
     super({
-      clientID: configService.get<string>('FACEBOOK_APP_ID'),
-      clientSecret: configService.get<string>('FACEBOOK_APP_SECRET'),
+      clientID: configService.get<string>('FACEBOOK_APP_ID')!,
+      clientSecret: configService.get<string>('FACEBOOK_APP_SECRET')!,
       callbackURL: `${apiUrl}/api/auth/facebook/callback`,
       scope: 'email',
       profileFields: ['emails', 'name', 'photos'],
