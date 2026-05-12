@@ -48,7 +48,7 @@ export default function EventDetailPage() {
   const { user } = useAuthStore();
   const { t, lang } = useLang();
   const router = useRouter();
-  const { categories, getCategoryInfo } = useCategories();
+  const { categories, getCategoryInfo, refreshCategories } = useCategories();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [sections, setSections] = useState<VenueSection[]>([]);
@@ -74,14 +74,14 @@ export default function EventDetailPage() {
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  useEffect(() => { loadEvent(); }, [id]);
+  useEffect(() => { loadEvent(); refreshCategories(); }, [id]);
 
   const loadEvent = async () => {
     try {
       // Load event details
       const { data: events } = await api.get('/events', { params: { limit: 100 } });
       const ev = (events.events || []).find((e: Event) => e.id === id);
-      if (!ev || ev.organizerId !== user?.id) { router.push('/organizer/events'); return; }
+      if (!ev || (ev.organizerId !== user?.id && user?.role !== 'admin')) { router.push('/organizer/events'); return; }
       setEvent(ev);
       setEditForm({
         title: ev.title || '',

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useLang } from '@/context/LanguageContext';
@@ -39,7 +39,9 @@ const SECTION_COLORS = ['#f97316', '#3b82f6', '#10b981', '#a855f7', '#ec4899', '
 export default function CreateEventPage() {
   const router = useRouter();
   const { t, lang } = useLang();
-  const { categories } = useCategories();
+  const { categories, refreshCategories } = useCategories();
+
+  useEffect(() => { refreshCategories(); }, []);
 
   const [form, setForm] = useState({
     title: '',
@@ -357,7 +359,7 @@ export default function CreateEventPage() {
                               type="number"
                               value={sec.price}
                               onChange={(e) => updateSection(idx, 'price', parseFloat(e.target.value) || 0)}
-                              className="input py-2 pl-7 text-sm"
+                              className="w-full py-2 pl-8 pr-3 text-sm border border-gray-300 rounded-md focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
                               min="0"
                               step="0.01"
                               required

@@ -61,7 +61,7 @@ export default function HomePage() {
     }
   };
 
-  const displayCategories = categories.slice(0, 5);
+  const displayCategories = categories;
   const filteredEvents = activeCategory
     ? allEvents.filter((e) => e.category === activeCategory)
     : allEvents;

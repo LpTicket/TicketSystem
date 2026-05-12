@@ -156,11 +156,33 @@ export default function SeatMapInteractive({
       setPan({ x: defaultViewX, y: defaultViewY });
       setZoom(defaultViewZoom);
     } else {
-      setZoom(0.8);
-      setPan({
-        x: cw / 2 - 1000 * 0.8,
-        y: ch / 4 - 60 * 0.8,
+      let minX = 2000, minY = 1600, maxX = 0, maxY = 0;
+      seatMap.forEach(sec => {
+        if ((sec.mapX || 0) < minX) minX = sec.mapX || 0;
+        if ((sec.mapY || 0) < minY) minY = sec.mapY || 0;
+        if ((sec.mapX || 0) + (sec.mapWidth || 100) > maxX) maxX = (sec.mapX || 0) + (sec.mapWidth || 100);
+        if ((sec.mapY || 0) + (sec.mapHeight || 100) > maxY) maxY = (sec.mapY || 0) + (sec.mapHeight || 100);
       });
+      if (seatMap.length > 0 && maxX > minX) {
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        const contentW = maxX - minX;
+        const contentH = maxY - minY;
+        const zoomX = cw / (contentW + 200);
+        const zoomY = ch / (contentH + 200);
+        const autoZoom = Math.min(zoomX, zoomY, 1.5);
+        setZoom(autoZoom);
+        setPan({
+          x: cw / 2 - cx * autoZoom,
+          y: ch / 2 - cy * autoZoom
+        });
+      } else {
+        setZoom(0.8);
+        setPan({
+          x: cw / 2 - 1000 * 0.8,
+          y: ch / 4 - 60 * 0.8,
+        });
+      }
     }
     initializedRef.current = true;
   }, [defaultViewX, defaultViewY, defaultViewZoom, seatMap]);
@@ -461,43 +483,17 @@ export default function SeatMapInteractive({
             WebkitBackfaceVisibility: 'hidden',
           }}
         >
-          {/* Main Stage anchor */}
-          {showStage && (
-            <div
-              style={{
-                position: 'absolute',
-                left: (2000 - 400) / 2,
-                top: 60,
-                width: 400,
-                height: 80,
-                background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-                border: '2.5px solid #3b82f6',
-                boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)',
-                borderRadius: '0 0 40px 40px',
-              }}
-            >
-              <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 0 10px rgba(96, 165, 250, 0.5)' }}>
-                ESCENARIO
-              </span>
-              <span style={{ color: '#94a3b8', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginTop: 1 }}>
-                STAGE
-              </span>
-            </div>
-          )}
+
 
           {sections.map((section) => {
             const rows = Array.from(new Set(section.seats?.map((s) => s.rowLabel) ?? [])).sort();
             const isStanding = section.sectionType === 'standing';
+            const isStage = section.sectionType === 'stage';
             const isTable = section.sectionType === 'table';
             const isSeated = section.sectionType === 'seated' || section.sectionType === 'vip';
 
             const isFocused = focusedSection === section.id;
-            const isDimmed = focusedSection !== null && !isFocused;
+            const isDimmed = focusedSection !== null && !isFocused && !isStage;
 
             const curve = section.curve || 0;
             const isWheelchair = section.isWheelchair || false;
@@ -512,17 +508,29 @@ export default function SeatMapInteractive({
                   top: section.mapY || 0,
                   width: section.mapWidth || 100,
                   height: section.mapHeight || 100,
-                  backgroundColor: isStanding ? section.color : 'transparent',
+                  background: isStage ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : (isStanding ? section.color : 'transparent'),
                   opacity: isStanding ? 0.85 : 1,
-                  border: isStanding ? `none` : 'none',
-                  borderRadius: isStanding ? 8 : (isTable && tableShape === 'round') ? '50%' : 4,
-                  zIndex: isFocused ? 30 : 10,
-                  boxShadow: isStanding ? '0 4px 10px rgba(0,0,0,0.08)' : 'none',
+                  border: isStage ? '2.5px solid #3b82f6' : 'none',
+                  borderRadius: isStage ? '0 0 40px 40px' : (isStanding ? 8 : (isTable && tableShape === 'round') ? '50%' : 4),
+                  zIndex: isFocused ? 30 : (isStage ? 5 : 10),
+                  boxShadow: isStage ? '0 0 20px rgba(59, 130, 246, 0.4)' : (isStanding ? '0 4px 10px rgba(0,0,0,0.08)' : 'none'),
                 }}
-                onClick={() => handleSectionClick(section as VenueSection)}
+                onClick={() => !isStage && handleSectionClick(section as VenueSection)}
               >
+                {isStage && (
+                  <>
+                    <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 0 10px rgba(96, 165, 250, 0.5)' }}>
+                      {section.name}
+                    </span>
+                    <span style={{ color: '#94a3b8', fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginTop: 1 }}>
+                      {lang === 'es' ? 'ESCENARIO' : 'STAGE'}
+                    </span>
+                  </>
+                )}
+
                 {/* Section Label */}
-                <div
+                {!isStage && (
+                  <div
                   className="absolute -top-7 text-[12px] font-bold uppercase tracking-widest px-2 py-0.5 rounded opacity-85 group-hover/sec:opacity-100 transition-opacity"
                   style={{ backgroundColor: 'white', color: '#1e293b', border: `1px solid ${section.color}`, boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}
                 >
