@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
@@ -11,6 +11,8 @@ import VisualCaptcha, { VisualCaptchaHandle } from '@/components/auth/VisualCapt
 
 export default function RegisterContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect');
   const { register } = useAuthStore();
   const { t } = useLang();
   const captchaRef = useRef<VisualCaptchaHandle>(null);
@@ -66,7 +68,7 @@ export default function RegisterContent() {
         address: form.address as any,
         role: 'client' as any,
       } as any);
-      router.push('/');
+      router.push(redirect || '/');
     } catch (err: any) {
       setError(err.response?.data?.message || t('registerError'));
       captchaRef.current?.refresh();
@@ -172,7 +174,7 @@ export default function RegisterContent() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             {t('haveAccount')}{' '}
-            <Link href="/login" className="text-primary-600 hover:text-primary-700 font-bold">{t('signIn')}</Link>
+            <Link href={`/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-primary-600 hover:text-primary-700 font-bold">{t('signIn')}</Link>
           </p>
         </form>
       </div>

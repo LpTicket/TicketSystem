@@ -120,11 +120,11 @@ export default function HomePage() {
                   fetchPriority="high"
                   onError={(e) => { (e.target as HTMLImageElement).src = '/demo/concert.png'; }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex items-center">
-                  <div className="pl-6 sm:pl-16 max-w-lg">
-                    <h2 className="text-white text-xl sm:text-4xl font-bold leading-tight drop-shadow-lg">{bannerEvent.title}</h2>
-                    <p className="hidden sm:block text-white/80 mt-2 text-sm sm:text-base">{bannerEvent.venueName}</p>
-                    <span className="inline-block mt-3 sm:mt-4 btn-primary text-xs sm:text-sm px-4 py-1.5 sm:px-5 sm:py-2.5">{t('buyTickets')}</span>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent flex items-end pb-6 sm:pb-12">
+                  <div className="pl-6 sm:pl-16 pr-6 max-w-2xl w-full">
+                    <h2 className="text-white text-xl sm:text-4xl font-extrabold leading-tight drop-shadow-md uppercase tracking-tight">{bannerEvent.title}</h2>
+                    <p className="hidden sm:block text-white/90 mt-1.5 text-sm sm:text-base font-medium">{bannerEvent.venueName}</p>
+                    <span className="inline-block mt-2.5 sm:mt-3.5 btn-primary text-xs sm:text-sm px-4 py-2 sm:px-6 sm:py-3 rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95">{t('buyTickets')}</span>
                   </div>
                 </div>
               </div>

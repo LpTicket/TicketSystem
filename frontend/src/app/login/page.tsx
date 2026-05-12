@@ -1,16 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 import { FaGoogle, FaFacebook } from 'react-icons/fa';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect');
   const { login } = useAuthStore();
   const { t, lang } = useLang();
   const [email, setEmail] = useState('');
@@ -25,7 +27,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      router.push('/');
+      router.push(redirect || '/');
     } catch (err: any) {
       setError(err.response?.data?.message || t('loginError'));
     } finally { setLoading(false); }
@@ -117,10 +119,22 @@ export default function LoginPage() {
 
           <p className="text-center text-xs text-gray-500 pt-1">
             {t('noAccount')}{' '}
-            <Link href="/register" className="text-primary-600 hover:text-primary-700 font-bold">{t('registerFree')}</Link>
+            <Link href={`/register${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-primary-600 hover:text-primary-700 font-bold">{t('registerFree')}</Link>
           </p>
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

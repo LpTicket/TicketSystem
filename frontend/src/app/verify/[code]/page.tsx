@@ -18,7 +18,7 @@ import {
 const WavySeparator = () => (
   <svg viewBox="0 0 120 12" className="w-24 h-4 text-primary-500 my-2" fill="none" stroke="currentColor" strokeWidth="2.5">
     <path d="M0,6 C10,12 10,0 20,6 C30,12 30,0 40,6 C50,12 50,0 60,6 C70,12 70,0 80,6 C90,12 90,0 100,6 C110,12 110,0 120,6" />
-    <path d="M0,9 C10,15 10,3 20,9 C30,15 30,3 40,9 C50,15 50,3 60,9 C70,15 70,3 80,9 C90,15 90,3 100,9 C110,15 110,3 120,9" stroke="#ef4444" strokeWidth="1.5" />
+    <path d="M0,9 C10,15 10,3 20,9 C30,15 30,3 40,9 C50,15 50,3 60,9 C70,15 70,3 80,9 C90,15 90,3 100,9 C110,15 110,3 120,9" stroke="#1e293b" strokeWidth="1.5" />
   </svg>
 );
 
@@ -128,16 +128,16 @@ export default function VerifyTicketPage() {
           <div className="md:col-span-6 space-y-3">
             <div>
               <h1 className="font-extrabold text-2xl text-gray-900 leading-tight tracking-tight uppercase">
-                {ticket.event?.title || 'Rafael Pollo Brito en vivo'}
+                {ticket.event?.title || 'Evento'}
               </h1>
               <p className="text-xs text-gray-500 font-bold mt-1">
-                {ticket.event?.eventDate && format(new Date(ticket.event.eventDate), "eee, MMM d, yyyy | 'Doors:' h:mm a", { locale: es }).toUpperCase()}
+                {ticket.event?.eventDate && format(new Date(ticket.event.eventDate), "eeee, d 'de' MMMM, yyyy | 'Puertas:' h:mm a", { locale: es }).toUpperCase()}
               </p>
             </div>
 
             <div className="text-xs text-gray-600 font-bold space-y-0.5">
-              <p className="text-gray-900 uppercase font-extrabold tracking-wide">{ticket.event?.venueName || 'THE GRAND VENUE EVENT CENTER'}</p>
-              <p className="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">{ticket.event?.venueAddress || '25600 Westheimer Parkway, Katy, TX'}</p>
+              <p className="text-gray-900 uppercase font-extrabold tracking-wide">{ticket.event?.venueName || 'Lugar del Evento'}</p>
+              <p className="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">{ticket.event?.venueAddress || ''}</p>
             </div>
 
             {/* Colored Separator Waves */}
@@ -145,17 +145,17 @@ export default function VerifyTicketPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Type of Ticket</span>
+                <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Tipo de Boleto</span>
                 <span className="text-base font-black text-gray-900 uppercase tracking-tight">
-                  {ticket.sectionName || 'Boleto VIP'}
+                  {ticket.sectionName || 'Boleto General'}
                 </span>
               </div>
               <div>
-                <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Status</span>
+                <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Estado</span>
                 <span className={`inline-block text-[11px] font-black uppercase tracking-wider rounded ${
                   isActive ? 'text-green-600' : isUsed ? 'text-gray-500' : 'text-red-500'
                 }`}>
-                  {isActive ? 'COMPLETE / ACTIVO' : isUsed ? 'USED / UTILIZADO' : 'CANCELLED / CANCELADO'}
+                  {isActive ? 'COMPLETO / ACTIVO' : isUsed ? 'UTILIZADO' : 'CANCELADO'}
                 </span>
               </div>
             </div>
@@ -166,12 +166,12 @@ export default function VerifyTicketPage() {
             {/* Color accent bars */}
             <div className="flex h-16 w-4 rounded-full overflow-hidden self-end shrink-0">
               <div className="w-1/2 bg-slate-900 h-full" />
-              <div className="w-1/2 bg-red-500 h-full" />
+              <div className="w-1/2 bg-primary-500 h-full" />
             </div>
             
             {/* Branding Logo */}
             <div className="text-right">
-              <span className="text-2xl font-black text-red-500 tracking-tighter uppercase font-mono block">LPTicket</span>
+              <span className="text-2xl font-black text-primary-500 tracking-tighter uppercase font-mono block">LPTicket</span>
               <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mt-0.5">Tus Tickets. Tus Eventos.</span>
             </div>
           </div>
@@ -181,14 +181,14 @@ export default function VerifyTicketPage() {
         <div className="border border-gray-300 rounded-2xl p-6 bg-white space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-2">
             <div>
-              <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Name</span>
+              <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Nombre del Asistente</span>
               <span className="text-lg font-black text-gray-900 uppercase tracking-tight">
                 {ticket.user?.firstName} {ticket.user?.lastName}
               </span>
             </div>
 
             <div>
-              <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Seating Details</span>
+              <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Detalles de Ubicación</span>
               <span className="text-lg font-black text-gray-900 uppercase tracking-tight">
                 {ticket.rowLabel ? `${ticket.sectionName} | Fila: ${ticket.rowLabel}, Asiento: ${ticket.seatNumber}` : 'Entrada General'}
               </span>
@@ -196,25 +196,25 @@ export default function VerifyTicketPage() {
           </div>
 
           <div className="border-t border-dashed border-gray-200 pt-4 space-y-3">
-            <span className="block text-[10px] uppercase font-extrabold text-slate-800 tracking-wider">Order Details</span>
+            <span className="block text-[10px] uppercase font-extrabold text-slate-800 tracking-wider">Detalles del Pedido</span>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-gray-600">
               <div>
-                <span className="block text-[9px] text-gray-400 uppercase font-bold">Ticket ID:</span>
+                <span className="block text-[9px] text-gray-400 uppercase font-bold">ID de Boleto:</span>
                 <span className="font-mono text-[11px] font-bold text-gray-800 select-all">{ticket.id || '2B3DCBF6-99BC-46EB-834C'}</span>
               </div>
               <div>
-                <span className="block text-[9px] text-gray-400 uppercase font-bold">Purchased By:</span>
+                <span className="block text-[9px] text-gray-400 uppercase font-bold">Comprador:</span>
                 <span className="font-bold text-gray-800">{ticket.user?.firstName} {ticket.user?.lastName}</span>
               </div>
               <div>
-                <span className="block text-[9px] text-gray-400 uppercase font-bold">Ticket Code:</span>
+                <span className="block text-[9px] text-gray-400 uppercase font-bold">Código de Entrada:</span>
                 <span className="font-mono text-[11px] font-bold text-gray-800 tracking-wider uppercase select-all">{ticket.ticketCode}</span>
               </div>
             </div>
 
             <div className="pt-2 text-[10px] text-gray-400 uppercase font-bold leading-relaxed">
-              <strong>Details:</strong> Nota : Mesa asignada (si aplica), asiento por orden de llegada. Se debe presentar el código QR en la entrada para su escaneo.
+              <strong>Nota:</strong> Presenta este código QR en la entrada del evento para su correspondiente escaneo y validación de acceso.
             </div>
           </div>
         </div>
@@ -245,35 +245,35 @@ export default function VerifyTicketPage() {
           <div className="md:col-span-6 flex gap-3">
             <div className="w-2.5 bg-slate-900 self-stretch shrink-0 rounded-full flex flex-col overflow-hidden">
               <div className="h-2/3 bg-slate-900" />
-              <div className="h-1/3 bg-red-500" />
+              <div className="h-1/3 bg-primary-500" />
             </div>
             <div className="space-y-1.5 text-[8.5px] text-gray-400 font-semibold leading-normal uppercase">
-              <p className="font-bold text-gray-700 text-[10px]">Terms & Conditions</p>
-              <p>This ticket is not subject to any refund and shall bear no cash value. If issued complimentarily, this ticket shall not be exchangeable.</p>
-              <p>Holder voluntarily assumes all risks and danger incidental to the event for which the ticket is issued, whether occurring prior to, during or after the event. Duplicate tickets or barcodes may be refused entry to event.</p>
+              <p className="font-bold text-gray-700 text-[10px]">Términos y Condiciones</p>
+              <p>Este boleto no está sujeto a cambios ni reembolsos. El portador asume todos los riesgos inherentes al evento antes, durante o después de su realización.</p>
+              <p>Queda prohibida la duplicación de este boleto. La primera copia escaneada en el acceso invalidará las demás copias idénticas.</p>
             </div>
           </div>
 
           {/* Middle social links */}
           <div className="md:col-span-3 flex flex-col items-center justify-center text-center space-y-2">
             {/* small visual waves pattern */}
-            <div className="flex flex-col gap-0.5 text-red-500 leading-none shrink-0 font-mono font-bold select-none">
+            <div className="flex flex-col gap-0.5 text-primary-500 leading-none shrink-0 font-mono font-bold select-none">
               <span>≈≈≈≈≈≈≈</span>
               <span>≈≈≈≈≈≈≈</span>
             </div>
             <div className="text-[9px] uppercase text-gray-400 font-bold tracking-widest">
-              Find us on social media
+              Síguenos en redes sociales
               <div className="font-black text-gray-700 lowercase mt-1 block">@lpticket</div>
             </div>
           </div>
 
           {/* Right taglines */}
           <div className="md:col-span-3 text-center md:text-right space-y-1">
-            <div className="text-xl font-black text-red-500 tracking-tighter uppercase font-mono">LPTicket</div>
+            <div className="text-xl font-black text-primary-500 tracking-tighter uppercase font-mono">LPTicket</div>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Tus tickets. Tus eventos.</p>
             <div className="border-t border-gray-150 pt-1.5 mt-1.5">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Thank You</span>
-              <p className="text-[9.5px] font-semibold text-gray-500 lowercase">for using <span className="text-red-500 font-bold">lpticket.com</span></p>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Muchas Gracias</span>
+              <p className="text-[9.5px] font-semibold text-gray-500 lowercase">por preferir a <span className="text-primary-500 font-bold">lpticket.com</span></p>
             </div>
           </div>
         </div>

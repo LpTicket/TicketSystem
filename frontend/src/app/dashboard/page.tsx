@@ -101,6 +101,38 @@ function DashboardPageBody() {
     catch { toast.error(lang === 'es' ? 'Error al actualizar perfil' : 'Error updating profile'); }
   };
 
+  const handleAppleWallet = async (code: string) => {
+    const loadingToast = toast.loading(lang === 'es' ? 'Generando Apple Pass...' : 'Generating Apple Pass...');
+    try {
+      const response = await api.get(`/orders/ticket/${code}/apple-wallet`, {
+        responseType: 'blob'
+      });
+      const blob = new Blob([response.data], { type: 'application/vnd.apple.pkpass' });
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `ticket-${code}.pkpass`;
+      link.click();
+      toast.success(lang === 'es' ? 'Boleto descargado para Apple Wallet' : 'Apple Wallet pass downloaded successfully', { id: loadingToast });
+    } catch (err: any) {
+      toast.error(lang === 'es' ? 'El servidor no tiene configuradas las credenciales de Apple Pass todavía.' : 'Apple Pass credentials not configured on server yet.', { id: loadingToast });
+    }
+  };
+
+  const handleGoogleWallet = async (code: string) => {
+    const loadingToast = toast.loading(lang === 'es' ? 'Generando enlace para Google Wallet...' : 'Generating Google Wallet link...');
+    try {
+      const response = await api.get(`/orders/ticket/${code}/google-wallet`);
+      if (response.data?.url) {
+        window.open(response.data.url, '_blank');
+        toast.success(lang === 'es' ? 'Redirigiendo a Google Wallet' : 'Redirecting to Google Wallet', { id: loadingToast });
+      } else {
+        throw new Error();
+      }
+    } catch (err: any) {
+      toast.error(lang === 'es' ? 'El servidor no tiene configuradas las credenciales de Google Wallet todavía.' : 'Google Wallet credentials not configured on server yet.', { id: loadingToast });
+    }
+  };
+
   const dateFnsLocale = lang === 'es' ? es : enUS;
 
   if (isLoading || !user) return (
@@ -190,13 +222,19 @@ function DashboardPageBody() {
                     </Link>
                     
                     <div className="grid grid-cols-2 gap-2">
-                      <button className="flex items-center justify-center gap-1.5 py-2 px-3 bg-black text-white rounded-lg text-[10px] font-bold hover:bg-gray-900 transition-all active:scale-95 shadow-sm">
+                      <button 
+                        onClick={() => handleAppleWallet(ticket.ticketCode)}
+                        className="flex items-center justify-center gap-1.5 py-2 px-3 bg-black text-white rounded-lg text-[10px] font-bold hover:bg-gray-900 transition-all active:scale-95 shadow-sm"
+                      >
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M17.05 20.28c-.96.95-2.04 1.9-3.4 1.9-1.33 0-1.77-.82-3.32-.82-1.58 0-2.05.8-3.32.85-1.3.05-2.52-1.03-3.48-2.43-1.98-2.85-2.28-7.14-.8-9.15 1.05-1.4 2.5-2.3 4.1-2.3 1.25 0 2.22.8 3.03.8.78 0 2.05-.95 3.52-.8 1 .05 2.18.45 2.92 1.3-1.85 1.1-1.55 3.65.3 4.6-.9 1.35-2.05 2.7-3.05 3.75zm-3.08-15.65c.65-.8 1.1-1.9.98-3-.95.05-2.1.65-2.78 1.45-.62.7-1.12 1.85-.95 2.92 1.05.08 2.1-.58 2.75-1.37z"/>
                         </svg>
                         Apple Wallet
                       </button>
-                      <button className="flex items-center justify-center gap-1.5 py-2 px-3 bg-white border border-gray-200 text-gray-700 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition-all active:scale-95 shadow-sm">
+                      <button 
+                        onClick={() => handleGoogleWallet(ticket.ticketCode)}
+                        className="flex items-center justify-center gap-1.5 py-2 px-3 bg-white border border-gray-200 text-gray-700 rounded-lg text-[10px] font-bold hover:bg-gray-50 transition-all active:scale-95 shadow-sm"
+                      >
                         <svg className="w-3.5 h-3.5" viewBox="0 0 48 48">
                           <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/>
                           <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/>
@@ -206,9 +244,12 @@ function DashboardPageBody() {
                         Google Wallet
                       </button>
                     </div>
-                    <button className="flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-medium text-gray-400 hover:text-gray-600 transition-colors">
+                    <button 
+                      onClick={() => window.open(`/verify/${ticket.ticketCode}`, '_blank')}
+                      className="flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
+                    >
                       <HiOutlineDownload className="w-3.5 h-3.5" />
-                      Descargar PDF
+                      Descargar PDF / Imprimir
                     </button>
                   </div>
                 </div>
