@@ -426,7 +426,14 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       if (pX !== undefined && pY !== undefined) {
         updateSeatConfig(secId, seatKey, 'xOffset', pX);
         updateSeatConfig(secId, seatKey, 'yOffset', pY);
+      } else {
+        // If it didn't move at all, treat it as a click/tap to select the seat.
+        // This is much more reliable on mobile touch screens than native onClick
+        // after calling setPointerCapture().
+        setSelectedId(secId);
+        setSelectedSeat({ secId, seatKey });
       }
+
       draggingSeatRef.current = null;
       (e.currentTarget as HTMLElement).style.cursor = 'default';
       return;
