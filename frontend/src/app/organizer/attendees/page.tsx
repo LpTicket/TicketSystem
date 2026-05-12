@@ -38,7 +38,7 @@ export default function AttendeesPage() {
 
   const loadEvents = async () => {
     try {
-      const { data } = await api.get('/events', { params: { limit: 100 } });
+      const { data } = await api.get('/events', { params: { limit: 100, includePast: 'true' } });
       const myEvents = (data.events || []).filter((e: Event) => e.organizerId === user?.id);
       setEvents(myEvents);
       if (myEvents.length > 0) {

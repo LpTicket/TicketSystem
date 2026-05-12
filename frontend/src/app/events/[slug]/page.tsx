@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
-import { Event, VenueSection, Seat, SeatStatus } from '@/types';
+import type { Event } from '@/types';
+import { VenueSection, Seat, SeatStatus } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -60,6 +61,45 @@ export default function EventDetailPage() {
     return Number(section.price || 0);
   };
 
+  const isFirstRender = useRef(true);
+
+  // Load initial seats on mount / preparation
+  useEffect(() => {
+    if (event?.id && seatMap.length > 0) {
+      const saved = localStorage.getItem(`selectedSeats_${event.id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const valid = parsed.filter((s: any) => !s.addedAt || (Date.now() - s.addedAt < 10 * 60 * 1000));
+            setSelectedSeats(valid);
+          }
+        } catch (e) {}
+      }
+    }
+  }, [event?.id, seatMap.length]);
+
+  // Synchronize state changes to localStorage and dispatch cart-updated
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (!event?.id) return;
+
+    const cartData = selectedSeats.map(s => ({
+      ...s,
+      addedAt: (s as any).addedAt || Date.now(),
+      eventTitle: event.title,
+      eventSlug: event.slug,
+      eventDate: event.eventDate,
+      venueName: event.venueName,
+      currency: event.currency
+    }));
+    localStorage.setItem(`selectedSeats_${event.id}`, JSON.stringify(cartData));
+    window.dispatchEvent(new Event('cart-updated'));
+  }, [selectedSeats, event]);
+
   const toggleSeats = (seats: Seat[]) => {
     setSelectedSeats((prev) => {
       let next = [...prev];
@@ -69,6 +109,10 @@ export default function EventDetailPage() {
         if (exists) {
           next = next.filter(s => s.id !== seat.id);
         } else {
+          if (next.length >= 10) {
+            alert(lang === 'es' ? 'No puedes seleccionar más de 10 asientos por transacción.' : 'You cannot select more than 10 seats per transaction.');
+            break;
+          }
           next.push(seat);
         }
       }
@@ -85,7 +129,17 @@ export default function EventDetailPage() {
 
   const handleBuyTickets = () => {
     if (selectedSeats.length > 0 && event?.id) {
-      localStorage.setItem(`selectedSeats_${event.id}`, JSON.stringify(selectedSeats));
+      const cartData = selectedSeats.map(s => ({
+        ...s,
+        addedAt: (s as any).addedAt || Date.now(),
+        eventTitle: event.title,
+        eventSlug: event.slug,
+        eventDate: event.eventDate,
+        venueName: event.venueName,
+        currency: event.currency
+      }));
+      localStorage.setItem(`selectedSeats_${event.id}`, JSON.stringify(cartData));
+      window.dispatchEvent(new Event('cart-updated'));
     }
     if (!isAuthenticated) { router.push(`/login?redirect=/events/${slug}/purchase`); return; }
     router.push(`/events/${slug}/purchase`);

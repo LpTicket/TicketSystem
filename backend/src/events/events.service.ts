@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Event, EventStatus, EventCategory, VenueSection, Seat, SeatStatus, User, Ticket, Order } from '../database/entities';
@@ -45,6 +45,11 @@ export class EventsService {
     const { MoreThanOrEqual, LessThanOrEqual, Between } = require('typeorm');
     const where: any = { status: EventStatus.PUBLISHED };
 
+    // Default to future events only unless includePast or custom start date is supplied
+    if (query.includePast !== 'true' && !query.startDate) {
+      where.eventDate = MoreThanOrEqual(new Date());
+    }
+
     if (query.category) where.category = query.category;
     if (query.search) where.title = ILike(`%${query.search}%`);
 
@@ -63,7 +68,11 @@ export class EventsService {
     } else if (query.startDate) {
       where.eventDate = MoreThanOrEqual(new Date(query.startDate));
     } else if (query.endDate) {
-      where.eventDate = LessThanOrEqual(new Date(query.endDate));
+      if (query.includePast === 'true') {
+        where.eventDate = LessThanOrEqual(new Date(query.endDate));
+      } else {
+        where.eventDate = Between(new Date(), new Date(query.endDate));
+      }
     }
 
     const [events, total] = await this.eventRepo.findAndCount({
@@ -83,8 +92,13 @@ export class EventsService {
   }
 
   async findFeatured() {
+    const { MoreThanOrEqual } = require('typeorm');
     return this.eventRepo.find({
-      where: { status: EventStatus.PUBLISHED, isFeatured: true },
+      where: { 
+        status: EventStatus.PUBLISHED, 
+        isFeatured: true,
+        eventDate: MoreThanOrEqual(new Date())
+      },
       order: { eventDate: 'ASC' },
       take: 6,
     });
@@ -469,6 +483,26 @@ export class EventsService {
   }
 
   async lockSeats(seatIds: string[], userId: string) {
+    const { MoreThan } = require('typeorm');
+    const now = new Date();
+
+    // Check if the user is attempting to exceed the limit of 10 reserved seats
+    const currentlyLockedCount = await this.seatRepo.count({
+      where: {
+        lockedBy: userId,
+        status: SeatStatus.LOCKED,
+        lockExpiresAt: MoreThan(now),
+      },
+    });
+
+    if (currentlyLockedCount + seatIds.length > 10) {
+      throw new BadRequestException(
+        currentlyLockedCount > 0
+          ? `Límite de reserva excedido. Solo puedes tener hasta 10 asientos reservados simultáneamente (ya posees ${currentlyLockedCount} reservados).`
+          : 'No puedes reservar más de 10 asientos por transacción.'
+      );
+    }
+
     const lockExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     for (const seatId of seatIds) {

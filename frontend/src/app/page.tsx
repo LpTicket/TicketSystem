@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import api, { getImageUrl } from '@/lib/api';
@@ -22,6 +22,17 @@ export default function HomePage() {
   const [usingDemo, setUsingDemo] = useState(false);
   const [currentBannerIdx, setCurrentBannerIdx] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const categoriesRef = useRef<HTMLDivElement>(null);
+
+  const scrollCategories = (direction: 'left' | 'right') => {
+    if (categoriesRef.current) {
+      const scrollAmount = 200;
+      categoriesRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   useEffect(() => { loadEvents(); }, []);
 
@@ -169,23 +180,53 @@ export default function HomePage() {
             />
           </form>
 
-          {/* Categories (Scrollable) */}
-          <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          {/* Categories (Scrollable Slider with chevrons) */}
+          <div className="flex-1 flex items-center gap-1.5 relative overflow-hidden group/cats px-1">
+            {/* Left Button */}
             <button
-              onClick={() => setActiveCategory('')}
-              className={`category-pill whitespace-nowrap !py-2.5 ${activeCategory === '' ? 'active' : ''}`}
+              type="button"
+              onClick={() => scrollCategories('left')}
+              className="p-1.5 rounded-full bg-white border border-gray-200 text-gray-400 hover:text-primary-500 hover:border-primary-300 shadow-sm transition-all hover:scale-110 active:scale-95 shrink-0"
+              aria-label="Scroll Left"
             >
-              {t('catAll')}
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
-            {displayCategories.map((cat) => (
+
+            {/* Scrollable Container */}
+            <div 
+              ref={categoriesRef}
+              className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1 scroll-smooth"
+            >
               <button
-                key={cat.id}
-                onClick={() => setActiveCategory(activeCategory === cat.slug ? '' : cat.slug)}
-                className={`category-pill whitespace-nowrap !py-2.5 ${activeCategory === cat.slug ? 'active' : ''}`}
+                onClick={() => setActiveCategory('')}
+                className={`category-pill whitespace-nowrap !py-2.5 ${activeCategory === '' ? 'active' : ''}`}
               >
-                {lang === 'en' ? cat.labelEn : cat.labelEs}
+                {t('catAll')}
               </button>
-            ))}
+              {displayCategories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(activeCategory === cat.slug ? '' : cat.slug)}
+                  className={`category-pill whitespace-nowrap !py-2.5 ${activeCategory === cat.slug ? 'active' : ''}`}
+                >
+                  {lang === 'en' ? cat.labelEn : cat.labelEs}
+                </button>
+              ))}
+            </div>
+
+            {/* Right Button */}
+            <button
+              type="button"
+              onClick={() => scrollCategories('right')}
+              className="p-1.5 rounded-full bg-white border border-gray-200 text-gray-400 hover:text-primary-500 hover:border-primary-300 shadow-sm transition-all hover:scale-110 active:scale-95 shrink-0"
+              aria-label="Scroll Right"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
 
           {/* Sort (Desktop/Mobile) */}

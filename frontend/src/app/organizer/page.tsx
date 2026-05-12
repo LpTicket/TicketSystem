@@ -33,7 +33,7 @@ export default function OrganizerDashboard() {
 
   const loadData = async () => {
     try {
-      const { data } = await api.get('/events', { params: { limit: 100 } });
+      const { data } = await api.get('/events', { params: { limit: 100, includePast: 'true' } });
       const myEvents = (data.events || []).filter((e: Event) => e.organizerId === user?.id);
       setEvents(myEvents);
 
@@ -41,7 +41,7 @@ export default function OrganizerDashboard() {
       let totalRevenue = 0;
       let totalTickets = 0;
       let totalOrders = 0;
-      const activeEvents = myEvents.filter((e: Event) => e.status === 'published').length;
+      const activeEvents = myEvents.filter((e: Event) => e.status === 'published' && new Date(e.eventDate).getTime() >= Date.now()).length;
 
       for (const ev of myEvents) {
         try {
@@ -69,7 +69,10 @@ export default function OrganizerDashboard() {
     { label: t('orgTotalOrders'), value: stats.totalOrders.toString(), icon: HiOutlineShoppingCart, color: 'from-purple-500 to-violet-600', bg: 'bg-purple-50', iconColor: 'text-purple-600' },
   ];
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, isPast: boolean) => {
+    if (isPast) {
+      return { label: lang === 'es' ? 'Finalizado' : 'Ended', classes: 'bg-gray-100 text-gray-500 border border-gray-200' };
+    }
     switch (status) {
       case 'published': return { label: t('orgPublished'), classes: 'bg-green-100 text-green-700' };
       case 'draft': return { label: t('orgDraft'), classes: 'bg-yellow-100 text-yellow-700' };
@@ -141,12 +144,13 @@ export default function OrganizerDashboard() {
         {events.length > 0 ? (
           <div className="divide-y divide-gray-100">
             {events.slice(0, 5).map((ev) => {
-              const badge = getStatusBadge(ev.status);
+              const isPast = new Date(ev.eventDate).getTime() < Date.now();
+              const badge = getStatusBadge(ev.status, isPast);
               const catInfo = getCategoryInfo(ev.category);
               return (
-                <div key={ev.id} className="px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors">
+                <div key={ev.id} className={`px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors ${isPast ? 'opacity-60 bg-gray-50/20' : ''}`}>
                   {/* Event image */}
-                  <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                  <div className={`w-14 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0 ${isPast ? 'grayscale' : ''}`}>
                     {ev.imageUrl ? (
                       <img src={ev.imageUrl} alt={ev.title} className="w-full h-full object-cover" />
                     ) : (
@@ -157,7 +161,7 @@ export default function OrganizerDashboard() {
                   {/* Event info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <h3 className="font-semibold text-gray-900 truncate text-sm">{ev.title}</h3>
+                      <h3 className={`font-semibold text-gray-900 truncate text-sm ${isPast ? 'line-through text-gray-400' : ''}`}>{ev.title}</h3>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
                     </div>
                     <p className="text-xs text-gray-500">

@@ -179,14 +179,14 @@ export default function AdminEventsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex gap-1 overflow-x-auto pb-1">
+      <div className="flex flex-col lg:flex-row gap-3">
+        <div className="flex flex-wrap gap-1.5">
           {statusFilters.map((f) => (
             <button
               key={f.key}
               onClick={() => { setFilter(f.key); setPage(1); }}
-              className={`px-4 py-2 text-xs font-medium rounded-lg transition-all whitespace-nowrap ${
-                filter === f.key ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              className={`flex-1 sm:flex-none justify-center px-3.5 py-2.5 sm:py-2 text-xs font-semibold rounded-lg transition-all whitespace-nowrap active:scale-95 ${
+                filter === f.key ? 'bg-gray-900 text-white font-bold shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}
             >
               {f.label}

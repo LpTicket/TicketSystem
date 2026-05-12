@@ -317,9 +317,6 @@ export default function EventDetailPage() {
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
-            <button onClick={() => setActiveTab('details')} className={`btn-secondary text-xs py-2 px-4 flex items-center gap-1.5 font-semibold text-gray-700 hover:bg-gray-50 border-gray-300 ${activeTab === 'details' ? 'bg-gray-100 ring-2 ring-primary-500 ring-offset-1' : ''}`}>
-              <HiOutlinePencil className="w-4 h-4" /> {lang === 'es' ? 'Editar Detalle' : 'Edit Details'}
-            </button>
             {event.status === 'draft' && (
               <button onClick={handlePublish} className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5">
                 <HiOutlineGlobe className="w-4 h-4" /> {t('orgSendApproval')}
@@ -396,34 +393,34 @@ export default function EventDetailPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto pb-px no-scrollbar">
+      <div className="flex flex-wrap gap-1 border-b border-gray-200 pb-px">
         <button
           onClick={() => setActiveTab('details')}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'details' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'details' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
-          <HiOutlinePencil className="w-4 h-4" />
-          {lang === 'es' ? 'Detalles e Imágenes' : 'Details & Media'}
+          <HiOutlinePencil className="w-4 h-4 shrink-0" />
+          <span className="whitespace-nowrap">{lang === 'es' ? 'Detalles e Imágenes' : 'Details & Media'}</span>
         </button>
         <button
           onClick={() => setActiveTab('overview')}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'overview' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
-          {t('orgSections')}
+          <span className="whitespace-nowrap">{t('orgSections')}</span>
         </button>
         <button
           onClick={() => setActiveTab('attendees')}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'attendees' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'attendees' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
-          <HiOutlineUsers className="w-4 h-4" />
-          {t('orgAttendees')}
-          {attendees.length > 0 && <span className="px-1.5 py-0.5 rounded bg-gray-100 text-xs">{attendees.length}</span>}
+          <HiOutlineUsers className="w-4 h-4 shrink-0" />
+          <span className="whitespace-nowrap">{t('orgAttendees')}</span>
+          {attendees.length > 0 && <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] sm:text-xs shrink-0">{attendees.length}</span>}
         </button>
         <button
           onClick={() => setActiveTab('map')}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'map' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'map' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
-          <HiOutlineMap className="w-4 h-4" />
-          {lang === 'es' ? 'Mapa Visual' : 'Venue Map'}
+          <HiOutlineMap className="w-4 h-4 shrink-0" />
+          <span className="whitespace-nowrap">{lang === 'es' ? 'Mapa Visual' : 'Venue Map'}</span>
         </button>
         <button
           onClick={() => {
@@ -431,11 +428,11 @@ export default function EventDetailPage() {
             setSelectedBlockSection('');
             setSelectedBlockSeats([]);
           }}
-          className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'blocks' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'blocks' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
-          <HiOutlineBan className="w-4 h-4" />
-          <span className="hidden sm:inline">{lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}</span>
-          <span className="sm:hidden">{lang === 'es' ? 'Bloqueos' : 'Blocks'}</span>
+          <HiOutlineBan className="w-4 h-4 shrink-0" />
+          <span className="hidden sm:inline whitespace-nowrap">{lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}</span>
+          <span className="sm:hidden whitespace-nowrap">{lang === 'es' ? 'Bloqueos' : 'Blocks'}</span>
         </button>
       </div>
 

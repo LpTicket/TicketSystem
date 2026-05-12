@@ -33,7 +33,7 @@ export default function OrganizerEventsPage() {
 
   const loadEvents = async () => {
     try {
-      const { data } = await api.get('/events', { params: { limit: 100 } });
+      const { data } = await api.get('/events', { params: { limit: 100, includePast: 'true' } });
       setEvents((data.events || []).filter((e: Event) => e.organizerId === user?.id));
     } catch {} finally { setLoading(false); }
   };
@@ -78,7 +78,10 @@ export default function OrganizerEventsPage() {
     .filter((e) => filter === 'all' || e.status === filter)
     .filter((e) => !search || e.title.toLowerCase().includes(search.toLowerCase()));
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, isPast: boolean) => {
+    if (isPast) {
+      return { label: lang === 'es' ? 'Finalizado' : 'Ended', classes: 'bg-gray-100 text-gray-500 border border-gray-200' };
+    }
     switch (status) {
       case 'published': return { label: t('orgPublished'), classes: 'bg-green-100 text-green-700' };
       case 'draft': return { label: t('orgDraft'), classes: 'bg-yellow-100 text-yellow-700' };
@@ -179,21 +182,22 @@ export default function OrganizerEventsPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredEvents.map((ev) => {
-                  const badge = getStatusBadge(ev.status);
+                  const isPast = new Date(ev.eventDate).getTime() < Date.now();
+                  const badge = getStatusBadge(ev.status, isPast);
                   const catInfo = getCategoryInfo(ev.category);
                   const catLabel = catInfo ? (lang === 'en' ? catInfo.labelEn : catInfo.labelEs) : ev.category;
                   return (
-                    <tr key={ev.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={ev.id} className={`hover:bg-gray-50 transition-colors ${isPast ? 'opacity-60 bg-gray-50/20' : ''}`}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                          <div className={`w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center ${isPast ? 'grayscale' : ''}`}>
                             {ev.imageUrl ? (
                               <img src={ev.imageUrl} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <span className="text-lg">{catInfo?.icon || '🎫'}</span>
                             )}
                           </div>
-                          <span className="font-medium text-gray-900 text-sm truncate max-w-[200px]">{ev.title}</span>
+                          <span className={`font-medium text-gray-900 text-sm truncate max-w-[200px] ${isPast ? 'line-through text-gray-400' : ''}`}>{ev.title}</span>
                         </div>
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600">
@@ -210,7 +214,7 @@ export default function OrganizerEventsPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-1.5">
-                          {ev.status === 'draft' && (
+                          {ev.status === 'draft' && !isPast && (
                             <button
                               onClick={() => handlePublish(ev.id)}
                               className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 transition-colors"
@@ -240,12 +244,13 @@ export default function OrganizerEventsPage() {
           {/* Mobile Cards */}
           <div className="md:hidden divide-y divide-gray-100">
             {filteredEvents.map((ev) => {
-              const badge = getStatusBadge(ev.status);
+              const isPast = new Date(ev.eventDate).getTime() < Date.now();
+              const badge = getStatusBadge(ev.status, isPast);
               const catInfo = getCategoryInfo(ev.category);
               return (
-                <div key={ev.id} className="p-4 space-y-3">
+                <div key={ev.id} className={`p-4 space-y-3 ${isPast ? 'opacity-60 bg-gray-50/20' : ''}`}>
                   <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                    <div className={`w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center ${isPast ? 'grayscale' : ''}`}>
                       {ev.imageUrl ? (
                         <img src={ev.imageUrl} alt="" className="w-full h-full object-cover" />
                       ) : (
@@ -253,7 +258,7 @@ export default function OrganizerEventsPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 text-sm truncate">{ev.title}</h3>
+                      <h3 className={`font-semibold text-gray-900 text-sm truncate ${isPast ? 'line-through text-gray-400' : ''}`}>{ev.title}</h3>
                       <p className="text-xs text-gray-500 mt-0.5">
                         📅 {format(new Date(ev.eventDate), "dd MMM yyyy", { locale: dateFnsLocale })} · 📍 {ev.venueName}
                       </p>
@@ -261,7 +266,7 @@ export default function OrganizerEventsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    {ev.status === 'draft' && (
+                    {ev.status === 'draft' && !isPast && (
                       <button onClick={() => handlePublish(ev.id)} className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1">
                         <HiOutlineGlobe className="w-3.5 h-3.5" /> {t('orgSendApproval')}
                       </button>

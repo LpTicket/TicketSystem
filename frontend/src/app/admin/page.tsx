@@ -14,8 +14,7 @@ import {
 
 interface DashboardStats {
   totalUsers: number;
-  buyers: number;
-  organizers: number;
+  clients: number;
   admins: number;
   totalEvents: number;
   publishedEvents: number;
@@ -95,18 +94,18 @@ export default function AdminDashboard() {
             <HiOutlineUserGroup className="w-5 h-5 text-gray-400" />
             {t('adminUserManagement')}
           </h3>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-blue-50 rounded-lg p-3 text-center">
-              <p className="text-xl font-bold text-blue-700">{stats.buyers}</p>
-              <p className="text-xs text-blue-600 font-medium">{t('adminBuyers')}</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-100 shadow-sm">
+              <p className="text-2xl font-black text-blue-700">{stats.clients}</p>
+              <p className="text-xs text-blue-600 font-bold mt-1 uppercase tracking-wider">
+                {lang === 'es' ? 'Clientes-Organizadores' : 'Clients-Organizers'}
+              </p>
             </div>
-            <div className="bg-orange-50 rounded-lg p-3 text-center">
-              <p className="text-xl font-bold text-orange-700">{stats.organizers}</p>
-              <p className="text-xs text-orange-600 font-medium">{t('adminOrganizers')}</p>
-            </div>
-            <div className="bg-red-50 rounded-lg p-3 text-center">
-              <p className="text-xl font-bold text-red-700">{stats.admins}</p>
-              <p className="text-xs text-red-600 font-medium">{t('adminAdmins')}</p>
+            <div className="bg-red-50 rounded-xl p-4 text-center border border-red-100 shadow-sm">
+              <p className="text-2xl font-black text-red-700">{stats.admins}</p>
+              <p className="text-xs text-red-600 font-bold mt-1 uppercase tracking-wider">
+                {lang === 'es' ? 'Administradores' : 'Administrators'}
+              </p>
             </div>
           </div>
         </div>

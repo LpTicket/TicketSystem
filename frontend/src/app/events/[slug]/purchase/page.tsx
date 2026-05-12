@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
-import { Event, VenueSection, Seat, SeatStatus } from '@/types';
+import type { Event } from '@/types';
+import { VenueSection, Seat, SeatStatus } from '@/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useLang } from '@/context/LanguageContext';
 import {
   HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineChevronRight,
   HiOutlineCheckCircle, HiOutlineTrash,
@@ -27,6 +29,7 @@ const STEPS: { key: Step; label: string }[] = [
 export default function PurchasePage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
+  const { lang } = useLang();
   const { user, isAuthenticated } = useAuthStore();
 
   const getSeatPrice = (seat: Seat, section?: VenueSection) => {
@@ -114,24 +117,30 @@ export default function PurchasePage() {
         try {
           const parsed = JSON.parse(saved);
           if (parsed && parsed.length > 0) {
-            setSelectedSeats(parsed);
-            const firstSeat = parsed[0];
-            const section = seatMap.find((s) => s.id === firstSeat.sectionId);
-            if (section) {
-              setSelectedSection(section);
-              // Auto-lock and skip to info
-              api.post('/events/seats/lock', { seatIds: parsed.map((s: any) => s.id) })
-                .then(() => {
-                  setSeatsLocked(true);
-                  setStep('info');
-                })
-                .catch(() => {
-                  setStep('seats'); // if lock fails, let them pick again
-                });
+            // Filter out items older than 10 minutes
+            const valid = parsed.filter((s: any) => !s.addedAt || (Date.now() - s.addedAt < 10 * 60 * 1000));
+            if (valid.length > 0) {
+              setSelectedSeats(valid);
+              const firstSeat = valid[0];
+              const section = seatMap.find((s) => s.id === firstSeat.sectionId);
+              if (section) {
+                setSelectedSection(section);
+                // Auto-lock and skip to info
+                api.post('/events/seats/lock', { seatIds: valid.map((s: any) => s.id) })
+                  .then(() => {
+                    setSeatsLocked(true);
+                    setStep('info');
+                  })
+                  .catch(() => {
+                    setStep('seats'); // if lock fails, let them pick again
+                  });
+              }
+            } else {
+              localStorage.removeItem(`selectedSeats_${event.id}`);
+              window.dispatchEvent(new Event('cart-updated'));
             }
           }
         } catch (e) {}
-        localStorage.removeItem(`selectedSeats_${event.id}`);
       }
     }
   }, [event, seatMap]);
@@ -149,6 +158,29 @@ export default function PurchasePage() {
     setStep('seats');
   };
 
+  const isFirstRender = useRef(true);
+
+  // Synchronize state changes to localStorage and dispatch cart-updated
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (!event?.id) return;
+
+    const cartData = selectedSeats.map(s => ({
+      ...s,
+      addedAt: (s as any).addedAt || Date.now(),
+      eventTitle: event.title,
+      eventSlug: event.slug,
+      eventDate: event.eventDate,
+      venueName: event.venueName,
+      currency: event.currency
+    }));
+    localStorage.setItem(`selectedSeats_${event.id}`, JSON.stringify(cartData));
+    window.dispatchEvent(new Event('cart-updated'));
+  }, [selectedSeats, event]);
+
   // ── Step 2: toggle seat ────────────────────────────────────────────────────
   const toggleSeats = useCallback((seats: Seat[]) => {
     setSelectedSeats((prev) => {
@@ -158,12 +190,16 @@ export default function PurchasePage() {
         if (exists) {
           next = next.filter(s => s.id !== seat.id);
         } else {
+          if (next.length >= 10) {
+            alert(lang === 'es' ? 'No puedes reservar más de 10 asientos por transacción.' : 'You cannot reserve more than 10 seats per transaction.');
+            break;
+          }
           next.push(seat);
         }
       }
       return next;
     });
-  }, []);
+  }, [lang]);
 
   const handleConfirmSeats = async () => {
     if (selectedSeats.length === 0) return;

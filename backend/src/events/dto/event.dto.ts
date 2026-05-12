@@ -119,4 +119,8 @@ export class EventQueryDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
+
+  @IsOptional()
+  @IsString()
+  includePast?: string;
 }

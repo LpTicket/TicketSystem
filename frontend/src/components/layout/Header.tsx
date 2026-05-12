@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
@@ -21,8 +21,75 @@ export default function Header() {
   const { mobileMenuOpen, setMobileMenuOpen } = useUIStore();
   const [profileDropdown, setProfileDropdown] = useState(false);
   const [cartDropdown, setCartDropdown] = useState(false);
+  const [cartItems, setCartItems] = useState<any[]>([]);
 
+  const loadCartItems = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const items: any[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('selectedSeats_')) {
+        try {
+          const val = localStorage.getItem(key);
+          if (val) {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const eventId = key.replace('selectedSeats_', '');
+              // Filter out items older than 10 minutes
+              const validSeats = parsed.filter((seat: any) => {
+                const addedAt = seat.addedAt || Date.now();
+                const elapsed = Date.now() - addedAt;
+                return elapsed < 10 * 60 * 1000;
+              });
+              if (validSeats.length > 0) {
+                items.push({
+                  eventId,
+                  eventTitle: validSeats[0].eventTitle || 'Evento',
+                  eventSlug: validSeats[0].eventSlug || '',
+                  seats: validSeats
+                });
+              } else {
+                localStorage.removeItem(key);
+              }
+            }
+          }
+        } catch (e) {}
+      }
+    }
+    setCartItems(items);
+  }, []);
 
+  useEffect(() => {
+    loadCartItems();
+    window.addEventListener('cart-updated', loadCartItems);
+    window.addEventListener('storage', loadCartItems);
+
+    // Dynamic countdown update interval
+    const interval = setInterval(() => {
+      loadCartItems();
+    }, 1000);
+
+    return () => {
+      window.removeEventListener('cart-updated', loadCartItems);
+      window.removeEventListener('storage', loadCartItems);
+      clearInterval(interval);
+    };
+  }, [loadCartItems]);
+
+  const getRemainingTimeStr = (seats: any[]) => {
+    if (seats.length === 0) return '10:00';
+    const addedAt = seats[0].addedAt || Date.now();
+    const elapsed = Date.now() - addedAt;
+    const remaining = Math.max(0, 10 * 60 * 1000 - elapsed);
+    const min = Math.floor(remaining / 60000);
+    const sec = Math.floor((remaining % 60000) / 1000);
+    return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const handleRemoveEventCart = (eventId: string) => {
+    localStorage.removeItem(`selectedSeats_${eventId}`);
+    window.dispatchEvent(new Event('cart-updated'));
+  };
 
   const pathname = usePathname();
 
@@ -202,10 +269,11 @@ export default function Header() {
     {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && !pathname.includes('/login') && !pathname.includes('/register') && (
       <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3">
         {cartDropdown && (
-          <div className="w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 animate-fade-in-up mb-2">
-            <div className="flex justify-between items-center mb-3">
+          <div className="w-80 bg-white rounded-3xl shadow-elevated border border-gray-100 p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-3 shrink-0">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
+                <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center text-primary-500">
                   <HiOutlineShoppingCart className="w-4 h-4" />
                 </div>
                 <h4 className="font-bold text-sm text-gray-900">{lang === 'es' ? 'Mi Carrito' : 'My Cart'}</h4>
@@ -217,17 +285,82 @@ export default function Header() {
                 <HiOutlineX className="w-4 h-4 text-gray-400" />
               </button>
             </div>
-            <div className="py-4 text-center border-y border-gray-50 my-2">
-              <p className="text-xs text-gray-500 italic">
-                {lang === 'es' ? 'No tienes entradas en el carrito listas para pagar.' : 'No tickets in your cart ready for checkout.'}
-              </p>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 py-2 border-y border-gray-50 my-1">
+              {cartItems.length === 0 ? (
+                <div className="py-8 text-center">
+                  <p className="text-xs text-gray-500 italic">
+                    {lang === 'es' ? 'No tienes entradas en el carrito listas para pagar.' : 'No tickets in your cart ready for checkout.'}
+                  </p>
+                </div>
+              ) : (
+                cartItems.map((item) => {
+                  const timeLeft = getRemainingTimeStr(item.seats);
+                  return (
+                    <div key={item.eventId} className="bg-gray-50/50 rounded-2xl p-3 border border-gray-100 space-y-2.5">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="min-w-0">
+                          <h5 className="font-bold text-[13px] text-gray-900 truncate tracking-tight">{item.eventTitle}</h5>
+                          <p className="text-[10px] font-semibold text-gray-400 mt-0.5 uppercase tracking-wider">{item.seats.length} {item.seats.length === 1 ? (lang === 'es' ? 'Asiento' : 'Seat') : (lang === 'es' ? 'Asientos' : 'Seats')}</p>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveEventCart(item.eventId)}
+                          className="text-gray-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-50/50 transition-colors shrink-0"
+                          title={lang === 'es' ? 'Vaciar carrito' : 'Clear cart'}
+                        >
+                          <HiOutlineX className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Seat Badges */}
+                      <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto no-scrollbar">
+                        {item.seats.map((seat: any) => (
+                          <span key={seat.id} className="inline-flex items-center text-[9px] font-bold bg-white border border-gray-200 text-gray-700 px-1.5 py-0.5 rounded-md">
+                            {seat.rowLabel || 'Row'}{seat.seatNumber}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Timer & Pay button row */}
+                      <div className="flex items-center justify-between pt-1 border-t border-gray-100/50">
+                        <div className="flex items-center gap-1.5 text-orange-600">
+                          <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-ping" />
+                          <span className="text-[10px] font-bold font-mono tracking-wider">{timeLeft}</span>
+                        </div>
+                        <Link 
+                          href={`/events/${item.eventSlug}/purchase`}
+                          onClick={() => setCartDropdown(false)}
+                          className="btn-primary !py-1.5 !px-3 !rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm shadow-primary-500/10 active:scale-[0.97]"
+                        >
+                          {lang === 'es' ? 'Pagar' : 'Pay'}
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
-            <button 
-              className="w-full py-2.5 bg-gray-100 text-gray-400 font-bold text-xs rounded-xl cursor-not-allowed uppercase tracking-wider"
-              disabled
-            >
-              {lang === 'es' ? 'Continuar Compra' : 'Checkout'}
-            </button>
+
+            {/* General Checkout / Action */}
+            {cartItems.length > 0 ? (
+              <button 
+                onClick={() => {
+                  setCartDropdown(false);
+                  router.push(`/events/${cartItems[0].eventSlug}/purchase`);
+                }}
+                className="w-full py-3 bg-primary-500 hover:bg-primary-600 text-white font-black text-xs rounded-xl shadow-lg shadow-primary-500/10 transition-transform active:scale-[0.98] uppercase tracking-widest mt-2"
+              >
+                {lang === 'es' ? 'Continuar Compra' : 'Checkout'}
+              </button>
+            ) : (
+              <button 
+                className="w-full py-3 bg-gray-100 text-gray-400 font-bold text-xs rounded-xl cursor-not-allowed uppercase tracking-wider mt-2"
+                disabled
+              >
+                {lang === 'es' ? 'Continuar Compra' : 'Checkout'}
+              </button>
+            )}
           </div>
         )}
         
@@ -238,9 +371,11 @@ export default function Header() {
           }`}
         >
           {cartDropdown ? <HiOutlineX className="w-6 h-6" /> : <HiOutlineShoppingCart className="w-7 h-7" />}
-          {!cartDropdown && (
-            <span className="absolute -top-1 -right-1 w-6 h-6 bg-blue-600 text-white rounded-full text-[11px] font-bold flex items-center justify-center border-2 border-white shadow-lg animate-bounce">
-              0
+          
+          {/* Badge */}
+          {cartItems.reduce((acc, item) => acc + item.seats.length, 0) > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[24px] h-[24px] px-1.5 bg-blue-600 text-white rounded-full text-[11px] font-bold flex items-center justify-center border-2 border-white shadow-lg animate-bounce">
+              {cartItems.reduce((acc, item) => acc + item.seats.length, 0)}
             </span>
           )}
         </button>

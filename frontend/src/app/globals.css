@@ -261,12 +261,12 @@ body {
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
-/* ===== Scrollbar ===== */
+/* ===== Scrollbar & Layout Stability ===== */
 
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #f3f4f6; }
-::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
 
 /* ===== Utility ===== */
 

@@ -18,9 +18,16 @@ import {
 const WavySeparator = () => (
   <svg viewBox="0 0 120 12" className="w-24 h-4 text-primary-500 my-2" fill="none" stroke="currentColor" strokeWidth="2.5">
     <path d="M0,6 C10,12 10,0 20,6 C30,12 30,0 40,6 C50,12 50,0 60,6 C70,12 70,0 80,6 C90,12 90,0 100,6 C110,12 110,0 120,6" />
-    <path d="M0,9 C10,15 10,3 20,9 C30,15 30,3 40,9 C50,15 50,3 60,9 C70,15 70,3 80,9 C90,15 90,3 100,9 C110,15 110,3 120,9" stroke="#1e293b" strokeWidth="1.5" />
+    <path d="M0,9 C10,15 10,3 20,9 C30,15 30,3 40,9 C50,15 50,3 60,9 C70,15 70,3 80,9 C90,15 90,3 100,9 C110,15 110,3 120,9" stroke="#6366f1" strokeWidth="1.5" />
   </svg>
 );
+
+const parseSafeDate = (dateStr: any) => {
+  if (!dateStr) return new Date();
+  const cleaned = String(dateStr).replace(' ', 'T');
+  const d = new Date(cleaned);
+  return isNaN(d.getTime()) ? new Date(dateStr) : d;
+};
 
 export default function VerifyTicketPage() {
   const { code } = useParams<{ code: string }>();
@@ -131,7 +138,7 @@ export default function VerifyTicketPage() {
                 {ticket.event?.title || 'Evento'}
               </h1>
               <p className="text-xs text-gray-500 font-bold mt-1">
-                {ticket.event?.eventDate && format(new Date(ticket.event.eventDate), "eeee, d 'de' MMMM, yyyy | 'Puertas:' h:mm a", { locale: es }).toUpperCase()}
+                {ticket.event?.eventDate && format(parseSafeDate(ticket.event.eventDate), "eeee, d 'de' MMMM, yyyy | 'Puertas:' h:mm a", { locale: es }).toUpperCase()}
               </p>
             </div>
 
@@ -165,7 +172,7 @@ export default function VerifyTicketPage() {
           <div className="hidden md:flex md:col-span-3 flex-col items-end justify-between self-stretch">
             {/* Color accent bars */}
             <div className="flex h-16 w-4 rounded-full overflow-hidden self-end shrink-0">
-              <div className="w-1/2 bg-slate-900 h-full" />
+              <div className="w-1/2 bg-indigo-500 h-full" />
               <div className="w-1/2 bg-primary-500 h-full" />
             </div>
             
@@ -190,7 +197,9 @@ export default function VerifyTicketPage() {
             <div>
               <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Detalles de Ubicación</span>
               <span className="text-lg font-black text-gray-900 uppercase tracking-tight">
-                {ticket.rowLabel ? `${ticket.sectionName} | Fila: ${ticket.rowLabel}, Asiento: ${ticket.seatNumber}` : 'Entrada General'}
+                {ticket.rowLabel && ticket.rowLabel !== 'GA' 
+                  ? `${ticket.sectionName} | Fila: ${ticket.rowLabel}, Asiento: ${ticket.seatNumber}` 
+                  : `${ticket.sectionName || 'Entrada General'}`}
               </span>
             </div>
           </div>
@@ -198,7 +207,7 @@ export default function VerifyTicketPage() {
           <div className="border-t border-dashed border-gray-200 pt-4 space-y-3">
             <span className="block text-[10px] uppercase font-extrabold text-slate-800 tracking-wider">Detalles del Pedido</span>
             
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-gray-600">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs text-gray-600">
               <div>
                 <span className="block text-[9px] text-gray-400 uppercase font-bold">ID de Boleto:</span>
                 <span className="font-mono text-[11px] font-bold text-gray-800 select-all">{ticket.id || '2B3DCBF6-99BC-46EB-834C'}</span>
@@ -210,6 +219,12 @@ export default function VerifyTicketPage() {
               <div>
                 <span className="block text-[9px] text-gray-400 uppercase font-bold">Código de Entrada:</span>
                 <span className="font-mono text-[11px] font-bold text-gray-800 tracking-wider uppercase select-all">{ticket.ticketCode}</span>
+              </div>
+              <div>
+                <span className="block text-[9px] text-gray-400 uppercase font-bold">Precio Pagado:</span>
+                <span className="font-bold text-gray-800">
+                  {ticket.event?.currency === 'USD' ? '$' : 'Bs. '}{Number(ticket.price || 0).toFixed(2)}
+                </span>
               </div>
             </div>
 
@@ -243,8 +258,8 @@ export default function VerifyTicketPage() {
           
           {/* Left Terms */}
           <div className="md:col-span-6 flex gap-3">
-            <div className="w-2.5 bg-slate-900 self-stretch shrink-0 rounded-full flex flex-col overflow-hidden">
-              <div className="h-2/3 bg-slate-900" />
+            <div className="w-2.5 bg-indigo-500 self-stretch shrink-0 rounded-full flex flex-col overflow-hidden">
+              <div className="h-2/3 bg-indigo-500" />
               <div className="h-1/3 bg-primary-500" />
             </div>
             <div className="space-y-1.5 text-[8.5px] text-gray-400 font-semibold leading-normal uppercase">
