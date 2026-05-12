@@ -48,7 +48,7 @@ export default function EventDetailPage() {
   const { user } = useAuthStore();
   const { t, lang } = useLang();
   const router = useRouter();
-  const { getCategoryInfo } = useCategories();
+  const { categories, getCategoryInfo } = useCategories();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [sections, setSections] = useState<VenueSection[]>([]);
@@ -776,11 +776,12 @@ export default function EventDetailPage() {
                   onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
                 >
-                  <option value="music">{lang === 'es' ? 'Música' : 'Music'}</option>
-                  <option value="sports">{lang === 'es' ? 'Deportes' : 'Sports'}</option>
-                  <option value="theater">{lang === 'es' ? 'Teatro' : 'Theater'}</option>
-                  <option value="party">{lang === 'es' ? 'Fiesta' : 'Party'}</option>
-                  <option value="other">{lang === 'es' ? 'Otro' : 'Other'}</option>
+                  <option value="" disabled>{lang === 'es' ? 'Seleccionar categoría' : 'Select category'}</option>
+                  {categories.map(cat => (
+                    <option key={cat.slug} value={cat.slug}>
+                      {lang === 'es' ? cat.labelEs : cat.labelEn}
+                    </option>
+                  ))}
                 </select>
               </div>
 

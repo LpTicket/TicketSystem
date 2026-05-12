@@ -119,7 +119,15 @@ export default function PurchasePage() {
             const section = seatMap.find((s) => s.id === firstSeat.sectionId);
             if (section) {
               setSelectedSection(section);
-              setStep('seats');
+              // Auto-lock and skip to info
+              api.post('/events/seats/lock', { seatIds: parsed.map((s: any) => s.id) })
+                .then(() => {
+                  setSeatsLocked(true);
+                  setStep('info');
+                })
+                .catch(() => {
+                  setStep('seats'); // if lock fails, let them pick again
+                });
             }
           }
         } catch (e) {}
@@ -477,38 +485,6 @@ export default function PurchasePage() {
         {/* ── Sidebar ─────────────────────────────────────────────────────── */}
         <div className="lg:col-span-1">
           <div className="sticky top-20 space-y-4">
-            {/* Sections price list */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left pb-2 text-xs font-semibold text-gray-500 uppercase">Sección</th>
-                    <th className="text-right pb-2 text-xs font-semibold text-gray-500 uppercase">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {seatMap.map((sec) => (
-                    <tr key={sec.id}>
-                      <td className="py-1.5 flex items-center gap-2">
-                        <span className="w-3 h-3 rounded-full shrink-0" style={{ background: sec.color }} />
-                        <span className="font-medium text-gray-800">{sec.name}</span>
-                      </td>
-                      <td className="py-1.5 text-right font-semibold text-gray-700">
-                        {sec.sectionType === 'table' ? (
-                          <span className="flex flex-col items-end gap-0.5">
-                            <span className="text-xs text-gray-500">${Number(sec.price).toFixed(2)}/silla</span>
-                            <span className="text-xs text-green-600 font-bold">Total: ${(Number(sec.price) * (sec.seatsPerRow || 1)).toFixed(2)}</span>
-                          </span>
-                        ) : (
-                          <>{Number(sec.price).toFixed(2)} {event.currency || 'USD'}</>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
             {/* Selected seats summary */}
             {selectedSeats.length > 0 && (
               <div className="bg-white rounded-lg border border-gray-200 p-4">

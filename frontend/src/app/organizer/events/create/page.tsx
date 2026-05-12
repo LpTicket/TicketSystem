@@ -44,7 +44,7 @@ export default function CreateEventPage() {
   const [form, setForm] = useState({
     title: '',
     description: '',
-    category: 'concierto',
+    category: '',
     venueName: '',
     venueAddress: '',
     eventDate: '',

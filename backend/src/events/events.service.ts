@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
-import { Event, EventStatus, EventCategory, VenueSection, Seat, SeatStatus, User } from '../database/entities';
+import { Event, EventStatus, EventCategory, VenueSection, Seat, SeatStatus, User, Ticket, Order } from '../database/entities';
 import { CreateEventDto, UpdateEventDto, EventQueryDto } from './dto/event.dto';
 
 @Injectable()
@@ -158,7 +158,30 @@ export class EventsService {
     if (event.organizerId !== userId && user?.role !== 'admin') {
       throw new ForbiddenException();
     }
-    await this.eventRepo.delete(id);
+    
+    // Cascade delete related entities to avoid foreign key constraint violations
+    await this.eventRepo.manager.transaction(async (manager) => {
+      // 1. Delete tickets
+      await manager.delete(Ticket, { eventId: id });
+      
+      // 2. Delete orders
+      await manager.delete(Order, { eventId: id });
+      
+      // 3. Delete seats (must be done by finding sections first, or by join, but simpler is to delete all seats for sections of this event)
+      const sections = await manager.find(VenueSection, { where: { eventId: id } });
+      if (sections.length > 0) {
+        const sectionIds = sections.map(s => s.id);
+        // TypeORM delete with IN clause
+        await manager.createQueryBuilder().delete().from(Seat).where("sectionId IN (:...sectionIds)", { sectionIds }).execute();
+        
+        // 4. Delete sections
+        await manager.delete(VenueSection, { eventId: id });
+      }
+      
+      // 5. Delete event
+      await manager.delete(Event, { id });
+    });
+    
     return { message: 'Evento eliminado' };
   }
 

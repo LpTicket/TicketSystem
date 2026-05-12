@@ -183,14 +183,20 @@ export default function EventDetailPage() {
               <h3 className="font-bold text-lg text-gray-900">Resumen de compra</h3>
 
               {seatMap.length > 0 && (
-                <div className="space-y-2">
-                  {seatMap.map((section) => (
-                    <div key={section.id} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600 flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{ background: section.color }} />{section.name}</span>
-                      <span className="font-semibold text-gray-900">${Number(section.price).toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
+                <details className="group border border-gray-200 rounded-lg bg-gray-50 overflow-hidden">
+                  <summary className="px-4 py-3 text-sm font-semibold text-gray-700 cursor-pointer list-none flex justify-between items-center hover:bg-gray-100 transition-colors">
+                    <span>{lang === 'es' ? 'Ver Precios y Zonas' : 'View Prices & Zones'}</span>
+                    <span className="text-gray-400 group-open:rotate-180 transition-transform text-xs">▼</span>
+                  </summary>
+                  <div className="px-4 pb-4 pt-2 space-y-2 border-t border-gray-100 bg-white">
+                    {seatMap.map((section) => (
+                      <div key={section.id} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: section.color }} />{section.name}</span>
+                        <span className="font-semibold text-gray-900">${Number(section.price).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
               )}
 
               {selectedSeats.length > 0 && (
