@@ -53,6 +53,9 @@ export class Event {
   @Column({ type: 'text', nullable: true })
   bannerImageUrl: string | null;
 
+  @Column({ type: 'varchar', length: 50, nullable: true, default: '50% 50%' })
+  bannerPosition: string | null;
+
   @Column({ length: 60 })
   venueName: string;
 

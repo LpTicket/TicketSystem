@@ -162,6 +162,7 @@ export default function EventDetailPage() {
             src={getImageUrl(event.bannerImageUrl || event.imageUrl)} 
             alt={event.title} 
             className="w-full h-full object-cover" 
+            style={{ objectPosition: event.bannerPosition || 'center' }}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-blue-600 to-primary-500 flex items-center justify-center">

@@ -39,6 +39,18 @@ export default function VerifyTicketPage() {
 
   useEffect(() => { loadTicket(); }, [code]);
 
+  useEffect(() => {
+    if (ticket && !result && !validating) {
+      if (ticket.status === 'active') {
+        validate();
+      } else if (ticket.status === 'used') {
+        setResult({ valid: false, message: 'Este ticket ya fue utilizado' });
+      } else if (ticket.status === 'cancelled') {
+        setResult({ valid: false, message: 'Este ticket fue cancelado' });
+      }
+    }
+  }, [ticket, result, validating]);
+
   const loadTicket = async () => {
     try { 
       const { data } = await api.get(`/orders/ticket/${code}`); 

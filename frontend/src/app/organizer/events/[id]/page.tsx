@@ -69,6 +69,7 @@ export default function EventDetailPage() {
     eventDate: '',
     category: '',
     hasSeatMap: false,
+    bannerPosition: 'center',
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
@@ -90,6 +91,7 @@ export default function EventDetailPage() {
         eventDate: ev.eventDate ? ev.eventDate.substring(0, 16) : '',
         category: ev.category || '',
         hasSeatMap: ev.hasSeatMap || false,
+        bannerPosition: ev.bannerPosition || 'center',
       });
 
       // Load sections and seats
@@ -195,6 +197,7 @@ export default function EventDetailPage() {
         eventDate: new Date(editForm.eventDate).toISOString(),
         category: editForm.category,
         hasSeatMap: editForm.hasSeatMap,
+        bannerPosition: editForm.bannerPosition,
       });
 
       // 2. Upload cover image if selected
@@ -907,39 +910,107 @@ export default function EventDetailPage() {
                 <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Tamaño recomendado: 1920 x 600 px (3:1)' : 'Recommended size: 1920 x 600 px (3:1)'}</p>
 
                 {/* Active Preview */}
-                {(bannerFile || event.bannerImageUrl) && (
-                  <div className="w-full aspect-[21/9] relative rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden mb-3 shadow-inner group/preview">
-                    <img 
-                      src={bannerFile ? URL.createObjectURL(bannerFile) : getImageUrl(event.bannerImageUrl)} 
-                      alt="Current Banner" 
-                      className="w-full h-full object-cover" 
-                    />
-                    <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-[10px] font-black text-white px-2.5 py-1 rounded-full uppercase tracking-wider shadow-lg">
-                      {bannerFile ? (lang === 'es' ? 'Nueva Selección' : 'New Selection') : (lang === 'es' ? 'Banner Actual' : 'Current Banner')}
+                {(bannerFile || event?.bannerImageUrl) && (
+                  <div className="space-y-4 mb-3">
+                    <div className="w-full aspect-[21/9] relative rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden shadow-inner group/preview">
+                      <img 
+                        src={bannerFile ? URL.createObjectURL(bannerFile) : getImageUrl(event?.bannerImageUrl)} 
+                        alt="Current Banner" 
+                        className="w-full h-full object-cover transition-all duration-300" 
+                        style={{ objectPosition: editForm.bannerPosition || 'center' }}
+                      />
+                      <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-[10px] font-black text-white px-2.5 py-1 rounded-full uppercase tracking-wider shadow-lg">
+                        {bannerFile ? (lang === 'es' ? 'Nueva Selección' : 'New Selection') : (lang === 'es' ? 'Banner Actual' : 'Current Banner')}
+                      </div>
+
+                      {/* Delete Action Overlay */}
+                      {!bannerFile && event?.bannerImageUrl && (
+                        <button
+                          type="button"
+                          onClick={handleDeleteBanner}
+                          className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity"
+                        >
+                          <div className="bg-white/90 backdrop-blur-md p-3 rounded-full text-red-600 shadow-xl hover:scale-110 transition-transform">
+                            <HiOutlineTrash className="w-6 h-6" />
+                          </div>
+                        </button>
+                      )}
+
+                      {bannerFile && (
+                        <button
+                          type="button"
+                          onClick={() => setBannerFile(null)}
+                          className="absolute top-3 right-3 bg-red-600 text-white p-1.5 rounded-full shadow-lg hover:bg-red-700 transition-colors"
+                        >
+                          <HiOutlineXCircle className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
 
-                    {/* Delete Action Overlay */}
-                    {!bannerFile && event.bannerImageUrl && (
-                      <button
-                        type="button"
-                        onClick={handleDeleteBanner}
-                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity"
-                      >
-                        <div className="bg-white/90 backdrop-blur-md p-3 rounded-full text-red-600 shadow-xl hover:scale-110 transition-transform">
-                          <HiOutlineTrash className="w-6 h-6" />
-                        </div>
-                      </button>
-                    )}
+                    {/* Vertical Alignment Selector Controls */}
+                    <div className="p-4 bg-gray-50 border border-gray-150 rounded-2xl space-y-3 shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          {lang === 'es' ? 'Enfoque / Alineación Vertical' : 'Focal / Vertical Alignment'}
+                        </span>
+                        <span className="text-xs font-extrabold text-blue-600 font-mono bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">
+                          {editForm.bannerPosition === 'center' ? '50% (Centro)' : 
+                           editForm.bannerPosition === 'top' ? '0% (Arriba)' :
+                           editForm.bannerPosition === 'bottom' ? '100% (Abajo)' : 
+                           editForm.bannerPosition}
+                        </span>
+                      </div>
 
-                    {bannerFile && (
-                      <button
-                        type="button"
-                        onClick={() => setBannerFile(null)}
-                        className="absolute top-3 right-3 bg-red-600 text-white p-1.5 rounded-full shadow-lg hover:bg-red-700 transition-colors"
-                      >
-                        <HiOutlineXCircle className="w-4 h-4" />
-                      </button>
-                    )}
+                      <div className="flex gap-2">
+                        {[
+                          { labelEs: 'Arriba', labelEn: 'Top', val: 'top' },
+                          { labelEs: 'Centro', labelEn: 'Center', val: 'center' },
+                          { labelEs: 'Abajo', labelEn: 'Bottom', val: 'bottom' }
+                        ].map((btn) => (
+                          <button
+                            key={btn.val}
+                            type="button"
+                            onClick={() => setEditForm(prev => ({ ...prev, bannerPosition: btn.val }))}
+                            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all border shadow-sm ${
+                              editForm.bannerPosition === btn.val 
+                                ? 'bg-blue-600 text-white border-blue-600 font-extrabold' 
+                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'
+                            }`}
+                          >
+                            {lang === 'es' ? btn.labelEs : btn.labelEn}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider px-1">
+                          <span>{lang === 'es' ? 'Arriba' : 'Top'}</span>
+                          <span>{lang === 'es' ? 'Centro' : 'Center'}</span>
+                          <span>{lang === 'es' ? 'Abajo' : 'Bottom'}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={
+                            editForm.bannerPosition === 'top' ? 0 : 
+                            editForm.bannerPosition === 'center' ? 50 : 
+                            editForm.bannerPosition === 'bottom' ? 100 : 
+                            parseInt(editForm.bannerPosition || '50')
+                          }
+                          onChange={(e) => {
+                            const val = `${e.target.value}%`;
+                            setEditForm(prev => ({ ...prev, bannerPosition: val }));
+                          }}
+                          className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+                      <p className="text-[10px] text-gray-400 font-medium leading-relaxed">
+                        {lang === 'es' 
+                          ? 'Ajusta el encuadre vertical de la imagen en el Banner del Home. Verás los cambios aplicados en vivo en la vista previa de arriba.'
+                          : 'Adjust vertical framing of the Homepage Carousel Banner. Preview updates in real-time above.'}
+                      </p>
+                    </div>
                   </div>
                 )}
 

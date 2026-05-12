@@ -37,6 +37,10 @@ export class CreateEventDto {
   @IsOptional()
   @IsBoolean()
   showStage?: boolean;
+
+  @IsOptional()
+  @IsString()
+  bannerPosition?: string;
 }
 
 export class UpdateEventDto {
@@ -83,6 +87,10 @@ export class UpdateEventDto {
   @IsOptional()
   @IsBoolean()
   showStage?: boolean;
+
+  @IsOptional()
+  @IsString()
+  bannerPosition?: string;
 }
 
 export class EventQueryDto {

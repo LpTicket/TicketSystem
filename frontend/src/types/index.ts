@@ -44,6 +44,7 @@ export interface Event {
   category: string;
   imageUrl?: string;
   bannerImageUrl?: string;
+  bannerPosition?: string;
   venueName: string;
   venueAddress?: string;
   eventDate: string;

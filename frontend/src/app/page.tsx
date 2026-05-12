@@ -127,6 +127,7 @@ export default function HomePage() {
                   src={getImageUrl(bannerEvent.bannerImageUrl || bannerEvent.imageUrl) || '/demo/concert.png'}
                   alt={bannerEvent.title}
                   className="w-full h-full object-cover block"
+                  style={{ objectPosition: bannerEvent.bannerPosition || 'center' }}
                   loading="eager"
                   fetchPriority="high"
                   onError={(e) => { (e.target as HTMLImageElement).src = '/demo/concert.png'; }}
