@@ -897,7 +897,6 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 </button>
                 <div>
                   <h3 className="font-bold text-gray-800 text-[13px] uppercase tracking-wide">{lang === 'es' ? 'Inspector de Objeto' : 'Object Inspector'}</h3>
-                  <p className="text-[10px] text-gray-500 font-medium mt-0.5">{selectedSection.id}</p>
                 </div>
               </div>
               <button 

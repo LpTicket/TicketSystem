@@ -434,7 +434,8 @@ export default function EventDetailPage() {
           className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'blocks' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           <HiOutlineBan className="w-4 h-4" />
-          {lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}
+          <span className="hidden sm:inline">{lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}</span>
+          <span className="sm:hidden">{lang === 'es' ? 'Bloqueos' : 'Blocks'}</span>
         </button>
       </div>
 
@@ -852,7 +853,7 @@ export default function EventDetailPage() {
                 
                 {/* Active Preview */}
                 {(imageFile || event.imageUrl) && (
-                  <div className="w-full aspect-[16/9] relative rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden mb-3 shadow-inner group/preview">
+                  <div className="w-full relative rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden mb-3 shadow-inner group/preview max-h-[250px] sm:max-h-none sm:aspect-[16/9]">
                     <img 
                       src={imageFile ? URL.createObjectURL(imageFile) : getImageUrl(event.imageUrl)} 
                       alt="Current Cover" 
