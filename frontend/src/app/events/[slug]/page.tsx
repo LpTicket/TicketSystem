@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
@@ -9,7 +9,7 @@ import { VenueSection, Seat, SeatStatus } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineClock, HiOutlineTicket } from 'react-icons/hi';
+import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineClock } from 'react-icons/hi';
 import SeatMapInteractive from '@/components/events/SeatMapInteractive';
 import { useLang } from '@/context/LanguageContext';
 
@@ -19,13 +19,12 @@ export default function EventDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const { lang } = useLang();
-  const { user, isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const { getCategoryInfo } = useCategories();
   const [event, setEvent] = useState<Event | null>(null);
   const [seatMap, setSeatMap] = useState<(VenueSection & { seats: Seat[] })[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [buying, setBuying] = useState(false);
 
   useEffect(() => { loadEvent(); }, [slug]);
 
@@ -63,39 +62,39 @@ export default function EventDetailPage() {
 
   const [hasLoadedSaved, setHasLoadedSaved] = useState(false);
  
-   // Load initial seats on mount / preparation
-   useEffect(() => {
-     if (event?.id && seatMap.length > 0 && !hasLoadedSaved) {
-       const saved = localStorage.getItem(`selectedSeats_${event.id}`);
-       if (saved) {
-         try {
-           const parsed = JSON.parse(saved);
-           if (Array.isArray(parsed)) {
-             const valid = parsed.filter((s: any) => !s.addedAt || (Date.now() - s.addedAt < 10 * 60 * 1000));
-             setSelectedSeats(valid);
-           }
-         } catch (e) {}
-       }
-       setHasLoadedSaved(true);
-     }
-   }, [event?.id, seatMap.length, hasLoadedSaved]);
+  // Cargar asientos iniciales desde localStorage si existen
+  useEffect(() => {
+    if (event?.id && seatMap.length > 0 && !hasLoadedSaved) {
+      const saved = localStorage.getItem(`selectedSeats_${event.id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const valid = parsed.filter((s: any) => !s.addedAt || (Date.now() - s.addedAt < 10 * 60 * 1000));
+            setSelectedSeats(valid);
+          }
+        } catch (e) {}
+      }
+      setHasLoadedSaved(true);
+    }
+  }, [event?.id, seatMap.length, hasLoadedSaved]);
  
-   // Synchronize state changes to localStorage and dispatch cart-updated
-   useEffect(() => {
-     if (!event?.id || !hasLoadedSaved) return;
+  // Sincronizar selección a localStorage
+  useEffect(() => {
+    if (!event?.id || !hasLoadedSaved) return;
  
-     const cartData = selectedSeats.map(s => ({
-       ...s,
-       addedAt: (s as any).addedAt || Date.now(),
-       eventTitle: event.title,
-       eventSlug: event.slug,
-       eventDate: event.eventDate,
-       venueName: event.venueName,
-       currency: event.currency
-     }));
-     localStorage.setItem(`selectedSeats_${event.id}`, JSON.stringify(cartData));
-     window.dispatchEvent(new Event('cart-updated'));
-   }, [selectedSeats, event, hasLoadedSaved]);
+    const cartData = selectedSeats.map(s => ({
+      ...s,
+      addedAt: (s as any).addedAt || Date.now(),
+      eventTitle: event.title,
+      eventSlug: event.slug,
+      eventDate: event.eventDate,
+      venueName: event.venueName,
+      currency: event.currency
+    }));
+    localStorage.setItem(`selectedSeats_${event.id}`, JSON.stringify(cartData));
+    window.dispatchEvent(new Event('cart-updated'));
+  }, [selectedSeats, event, hasLoadedSaved]);
 
   const toggleSeats = (seats: Seat[]) => {
     setSelectedSeats((prev) => {
@@ -117,15 +116,18 @@ export default function EventDetailPage() {
     });
   };
 
-  const isSeatSelected = (seatId: string) => selectedSeats.some((s) => s.id === seatId);
-
   const getTotalPrice = () => selectedSeats.reduce((total, seat) => {
     const section = seatMap.find((s) => s.id === seat.sectionId);
     return total + getSeatPrice(seat, section);
   }, 0);
 
   const handleBuyTickets = () => {
-    if (selectedSeats.length > 0 && event?.id) {
+    if (selectedSeats.length === 0) {
+      alert(lang === 'es' ? 'Por favor selecciona al menos un asiento.' : 'Please select at least one seat.');
+      return;
+    }
+
+    if (event?.id) {
       const cartData = selectedSeats.map(s => ({
         ...s,
         addedAt: (s as any).addedAt || Date.now(),
@@ -138,7 +140,11 @@ export default function EventDetailPage() {
       localStorage.setItem(`selectedSeats_${event.id}`, JSON.stringify(cartData));
       window.dispatchEvent(new Event('cart-updated'));
     }
-    if (!isAuthenticated) { router.push(`/login?redirect=/events/${slug}/purchase`); return; }
+    
+    if (!isAuthenticated) { 
+      router.push(`/login?redirect=/events/${slug}/purchase`); 
+      return; 
+    }
     router.push(`/events/${slug}/purchase`);
   };
 
@@ -243,7 +249,10 @@ export default function EventDetailPage() {
                   <div className="px-4 pb-4 pt-2 space-y-2 border-t border-gray-100 bg-white">
                     {seatMap.map((section) => (
                       <div key={section.id} className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: section.color }} />{section.name}</span>
+                        <span className="text-gray-600 flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: section.color }} />
+                          {section.name}
+                        </span>
                         <span className="font-semibold text-gray-900">${Number(section.price).toFixed(2)}</span>
                       </div>
                     ))}
@@ -261,22 +270,31 @@ export default function EventDetailPage() {
                       return (
                         <div key={seat.id} className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">{section?.name} — {seat.rowLabel}{seat.seatNumber}</span>
-                        <span className="font-medium text-gray-800">${getSeatPrice(seat, section).toFixed(2)}</span>
+                          <span className="font-medium text-gray-800">${getSeatPrice(seat, section).toFixed(2)}</span>
                         </div>
                       );
                     })}
                   </div>
                   <hr className="border-gray-200" />
                   <div className="space-y-1">
-                    <div className="flex justify-between text-sm"><span className="text-gray-500">Subtotal</span><span className="text-gray-800">${getTotalPrice().toFixed(2)}</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-gray-500">Cargo por servicio (10%)</span><span className="text-gray-800">${(getTotalPrice() * 0.10).toFixed(2)}</span></div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Subtotal</span>
+                      <span className="text-gray-800">${getTotalPrice().toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Cargo por servicio (10%)</span>
+                      <span className="text-gray-800">${(getTotalPrice() * 0.10).toFixed(2)}</span>
+                    </div>
                     <hr className="border-gray-200" />
-                    <div className="flex justify-between font-bold text-base"><span className="text-gray-900">Total</span><span className="text-primary-600">${(getTotalPrice() * 1.10).toFixed(2)} {event.currency || 'USD'}</span></div>
+                    <div className="flex justify-between font-bold text-base">
+                      <span className="text-gray-900">Total</span>
+                      <span className="text-primary-600">${(getTotalPrice() * 1.10).toFixed(2)} {event.currency || 'USD'}</span>
+                    </div>
                   </div>
                 </>
               )}
 
-              <button onClick={handleBuyTickets} className="btn-primary w-full py-3">
+              <button onClick={handleBuyTickets} className="btn-primary w-full py-3 font-bold uppercase tracking-wide text-sm">
                 COMPRAR TICKETS
               </button>
               <p className="text-[10px] text-gray-400 text-center">Pagos seguros procesados por Stripe</p>
