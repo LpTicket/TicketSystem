@@ -22,9 +22,12 @@ export class OrdersController {
     private readonly configService: ConfigService,
     private readonly walletService: WalletService,
   ) {
-    this.stripe = new Stripe(this.configService.get('STRIPE_SECRET_KEY') || '', {
-      apiVersion: '2024-12-18.acacia' as any,
-    });
+    const key = this.configService.get('STRIPE_SECRET_KEY');
+    if (key) {
+      this.stripe = new Stripe(key, {
+        apiVersion: '2024-12-18.acacia' as any,
+      });
+    }
   }
 
   @UseGuards(AuthGuard('jwt'))

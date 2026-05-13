@@ -32,10 +32,12 @@ export class OrdersService {
     private readonly mailService: MailService,
   ) {
     const key = this.configService.get('STRIPE_SECRET_KEY');
-    console.log('Stripe Key Loaded:', key ? `${key.substring(0, 7)}...${key.substring(key.length - 4)}` : 'MISSING');
-    this.stripe = new Stripe(key || '', {
-      apiVersion: '2024-12-18.acacia' as any,
-    });
+    console.log('Stripe Key Loaded:', key ? `${key.substring(0, 7)}...${key.substring(key.length - 4)}` : 'MISSING - Stripe payments will be disabled');
+    if (key) {
+      this.stripe = new Stripe(key, {
+        apiVersion: '2024-12-18.acacia' as any,
+      });
+    }
   }
 
   getSeatPrice(seat: Seat): number {
