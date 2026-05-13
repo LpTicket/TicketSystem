@@ -37,7 +37,14 @@ export default function VerifyTicketPage() {
   const [validating, setValidating] = useState(false);
   const [result, setResult] = useState<{ valid: boolean; message: string } | null>(null);
 
-  useEffect(() => { loadTicket(); }, [code]);
+  useEffect(() => { 
+    loadTicket(); 
+    // Clear cart for this event if it exists
+    if (ticket?.eventId) {
+      localStorage.removeItem(`selectedSeats_${ticket.eventId}`);
+      window.dispatchEvent(new Event('cart-updated'));
+    }
+  }, [code, ticket?.eventId]);
 
 
 
@@ -160,8 +167,7 @@ export default function VerifyTicketPage() {
 
           {/* Right vertical bar */}
           <div className="hidden md:flex print:flex flex-col w-6 print:w-4 h-48 shrink-0 absolute right-0 top-0">
-            <div className="bg-orange-600 h-3/4 w-full"></div>
-            <div className="bg-orange-400 h-1/4 w-full"></div>
+            <div className="bg-orange-500 h-full w-full"></div>
           </div>
         </div>
 
@@ -189,8 +195,7 @@ export default function VerifyTicketPage() {
           
           {/* Left Vertical Bar */}
           <div className="hidden md:flex print:flex flex-col w-4 print:w-3 h-full min-h-[160px] print:min-h-[120px] shrink-0 absolute left-0 top-8 print:top-4">
-            <div className="bg-orange-400 h-1/6 w-full"></div>
-            <div className="bg-orange-600 h-5/6 w-full"></div>
+            <div className="bg-orange-500 h-full w-full"></div>
           </div>
 
           {/* Terms */}

@@ -135,7 +135,8 @@ export default function PurchasePage() {
                     await api.post('/events/seats/lock', { seatIds: valid.map((s: any) => s.id) });
                     setSeatsLocked(true);
                     setStep('info');
-                  } catch {
+                  } catch (err: any) {
+                    console.error('Auto-lock failed:', err);
                     setStep('seats');
                   }
                 }

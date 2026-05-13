@@ -265,15 +265,44 @@ export default function EventDetailPage() {
                   <hr className="border-gray-200" />
                   <div className="space-y-1">
                     <div className="text-xs text-gray-500 mb-1">Asientos seleccionados:</div>
-                    {selectedSeats.map((seat) => {
-                      const section = seatMap.find((s) => s.id === seat.sectionId);
+                    {(() => {
+                      // Group standing tickets by section
+                      const standingGroups: Record<string, any[]> = {};
+                      const regularSeats: any[] = [];
+                      
+                      selectedSeats.forEach(seat => {
+                        const section = seatMap.find(s => s.id === seat.sectionId);
+                        if (section?.sectionType === 'standing') {
+                          if (!standingGroups[section.id!]) standingGroups[section.id!] = [];
+                          standingGroups[section.id!].push(seat);
+                        } else {
+                          regularSeats.push(seat);
+                        }
+                      });
+
                       return (
-                        <div key={seat.id} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">{section?.name} — {seat.rowLabel}{seat.seatNumber}</span>
-                          <span className="font-medium text-gray-800">${getSeatPrice(seat, section).toFixed(2)}</span>
-                        </div>
+                        <>
+                          {Object.entries(standingGroups).map(([secId, seats]) => {
+                            const section = seatMap.find(s => s.id === secId);
+                            return (
+                              <div key={secId} className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600">{seats.length}x {section?.name}</span>
+                                <span className="font-medium text-gray-800">${(Number(section?.price || 0) * seats.length).toFixed(2)}</span>
+                              </div>
+                            );
+                          })}
+                          {regularSeats.map((seat) => {
+                            const section = seatMap.find((s) => s.id === seat.sectionId);
+                            return (
+                              <div key={seat.id} className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600">{section?.name} — {seat.rowLabel}{seat.seatNumber}</span>
+                                <span className="font-medium text-gray-800">${getSeatPrice(seat, section).toFixed(2)}</span>
+                              </div>
+                            );
+                          })}
+                        </>
                       );
-                    })}
+                    })()}
                   </div>
                   <hr className="border-gray-200" />
                   <div className="space-y-1">

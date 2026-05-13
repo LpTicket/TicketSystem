@@ -30,6 +30,16 @@ function SuccessContent() {
           params: { sessionId }
         });
         setTickets(myTickets); // Show only recent ones from this session
+        
+        // Clear cart for all events in this session
+        if (myTickets && myTickets.length > 0) {
+          const eventIds = Array.from(new Set(myTickets.map((t: any) => t.eventId)));
+          eventIds.forEach(id => {
+            localStorage.removeItem(`selectedSeats_${id}`);
+          });
+          window.dispatchEvent(new Event('cart-updated'));
+        }
+
         setLoading(false);
       } catch (err) {
         console.error(err);

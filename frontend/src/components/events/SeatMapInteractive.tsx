@@ -190,6 +190,21 @@ export default function SeatMapInteractive({
   const handleSectionClick = (section: VenueSection) => {
     if (focusedSection === section.id) return;
     setFocusedSection(section.id!);
+
+    // If standing, auto-select 1 if none selected
+    if (section.sectionType === 'standing') {
+      const currentQty = selectedSeats.filter(s => s.sectionId === section.id).length;
+      if (currentQty === 0) {
+        onToggleSeats([{
+          id: `standing-${section.id}-1-${Date.now()}`,
+          sectionId: section.id!,
+          rowLabel: 'GA',
+          seatNumber: 1,
+          status: SeatStatus.AVAILABLE,
+        }]);
+      }
+    }
+
     if (containerRef.current) {
       const cw = containerRef.current.clientWidth;
       const ch = containerRef.current.clientHeight;
@@ -868,12 +883,55 @@ export default function SeatMapInteractive({
                     {sections.find((s) => s.id === focusedSection)?.name}
                   </h3>
                   <p className="text-sm text-gray-400">
-                    {sections.find((s) => s.id === focusedSection)?.seats?.filter((s) => s.status === SeatStatus.AVAILABLE).length} available seats
+                    {(() => {
+                      const sec = sections.find((s) => s.id === focusedSection);
+                      if (sec?.sectionType === 'standing') return lang === 'es' ? 'Entrada General' : 'General Admission';
+                      return `${sec?.seats?.filter((s) => s.status === SeatStatus.AVAILABLE).length} ${lang === 'es' ? 'asientos disponibles' : 'available seats'}`;
+                    })()}
                   </p>
                 </div>
               </div>
-              <div className="hidden sm:block">
-                <p className="text-xs text-gray-400 font-medium">Select your seats above</p>
+              <div className="flex-1 flex justify-center">
+                {sections.find((s) => s.id === focusedSection)?.sectionType === 'standing' ? (
+                  <div className="flex items-center gap-4 bg-white/10 rounded-2xl p-1.5 px-4 border border-white/10">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const current = selectedSeats.filter(s => s.sectionId === focusedSection);
+                        if (current.length > 1) onToggleSeats([current[current.length - 1]]);
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-all active:scale-90 font-bold text-lg"
+                    >
+                      －
+                    </button>
+                    <div className="flex flex-col items-center min-w-[40px]">
+                      <span className="text-xl font-black">{selectedSeats.filter(s => s.sectionId === focusedSection).length}</span>
+                      <span className="text-[9px] uppercase tracking-tighter text-gray-400 font-bold">Tickets</span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const current = selectedSeats.filter(s => s.sectionId === focusedSection);
+                        if (current.length < 10) {
+                          onToggleSeats([{
+                            id: `standing-${focusedSection}-${current.length + 1}-${Date.now()}`,
+                            sectionId: focusedSection,
+                            rowLabel: 'GA',
+                            seatNumber: current.length + 1,
+                            status: SeatStatus.AVAILABLE,
+                          }]);
+                        }
+                      }}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-primary-500 hover:bg-primary-600 transition-all active:scale-90 font-bold text-lg"
+                    >
+                      ＋
+                    </button>
+                  </div>
+                ) : (
+                  <div className="hidden sm:block">
+                    <p className="text-xs text-gray-400 font-medium">{lang === 'es' ? 'Selecciona tus asientos arriba' : 'Select your seats above'}</p>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
