@@ -96,24 +96,24 @@ export default function RegisterContent() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">{t('firstName')}</label>
-              <input type="text" value={form.firstName} onChange={update('firstName')} className="input" placeholder="Juan" required />
+              <input type="text" value={form.firstName} onChange={update('firstName')} className="input" placeholder={t('firstNamePlaceholder' as any)} required />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">{t('lastName')}</label>
-              <input type="text" value={form.lastName} onChange={update('lastName')} className="input" placeholder="Pérez" required />
+              <input type="text" value={form.lastName} onChange={update('lastName')} className="input" placeholder={t('lastNamePlaceholder' as any)} required />
             </div>
           </div>
 
           {/* Phone */}
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">{t('phone')}</label>
-            <input type="tel" value={form.phone} onChange={update('phone')} className="input" placeholder="+1 (555) 000-0000" required />
+            <input type="tel" value={form.phone} onChange={update('phone')} className="input" placeholder={t('phonePlaceholder' as any)} required />
           </div>
 
           {/* Email */}
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">{t('email')}</label>
-            <input type="email" value={form.email} onChange={update('email')} className="input" placeholder="correo@ejemplo.com" required />
+            <input type="email" value={form.email} onChange={update('email')} className="input" placeholder={t('emailPlaceholder' as any)} required />
           </div>
 
           {/* Address */}
@@ -123,7 +123,7 @@ export default function RegisterContent() {
               value={form.address} 
               onChange={(e: any) => update('address')(e)} 
               className="input min-h-[80px] py-2 resize-none" 
-              placeholder="Calle, Ciudad, Estado, ZIP" 
+              placeholder={t('addressPlaceholder' as any)} 
               required 
             />
           </div>

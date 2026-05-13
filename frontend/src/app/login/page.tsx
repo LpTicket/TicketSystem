@@ -66,7 +66,7 @@ function LoginContent() {
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">{t('email')}</label>
             <div className="relative">
               <HiOutlineMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400 z-10" />
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input !pl-11" placeholder="correo@ejemplo.com" required />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input !pl-11" placeholder={t('emailPlaceholder' as any)} required />
             </div>
           </div>
 

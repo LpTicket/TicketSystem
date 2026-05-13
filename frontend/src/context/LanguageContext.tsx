@@ -68,6 +68,11 @@ const translations = {
     refresh: 'Refrescar',
     clickToRefresh: 'Clic para refrescar',
     enterCode: 'Escribe el código',
+    firstNamePlaceholder: 'Juan',
+    lastNamePlaceholder: 'Pérez',
+    emailPlaceholder: 'correo@ejemplo.com',
+    phonePlaceholder: '+1 (555) 000-0000',
+    addressPlaceholder: 'Calle, Ciudad, Estado, ZIP',
 
     // Errors
     registerError: 'Error al registrarse',
@@ -301,6 +306,11 @@ const translations = {
     refresh: 'Refresh',
     clickToRefresh: 'Click to refresh',
     enterCode: 'Enter the code',
+    firstNamePlaceholder: 'John',
+    lastNamePlaceholder: 'Doe',
+    emailPlaceholder: 'email@example.com',
+    phonePlaceholder: '+1 (555) 000-0000',
+    addressPlaceholder: 'Street, City, State, ZIP',
 
     // Errors
     registerError: 'Registration error',
