@@ -92,6 +92,16 @@ export class OrdersService {
         if (!seat) throw new NotFoundException('Asiento no encontrado');
         if (seat.status === SeatStatus.SOLD) throw new BadRequestException('Asiento ya vendido');
 
+        // Verify if seat is locked by someone else and lock has not expired
+        if (
+          seat.status === SeatStatus.LOCKED &&
+          seat.lockedBy !== userId &&
+          seat.lockExpiresAt &&
+          new Date() < seat.lockExpiresAt
+        ) {
+          throw new BadRequestException('Asiento reservado por otro usuario');
+        }
+
         const price = this.getSeatPrice(seat);
         baseTotal += price;
         seatsInfo.push({
@@ -107,6 +117,21 @@ export class OrdersService {
       // Standing/general admission
       const section = await this.sectionRepo.findOne({ where: { id: sectionId } });
       if (!section) throw new NotFoundException('Sección no encontrada');
+
+      // Check if quantity exceeds capacity
+      if (section.capacity && section.capacity > 0) {
+        const { In } = require('typeorm');
+        const soldTicketsCount = await this.ticketRepo.count({
+          where: {
+            sectionId: section.id,
+            status: In([TicketStatus.ACTIVE, TicketStatus.USED])
+          }
+        });
+        
+        if (soldTicketsCount + quantity > section.capacity) {
+          throw new BadRequestException(`Capacidad agotada o insuficiente. Solo quedan ${section.capacity - soldTicketsCount} boletos disponibles en esta sección.`);
+        }
+      }
 
       const price = Number(section.price);
       baseTotal = price * quantity;

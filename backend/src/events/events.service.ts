@@ -445,12 +445,41 @@ export class EventsService {
 
     // Recalculate min/max prices from updated sections
     const finalSections = await this.sectionRepo.find({ where: { eventId } });
-    const prices = finalSections.map((s) => Number(s.price));
-    if (prices.length > 0) {
-      const minPrice = Math.min(...prices);
-      const maxPrice = Math.max(...prices);
-      await this.eventRepo.update(eventId, { minPrice, maxPrice });
+    let minPrice = Infinity;
+    let maxPrice = -Infinity;
+
+    for (const s of finalSections) {
+      let config: any = {};
+      try {
+        if (s.seatsConfig) config = JSON.parse(s.seatsConfig);
+      } catch (e) {}
+
+      const hasSeats = await this.seatRepo.count({ where: { sectionId: s.id } });
+      
+      if (hasSeats === 0) {
+        // General Admission section
+        const p = Number(s.price);
+        if (p < minPrice) minPrice = p;
+        if (p > maxPrice) maxPrice = p;
+      } else {
+        // Seated section
+        const seats = await this.seatRepo.find({ where: { sectionId: s.id } });
+        for (const seat of seats) {
+          const key = s.sectionType === 'table' ? `seat-${seat.seatNumber}` : `${seat.rowLabel}-${seat.seatNumber}`;
+          const seatPrice = (config[key] && config[key].price !== undefined && config[key].price !== null) 
+            ? Number(config[key].price) 
+            : Number(s.price);
+            
+          if (seatPrice < minPrice) minPrice = seatPrice;
+          if (seatPrice > maxPrice) maxPrice = seatPrice;
+        }
+      }
     }
+
+    if (minPrice === Infinity) minPrice = 0;
+    if (maxPrice === -Infinity) maxPrice = 0;
+
+    await this.eventRepo.update(eventId, { minPrice, maxPrice });
 
     return this.getSeatMap(eventId);
   }
@@ -520,14 +549,19 @@ export class EventsService {
       if (seat.status === SeatStatus.SOLD) {
         throw new ForbiddenException(`Asiento ${seat.rowLabel}${seat.seatNumber} ya vendido`);
       }
-      if (seat.status === SeatStatus.LOCKED && seat.lockedBy !== userId) {
+      if (seat.status === SeatStatus.LOCKED && seat.lockedBy !== userId && seat.lockExpiresAt && new Date() < seat.lockExpiresAt) {
         throw new ForbiddenException(`Asiento ${seat.rowLabel}${seat.seatNumber} no disponible`);
       }
 
-      seat.status = SeatStatus.LOCKED;
-      seat.lockedBy = userId;
-      seat.lockExpiresAt = lockExpiry;
-      await this.seatRepo.save(seat);
+      // Atomic update to prevent race conditions
+      const updateResult = await this.seatRepo.update(
+        { id: seatId, status: seat.status, lockedBy: seat.lockedBy },
+        { status: SeatStatus.LOCKED, lockedBy: userId, lockExpiresAt: lockExpiry }
+      );
+      
+      if (updateResult.affected === 0) {
+        throw new ForbiddenException(`Asiento ${seat.rowLabel}${seat.seatNumber} no disponible (modificado por otra transacción)`);
+      }
     }
 
     return { message: 'Asientos bloqueados', expiresAt: lockExpiry };

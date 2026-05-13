@@ -95,7 +95,7 @@ export default function Header() {
 
   return (
     <>
-    <header className="sticky top-0 z-50 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-b border-gray-200/50">
+    <header className="sticky top-0 z-50 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-b border-gray-200/50 print:hidden">
       <div className="max-w-[1400px] mx-auto px-3 sm:px-6 md:px-8">
         <div className="flex lg:grid lg:grid-cols-3 items-center justify-between h-20">
           
@@ -267,7 +267,7 @@ export default function Header() {
     
     {/* Floating Shopping Cart Popup (Bottom Right) - Fixed position stable sibling */}
     {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && !pathname.includes('/login') && !pathname.includes('/register') && (
-      <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3">
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3 print:hidden">
         {cartDropdown && (
           <div className="w-80 bg-white rounded-3xl shadow-elevated border border-gray-100 p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden">
             {/* Header */}
