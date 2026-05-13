@@ -6,8 +6,6 @@ import api from '@/lib/api';
 import { useLang } from '@/context/LanguageContext';
 import { useCategories } from '@/context/CategoryContext';
 import {
-  HiOutlinePlusCircle,
-  HiOutlineTrash,
   HiOutlineArrowLeft,
   HiOutlinePhotograph,
   HiOutlineMap,
@@ -15,26 +13,6 @@ import {
 } from 'react-icons/hi';
 import Link from 'next/link';
 import VenueMapBuilder from '@/components/events/VenueMapBuilder';
-
-interface SectionForm {
-  name: string;
-  sectionType: string;
-  rows: number;
-  seatsPerRow: number;
-  price: number;
-  color: string;
-}
-
-const DEFAULT_SECTION: SectionForm = {
-  name: '',
-  sectionType: 'seated',
-  rows: 5,
-  seatsPerRow: 10,
-  price: 25,
-  color: '#f97316',
-};
-
-const SECTION_COLORS = ['#f97316', '#3b82f6', '#10b981', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#6366f1'];
 
 export default function CreateEventPage() {
   const router = useRouter();
@@ -53,7 +31,6 @@ export default function CreateEventPage() {
     doorsOpen: '',
   });
 
-  const [sections, setSections] = useState<SectionForm[]>([{ ...DEFAULT_SECTION }]);
   const [hasSeatMap, setHasSeatMap] = useState(true);
   const [step, setStep] = useState<1 | 2>(1);
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
@@ -65,22 +42,6 @@ export default function CreateEventPage() {
   const [bannerPreview, setBannerPreview] = useState('');
 
   const updateForm = (field: string, value: string) => setForm({ ...form, [field]: value });
-
-  const addSection = () => {
-    const colorIndex = sections.length % SECTION_COLORS.length;
-    setSections([...sections, { ...DEFAULT_SECTION, color: SECTION_COLORS[colorIndex] }]);
-  };
-
-  const removeSection = (index: number) => {
-    if (sections.length <= 1) return;
-    setSections(sections.filter((_, i) => i !== index));
-  };
-
-  const updateSection = (index: number, field: string, value: any) => {
-    const updated = [...sections];
-    updated[index] = { ...updated[index], [field]: value };
-    setSections(updated);
-  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -142,11 +103,16 @@ export default function CreateEventPage() {
         });
       }
 
-      // 3. Create sections
-      for (const sec of sections) {
-        if (sec.name.trim()) {
-          await api.post(`/events/${event.id}/sections`, sec);
-        }
+      // 3. Create default section if not using an interactive seat map
+      if (!hasSeatMap) {
+        await api.post(`/events/${event.id}/sections`, {
+          name: lang === 'es' ? 'Entrada General' : 'General Admission',
+          sectionType: 'standing',
+          rows: 1,
+          seatsPerRow: 500,
+          price: 25,
+          color: '#3b82f6',
+        });
       }
 
       if (hasSeatMap) {
@@ -282,7 +248,7 @@ export default function CreateEventPage() {
               </div>
             </div>
 
-            {/* NEW: Seat Map Toggle & Section Builder */}
+            {/* NEW: Seat Map Toggle */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm space-y-6">
               <div className="flex items-center gap-3 p-4 bg-blue-50/40 border border-blue-100 rounded-xl">
                 <input
@@ -296,129 +262,6 @@ export default function CreateEventPage() {
                   <span className="block text-sm font-bold text-gray-900">{lang === 'es' ? 'Habilitar Mapa de Asientos Interactivo' : 'Enable Interactive Seating Chart'}</span>
                   <span className="block text-xs text-gray-500">{lang === 'es' ? 'Permite a los compradores elegir asientos específicos sobre un diseño gráfico interactivo.' : 'Allows buyers to choose specific seats on an interactive graphic layout.'}</span>
                 </label>
-              </div>
-
-              <div className="border-t border-gray-100 pt-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="font-bold text-xl text-gray-900">{lang === 'es' ? 'Secciones de Entradas' : 'Ticket Sections'}</h2>
-                    <p className="text-gray-500 text-sm">{lang === 'es' ? 'Define las áreas y precios de las entradas para tu evento.' : 'Define areas and ticket prices for your event.'}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={addSection}
-                    className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
-                  >
-                    <HiOutlinePlusCircle className="w-4 h-4" />
-                    {lang === 'es' ? 'Agregar Sección' : 'Add Section'}
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {sections.map((sec, idx) => (
-                    <div key={idx} className="p-5 rounded-xl border border-gray-200 bg-gray-50/50 space-y-4 relative animate-fade-in">
-                      {sections.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeSection(idx)}
-                          className="absolute top-4 right-4 text-red-500 hover:text-red-700 p-1.5 rounded-full hover:bg-red-50 transition-colors"
-                          title={lang === 'es' ? 'Eliminar Sección' : 'Remove Section'}
-                        >
-                          <HiOutlineTrash className="w-5 h-5" />
-                        </button>
-                      )}
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {/* Section Name */}
-                        <div className="sm:col-span-1">
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'es' ? 'Nombre de la Sección *' : 'Section Name *'}</label>
-                          <input
-                            type="text"
-                            value={sec.name}
-                            onChange={(e) => updateSection(idx, 'name', e.target.value)}
-                            className="input py-2 text-sm"
-                            placeholder={lang === 'es' ? 'Ej: General, VIP' : 'Ex: General, VIP'}
-                            required
-                          />
-                        </div>
-
-                        {/* Section Type */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'es' ? 'Tipo' : 'Type'}</label>
-                          <select
-                            value={sec.sectionType}
-                            onChange={(e) => updateSection(idx, 'sectionType', e.target.value)}
-                            className="input py-2 text-sm"
-                          >
-                            <option value="standing">{lang === 'es' ? 'De Pie (Aforo General)' : 'Standing (GA)'}</option>
-                            <option value="seated">{lang === 'es' ? 'Asientos Numerados' : 'Numbered Seating'}</option>
-                            <option value="table">{lang === 'es' ? 'Mesas con Sillas' : 'Tables with Chairs'}</option>
-                            <option value="vip">{lang === 'es' ? 'VIP' : 'VIP'}</option>
-                          </select>
-                        </div>
-
-                        {/* Price */}
-                        <div>
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'es' ? 'Precio de la Entrada *' : 'Ticket Price *'}</label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                            <input
-                              type="number"
-                              value={sec.price}
-                              onChange={(e) => updateSection(idx, 'price', parseFloat(e.target.value) || 0)}
-                              className="w-full py-2 pl-8 pr-3 text-sm border border-gray-300 rounded-md focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-colors"
-                              min="0"
-                              step="0.01"
-                              required
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Show rows / capacity fields based on type */}
-                      {sec.sectionType !== 'standing' ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'es' ? 'Filas' : 'Rows'}</label>
-                            <input
-                              type="number"
-                              value={sec.rows}
-                              onChange={(e) => updateSection(idx, 'rows', parseInt(e.target.value, 10) || 1)}
-                              className="input py-2 text-sm"
-                              min="1"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'es' ? 'Asientos por Fila' : 'Seats per Row'}</label>
-                            <input
-                              type="number"
-                              value={sec.seatsPerRow}
-                              onChange={(e) => updateSection(idx, 'seatsPerRow', parseInt(e.target.value, 10) || 1)}
-                              className="input py-2 text-sm"
-                              min="1"
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="pt-4 border-t border-gray-100">
-                          <label className="block text-xs font-bold text-gray-700 mb-1">{lang === 'es' ? 'Capacidad (Aforo)' : 'Capacity (Max Attendees)'}</label>
-                          <input
-                            type="number"
-                            value={sec.rows * sec.seatsPerRow}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value, 10) || 1;
-                              updateSection(idx, 'rows', 1);
-                              updateSection(idx, 'seatsPerRow', val);
-                            }}
-                            className="input py-2 text-sm"
-                            min="1"
-                            placeholder="Aforo máximo"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
