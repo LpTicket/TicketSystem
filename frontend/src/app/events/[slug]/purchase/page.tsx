@@ -101,29 +101,28 @@ export default function PurchasePage() {
   }, [user]);
 
   const loadEvent = async () => {
+    setLoading(true);
     try {
-      const { data } = await api.get(`/events/${slug}`);
-      setEvent(data);
-      if (data.id) {
-        const { data: map } = await api.get(`/events/${data.id}/seatmap`);
+      const { data: evData } = await api.get(`/events/${slug}`);
+      setEvent(evData);
+      
+      let finalMap = [];
+      if (evData.id) {
+        const { data: map } = await api.get(`/events/${evData.id}/seatmap`);
         setSeatMap(map);
+        finalMap = map;
       }
-    } catch { router.push('/events'); }
-    finally { setLoading(false); }
-  };
 
-  useEffect(() => {
-    if (event?.id && seatMap.length > 0 && !hasLoadedSaved) {
-      const saved = localStorage.getItem(`selectedSeats_${event.id}`);
-      if (saved) {
+      // ── Cart Initialization (Skip steps if already selected) ──
+      const saved = localStorage.getItem(`selectedSeats_${evData.id}`);
+      if (saved && !hasLoadedSaved) {
         try {
           const parsed = JSON.parse(saved);
           if (parsed && parsed.length > 0) {
-            // Filter out items older than 10 minutes
             const valid = parsed.filter((s: any) => !s.addedAt || (Date.now() - s.addedAt < 10 * 60 * 1000));
             if (valid.length > 0) {
               const firstSeat = valid[0];
-              const section = seatMap.find((s) => s.id === firstSeat.sectionId);
+              const section = finalMap.find((s: any) => s.id === firstSeat.sectionId);
               if (section) {
                 setSelectedSection(section);
                 if (section.sectionType === 'standing') {
@@ -131,27 +130,33 @@ export default function PurchasePage() {
                   setStep('info');
                 } else {
                   setSelectedSeats(valid);
-                  // Auto-lock and skip to info
-                  api.post('/events/seats/lock', { seatIds: valid.map((s: any) => s.id) })
-                    .then(() => {
-                      setSeatsLocked(true);
-                      setStep('info');
-                    })
-                    .catch(() => {
-                      setStep('seats'); // if lock fails, let them pick again
-                    });
+                  // Try to lock and go to info, if fails stay at seats
+                  try {
+                    await api.post('/events/seats/lock', { seatIds: valid.map((s: any) => s.id) });
+                    setSeatsLocked(true);
+                    setStep('info');
+                  } catch {
+                    setStep('seats');
+                  }
                 }
               }
             } else {
-              localStorage.removeItem(`selectedSeats_${event.id}`);
+              localStorage.removeItem(`selectedSeats_${evData.id}`);
               window.dispatchEvent(new Event('cart-updated'));
             }
           }
         } catch (e) {}
+        setHasLoadedSaved(true);
       }
-      setHasLoadedSaved(true);
+    } catch { 
+      router.push('/events'); 
+    } finally { 
+      setLoading(false); 
     }
-  }, [event, seatMap, hasLoadedSaved]);
+  };
+
+  // ── Handled in loadEvent for better performance and no flicker ──
+
 
   // ── Step navigation ────────────────────────────────────────────────────────
   const stepIndex = STEPS.findIndex((s) => s.key === step);
