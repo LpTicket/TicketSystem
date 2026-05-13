@@ -670,6 +670,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           curve: Number(s.curve) || 0,
           isWheelchair: !!s.isWheelchair,
           tableShape: s.tableShape || 'round',
+          tablePurchaseMode: s.tablePurchaseMode || 'individual',
           seatsConfig: s.seatsConfig || null,
         };
         
@@ -980,26 +981,28 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                     </label>
 
                     {/* Individual Price override */}
-                    <div className="bg-white p-3 rounded border border-blue-200 shadow-sm space-y-1.5">
-                      <label className="block text-[11px] font-bold text-[#1e3a8a]">
-                        {lang === 'es' ? 'Precio de este asiento ($)' : 'Price of this seat ($)'}
-                      </label>
-                      <input 
-                        type="number"
-                        placeholder={String(selectedSection.price || 0)}
-                        value={seatOverride.price !== undefined && seatOverride.price !== null ? seatOverride.price : ''}
-                        onChange={e => {
-                          const val = e.target.value === '' ? undefined : +e.target.value;
-                          updateSeatConfig(selectedSection.id!, seatKey, 'price', val);
-                        }}
-                        className="w-full bg-white border border-gray-300 rounded px-2.5 py-1 text-xs focus:border-blue-500 outline-none font-medium text-gray-800"
-                      />
-                      <span className="text-[10px] text-gray-400 block leading-tight">
-                        {lang === 'es' 
-                          ? 'Dejar vacío para usar el precio general de la sección.' 
-                          : 'Leave blank to use the general section price.'}
-                      </span>
-                    </div>
+                    {selectedSection.tablePurchaseMode !== 'whole' && (
+                      <div className="bg-white p-3 rounded border border-blue-200 shadow-sm space-y-1.5">
+                        <label className="block text-[11px] font-bold text-[#1e3a8a]">
+                          {lang === 'es' ? 'Precio de este asiento ($)' : 'Price of this seat ($)'}
+                        </label>
+                        <input 
+                          type="number"
+                          placeholder={String(selectedSection.price || 0)}
+                          value={seatOverride.price !== undefined && seatOverride.price !== null ? seatOverride.price : ''}
+                          onChange={e => {
+                            const val = e.target.value === '' ? undefined : +e.target.value;
+                            updateSeatConfig(selectedSection.id!, seatKey, 'price', val);
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded px-2.5 py-1 text-xs focus:border-blue-500 outline-none font-medium text-gray-800"
+                        />
+                        <span className="text-[10px] text-gray-400 block leading-tight">
+                          {lang === 'es' 
+                            ? 'Dejar vacío para usar el precio general de la sección.' 
+                            : 'Leave blank to use the general section price.'}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Position Fine-tuning */}
@@ -1024,15 +1027,17 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                           className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs"
                         />
                       </div>
-                      <div>
-                        <label className="text-[10px] text-gray-500 block">{lang === 'es' ? 'Precio Individual' : 'Individual Price'}</label>
-                        <input 
-                          type="number" 
-                          value={seatOverride.price !== undefined ? seatOverride.price : selectedSection.price || 0}
-                          onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'price', +e.target.value)}
-                          className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-bold text-blue-600"
-                        />
-                      </div>
+                      {selectedSection.tablePurchaseMode !== 'whole' && (
+                        <div>
+                          <label className="text-[10px] text-gray-500 block">{lang === 'es' ? 'Precio Individual' : 'Individual Price'}</label>
+                          <input 
+                            type="number" 
+                            value={seatOverride.price !== undefined ? seatOverride.price : selectedSection.price || 0}
+                            onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'price', +e.target.value)}
+                            className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-bold text-blue-600"
+                          />
+                        </div>
+                      )}
                     </div>
                     {(seatOverride.xOffset || seatOverride.yOffset || seatOverride.price !== undefined) ? (
                       <button 
@@ -1388,12 +1393,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 onClick={e => { 
                   if (hasMoved) return;
                   e.stopPropagation(); 
-                  if (selectedId === sec.id!) {
-                    setSelectedId(null);
-                    setSelectedSeat(null);
-                  } else {
-                    setSelectedId(sec.id!); 
-                  }
+                  setSelectedId(sec.id!); 
                 }}
                 style={{
                   position: 'absolute',
@@ -1472,12 +1472,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                             onClick={e => {
                               if (hasMoved) return;
                               e.stopPropagation();
-                              if (selectedSeat?.secId === sec.id! && selectedSeat?.seatKey === seatKey) {
-                                setSelectedSeat(null);
-                              } else {
-                                setSelectedSeat({ secId: sec.id!, seatKey });
-                                setSelectedId(sec.id!);
-                              }
+                              setSelectedSeat({ secId: sec.id!, seatKey });
+                              setSelectedId(sec.id!);
                             }}
                             style={{
                               left: x,
@@ -1544,12 +1540,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               onClick={e => {
                                 if (hasMoved) return;
                                 e.stopPropagation();
-                                if (selectedSeat?.secId === sec.id! && selectedSeat?.seatKey === seatKey) {
-                                  setSelectedSeat(null);
-                                } else {
-                                  setSelectedSeat({ secId: sec.id!, seatKey });
-                                  setSelectedId(sec.id!);
-                                }
+                                setSelectedSeat({ secId: sec.id!, seatKey });
+                                setSelectedId(sec.id!);
                               }}
                               style={{
                                 width: '20%',
@@ -1624,12 +1616,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               onClick={e => {
                                 if (hasMoved) return;
                                 e.stopPropagation();
-                                if (selectedSeat?.secId === sec.id! && selectedSeat?.seatKey === seatKey) {
-                                  setSelectedSeat(null);
-                                } else {
-                                  setSelectedSeat({ secId: sec.id!, seatKey });
-                                  setSelectedId(sec.id!);
-                                }
+                                setSelectedSeat({ secId: sec.id!, seatKey });
+                                setSelectedId(sec.id!);
                               }}
                               style={{
                                 width: '18%',

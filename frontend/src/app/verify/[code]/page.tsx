@@ -153,7 +153,7 @@ export default function VerifyTicketPage() {
             </div>
             
             {/* LPTicket Logo replacement */}
-            <div className="absolute bottom-0 right-10 text-3xl print:text-2xl font-black text-rose-600 tracking-tighter hidden md:block print:block">
+            <div className="absolute bottom-0 right-10 text-3xl print:text-2xl font-black text-orange-500 tracking-tighter hidden md:block print:block">
               LPTicket
             </div>
           </div>
@@ -161,7 +161,7 @@ export default function VerifyTicketPage() {
           {/* Right vertical bar */}
           <div className="hidden md:flex print:flex flex-col w-6 print:w-4 h-48 shrink-0 absolute right-0 top-0">
             <div className="bg-slate-900 h-3/4 w-full"></div>
-            <div className="bg-rose-600 h-1/4 w-full"></div>
+            <div className="bg-orange-500 h-1/4 w-full"></div>
           </div>
         </div>
 
@@ -192,7 +192,7 @@ export default function VerifyTicketPage() {
           
           {/* Left Vertical Bar */}
           <div className="hidden md:flex print:flex flex-col w-4 print:w-3 h-full min-h-[160px] print:min-h-[120px] shrink-0 absolute left-0 top-8 print:top-4">
-            <div className="bg-rose-600 h-1/6 w-full"></div>
+            <div className="bg-orange-500 h-1/6 w-full"></div>
             <div className="bg-slate-900 h-5/6 w-full"></div>
           </div>
 
@@ -209,7 +209,7 @@ export default function VerifyTicketPage() {
           {/* Socials & Branding */}
           <div className="w-full md:w-1/3 print:w-1/3 flex justify-between md:justify-around print:justify-around items-end md:items-start print:items-start shrink-0">
             <div className="space-y-2">
-              <div className="flex flex-col gap-0.5 text-rose-600 font-mono font-bold tracking-widest text-[8px] mb-3">
+              <div className="flex flex-col gap-0.5 text-orange-500 font-mono font-bold tracking-widest text-[8px] mb-3">
                 <span>≈≈≈≈≈≈≈</span>
                 <span className="text-slate-900">≈≈≈≈≈≈≈</span>
                 <span>≈≈≈≈≈≈≈</span>
@@ -222,12 +222,12 @@ export default function VerifyTicketPage() {
 
             <div className="text-right md:text-left print:text-left flex flex-col items-end md:items-start print:items-start border-l border-gray-200 pl-4 md:pl-6 print:pl-4 space-y-4 print:space-y-2">
               <div>
-                <span className="text-2xl font-black text-rose-600 tracking-tighter">LPTicket</span>
+                <span className="text-2xl font-black text-orange-500 tracking-tighter">LPTicket</span>
                 <p className="text-xs text-gray-500">Tus tickets.<br/>Tus eventos.</p>
               </div>
               <div>
                 <span className="text-lg font-black text-gray-900 block leading-tight">Thank<br/>You</span>
-                <p className="text-[10px] text-gray-500 mt-1">for using <strong className="text-rose-600">lpticket.com</strong></p>
+                <p className="text-[10px] text-gray-500 mt-1">for using <strong className="text-orange-500">lpticket.com</strong></p>
               </div>
             </div>
           </div>

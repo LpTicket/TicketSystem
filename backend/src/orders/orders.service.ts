@@ -92,6 +92,30 @@ export class OrdersService {
         if (!seat) throw new NotFoundException('Asiento no encontrado');
         if (seat.status === SeatStatus.SOLD) throw new BadRequestException('Asiento ya vendido');
 
+        if (seat.section.sectionType === 'table' && seat.section.tablePurchaseMode === 'whole') {
+          const tableSeats = await this.seatRepo.find({
+            where: { sectionId: seat.sectionId },
+          });
+          const overrides = seat.section.seatsConfig ? JSON.parse(seat.section.seatsConfig) : {};
+          const availableTableSeats = tableSeats.filter(s => {
+            const key = `seat-${s.seatNumber}`;
+            const isReserved = overrides[key]?.reserved || false;
+            const isDisabled = overrides[key]?.disabled || false;
+            if (isDisabled || isReserved) return false;
+            if (s.status === SeatStatus.SOLD) return false;
+            if (s.status === SeatStatus.LOCKED && s.lockedBy !== userId && s.lockExpiresAt && new Date() < s.lockExpiresAt) {
+              return false;
+            }
+            return true;
+          });
+          const missingSeatIds = availableTableSeats.filter(s => !seatIds.includes(s.id));
+          if (missingSeatIds.length > 0) {
+            throw new BadRequestException(
+              `La mesa "${seat.section.name}" se vende completa. Debes seleccionar todos sus asientos disponibles.`
+            );
+          }
+        }
+
         // Verify if seat is locked by someone else and lock has not expired
         if (
           seat.status === SeatStatus.LOCKED &&
@@ -277,6 +301,28 @@ export class OrdersService {
           relations: ['section'],
         });
         if (!seat) throw new NotFoundException('Asiento no encontrado');
+
+        if (seat.section.sectionType === 'table' && seat.section.tablePurchaseMode === 'whole') {
+          const tableSeats = await this.seatRepo.find({
+            where: { sectionId: seat.sectionId },
+          });
+          const overrides = seat.section.seatsConfig ? JSON.parse(seat.section.seatsConfig) : {};
+          const availableTableSeats = tableSeats.filter(s => {
+            const key = `seat-${s.seatNumber}`;
+            const isReserved = overrides[key]?.reserved || false;
+            const isDisabled = overrides[key]?.disabled || false;
+            if (isDisabled || isReserved) return false;
+            if (s.status === SeatStatus.SOLD) return false;
+            return true;
+          });
+          const missingSeatIds = availableTableSeats.filter(s => !seatIds.includes(s.id));
+          if (missingSeatIds.length > 0) {
+            throw new BadRequestException(
+              `La mesa "${seat.section.name}" se vende completa. Debes seleccionar todos sus asientos disponibles.`
+            );
+          }
+        }
+
         const price = this.getSeatPrice(seat);
         baseTotal += price;
         seatsInfo.push({

@@ -54,7 +54,7 @@ export default function EventDetailPage() {
   const [sections, setSections] = useState<VenueSection[]>([]);
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
-  const [activeTab, setActiveTab] = useState<'details' | 'overview' | 'attendees' | 'map' | 'blocks'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'overview' | 'attendees' | 'sales' | 'map' | 'blocks'>('details');
   const [selectedBlockSection, setSelectedBlockSection] = useState('');
   const [selectedBlockSeats, setSelectedBlockSeats] = useState<string[]>([]);
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
@@ -271,6 +271,21 @@ export default function EventDetailPage() {
     a.click();
   };
 
+  const exportSalesCSV = () => {
+    if (!sales?.orders) return;
+    const csv = [
+      lang === 'es' ? 'Cliente,Email,Cantidad Boletos,Total Pagado,Fecha' : 'Client,Email,Ticket Count,Total Paid,Date',
+      ...sales.orders.map((o: any) =>
+        `"${o.user?.firstName || ''} ${o.user?.lastName || ''}","${o.user?.email || ''}",${o.ticketCount},"${Number(o.total).toFixed(2)}","${format(new Date(o.createdAt), 'yyyy-MM-dd HH:mm')}"`
+      ),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `ventas-${event?.title || id}.csv`;
+    a.click();
+  };
+
   const dateFnsLocale = lang === 'es' ? es : enUS;
 
   const getStatusBadge = (status: string) => {
@@ -419,6 +434,14 @@ export default function EventDetailPage() {
           {attendees.length > 0 && <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] sm:text-xs shrink-0">{attendees.length}</span>}
         </button>
         <button
+          onClick={() => setActiveTab('sales')}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'sales' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <HiOutlineShoppingCart className="w-4 h-4 shrink-0" />
+          <span className="whitespace-nowrap">{lang === 'es' ? 'Ventas y Clientes' : 'Sales & Clients'}</span>
+          {sales?.orders && sales.orders.length > 0 && <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] sm:text-xs shrink-0">{sales.orders.length}</span>}
+        </button>
+        <button
           onClick={() => setActiveTab('map')}
           className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'map' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
@@ -547,6 +570,73 @@ export default function EventDetailPage() {
             <div className="px-6 py-16 text-center">
               <HiOutlineUsers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-600 text-sm">{lang === 'es' ? 'Aún no hay asistentes para este evento' : 'No attendees yet for this event'}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Sales Tab */}
+      {activeTab === 'sales' && (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          {sales?.orders && sales.orders.length > 0 ? (
+            <>
+              <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-b border-gray-200">
+                <p className="text-sm font-medium text-gray-700">
+                  {sales.orders.length} {lang === 'es' ? 'pedidos completados' : 'completed orders'}
+                </p>
+                <button onClick={exportSalesCSV} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5">
+                  <HiOutlineDownload className="w-4 h-4" />
+                  {lang === 'es' ? 'Exportar Excel / CSV' : 'Export Excel / CSV'}
+                </button>
+              </div>
+
+              {/* Desktop */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Cliente' : 'Client'}</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Correo Electrónico' : 'Email'}</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Cantidad Boletos' : 'Ticket Count'}</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Total Pagado' : 'Total Paid'}</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Fecha' : 'Date'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {sales.orders.map((o: any) => (
+                      <tr key={o.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 text-sm text-gray-900 font-bold">{o.user?.firstName} {o.user?.lastName}</td>
+                        <td className="px-4 py-4 text-sm text-gray-600">{o.user?.email}</td>
+                        <td className="px-4 py-4 text-sm text-gray-900 font-semibold text-center">{o.ticketCount}</td>
+                        <td className="px-4 py-4 text-sm text-primary-600 font-bold text-right">${Number(o.total).toFixed(2)}</td>
+                        <td className="px-4 py-4 text-xs text-gray-500 text-center">{format(new Date(o.createdAt), 'dd MMM yyyy HH:mm')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile */}
+              <div className="md:hidden divide-y divide-gray-100">
+                {sales.orders.map((o: any) => (
+                  <div key={o.id} className="p-4 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-gray-900 text-sm">{o.user?.firstName} {o.user?.lastName}</span>
+                      <span className="text-sm font-extrabold text-primary-600">${Number(o.total).toFixed(2)}</span>
+                    </div>
+                    <p className="text-xs text-gray-500">{o.user?.email}</p>
+                    <div className="flex justify-between text-xs text-gray-500 pt-1 border-t border-gray-50">
+                      <span>Boletos: <strong>{o.ticketCount}</strong></span>
+                      <span>{format(new Date(o.createdAt), 'dd MMM yyyy HH:mm')}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="px-6 py-16 text-center">
+              <HiOutlineShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-600 text-sm">{lang === 'es' ? 'Aún no hay ventas para este evento' : 'No sales yet for this event'}</p>
             </div>
           )}
         </div>

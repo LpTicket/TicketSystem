@@ -62,6 +62,7 @@ export default function PurchasePage() {
 
   // Step 2
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
+  const [standingQuantity, setStandingQuantity] = useState<number>(1);
   const [seatsLocked, setSeatsLocked] = useState(false);
 
   // Step 3 — personal info (pre-filled from user)
@@ -121,20 +122,25 @@ export default function PurchasePage() {
             // Filter out items older than 10 minutes
             const valid = parsed.filter((s: any) => !s.addedAt || (Date.now() - s.addedAt < 10 * 60 * 1000));
             if (valid.length > 0) {
-              setSelectedSeats(valid);
               const firstSeat = valid[0];
               const section = seatMap.find((s) => s.id === firstSeat.sectionId);
               if (section) {
                 setSelectedSection(section);
-                // Auto-lock and skip to info
-                api.post('/events/seats/lock', { seatIds: valid.map((s: any) => s.id) })
-                  .then(() => {
-                    setSeatsLocked(true);
-                    setStep('info');
-                  })
-                  .catch(() => {
-                    setStep('seats'); // if lock fails, let them pick again
-                  });
+                if (section.sectionType === 'standing') {
+                  setStandingQuantity(valid.length);
+                  setStep('info');
+                } else {
+                  setSelectedSeats(valid);
+                  // Auto-lock and skip to info
+                  api.post('/events/seats/lock', { seatIds: valid.map((s: any) => s.id) })
+                    .then(() => {
+                      setSeatsLocked(true);
+                      setStep('info');
+                    })
+                    .catch(() => {
+                      setStep('seats'); // if lock fails, let them pick again
+                    });
+                }
               }
             } else {
               localStorage.removeItem(`selectedSeats_${event.id}`);
@@ -164,18 +170,33 @@ export default function PurchasePage() {
   useEffect(() => {
     if (!event?.id || !hasLoadedSaved) return;
 
-    const cartData = selectedSeats.map(s => ({
-      ...s,
-      addedAt: (s as any).addedAt || Date.now(),
-      eventTitle: event.title,
-      eventSlug: event.slug,
-      eventDate: event.eventDate,
-      venueName: event.venueName,
-      currency: event.currency
-    }));
+    const cartData = selectedSection?.sectionType === 'standing'
+      ? Array.from({ length: standingQuantity }).map((_, i) => ({
+          id: `standing-${selectedSection.id}-${i + 1}`,
+          sectionId: selectedSection.id,
+          rowLabel: 'GA',
+          seatNumber: i + 1,
+          status: 'available',
+          addedAt: Date.now(),
+          eventTitle: event.title,
+          eventSlug: event.slug,
+          eventDate: event.eventDate,
+          venueName: event.venueName,
+          currency: event.currency
+        }))
+      : selectedSeats.map(s => ({
+          ...s,
+          addedAt: (s as any).addedAt || Date.now(),
+          eventTitle: event.title,
+          eventSlug: event.slug,
+          eventDate: event.eventDate,
+          venueName: event.venueName,
+          currency: event.currency
+        }));
+
     localStorage.setItem(`selectedSeats_${event.id}`, JSON.stringify(cartData));
     window.dispatchEvent(new Event('cart-updated'));
-  }, [selectedSeats, event, hasLoadedSaved]);
+  }, [selectedSeats, standingQuantity, selectedSection, event, hasLoadedSaved]);
 
   // ── Step 2: toggle seat ────────────────────────────────────────────────────
   const toggleSeats = useCallback((seats: Seat[]) => {
@@ -230,12 +251,15 @@ export default function PurchasePage() {
     // Load invoice preview
     setInvoiceLoading(true);
     try {
-      const { data } = await api.get('/orders/preview-invoice', {
-        params: {
-          eventId: event!.id,
-          seatIds: selectedSeats.map((s) => s.id).join(','),
-        },
-      });
+      const params: any = { eventId: event!.id };
+      if (selectedSection?.sectionType === 'standing') {
+        params.sectionId = selectedSection.id;
+        params.quantity = standingQuantity;
+      } else {
+        params.seatIds = selectedSeats.map((s) => s.id).join(',');
+      }
+
+      const { data } = await api.get('/orders/preview-invoice', { params });
       setInvoice({ ...data, currency: event?.currency || 'USD' });
       setStep('payment');
     } catch (err: any) {
@@ -249,10 +273,15 @@ export default function PurchasePage() {
   const handlePay = async () => {
     setBuying(true);
     try {
-      const { data } = await api.post('/orders/checkout', {
-        eventId: event!.id,
-        seatIds: selectedSeats.map((s) => s.id),
-      });
+      const payload: any = { eventId: event!.id };
+      if (selectedSection?.sectionType === 'standing') {
+        payload.sectionId = selectedSection.id;
+        payload.quantity = standingQuantity;
+      } else {
+        payload.seatIds = selectedSeats.map((s) => s.id);
+      }
+
+      const { data } = await api.post('/orders/checkout', payload);
       if (data.url) window.location.href = data.url;
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al procesar pago');
@@ -377,7 +406,7 @@ export default function PurchasePage() {
             <div className="bg-white rounded-lg border border-gray-200 p-5 step-panel">
               <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
                 <h2 className="font-bold text-base text-blue-600">
-                  Selecciona tus asientos — <span style={{ color: selectedSection.color }}>{selectedSection.name}</span>
+                  {selectedSection.sectionType === 'standing' ? 'Cantidad de entradas' : 'Selecciona tus asientos'} — <span style={{ color: selectedSection.color }}>{selectedSection.name}</span>
                 </h2>
                 <button
                   onClick={() => setStep('section')}
@@ -387,52 +416,107 @@ export default function PurchasePage() {
                 </button>
               </div>
 
-              <SeatMapInteractive
-                seatMap={seatMap}
-                selectedSeats={selectedSeats}
-                onToggleSeats={toggleSeats}
-                filterSectionId={selectedSection.id}
-                defaultViewX={event.defaultViewX}
-                defaultViewY={event.defaultViewY}
-                defaultViewZoom={event.defaultViewZoom}
-                showStage={event?.showStage}
-              />
+              {selectedSection.sectionType === 'standing' ? (
+                // Counter UI for standing sections
+                <div className="py-8 px-4 flex flex-col items-center justify-center space-y-6 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
+                  <div className="text-center">
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                      {lang === 'es' ? 'Entradas para este sector' : 'Tickets for this sector'}
+                    </p>
+                    <p className="text-xl font-extrabold text-gray-900">
+                      {selectedSection.name} — ${Number(selectedSection.price).toFixed(2)} {event.currency || 'USD'}
+                    </p>
+                  </div>
 
-              {/* Selected seats chips */}
-              {selectedSeats.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedSeats.map((seat) => {
-                    const sec = seatMap.find(s => s.id === seat.sectionId);
-                    return (
-                      <span key={seat.id} className="seat-chip">
-                        {selectedSection.name} {seat.rowLabel}{seat.seatNumber}
-                        <button onClick={() => {
-                          if (sec && sec.tablePurchaseMode === 'whole') {
-                            const allSeats = sec.seats || [];
-                            const tableSelectedSeats = allSeats.filter(s => selectedSeats.some(ss => ss.id === s.id));
-                            toggleSeats(tableSelectedSeats);
-                          } else {
-                            toggleSeats([seat]);
-                          }
-                        }}>×</button>
-                      </span>
-                    );
-                  })}
+                  <div className="flex items-center gap-6 bg-white border border-gray-200 rounded-2xl p-2.5 shadow-md">
+                    <button
+                      type="button"
+                      onClick={() => setStandingQuantity((q) => Math.max(1, q - 1))}
+                      disabled={standingQuantity <= 1}
+                      className="w-12 h-12 rounded-xl flex items-center justify-center border-2 border-gray-200 hover:border-blue-500 text-gray-600 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed font-extrabold text-xl transition-all active:scale-90"
+                    >
+                      －
+                    </button>
+                    <span className="text-2xl font-black text-gray-900 w-12 text-center select-none">
+                      {standingQuantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setStandingQuantity((q) => Math.min(10, q + 1))}
+                      disabled={standingQuantity >= 10}
+                      className="w-12 h-12 rounded-xl flex items-center justify-center border-2 border-gray-200 hover:border-blue-500 text-gray-600 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed font-extrabold text-xl transition-all active:scale-90"
+                    >
+                      ＋
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-gray-500 font-semibold bg-blue-50 border border-blue-100 text-blue-700 px-4 py-1.5 rounded-full shadow-sm">
+                    {lang === 'es' 
+                      ? 'Puedes seleccionar un máximo de 10 entradas por transacción' 
+                      : 'You can select a maximum of 10 tickets per transaction'}
+                  </p>
                 </div>
+              ) : (
+                <>
+                  <SeatMapInteractive
+                    seatMap={seatMap}
+                    selectedSeats={selectedSeats}
+                    onToggleSeats={toggleSeats}
+                    filterSectionId={selectedSection.id}
+                    defaultViewX={event.defaultViewX}
+                    defaultViewY={event.defaultViewY}
+                    defaultViewZoom={event.defaultViewZoom}
+                    showStage={event?.showStage}
+                  />
+
+                  {/* Selected seats chips */}
+                  {selectedSeats.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {selectedSeats.map((seat) => {
+                        const sec = seatMap.find(s => s.id === seat.sectionId);
+                        return (
+                          <span key={seat.id} className="seat-chip">
+                            {selectedSection.name} {seat.rowLabel}{seat.seatNumber}
+                            <button onClick={() => {
+                              if (sec && sec.tablePurchaseMode === 'whole') {
+                                const allSeats = sec.seats || [];
+                                const tableSelectedSeats = allSeats.filter(s => selectedSeats.some(ss => ss.id === s.id));
+                                toggleSeats(tableSelectedSeats);
+                              } else {
+                                toggleSeats([seat]);
+                              }
+                            }}>×</button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               )}
 
               <button
-                onClick={handleConfirmSeats}
-                disabled={selectedSeats.length === 0}
-                className="btn-primary w-full py-3 mt-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => {
+                  if (selectedSection.sectionType === 'standing') {
+                    setStep('info');
+                  } else {
+                    handleConfirmSeats();
+                  }
+                }}
+                disabled={selectedSection.sectionType !== 'standing' && selectedSeats.length === 0}
+                className="btn-primary w-full py-3 mt-4 disabled:opacity-40 disabled:cursor-not-allowed font-bold"
               >
-                {selectedSeats.length === 0
-                  ? 'Selecciona al menos 1 asiento'
-                  : `Reservar ${selectedSeats.length} asiento${selectedSeats.length > 1 ? 's' : ''} →`}
+                {selectedSection.sectionType === 'standing'
+                  ? 'Continuar →'
+                  : selectedSeats.length === 0
+                    ? 'Selecciona al menos 1 asiento'
+                    : `Reservar ${selectedSeats.length} asiento${selectedSeats.length > 1 ? 's' : ''} →`}
               </button>
-              <p className="text-[10px] text-gray-400 text-center mt-2">
-                *Una vez reservado, tendrás 10 minutos para completar el pago. De lo contrario los asientos serán liberados.
-              </p>
+
+              {selectedSection.sectionType !== 'standing' && (
+                <p className="text-[10px] text-gray-400 text-center mt-2">
+                  *Una vez reservado, tendrás 10 minutos para completar el pago. De lo contrario los asientos serán liberados.
+                </p>
+              )}
             </div>
           )}
 
@@ -528,22 +612,32 @@ export default function PurchasePage() {
         {/* ── Sidebar ─────────────────────────────────────────────────────── */}
         <div className="lg:col-span-1">
           <div className="sticky top-20 space-y-4">
-            {/* Selected seats summary */}
-            {selectedSeats.length > 0 && (
+            {/* Selected seats/tickets summary */}
+            {((selectedSection?.sectionType === 'standing' && standingQuantity > 0) || selectedSeats.length > 0) && (
               <div className="bg-white rounded-lg border border-gray-200 p-4">
                 <h3 className="font-bold text-sm text-gray-800 mb-2">
-                  {selectedSeats.length} asiento{selectedSeats.length > 1 ? 's' : ''} seleccionado{selectedSeats.length > 1 ? 's' : ''}
+                  {selectedSection?.sectionType === 'standing'
+                    ? `${standingQuantity} entrada${standingQuantity > 1 ? 's' : ''} seleccionada${standingQuantity > 1 ? 's' : ''}`
+                    : `${selectedSeats.length} asiento${selectedSeats.length > 1 ? 's' : ''} seleccionado${selectedSeats.length > 1 ? 's' : ''}`
+                  }
                 </h3>
                 <div className="space-y-1">
-                  {selectedSeats.map((seat) => {
-                    const sec = seatMap.find((s) => s.id === seat.sectionId);
-                    return (
-                      <div key={seat.id} className="flex justify-between text-xs">
-                        <span className="text-gray-600">{sec?.name} — {seat.rowLabel}{seat.seatNumber}</span>
-                        <span className="font-medium text-gray-800">${getSeatPrice(seat, sec).toFixed(2)}</span>
-                      </div>
-                    );
-                  })}
+                  {selectedSection?.sectionType === 'standing' ? (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-600">{selectedSection.name}</span>
+                      <span className="font-medium text-gray-800">${(Number(selectedSection.price) * standingQuantity).toFixed(2)}</span>
+                    </div>
+                  ) : (
+                    selectedSeats.map((seat) => {
+                      const sec = seatMap.find((s) => s.id === seat.sectionId);
+                      return (
+                        <div key={seat.id} className="flex justify-between text-xs">
+                          <span className="text-gray-600">{sec?.name} — {seat.rowLabel}{seat.seatNumber}</span>
+                          <span className="font-medium text-gray-800">${getSeatPrice(seat, sec).toFixed(2)}</span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
                 {invoice && (
                   <>
