@@ -120,11 +120,11 @@ export default function CreateEventPage() {
           {t('orgMyEvents')}
         </Link>
         <div className="flex items-center justify-between">
-          <h1 className="font-bold text-2xl lg:text-3xl text-gray-900">{step === 1 ? t('orgCreateEvent') : 'Diseño del Escenario'}</h1>
+          <h1 className="font-bold text-2xl lg:text-3xl text-gray-900">{step === 1 ? t('orgCreateEvent') : (lang === 'es' ? 'Diseño del Escenario' : 'Stage Design')}</h1>
           <div className="flex items-center gap-2 text-sm font-medium">
-            <span className={`px-4 py-1.5 rounded-full transition-colors ${step === 1 ? 'bg-primary-500 text-white shadow-md' : 'bg-gray-100 text-gray-500'}`}>1. Detalles</span>
+            <span className={`px-4 py-1.5 rounded-full transition-colors ${step === 1 ? 'bg-primary-500 text-white shadow-md' : 'bg-gray-100 text-gray-500'}`}>{lang === 'es' ? '1. Detalles' : '1. Details'}</span>
             <span className="text-gray-300 font-bold">/</span>
-            <span className={`px-4 py-1.5 rounded-full transition-colors ${step === 2 ? 'bg-primary-500 text-white shadow-md' : 'bg-gray-100 text-gray-500'}`}>2. Escenario</span>
+            <span className={`px-4 py-1.5 rounded-full transition-colors ${step === 2 ? 'bg-primary-500 text-white shadow-md' : 'bg-gray-100 text-gray-500'}`}>{lang === 'es' ? '2. Escenario' : '2. Stage'}</span>
           </div>
         </div>
       </div>
@@ -174,7 +174,7 @@ export default function CreateEventPage() {
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgCategory')} *</label>
                     <select value={form.category} onChange={(e) => updateForm('category', e.target.value)} className="input py-3">
-                      <option value="" disabled>-- Selecciona una categoría --</option>
+                      <option value="" disabled>{lang === 'es' ? '-- Selecciona una categoría --' : '-- Select a category --'}</option>
                       {categories.map((cat) => (
                         <option key={cat.id} value={cat.slug}>{cat.icon} {lang === 'en' ? cat.labelEn : cat.labelEs}</option>
                       ))}
@@ -290,7 +290,7 @@ export default function CreateEventPage() {
                     disabled={creating}
                     className="btn-primary w-full py-4 text-sm font-bold shadow-xl shadow-primary-500/30 hover:scale-[1.02] active:scale-95 transition-all"
                   >
-                    {creating ? 'Guardando...' : 'Siguiente Paso'}
+                    {creating ? (lang === 'es' ? 'Guardando...' : 'Saving...') : (lang === 'es' ? 'Siguiente Paso' : 'Next Step')}
                   </button>
                   <Link href="/organizer/events" className="btn-secondary w-full text-center py-3 text-sm font-bold border-transparent hover:bg-red-50 hover:text-red-600">
                     {t('orgCancel')}
@@ -305,11 +305,11 @@ export default function CreateEventPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h2 className="font-semibold text-lg text-gray-900">Configura tu Escenario</h2>
-              <p className="text-gray-500 text-sm">Organiza las mesas y áreas del evento como desees.</p>
+              <h2 className="font-semibold text-lg text-gray-900">{lang === 'es' ? 'Configura tu Escenario' : 'Configure Your Stage Layout'}</h2>
+              <p className="text-gray-500 text-sm">{lang === 'es' ? 'Organiza las mesas y áreas del evento como desees.' : 'Arrange the tables and areas of the event as you wish.'}</p>
             </div>
             <button onClick={() => router.push('/organizer/events')} className="btn-secondary text-sm">
-              Terminar y Salir
+              {lang === 'es' ? 'Terminar y Salir' : 'Finish & Exit'}
             </button>
           </div>
           {createdEventId && (
