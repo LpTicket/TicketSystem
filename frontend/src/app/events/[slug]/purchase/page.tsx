@@ -401,12 +401,23 @@ export default function PurchasePage() {
               {/* Selected seats chips */}
               {selectedSeats.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedSeats.map((seat) => (
-                    <span key={seat.id} className="seat-chip">
-                      {selectedSection.name} {seat.rowLabel}{seat.seatNumber}
-                      <button onClick={() => toggleSeats([seat])}>×</button>
-                    </span>
-                  ))}
+                  {selectedSeats.map((seat) => {
+                    const sec = seatMap.find(s => s.id === seat.sectionId);
+                    return (
+                      <span key={seat.id} className="seat-chip">
+                        {selectedSection.name} {seat.rowLabel}{seat.seatNumber}
+                        <button onClick={() => {
+                          if (sec && sec.tablePurchaseMode === 'whole') {
+                            const allSeats = sec.seats || [];
+                            const tableSelectedSeats = allSeats.filter(s => selectedSeats.some(ss => ss.id === s.id));
+                            toggleSeats(tableSelectedSeats);
+                          } else {
+                            toggleSeats([seat]);
+                          }
+                        }}>×</button>
+                      </span>
+                    );
+                  })}
                 </div>
               )}
 

@@ -604,8 +604,17 @@ export default function SeatMapInteractive({
 
                                     if (seat.status === SeatStatus.SOLD || seatOverride.reserved) return;
 
-                                    // If table is whole-only, individual seat clicks are blocked
-                                    if (section.tablePurchaseMode === 'whole') return;
+                                    // If table is whole-only, clicking a seat toggles the entire table
+                                    if (section.tablePurchaseMode === 'whole') {
+                                      const allSeats = section.seats || [];
+                                      const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                                      if (isTableSelected) {
+                                        onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
+                                      } else {
+                                        onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
+                                      }
+                                      return;
+                                    }
 
                                     // Clicking a seat always toggles just that seat (Individual mode)
                                     onToggleSeats([seat]);
@@ -697,8 +706,17 @@ export default function SeatMapInteractive({
 
                                     if (seat.status === SeatStatus.SOLD || seatOverride.reserved) return;
 
-                                    // If table is whole-only, individual seat clicks are blocked
-                                    if (section.tablePurchaseMode === 'whole') return;
+                                    // If table is whole-only, clicking a seat toggles the entire table
+                                    if (section.tablePurchaseMode === 'whole') {
+                                      const allSeats = section.seats || [];
+                                      const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                                      if (isTableSelected) {
+                                        onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
+                                      } else {
+                                        onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
+                                      }
+                                      return;
+                                    }
 
                                     onToggleSeats([seat]);
                                   }}

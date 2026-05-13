@@ -443,6 +443,15 @@ export class EventsService {
       }
     }
 
+    // Recalculate min/max prices from updated sections
+    const finalSections = await this.sectionRepo.find({ where: { eventId } });
+    const prices = finalSections.map((s) => Number(s.price));
+    if (prices.length > 0) {
+      const minPrice = Math.min(...prices);
+      const maxPrice = Math.max(...prices);
+      await this.eventRepo.update(eventId, { minPrice, maxPrice });
+    }
+
     return this.getSeatMap(eventId);
   }
 

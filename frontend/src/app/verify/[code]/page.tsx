@@ -39,17 +39,7 @@ export default function VerifyTicketPage() {
 
   useEffect(() => { loadTicket(); }, [code]);
 
-  useEffect(() => {
-    if (ticket && !result && !validating) {
-      if (ticket.status === 'active') {
-        validate();
-      } else if (ticket.status === 'used') {
-        setResult({ valid: false, message: 'Este ticket ya fue utilizado' });
-      } else if (ticket.status === 'cancelled') {
-        setResult({ valid: false, message: 'Este ticket fue cancelado' });
-      }
-    }
-  }, [ticket, result, validating]);
+
 
   const loadTicket = async () => {
     try { 
@@ -181,7 +171,7 @@ export default function VerifyTicketPage() {
           </div>
 
           {/* Right: Decorative Side Bar and App Branding */}
-          <div className="hidden md:flex md:col-span-3 flex-col items-end justify-between self-stretch">
+          <div className="hidden md:flex md:col-span-3 flex-col items-end justify-between self-stretch print:hidden">
             {/* Color accent bars */}
             <div className="flex h-16 w-4 rounded-full overflow-hidden self-end shrink-0">
               <div className="w-1/2 bg-indigo-500 h-full" />
@@ -246,27 +236,10 @@ export default function VerifyTicketPage() {
           </div>
         </div>
 
-        {/* Verification Result Display (Admin-only validation visual feedback) */}
-        {result && (
-          <div className={`p-5 rounded-2xl text-center border animate-bounce ${
-            result.valid 
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
-            {result.valid ? (
-              <HiOutlineCheckCircle className="w-12 h-12 text-emerald-600 mx-auto mb-2" />
-            ) : (
-              <HiOutlineXCircle className="w-12 h-12 text-red-600 mx-auto mb-2" />
-            )}
-            <h4 className="font-extrabold text-base uppercase tracking-wide">
-              {result.valid ? 'Validación Exitosa' : 'Validación Incorrecta'}
-            </h4>
-            <p className="text-sm font-semibold mt-1">{result.message}</p>
-          </div>
-        )}
+
 
         {/* Bottom Panel (Terms, waves and social metadata) */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pt-6 border-t border-gray-150 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pt-6 border-t border-gray-150 items-start print:hidden">
           
           {/* Left Terms */}
           <div className="md:col-span-6 flex gap-3">
@@ -305,18 +278,7 @@ export default function VerifyTicketPage() {
           </div>
         </div>
 
-        {/* Scanner Host Action (Floating or centered button to validate) */}
-        {isActive && !result && (
-          <div className="pt-4 text-center print:hidden">
-            <button 
-              onClick={validate} 
-              disabled={validating} 
-              className="btn-primary py-3.5 px-8 text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-primary-500/20 w-full"
-            >
-              {validating ? 'Verificando...' : '🔍 Escanear / Validar Entrada'}
-            </button>
-          </div>
-        )}
+
       </div>
     </div>
   );
