@@ -104,9 +104,10 @@ export class OrdersController {
     return this.ordersService.getTicketByCode(code);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post('ticket/:code/validate')
-  validateTicket(@Param('code') code: string) {
-    return this.ordersService.validateTicket(code);
+  validateTicket(@Param('code') code: string, @Request() req: any) {
+    return this.ordersService.validateTicket(code, req.user);
   }
 
   @UseGuards(AuthGuard('jwt'))

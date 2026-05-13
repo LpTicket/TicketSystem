@@ -112,170 +112,128 @@ export default function VerifyTicketPage() {
           <HiOutlinePrinter className="w-4 h-4" /> Imprimir / Descargar PDF
         </button>
       </div>
-
       {/* Actual Physical-Style Digital Ticket */}
-      <div className="w-full max-w-3xl bg-white shadow-2xl rounded-3xl border border-gray-150 p-6 md:p-10 space-y-8 relative overflow-hidden print:shadow-none print:border-none print:rounded-none print:p-0">
+      <div className="w-full max-w-[850px] bg-white shadow-2xl md:p-12 p-6 relative overflow-hidden print:shadow-none print:border-none print:p-0 mx-auto font-sans">
         
-        {/* Ticket Header (QR, Meta, Side bars) */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-          
-          {/* Left: QR Code Block */}
-          <div className="md:col-span-3 flex flex-col items-center text-center space-y-2">
+        {/* TOP SECTION */}
+        <div className="flex flex-col md:flex-row items-start gap-8 relative">
+          {/* QR Code */}
+          <div className="flex flex-col items-center shrink-0 w-full md:w-auto">
             {ticket.qrData ? (
-              <div className="p-2 border border-gray-200 rounded-2xl bg-white shadow-sm shrink-0">
-                <img src={ticket.qrData} alt="QR Code" className="w-36 h-36 md:w-40 md:h-40 rounded-lg" />
-              </div>
+              <img src={ticket.qrData} alt="QR Code" className="w-48 h-48 rounded-none object-contain" />
             ) : (
-              <div className="w-36 h-36 bg-gray-100 flex items-center justify-center rounded-2xl">
-                <HiOutlineTicket className="w-12 h-12 text-gray-400" />
+              <div className="w-48 h-48 bg-gray-100 flex items-center justify-center">
+                <HiOutlineTicket className="w-16 h-16 text-gray-400" />
               </div>
             )}
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Ticket 1 de 1</span>
+            <span className="text-[13px] text-gray-500 mt-2 font-medium">Ticket 1 of 1</span>
           </div>
 
-          {/* Center: Event Details and Ticket Class */}
-          <div className="md:col-span-6 space-y-3">
-            <div>
-              <h1 className="font-extrabold text-2xl text-gray-900 leading-tight tracking-tight uppercase">
-                {ticket.event?.title || 'Evento'}
-              </h1>
-              <p className="text-xs text-gray-500 font-bold mt-1">
-                {ticket.event?.eventDate && format(parseSafeDate(ticket.event.eventDate), "eeee, d 'de' MMMM, yyyy | 'Puertas:' h:mm a", { locale: es }).toUpperCase()}
-              </p>
-            </div>
+          {/* Event Details */}
+          <div className="flex-1 space-y-1 mt-2 md:mt-0">
+            <h1 className="font-extrabold text-3xl text-gray-900 leading-tight">
+              {ticket.event?.title || 'Evento'}
+            </h1>
+            <p className="text-sm text-gray-600 uppercase tracking-wide">
+              {ticket.event?.eventDate && format(parseSafeDate(ticket.event.eventDate), "EEE, MMM d, yyyy | 'Doors:' h:mm a", { locale: es })}
+            </p>
+            <p className="text-sm text-gray-600 uppercase tracking-wide">{ticket.event?.venueName || 'Lugar del Evento'}</p>
+            <p className="text-sm text-gray-900 font-bold uppercase">{ticket.event?.venueAddress || ''}</p>
 
-            <div className="text-xs text-gray-600 font-bold space-y-0.5">
-              <p className="text-gray-900 uppercase font-extrabold tracking-wide">{ticket.event?.venueName || 'Lugar del Evento'}</p>
-              <p className="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">{ticket.event?.venueAddress || ''}</p>
-            </div>
-
-            {/* Colored Separator Waves */}
             <WavySeparator />
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Tipo de Boleto</span>
-                <span className="text-base font-black text-gray-900 uppercase tracking-tight">
-                  {ticket.sectionName || 'Boleto General'}
-                </span>
-              </div>
-              <div>
-                <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Estado</span>
-                <span className={`inline-block text-[11px] font-black uppercase tracking-wider rounded ${
-                  isActive ? 'text-green-600' : isUsed ? 'text-gray-500' : 'text-red-500'
-                }`}>
-                  {isActive ? 'COMPLETO / ACTIVO' : isUsed ? 'UTILIZADO' : 'CANCELADO'}
-                </span>
-              </div>
+            <div className="mt-4">
+              <span className="block text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Type of Ticket</span>
+              <span className="block text-2xl font-black text-gray-900 uppercase">
+                {ticket.sectionName || 'Boleto General'}
+              </span>
+              <span className="block text-sm text-gray-700 font-bold uppercase mt-1">
+                STATUS: {isActive ? 'COMPLETE' : isUsed ? 'USED' : 'CANCELLED'}
+              </span>
+            </div>
+            
+            {/* LPTicket Logo replacement */}
+            <div className="absolute bottom-0 right-10 text-3xl font-black text-rose-600 tracking-tighter hidden md:block">
+              LPTicket
             </div>
           </div>
 
-          {/* Right: Decorative Side Bar and App Branding */}
-          <div className="hidden md:flex md:col-span-3 flex-col items-end justify-between self-stretch print:hidden">
-            {/* Color accent bars */}
-            <div className="flex h-16 w-4 rounded-full overflow-hidden self-end shrink-0">
-              <div className="w-1/2 bg-indigo-500 h-full" />
-              <div className="w-1/2 bg-primary-500 h-full" />
-            </div>
-            
-            {/* Branding Logo */}
-            <div className="text-right">
-              <span className="text-2xl font-black text-primary-500 tracking-tighter uppercase font-mono block">LPTicket</span>
-              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mt-0.5">Tus Tickets. Tus Eventos.</span>
-            </div>
+          {/* Right vertical bar */}
+          <div className="hidden md:flex flex-col w-6 h-48 shrink-0 absolute right-0 top-0">
+            <div className="bg-slate-900 h-3/4 w-full"></div>
+            <div className="bg-rose-600 h-1/4 w-full"></div>
           </div>
         </div>
 
-        {/* Middle: Details Box Container */}
-        <div className="border border-gray-300 rounded-2xl p-6 bg-white space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-2">
-            <div>
-              <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Nombre del Asistente</span>
-              <span className="text-lg font-black text-gray-900 uppercase tracking-tight">
-                {ticket.user?.firstName} {ticket.user?.lastName}
-              </span>
-            </div>
-
-            <div>
-              <span className="block text-[9px] uppercase font-bold text-gray-400 tracking-wider">Detalles de Ubicación</span>
-              <span className="text-lg font-black text-gray-900 uppercase tracking-tight">
-                {ticket.rowLabel && ticket.rowLabel !== 'GA' 
-                  ? `${ticket.sectionName} | Fila: ${ticket.rowLabel}, Asiento: ${ticket.seatNumber}` 
-                  : `${ticket.sectionName || 'Entrada General'}`}
-              </span>
-            </div>
-          </div>
-
-          <div className="border-t border-dashed border-gray-200 pt-4 space-y-3">
-            <span className="block text-[10px] uppercase font-extrabold text-slate-800 tracking-wider">Detalles del Pedido</span>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs text-gray-600">
-              <div>
-                <span className="block text-[9px] text-gray-400 uppercase font-bold">ID de Boleto:</span>
-                <span className="font-mono text-[11px] font-bold text-gray-800 select-all">{ticket.id || '2B3DCBF6-99BC-46EB-834C'}</span>
-              </div>
-              <div>
-                <span className="block text-[9px] text-gray-400 uppercase font-bold">Comprador:</span>
-                <span className="font-bold text-gray-800">{ticket.user?.firstName} {ticket.user?.lastName}</span>
-              </div>
-              <div>
-                <span className="block text-[9px] text-gray-400 uppercase font-bold">Código de Entrada:</span>
-                <span className="font-mono text-[11px] font-bold text-gray-800 tracking-wider uppercase select-all">{ticket.ticketCode}</span>
-              </div>
-              <div>
-                <span className="block text-[9px] text-gray-400 uppercase font-bold">Precio Pagado:</span>
-                <span className="font-bold text-gray-800">
-                  {ticket.event?.currency === 'USD' ? '$' : 'Bs. '}{Number(ticket.price || 0).toFixed(2)}
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-2 text-[10px] text-gray-400 uppercase font-bold leading-relaxed">
-              <strong>Nota:</strong> Presenta este código QR en la entrada del evento para su correspondiente escaneo y validación de acceso.
-            </div>
-          </div>
-        </div>
-
-
-
-        {/* Bottom Panel (Terms, waves and social metadata) */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pt-6 border-t border-gray-150 items-start print:hidden">
+        {/* MIDDLE BOX */}
+        <div className="border border-gray-300 mt-8 p-6 md:p-8 bg-white text-sm relative">
+          <span className="block text-xs text-gray-500 uppercase font-bold tracking-widest mb-1">Name</span>
+          <span className="block text-xl font-black text-gray-900 uppercase mb-2">
+            {ticket.user?.firstName} {ticket.user?.lastName}
+          </span>
+          <span className="block text-lg font-bold text-gray-900 uppercase mb-4">
+            {ticket.sectionName || 'Boleto General'} | {ticket.rowLabel && ticket.rowLabel !== 'GA' ? `Row: ${ticket.rowLabel}, Seat: ${ticket.seatNumber}` : 'General Admission'}
+          </span>
           
-          {/* Left Terms */}
-          <div className="md:col-span-6 flex gap-3">
-            <div className="w-2.5 bg-indigo-500 self-stretch shrink-0 rounded-full flex flex-col overflow-hidden">
-              <div className="h-2/3 bg-indigo-500" />
-              <div className="h-1/3 bg-primary-500" />
-            </div>
-            <div className="space-y-1.5 text-[8.5px] text-gray-400 font-semibold leading-normal uppercase">
-              <p className="font-bold text-gray-700 text-[10px]">Términos y Condiciones</p>
-              <p>Este boleto no está sujeto a cambios ni reembolsos. El portador asume todos los riesgos inherentes al evento antes, durante o después de su realización.</p>
-              <p>Queda prohibida la duplicación de este boleto. La primera copia escaneada en el acceso invalidará las demás copias idénticas.</p>
+          <div className="text-gray-600 space-y-0.5 text-[13px] font-medium">
+            <p><span className="font-bold text-gray-900">TICKET ID:</span> {ticket.id}</p>
+            <p className="font-bold text-gray-900 mt-2">ORDER DETAILS</p>
+            <p><span className="font-bold text-gray-900">PURCHASED BY:</span> {ticket.user?.firstName} {ticket.user?.lastName}</p>
+            <p><span className="font-bold text-gray-900">TICKET TYPE:</span> {ticket.sectionName || 'Boleto General'}</p>
+            <p><span className="font-bold text-gray-900">ORDER ID:</span> {ticket.orderId}</p>
+            <p className="text-xs text-gray-500 uppercase mt-2 pt-2 border-t border-gray-200">
+              <strong className="text-gray-900">DETAILS:</strong> NOTA: MESA ASIGNADA, ASIENTO POR ORDEN DE LLEGADA O SEGÚN DISPONIBILIDAD.
+            </p>
+          </div>
+        </div>
+
+        {/* BOTTOM SECTION */}
+        <div className="mt-8 flex flex-col md:flex-row items-start gap-8 relative border-t border-gray-200 pt-8 print:border-none">
+          
+          {/* Left Vertical Bar */}
+          <div className="hidden md:flex flex-col w-4 h-full min-h-[160px] shrink-0 absolute left-0 top-8 print:top-0">
+            <div className="bg-rose-600 h-1/6 w-full"></div>
+            <div className="bg-slate-900 h-5/6 w-full"></div>
+          </div>
+
+          {/* Terms */}
+          <div className="flex-1 md:pl-8">
+            <h4 className="font-bold text-gray-900 text-sm mb-1">Terms</h4>
+            <div className="text-[10px] text-gray-600 space-y-2 uppercase leading-relaxed font-medium">
+              <p>This ticket is not subject to any refund and shall bear no cash value. If issued complimentarily, this ticket shall not be exchangeable.</p>
+              <p>HOLDER VOLUNTARILY ASSUMES ALL RISKS AND DANGER INCIDENTAL TO THE EVENT FOR WHICH THE TICKET IS ISSUED, WHETHER OCCURRING PRIOR TO, DURING OR AFTER THE EVENT. HOLDER VOLUNTARILY AGREES THAT THE MANAGEMENT, FACILITY, LEAGUE, PARTICIPANTS, PARTICIPATING CLUBS, LPTICKET, AND ALL OF THEIR RESPECTIVE AGENTS, OFFICERS, DIRECTORS, OWNERS AND EMPLOYEES ARE EXPRESSLY RELEASED BY HOLDER FROM ANY CLAIMS ARISING FROM SUCH CAUSES.</p>
+              <p>Duplicate tickets or barcodes may be refused entry to event.</p>
             </div>
           </div>
 
-          {/* Middle social links */}
-          <div className="md:col-span-3 flex flex-col items-center justify-center text-center space-y-2">
-            {/* small visual waves pattern */}
-            <div className="flex flex-col gap-0.5 text-primary-500 leading-none shrink-0 font-mono font-bold select-none">
-              <span>≈≈≈≈≈≈≈</span>
-              <span>≈≈≈≈≈≈≈</span>
+          {/* Socials & Branding */}
+          <div className="w-full md:w-1/3 flex justify-between md:justify-around items-end md:items-start shrink-0">
+            <div className="space-y-2">
+              <div className="flex flex-col gap-0.5 text-rose-600 font-mono font-bold tracking-widest text-[8px] mb-3">
+                <span>≈≈≈≈≈≈≈</span>
+                <span className="text-slate-900">≈≈≈≈≈≈≈</span>
+                <span>≈≈≈≈≈≈≈</span>
+              </div>
+              <p className="text-[11px] text-gray-500 font-medium">Find us on<br/>social media</p>
+              <p className="text-[11px] font-bold text-gray-600 pt-1">f <span className="font-normal text-gray-500">lpticket</span></p>
+              <p className="text-[11px] font-bold text-gray-600">X <span className="font-normal text-gray-500">@lpticket</span></p>
+              <p className="text-[11px] font-bold text-gray-600">ig <span className="font-normal text-gray-500">lptickets</span></p>
             </div>
-            <div className="text-[9px] uppercase text-gray-400 font-bold tracking-widest">
-              Síguenos en redes sociales
-              <div className="font-black text-gray-700 lowercase mt-1 block">@lpticket</div>
-            </div>
-          </div>
 
-          {/* Right taglines */}
-          <div className="md:col-span-3 text-center md:text-right space-y-1">
-            <div className="text-xl font-black text-primary-500 tracking-tighter uppercase font-mono">LPTicket</div>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Tus tickets. Tus eventos.</p>
-            <div className="border-t border-gray-150 pt-1.5 mt-1.5">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Muchas Gracias</span>
-              <p className="text-[9.5px] font-semibold text-gray-500 lowercase">por preferir a <span className="text-primary-500 font-bold">lpticket.com</span></p>
+            <div className="text-right md:text-left flex flex-col items-end md:items-start border-l border-gray-200 pl-4 md:pl-6 space-y-4">
+              <div>
+                <span className="text-2xl font-black text-rose-600 tracking-tighter">LPTicket</span>
+                <p className="text-xs text-gray-500">Tus tickets.<br/>Tus eventos.</p>
+              </div>
+              <div>
+                <span className="text-lg font-black text-gray-900 block leading-tight">Thank<br/>You</span>
+                <p className="text-[10px] text-gray-500 mt-1">for using <strong className="text-rose-600">lpticket.com</strong></p>
+              </div>
             </div>
           </div>
+        </div>
+
+      </div>      </div>
         </div>
 
 

@@ -102,6 +102,12 @@ export class OrdersService {
           throw new BadRequestException('Asiento reservado por otro usuario');
         }
 
+        // Extend the lock to cover the Stripe checkout session duration (30 mins + 1 min grace)
+        seat.status = SeatStatus.LOCKED;
+        seat.lockedBy = userId;
+        seat.lockExpiresAt = new Date(Date.now() + 31 * 60 * 1000); // 31 mins
+        await this.seatRepo.save(seat);
+
         const price = this.getSeatPrice(seat);
         baseTotal += price;
         seatsInfo.push({
@@ -228,6 +234,7 @@ export class OrdersService {
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
+      expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // Stripe minimum is 30 mins
       success_url: `${appUrl.replace(/\/$/, '')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl.replace(/\/$/, '')}/checkout/cancel`,
       metadata: {
@@ -413,8 +420,14 @@ export class OrdersService {
     return ticket;
   }
 
-  async validateTicket(code: string) {
+  async validateTicket(code: string, user: any) {
     const ticket = await this.getTicketByCode(code);
+    
+    // Authorization check
+    if (user.role !== 'admin' && ticket.event.organizerId !== user.id) {
+      throw new ForbiddenException('No tienes permiso para validar tickets de este evento');
+    }
+
     if (ticket.status === TicketStatus.USED) {
       return { valid: false, message: 'Este ticket ya fue utilizado', ticket };
     }
