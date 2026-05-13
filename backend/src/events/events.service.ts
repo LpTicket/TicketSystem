@@ -521,7 +521,7 @@ export class EventsService {
   }
 
   async lockSeats(seatIds: string[], userId: string) {
-    const { MoreThan } = require('typeorm');
+    const { MoreThan, Not, In, IsNull } = require('typeorm');
     const now = new Date();
 
     // Check if the user is attempting to exceed the limit of 10 reserved seats
@@ -530,6 +530,7 @@ export class EventsService {
         lockedBy: userId,
         status: SeatStatus.LOCKED,
         lockExpiresAt: MoreThan(now),
+        id: Not(In(seatIds)), // Exclude the seats we are trying to lock/refresh
       },
     });
 
@@ -554,8 +555,15 @@ export class EventsService {
       }
 
       // Atomic update to prevent race conditions
+      const where: any = { id: seatId, status: seat.status };
+      if (seat.lockedBy === null) {
+        where.lockedBy = IsNull();
+      } else {
+        where.lockedBy = seat.lockedBy;
+      }
+
       const updateResult = await this.seatRepo.update(
-        { id: seatId, status: seat.status, lockedBy: seat.lockedBy },
+        where,
         { status: SeatStatus.LOCKED, lockedBy: userId, lockExpiresAt: lockExpiry }
       );
       
