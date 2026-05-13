@@ -113,12 +113,12 @@ export default function VerifyTicketPage() {
         </button>
       </div>
       {/* Actual Physical-Style Digital Ticket */}
-      <div className="w-full max-w-[850px] bg-white shadow-2xl md:p-12 p-6 relative overflow-hidden print:shadow-none print:border-none print:p-0 mx-auto font-sans">
+      <div className="w-full max-w-[850px] bg-white shadow-2xl md:p-12 p-6 relative overflow-hidden print:shadow-none print:border-none print:p-0 print:scale-[0.95] print:origin-top-left mx-auto font-sans">
         
         {/* TOP SECTION */}
-        <div className="flex flex-col md:flex-row items-start gap-8 relative">
+        <div className="flex flex-col md:flex-row print:flex-row items-start gap-8 print:gap-4 relative">
           {/* QR Code */}
-          <div className="flex flex-col items-center shrink-0 w-full md:w-auto">
+          <div className="flex flex-col items-center shrink-0 w-full md:w-auto print:w-auto">
             {ticket.qrData ? (
               <img src={ticket.qrData} alt="QR Code" className="w-48 h-48 rounded-none object-contain" />
             ) : (
@@ -130,8 +130,8 @@ export default function VerifyTicketPage() {
           </div>
 
           {/* Event Details */}
-          <div className="flex-1 space-y-1 mt-2 md:mt-0">
-            <h1 className="font-extrabold text-3xl text-gray-900 leading-tight">
+          <div className="flex-1 space-y-1 mt-2 md:mt-0 print:mt-0">
+            <h1 className="font-extrabold text-3xl print:text-2xl text-gray-900 leading-tight">
               {ticket.event?.title || 'Evento'}
             </h1>
             <p className="text-sm text-gray-600 uppercase tracking-wide">
@@ -153,20 +153,20 @@ export default function VerifyTicketPage() {
             </div>
             
             {/* LPTicket Logo replacement */}
-            <div className="absolute bottom-0 right-10 text-3xl font-black text-rose-600 tracking-tighter hidden md:block">
+            <div className="absolute bottom-0 right-10 text-3xl print:text-2xl font-black text-rose-600 tracking-tighter hidden md:block print:block">
               LPTicket
             </div>
           </div>
 
           {/* Right vertical bar */}
-          <div className="hidden md:flex flex-col w-6 h-48 shrink-0 absolute right-0 top-0">
+          <div className="hidden md:flex print:flex flex-col w-6 print:w-4 h-48 shrink-0 absolute right-0 top-0">
             <div className="bg-slate-900 h-3/4 w-full"></div>
             <div className="bg-rose-600 h-1/4 w-full"></div>
           </div>
         </div>
 
         {/* MIDDLE BOX */}
-        <div className="border border-gray-300 mt-8 p-6 md:p-8 bg-white text-sm relative">
+        <div className="border border-gray-300 mt-8 print:mt-4 p-6 md:p-8 print:p-5 bg-white text-sm print:text-xs relative">
           <span className="block text-xs text-gray-500 uppercase font-bold tracking-widest mb-1">Name</span>
           <span className="block text-xl font-black text-gray-900 uppercase mb-2">
             {ticket.user?.firstName} {ticket.user?.lastName}
@@ -188,16 +188,16 @@ export default function VerifyTicketPage() {
         </div>
 
         {/* BOTTOM SECTION */}
-        <div className="mt-8 flex flex-col md:flex-row items-start gap-8 relative border-t border-gray-200 pt-8 print:border-none">
+        <div className="mt-8 print:mt-4 flex flex-col md:flex-row print:flex-row items-start gap-8 print:gap-4 relative border-t border-gray-200 pt-8 print:pt-4 print:border-none">
           
           {/* Left Vertical Bar */}
-          <div className="hidden md:flex flex-col w-4 h-full min-h-[160px] shrink-0 absolute left-0 top-8 print:top-0">
+          <div className="hidden md:flex print:flex flex-col w-4 print:w-3 h-full min-h-[160px] print:min-h-[120px] shrink-0 absolute left-0 top-8 print:top-4">
             <div className="bg-rose-600 h-1/6 w-full"></div>
             <div className="bg-slate-900 h-5/6 w-full"></div>
           </div>
 
           {/* Terms */}
-          <div className="flex-1 md:pl-8">
+          <div className="flex-1 md:pl-8 print:pl-6">
             <h4 className="font-bold text-gray-900 text-sm mb-1">Terms</h4>
             <div className="text-[10px] text-gray-600 space-y-2 uppercase leading-relaxed font-medium">
               <p>This ticket is not subject to any refund and shall bear no cash value. If issued complimentarily, this ticket shall not be exchangeable.</p>
@@ -207,7 +207,7 @@ export default function VerifyTicketPage() {
           </div>
 
           {/* Socials & Branding */}
-          <div className="w-full md:w-1/3 flex justify-between md:justify-around items-end md:items-start shrink-0">
+          <div className="w-full md:w-1/3 print:w-1/3 flex justify-between md:justify-around print:justify-around items-end md:items-start print:items-start shrink-0">
             <div className="space-y-2">
               <div className="flex flex-col gap-0.5 text-rose-600 font-mono font-bold tracking-widest text-[8px] mb-3">
                 <span>≈≈≈≈≈≈≈</span>
@@ -220,7 +220,7 @@ export default function VerifyTicketPage() {
               <p className="text-[11px] font-bold text-gray-600">ig <span className="font-normal text-gray-500">lptickets</span></p>
             </div>
 
-            <div className="text-right md:text-left flex flex-col items-end md:items-start border-l border-gray-200 pl-4 md:pl-6 space-y-4">
+            <div className="text-right md:text-left print:text-left flex flex-col items-end md:items-start print:items-start border-l border-gray-200 pl-4 md:pl-6 print:pl-4 space-y-4 print:space-y-2">
               <div>
                 <span className="text-2xl font-black text-rose-600 tracking-tighter">LPTicket</span>
                 <p className="text-xs text-gray-500">Tus tickets.<br/>Tus eventos.</p>
@@ -232,10 +232,6 @@ export default function VerifyTicketPage() {
             </div>
           </div>
         </div>
-
-      </div>      </div>
-        </div>
-
 
       </div>
     </div>
