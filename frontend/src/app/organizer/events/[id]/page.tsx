@@ -196,7 +196,7 @@ export default function EventDetailPage() {
         venueName: editForm.venueName,
         eventDate: new Date(`${editForm.eventDate}T00:00:00`).toISOString(),
         category: editForm.category,
-        hasSeatMap: editForm.hasSeatMap,
+        hasSeatMap: true,
         bannerPosition: editForm.bannerPosition,
       });
 
@@ -791,6 +791,11 @@ export default function EventDetailPage() {
                   type="date"
                   value={editForm.eventDate}
                   onChange={(e) => setEditForm({ ...editForm, eventDate: e.target.value })}
+                  onClick={(e) => {
+                    if (document.activeElement === e.currentTarget) {
+                      e.currentTarget.blur();
+                    }
+                  }}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
                   required
                 />
@@ -808,43 +813,6 @@ export default function EventDetailPage() {
                 required
               />
             </div>
-
-            {/* Toggle Seat Map */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-2xl">
-              <div>
-                <h4 className="font-bold text-sm text-gray-800">{lang === 'es' ? 'Habilitar Mapa de Asientos Interactivo' : 'Enable Interactive Seating Chart'}</h4>
-                <p className="text-xs text-gray-500 mt-1">{lang === 'es' ? 'Permite a los usuarios seleccionar asientos en un lienzo interactivo.' : 'Allows users to choose specific seats on an interactive canvas.'}</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={editForm.hasSeatMap}
-                  onChange={(e) => setEditForm({ ...editForm, hasSeatMap: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-
-            {editForm.hasSeatMap && (
-              <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl text-xs text-blue-800 space-y-2 animate-fade-in">
-                <p className="font-bold flex items-center gap-1.5">
-                  <span>🎨</span>
-                  {lang === 'es' ? 'Cómo diseñar tu escenario:' : 'How to design your stage layout:'}
-                </p>
-                <p className="leading-relaxed">
-                  {lang === 'es' 
-                    ? 'El mapa de asientos (escenario, mesas y sillas) se diseña de manera interactiva en tiempo real utilizando la pestaña ' 
-                    : 'The interactive seat map (stage, tables, and seats) is drawn in real-time using the '}
-                  <strong className="underline cursor-pointer hover:text-blue-600" onClick={() => setActiveTab('map')}>
-                    {lang === 'es' ? '"Mapa Visual"' : '"Venue Map"'}
-                  </strong>
-                  {lang === 'es' 
-                    ? ' que encontrarás en la página principal del evento. Guarda estos cambios primero y luego ve a esa pestaña para comenzar a dibujar.' 
-                    : ' tab on the main event page. Save these changes first, then click that tab to start drawing.'}
-                </p>
-              </div>
-            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
               {/* Cover Image Upload */}

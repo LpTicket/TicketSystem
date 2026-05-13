@@ -1388,7 +1388,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 onClick={e => { 
                   if (hasMoved) return;
                   e.stopPropagation(); 
-                  setSelectedId(sec.id!); 
+                  if (selectedId === sec.id!) {
+                    setSelectedId(null);
+                    setSelectedSeat(null);
+                  } else {
+                    setSelectedId(sec.id!); 
+                  }
                 }}
                 style={{
                   position: 'absolute',
@@ -1467,8 +1472,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                             onClick={e => {
                               if (hasMoved) return;
                               e.stopPropagation();
-                              setSelectedSeat({ secId: sec.id!, seatKey });
-                              setSelectedId(sec.id!);
+                              if (selectedSeat?.secId === sec.id! && selectedSeat?.seatKey === seatKey) {
+                                setSelectedSeat(null);
+                              } else {
+                                setSelectedSeat({ secId: sec.id!, seatKey });
+                                setSelectedId(sec.id!);
+                              }
                             }}
                             style={{
                               left: x,
@@ -1535,8 +1544,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               onClick={e => {
                                 if (hasMoved) return;
                                 e.stopPropagation();
-                                setSelectedSeat({ secId: sec.id!, seatKey });
-                                setSelectedId(sec.id!);
+                                if (selectedSeat?.secId === sec.id! && selectedSeat?.seatKey === seatKey) {
+                                  setSelectedSeat(null);
+                                } else {
+                                  setSelectedSeat({ secId: sec.id!, seatKey });
+                                  setSelectedId(sec.id!);
+                                }
                               }}
                               style={{
                                 width: '20%',
@@ -1611,8 +1624,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               onClick={e => {
                                 if (hasMoved) return;
                                 e.stopPropagation();
-                                setSelectedSeat({ secId: sec.id!, seatKey });
-                                setSelectedId(sec.id!);
+                                if (selectedSeat?.secId === sec.id! && selectedSeat?.seatKey === seatKey) {
+                                  setSelectedSeat(null);
+                                } else {
+                                  setSelectedSeat({ secId: sec.id!, seatKey });
+                                  setSelectedId(sec.id!);
+                                }
                               }}
                               style={{
                                 width: '18%',

@@ -30,8 +30,6 @@ export default function CreateEventPage() {
     eventDate: '',
     doorsOpen: '',
   });
-
-  const [hasSeatMap, setHasSeatMap] = useState(true);
   const [step, setStep] = useState<1 | 2>(1);
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -70,7 +68,7 @@ export default function CreateEventPage() {
 
     try {
       // Clean up empty optional fields
-      const payload: any = { ...form, hasSeatMap };
+      const payload: any = { ...form, hasSeatMap: true };
       if (form.eventDate) {
         payload.eventDate = new Date(`${form.eventDate}T00:00:00`).toISOString();
       }
@@ -103,24 +101,8 @@ export default function CreateEventPage() {
         });
       }
 
-      // 3. Create default section if not using an interactive seat map
-      if (!hasSeatMap) {
-        await api.post(`/events/${event.id}/sections`, {
-          name: lang === 'es' ? 'Entrada General' : 'General Admission',
-          sectionType: 'standing',
-          rows: 1,
-          seatsPerRow: 500,
-          price: 25,
-          color: '#3b82f6',
-        });
-      }
-
-      if (hasSeatMap) {
-        setCreatedEventId(event.id);
-        setStep(2);
-      } else {
-        router.push('/organizer/events');
-      }
+      setCreatedEventId(event.id);
+      setStep(2);
     } catch (err: any) {
       setError(err.response?.data?.message || (lang === 'es' ? 'Error al crear el evento' : 'Error creating event'));
     } finally {
@@ -231,6 +213,11 @@ export default function CreateEventPage() {
                       type="date"
                       value={form.eventDate}
                       onChange={(e) => updateForm('eventDate', e.target.value)}
+                      onClick={(e) => {
+                        if (document.activeElement === e.currentTarget) {
+                          e.currentTarget.blur();
+                        }
+                      }}
                       className="input py-3"
                       required
                     />
@@ -241,27 +228,15 @@ export default function CreateEventPage() {
                       type="time"
                       value={form.doorsOpen}
                       onChange={(e) => updateForm('doorsOpen', e.target.value)}
+                      onClick={(e) => {
+                        if (document.activeElement === e.currentTarget) {
+                          e.currentTarget.blur();
+                        }
+                      }}
                       className="input py-3"
                     />
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* NEW: Seat Map Toggle */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 lg:p-8 shadow-sm space-y-6">
-              <div className="flex items-center gap-3 p-4 bg-blue-50/40 border border-blue-100 rounded-xl">
-                <input
-                  type="checkbox"
-                  id="hasSeatMap"
-                  checked={hasSeatMap}
-                  onChange={(e) => setHasSeatMap(e.target.checked)}
-                  className="w-5 h-5 rounded text-primary-600 border-gray-300 focus:ring-primary-500 cursor-pointer"
-                />
-                <label htmlFor="hasSeatMap" className="cursor-pointer select-none">
-                  <span className="block text-sm font-bold text-gray-900">{lang === 'es' ? 'Habilitar Mapa de Asientos Interactivo' : 'Enable Interactive Seating Chart'}</span>
-                  <span className="block text-xs text-gray-500">{lang === 'es' ? 'Permite a los compradores elegir asientos específicos sobre un diseño gráfico interactivo.' : 'Allows buyers to choose specific seats on an interactive graphic layout.'}</span>
-                </label>
               </div>
             </div>
           </div>
