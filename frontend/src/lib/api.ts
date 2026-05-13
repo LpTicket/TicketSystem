@@ -1,8 +1,17 @@
 import axios from 'axios';
 
-let API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+let API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// Auto-append /api if it's missing in the environment configuration
+// Fallback for Railway production if env var is missing during build
+if (!API_URL && typeof window !== 'undefined' && window.location.hostname.includes('railway.app')) {
+  API_URL = 'https://ticketsystembackend.up.railway.app/api';
+}
+
+if (!API_URL) {
+  API_URL = 'http://localhost:3001/api';
+}
+
+// Auto-append /api if it's missing
 if (API_URL && !API_URL.endsWith('/api') && !API_URL.endsWith('/api/')) {
   API_URL = `${API_URL.replace(/\/$/, '')}/api`;
 }
