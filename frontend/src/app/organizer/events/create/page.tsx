@@ -110,7 +110,14 @@ export default function CreateEventPage() {
     try {
       // Clean up empty optional fields
       const payload: any = { ...form, hasSeatMap };
-      if (!payload.doorsOpen) delete payload.doorsOpen;
+      if (form.eventDate) {
+        payload.eventDate = new Date(`${form.eventDate}T00:00:00`).toISOString();
+      }
+      if (form.doorsOpen) {
+        payload.doorsOpen = new Date(`${form.eventDate}T${form.doorsOpen}:00`).toISOString();
+      } else {
+        delete payload.doorsOpen;
+      }
       if (!payload.description) delete payload.description;
       if (!payload.venueAddress) delete payload.venueAddress;
 
@@ -255,7 +262,7 @@ export default function CreateEventPage() {
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgEventDate')} *</label>
                     <input
-                      type="datetime-local"
+                      type="date"
                       value={form.eventDate}
                       onChange={(e) => updateForm('eventDate', e.target.value)}
                       className="input py-3"
@@ -265,7 +272,7 @@ export default function CreateEventPage() {
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgDoorsOpen')}</label>
                     <input
-                      type="datetime-local"
+                      type="time"
                       value={form.doorsOpen}
                       onChange={(e) => updateForm('doorsOpen', e.target.value)}
                       className="input py-3"

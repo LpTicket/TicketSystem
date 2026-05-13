@@ -88,7 +88,7 @@ export default function EventDetailPage() {
         title: ev.title || '',
         description: ev.description || '',
         venueName: ev.venueName || '',
-        eventDate: ev.eventDate ? ev.eventDate.substring(0, 16) : '',
+        eventDate: ev.eventDate ? ev.eventDate.substring(0, 10) : '',
         category: ev.category || '',
         hasSeatMap: ev.hasSeatMap || false,
         bannerPosition: ev.bannerPosition || 'center',
@@ -194,7 +194,7 @@ export default function EventDetailPage() {
         title: editForm.title,
         description: editForm.description,
         venueName: editForm.venueName,
-        eventDate: new Date(editForm.eventDate).toISOString(),
+        eventDate: new Date(`${editForm.eventDate}T00:00:00`).toISOString(),
         category: editForm.category,
         hasSeatMap: editForm.hasSeatMap,
         bannerPosition: editForm.bannerPosition,
@@ -786,9 +786,9 @@ export default function EventDetailPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Fecha y Hora' : 'Date & Time'}</label>
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Fecha del Evento' : 'Event Date'}</label>
                 <input
-                  type="datetime-local"
+                  type="date"
                   value={editForm.eventDate}
                   onChange={(e) => setEditForm({ ...editForm, eventDate: e.target.value })}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
