@@ -19,7 +19,7 @@ WORKDIR /app
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 
-# Copiar solo lo necesario para produccion
+# Copiar solo lo necesario para produccion (usando standalone output)
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/next.config.ts ./
 COPY --from=builder /app/public ./public
