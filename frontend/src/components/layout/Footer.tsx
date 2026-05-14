@@ -4,7 +4,7 @@ import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
 import { useLang } from '@/context/LanguageContext';
 
 export default function Footer() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   return (
     <footer className="bg-[#0b1a2e] text-white print:hidden">
       <div className="w-full px-4 md:px-8 lg:px-12 py-12">
