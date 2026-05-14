@@ -1,11 +1,28 @@
-'use client';
-
+import { useState } from 'react';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker } from 'react-icons/hi';
-import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
+import api from '@/lib/api';
 
 export default function ContactPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.post('/contact', form);
+      setSuccessMsg(lang === 'es' ? '¡Mensaje enviado con éxito!' : 'Message sent successfully!');
+      setForm({ name: '', email: '', subject: '', message: '' });
+    } catch (err) {
+      console.error(err);
+      alert(lang === 'es' ? 'Error al enviar.' : 'Error sending.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="bg-gray-50 min-h-screen py-16">
@@ -52,26 +69,63 @@ export default function ContactPage() {
             </div>
           </div>
 
-          {/* Social Media */}
+          {/* Contact Form */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 md:p-10 flex flex-col h-full animate-fade-in" style={{ animationDelay: '0.4s' }}>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('contactFollowUs')}</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">{lang === 'es' ? 'Envíanos un mensaje' : 'Send us a message'}</h2>
             
-            <div className="flex gap-4 mb-10">
-              <a href="#" className="w-14 h-14 rounded-2xl bg-[#25D366] text-white flex items-center justify-center hover:bg-[#20bd5a] transition-colors shadow-lg shadow-green-200">
-                <FaWhatsapp className="w-7 h-7" />
-              </a>
-              <a href="#" className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] text-white flex items-center justify-center hover:opacity-90 transition-opacity shadow-lg shadow-pink-200">
-                <FaInstagram className="w-7 h-7" />
-              </a>
-            </div>
-
-            <div className="mt-auto bg-blue-50 rounded-xl p-6 border border-blue-100 text-center">
-              <p className="text-sm text-blue-700 font-medium">
-                {t('contactOnline') === 'Contacto en línea' 
-                  ? 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.'
-                  : 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.'}
-              </p>
-            </div>
+            {successMsg ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
+                <div className="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center">
+                  <HiOutlineMail className="w-8 h-8" />
+                </div>
+                <p className="text-gray-700 font-medium">{successMsg}</p>
+                <button onClick={() => setSuccessMsg('')} className="text-primary-600 font-bold hover:underline">
+                  {lang === 'es' ? 'Enviar otro mensaje' : 'Send another message'}
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <input
+                  type="text"
+                  required
+                  placeholder={lang === 'es' ? 'Nombre completo' : 'Full name'}
+                  value={form.name}
+                  onChange={(e) => setForm({...form, name: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-gray-50/50"
+                />
+                <input
+                  type="email"
+                  required
+                  placeholder={lang === 'es' ? 'Correo electrónico' : 'Email address'}
+                  value={form.email}
+                  onChange={(e) => setForm({...form, email: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-gray-50/50"
+                />
+                <input
+                  type="text"
+                  required
+                  placeholder={lang === 'es' ? 'Asunto' : 'Subject'}
+                  value={form.subject}
+                  onChange={(e) => setForm({...form, subject: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-gray-50/50"
+                />
+                <textarea
+                  required
+                  rows={4}
+                  placeholder={lang === 'es' ? '¿En qué podemos ayudarte?' : 'How can we help you?'}
+                  value={form.message}
+                  onChange={(e) => setForm({...form, message: e.target.value})}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 bg-gray-50/50 resize-none"
+                />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary w-full py-4 rounded-xl font-bold transition-all shadow-lg shadow-primary-100 disabled:opacity-50"
+                >
+                  {loading ? (lang === 'es' ? 'Enviando...' : 'Sending...') : (lang === 'es' ? 'ENVIAR MENSAJE' : 'SEND MESSAGE')}
+                </button>
+              </form>
+            )}
           </div>
         </div>
 

@@ -217,20 +217,23 @@ export default function EventDetailPage() {
 
           {/* Seat Map */}
           {seatMap.length > 0 && (
-            <div className="border border-gray-200 rounded-lg p-6 bg-white shadow-sm space-y-4">
-              <h2 className="font-bold text-lg text-gray-900">
-                {lang === 'es' ? 'Selecciona tus asientos' : 'Select your seats'}
-              </h2>
-              
-              <SeatMapInteractive
-                seatMap={seatMap}
-                selectedSeats={selectedSeats}
-                onToggleSeats={toggleSeats}
-                defaultViewX={event.defaultViewX}
-                defaultViewY={event.defaultViewY}
-                defaultViewZoom={event.defaultViewZoom}
-              />
-            </div>
+            <details className="group border border-gray-200 rounded-lg bg-white shadow-sm" open>
+              <summary className="font-bold text-lg text-gray-900 p-6 cursor-pointer list-none flex justify-between items-center hover:bg-gray-50 transition-colors">
+                <span>{lang === 'es' ? 'Selecciona tus asientos' : 'Select your seats'}</span>
+                <span className="text-gray-400 group-open:rotate-180 transition-transform text-sm">▼</span>
+              </summary>
+              <div className="px-6 pb-6 pt-2 border-t border-gray-100">
+                <SeatMapInteractive
+                  seatMap={seatMap}
+                  selectedSeats={selectedSeats}
+                  onToggleSeats={toggleSeats}
+                  defaultViewX={event.defaultViewX}
+                  defaultViewY={event.defaultViewY}
+                  defaultViewZoom={event.defaultViewZoom}
+                  showStage={event.showStage}
+                />
+              </div>
+            </details>
           )}
         </div>
 

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User, UserRole, Event, EventStatus, Order, Ticket, VenueSection } from '../database/entities';
+import { User, UserRole, Event, EventStatus, Order, Ticket, VenueSection, Seat } from '../database/entities';
 
 @Injectable()
 export class AdminService {
@@ -147,15 +147,7 @@ export class AdminService {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Evento no encontrado');
 
-    // Calculate min/max prices
-    const sections = await this.sectionRepo.find({ where: { eventId } });
-    const prices = sections.map((s) => Number(s.price));
-
     event.status = EventStatus.PUBLISHED;
-    if (prices.length) {
-      event.minPrice = Math.min(...prices);
-      event.maxPrice = Math.max(...prices);
-    }
     return this.eventRepo.save(event);
   }
 
@@ -264,9 +256,28 @@ export class AdminService {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Evento no encontrado');
     
-    // We will cascade delete or delete sections first
-    await this.sectionRepo.delete({ eventId });
-    await this.eventRepo.delete(eventId);
+    // Cascade delete related entities to avoid foreign key constraint violations
+    await this.eventRepo.manager.transaction(async (manager) => {
+      // 1. Delete tickets
+      await manager.delete(Ticket, { eventId });
+      
+      // 2. Delete orders
+      await manager.delete(Order, { eventId });
+      
+      // 3. Delete seats
+      const sections = await manager.find(VenueSection, { where: { eventId } });
+      if (sections.length > 0) {
+        const sectionIds = sections.map(s => s.id);
+        await manager.createQueryBuilder().delete().from(Seat).where("sectionId IN (:...sectionIds)", { sectionIds }).execute();
+        
+        // 4. Delete sections
+        await manager.delete(VenueSection, { eventId });
+      }
+      
+      // 5. Delete event
+      await manager.delete(Event, { id: eventId });
+    });
+    
     return { success: true };
   }
 

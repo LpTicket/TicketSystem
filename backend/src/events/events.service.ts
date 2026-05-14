@@ -152,16 +152,8 @@ export class EventsService {
       throw new ForbiddenException();
     }
 
-    // Calculate min/max prices from sections
-    const sections = await this.sectionRepo.find({ where: { eventId: id } });
-    const prices = sections.map((s) => Number(s.price));
-    const minPrice = prices.length ? Math.min(...prices) : 0;
-    const maxPrice = prices.length ? Math.max(...prices) : 0;
-
     await this.eventRepo.update(id, {
       status: EventStatus.PENDING_APPROVAL,
-      minPrice,
-      maxPrice,
     });
     return this.findById(id);
   }

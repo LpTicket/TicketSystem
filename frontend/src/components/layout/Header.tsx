@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
@@ -22,6 +22,19 @@ export default function Header() {
   const [profileDropdown, setProfileDropdown] = useState(false);
   const [cartDropdown, setCartDropdown] = useState(false);
   const [cartItems, setCartItems] = useState<any[]>([]);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setProfileDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const loadCartItems = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -149,7 +162,7 @@ export default function Header() {
             </div>
 
             {isAuthenticated && user ? (
-              <div className="relative">
+              <div className="relative" ref={profileRef}>
                 <button onClick={() => setProfileDropdown(!profileDropdown)} className="w-9 h-9 rounded-md border border-blue-600 flex items-center justify-center text-blue-600 hover:bg-blue-50 transition-colors">
                   <HiOutlineUser className="w-5 h-5" />
                 </button>

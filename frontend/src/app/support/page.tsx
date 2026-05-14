@@ -13,6 +13,7 @@ import {
   HiOutlineMail,
   HiOutlineUser,
 } from 'react-icons/hi';
+import api from '@/lib/api';
 
 interface FAQItem {
   questionEs: string;
@@ -74,11 +75,16 @@ export default function SupportPage() {
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    // Simulate API request
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setSubmitting(false);
-    setSuccessMsg(lang === 'es' ? '¡Tu mensaje ha sido enviado! Nos comunicaremos contigo muy pronto.' : 'Your message has been sent! We will contact you shortly.');
-    setContactForm({ name: '', email: '', subject: '', message: '' });
+    try {
+      await api.post('/contact', contactForm);
+      setSuccessMsg(lang === 'es' ? '¡Tu mensaje ha sido enviado! Nos comunicaremos contigo muy pronto.' : 'Your message has been sent! We will contact you shortly.');
+      setContactForm({ name: '', email: '', subject: '', message: '' });
+    } catch (err) {
+      console.error(err);
+      alert(lang === 'es' ? 'Error al enviar el mensaje.' : 'Error sending message.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filteredFAQs = FAQS.filter(faq => {

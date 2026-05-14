@@ -72,11 +72,45 @@ export class MailService {
       await this.transporter.sendMail({
         from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
         to,
+        bcc: this.configService.get('ADMIN_EMAIL'),
         subject: `Tus tickets para ${eventTitle} — LPTicket`,
         html,
       });
     } catch (err) {
       console.error('Error sending email:', err);
+    }
+  }
+  async sendContactEmail(name: string, email: string, subject: string, message: string) {
+    const adminEmail = this.configService.get('ADMIN_EMAIL');
+    const html = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px;">
+        <h2 style="color: #0f172a; margin-top: 0;">Nuevo mensaje de contacto</h2>
+        <p style="color: #475569; font-size: 14px;">Has recibido una nueva consulta desde el Centro de Soporte:</p>
+        
+        <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="margin: 0 0 10px 0;"><strong>Nombre:</strong> ${name}</p>
+          <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${email}</p>
+          <p style="margin: 0 0 10px 0;"><strong>Asunto:</strong> ${subject}</p>
+          <p style="margin: 0; border-top: 1px solid #e2e8f0; pt-10; margin-top: 10px; padding-top: 10px;">
+            <strong>Mensaje:</strong><br/>
+            ${message}
+          </p>
+        </div>
+        
+        <p style="color: #94a3b8; font-size: 11px;">Este correo fue enviado automáticamente por el sistema de LPTicket.</p>
+      </div>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: `"LPTicket Support" <${this.configService.get('SMTP_FROM')}>`,
+        to: adminEmail,
+        replyTo: email,
+        subject: `Soporte: ${subject}`,
+        html,
+      });
+    } catch (err) {
+      console.error('Error sending contact email:', err);
     }
   }
 }

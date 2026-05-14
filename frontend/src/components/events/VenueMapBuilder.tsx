@@ -804,7 +804,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             title={lang === 'es' ? 'Gradería / Filas' : 'Rows'}
           >
             <svg className="w-6 h-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M3 15h18M8 5v14M16 5v14"/></svg>
-            <span className="text-[9px] font-medium leading-none">Filas</span>
+            <span className="text-[9px] font-medium leading-none">{lang === 'es' ? 'Filas' : 'Rows'}</span>
           </button>
 
           <button 
@@ -813,7 +813,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             title={lang === 'es' ? 'Mesa' : 'Table'}
           >
             <svg className="w-6 h-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></svg>
-            <span className="text-[9px] font-medium leading-none">Mesa</span>
+            <span className="text-[9px] font-medium leading-none">{lang === 'es' ? 'Mesa' : 'Table'}</span>
           </button>
 
           <button 
@@ -822,7 +822,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             title={lang === 'es' ? 'Área General' : 'General Admission'}
           >
             <svg className="w-6 h-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-            <span className="text-[9px] font-medium leading-none">Área</span>
+            <span className="text-[9px] font-medium leading-none">{lang === 'es' ? 'Área' : 'Area'}</span>
           </button>
 
           <button 
@@ -833,7 +833,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             <div className="w-8 h-6 bg-slate-700 rounded-sm mb-1 border border-blue-400/30 flex items-center justify-center">
               <div className="w-4 h-0.5 bg-blue-400/50" />
             </div>
-            <span className="text-[9px] font-bold leading-none">ESCENARIO</span>
+            <span className="text-[9px] font-bold leading-none uppercase">{lang === 'es' ? 'Escenario' : 'Stage'}</span>
           </button>
 
           <div className="w-full h-px bg-gray-200 my-1" />

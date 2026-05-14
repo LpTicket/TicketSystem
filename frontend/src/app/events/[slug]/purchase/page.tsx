@@ -168,6 +168,7 @@ export default function PurchasePage() {
   const handleSelectSection = (sec: VenueSection & { seats: Seat[] }) => {
     setSelectedSection(sec);
     setSelectedSeats([]);
+    setStandingQuantity(1); // Reset to 1 when entering a new standing section
     setSeatsLocked(false);
     setStep('seats');
   };
@@ -437,8 +438,8 @@ export default function PurchasePage() {
                   <div className="flex items-center gap-6 bg-white border border-gray-200 rounded-2xl p-2.5 shadow-md">
                     <button
                       type="button"
-                      onClick={() => setStandingQuantity((q) => Math.max(1, q - 1))}
-                      disabled={standingQuantity <= 1}
+                      onClick={() => setStandingQuantity((q) => Math.max(0, q - 1))}
+                      disabled={standingQuantity <= 0}
                       className="w-12 h-12 rounded-xl flex items-center justify-center border-2 border-gray-200 hover:border-blue-500 text-gray-600 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed font-extrabold text-xl transition-all active:scale-90"
                     >
                       －
@@ -508,13 +509,13 @@ export default function PurchasePage() {
                     handleConfirmSeats();
                   }
                 }}
-                disabled={selectedSection.sectionType !== 'standing' && selectedSeats.length === 0}
+                disabled={(selectedSection.sectionType === 'standing' && standingQuantity === 0) || (selectedSection.sectionType !== 'standing' && selectedSeats.length === 0)}
                 className="btn-primary w-full py-3 mt-4 disabled:opacity-40 disabled:cursor-not-allowed font-bold"
               >
                 {selectedSection.sectionType === 'standing'
-                  ? 'Continuar →'
+                  ? (standingQuantity === 0 ? (lang === 'es' ? 'Selecciona al menos 1 entrada' : 'Select at least 1 ticket') : 'Continuar →')
                   : selectedSeats.length === 0
-                    ? 'Selecciona al menos 1 asiento'
+                    ? (lang === 'es' ? 'Selecciona al menos 1 asiento' : 'Select at least 1 seat')
                     : `Reservar ${selectedSeats.length} asiento${selectedSeats.length > 1 ? 's' : ''} →`}
               </button>
 

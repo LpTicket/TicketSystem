@@ -50,6 +50,29 @@ export default function SeatMapInteractive({
 
   const isSeatSelected = (id: string) => selectedSeats.some((s) => s.id === id);
 
+  // Helper: is this seat unavailable (should render gray)?
+  const isSeatUnavailable = (seat: Seat, seatOverride: any = {}) =>
+    seat.status === SeatStatus.SOLD ||
+    seat.status === SeatStatus.LOCKED ||
+    !!seatOverride?.reserved;
+
+  // Seat color helpers
+  const getSeatBg = (seat: Seat, seatOverride: any, sectionColor: string, isWC: boolean, selected: boolean) => {
+    if (selected) return isWC ? '#1a73e8' : sectionColor;
+    if (isSeatUnavailable(seat, seatOverride)) return '#d1d5db'; // gray-300
+    return isWC ? '#1a73e8' : '#fff';
+  };
+  const getSeatBorder = (seat: Seat, seatOverride: any, sectionColor: string, isWC: boolean, selected: boolean) => {
+    if (selected) return '#fff';
+    if (isSeatUnavailable(seat, seatOverride)) return '#9ca3af'; // gray-400
+    return isWC ? '#1a73e8' : sectionColor;
+  };
+  const getSeatShadow = (seat: Seat, seatOverride: any, sectionColor: string, selected: boolean) => {
+    if (selected) return `0 0 0 2px ${sectionColor}`;
+    if (isSeatUnavailable(seat, seatOverride)) return 'none';
+    return '0 1px 2px rgba(0,0,0,0.1)';
+  };
+
   const getSeatPrice = (seat: any, section: VenueSection) => {
     try {
       if (section.seatsConfig) {
@@ -523,8 +546,14 @@ export default function SeatMapInteractive({
                   top: section.mapY || 0,
                   width: section.mapWidth || 100,
                   height: section.mapHeight || 100,
-                  background: isStage ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : (isStanding ? section.color : 'transparent'),
-                  opacity: isStanding ? 0.85 : 1,
+                  background: isStage ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : (isStanding ? (
+                    (() => {
+                      const sold = (section.seats || []).filter(s => s.status === SeatStatus.SOLD || s.status === SeatStatus.LOCKED).length;
+                      const total = section.capacity || section.seats?.length || 1;
+                      return sold >= total ? '#9ca3af' : section.color;
+                    })()
+                  ) : 'transparent'),
+                  opacity: isStanding ? 0.9 : 1,
                   border: isStage ? '2.5px solid #3b82f6' : 'none',
                   borderRadius: isStage ? '0 0 40px 40px' : (isStanding ? 8 : (isTable && tableShape === 'round') ? '50%' : 4),
                   zIndex: isFocused ? 30 : (isStage ? 5 : 10),
@@ -562,19 +591,32 @@ export default function SeatMapInteractive({
                     }
                   })();
 
+                  const allTableSeats = section.seats || [];
+                  const isTableFullyUnavailable = allTableSeats.length > 0 && allTableSeats.every(s => {
+                    const k = `seat-${s.seatNumber}`;
+                    return isSeatUnavailable(s, overrides[k]);
+                  });
+                  const tableCenterBg = isTableFullyUnavailable ? '#e5e7eb' : '#fff';
+                  const tableCenterBorder = isTableFullyUnavailable ? '#9ca3af' : section.color;
+                  const tableLabelColor = isTableFullyUnavailable ? '#6b7280' : '#6b7280';
+
                   return (
                     <div className="relative w-full h-full flex items-center justify-center">
                       {tableShape === 'round' ? (
                         <>
                           <div 
-                            className="absolute rounded-full bg-white border shadow-sm flex items-center justify-center z-10 font-bold text-gray-500 cursor-pointer hover:bg-gray-50 transition-colors" 
+                            className="absolute rounded-full border shadow-sm flex items-center justify-center z-10 font-bold transition-colors" 
                             style={{
-                              width: '60%', height: '60%', borderColor: section.color
+                              width: '60%', height: '60%',
+                              backgroundColor: tableCenterBg,
+                              borderColor: tableCenterBorder,
+                              cursor: isTableFullyUnavailable ? 'not-allowed' : 'pointer',
                             }}
                             onMouseEnter={() => setHoveredTable(section.id)}
                             onMouseLeave={() => setHoveredTable(null)}
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (isTableFullyUnavailable) return;
                               const allSeats = section.seats || [];
                               const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
                               if (isTableSelected) {
@@ -585,7 +627,7 @@ export default function SeatMapInteractive({
                               }
                             }}
                           >
-                            <span className="text-[10px] font-bold text-gray-500">MESA</span>
+                            <span className="text-[10px] font-bold" style={{ color: tableLabelColor }}>{isTableFullyUnavailable ? (lang === 'es' ? 'NO DISP.' : 'N/A') : 'MESA'}</span>
                           </div>
                           {section.seats?.map((seat, i) => {
                             const seatNumber = seat.seatNumber;
@@ -617,7 +659,7 @@ export default function SeatMapInteractive({
                                     const seatKey = `seat-${seat.seatNumber}`;
                                     const seatOverride = overrides[seatKey] || {};
 
-                                    if (seat.status === SeatStatus.SOLD || seatOverride.reserved) return;
+                                    if (isSeatUnavailable(seat, seatOverride)) return;
 
                                     // If table is whole-only, clicking a seat toggles the entire table
                                     if (section.tablePurchaseMode === 'whole') {
@@ -649,14 +691,18 @@ export default function SeatMapInteractive({
                       ) : (
                         <>
                           <div 
-                            className="absolute rounded bg-white border shadow-sm flex items-center justify-center z-10 cursor-pointer hover:bg-gray-50 transition-colors" 
+                            className="absolute rounded border shadow-sm flex items-center justify-center z-10 transition-colors" 
                             style={{
-                              width: '70%', height: '45%', borderColor: section.color
+                              width: '70%', height: '45%',
+                              backgroundColor: tableCenterBg,
+                              borderColor: tableCenterBorder,
+                              cursor: isTableFullyUnavailable ? 'not-allowed' : 'pointer',
                             }}
                             onMouseEnter={() => setHoveredTable(section.id)}
                             onMouseLeave={() => setHoveredTable(null)}
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (isTableFullyUnavailable) return;
                               const allSeats = section.seats || [];
                               const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
                               if (isTableSelected) {
@@ -667,7 +713,7 @@ export default function SeatMapInteractive({
                               }
                             }}
                           >
-                            <span className="text-[10px] font-bold text-gray-500">MESA</span>
+                            <span className="text-[10px] font-bold" style={{ color: tableLabelColor }}>{isTableFullyUnavailable ? (lang === 'es' ? 'NO DISP.' : 'N/A') : 'MESA'}</span>
                           </div>
                           {section.seats?.map((seat, i) => {
                             const seatNumber = seat.seatNumber;
@@ -709,9 +755,10 @@ export default function SeatMapInteractive({
                                 <button
                                   className="w-full h-full rounded-full border-[1.5px] shadow-sm hover:scale-125 transition-transform box-border flex items-center justify-center text-white"
                                   style={{
-                                    backgroundColor: selected ? (isSeatWheelchair ? '#1a73e8' : section.color) : seat.status === SeatStatus.SOLD ? '#cbd5e1' : (isSeatWheelchair ? '#1a73e8' : '#fff'),
-                                    borderColor: selected ? '#fff' : seat.status === SeatStatus.SOLD ? '#94a3b8' : (isSeatWheelchair ? '#1a73e8' : section.color),
-                                    boxShadow: selected ? `0 0 0 2px ${section.color}` : '0 1px 2px rgba(0,0,0,0.1)'
+                                    backgroundColor: getSeatBg(seat, seatOverride, section.color, isSeatWheelchair, selected),
+                                    borderColor: getSeatBorder(seat, seatOverride, section.color, isSeatWheelchair, selected),
+                                    boxShadow: getSeatShadow(seat, seatOverride, section.color, selected),
+                                    cursor: isSeatUnavailable(seat, seatOverride) && !selected ? 'not-allowed' : 'pointer',
                                   }}
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -719,7 +766,7 @@ export default function SeatMapInteractive({
                                     const seatKey = `seat-${seat.seatNumber}`;
                                     const seatOverride = overrides[seatKey] || {};
 
-                                    if (seat.status === SeatStatus.SOLD || seatOverride.reserved) return;
+                                    if (isSeatUnavailable(seat, seatOverride)) return;
 
                                     // If table is whole-only, clicking a seat toggles the entire table
                                     if (section.tablePurchaseMode === 'whole') {
@@ -819,18 +866,18 @@ export default function SeatMapInteractive({
                           >
                             <button
                               className="w-full h-full rounded-full border-[1.5px] shadow-sm hover:scale-125 transition-transform box-border flex items-center justify-center text-white"
-                                      style={{ 
-                                backgroundColor: selected ? (isSeatWheelchair ? '#1a73e8' : section.color) : seat.status === SeatStatus.SOLD ? '#cbd5e1' : (isSeatWheelchair ? '#1a73e8' : '#fff'),
-                                borderColor: selected ? '#fff' : seat.status === SeatStatus.SOLD ? '#94a3b8' : (isSeatWheelchair ? '#1a73e8' : section.color),
+                              style={{ 
+                                backgroundColor: selected ? (isSeatWheelchair ? '#1a73e8' : section.color) : isSeatUnavailable(seat, seatOverride) ? '#cbd5e1' : (isSeatWheelchair ? '#1a73e8' : '#fff'),
+                                borderColor: selected ? '#fff' : isSeatUnavailable(seat, seatOverride) ? '#94a3b8' : (isSeatWheelchair ? '#1a73e8' : section.color),
                                 boxShadow: selected ? `0 0 0 2px ${section.color}` : '0 1px 2px rgba(0,0,0,0.1)'
                               }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if ((seat.status === SeatStatus.AVAILABLE && !seatOverride.reserved) || selected) onToggleSeats([seat]);
-                                }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isSeatUnavailable(seat, seatOverride) || selected) onToggleSeats([seat]);
+                              }}
                               onMouseEnter={() => setHoveredSeat(seat.id)}
                               onMouseLeave={() => setHoveredSeat(null)}
-                              disabled={seat.status === SeatStatus.SOLD || seatOverride.reserved}
+                              disabled={isSeatUnavailable(seat, seatOverride) && !selected}
                             >
                               {isSeatWheelchair && (
                                 <FaWheelchair className="w-[65%] h-[65%] shrink-0 text-white" />
