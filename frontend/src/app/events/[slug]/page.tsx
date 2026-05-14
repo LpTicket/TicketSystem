@@ -79,7 +79,7 @@ export default function EventDetailPage() {
     }
   }, [event?.id, seatMap.length, hasLoadedSaved]);
  
-  // Sincronizar selección a localStorage
+  // Sincronizar selección a localStorage y escuchar cambios externos
   useEffect(() => {
     if (!event?.id || !hasLoadedSaved) return;
  
@@ -92,9 +92,43 @@ export default function EventDetailPage() {
       venueName: event.venueName,
       currency: event.currency
     }));
-    localStorage.setItem(`selectedSeats_${event.id}`, JSON.stringify(cartData));
-    window.dispatchEvent(new Event('cart-updated'));
+    
+    // Only write if different from what's there to prevent loops
+    const currentSaved = localStorage.getItem(`selectedSeats_${event.id}`);
+    const newSaved = JSON.stringify(cartData);
+    if (currentSaved !== newSaved) {
+      if (cartData.length === 0) {
+        localStorage.removeItem(`selectedSeats_${event.id}`);
+      } else {
+        localStorage.setItem(`selectedSeats_${event.id}`, newSaved);
+      }
+      window.dispatchEvent(new Event('cart-updated'));
+    }
   }, [selectedSeats, event, hasLoadedSaved]);
+
+  useEffect(() => {
+    const handleCartSync = () => {
+      if (!event?.id) return;
+      const saved = localStorage.getItem(`selectedSeats_${event.id}`);
+      if (!saved) {
+        setSelectedSeats([]);
+      } else {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length === 0) {
+            setSelectedSeats([]);
+          }
+        } catch (e) {}
+      }
+    };
+
+    window.addEventListener('cart-updated', handleCartSync);
+    window.addEventListener('storage', handleCartSync);
+    return () => {
+      window.removeEventListener('cart-updated', handleCartSync);
+      window.removeEventListener('storage', handleCartSync);
+    };
+  }, [event?.id]);
 
   const toggleSeats = (seats: Seat[]) => {
     setSelectedSeats((prev) => {
