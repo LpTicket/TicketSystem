@@ -954,7 +954,12 @@ export default function SeatMapInteractive({
                       onClick={(e) => {
                         e.stopPropagation();
                         const current = selectedSeats.filter(s => s.sectionId === focusedSection);
-                        if (current.length > 1) onToggleSeats([current[current.length - 1]]);
+                        if (current.length > 0) {
+                          onToggleSeats([current[current.length - 1]]);
+                          if (current.length === 1) {
+                            setFocusedSection(null);
+                          }
+                        }
                       }}
                       className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-all active:scale-90 font-bold text-lg"
                     >
