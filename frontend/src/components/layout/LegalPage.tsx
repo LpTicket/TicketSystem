@@ -54,17 +54,17 @@ export default function LegalPage({ title, lastUpdated, content }: LegalPageProp
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
           {/* Header */}
-          <div className="bg-primary-600 px-8 py-12 text-white text-center">
-            <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight mb-4">
+          <div className="bg-primary-600 px-8 py-8 text-white text-center">
+            <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight mb-2">
               {title}
             </h1>
-            <p className="text-primary-100 text-sm font-medium">
+            <p className="text-primary-100 text-[10px] font-bold uppercase tracking-widest">
               {lang === 'es' ? 'Última actualización' : 'Last Updated'}: {lastUpdated}
             </p>
           </div>
 
-          {/* Content */}
-          <div className="px-8 py-12 sm:px-12 prose prose-blue max-w-none">
+          {/* Content with Scrollbar */}
+          <div className="px-8 py-10 sm:px-12 prose prose-blue max-w-none max-h-[600px] overflow-y-auto custom-scrollbar">
             {renderContent()}
           </div>
 
