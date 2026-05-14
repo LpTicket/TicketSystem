@@ -280,9 +280,9 @@ export default function Header() {
     
     {/* Floating Shopping Cart Popup (Bottom Right) - Fixed position stable sibling */}
     {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && !pathname.includes('/login') && !pathname.includes('/register') && (
-      <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3 print:hidden">
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3 print:hidden pointer-events-none">
         {cartDropdown && (
-          <div className="w-80 bg-white rounded-3xl shadow-elevated border border-gray-100 p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden">
+          <div className="w-80 bg-white rounded-3xl shadow-elevated border border-gray-100 p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden pointer-events-auto">
             {/* Header */}
             <div className="flex justify-between items-center mb-3 shrink-0">
               <div className="flex items-center gap-2">
@@ -379,7 +379,7 @@ export default function Header() {
         
         <button 
           onClick={() => setCartDropdown(!cartDropdown)}
-          className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 relative group active:scale-90 ${
+          className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 relative group active:scale-90 pointer-events-auto ${
             cartDropdown ? 'bg-gray-900 text-white rotate-90' : 'bg-[#0b1a2e] text-white hover:bg-[#162a45]'
           }`}
         >
