@@ -22,14 +22,17 @@ export default function Footer() {
             <div className="space-y-6">
               <Link href="/about" className="block text-white/90 hover:text-white text-[15px] font-medium transition-colors">{t('whoWeAre')}</Link>
               <Link href="/terms" className="block text-white/90 hover:text-white text-[15px] font-medium transition-colors">{t('terms')}</Link>
+              <Link href="/privacy" className="block text-white/90 hover:text-white text-[15px] font-medium transition-colors">{lang === 'es' ? 'Privacidad' : 'Privacy'}</Link>
             </div>
             <div className="space-y-6">
               <Link href="/events" className="block text-white/90 hover:text-white text-[15px] font-medium transition-colors">{t('events')}</Link>
+              <Link href="/refunds" className="block text-white/90 hover:text-white text-[15px] font-medium transition-colors">{lang === 'es' ? 'Reembolsos' : 'Refunds'}</Link>
               <Link href="/dashboard" className="block text-white/90 hover:text-white text-[15px] font-medium transition-colors">{t('myTickets')}</Link>
             </div>
             <div className="space-y-6">
               <Link href="/contact" className="block text-white/90 hover:text-white text-[15px] font-medium transition-colors">{t('contact')}</Link>
               <Link href="/support" className="block text-white/90 hover:text-white text-[15px] font-medium transition-colors">{t('support')}</Link>
+              <Link href="/organizer-agreement" className="block text-white/90 hover:text-white text-[15px] font-medium transition-colors">{lang === 'es' ? 'Acuerdo de Organizador' : 'Organizer Agreement'}</Link>
             </div>
           </div>
 

@@ -1,0 +1,83 @@
+﻿REFUND POLICY
+LPTicket LLC
+Last Updated: [Insert Date]
+1325 Main St Suite 203, Katy, TX 77494, United States
+info@lpticket.com
+
+
+1. Introduction
+This Refund Policy explains how refunds, cancellations, postponements, event changes, invalid tickets, service fees, and payment disputes work on LPticket.com.
+2. General Rule
+LPTicket's general rule is that refunds depend on the Organizer, unless applicable law requires otherwise.
+LPTicket is a ticketing and event access technology platform. In many cases, the Organizer is responsible for the event, its production, venue, date, time, rules, entry conditions, and refund policy.
+When an event is organized directly by LPTicket LLC, Sundin Galue, or a related company, the specific refund policy posted for that event will apply.
+3. Before Purchasing
+Before purchasing a ticket, Buyers are responsible for reviewing:
+* Event name.
+* Date and time.
+* Location and venue.
+* Ticket type.
+* Price and fees.
+* Age restrictions.
+* Identification requirements.
+* Venue rules.
+* Entry conditions.
+* Refund policy.
+* Event-specific terms and restrictions.
+By completing a purchase, the Buyer accepts the posted conditions for that event.
+4. Service Fees
+LPTicket charges service fees to Buyers for use of the platform, ticket technology, digital delivery, QR generation, processing support, fraud prevention, customer support, and related operational costs.
+To the fullest extent permitted by law, LPTicket service fees may be non-refundable, even when the Organizer approves a refund of the base ticket price.
+5. How to Request a Refund
+To request a refund, contact info@lpticket.com and include:
+* Full name.
+* Email used for the purchase.
+* Event name.
+* Order number or confirmation number.
+* Reason for the request.
+* Supporting evidence, if applicable.
+LPTicket may review the request and, when appropriate, forward it to the Organizer. Approval may depend on the Organizer and the event's posted refund policy.
+6. Cases Where Refunds Are Usually Not Available
+Unless required by law or stated in the event's specific refund policy, refunds are usually not available when:
+* The Buyer does not attend the event.
+* The Buyer arrives late.
+* The Buyer purchased the wrong ticket, date, or event.
+* The Buyer failed to review the location or event details.
+* The Buyer does not meet age requirements.
+* The Buyer does not present valid identification when required.
+* The Buyer violates venue or event rules.
+* The Buyer is removed or denied entry for inappropriate conduct.
+* The ticket was shared, copied, transferred, resold, or used by another person.
+* The ticket was purchased outside LPTicket or official channels.
+* The Buyer failed to download or access the ticket on time.
+* The Buyer lost access to the email account used for purchase.
+7. Cancelled Events
+If an event is permanently cancelled, the Organizer is responsible for communicating available options to Buyers.
+Options may include a full refund, partial refund, credit for another event, transfer to a new date, or another lawful solution.
+LPTicket may assist with the technical processing of approved refunds, but does not guarantee funds if the proceeds have already been released to the Organizer or if external disputes, holds, or processor limitations apply.
+8. Postponed or Rescheduled Events
+If an event is postponed, rescheduled, or moved, tickets may remain valid for the new date, time, or location unless the Organizer states otherwise.
+A schedule change does not automatically guarantee a refund unless the event policy or applicable law requires one.
+9. Changes in Performers, Speakers, Sponsors, or Programming
+Events may include artists, speakers, DJs, sponsors, vendors, brands, or scheduled activities that may change. Unless the specific event policy states otherwise, changes in performers, speakers, programming, sponsors, or secondary event elements do not automatically guarantee a refund.
+10. Admission Denial
+The Organizer, venue, security staff, or LPTicket may deny entry or remove a person from an event if the ticket is invalid, the QR code has already been used, the ticket was altered, the person does not meet age or identification requirements, the person violates safety rules, the person behaves aggressively, the person appears intoxicated, the person carries prohibited items, or the person violates these Terms.
+Denial of entry for rule violations does not guarantee a refund.
+11. Duplicated, Copied, or Resold Tickets
+Each digital ticket may contain a unique QR code. If a ticket is copied, forwarded, shared, resold, or duplicated, only the first valid scan may be accepted.
+LPTicket is not responsible if a Buyer shares a ticket and another person uses it first. Buyers should not purchase tickets from unofficial sources.
+12. Refunded or Cancelled Tickets
+A ticket that has been refunded, cancelled, voided, or marked invalid may not be used to enter an event. Attempting to use a refunded, fake, altered, or invalid ticket may be considered fraud.
+13. Chargebacks
+Before initiating a chargeback or bank dispute, Buyers should contact info@lpticket.com so LPTicket can attempt to resolve the issue.
+If a Buyer initiates a fraudulent or invalid chargeback, LPTicket may cancel tickets, suspend the account, block future purchases, submit evidence to the bank, charge permitted administrative costs, and pursue legal remedies.
+14. Refund Timing
+If a refund is approved, the time required to receive funds depends on Stripe, the card issuer, the bank, the payment method, fraud review, and the Organizer's processes. LPTicket does not control bank or processor timelines.
+15. Partial Refunds
+Some refunds may be partial. A partial refund may exclude service fees, payment processing fees, administrative costs, venue charges, non-recoverable taxes, or other lawful non-refundable charges.
+16. Free Events
+For free events, LPTicket may cancel duplicate, suspicious, false, or abusive registrations. A free registration does not guarantee entry if the venue reaches capacity or if the attendee violates event rules.
+17. Capacity Limits
+Tickets and registrations remain subject to venue capacity, fire code, safety rules, arrival procedures, validation requirements, identification requirements, and applicable law.
+18. Contact for Refunds
+For refund requests, contact LPTicket LLC at info@lpticket.com.
