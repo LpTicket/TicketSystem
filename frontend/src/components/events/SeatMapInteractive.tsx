@@ -36,9 +36,7 @@ export default function SeatMapInteractive({
   const { lang } = useLang();
   const [zoom, setZoom] = useState(0.8);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [hoveredSeat, setHoveredSeat] = useState<string | null>(null);
-  const [hoveredTable, setHoveredTable] = useState<string | null>(null);
-  const [focusedSection, setFocusedSection] = useState<string | null>(null);
+      const [focusedSection, setFocusedSection] = useState<string | null>(null);
   const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
@@ -612,8 +610,8 @@ export default function SeatMapInteractive({
                               borderColor: tableCenterBorder,
                               cursor: isTableFullyUnavailable ? 'not-allowed' : 'pointer',
                             }}
-                            onMouseEnter={() => setHoveredTable(section.id)}
-                            onMouseLeave={() => setHoveredTable(null)}
+                            
+                            
                             onClick={(e) => {
                               e.stopPropagation();
                               if (isTableFullyUnavailable) return;
@@ -678,8 +676,8 @@ export default function SeatMapInteractive({
                                     // Clicking a seat always toggles just that seat (Individual mode)
                                     onToggleSeats([seat]);
                                   }}
-                                  onMouseEnter={() => setHoveredSeat(seat.id)}
-                                  onMouseLeave={() => setHoveredSeat(null)}
+                                  
+                                  
                                   disabled={seat.status === SeatStatus.SOLD || seatOverride.reserved}
                                 >
                                   {isSeatWheelchair && (
@@ -700,8 +698,8 @@ export default function SeatMapInteractive({
                               borderColor: tableCenterBorder,
                               cursor: isTableFullyUnavailable ? 'not-allowed' : 'pointer',
                             }}
-                            onMouseEnter={() => setHoveredTable(section.id)}
-                            onMouseLeave={() => setHoveredTable(null)}
+                            
+                            
                             onClick={(e) => {
                               e.stopPropagation();
                               if (isTableFullyUnavailable) return;
@@ -794,8 +792,8 @@ export default function SeatMapInteractive({
 
                                     onToggleSeats([seat]);
                                   }}
-                                  onMouseEnter={() => setHoveredSeat(seat.id)}
-                                  onMouseLeave={() => setHoveredSeat(null)}
+                                  
+                                  
                                   disabled={seat.status === SeatStatus.SOLD || seatOverride.reserved}
                                 >
                                   {isSeatWheelchair && (
@@ -886,8 +884,8 @@ export default function SeatMapInteractive({
                                 e.stopPropagation();
                                 if (!isSeatUnavailable(seat, seatOverride) || selected) onToggleSeats([seat]);
                               }}
-                              onMouseEnter={() => setHoveredSeat(seat.id)}
-                              onMouseLeave={() => setHoveredSeat(null)}
+                              
+                              
                               disabled={isSeatUnavailable(seat, seatOverride) && !selected}
                             >
                               {isSeatWheelchair && (
@@ -901,11 +899,7 @@ export default function SeatMapInteractive({
                   </div>
                 )}
 
-                  {hoveredTable === section.id && (
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-gray-900/95 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-2xl whitespace-nowrap pointer-events-none border border-white/20 backdrop-blur-sm scale-110">
-                      ✨ {lang === 'es' ? 'Seleccionar Mesa Completa' : 'Select Whole Table'}
-                    </div>
-                  )}
+                  
               </div>
             );
           })}

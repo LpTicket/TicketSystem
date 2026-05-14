@@ -1,0 +1,12 @@
+const fs = require('fs');
+const file = 'frontend/src/components/events/SeatMapInteractive.tsx';
+let content = fs.readFileSync(file, 'utf8');
+content = content.replace(/onMouseEnter=\{\(\) => setHoveredSeat\(seat\.id\)\}/g, '');
+content = content.replace(/onMouseLeave=\{\(\) => setHoveredSeat\(null\)\}/g, '');
+content = content.replace(/onMouseEnter=\{\(\) => setHoveredTable\(section\.id\)\}/g, '');
+content = content.replace(/onMouseLeave=\{\(\) => setHoveredTable\(null\)\}/g, '');
+content = content.replace(/const \[hoveredSeat, setHoveredSeat\] = useState<string \| null>\(null\);\r?\n?/g, '');
+content = content.replace(/const \[hoveredTable, setHoveredTable\] = useState<string \| null>\(null\);\r?\n?/g, '');
+content = content.replace(/\{\/\* Global Seat Tooltip[\s\S]*?\}\(\)\)}/g, '');
+fs.writeFileSync(file, content);
+console.log('Done');
