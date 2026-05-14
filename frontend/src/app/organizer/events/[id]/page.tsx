@@ -54,7 +54,7 @@ export default function EventDetailPage() {
   const [sections, setSections] = useState<VenueSection[]>([]);
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
-  const [activeTab, setActiveTab] = useState<'details' | 'overview' | 'attendees' | 'sales' | 'map' | 'blocks'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'overview' | 'attendees' | 'map' | 'blocks'>('details');
   const [selectedBlockSection, setSelectedBlockSection] = useState('');
   const [selectedBlockSeats, setSelectedBlockSeats] = useState<string[]>([]);
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
@@ -430,16 +430,8 @@ export default function EventDetailPage() {
           className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'attendees' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           <HiOutlineUsers className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap">{t('orgAttendees')}</span>
-          {attendees.length > 0 && <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] sm:text-xs shrink-0">{attendees.length}</span>}
-        </button>
-        <button
-          onClick={() => setActiveTab('sales')}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'sales' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-        >
-          <HiOutlineShoppingCart className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap">{lang === 'es' ? 'Ventas y Clientes' : 'Sales & Clients'}</span>
-          {sales?.orders && sales.orders.length > 0 && <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] sm:text-xs shrink-0">{sales.orders.length}</span>}
+          <span className="whitespace-nowrap">{lang === 'es' ? 'Asistentes y Ventas' : 'Attendees & Sales'}</span>
+          {attendees.length > 0 && <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] sm:text-xs shrink-0">{attendees.length} / {sales?.orders?.length || 0}</span>}
         </button>
         <button
           onClick={() => setActiveTab('map')}
@@ -500,24 +492,29 @@ export default function EventDetailPage() {
         />
       )}
 
-      {/* Attendees Tab */}
+      {/* Attendees & Sales Tab */}
       {activeTab === 'attendees' && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          {attendees.length > 0 ? (
-            <>
-              <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-b border-gray-200">
-                <p className="text-sm font-medium text-gray-700">
-                  {attendees.length} {lang === 'es' ? 'asistentes registrados' : 'registered attendees'}
-                </p>
-                <button onClick={exportCSV} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5">
-                  <HiOutlineDownload className="w-4 h-4" />
-                  {t('orgExportCSV')}
-                </button>
+        <div className="space-y-8">
+          {/* Attendees Section */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <HiOutlineUsers className="w-5 h-5 text-primary-500" />
+                  {lang === 'es' ? 'Lista de Asistentes' : 'Attendee List'}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">{attendees.length} {lang === 'es' ? 'entradas individuales vendidas' : 'individual tickets sold'}</p>
               </div>
-
-              {/* Desktop */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
+              <button onClick={exportCSV} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 self-start sm:self-auto">
+                <HiOutlineDownload className="w-4 h-4" />
+                {t('orgExportCSV')}
+              </button>
+            </div>
+            
+            {attendees.length > 0 ? (
+              <div className="overflow-x-auto">
+                {/* Desktop */}
+                <table className="w-full hidden md:table">
                   <thead>
                     <tr className="border-b border-gray-100">
                       <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{t('orgAttendeeName')}</th>
@@ -548,57 +545,55 @@ export default function EventDetailPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
-
-              {/* Mobile */}
-              <div className="md:hidden divide-y divide-gray-100">
-                {attendees.map((a) => (
-                  <div key={a.id} className="p-4">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-gray-900 text-sm">{a.user?.firstName} {a.user?.lastName}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        a.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                      }`}>{a.status}</span>
+                {/* Mobile */}
+                <div className="md:hidden divide-y divide-gray-100">
+                  {attendees.map((a) => (
+                    <div key={a.id} className="p-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-gray-900 text-sm">{a.user?.firstName} {a.user?.lastName}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          a.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                        }`}>{a.status}</span>
+                      </div>
+                      <p className="text-xs text-gray-500">{a.user?.email}</p>
+                      <p className="text-xs text-gray-500 mt-1">{a.sectionName} · {a.rowLabel}{a.seatNumber} · <span className="font-mono text-primary-600">{a.ticketCode}</span></p>
                     </div>
-                    <p className="text-xs text-gray-500">{a.user?.email}</p>
-                    <p className="text-xs text-gray-500 mt-1">{a.sectionName} · {a.rowLabel}{a.seatNumber} · <span className="font-mono text-primary-600">{a.ticketCode}</span></p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </>
-          ) : (
-            <div className="px-6 py-16 text-center">
-              <HiOutlineUsers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-600 text-sm">{lang === 'es' ? 'Aún no hay asistentes para este evento' : 'No attendees yet for this event'}</p>
+            ) : (
+              <div className="px-6 py-12 text-center text-gray-500 text-sm">
+                {lang === 'es' ? 'No hay asistentes registrados' : 'No attendees registered'}
+              </div>
+            )}
+          </div>
+
+          {/* Orders Section */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <HiOutlineShoppingCart className="w-5 h-5 text-purple-500" />
+                  {lang === 'es' ? 'Órdenes y Clientes' : 'Orders & Clients'}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">{sales?.orders?.length || 0} {lang === 'es' ? 'transacciones realizadas' : 'completed transactions'}</p>
+              </div>
+              <button onClick={exportSalesCSV} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 self-start sm:self-auto">
+                <HiOutlineDownload className="w-4 h-4" />
+                {lang === 'es' ? 'Exportar Ventas' : 'Export Sales'}
+              </button>
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Sales Tab */}
-      {activeTab === 'sales' && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          {sales?.orders && sales.orders.length > 0 ? (
-            <>
-              <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-b border-gray-200">
-                <p className="text-sm font-medium text-gray-700">
-                  {sales.orders.length} {lang === 'es' ? 'pedidos completados' : 'completed orders'}
-                </p>
-                <button onClick={exportSalesCSV} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5">
-                  <HiOutlineDownload className="w-4 h-4" />
-                  {lang === 'es' ? 'Exportar Excel / CSV' : 'Export Excel / CSV'}
-                </button>
-              </div>
-
-              {/* Desktop */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
+            {sales?.orders && sales.orders.length > 0 ? (
+              <div className="overflow-x-auto">
+                {/* Desktop */}
+                <table className="w-full hidden md:table">
                   <thead>
                     <tr className="border-b border-gray-100">
                       <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Cliente' : 'Client'}</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Correo Electrónico' : 'Email'}</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Cantidad Boletos' : 'Ticket Count'}</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Total Pagado' : 'Total Paid'}</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Correo' : 'Email'}</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Boletos' : 'Qty'}</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Total' : 'Total'}</th>
                       <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Fecha' : 'Date'}</th>
                     </tr>
                   </thead>
@@ -609,36 +604,30 @@ export default function EventDetailPage() {
                         <td className="px-4 py-4 text-sm text-gray-600">{o.user?.email}</td>
                         <td className="px-4 py-4 text-sm text-gray-900 font-semibold text-center">{o.ticketCount}</td>
                         <td className="px-4 py-4 text-sm text-primary-600 font-bold text-right">${Number(o.total).toFixed(2)}</td>
-                        <td className="px-4 py-4 text-xs text-gray-500 text-center">{format(new Date(o.createdAt), 'dd MMM yyyy HH:mm')}</td>
+                        <td className="px-4 py-4 text-xs text-gray-500 text-center">{format(new Date(o.createdAt), 'dd MMM yyyy')}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-
-              {/* Mobile */}
-              <div className="md:hidden divide-y divide-gray-100">
-                {sales.orders.map((o: any) => (
-                  <div key={o.id} className="p-4 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-gray-900 text-sm">{o.user?.firstName} {o.user?.lastName}</span>
-                      <span className="text-sm font-extrabold text-primary-600">${Number(o.total).toFixed(2)}</span>
+                {/* Mobile */}
+                <div className="md:hidden divide-y divide-gray-100">
+                  {sales.orders.map((o: any) => (
+                    <div key={o.id} className="p-4 flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-gray-900 text-sm">{o.user?.firstName} {o.user?.lastName}</p>
+                        <p className="text-xs text-gray-500">{o.ticketCount} {o.ticketCount === 1 ? 'boleto' : 'boletos'} · {format(new Date(o.createdAt), 'dd MMM')}</p>
+                      </div>
+                      <p className="text-sm font-extrabold text-primary-600">${Number(o.total).toFixed(2)}</p>
                     </div>
-                    <p className="text-xs text-gray-500">{o.user?.email}</p>
-                    <div className="flex justify-between text-xs text-gray-500 pt-1 border-t border-gray-50">
-                      <span>Boletos: <strong>{o.ticketCount}</strong></span>
-                      <span>{format(new Date(o.createdAt), 'dd MMM yyyy HH:mm')}</span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </>
-          ) : (
-            <div className="px-6 py-16 text-center">
-              <HiOutlineShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-600 text-sm">{lang === 'es' ? 'Aún no hay ventas para este evento' : 'No sales yet for this event'}</p>
-            </div>
-          )}
+            ) : (
+              <div className="px-6 py-12 text-center text-gray-500 text-sm">
+                {lang === 'es' ? 'No hay ventas registradas' : 'No sales recorded'}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
