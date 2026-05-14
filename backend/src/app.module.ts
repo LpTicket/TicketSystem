@@ -11,6 +11,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CommonModule } from './common/common.module';
 import { VenueTemplatesModule } from './venue-templates/venue-templates.module';
+import { AiSupportModule } from './ai-support/ai-support.module';
 import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate } from './database/entities';
 
 @Module({
@@ -47,6 +48,7 @@ import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, Pa
     PaymentsModule,
     CommonModule,
     VenueTemplatesModule,
+    AiSupportModule,
   ],
 })
 export class AppModule {}
