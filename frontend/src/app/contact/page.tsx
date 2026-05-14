@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker } from 'react-icons/hi';
