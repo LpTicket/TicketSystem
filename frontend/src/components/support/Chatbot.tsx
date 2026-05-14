@@ -81,7 +81,7 @@ export default function Chatbot() {
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 left-6 w-14 h-14 bg-primary-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 hover:bg-primary-700 transition-all z-50 group"
+        className="fixed bottom-6 left-6 w-14 h-14 bg-[#0b1a2e] text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 hover:bg-[#162a45] transition-all z-50 group"
       >
         {isOpen ? (
           <HiXMark className="w-7 h-7" />
@@ -98,7 +98,7 @@ export default function Chatbot() {
         <div className="fixed bottom-24 left-6 w-[90vw] sm:w-[380px] h-[500px] bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-gray-100 flex flex-col overflow-hidden z-50 animate-in slide-in-from-bottom-10 duration-300">
           
           {/* Header */}
-          <div className="bg-primary-600 p-5 text-white flex items-center gap-3">
+          <div className="bg-[#0b1a2e] p-5 text-white flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
               <HiOutlineSupport className="w-6 h-6" />
             </div>
@@ -166,7 +166,7 @@ export default function Chatbot() {
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-primary-600 text-white rounded-xl flex items-center justify-center hover:bg-primary-700 disabled:opacity-50 disabled:grayscale transition-all"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#0b1a2e] text-white rounded-xl flex items-center justify-center hover:bg-[#162a45] disabled:opacity-50 disabled:grayscale transition-all"
               >
                 <HiPaperAirplane className="w-4 h-4" />
               </button>

@@ -380,7 +380,7 @@ export default function Header() {
         <button 
           onClick={() => setCartDropdown(!cartDropdown)}
           className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 relative group active:scale-90 ${
-            cartDropdown ? 'bg-gray-900 text-white rotate-90' : 'bg-primary-500 text-white hover:bg-primary-600'
+            cartDropdown ? 'bg-gray-900 text-white rotate-90' : 'bg-[#0b1a2e] text-white hover:bg-[#162a45]'
           }`}
         >
           {cartDropdown ? <HiOutlineX className="w-6 h-6" /> : <HiOutlineShoppingCart className="w-7 h-7" />}
