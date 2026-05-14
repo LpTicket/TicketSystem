@@ -1394,6 +1394,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             const isTable = sec.sectionType === 'table';
             const isStanding = sec.sectionType === 'standing';
             const isStage = sec.sectionType === 'stage';
+            const isDecor = sec.sectionType === 'decor';
             const isSeated = sec.sectionType === 'seated' || sec.sectionType === 'vip';
             const rowsCount = sec.rows || 1;
             const seatsCount = sec.seatsPerRow || 1;
@@ -1420,22 +1421,29 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   top: sec.mapY ?? ((CANVAS_H / 2) - (sec.mapHeight || 100) / 2),
                   width: sec.mapWidth || 100,
                   height: sec.mapHeight || 100,
-                  background: isStage ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : (isStanding ? sec.color : 'transparent'),
-                  opacity: isStanding ? 0.85 : 1,
-                  border: isStage ? (isSelected ? '2.5px solid #60a5fa' : '2.5px solid #3b82f6') : (isStanding ? `none` : isSelected ? `2px solid #1a73e8` : `1px solid transparent`),
-                  borderRadius: isStage ? '0 0 40px 40px' : (isStanding ? 8 : (isTable && tableShape === 'round') ? '50%' : 4),
+                  background: isStage ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : (isStanding || isDecor ? sec.color : 'transparent'),
+                  opacity: (isStanding || isDecor) ? 0.85 : 1,
+                  border: isStage ? (isSelected ? '2.5px solid #60a5fa' : '2.5px solid #3b82f6') : (isDecor ? (isSelected ? '2.5px solid #1a73e8' : '1.5px solid #cbd5e1') : (isStanding ? `none` : isSelected ? `2px solid #1a73e8` : `1px solid transparent`)),
+                  borderRadius: isStage ? '0 0 40px 40px' : (isStanding || isDecor ? 8 : (isTable && tableShape === 'round') ? '50%' : 4),
                   cursor: 'move',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
                   outline: 'none',
-                  zIndex: isSelected ? 20 : isStanding ? 5 : 10,
+                  zIndex: isSelected ? 20 : (isStanding || isDecor) ? 5 : 10,
                   willChange: 'left, top',
                   touchAction: 'none',
-                  boxShadow: isStage ? '0 0 20px rgba(59, 130, 246, 0.4)' : (isStanding ? '0 4px 10px rgba(0,0,0,0.08)' : 'none'),
+                  boxShadow: (isStage || isDecor) ? '0 0 20px rgba(0,0,0,0.1)' : (isStanding ? '0 4px 10px rgba(0,0,0,0.08)' : 'none'),
                 }}
               >
+                {isDecor && (
+                  <div className="flex flex-col items-center justify-center p-2 text-center pointer-events-none">
+                    <span className="text-[11px] font-black text-slate-600 uppercase tracking-widest break-words leading-tight">
+                      {sec.name}
+                    </span>
+                  </div>
+                )}
                 {isStage && (
                   <>
                     <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 0 10px rgba(96, 165, 250, 0.5)' }}>
