@@ -826,7 +826,7 @@ export default function SeatMapInteractive({
                         const rowLabel = seat.rowLabel;
                         const seatNumber = seat.seatNumber;
                         const seatKey = `${rowLabel}-${seatNumber}`;
-                        const seatOverride = overrides[seatKey] || {};
+                        const seatOverride: any = (overrides as any)[seatKey] || {};
                         if (seatOverride.disabled) return null; // Completely hide disabled seats
 
                         const rIdx = rows.indexOf(rowLabel);
