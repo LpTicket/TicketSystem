@@ -904,39 +904,6 @@ export default function SeatMapInteractive({
             );
           })}
 
-          {/* Global Seat Tooltip (Single Render instead of map-in-map) */}
-          {(() => {
-            if (!hoveredSeat) return null;
-            let foundSeat: Seat | null = null;
-            let foundSection: VenueSection | null = null;
-            for (const sec of sections) {
-              const s = sec.seats?.find(st => st.id === hoveredSeat);
-              if (s) { foundSeat = s; foundSection = sec; break; }
-            }
-            if (!foundSeat || !foundSection) return null;
-
-            return (
-              <div 
-                className="absolute z-[100] bg-black/90 text-white text-[11px] font-bold px-3 py-2 rounded-xl shadow-2xl whitespace-nowrap pointer-events-none border border-white/10 backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
-                style={{
-                  left: (foundSection.mapX || 0) + (foundSection.mapWidth || 0) / 2,
-                  top: (foundSection.mapY || 0) - 10,
-                  transform: 'translate(-50%, -100%)'
-                }}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: foundSection.color }} />
-                  <span className="opacity-70 uppercase tracking-widest text-[9px]">{foundSection.name}</span>
-                </div>
-                <div className="text-sm">
-                  {lang === 'es' ? 'Fila' : 'Row'} {foundSeat.rowLabel}, {lang === 'es' ? 'Asiento' : 'Seat'} {foundSeat.seatNumber}
-                </div>
-                <div className="text-primary-400 mt-1 font-black text-xs">
-                  ${getSeatPrice(foundSeat, foundSection).toFixed(2)}
-                </div>
-              </div>
-            );
-          })()}
         </div>
 
         {/* Sticky Bottom Toolbar (Seats.io Style) */}
