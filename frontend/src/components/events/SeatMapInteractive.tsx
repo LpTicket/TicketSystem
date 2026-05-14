@@ -718,7 +718,7 @@ export default function SeatMapInteractive({
                           {section.seats?.map((seat, i) => {
                             const seatNumber = seat.seatNumber;
                             const seatKey = `seat-${seatNumber}`;
-                            const seatOverride = overrides[seatKey] || {};
+                            const seatOverride: any = (overrides as any)[seatKey] || {};
                             if (seatOverride.disabled) return null; // Completely hide disabled seats
 
                             const total = section.seats!.length;
