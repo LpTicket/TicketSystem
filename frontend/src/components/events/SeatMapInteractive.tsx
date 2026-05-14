@@ -536,15 +536,18 @@ export default function SeatMapInteractive({
                   top: section.mapY || 0,
                   width: section.mapWidth || 100,
                   height: section.mapHeight || 100,
-                  backgroundColor: isStage ? undefined : (isStanding ? (
-                    (() => {
-                      const sold = (section.seats || []).filter(s => s.status === SeatStatus.SOLD || s.status === SeatStatus.LOCKED).length;
-                      const total = Number(section.capacity) || (section.seats?.length) || 0;
-                      if (total > 0 && sold >= total) return '#9ca3af';
-                      return section.color || '#8b5cf6';
-                    })()
-                  ) : (isDecor ? section.color || '#f8fafc' : undefined)),
-                  background: isStage ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : undefined,
+                  background: isStage 
+                    ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' 
+                    : isStanding 
+                      ? (() => {
+                          const sold = (section.seats || []).filter(s => s.status === SeatStatus.SOLD || s.status === SeatStatus.LOCKED).length;
+                          const total = Number(section.capacity) || (section.seats?.length) || 0;
+                          if (total > 0 && sold >= total) return '#9ca3af';
+                          return section.color || '#8b5cf6';
+                        })()
+                      : isDecor 
+                        ? (section.color || '#f8fafc')
+                        : 'transparent',
                   borderRadius: isStage ? '0 0 40px 40px' : (isStanding ? 8 : (isTable && tableShape === 'round') ? '50%' : 4),
                   zIndex: isFocused ? 30 : (isStage ? 5 : 10),
                   boxShadow: isStage ? '0 0 20px rgba(59, 130, 246, 0.4)' : (isStanding ? `0 4px 15px ${section.color || '#8b5cf6'}44` : 'none'),
