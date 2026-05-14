@@ -101,9 +101,13 @@ export default function VerifyTicketPage() {
   const isCancelled = ticket.status === 'cancelled';
   const isActive = ticket.status === 'active';
 
-  return (
-    <div className="min-h-screen py-10 px-4 bg-slate-50 flex flex-col items-center justify-center print:bg-white print:py-0 print:px-0">
-      
+    <div className="min-h-screen py-10 px-4 bg-slate-50 flex flex-col items-center justify-center print:bg-white print:py-0 print:px-0 print:min-h-0 print:block">
+      <style>{`
+        @media print {
+          @page { margin: 0.5cm; size: auto; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+        }
+      `}</style>
       {/* Action Bar (hidden on print) */}
       <div className="w-full max-w-3xl flex justify-between items-center mb-6 print:hidden">
         <button 
@@ -120,7 +124,7 @@ export default function VerifyTicketPage() {
         </button>
       </div>
       {/* Actual Physical-Style Digital Ticket */}
-      <div className="w-full max-w-[850px] bg-white shadow-2xl md:p-12 p-6 relative overflow-hidden print:shadow-none print:border-none print:p-0 print:scale-[0.95] print:origin-top-left mx-auto font-sans">
+      <div className="w-full max-w-[850px] bg-white shadow-2xl md:p-12 p-6 relative overflow-hidden print:shadow-none print:border-none print:p-0 print:scale-[0.85] print:origin-top-left mx-auto font-sans print:break-inside-avoid">
         
         {/* TOP SECTION */}
         <div className="flex flex-col md:flex-row print:flex-row items-start gap-8 print:gap-4 relative">
