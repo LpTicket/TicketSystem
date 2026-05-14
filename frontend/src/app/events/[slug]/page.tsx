@@ -217,12 +217,11 @@ export default function EventDetailPage() {
 
           {/* Seat Map */}
           {seatMap.length > 0 && (
-            <details className="group border border-gray-200 rounded-lg bg-white shadow-sm" open>
-              <summary className="font-bold text-lg text-gray-900 p-6 cursor-pointer list-none flex justify-between items-center hover:bg-gray-50 transition-colors">
+            <div className="border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
+              <div className="font-bold text-lg text-gray-900 p-6 border-b border-gray-100 bg-gray-50/50">
                 <span>{lang === 'es' ? 'Selecciona tus asientos' : 'Select your seats'}</span>
-                <span className="text-gray-400 group-open:rotate-180 transition-transform text-sm">▼</span>
-              </summary>
-              <div className="px-6 pb-6 pt-2 border-t border-gray-100">
+              </div>
+              <div className="p-6">
                 <SeatMapInteractive
                   seatMap={seatMap}
                   selectedSeats={selectedSeats}
@@ -233,7 +232,7 @@ export default function EventDetailPage() {
                   showStage={event.showStage}
                 />
               </div>
-            </details>
+            </div>
           )}
         </div>
 

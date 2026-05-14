@@ -442,18 +442,7 @@ export default function SeatMapInteractive({
   return (
     <div className="flex flex-col gap-3">
       {/* Zoom controls row */}
-      <div className="flex items-center justify-between">
-        <div className="flex flex-wrap gap-2">
-          {sections.filter(s => s.sectionType !== 'stage' && s.sectionType !== 'decor').map((sec) => (
-            <span
-              key={sec.id}
-              className="text-[10px] font-bold px-2 py-1 rounded-md text-white shadow-sm"
-              style={{ background: sec.color }}
-            >
-              {sec.name} — ${Number(sec.price).toFixed(2)}
-            </span>
-          ))}
-        </div>
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-1 bg-white rounded-lg shadow-sm border border-gray-200 p-1">
           <button onClick={zoomOut} className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-gray-700" title="Zoom Out">
             <HiOutlineZoomOut className="w-4 h-4" />
