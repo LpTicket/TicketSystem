@@ -572,12 +572,14 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       defaultName = lang === 'es' ? 'Área General' : 'General Admission';
     } else if (type === 'vip') {
       defaultName = lang === 'es' ? 'Nueva Zona VIP' : 'New VIP Section';
+    } else if (type === 'decor') {
+      defaultName = lang === 'es' ? 'Barra / Estructura' : 'Decor / Structure';
     } else {
       defaultName = lang === 'es' ? 'Nueva Sección' : 'New Section';
     }
 
     const w = type === 'table' ? 80 : (type === 'stage' ? 400 : 160);
-    const h = type === 'table' ? 80 : (type === 'stage' ? 80 : 100);
+    const h = type === 'table' ? 80 : (type === 'stage' ? 80 : (type === 'decor' ? 40 : 100));
 
     const newSection: Partial<VenueSection> = {
       id: `temp-${Date.now()}`,
@@ -586,8 +588,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       sectionType: type as any,
       rows: type === 'table' ? 1 : 5,
       seatsPerRow: type === 'table' ? 4 : 10,
-      price: type === 'stage' ? 0 : 50,
-      color: type === 'stage' ? '#1e293b' : SECTION_COLORS[colorIndex],
+      price: (type === 'stage' || type === 'decor') ? 0 : 50,
+      color: type === 'stage' ? '#1e293b' : (type === 'decor' ? '#f1f5f9' : SECTION_COLORS[colorIndex]),
       mapX: viewportRef.current 
         ? ((viewportRef.current.clientWidth / 2) - viewRef.current.x) / viewRef.current.scale - (w / 2)
         : (CANVAS_W / 2) - (w / 2),
@@ -827,13 +829,24 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
           <button 
             onClick={() => handleAddSection('stage')} 
-            className="w-full aspect-square rounded flex flex-col items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors group border-b border-gray-100"
+            className="w-full aspect-square rounded flex flex-col items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors group"
             title={lang === 'es' ? 'Escenario / Stage' : 'Stage'}
           >
             <div className="w-8 h-6 bg-slate-700 rounded-sm mb-1 border border-blue-400/30 flex items-center justify-center">
               <div className="w-4 h-0.5 bg-blue-400/50" />
             </div>
-            <span className="text-[9px] font-bold leading-none uppercase">{lang === 'es' ? 'Escenario' : 'Stage'}</span>
+            <span className="text-[9px] font-bold leading-none uppercase">{lang === 'es' ? 'Stage' : 'Stage'}</span>
+          </button>
+
+          <button 
+            onClick={() => handleAddSection('decor')} 
+            className="w-full aspect-square rounded flex flex-col items-center justify-center text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors group border-b border-gray-100"
+            title={lang === 'es' ? 'Barra / Estructura' : 'Decor / Structure'}
+          >
+            <div className="w-8 h-5 bg-gray-200 rounded-sm mb-1 border border-gray-300 flex items-center justify-center relative overflow-hidden">
+               <div className="absolute inset-x-0 bottom-0 h-1 bg-gray-400" />
+            </div>
+            <span className="text-[9px] font-bold leading-none uppercase">{lang === 'es' ? 'Barra' : 'Decor'}</span>
           </button>
 
           <div className="w-full h-px bg-gray-200 my-1" />
@@ -1088,11 +1101,14 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                     <option value="standing">General</option>
                     <option value="table">Mesa</option>
                     <option value="vip">VIP</option>
+                    <option value="stage">Stage</option>
+                    <option value="decor">{lang === 'es' ? 'Barra / Decor' : 'Decor'}</option>
                   </select>
                 </div>
 
                 {/* Price fields */}
-                <div className={`grid gap-3 ${selectedSection.sectionType === 'table' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {selectedSection.sectionType !== 'stage' && selectedSection.sectionType !== 'decor' && (
+                  <div className={`grid gap-3 ${selectedSection.sectionType === 'table' ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   <div>
                     <label className="block text-[12px] text-[#4b5563] mb-1.5">
                       {selectedSection.sectionType === 'table' ? (lang === 'es' ? 'Precio/Silla' : 'Price/Seat') : (lang === 'es' ? 'Precio ($)' : 'Price ($)')}
@@ -1142,8 +1158,10 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                     </div>
                   )}
                 </div>
+                )}
               
 
+                {selectedSection.sectionType !== 'stage' && selectedSection.sectionType !== 'decor' && (
                 <button
                   onClick={() => {
                     const allReserved = !selectedSection.isWheelchair; // Using isWheelchair as a proxy for "All Blocked" for now or just toggle
@@ -1175,6 +1193,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 >
                   {lang === 'es' ? 'BLOQUEAR / DESBLOQUEAR TODO' : 'BLOCK / UNBLOCK ALL SEATS'}
                 </button>
+                )}
               </div>
 
               <hr className="border-gray-100" />

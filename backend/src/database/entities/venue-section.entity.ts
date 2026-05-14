@@ -14,6 +14,7 @@ export enum SectionType {
   TABLE = 'table',
   VIP = 'vip',
   STAGE = 'stage',
+  DECOR = 'decor',
 }
 
 @Entity('venue_sections')

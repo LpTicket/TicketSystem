@@ -444,7 +444,7 @@ export default function SeatMapInteractive({
       {/* Zoom controls row */}
       <div className="flex items-center justify-between">
         <div className="flex flex-wrap gap-2">
-          {sections.map((sec) => (
+          {sections.filter(s => s.sectionType !== 'stage' && s.sectionType !== 'decor').map((sec) => (
             <span
               key={sec.id}
               className="text-[10px] font-bold px-2 py-1 rounded-md text-white shadow-sm"
@@ -527,11 +527,12 @@ export default function SeatMapInteractive({
             const rows = Array.from(new Set(section.seats?.map((s) => s.rowLabel) ?? [])).sort();
             const isStanding = section.sectionType === 'standing';
             const isStage = section.sectionType === 'stage';
+            const isDecor = section.sectionType === 'decor';
             const isTable = section.sectionType === 'table';
             const isSeated = section.sectionType === 'seated' || section.sectionType === 'vip';
 
             const isFocused = focusedSection === section.id;
-            const isDimmed = focusedSection !== null && !isFocused && !isStage;
+            const isDimmed = focusedSection !== null && !isFocused && !isStage && !isDecor;
 
             const curve = section.curve || 0;
             const isWheelchair = section.isWheelchair || false;
@@ -558,9 +559,18 @@ export default function SeatMapInteractive({
                   borderRadius: isStage ? '0 0 40px 40px' : (isStanding ? 8 : (isTable && tableShape === 'round') ? '50%' : 4),
                   zIndex: isFocused ? 30 : (isStage ? 5 : 10),
                   boxShadow: isStage ? '0 0 20px rgba(59, 130, 246, 0.4)' : (isStanding ? '0 4px 10px rgba(0,0,0,0.08)' : 'none'),
+                  backgroundColor: isDecor ? section.color || '#f8fafc' : undefined,
+                  border: isDecor ? '1px solid #cbd5e1' : (isStage ? '2.5px solid #3b82f6' : 'none'),
                 }}
-                onClick={() => !isStage && handleSectionClick(section as VenueSection)}
+                onClick={() => !isStage && !isDecor && handleSectionClick(section as VenueSection)}
               >
+                {isDecor && (
+                  <div className="flex flex-col items-center justify-center p-2 text-center">
+                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest break-words leading-tight">
+                      {section.name}
+                    </span>
+                  </div>
+                )}
                 {isStage && (
                   <>
                     <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 0 10px rgba(96, 165, 250, 0.5)' }}>
@@ -573,7 +583,7 @@ export default function SeatMapInteractive({
                 )}
 
                 {/* Section Label */}
-                {!isStage && (
+                {!isStage && !isDecor && (
                   <div
                     className="absolute -top-7 text-[12px] font-bold uppercase tracking-widest px-2 py-0.5 rounded opacity-85 group-hover/sec:opacity-100 transition-opacity"
                     style={{ backgroundColor: 'white', color: '#1e293b', border: `1px solid ${section.color}`, boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}

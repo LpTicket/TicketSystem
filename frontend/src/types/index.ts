@@ -78,6 +78,7 @@ export enum SectionType {
   TABLE = 'table',
   VIP = 'vip',
   STAGE = 'stage',
+  DECOR = 'decor',
 }
 
 export interface VenueSection {
