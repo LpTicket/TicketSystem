@@ -12,7 +12,9 @@ export default function Footer() {
 
           {/* Logo */}
           <div className="flex-shrink-0">
-            <img src="/logo.png" alt="LPTicket" className="h-10 w-auto brightness-0 invert" />
+            <Link href="/">
+              <img src="/logo.png" alt="LPTicket" className="h-10 w-auto brightness-0 invert" />
+            </Link>
           </div>
 
           {/* Links Grid */}

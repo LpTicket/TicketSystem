@@ -81,7 +81,11 @@ export default function RegisterContent() {
   return (
     <div className="flex items-start justify-center px-4 py-8 bg-gray-50 min-h-[calc(100vh-80px)]">
       <div className="w-full max-w-md">
-        {/* Logo removed */}
+        <div className="flex justify-center mb-6">
+          <Link href="/">
+            <img src="/logo.png" alt="LPTicket" className="h-12 w-auto object-contain" />
+          </Link>
+        </div>
         <div className="text-center mb-8">
           <h1 className="font-bold text-2xl text-gray-900 mt-4 tracking-tight">{t('registerTitle')}</h1>
           <p className="text-gray-500 text-sm mt-1">
