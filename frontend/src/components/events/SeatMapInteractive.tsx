@@ -523,7 +523,7 @@ export default function SeatMapInteractive({
             const isSeated = section.sectionType === 'seated' || section.sectionType === 'vip';
 
             const isFocused = focusedSection === section.id;
-            const isDimmed = focusedSection !== null && !isFocused && !isStage && !isDecor;
+            // Removed dimming logic as requested by user to allow fluid clicking
 
             const curve = section.curve || 0;
             const isWheelchair = section.isWheelchair || false;
@@ -532,7 +532,7 @@ export default function SeatMapInteractive({
             return (
               <div 
                 key={section.id} 
-                className={`absolute flex flex-col items-center justify-center transition-opacity duration-300 ${isDimmed ? (isStanding ? 'opacity-60 pointer-events-none' : 'opacity-20 pointer-events-none') : 'opacity-100'} ${focusedSection === null ? 'cursor-pointer hover:ring-2 hover:ring-offset-2 hover:ring-primary-500' : ''}`}
+                className={`absolute flex flex-col items-center justify-center transition-opacity duration-300 opacity-100 ${focusedSection === null ? 'cursor-pointer hover:ring-2 hover:ring-offset-2 hover:ring-primary-500' : 'cursor-pointer'}`}
                 style={{
                   left: section.mapX || 0,
                   top: section.mapY || 0,
@@ -646,12 +646,14 @@ export default function SeatMapInteractive({
                                 transform: `rotate(${angle}deg) translate(0, -210%) rotate(-${angle}deg) translate(${finalXOffset}px, ${finalYOffset}px)`,
                                 zIndex: 20
                               }}>
-                                <button
+                                  <button
                                   className="w-full h-full rounded-full border-[1.5px] shadow-sm hover:scale-125 transition-transform box-border flex items-center justify-center text-white"
                                   style={{
-                                    backgroundColor: selected ? (isSeatWheelchair ? '#1a73e8' : section.color) : seat.status === SeatStatus.SOLD ? '#cbd5e1' : (isSeatWheelchair ? '#1a73e8' : '#fff'),
-                                    borderColor: selected ? '#fff' : seat.status === SeatStatus.SOLD ? '#94a3b8' : (isSeatWheelchair ? '#1a73e8' : section.color),
-                                    boxShadow: selected ? `0 0 0 2px ${section.color}` : '0 1px 2px rgba(0,0,0,0.1)'
+                                    backgroundColor: getSeatBg(seat, seatOverride, section.color, isSeatWheelchair, selected),
+                                    borderColor: getSeatBorder(seat, seatOverride, section.color, isSeatWheelchair, selected),
+                                    boxShadow: getSeatShadow(seat, seatOverride, section.color, selected),
+                                    cursor: isSeatUnavailable(seat, seatOverride) && !selected ? 'not-allowed' : 'pointer',
+                                    pointerEvents: 'auto'
                                   }}
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -873,10 +875,12 @@ export default function SeatMapInteractive({
                           >
                             <button
                               className="w-full h-full rounded-full border-[1.5px] shadow-sm hover:scale-125 transition-transform box-border flex items-center justify-center text-white"
-                              style={{ 
-                                backgroundColor: selected ? (isSeatWheelchair ? '#1a73e8' : section.color) : isSeatUnavailable(seat, seatOverride) ? '#cbd5e1' : (isSeatWheelchair ? '#1a73e8' : '#fff'),
-                                borderColor: selected ? '#fff' : isSeatUnavailable(seat, seatOverride) ? '#94a3b8' : (isSeatWheelchair ? '#1a73e8' : section.color),
-                                boxShadow: selected ? `0 0 0 2px ${section.color}` : '0 1px 2px rgba(0,0,0,0.1)'
+                              style={{
+                                backgroundColor: getSeatBg(seat, seatOverride, section.color, isSeatWheelchair, selected),
+                                borderColor: getSeatBorder(seat, seatOverride, section.color, isSeatWheelchair, selected),
+                                boxShadow: getSeatShadow(seat, seatOverride, section.color, selected),
+                                cursor: isSeatUnavailable(seat, seatOverride) && !selected ? 'not-allowed' : 'pointer',
+                                pointerEvents: 'auto'
                               }}
                               onClick={(e) => {
                                 e.stopPropagation();
