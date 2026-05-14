@@ -1121,7 +1121,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                             const config = getSeatsConfig(selectedSection);
                             for (let i = 1; i <= seatsCount; i++) {
                               const key = `seat-${i}`;
-                              total += config[key]?.price !== undefined ? +config[key].price : (selectedSection.price || 0);
+                              total += config[key]?.price !== undefined ? Number(config[key].price) : Number(selectedSection.price || 0);
                             }
                             return total.toFixed(2);
                           })()}
