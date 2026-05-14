@@ -492,27 +492,39 @@ export class EventsService {
       order: { sortOrder: 'ASC' },
     });
 
-    const seatMap = await Promise.all(
-      sections.map(async (section) => {
-        const seats = await this.seatRepo.find({
-          where: { sectionId: section.id },
-          order: { rowLabel: 'ASC', seatNumber: 'ASC' },
-        });
-        // Unlock expired seats
-        const now = new Date();
-        for (const seat of seats) {
-          if (seat.status === SeatStatus.LOCKED && seat.lockExpiresAt && seat.lockExpiresAt < now) {
-            seat.status = SeatStatus.AVAILABLE;
-            seat.lockedBy = null as any;
-            seat.lockExpiresAt = null as any;
-            await this.seatRepo.save(seat);
-          }
-        }
-        return { ...section, seats };
-      }),
+    if (sections.length === 0) return [];
+
+    const sectionIds = sections.map(s => s.id);
+    const { In, LessThan } = require('typeorm');
+    const now = new Date();
+
+    // Bulk unlock expired seats for this event's sections
+    await this.seatRepo.update(
+      {
+        sectionId: In(sectionIds),
+        status: SeatStatus.LOCKED,
+        lockExpiresAt: LessThan(now),
+      },
+      {
+        status: SeatStatus.AVAILABLE,
+        lockedBy: null as any,
+        lockExpiresAt: null as any,
+      }
     );
 
-    return seatMap;
+    // Fetch all seats in one query
+    const allSeats = await this.seatRepo.find({
+      where: { sectionId: In(sectionIds) },
+      order: { rowLabel: 'ASC', seatNumber: 'ASC' },
+    });
+
+    // Group seats by section
+    return sections.map(section => {
+      return {
+        ...section,
+        seats: allSeats.filter(s => s.sectionId === section.id),
+      };
+    });
   }
 
   async lockSeats(seatIds: string[], userId: string) {
