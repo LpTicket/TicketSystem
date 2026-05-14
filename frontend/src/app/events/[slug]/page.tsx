@@ -283,7 +283,9 @@ export default function EventDetailPage() {
                     <span className="text-gray-400 group-open:rotate-180 transition-transform text-xs">▼</span>
                   </summary>
                   <div className="px-4 pb-4 pt-2 space-y-2 border-t border-gray-100 bg-white">
-                    {seatMap.map((section) => (
+                    {seatMap
+                      .filter((s) => s.sectionType !== 'stage' && s.sectionType !== 'decor')
+                      .map((section) => (
                       <div key={section.id} className="flex items-center justify-between text-sm">
                         <span className="text-gray-600 flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: section.color }} />
