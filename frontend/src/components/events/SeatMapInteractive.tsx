@@ -551,7 +551,9 @@ export default function SeatMapInteractive({
                     (() => {
                       const sold = (section.seats || []).filter(s => s.status === SeatStatus.SOLD || s.status === SeatStatus.LOCKED).length;
                       const total = section.capacity || section.seats?.length || 1;
-                      return sold >= total ? '#9ca3af' : section.color;
+                      // Only show gray if actually full, otherwise always use section color
+                      if (total > 0 && sold >= total) return '#9ca3af';
+                      return section.color || '#8b5cf6'; // Default to a nice purple if none
                     })()
                   ) : 'transparent'),
                   opacity: isStanding ? 0.9 : 1,
