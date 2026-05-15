@@ -81,7 +81,7 @@ export default function Chatbot() {
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 bg-[#0b1a2e] text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 hover:bg-[#162a45] transition-all pointer-events-auto group relative"
+        className="w-14 h-14 bg-blue-500 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 hover:bg-blue-600 transition-all pointer-events-auto group relative"
       >
         {isOpen ? (
           <HiXMark className="w-7 h-7" />
@@ -98,7 +98,7 @@ export default function Chatbot() {
         <div className="absolute bottom-24 left-6 w-[90vw] sm:w-[380px] h-[500px] bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-gray-100 flex flex-col overflow-hidden pointer-events-auto animate-in slide-in-from-bottom-10 duration-300">
           
           {/* Header */}
-          <div className="bg-[#0b1a2e] p-5 text-white flex items-center gap-3">
+          <div className="bg-blue-500 p-5 text-white flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
               <HiOutlineSupport className="w-6 h-6" />
             </div>
@@ -160,13 +160,13 @@ export default function Chatbot() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={lang === 'es' ? 'Escribe tu pregunta...' : 'Type your question...'}
-                className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                 disabled={isLoading}
               />
               <button
                 type="submit"
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#0b1a2e] text-white rounded-xl flex items-center justify-center hover:bg-[#162a45] disabled:opacity-50 disabled:grayscale transition-all"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-blue-500 text-white rounded-xl flex items-center justify-center hover:bg-blue-600 disabled:opacity-50 disabled:grayscale transition-all"
               >
                 <HiPaperAirplane className="w-4 h-4" />
               </button>
