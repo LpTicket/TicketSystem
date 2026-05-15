@@ -98,7 +98,7 @@ export default function Chatbot() {
         <div className="absolute bottom-24 left-6 w-[90vw] sm:w-[380px] h-[500px] bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-gray-100 flex flex-col overflow-hidden pointer-events-auto animate-in slide-in-from-bottom-10 duration-300">
           
           {/* Header */}
-          <div className="bg-[#0b1a2e] p-5 text-white flex items-center gap-3">
+          <div className="bg-orange-500 p-5 text-white flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
               <HiOutlineSupport className="w-6 h-6" />
             </div>
