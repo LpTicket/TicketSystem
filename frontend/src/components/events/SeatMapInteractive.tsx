@@ -555,7 +555,9 @@ export default function SeatMapInteractive({
                 {/* --- Table Rendering Logic --- */}
                 {isTable ? (() => {
                   let overrides = {};
-                  try { overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {}; } catch (e) {}
+                  try {
+                    overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
+                  } catch (e) {}
 
                   const allTableSeats = section.seats || [];
                   const isTableFullyUnavailable = allTableSeats.length > 0 && allTableSeats.every(s => {
@@ -564,101 +566,242 @@ export default function SeatMapInteractive({
                   });
                   const tableCenterBg = isTableFullyUnavailable ? '#e5e7eb' : '#fff';
                   const tableCenterBorder = isTableFullyUnavailable ? '#9ca3af' : section.color;
+                  const tableLabelColor = '#6b7280';
 
                   return (
                     <div className="relative w-full h-full flex items-center justify-center">
-                      let overrides = {};
-                      try {
-                        overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
-                      } catch (e) {}
-
-                      const rowsData = rows.map(rowLabel => {
-                        const rowSeats = (section.seats ?? [])
-                          .filter((s) => s.rowLabel === rowLabel)
-                          .sort((a, b) => a.seatNumber - b.seatNumber);
-                        return { rowLabel, rowSeats };
-                      });
-
-                      return section.seats?.map((seat) => {
-                        const rowLabel = seat.rowLabel;
-                        const seatNumber = seat.seatNumber;
-                        const seatKey = `${rowLabel}-${seatNumber}`;
-                        const seatOverride: any = (overrides as any)[seatKey] || {};
-                        if (seatOverride.disabled) return null; // Completely hide disabled seats
-
-                        const rIdx = rows.indexOf(rowLabel);
-                        const rowData = rowsData[rIdx];
-                        const rowSeats = rowData.rowSeats;
-                        const sIdx = rowSeats.findIndex((s) => s.id === seat.id);
-
-                        const seatsCount = rowSeats.length;
-                        const rowsCount = rows.length;
-
-                        const t = seatsCount > 1 ? (sIdx - (seatsCount - 1) / 2) / ((seatsCount - 1) / 2) : 0;
-                        const x = seatsCount > 1 
-                          ? 12 + sIdx * ((section.mapWidth! - 24) / (seatsCount - 1))
-                          : section.mapWidth! / 2;
-                        
-                        const baseSpacingY = rowsCount > 1 ? (section.mapHeight! - 32) / (rowsCount - 1) : 0;
-                        const baseY = 16 + rIdx * baseSpacingY;
-                        const curveOffset = curve * (t * t - 1);
-                        const y = baseY + curveOffset;
-                        
-                        const angleRad = Math.atan2(2 * curve * t, section.mapWidth! / 2);
-                        const angleDeg = angleRad * (180 / Math.PI);
-
-                        const selected = isSeatSelected(seat.id);
-                        const size = Math.max(8, Math.min(18, (section.mapWidth! - 24) / seatsCount - 2));
-
-                        const finalXOffset = seatOverride.xOffset || 0;
-                        const finalYOffset = seatOverride.yOffset || 0;
-                        const isSeatWheelchair = seatOverride.isWheelchair !== undefined ? seatOverride.isWheelchair : isWheelchair;
-
-                        return (
-                          <div
-                            key={seat.id}
-                            className="absolute pointer-events-auto"
+                      {tableShape === 'round' ? (
+                        <>
+                          <div 
+                            className="absolute rounded-full border shadow-sm flex items-center justify-center z-10 font-bold transition-colors" 
                             style={{
-                              left: x,
-                              top: y,
-                              width: size,
-                              height: size,
-                              transform: `translate(-50%, -50%) translate(${finalXOffset}px, ${finalYOffset}px) rotate(${angleDeg}deg)`,
-                              zIndex: 20,
+                              width: '60%', height: '60%',
+                              backgroundColor: tableCenterBg,
+                              borderColor: tableCenterBorder,
+                              cursor: isTableFullyUnavailable ? 'not-allowed' : 'pointer',
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isTableFullyUnavailable) return;
+                              const allSeats = section.seats || [];
+                              const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                              if (isTableSelected) {
+                                onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
+                              } else {
+                                const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
+                                onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
+                              }
                             }}
                           >
-                            <button
-                              className="w-full h-full rounded-full border-[1.5px] shadow-sm hover:scale-125 transition-transform box-border flex items-center justify-center text-white"
-                              style={{
-                                backgroundColor: getSeatBg(seat, seatOverride, section.color, isSeatWheelchair, selected),
-                                borderColor: getSeatBorder(seat, seatOverride, section.color, isSeatWheelchair, selected),
-                                boxShadow: getSeatShadow(seat, seatOverride, section.color, selected),
-                                cursor: isSeatUnavailable(seat, seatOverride) && !selected ? 'not-allowed' : 'pointer',
-                                pointerEvents: 'auto'
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!isSeatUnavailable(seat, seatOverride) || selected) onToggleSeats([seat]);
-                              }}
-                              
-                              
-                              disabled={isSeatUnavailable(seat, seatOverride) && !selected}
-                            >
-                              {isSeatWheelchair && (
-                                <FaWheelchair className="w-[65%] h-[65%] shrink-0 text-white" />
-                              )}
-                            </button>
+                            <span className="text-[10px] font-bold" style={{ color: tableLabelColor }}>{isTableFullyUnavailable ? (lang === 'es' ? 'NO DISP.' : 'N/A') : 'MESA'}</span>
                           </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                )}
+                          {section.seats?.map((seat, i) => {
+                            const seatNumber = seat.seatNumber;
+                            const seatKey = `seat-${seatNumber}`;
+                            const seatOverride: any = (overrides as any)[seatKey] || {};
+                            if (seatOverride.disabled) return null;
 
-                  
-              </div>
-            );
-          })}
+                            const angle = (i * 360) / section.seats!.length;
+                            const selected = isSeatSelected(seat.id);
+                            const finalXOffset = seatOverride.xOffset || 0;
+                            const finalYOffset = seatOverride.yOffset || 0;
+                            const isSeatWheelchair = seatOverride.isWheelchair || false;
+
+                            return (
+                              <div key={seat.id} className="absolute w-[18%] h-[18%]" style={{
+                                transform: `rotate(${angle}deg) translate(0, -210%) rotate(-${angle}deg) translate(${finalXOffset}px, ${finalYOffset}px)`,
+                                zIndex: 20
+                              }}>
+                                <button
+                                  className="w-full h-full rounded-full border-[1.5px] shadow-sm hover:scale-125 transition-transform box-border flex items-center justify-center text-white"
+                                  style={{
+                                    backgroundColor: getSeatBg(seat, seatOverride, section.color, isSeatWheelchair, selected),
+                                    borderColor: getSeatBorder(seat, seatOverride, section.color, isSeatWheelchair, selected),
+                                    boxShadow: getSeatShadow(seat, seatOverride, section.color, selected),
+                                    cursor: isSeatUnavailable(seat, seatOverride) && !selected ? 'not-allowed' : 'pointer',
+                                    pointerEvents: 'auto'
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
+                                    const seatKey = `seat-${seat.seatNumber}`;
+                                    const seatOverride = overrides[seatKey] || {};
+                                    if (isSeatUnavailable(seat, seatOverride) && !selected) return;
+                                    if (section.tablePurchaseMode === 'whole') {
+                                      const allSeats = section.seats || [];
+                                      const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                                      if (isTableSelected) {
+                                        onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
+                                      } else {
+                                        onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
+                                      }
+                                      return;
+                                    }
+                                    onToggleSeats([seat]);
+                                  }}
+                                  disabled={isSeatUnavailable(seat, seatOverride) && !selected}
+                                >
+                                  {isSeatWheelchair && <FaWheelchair className="w-[65%] h-[65%] shrink-0 text-white" />}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </>
+                      ) : (
+                        <>
+                          <div 
+                            className="absolute rounded border shadow-sm flex items-center justify-center z-10 transition-colors" 
+                            style={{
+                              width: '70%', height: '45%',
+                              backgroundColor: tableCenterBg,
+                              borderColor: tableCenterBorder,
+                              cursor: isTableFullyUnavailable ? 'not-allowed' : 'pointer',
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isTableFullyUnavailable) return;
+                              const allSeats = section.seats || [];
+                              const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                              if (isTableSelected) {
+                                onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
+                              } else {
+                                const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
+                                onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
+                              }
+                            }}
+                          >
+                            <span className="text-[10px] font-bold" style={{ color: tableLabelColor }}>{isTableFullyUnavailable ? (lang === 'es' ? 'NO DISP.' : 'N/A') : 'MESA'}</span>
+                          </div>
+                          {section.seats?.map((seat, i) => {
+                            const seatNumber = seat.seatNumber;
+                            const seatKey = `seat-${seatNumber}`;
+                            const seatOverride: any = (overrides as any)[seatKey] || {};
+                            if (seatOverride.disabled) return null;
+
+                            const totalSeats = section.seats!.length;
+                            const sideCount = Math.ceil(totalSeats / 2);
+                            const isTop = i < sideCount;
+                            const idx = isTop ? i : i - sideCount;
+                            const xPos = sideCount > 1 ? (idx / (sideCount - 1)) * 80 + 10 : 50;
+                            const yPos = isTop ? 15 : 85;
+
+                            const selected = isSeatSelected(seat.id);
+                            const isSeatWheelchair = seatOverride.isWheelchair || false;
+
+                            return (
+                              <div key={seat.id} className="absolute w-[18%] h-[22%]" style={{
+                                left: `${xPos}%`, top: `${yPos}%`,
+                                transform: 'translate(-50%, -50%)',
+                                zIndex: 20
+                              }}>
+                                <button
+                                  className="w-full h-full rounded border-[1.5px] shadow-sm hover:scale-125 transition-transform box-border flex items-center justify-center text-white"
+                                  style={{
+                                    backgroundColor: getSeatBg(seat, seatOverride, section.color, isSeatWheelchair, selected),
+                                    borderColor: getSeatBorder(seat, seatOverride, section.color, isSeatWheelchair, selected),
+                                    boxShadow: getSeatShadow(seat, seatOverride, section.color, selected),
+                                    cursor: isSeatUnavailable(seat, seatOverride) && !selected ? 'not-allowed' : 'pointer',
+                                    pointerEvents: 'auto'
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
+                                    if (isSeatUnavailable(seat, overrides[`seat-${seat.seatNumber}`]) && !selected) return;
+                                    if (section.tablePurchaseMode === 'whole') {
+                                      const allSeats = section.seats || [];
+                                      const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                                      if (isTableSelected) {
+                                        onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
+                                      } else {
+                                        onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
+                                      }
+                                      return;
+                                    }
+                                    onToggleSeats([seat]);
+                                  }}
+                                  disabled={isSeatUnavailable(seat, seatOverride) && !selected}
+                                >
+                                  {isSeatWheelchair && <FaWheelchair className="w-[65%] h-[65%] shrink-0 text-white" />}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
+                    </div>
+                  );
+                })() : (() => {
+                  let overrides = {};
+                  try {
+                    overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
+                  } catch (e) {}
+
+                  const rows = Array.from(new Set((section.seats ?? []).map(s => s.rowLabel))).sort();
+                  const curve = section.curve || 0;
+                  const baseSpacingY = rows.length > 1 ? (section.mapHeight! - 32) / (rows.length - 1) : 0;
+
+                  const rowsData = rows.map(rowLabel => {
+                    const rowSeats = (section.seats ?? [])
+                      .filter((s) => s.rowLabel === rowLabel)
+                      .sort((a, b) => a.seatNumber - b.seatNumber);
+                    return { rowLabel, rowSeats };
+                  });
+
+                  return section.seats?.map((seat) => {
+                    const rowLabel = seat.rowLabel;
+                    const seatNumber = seat.seatNumber;
+                    const seatKey = `${rowLabel}-${seatNumber}`;
+                    const seatOverride: any = (overrides as any)[seatKey] || {};
+                    if (seatOverride.disabled) return null;
+
+                    const rIdx = rows.indexOf(rowLabel);
+                    const rowData = rowsData[rIdx];
+                    const rowSeats = rowData.rowSeats;
+                    const sIdx = rowSeats.findIndex((s) => s.id === seat.id);
+
+                    const seatsCount = rowSeats.length;
+                    const t = seatsCount > 1 ? (sIdx - (seatsCount - 1) / 2) / ((seatsCount - 1) / 2) : 0;
+                    const x = seatsCount > 1 ? 12 + sIdx * ((section.mapWidth! - 24) / (seatsCount - 1)) : section.mapWidth! / 2;
+                    const baseY = 16 + rIdx * baseSpacingY;
+                    const curveOffset = curve * (t * t - 1);
+                    const y = baseY + curveOffset;
+                    const angleRad = Math.atan2(2 * curve * t, section.mapWidth! / 2);
+                    const angleDeg = angleRad * (180 / Math.PI);
+
+                    const selected = isSeatSelected(seat.id);
+                    const size = Math.max(8, Math.min(18, (section.mapWidth! - 24) / (seatsCount > 1 ? seatsCount : 1) - 2));
+                    const isSeatWheelchair = seatOverride.isWheelchair || false;
+
+                    return (
+                      <div key={seat.id} className="absolute pointer-events-auto" style={{
+                        left: x, top: y, width: size, height: size,
+                        transform: `translate(-50%, -50%) translate(${seatOverride.xOffset || 0}px, ${seatOverride.yOffset || 0}px) rotate(${angleDeg}deg)`,
+                        zIndex: 20
+                      }}>
+                        <button
+                          className="w-full h-full rounded-full border-[1.5px] shadow-sm hover:scale-125 transition-transform box-border flex items-center justify-center text-white"
+                          style={{
+                            backgroundColor: getSeatBg(seat, seatOverride, section.color, isSeatWheelchair, selected),
+                            borderColor: getSeatBorder(seat, seatOverride, section.color, isSeatWheelchair, selected),
+                            boxShadow: getSeatShadow(seat, seatOverride, section.color, selected),
+                            cursor: isSeatUnavailable(seat, seatOverride) && !selected ? 'not-allowed' : 'pointer',
+                            pointerEvents: 'auto'
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isSeatUnavailable(seat, seatOverride) || selected) onToggleSeats([seat]);
+                          }}
+                          disabled={isSeatUnavailable(seat, seatOverride) && !selected}
+                        >
+                          {isSeatWheelchair && <FaWheelchair className="w-[65%] h-[65%] shrink-0 text-white" />}
+                        </button>
+                      </div>
+                    );
+                  });
+                })()}
+            </div>
+          );
+        })}
 
         </div>
 
