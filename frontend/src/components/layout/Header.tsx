@@ -282,14 +282,14 @@ export default function Header() {
     {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && !pathname.includes('/login') && !pathname.includes('/register') && (
       <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3 print:hidden pointer-events-none">
         {cartDropdown && (
-          <div className="w-80 bg-blue-100 rounded-3xl shadow-elevated border border-blue-200 p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden pointer-events-auto">
+          <div className="w-80 bg-white rounded-3xl shadow-elevated border border-gray-100 p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden pointer-events-auto">
             {/* Header */}
             <div className="flex justify-between items-center mb-3 shrink-0">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center text-primary-500">
                   <HiOutlineShoppingCart className="w-4 h-4" />
                 </div>
-                <h4 className="font-bold text-sm text-blue-900">{lang === 'es' ? 'Mi Carrito' : 'My Cart'}</h4>
+                <h4 className="font-bold text-sm text-gray-900">{lang === 'es' ? 'Mi Carrito' : 'My Cart'}</h4>
               </div>
               <button 
                 onClick={() => setCartDropdown(false)}
