@@ -42,11 +42,11 @@ export default function SeatMapInteractive({
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const sections = useCallback(() => {
+  const sections = useMemo(() => {
     return filterSectionId
       ? seatMap.filter((s) => s.id === filterSectionId)
       : seatMap;
-  }, [seatMap, filterSectionId])();
+  }, [seatMap, filterSectionId]);
 
   const isSeatSelected = (id: string) => selectedSeats.some((s) => s.id === id);
 
@@ -540,6 +540,8 @@ export default function SeatMapInteractive({
                     ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' 
                     : isStanding 
                       ? (() => {
+                          const isSelected = selectedSeats.some(s => s.sectionId === section.id);
+                          if (isSelected) return '#f97316'; // primary-500 (orange)
                           const sold = (section.seats || []).filter(s => s.status === SeatStatus.SOLD || s.status === SeatStatus.LOCKED).length;
                           const total = Number(section.capacity) || (section.seats?.length) || 0;
                           if (total > 0 && sold >= total) return '#9ca3af';
@@ -822,6 +824,13 @@ export default function SeatMapInteractive({
                         overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
                       } catch (e) {}
 
+                      const rowsData = rows.map(rowLabel => {
+                        const rowSeats = (section.seats ?? [])
+                          .filter((s) => s.rowLabel === rowLabel)
+                          .sort((a, b) => a.seatNumber - b.seatNumber);
+                        return { rowLabel, rowSeats };
+                      });
+
                       return section.seats?.map((seat) => {
                         const rowLabel = seat.rowLabel;
                         const seatNumber = seat.seatNumber;
@@ -830,9 +839,8 @@ export default function SeatMapInteractive({
                         if (seatOverride.disabled) return null; // Completely hide disabled seats
 
                         const rIdx = rows.indexOf(rowLabel);
-                        const rowSeats = (section.seats ?? [])
-                          .filter((s) => s.rowLabel === rowLabel)
-                          .sort((a, b) => a.seatNumber - b.seatNumber);
+                        const rowData = rowsData[rIdx];
+                        const rowSeats = rowData.rowSeats;
                         const sIdx = rowSeats.findIndex((s) => s.id === seat.id);
 
                         const seatsCount = rowSeats.length;

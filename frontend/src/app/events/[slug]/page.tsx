@@ -111,12 +111,12 @@ export default function EventDetailPage() {
       if (!event?.id) return;
       const saved = localStorage.getItem(`selectedSeats_${event.id}`);
       if (!saved) {
-        setSelectedSeats([]);
+        if (selectedSeats.length > 0) setSelectedSeats([]);
       } else {
         try {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length === 0) {
-            setSelectedSeats([]);
+            if (selectedSeats.length > 0) setSelectedSeats([]);
           }
         } catch (e) {}
       }
@@ -128,7 +128,7 @@ export default function EventDetailPage() {
       window.removeEventListener('cart-updated', handleCartSync);
       window.removeEventListener('storage', handleCartSync);
     };
-  }, [event?.id]);
+  }, [event?.id, selectedSeats.length]); // Added selectedSeats.length to prevent empty loop
 
   const toggleSeats = (seats: Seat[]) => {
     setSelectedSeats((prev) => {
@@ -143,17 +143,20 @@ export default function EventDetailPage() {
             alert(lang === 'es' ? 'No puedes seleccionar más de 10 asientos por transacción.' : 'You cannot select more than 10 seats per transaction.');
             break;
           }
-          next.push(seat);
+          const seatWithTime = { ...seat, addedAt: Date.now() };
+          next.push(seatWithTime);
         }
       }
       return next;
     });
   };
 
-  const getTotalPrice = () => selectedSeats.reduce((total, seat) => {
-    const section = seatMap.find((s) => s.id === seat.sectionId);
-    return total + getSeatPrice(seat, section);
-  }, 0);
+  const getTotalPrice = useCallback(() => {
+    return selectedSeats.reduce((total, seat) => {
+      const section = seatMap.find((s) => s.id === seat.sectionId);
+      return total + getSeatPrice(seat, section);
+    }, 0);
+  }, [selectedSeats, seatMap]);
 
   const handleBuyTickets = () => {
     if (selectedSeats.length === 0) {
