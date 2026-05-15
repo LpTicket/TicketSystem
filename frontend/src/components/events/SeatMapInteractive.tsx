@@ -7,11 +7,21 @@ import { FaWheelchair } from 'react-icons/fa';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useLang } from '@/context/LanguageContext';
 
+/**
+ * SeatMapInteractiveProps
+ * @property seatMap Array of sections with their associated seats
+ * @property selectedSeats Currently selected seats for the transaction
+ * @property onToggleSeats Callback to handle selection/deselection of seats
+ * @property filterSectionId If provided, restricts the view to a specific section
+ * @property defaultViewX Starting X offset for the map
+ * @property defaultViewY Starting Y offset for the map
+ * @property defaultViewZoom Starting zoom level
+ * @property showStage Whether to render the stage area
+ */
 interface SeatMapInteractiveProps {
   seatMap: (VenueSection & { seats: Seat[] })[];
   selectedSeats: Seat[];
   onToggleSeats: (seats: Seat[]) => void;
-  /** Optional: restrict to just one section */
   filterSectionId?: string;
   defaultViewX?: number;
   defaultViewY?: number;
@@ -23,6 +33,12 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2.5;
 const ZOOM_STEP = 0.25;
 
+/**
+ * SeatMapInteractive Component
+ * A high-performance interactive seat map component.
+ * Uses a transformation-based approach (translate/scale) to allow smooth
+ * panning and zooming across large venue layouts.
+ */
 export default function SeatMapInteractive({
   seatMap,
   selectedSeats,
@@ -34,14 +50,22 @@ export default function SeatMapInteractive({
   showStage = false,
 }: SeatMapInteractiveProps) {
   const { lang } = useLang();
+  
+  // State for camera/view transformation
   const [zoom, setZoom] = useState(0.8);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-      const [focusedSection, setFocusedSection] = useState<string | null>(null);
-  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  
+  // focusedSection tracks if the user is "inside" a specific section view
+  const [focusedSection, setFocusedSection] = useState<string | null>(null);
+  
+  // Interaction state
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * Memoized list of sections to render, filtered if necessary.
+   */
   const sections = useMemo(() => {
     return filterSectionId
       ? seatMap.filter((s) => s.id === filterSectionId)
@@ -50,29 +74,36 @@ export default function SeatMapInteractive({
 
   const isSeatSelected = (id: string) => selectedSeats.some((s) => s.id === id);
 
-  // Helper: is this seat unavailable (should render gray)?
+  /**
+   * Determines if a seat is considered "unavailable" based on status or admin overrides.
+   */
   const isSeatUnavailable = (seat: Seat, seatOverride: any = {}) =>
     seat.status === SeatStatus.SOLD ||
     seat.status === SeatStatus.LOCKED ||
     !!seatOverride?.reserved;
 
-  // Seat color helpers
+  // --- Seat Styling Logic ---
   const getSeatBg = (seat: Seat, seatOverride: any, sectionColor: string, isWC: boolean, selected: boolean) => {
     if (selected) return isWC ? '#1a73e8' : sectionColor;
     if (isSeatUnavailable(seat, seatOverride)) return '#d1d5db'; // gray-300
     return isWC ? '#1a73e8' : '#fff';
   };
+  
   const getSeatBorder = (seat: Seat, seatOverride: any, sectionColor: string, isWC: boolean, selected: boolean) => {
     if (selected) return '#fff';
     if (isSeatUnavailable(seat, seatOverride)) return '#9ca3af'; // gray-400
     return isWC ? '#1a73e8' : sectionColor;
   };
+  
   const getSeatShadow = (seat: Seat, seatOverride: any, sectionColor: string, selected: boolean) => {
     if (selected) return `0 0 0 2px ${sectionColor}`;
     if (isSeatUnavailable(seat, seatOverride)) return 'none';
     return '0 1px 2px rgba(0,0,0,0.1)';
   };
 
+  /**
+   * Retrieves the effective price for a seat, checking for section overrides.
+   */
   const getSeatPrice = (seat: any, section: VenueSection) => {
     try {
       if (section.seatsConfig) {
@@ -88,10 +119,15 @@ export default function SeatMapInteractive({
           return Number(override.price);
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      // Silently fail and use default section price
+    }
     return Number(section.price || 0);
   };
 
+  /**
+   * Zooms in relative to the container center.
+   */
   const zoomIn = () => {
     if (!containerRef.current) return;
     const cw = containerRef.current.clientWidth;
@@ -107,18 +143,16 @@ export default function SeatMapInteractive({
     const newX = mx - (mx - pan.x) * ratio;
     const newY = my - (my - pan.y) * ratio;
 
-    const minX = -2000 * newZoom + 100;
-    const maxX = cw - 100;
-    const minY = -1600 * newZoom + 100;
-    const maxY = ch - 100;
-
     setZoom(newZoom);
     setPan({
-      x: Math.min(maxX, Math.max(minX, newX)),
-      y: Math.min(maxY, Math.max(minY, newY)),
+      x: Math.min(cw - 100, Math.max(-2000 * newZoom + 100, newX)),
+      y: Math.min(ch - 100, Math.max(-1600 * newZoom + 100, newY)),
     });
   };
 
+  /**
+   * Zooms out relative to the container center.
+   */
   const zoomOut = () => {
     if (!containerRef.current) return;
     const cw = containerRef.current.clientWidth;
@@ -134,18 +168,16 @@ export default function SeatMapInteractive({
     const newX = mx - (mx - pan.x) * ratio;
     const newY = my - (my - pan.y) * ratio;
 
-    const minX = -2000 * newZoom + 100;
-    const maxX = cw - 100;
-    const minY = -1600 * newZoom + 100;
-    const maxY = ch - 100;
-
     setZoom(newZoom);
     setPan({
-      x: Math.min(maxX, Math.max(minX, newX)),
-      y: Math.min(maxY, Math.max(minY, newY)),
+      x: Math.min(cw - 100, Math.max(-2000 * newZoom + 100, newX)),
+      y: Math.min(ch - 100, Math.max(-1600 * newZoom + 100, newY)),
     });
   };
   
+  /**
+   * Resets view to the initial state or provided defaults.
+   */
   const resetView = () => {
     if (
       typeof defaultViewX === 'number' &&
@@ -163,6 +195,10 @@ export default function SeatMapInteractive({
 
   const initializedRef = useRef(false);
 
+  /**
+   * Automatically calculates an initial "fit-to-view" zoom and position
+   * based on the bounding box of all sections.
+   */
   useEffect(() => {
     if (initializedRef.current) return;
     if (!containerRef.current) return;
@@ -179,6 +215,7 @@ export default function SeatMapInteractive({
       setPan({ x: defaultViewX, y: defaultViewY });
       setZoom(defaultViewZoom);
     } else {
+      // Calculate map bounds
       let minX = 2000, minY = 1600, maxX = 0, maxY = 0;
       seatMap.forEach(sec => {
         if ((sec.mapX || 0) < minX) minX = sec.mapX || 0;
@@ -186,6 +223,7 @@ export default function SeatMapInteractive({
         if ((sec.mapX || 0) + (sec.mapWidth || 100) > maxX) maxX = (sec.mapX || 0) + (sec.mapWidth || 100);
         if ((sec.mapY || 0) + (sec.mapHeight || 100) > maxY) maxY = (sec.mapY || 0) + (sec.mapHeight || 100);
       });
+
       if (seatMap.length > 0 && maxX > minX) {
         const cx = (minX + maxX) / 2;
         const cy = (minY + maxY) / 2;
@@ -200,21 +238,22 @@ export default function SeatMapInteractive({
           y: ch / 2 - cy * autoZoom
         });
       } else {
+        // Default fallback position
         setZoom(0.8);
-        setPan({
-          x: cw / 2 - 1000 * 0.8,
-          y: ch / 4 - 60 * 0.8,
-        });
+        setPan({ x: cw / 2 - 1000 * 0.8, y: ch / 4 - 60 * 0.8 });
       }
     }
     initializedRef.current = true;
   }, [defaultViewX, defaultViewY, defaultViewZoom, seatMap]);
 
+  /**
+   * Smoothly pans and zooms the camera into a specific section.
+   */
   const handleSectionClick = (section: VenueSection) => {
     if (focusedSection === section.id) return;
     setFocusedSection(section.id!);
 
-    // If standing, auto-select 1 if none selected
+    // For standing sections, auto-select a ticket if empty
     if (section.sectionType === 'standing') {
       const currentQty = selectedSeats.filter(s => s.sectionId === section.id).length;
       if (currentQty === 0) {
@@ -244,7 +283,9 @@ export default function SeatMapInteractive({
     }
   };
 
-  // Mouse wheel zoom relative to cursor position
+  /**
+   * Mouse wheel handling for zooming relative to the cursor position.
+   */
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -252,7 +293,6 @@ export default function SeatMapInteractive({
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       
-      // Calculate zoom
       const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
       const oldZoom = zoom;
       const newZoom = Math.min(Math.max(oldZoom + delta, MIN_ZOOM), MAX_ZOOM);
@@ -264,21 +304,13 @@ export default function SeatMapInteractive({
       const my = e.clientY - rect.top;
 
       const ratio = newZoom / oldZoom;
-      
-      const cw = rect.width || 800;
-      const ch = rect.height || 500;
       const newX = mx - (mx - pan.x) * ratio;
       const newY = my - (my - pan.y) * ratio;
 
-      const minX = -2000 * newZoom + 100;
-      const maxX = cw - 100;
-      const minY = -1600 * newZoom + 100;
-      const maxY = ch - 100;
-
       setZoom(newZoom);
       setPan({
-        x: Math.min(maxX, Math.max(minX, newX)),
-        y: Math.min(maxY, Math.max(minY, newY)),
+        x: Math.min(rect.width - 100, Math.max(-2000 * newZoom + 100, newX)),
+        y: Math.min(rect.height - 100, Math.max(-1600 * newZoom + 100, newY)),
       });
     };
 
@@ -286,7 +318,7 @@ export default function SeatMapInteractive({
     return () => container.removeEventListener('wheel', handleWheel);
   }, [zoom, pan]);
 
-  // Pan drag
+  // --- Drag Panning Events ---
   const onMouseDown = (e: React.MouseEvent) => {
     isDragging.current = true;
     dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
@@ -300,37 +332,25 @@ export default function SeatMapInteractive({
     const cw = containerRef.current?.clientWidth || 800;
     const ch = containerRef.current?.clientHeight || 500;
     
-    // Constrain dragging bounds so user never drags the map out of view
-    const minX = -2000 * zoom + 100;
-    const maxX = cw - 100;
-    const minY = -1600 * zoom + 100;
-    const maxY = ch - 100;
-
     setPan({
-      x: Math.min(maxX, Math.max(minX, newX)),
-      y: Math.min(maxY, Math.max(minY, newY)),
+      x: Math.min(cw - 100, Math.max(-2000 * zoom + 100, newX)),
+      y: Math.min(ch - 100, Math.max(-1600 * zoom + 100, newY)),
     });
   };
 
   const onMouseUp = () => { isDragging.current = false; };
 
-  // Touch pan & pinch zoom (anti-scroll)
+  // --- Touch Support (Pan & Pinch Zoom) ---
   const touchStart = useRef({ 
-    x: 0, 
-    y: 0, 
-    panX: 0, 
-    panY: 0,
-    isPinch: false,
-    pinchDist: 0,
-    pinchZoom: 1,
-    pinchCenterX: 0,
-    pinchCenterY: 0
+    x: 0, y: 0, panX: 0, panY: 0,
+    isPinch: false, pinchDist: 0, pinchZoom: 1, pinchCenterX: 0, pinchCenterY: 0
   });
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (!containerRef.current) return;
     
     if (e.touches.length === 2) {
+      // Pinch to zoom initialization
       e.preventDefault();
       const t1 = e.touches[0];
       const t2 = e.touches[1];
@@ -340,37 +360,21 @@ export default function SeatMapInteractive({
       const cy = (t1.clientY + t2.clientY) / 2 - rect.top;
       
       touchStart.current = {
-        x: 0,
-        y: 0,
-        panX: pan.x,
-        panY: pan.y,
-        isPinch: true,
-        pinchDist: dist,
-        pinchZoom: zoom,
-        pinchCenterX: cx,
-        pinchCenterY: cy
+        x: 0, y: 0, panX: pan.x, panY: pan.y, isPinch: true,
+        pinchDist: dist, pinchZoom: zoom, pinchCenterX: cx, pinchCenterY: cy
       };
     } else {
+      // Single touch pan initialization
       const t = e.touches[0];
       touchStart.current = {
-        x: t.clientX,
-        y: t.clientY,
-        panX: pan.x,
-        panY: pan.y,
-        isPinch: false,
-        pinchDist: 0,
-        pinchZoom: zoom,
-        pinchCenterX: 0,
-        pinchCenterY: 0
+        x: t.clientX, y: t.clientY, panX: pan.x, panY: pan.y,
+        isPinch: false, pinchDist: 0, pinchZoom: zoom, pinchCenterX: 0, pinchCenterY: 0
       };
     }
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
     if (!containerRef.current) return;
-    
-    // On mobile: always pan the map with a single finger (no toggle needed)
-
     if (e.cancelable) e.preventDefault();
 
     const rect = containerRef.current.getBoundingClientRect();
@@ -378,6 +382,7 @@ export default function SeatMapInteractive({
     const ch = rect.height || 500;
 
     if (touchStart.current.isPinch && e.touches.length === 2) {
+      // Execute pinch zoom
       const t1 = e.touches[0];
       const t2 = e.touches[1];
       const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
@@ -394,54 +399,27 @@ export default function SeatMapInteractive({
       const newX = mx - (mx - touchStart.current.panX) * ratio;
       const newY = my - (my - touchStart.current.panY) * ratio;
 
-      const minX = -2000 * newZoom + 100;
-      const maxX = cw - 100;
-      const minY = -1600 * newZoom + 100;
-      const maxY = ch - 100;
-
       setZoom(newZoom);
       setPan({
-        x: Math.min(maxX, Math.max(minX, newX)),
-        y: Math.min(maxY, Math.max(minY, newY)),
+        x: Math.min(cw - 100, Math.max(-2000 * newZoom + 100, newX)),
+        y: Math.min(ch - 100, Math.max(-1600 * newZoom + 100, newY)),
       });
     } else if (!touchStart.current.isPinch && e.touches.length === 1) {
+      // Execute touch pan
       const t = e.touches[0];
       const newX = touchStart.current.panX + (t.clientX - touchStart.current.x);
       const newY = touchStart.current.panY + (t.clientY - touchStart.current.y);
 
-      const minX = -2000 * zoom + 100;
-      const maxX = cw - 100;
-      const minY = -1600 * zoom + 100;
-      const maxY = ch - 100;
-
       setPan({
-        x: Math.min(maxX, Math.max(minX, newX)),
-        y: Math.min(maxY, Math.max(minY, newY)),
+        x: Math.min(cw - 100, Math.max(-2000 * zoom + 100, newX)),
+        y: Math.min(ch - 100, Math.max(-1600 * zoom + 100, newY)),
       });
     }
   };
 
-  // Determine seat class
-  const seatClass = (seat: Seat, section: VenueSection) => {
-    // Check for reserved override in config
-    let isReserved = false;
-    try {
-      if (section.seatsConfig) {
-        const config = JSON.parse(section.seatsConfig);
-        const seatKey = seat.rowLabel === 'Mesa' ? `seat-${seat.seatNumber}` : `${seat.rowLabel}-${seat.seatNumber}`;
-        if (config[seatKey]?.reserved) isReserved = true;
-      }
-    } catch (e) {}
-
-    if (isSeatSelected(seat.id)) return 'seat seat-selected';
-    if (seat.status === SeatStatus.SOLD || isReserved) return 'seat seat-sold';
-    if (seat.status === SeatStatus.LOCKED) return 'seat seat-locked';
-    return 'seat seat-available';
-  };
-
   return (
     <div className="flex flex-col gap-3">
-      {/* Zoom controls row */}
+      {/* --- Viewport Controls --- */}
       <div className="flex items-center justify-end">
         <div className="flex items-center gap-1 bg-white rounded-lg shadow-sm border border-gray-200 p-1">
           <button onClick={zoomOut} className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-gray-700" title="Zoom Out">
@@ -458,12 +436,12 @@ export default function SeatMapInteractive({
         </div>
       </div>
 
-      {/* Mobile hint — shown once so users know they can drag */}
+      {/* Helper hints for mobile */}
       <p className="md:hidden text-[10px] text-gray-400 text-center -mt-1 mb-1 select-none">
         {lang === 'es' ? '👆 Desliza con un dedo para mover · Pellizca para zoom' : '👆 Drag to pan · Pinch to zoom'}
       </p>
 
-      {/* Map container (Seats.io Style) */}
+      {/* --- Interactive Stage/Arena Canvas --- */}
       <div
         ref={containerRef}
         className="relative bg-[#f0f2f5] border border-gray-300 rounded overflow-hidden shadow-inner"
@@ -474,9 +452,8 @@ export default function SeatMapInteractive({
         onMouseLeave={onMouseUp}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
-        onTouchEnd={() => {}}
       >
-        {/* Infinite Ruler/Grid Background */}
+        {/* Visual Grid Layer */}
         <div 
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -485,7 +462,6 @@ export default function SeatMapInteractive({
             backgroundPosition: 'center center'
           }}
         >
-          {/* Subtle minor grid */}
           <div className="absolute inset-0" style={{
             backgroundImage: `linear-gradient(#f3f4f6 1px, transparent 1px), linear-gradient(90deg, #f3f4f6 1px, transparent 1px)`,
             backgroundSize: '20px 20px',
@@ -493,8 +469,7 @@ export default function SeatMapInteractive({
           }} />
         </div>
 
-
-        {/* Inner canvas content */}
+        {/* --- Transformed content layer --- */}
         <div
           style={{
             position: 'absolute',
@@ -507,24 +482,13 @@ export default function SeatMapInteractive({
             WebkitFontSmoothing: 'antialiased',
             MozOsxFontSmoothing: 'grayscale',
             backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
           }}
         >
-
-
           {sections.map((section) => {
-            const rows = Array.from(new Set(section.seats?.map((s) => s.rowLabel) ?? [])).sort();
             const isStanding = section.sectionType === 'standing';
             const isStage = section.sectionType === 'stage';
             const isDecor = section.sectionType === 'decor';
             const isTable = section.sectionType === 'table';
-            const isSeated = section.sectionType === 'seated' || section.sectionType === 'vip';
-
-            const isFocused = focusedSection === section.id;
-            // Removed dimming logic as requested by user to allow fluid clicking
-
-            const curve = section.curve || 0;
-            const isWheelchair = section.isWheelchair || false;
             const tableShape = section.tableShape || 'round';
 
             return (
@@ -541,7 +505,7 @@ export default function SeatMapInteractive({
                     : isStanding 
                       ? (() => {
                           const isSelected = selectedSeats.some(s => s.sectionId === section.id);
-                          if (isSelected) return '#f97316'; // primary-500 (orange)
+                          if (isSelected) return '#f97316';
                           const sold = (section.seats || []).filter(s => s.status === SeatStatus.SOLD || s.status === SeatStatus.LOCKED).length;
                           const total = Number(section.capacity) || (section.seats?.length) || 0;
                           if (total > 0 && sold >= total) return '#9ca3af';
@@ -551,12 +515,13 @@ export default function SeatMapInteractive({
                         ? (section.color || '#f8fafc')
                         : 'transparent',
                   borderRadius: isStage ? '0 0 40px 40px' : (isStanding ? 8 : (isTable && tableShape === 'round') ? '50%' : 4),
-                  zIndex: isFocused ? 30 : (isStage ? 5 : 10),
+                  zIndex: isStage ? 5 : 10,
                   boxShadow: isStage ? '0 0 20px rgba(59, 130, 246, 0.4)' : (isStanding ? `0 4px 15px ${section.color || '#8b5cf6'}44` : 'none'),
                   border: isDecor ? '1px solid #cbd5e1' : (isStage ? '2.5px solid #3b82f6' : (isStanding ? `2px solid ${section.color || '#8b5cf6'}` : 'none')),
                 }}
                 onClick={() => !isStage && !isDecor && handleSectionClick(section as VenueSection)}
               >
+                {/* --- Decor/Text-only sections --- */}
                 {isDecor && (
                   <div className="flex flex-col items-center justify-center p-2 text-center">
                     <span className="text-[11px] font-black text-white uppercase tracking-widest break-words leading-tight">
@@ -564,6 +529,8 @@ export default function SeatMapInteractive({
                     </span>
                   </div>
                 )}
+
+                {/* --- Stage visual representation --- */}
                 {isStage && (
                   <>
                     <span style={{ color: '#60a5fa', fontSize: 13, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase', textShadow: '0 0 10px rgba(96, 165, 250, 0.5)' }}>
@@ -575,7 +542,7 @@ export default function SeatMapInteractive({
                   </>
                 )}
 
-                {/* Section Label */}
+                {/* --- Section Tooltip Label --- */}
                 {!isStage && !isDecor && (
                   <div
                     className="absolute -top-7 text-[12px] font-bold uppercase tracking-widest px-2 py-0.5 rounded opacity-85 group-hover/sec:opacity-100 transition-opacity"
@@ -585,11 +552,10 @@ export default function SeatMapInteractive({
                   </div>
                 )}
 
+                {/* --- Table Rendering Logic --- */}
                 {isTable ? (() => {
                   let overrides = {};
-                  try {
-                    overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
-                  } catch (e) {}
+                  try { overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {}; } catch (e) {}
 
                   const allTableSeats = section.seats || [];
                   const isTableFullyUnavailable = allTableSeats.length > 0 && allTableSeats.every(s => {
@@ -598,227 +564,9 @@ export default function SeatMapInteractive({
                   });
                   const tableCenterBg = isTableFullyUnavailable ? '#e5e7eb' : '#fff';
                   const tableCenterBorder = isTableFullyUnavailable ? '#9ca3af' : section.color;
-                  const tableLabelColor = isTableFullyUnavailable ? '#6b7280' : '#6b7280';
 
                   return (
                     <div className="relative w-full h-full flex items-center justify-center">
-                      {tableShape === 'round' ? (
-                        <>
-                          <div 
-                            className="absolute rounded-full border shadow-sm flex items-center justify-center z-10 font-bold transition-colors" 
-                            style={{
-                              width: '60%', height: '60%',
-                              backgroundColor: tableCenterBg,
-                              borderColor: tableCenterBorder,
-                              cursor: isTableFullyUnavailable ? 'not-allowed' : 'pointer',
-                            }}
-                            
-                            
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (isTableFullyUnavailable) return;
-                              const allSeats = section.seats || [];
-                              const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
-                              if (isTableSelected) {
-                                onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
-                              } else {
-                                const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
-                                onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
-                              }
-                            }}
-                          >
-                            <span className="text-[10px] font-bold" style={{ color: tableLabelColor }}>{isTableFullyUnavailable ? (lang === 'es' ? 'NO DISP.' : 'N/A') : 'MESA'}</span>
-                          </div>
-                          {section.seats?.map((seat, i) => {
-                            const seatNumber = seat.seatNumber;
-                            const seatKey = `seat-${seatNumber}`;
-                            const seatOverride: any = (overrides as any)[seatKey] || {};
-                            if (seatOverride.disabled) return null; // Completely hide disabled seats
-
-                            const angle = (i * 360) / section.seats!.length;
-                            const selected = isSeatSelected(seat.id);
-                            const finalXOffset = seatOverride.xOffset || 0;
-                            const finalYOffset = seatOverride.yOffset || 0;
-                            const isSeatWheelchair = seatOverride.isWheelchair || false;
-
-                            return (
-                              <div key={seat.id} className="absolute w-[18%] h-[18%]" style={{
-                                transform: `rotate(${angle}deg) translate(0, -210%) rotate(-${angle}deg) translate(${finalXOffset}px, ${finalYOffset}px)`,
-                                zIndex: 20
-                              }}>
-                                  <button
-                                  className="w-full h-full rounded-full border-[1.5px] shadow-sm hover:scale-125 transition-transform box-border flex items-center justify-center text-white"
-                                  style={{
-                                    backgroundColor: getSeatBg(seat, seatOverride, section.color, isSeatWheelchair, selected),
-                                    borderColor: getSeatBorder(seat, seatOverride, section.color, isSeatWheelchair, selected),
-                                    boxShadow: getSeatShadow(seat, seatOverride, section.color, selected),
-                                    cursor: isSeatUnavailable(seat, seatOverride) && !selected ? 'not-allowed' : 'pointer',
-                                    pointerEvents: 'auto'
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
-                                    const seatKey = `seat-${seat.seatNumber}`;
-                                    const seatOverride = overrides[seatKey] || {};
-
-                                    if (isSeatUnavailable(seat, seatOverride)) return;
-
-                                    // If table is whole-only, clicking a seat toggles the entire table
-                                    if (section.tablePurchaseMode === 'whole') {
-                                      const allSeats = section.seats || [];
-                                      const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
-                                      if (isTableSelected) {
-                                        onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
-                                      } else {
-                                        onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
-                                      }
-                                      return;
-                                    }
-
-                                    // Clicking a seat always toggles just that seat (Individual mode)
-                                    onToggleSeats([seat]);
-                                  }}
-                                  
-                                  
-                                  disabled={seat.status === SeatStatus.SOLD || seatOverride.reserved}
-                                >
-                                  {isSeatWheelchair && (
-                                    <FaWheelchair className="w-[65%] h-[65%] shrink-0 text-white" />
-                                  )}
-                                </button>
-                              </div>
-                            )
-                          })}
-                        </>
-                      ) : (
-                        <>
-                          <div 
-                            className="absolute rounded border shadow-sm flex items-center justify-center z-10 transition-colors" 
-                            style={{
-                              width: '70%', height: '45%',
-                              backgroundColor: tableCenterBg,
-                              borderColor: tableCenterBorder,
-                              cursor: isTableFullyUnavailable ? 'not-allowed' : 'pointer',
-                            }}
-                            
-                            
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (isTableFullyUnavailable) return;
-                              const allSeats = section.seats || [];
-                              const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
-                              if (isTableSelected) {
-                                onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
-                              } else {
-                                const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
-                                onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
-                              }
-                            }}
-                          >
-                            <span className="text-[10px] font-bold" style={{ color: tableLabelColor }}>{isTableFullyUnavailable ? (lang === 'es' ? 'NO DISP.' : 'N/A') : 'MESA'}</span>
-                          </div>
-                          {section.seats?.map((seat, i) => {
-                            const seatNumber = seat.seatNumber;
-                            const seatKey = `seat-${seatNumber}`;
-                            const seatOverride: any = (overrides as any)[seatKey] || {};
-                            if (seatOverride.disabled) return null; // Completely hide disabled seats
-
-                            const total = section.seats!.length;
-                            const perimeter = 2 * (1 + 0.55);
-                            const step = perimeter / total;
-                            const pos = i * step;
-                            let x = 50;
-                            let y = 50;
-                            if (pos < 1) { // Top
-                              x = 15 + pos * 70;
-                              y = 12;
-                            } else if (pos < 1.55) { // Right
-                              x = 88;
-                              y = 15 + (pos - 1) / 0.55 * 70;
-                            } else if (pos < 2.55) { // Bottom
-                              x = 85 - (pos - 1.55) * 70;
-                              y = 88;
-                            } else { // Left
-                              x = 12;
-                              y = 85 - (pos - 2.55) / 0.55 * 70;
-                            }
-                            const selected = isSeatSelected(seat.id);
-                            const finalXOffset = seatOverride.xOffset || 0;
-                            const finalYOffset = seatOverride.yOffset || 0;
-                            const isSeatWheelchair = seatOverride.isWheelchair || false;
-
-                            return (
-                              <div key={seat.id} className="absolute w-[22%] h-[22%]" style={{
-                                left: `${x}%`,
-                                top: `${y}%`,
-                                transform: `translate(-50%, -50%) translate(${finalXOffset}px, ${finalYOffset}px)`,
-                                zIndex: 40
-                              }}>
-                                {/* Larger invisible hitbox */}
-                                <div 
-                                  className="absolute inset-[-4px] cursor-pointer z-0" 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (isSeatUnavailable(seat, seatOverride)) return;
-                                    onToggleSeats([seat]);
-                                  }}
-                                />
-                                <button
-                                  className="relative w-full h-full rounded-full border-[2px] shadow-sm hover:scale-125 transition-transform box-border flex items-center justify-center text-white z-10"
-                                  style={{
-                                    backgroundColor: getSeatBg(seat, seatOverride, section.color, isSeatWheelchair, selected),
-                                    borderColor: getSeatBorder(seat, seatOverride, section.color, isSeatWheelchair, selected),
-                                    boxShadow: getSeatShadow(seat, seatOverride, section.color, selected),
-                                    cursor: isSeatUnavailable(seat, seatOverride) && !selected ? 'not-allowed' : 'pointer',
-                                    pointerEvents: 'auto'
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
-                                    const seatKey = `seat-${seat.seatNumber}`;
-                                    const seatOverride = overrides[seatKey] || {};
-
-                                    if (isSeatUnavailable(seat, seatOverride)) return;
-
-                                    // If table is whole-only, clicking a seat toggles the entire table
-                                    if (section.tablePurchaseMode === 'whole') {
-                                      const allSeats = section.seats || [];
-                                      const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
-                                      if (isTableSelected) {
-                                        onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
-                                      } else {
-                                        onToggleSeats(allSeats.filter(s => s.status === SeatStatus.AVAILABLE && !overrides[`seat-${s.seatNumber}`]?.reserved));
-                                      }
-                                      return;
-                                    }
-
-                                    onToggleSeats([seat]);
-                                  }}
-                                  
-                                  
-                                  disabled={seat.status === SeatStatus.SOLD || seatOverride.reserved}
-                                >
-                                  {isSeatWheelchair && (
-                                    <FaWheelchair className="w-[65%] h-[65%] shrink-0 text-white" />
-                                  )}
-                                </button>
-                              </div>
-                            )
-                          })}
-                        </>
-                      )}
-                    </div>
-                  );
-                })() : isStanding ? (
-                  // General Admission Block
-                  <div className="text-center w-full px-2">
-                    <p className="text-sm font-black text-white uppercase tracking-wider">{section.name}</p>
-                    <p className="text-[11px] text-white/80 font-bold mt-1">${Number(section.price).toFixed(2)}</p>
-                  </div>
-                ) : (
-                  // Curved Seated Block
-                   <div className="absolute inset-0 pointer-events-none">
-                    {(() => {
                       let overrides = {};
                       try {
                         overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};

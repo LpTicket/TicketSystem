@@ -18,20 +18,35 @@ import SeatMapInteractive from '@/components/events/SeatMapInteractive';
 import ReservationTimer from '@/components/events/ReservationTimer';
 import InvoiceBreakdown, { InvoiceData } from '@/components/events/InvoiceBreakdown';
 
+/**
+ * Steps for the checkout wizard.
+ */
 type Step = 'section' | 'seats' | 'info' | 'payment';
 const STEPS: { key: Step; label: string }[] = [
-  { key: 'section', label: 'Sección' },
-  { key: 'seats',   label: 'Asientos' },
-  { key: 'info',    label: 'Identificación' },
-  { key: 'payment', label: 'Pagar' },
+  { key: 'section', label: 'Section' },
+  { key: 'seats',   label: 'Seats' },
+  { key: 'info',    label: 'Identification' },
+  { key: 'payment', label: 'Pay' },
 ];
 
+/**
+ * PurchasePage Component
+ * Manages the entire ticket purchasing flow:
+ * 1. Section Selection
+ * 2. Seat/Quantity Selection & Locking
+ * 3. User Info Verification
+ * 4. Payment processing via Stripe
+ */
 export default function PurchasePage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const { lang } = useLang();
   const { user, isAuthenticated } = useAuthStore();
 
+  /**
+   * Calculates the price for a specific seat, considering potential overrides
+   * defined in the section's seat configuration.
+   */
   const getSeatPrice = (seat: Seat, section?: VenueSection) => {
     if (!section) return 0;
     try {
@@ -48,7 +63,9 @@ export default function PurchasePage() {
           return Number(override.price);
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      // If parsing fails, fall back to base section price
+    }
     return Number(section.price || 0);
   };
 
@@ -57,15 +74,15 @@ export default function PurchasePage() {
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<Step>('section');
 
-  // Step 1
+  // Step 1: Current active section
   const [selectedSection, setSelectedSection] = useState<(VenueSection & { seats: Seat[] }) | null>(null);
 
-  // Step 2
+  // Step 2: Selected seats or standing quantity
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [standingQuantity, setStandingQuantity] = useState<number>(1);
   const [seatsLocked, setSeatsLocked] = useState(false);
 
-  // Step 3 — personal info (pre-filled from user)
+  // Step 3: Identification & Personal Info
   const [personalInfo, setPersonalInfo] = useState({
     firstName: '',
     lastName: '',
@@ -75,18 +92,26 @@ export default function PurchasePage() {
     phone: '',
   });
 
-  // Step 4 — invoice
+  // Step 4: Final Invoice and Payment state
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [buying, setBuying] = useState(false);
   const [hasLoadedSaved, setHasLoadedSaved] = useState(false);
 
-  // ── Load event ─────────────────────────────────────────────────────────────
+  /**
+   * Redirect to login if not authenticated.
+   */
   useEffect(() => {
-    if (!isAuthenticated) { router.push(`/login?redirect=/events/${slug}/purchase`); return; }
+    if (!isAuthenticated) { 
+      router.push(`/login?redirect=/events/${slug}/purchase`); 
+      return; 
+    }
     loadEvent();
   }, [slug, isAuthenticated]);
 
+  /**
+   * Pre-fill user information once available from the auth store.
+   */
   useEffect(() => {
     if (user) {
       setPersonalInfo({
@@ -100,6 +125,10 @@ export default function PurchasePage() {
     }
   }, [user]);
 
+  /**
+   * Fetches event data and its associated seat map.
+   * Also attempts to recover a previously saved cart from localStorage.
+   */
   const loadEvent = async () => {
     setLoading(true);
     try {
@@ -113,12 +142,13 @@ export default function PurchasePage() {
         finalMap = map;
       }
 
-      // ── Cart Initialization (Skip steps if already selected) ──
+      // Restore cart from localStorage if present
       const saved = localStorage.getItem(`selectedSeats_${evData.id}`);
       if (saved && !hasLoadedSaved) {
         try {
           const parsed = JSON.parse(saved);
           if (parsed && parsed.length > 0) {
+            // Only recover if the reservation hasn't expired (10 min)
             const valid = parsed.filter((s: any) => !s.addedAt || (Date.now() - s.addedAt < 10 * 60 * 1000));
             if (valid.length > 0) {
               const firstSeat = valid[0];
@@ -130,7 +160,7 @@ export default function PurchasePage() {
                   setStep('info');
                 } else {
                   setSelectedSeats(valid);
-                  // Try to lock and go to info, if fails stay at seats
+                  // Attempt to re-lock the seats on the server
                   try {
                     await api.post('/events/seats/lock', { seatIds: valid.map((s: any) => s.id) });
                     setSeatsLocked(true);
@@ -146,7 +176,9 @@ export default function PurchasePage() {
               window.dispatchEvent(new Event('cart-updated'));
             }
           }
-        } catch (e) {}
+        } catch (e) {
+          console.error("Error recovering cart:", e);
+        }
         setHasLoadedSaved(true);
       }
     } catch { 
@@ -156,24 +188,24 @@ export default function PurchasePage() {
     }
   };
 
-  // ── Handled in loadEvent for better performance and no flicker ──
-
-
-  // ── Step navigation ────────────────────────────────────────────────────────
   const stepIndex = STEPS.findIndex((s) => s.key === step);
-
   const goToStep = (s: Step) => setStep(s);
 
-  // ── Step 1: pick section ───────────────────────────────────────────────────
+  /**
+   * Handles section selection and resets seat-specific state.
+   */
   const handleSelectSection = (sec: VenueSection & { seats: Seat[] }) => {
     setSelectedSection(sec);
     setSelectedSeats([]);
-    setStandingQuantity(1); // Reset to 1 when entering a new standing section
+    setStandingQuantity(1);
     setSeatsLocked(false);
     setStep('seats');
   };
 
-  // Synchronize state changes to localStorage and dispatch cart-updated
+  /**
+   * Syncs the current selection (seats or standing quantity) to localStorage
+   * so it persists and is visible in the Header cart popup.
+   */
   useEffect(() => {
     if (!event?.id || !hasLoadedSaved) return;
 
@@ -205,7 +237,9 @@ export default function PurchasePage() {
     window.dispatchEvent(new Event('cart-updated'));
   }, [selectedSeats, standingQuantity, selectedSection, event, hasLoadedSaved]);
 
-  // ── Step 2: toggle seat ────────────────────────────────────────────────────
+  /**
+   * Toggles a seat selection, enforcing a limit of 10 tickets.
+   */
   const toggleSeats = useCallback((seats: Seat[]) => {
     setSelectedSeats((prev) => {
       let next = [...prev];
@@ -225,6 +259,9 @@ export default function PurchasePage() {
     });
   }, [lang]);
 
+  /**
+   * Locks the selected seats on the server to prevent other users from buying them.
+   */
   const handleConfirmSeats = async () => {
     if (selectedSeats.length === 0) return;
     try {
@@ -232,30 +269,35 @@ export default function PurchasePage() {
       setSeatsLocked(true);
       setStep('info');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al reservar asientos');
+      alert(err.response?.data?.message || 'Error reserving seats');
     }
   };
 
-  // ── Step 2: timer expire ───────────────────────────────────────────────────
+  /**
+   * Handles the expiration of the 10-minute reservation timer.
+   */
   const handleTimerExpire = async () => {
     try {
       await api.post('/events/seats/unlock');
     } catch {}
     setSeatsLocked(false);
     setSelectedSeats([]);
-    alert('⏰ Tu reservación ha expirado. Los asientos fueron liberados.');
+    alert(lang === 'es' ? '⏰ Tu reservación ha expirado. Los asientos fueron liberados.' : '⏰ Your reservation has expired. Seats have been released.');
     setStep('seats');
-    // Reload fresh seat map
+    
+    // Refresh seat map to show updated availability
     if (event?.id) {
       const { data: map } = await api.get(`/events/${event.id}/seatmap`);
       setSeatMap(map);
     }
   };
 
-  // ── Step 3: next ───────────────────────────────────────────────────────────
+  /**
+   * Validates personal info and fetches a detailed invoice preview (fees, taxes, total).
+   */
   const handleConfirmInfo = async () => {
     if (!personalInfo.firstName || !personalInfo.lastName || !personalInfo.email) return;
-    // Load invoice preview
+    
     setInvoiceLoading(true);
     try {
       const params: any = { eventId: event!.id };
@@ -270,13 +312,15 @@ export default function PurchasePage() {
       setInvoice({ ...data, currency: event?.currency || 'USD' });
       setStep('payment');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al calcular factura');
+      alert(err.response?.data?.message || 'Error calculating invoice');
     } finally {
       setInvoiceLoading(false);
     }
   };
 
-  // ── Step 4: pay ────────────────────────────────────────────────────────────
+  /**
+   * Initiates the Stripe checkout process by creating a session on the backend.
+   */
   const handlePay = async () => {
     setBuying(true);
     try {
@@ -289,22 +333,25 @@ export default function PurchasePage() {
       }
 
       const { data } = await api.post('/orders/checkout', payload);
+      // Redirect the user to the Stripe-hosted checkout page
       if (data.url) window.location.href = data.url;
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al procesar pago');
+      alert(err.response?.data?.message || 'Error processing payment');
     } finally {
       setBuying(false);
     }
   };
 
-  // ── Cancel / unlock ────────────────────────────────────────────────────────
+  /**
+   * Manually cancels the reservation and unlocks seats.
+   */
   const handleCancel = async () => {
-    if (!confirm('¿Deseas cancelar la reservación? Los asientos serán liberados.')) return;
+    const msg = lang === 'es' ? '¿Deseas cancelar la reservación? Los asientos serán liberados.' : 'Do you want to cancel the reservation? Seats will be released.';
+    if (!confirm(msg)) return;
     try { await api.post('/events/seats/unlock'); } catch {}
     router.push(`/events/${slug}`);
   };
 
-  // ── Loading skeleton ───────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-4">
@@ -319,9 +366,9 @@ export default function PurchasePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ── Breadcrumb ─────────────────────────────────────────────────── */}
+      {/* ── Breadcrumb Wizard Navigation ── */}
       <nav className="wizard-breadcrumb sticky top-0 z-20 shadow-sm">
-        <Link href="/" className="wizard-breadcrumb-item done text-xs">Inicio</Link>
+        <Link href="/" className="wizard-breadcrumb-item done text-xs">{lang === 'es' ? 'Inicio' : 'Home'}</Link>
         <span className="wizard-breadcrumb-sep">›</span>
         <Link href={`/events/${slug}`} className="wizard-breadcrumb-item done text-xs truncate max-w-[140px]">
           {event.title}
@@ -336,16 +383,16 @@ export default function PurchasePage() {
               onClick={() => i < stepIndex && goToStep(s.key)}
             >
               {i < stepIndex && <HiOutlineCheckCircle className="w-3.5 h-3.5 shrink-0" />}
-              {s.label}
+              {lang === 'es' ? s.label : (s.key === 'section' ? 'Section' : s.key === 'seats' ? 'Seats' : s.key === 'info' ? 'Identification' : 'Pay')}
             </button>
           </span>
         ))}
       </nav>
 
       <div className="max-w-5xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ── Main panel ──────────────────────────────────────────────────── */}
+        {/* ── Main Content Area ── */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Event title bar */}
+          {/* Event Header Information */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h1 className="font-bold text-lg text-gray-900 leading-tight">{event.title}</h1>
             <div className="flex flex-wrap gap-4 mt-2 text-sm text-blue-600">
@@ -360,19 +407,18 @@ export default function PurchasePage() {
             </div>
           </div>
 
-          {/* Timer — shown from step 2 onward if seats are locked */}
+          {/* Reservation Timer (Visible once seats are locked) */}
           {seatsLocked && (step === 'info' || step === 'payment') && (
             <ReservationTimer onExpire={handleTimerExpire} />
           )}
 
-          {/* ── STEP 1: Selección de sección ─────────────────────────────── */}
+          {/* ── STEP 1: Section Selection ── */}
           {step === 'section' && (
             <div className="bg-white rounded-lg border border-gray-200 p-5 step-panel">
               <h2 className="font-bold text-base text-blue-600 mb-4 border-b border-gray-100 pb-2">
-                Escoge dónde quieres estar
+                {lang === 'es' ? 'Escoge dónde quieres estar' : 'Choose where you want to be'}
               </h2>
 
-              {/* Venue map thumbnail showing sections */}
               <div className="relative bg-gray-50 border border-gray-200 rounded-lg overflow-hidden mb-5" style={{ minHeight: 200 }}>
                 <div className="p-4 flex flex-col gap-2">
                   {seatMap.map((sec) => (
@@ -402,29 +448,29 @@ export default function PurchasePage() {
                   ))}
                 </div>
                 <div className="stage mx-4 mb-4" style={{ fontSize: '0.65rem', padding: '0.4rem' }}>
-                  ESCENARIO
+                  {lang === 'es' ? 'ESCENARIO' : 'STAGE'}
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── STEP 2: Selección de asientos ──────────────────────────────── */}
+          {/* ── STEP 2: Seat/Quantity Selection ── */}
           {step === 'seats' && selectedSection && (
             <div className="bg-white rounded-lg border border-gray-200 p-5 step-panel">
               <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
                 <h2 className="font-bold text-base text-blue-600">
-                  {selectedSection.sectionType === 'standing' ? 'Cantidad de entradas' : 'Selecciona tus asientos'} — <span style={{ color: selectedSection.color }}>{selectedSection.name}</span>
+                  {selectedSection.sectionType === 'standing' ? (lang === 'es' ? 'Cantidad de entradas' : 'Number of tickets') : (lang === 'es' ? 'Selecciona tus asientos' : 'Select your seats')} — <span style={{ color: selectedSection.color }}>{selectedSection.name}</span>
                 </h2>
                 <button
                   onClick={() => setStep('section')}
                   className="text-xs text-gray-400 hover:text-gray-600 underline"
                 >
-                  ← cambiar sección
+                  {lang === 'es' ? '← cambiar sección' : '← change section'}
                 </button>
               </div>
 
               {selectedSection.sectionType === 'standing' ? (
-                // Counter UI for standing sections
+                /* Standing Section Quantity Selector */
                 <div className="py-8 px-4 flex flex-col items-center justify-center space-y-6 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
                   <div className="text-center">
                     <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
@@ -464,6 +510,7 @@ export default function PurchasePage() {
                   </p>
                 </div>
               ) : (
+                /* Numbered Seating Interactive Map */
                 <>
                   <SeatMapInteractive
                     seatMap={seatMap}
@@ -476,7 +523,7 @@ export default function PurchasePage() {
                     showStage={event?.showStage}
                   />
 
-                  {/* Selected seats chips */}
+                  {/* Visual chips for selected seats */}
                   {selectedSeats.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {selectedSeats.map((seat) => {
@@ -516,49 +563,50 @@ export default function PurchasePage() {
                   ? (standingQuantity === 0 ? (lang === 'es' ? 'Selecciona al menos 1 entrada' : 'Select at least 1 ticket') : 'Continuar →')
                   : selectedSeats.length === 0
                     ? (lang === 'es' ? 'Selecciona al menos 1 asiento' : 'Select at least 1 seat')
-                    : `Reservar ${selectedSeats.length} asiento${selectedSeats.length > 1 ? 's' : ''} →`}
+                    : (lang === 'es' ? `Reservar ${selectedSeats.length} asiento${selectedSeats.length > 1 ? 's' : ''} →` : `Reserve ${selectedSeats.length} seat${selectedSeats.length > 1 ? 's' : ''} →`)}
               </button>
 
               {selectedSection.sectionType !== 'standing' && (
                 <p className="text-[10px] text-gray-400 text-center mt-2">
-                  *Una vez reservado, tendrás 10 minutos para completar el pago. De lo contrario los asientos serán liberados.
+                  {lang === 'es' 
+                    ? '*Una vez reservado, tendrás 10 minutos para completar el pago. De lo contrario los asientos serán liberados.'
+                    : '*Once reserved, you will have 10 minutes to complete the payment. Otherwise, seats will be released.'}
                 </p>
               )}
             </div>
           )}
 
-          {/* ── STEP 3: Información personal ─────────────────────────────── */}
+          {/* ── STEP 3: Identification & Personal Info ── */}
           {step === 'info' && (
             <div className="bg-white rounded-lg border border-gray-200 p-5 step-panel">
               <h2 className="font-bold text-base text-blue-600 mb-1 border-b border-gray-100 pb-2">
-                Información personal
+                {lang === 'es' ? 'Información personal' : 'Personal Information'}
               </h2>
-              {/* Read-only summary */}
+              
               <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm space-y-1">
-                <div><span className="text-gray-500">Nombre y apellido:</span> <strong>{personalInfo.firstName} {personalInfo.lastName}</strong></div>
+                <div><span className="text-gray-500">{lang === 'es' ? 'Nombre y apellido:' : 'Full Name:'}</span> <strong>{personalInfo.firstName} {personalInfo.lastName}</strong></div>
                 <div><span className="text-gray-500">Email:</span> <strong>{personalInfo.email}</strong></div>
-                <div><span className="text-gray-500">Teléfono:</span> <strong>{personalInfo.phone || 'No registrado'}</strong></div>
+                <div><span className="text-gray-500">{lang === 'es' ? 'Teléfono:' : 'Phone:'}</span> <strong>{personalInfo.phone || (lang === 'es' ? 'No registrado' : 'Not registered')}</strong></div>
               </div>
 
-              {/* Editable fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Nombre:</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Nombre:' : 'First Name:'}</label>
                   <input className="input text-sm" value={personalInfo.firstName}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, firstName: e.target.value }))} required />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Apellido:</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Apellido:' : 'Last Name:'}</label>
                   <input className="input text-sm" value={personalInfo.lastName}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, lastName: e.target.value }))} required />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Correo electrónico:</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Correo electrónico:' : 'Email Address:'}</label>
                   <input className="input text-sm" type="email" value={personalInfo.email}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, email: e.target.value }))} required />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Teléfono:</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Teléfono:' : 'Phone:'}</label>
                   <input className="input text-sm" value={personalInfo.phone}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, phone: e.target.value }))} />
                 </div>
@@ -569,20 +617,20 @@ export default function PurchasePage() {
                 disabled={invoiceLoading || !personalInfo.firstName || !personalInfo.lastName || !personalInfo.email}
                 className="btn-primary w-full py-3 mt-5 disabled:opacity-40"
               >
-                {invoiceLoading ? 'Calculando...' : 'Continuar →'}
+                {invoiceLoading ? (lang === 'es' ? 'Calculando...' : 'Calculating...') : (lang === 'es' ? 'Continuar →' : 'Continue →')}
               </button>
 
               <button onClick={handleCancel} className="w-full mt-2 py-2 text-xs text-red-500 hover:text-red-700 font-medium">
-                Eliminar reservación
+                {lang === 'es' ? 'Eliminar reservación' : 'Delete reservation'}
               </button>
             </div>
           )}
 
-          {/* ── STEP 4: Forma de pago ─────────────────────────────────────── */}
+          {/* ── STEP 4: Payment Summary ── */}
           {step === 'payment' && invoice && (
             <div className="bg-white rounded-lg border border-gray-200 p-5 step-panel">
               <h2 className="font-bold text-base text-blue-600 mb-4 border-b border-gray-100 pb-2">
-                Forma de pago
+                {lang === 'es' ? 'Forma de pago' : 'Payment Method'}
               </h2>
 
               <InvoiceBreakdown invoice={invoice} eventTitle={event.title} />
@@ -599,33 +647,33 @@ export default function PurchasePage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                       </svg>
-                      Procesando...
+                      {lang === 'es' ? 'Procesando...' : 'Processing...'}
                     </span>
                   ) : (
-                    <>💳 Pagar ${Number(invoice.total).toFixed(2)} {invoice.currency || 'USD'} con Stripe</>
+                    <>{lang === 'es' ? '💳 Pagar' : '💳 Pay'} ${Number(invoice.total).toFixed(2)} {invoice.currency || 'USD'} {lang === 'es' ? 'con Stripe' : 'with Stripe'}</>
                   )}
                 </button>
                 <p className="text-center text-[10px] text-gray-400">
-                  Pagos seguros encriptados — procesado por Stripe
+                  {lang === 'es' ? 'Pagos seguros encriptados — procesado por Stripe' : 'Secure encrypted payments — processed by Stripe'}
                 </p>
                 <button onClick={handleCancel} className="w-full py-2 text-xs text-red-500 hover:text-red-700 font-medium">
-                  🗑 Eliminar reservación
+                  🗑 {lang === 'es' ? 'Eliminar reservación' : 'Delete reservation'}
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
+        {/* ── Sidebar: Order Summary & Event Info ── */}
         <div className="lg:col-span-1">
           <div className="sticky top-20 space-y-4">
-            {/* Selected seats/tickets summary */}
+            {/* Real-time Order Summary */}
             {((selectedSection?.sectionType === 'standing' && standingQuantity > 0) || selectedSeats.length > 0) && (
               <div className="bg-white rounded-lg border border-gray-200 p-4">
                 <h3 className="font-bold text-sm text-gray-800 mb-2">
                   {selectedSection?.sectionType === 'standing'
-                    ? `${standingQuantity} entrada${standingQuantity > 1 ? 's' : ''} seleccionada${standingQuantity > 1 ? 's' : ''}`
-                    : `${selectedSeats.length} asiento${selectedSeats.length > 1 ? 's' : ''} seleccionado${selectedSeats.length > 1 ? 's' : ''}`
+                    ? (lang === 'es' ? `${standingQuantity} entrada${standingQuantity > 1 ? 's' : ''} seleccionada${standingQuantity > 1 ? 's' : ''}` : `${standingQuantity} ticket${standingQuantity > 1 ? 's' : ''} selected`)
+                    : (lang === 'es' ? `${selectedSeats.length} asiento${selectedSeats.length > 1 ? 's' : ''} seleccionado${selectedSeats.length > 1 ? 's' : ''}` : `${selectedSeats.length} seat${selectedSeats.length > 1 ? 's' : ''} selected`)
                   }
                 </h3>
                 <div className="space-y-1">
@@ -640,6 +688,52 @@ export default function PurchasePage() {
                       return (
                         <div key={seat.id} className="flex justify-between text-xs">
                           <span className="text-gray-600">{sec?.name} — {seat.rowLabel}{seat.seatNumber}</span>
+                          <span className="font-medium text-gray-800">${getSeatPrice(seat, sec).toFixed(2)}</span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                
+                {/* Detailed invoice breakdown (available once Step 3 is completed) */}
+                {invoice && (
+                  <>
+                    <div className="border-t border-gray-100 mt-2 pt-2">
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>Subtotal</span>
+                        <span>${Number(invoice.baseTotal).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>{lang === 'es' ? 'Servicio + impuestos' : 'Fees + Taxes'}</span>
+                        <span>${(invoice.total - invoice.baseTotal).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-sm mt-1">
+                        <span>Total</span>
+                        <span className="text-primary-600">${Number(invoice.total).toFixed(2)} {event.currency || 'USD'}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Event Media */}
+            {event.imageUrl && (
+              <div className="rounded-lg overflow-hidden border border-gray-200">
+                <img
+                  src={getImageUrl(event.imageUrl)}
+                  alt={event.title}
+                  className="w-full object-cover aspect-[4/3]"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+sec?.name} — {seat.rowLabel}{seat.seatNumber}</span>
                           <span className="font-medium text-gray-800">${getSeatPrice(seat, sec).toFixed(2)}</span>
                         </div>
                       );

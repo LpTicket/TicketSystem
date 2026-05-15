@@ -10,13 +10,22 @@ import {
 import { User } from './user.entity';
 import { Event } from './event.entity';
 
+/**
+ * OrderStatus
+ * Represents the current payment/fulfillment state of an order.
+ */
 export enum OrderStatus {
-  PENDING = 'pending',
-  PAID = 'paid',
-  CANCELLED = 'cancelled',
-  REFUNDED = 'refunded',
+  PENDING = 'pending',   // User has initiated checkout but hasn't paid yet
+  PAID = 'paid',         // Payment confirmed by Stripe webhook
+  CANCELLED = 'cancelled', // Order timed out or was manually cancelled
+  REFUNDED = 'refunded', // Payment returned to user
 }
 
+/**
+ * Order Entity
+ * Tracks a financial transaction for tickets.
+ * Stores detailed fee breakdowns and references to external payment processors.
+ */
 @Entity('orders')
 export class Order {
   @PrimaryGeneratedColumn('uuid')
@@ -36,15 +45,19 @@ export class Order {
   @JoinColumn({ name: 'eventId' })
   event: Event;
 
+  /** Sum of all base ticket prices before fees */
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   subtotal: number;
 
+  /** Platform service fee (LPTicket's commission) */
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   lpFee: number;
 
+  /** Cost passed through from Stripe for credit card processing */
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   processingFee: number;
 
+  /** Final amount charged to the user's card */
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   total: number;
 
@@ -55,15 +68,21 @@ export class Order {
   })
   status: OrderStatus;
 
+  /** Reference for the Stripe Checkout session */
   @Column({ nullable: true, length: 150 })
   stripeSessionId: string;
 
+  /** Reference for the finalized Stripe Payment Intent */
   @Column({ nullable: true, length: 150 })
   stripePaymentIntent: string;
 
   @Column({ type: 'int', default: 1 })
   ticketCount: number;
 
+  /** 
+   * JSON-stringified representation of the specific seats purchased.
+   * Provides a redundant snapshot of seat data at the time of purchase.
+   */
   @Column({ type: 'text', nullable: true })
   seatsData: string;
 

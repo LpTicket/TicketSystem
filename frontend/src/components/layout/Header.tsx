@@ -14,6 +14,11 @@ import ModeToggle from './ModeToggle';
 
 import { useUIStore } from '@/stores/ui';
 
+/**
+ * Main application Header component.
+ * Handles navigation, language switching, authentication status,
+ * user profile dropdown, and the floating shopping cart logic.
+ */
 export default function Header() {
   const router = useRouter();
   const { user, isAuthenticated, logout, mode } = useAuthStore();
@@ -24,6 +29,9 @@ export default function Header() {
   const [cartItems, setCartItems] = useState<any[]>([]);
   const profileRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * Effect to handle clicks outside the profile dropdown to close it automatically.
+   */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
@@ -36,11 +44,16 @@ export default function Header() {
     };
   }, []);
 
+  /**
+   * Loads cart items from localStorage.
+   * Filters out items that have exceeded the 10-minute reservation threshold.
+   */
   const loadCartItems = useCallback(() => {
     if (typeof window === 'undefined') return;
     const items: any[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
+      // Selected seats are stored with the prefix 'selectedSeats_' followed by the event ID
       if (key && key.startsWith('selectedSeats_')) {
         try {
           const val = localStorage.getItem(key);
@@ -48,12 +61,14 @@ export default function Header() {
             const parsed = JSON.parse(val);
             if (Array.isArray(parsed) && parsed.length > 0) {
               const eventId = key.replace('selectedSeats_', '');
-              // Filter out items older than 10 minutes
+              
+              // Filter out items older than 10 minutes (reservation timeout)
               const validSeats = parsed.filter((seat: any) => {
                 const addedAt = seat.addedAt || Date.now();
                 const elapsed = Date.now() - addedAt;
                 return elapsed < 10 * 60 * 1000;
               });
+
               if (validSeats.length > 0) {
                 items.push({
                   eventId,
@@ -62,22 +77,29 @@ export default function Header() {
                   seats: validSeats
                 });
               } else {
+                // If no seats are valid, clean up the localStorage key
                 localStorage.removeItem(key);
               }
             }
           }
-        } catch (e) {}
+        } catch (e) {
+          console.error("Error parsing cart item:", e);
+        }
       }
     }
     setCartItems(items);
   }, []);
 
+  /**
+   * Setup listeners for cart updates across the application and tab storage events.
+   * Also sets up a 1-second interval to keep the countdown timers accurate.
+   */
   useEffect(() => {
     loadCartItems();
     window.addEventListener('cart-updated', loadCartItems);
     window.addEventListener('storage', loadCartItems);
 
-    // Dynamic countdown update interval
+    // Dynamic countdown update interval to refresh time-remaining strings
     const interval = setInterval(() => {
       loadCartItems();
     }, 1000);
@@ -89,6 +111,11 @@ export default function Header() {
     };
   }, [loadCartItems]);
 
+  /**
+   * Calculates the remaining time for a seat reservation in MM:SS format.
+   * @param seats List of seats in a cart item (usually sharing the same timestamp)
+   * @returns Formatted time string
+   */
   const getRemainingTimeStr = (seats: any[]) => {
     if (seats.length === 0) return '10:00';
     const addedAt = seats[0].addedAt || Date.now();
@@ -99,6 +126,10 @@ export default function Header() {
     return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
   };
 
+  /**
+   * Removes all seats for a specific event from the cart.
+   * @param eventId The ID of the event to clear
+   */
   const handleRemoveEventCart = (eventId: string) => {
     localStorage.removeItem(`selectedSeats_${eventId}`);
     window.dispatchEvent(new Event('cart-updated'));
@@ -112,7 +143,7 @@ export default function Header() {
       <div className="max-w-[1400px] mx-auto px-3 sm:px-6 md:px-8">
         <div className="flex lg:grid lg:grid-cols-3 items-center justify-between h-20">
           
-          {/* Left: Logo */}
+          {/* Left: Brand Logo */}
           <div className="flex items-center justify-start shrink-0 min-w-0">
             <Link href="/" className="flex shrink-0">
               <img 
@@ -123,7 +154,7 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* Center: Nav Links */}
+          {/* Center: Desktop Navigation Links */}
           <nav className="hidden lg:flex items-center justify-center gap-10">
             <Link href="/about" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors whitespace-nowrap">{t('whoWeAre')}</Link>
             <Link href={isAuthenticated ? "/dashboard?tab=tickets" : "/login?redirect=/dashboard?tab=tickets"} className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors whitespace-nowrap">{t('myTickets')}</Link>
@@ -131,8 +162,9 @@ export default function Header() {
             <Link href="/support" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors whitespace-nowrap">{t('support')}</Link>
           </nav>
 
+          {/* Right: Desktop Actions (Scanner, Language, Profile) */}
           <div className="hidden lg:flex items-center justify-end gap-6 shrink-0">
-            {/* Scanner Portal (Available for all authenticated users) */}
+            {/* Ticket Scanner Portal (Available for all authenticated users) */}
             {isAuthenticated && (
               <Link
                 href="/verify"
@@ -145,7 +177,7 @@ export default function Header() {
               </Link>
             )}
 
-            {/* Language switcher */}
+            {/* Language Switcher Toggle */}
             <div className="flex items-center border border-gray-300 rounded-md overflow-hidden text-xs font-bold shrink-0">
               <button
                 onClick={() => setLang('es')}
@@ -161,11 +193,14 @@ export default function Header() {
               </button>
             </div>
 
+            {/* User Profile Section */}
             {isAuthenticated && user ? (
               <div className="relative" ref={profileRef}>
                 <button onClick={() => setProfileDropdown(!profileDropdown)} className="w-9 h-9 rounded-md border border-blue-600 flex items-center justify-center text-blue-600 hover:bg-blue-50 transition-colors">
                   <HiOutlineUser className="w-5 h-5" />
                 </button>
+                
+                {/* Profile Dropdown Menu */}
                 {profileDropdown && (
                   <div className="absolute right-0 top-12 w-52 bg-white rounded-lg shadow-elevated border border-gray-200 py-2 animate-fade-in z-50">
                     <div className="px-4 py-2 border-b border-gray-100 mb-1">
@@ -173,7 +208,7 @@ export default function Header() {
                       <p className="text-xs text-gray-500 truncate">{user.email}</p>
                     </div>
 
-                    {/* NEW: Mode Toggle Item */}
+                    {/* Dashboard/Organizer Mode Toggle (for Clients) */}
                     {user.role !== 'admin' && (
                       <div className="px-4 py-2.5 bg-gray-50/50 border-b border-gray-100">
                         <ModeToggle variant="dropdown" />
@@ -182,7 +217,7 @@ export default function Header() {
                     
                     <Link href="/dashboard?tab=profile" onClick={() => setProfileDropdown(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><HiOutlineUser className="w-4 h-4" /> {t('myProfile')}</Link>
                     
-                    {/* Admins see everything, Clients see based on mode */}
+                    {/* Conditional links based on User Role and Current Active Mode */}
                     {(user.role === 'admin' || mode === 'buyer') && (
                       <Link href="/dashboard?tab=tickets" onClick={() => setProfileDropdown(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><HiOutlineTicket className="w-4 h-4" /> {t('myTickets')}</Link>
                     )}
@@ -202,6 +237,7 @@ export default function Header() {
               </div>
 
             ) : (
+              /* Login/Register buttons for non-authenticated users */
               <div className="flex items-center gap-2 shrink-0">
                 <Link href="/login" className="btn-secondary !py-2 !px-0 w-[110px] text-center !text-[11px] font-bold !border-blue-600 !text-blue-600 hover:!bg-blue-50">{t('login')}</Link>
                 <Link href="/register" className="btn-primary !py-2 !px-0 w-[120px] text-center !text-[11px] font-bold !bg-blue-600 hover:!bg-blue-700">{t('register')}</Link>
@@ -209,9 +245,9 @@ export default function Header() {
             )}
           </div>
 
-          {/* Mobile toggle */}
+          {/* Mobile UI elements (Scanner and Language) */}
           <div className="lg:hidden flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {/* Mobile Scanner */}
+            {/* Mobile Scanner Button */}
             {isAuthenticated && (
               <Link
                 href="/verify"
@@ -222,11 +258,13 @@ export default function Header() {
               </Link>
             )}
 
-            {/* Mobile language switcher */}
+            {/* Mobile Language Switcher */}
             <div className="flex items-center border border-gray-300 rounded-md overflow-hidden text-[10px] font-bold shrink-0">
               <button onClick={() => setLang('es')} className={`w-8 text-center py-1.5 transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>ES</button>
               <button onClick={() => setLang('en')} className={`w-8 text-center py-1.5 transition-colors ${lang === 'en' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>EN</button>
             </div>
+            
+            {/* Mobile Menu Hamburger Toggle */}
             <button className="p-0.5 text-blue-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <HiOutlineX className="w-7 h-7" /> : <HiOutlineMenu className="w-7 h-7" />}
             </button>
@@ -234,21 +272,24 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div className="lg:hidden bg-white border-t border-gray-100 shadow-lg animate-fade-in absolute w-full left-0">
           <div className="px-4 py-4 space-y-3">
-
             <Link href="/events" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('events')}</Link>
             <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('whoWeAre')}</Link>
             <Link href="/dashboard?tab=tickets" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('myTickets')}</Link>
             <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('contact')}</Link>
             <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('support')}</Link>
+            
+            {/* Mobile Mode Toggle (Buyer/Organizer) */}
             <div className="py-2 border-b border-gray-100 flex justify-center">
               {isAuthenticated && user?.role !== 'admin' && (
                 <ModeToggle variant="pill" />
               )}
             </div>
+
+            {/* Mobile Authentication Links */}
             {isAuthenticated ? (
               <>
                 <Link href="/dashboard?tab=profile" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-gray-700">{t('myProfile')}</Link>
@@ -278,12 +319,17 @@ export default function Header() {
       )}
     </header>
     
-    {/* Floating Shopping Cart Popup (Bottom Right) - Fixed position stable sibling */}
+    {/* 
+        Floating Shopping Cart Popup (Bottom Right)
+        This component stays visible across standard pages but hides in management panels.
+    */}
     {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && !pathname.includes('/login') && !pathname.includes('/register') && (
       <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3 print:hidden pointer-events-none">
+        
+        {/* Cart Dropdown Content */}
         {cartDropdown && (
           <div className="w-80 bg-white rounded-3xl shadow-elevated border border-gray-100 p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden pointer-events-auto">
-            {/* Header */}
+            {/* Cart Header */}
             <div className="flex justify-between items-center mb-3 shrink-0">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-primary-50 flex items-center justify-center text-primary-500">
@@ -299,7 +345,7 @@ export default function Header() {
               </button>
             </div>
 
-            {/* List */}
+            {/* List of Reserved Tickets by Event */}
             <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 py-2 border-y border-gray-50 my-1">
               {cartItems.length === 0 ? (
                 <div className="py-8 text-center">
@@ -326,7 +372,7 @@ export default function Header() {
                         </button>
                       </div>
 
-                      {/* Seat Badges */}
+                      {/* Display individual Seat Badges */}
                       <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto no-scrollbar">
                         {item.seats.map((seat: any) => (
                           <span key={seat.id} className="inline-flex items-center text-[9px] font-bold bg-white border border-gray-200 text-gray-700 px-1.5 py-0.5 rounded-md">
@@ -335,7 +381,7 @@ export default function Header() {
                         ))}
                       </div>
 
-                      {/* Timer & Pay button row */}
+                      {/* Reservation Timer & Direct Pay Button */}
                       <div className="flex items-center justify-between pt-1 border-t border-gray-100/50">
                         <div className="flex items-center gap-1.5 text-orange-600">
                           <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-ping" />
@@ -355,7 +401,7 @@ export default function Header() {
               )}
             </div>
 
-            {/* General Checkout / Action */}
+            {/* Primary Action Button (Checkout) */}
             {cartItems.length > 0 ? (
               <button 
                 onClick={() => {
@@ -377,6 +423,7 @@ export default function Header() {
           </div>
         )}
         
+        {/* Main Floating Cart Toggle Button */}
         <button 
           onClick={() => setCartDropdown(!cartDropdown)}
           className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 relative group active:scale-90 pointer-events-auto ${
@@ -385,7 +432,7 @@ export default function Header() {
         >
           {cartDropdown ? <HiOutlineX className="w-6 h-6" /> : <HiOutlineShoppingCart className="w-7 h-7" />}
           
-          {/* Badge */}
+          {/* Item Counter Badge */}
           {cartItems.reduce((acc, item) => acc + item.seats.length, 0) > 0 && (
             <span className="absolute -top-1.5 -right-1.5 min-w-[24px] h-[24px] px-1.5 bg-blue-600 text-white rounded-full text-[11px] font-bold flex items-center justify-center border-2 border-white shadow-lg animate-bounce">
               {cartItems.reduce((acc, item) => acc + item.seats.length, 0)}

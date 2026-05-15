@@ -10,14 +10,23 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 
+/**
+ * EventStatus
+ * Defines the lifecycle of an event in the system.
+ */
 export enum EventStatus {
-  DRAFT = 'draft',
-  PENDING_APPROVAL = 'pending_approval',
-  PUBLISHED = 'published',
-  CANCELLED = 'cancelled',
-  COMPLETED = 'completed',
+  DRAFT = 'draft',               // Initial state, invisible to buyers
+  PENDING_APPROVAL = 'pending_approval', // Waiting for admin review
+  PUBLISHED = 'published',       // Live and purchasable
+  CANCELLED = 'cancelled',       // Event cancelled by organizer/admin
+  COMPLETED = 'completed',       // Event date has passed
 }
 
+/**
+ * EventCategory
+ * Legacy enum for categories. 
+ * Note: The system now primarily uses dynamic slugs from the categories table.
+ */
 export enum EventCategory {
   TEATRO = 'teatro',
   CONCIERTO = 'concierto',
@@ -29,6 +38,12 @@ export enum EventCategory {
   OTRO = 'otro',
 }
 
+/**
+ * Event Entity
+ * Represents a show or gathering hosted on the platform.
+ * Includes sophisticated "pending approval" logic to allow organizers to 
+ * propose changes to live events without immediate public modification.
+ */
 @Entity('events')
 export class Event {
   @PrimaryGeneratedColumn('uuid')
@@ -43,7 +58,10 @@ export class Event {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  /** Stores a category slug (e.g. 'concierto', 'teatro'). Managed via admin panel. */
+  /** 
+   * Stores a category slug (e.g. 'concierto', 'teatro'). 
+   * References the slug field in the EventCategoryEntity.
+   */
   @Column({ type: 'varchar', length: 40, default: 'otro' })
   category: string;
 
@@ -53,6 +71,7 @@ export class Event {
   @Column({ type: 'text', nullable: true })
   bannerImageUrl: string | null;
 
+  /** CSS background-position value for the banner (e.g., 'top center' or '50% 50%') */
   @Column({ type: 'varchar', length: 50, nullable: true, default: '50% 50%' })
   bannerPosition: string | null;
 
@@ -78,6 +97,7 @@ export class Event {
   @Column({ default: false })
   isFeatured: boolean;
 
+  /** Denotes the cheapest ticket price available for search sorting */
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   minPrice: number;
 
@@ -87,6 +107,7 @@ export class Event {
   @Column({ nullable: true, length: 10 })
   currency: string;
 
+  // --- Map Viewport Settings (Frontend Camera Defaults) ---
   @Column({ type: 'float', nullable: true })
   defaultViewX: number;
 
@@ -102,6 +123,11 @@ export class Event {
   @Column({ default: false })
   showStage: boolean;
 
+  // --- Pending Approval Logic ---
+  /**
+   * When an organizer edits a 'PUBLISHED' event, the new values are saved here.
+   * An admin must review and "apply" these changes to promote them to the main fields.
+   */
   @Column({ type: 'varchar', length: 100, nullable: true })
   pendingTitle: string | null;
 

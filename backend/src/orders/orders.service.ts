@@ -9,10 +9,18 @@ import { nanoid } from 'nanoid';
 import * as QRCode from 'qrcode';
 import { MailService } from '../common/services/mail.service';
 
-const LPTICKET_FEE_RATE = 0.12; // 12%
-const STRIPE_PERCENTAGE = 0.029; // 2.9%
-const STRIPE_FIXED = 0.30; // $0.30
+/**
+ * Service constants for fee calculation.
+ */
+const LPTICKET_FEE_RATE = 0.12; // 12% platform fee
+const STRIPE_PERCENTAGE = 0.029; // 2.9% Stripe variable fee
+const STRIPE_FIXED = 0.30; // $0.30 Stripe fixed fee per transaction
 
+/**
+ * OrdersService
+ * Core logic for managing orders, payments via Stripe, ticket issuance, 
+ * and ticket validation (scanning).
+ */
 @Injectable()
 export class OrdersService {
   private stripe: any;
@@ -32,6 +40,7 @@ export class OrdersService {
     private readonly mailService: MailService,
   ) {
     const key = this.configService.get('STRIPE_SECRET_KEY');
+    // Log key presence for debugging (masking sensitive data)
     console.log('Stripe Key Loaded:', key ? `${key.substring(0, 7)}...${key.substring(key.length - 4)}` : 'MISSING - Stripe payments will be disabled');
     if (key) {
       this.stripe = new Stripe(key, {
@@ -40,6 +49,11 @@ export class OrdersService {
     }
   }
 
+  /**
+   * Helper to retrieve a seat's price, checking for specific price overrides
+   * in the section's JSON configuration.
+   * @param seat The seat entity to price
+   */
   getSeatPrice(seat: Seat): number {
     const defaultPrice = Number(seat.section.price);
     try {
@@ -58,11 +72,20 @@ export class OrdersService {
         return Number(override.price);
       }
     } catch (e) {
-      // JSON parse fallback
+      // Silently fall back to default price if JSON is invalid
     }
     return defaultPrice;
   }
 
+  /**
+   * Main entry point for creating a Stripe Checkout Session.
+   * Handles:
+   * 1. Seat/Standing availability validation
+   * 2. Temporal seat locking (reservation)
+   * 3. Fee & Total calculation (including Stripe backwards math)
+   * 4. Order creation in PENDING state
+   * 5. Stripe Session generation
+   */
   async createCheckoutSession(
     userId: string,
     eventId: string,
@@ -71,7 +94,7 @@ export class OrdersService {
     quantity?: number,
   ) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
-    if (!event) throw new NotFoundException('Evento no encontrado');
+    if (!event) throw new NotFoundException('Event not found');
 
     let baseTotal = 0;
     let lineItems: any[] = [];
@@ -85,15 +108,16 @@ export class OrdersService {
     }[] = [];
 
     if (seatIds && seatIds.length > 0) {
-      // Seated event — get price from each seat's section
+      // Logic for Numbered/Seated events
       for (const seatId of seatIds) {
         const seat = await this.seatRepo.findOne({
           where: { id: seatId },
           relations: ['section'],
         });
-        if (!seat) throw new NotFoundException('Asiento no encontrado');
-        if (seat.status === SeatStatus.SOLD) throw new BadRequestException('Asiento ya vendido');
+        if (!seat) throw new NotFoundException('Seat not found');
+        if (seat.status === SeatStatus.SOLD) throw new BadRequestException('Seat already sold');
 
+        // Enforcement of "Whole Table" purchase logic if applicable
         if (seat.section.sectionType === 'table' && seat.section.tablePurchaseMode === 'whole') {
           const tableSeats = await this.seatRepo.find({
             where: { sectionId: seat.sectionId },
@@ -113,25 +137,25 @@ export class OrdersService {
           const missingSeatIds = availableTableSeats.filter(s => !seatIds.includes(s.id));
           if (missingSeatIds.length > 0) {
             throw new BadRequestException(
-              `La mesa "${seat.section.name}" se vende completa. Debes seleccionar todos sus asientos disponibles.`
+              `The table "${seat.section.name}" must be purchased entirely. You must select all available seats.`
             );
           }
         }
 
-        // Verify if seat is locked by someone else and lock has not expired
+        // Verify lock status
         if (
           seat.status === SeatStatus.LOCKED &&
           seat.lockedBy !== userId &&
           seat.lockExpiresAt &&
           new Date() < seat.lockExpiresAt
         ) {
-          throw new BadRequestException('Asiento reservado por otro usuario');
+          throw new BadRequestException('Seat reserved by another user');
         }
 
-        // Extend the lock to cover the Stripe checkout session duration (30 mins + 1 min grace)
+        // Extend seat lock for 31 minutes (30 min Stripe session + 1 min buffer)
         seat.status = SeatStatus.LOCKED;
         seat.lockedBy = userId;
-        seat.lockExpiresAt = new Date(Date.now() + 31 * 60 * 1000); // 31 mins
+        seat.lockExpiresAt = new Date(Date.now() + 31 * 60 * 1000); 
         await this.seatRepo.save(seat);
 
         const price = this.getSeatPrice(seat);
@@ -146,11 +170,11 @@ export class OrdersService {
         });
       }
     } else if (sectionId && quantity) {
-      // Standing/general admission
+      // Logic for Standing/General Admission events
       const section = await this.sectionRepo.findOne({ where: { id: sectionId } });
-      if (!section) throw new NotFoundException('Sección no encontrada');
+      if (!section) throw new NotFoundException('Section not found');
 
-      // Check if quantity exceeds capacity
+      // Check capacity constraints
       if (section.capacity && section.capacity > 0) {
         const { In } = require('typeorm');
         const soldTicketsCount = await this.ticketRepo.count({
@@ -161,7 +185,7 @@ export class OrdersService {
         });
         
         if (soldTicketsCount + quantity > section.capacity) {
-          throw new BadRequestException(`Capacidad agotada o insuficiente. Solo quedan ${section.capacity - soldTicketsCount} boletos disponibles en esta sección.`);
+          throw new BadRequestException(`Capacity reached. Only ${section.capacity - soldTicketsCount} tickets available in this section.`);
         }
       }
 
@@ -180,7 +204,7 @@ export class OrdersService {
       }
     }
 
-    // Calculate fees & taxes
+    // --- Complex Fee Calculations ---
     let lpFee = 0;
     let processingFee = 0;
     let total = 0;
@@ -188,8 +212,9 @@ export class OrdersService {
     if (baseTotal > 0) {
       lpFee = Math.round(baseTotal * LPTICKET_FEE_RATE * 100) / 100;
       const subtotalWithLp = baseTotal + lpFee;
-      // Stripe processing fee calculates backwards so the organizer gets exactly baseTotal + lpFee
-      // Total = (Subtotal + 0.30) / (1 - 0.029)
+      
+      // Calculate final total so Stripe takes its fees and the organizer receives (baseTotal + lpFee) exactly.
+      // Math: Total - (Total * 0.029 + 0.30) = Subtotal  =>  Total = (Subtotal + 0.30) / (1 - 0.029)
       const exactTotal = (subtotalWithLp + STRIPE_FIXED) / (1 - STRIPE_PERCENTAGE);
       total = Math.round(exactTotal * 100) / 100;
       processingFee = Math.round((total - subtotalWithLp) * 100) / 100;
@@ -197,7 +222,7 @@ export class OrdersService {
 
     const currency = (event.currency || 'USD').toLowerCase();
 
-    // Build Stripe line items
+    // Prepare line items for Stripe UI
     lineItems = [
       {
         price_data: {
@@ -236,7 +261,7 @@ export class OrdersService {
       });
     }
 
-    // Create order in DB
+    // Persist order in DB
     const order = this.orderRepo.create({
       userId,
       eventId,
@@ -250,17 +275,17 @@ export class OrdersService {
     });
     const savedOrder = await this.orderRepo.save(order);
 
+    // Determine correct redirect URL based on environment
     const rawAppUrl = this.configService.get('APP_URL');
-    // Force production URL if we are on Render, otherwise fallback
     const appUrl = rawAppUrl && !rawAppUrl.includes('localhost') 
       ? (rawAppUrl.startsWith('http') ? rawAppUrl : `https://${rawAppUrl}`)
-      : 'https://ticketsystem-jzgf.onrender.com'; // Your Render Frontend URL
+      : 'https://ticketsystem-jzgf.onrender.com';
 
     const session = await this.stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
-      expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // Stripe minimum is 30 mins
+      expires_at: Math.floor(Date.now() / 1000) + (30 * 60), 
       success_url: `${appUrl.replace(/\/$/, '')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl.replace(/\/$/, '')}/checkout/cancel`,
       metadata: {
@@ -275,7 +300,6 @@ export class OrdersService {
     return {
       sessionId: session.id,
       url: session.url,
-      // Also return full invoice breakdown for frontend display
       invoice: {
         baseTotal,
         lpFee,
@@ -286,7 +310,10 @@ export class OrdersService {
     };
   }
 
-  // Compute invoice preview WITHOUT creating an order (for wizard step 4)
+  /**
+   * Generates an invoice preview for display in the frontend wizard.
+   * Identical logic to session creation but without database side-effects.
+   */
   async previewInvoice(
     eventId: string,
     seatIds: string[],
@@ -302,8 +329,9 @@ export class OrdersService {
           where: { id: seatId },
           relations: ['section'],
         });
-        if (!seat) throw new NotFoundException('Asiento no encontrado');
+        if (!seat) throw new NotFoundException('Seat not found');
 
+        // Check for table purchase constraints
         if (seat.section.sectionType === 'table' && seat.section.tablePurchaseMode === 'whole') {
           const tableSeats = await this.seatRepo.find({
             where: { sectionId: seat.sectionId },
@@ -320,7 +348,7 @@ export class OrdersService {
           const missingSeatIds = availableTableSeats.filter(s => !seatIds.includes(s.id));
           if (missingSeatIds.length > 0) {
             throw new BadRequestException(
-              `La mesa "${seat.section.name}" se vende completa. Debes seleccionar todos sus asientos disponibles.`
+              `Table "${seat.section.name}" is sold as a whole. Select all available seats.`
             );
           }
         }
@@ -338,7 +366,7 @@ export class OrdersService {
       }
     } else if (sectionId && quantity) {
       const section = await this.sectionRepo.findOne({ where: { id: sectionId } });
-      if (!section) throw new NotFoundException('Sección no encontrada');
+      if (!section) throw new NotFoundException('Section not found');
       const price = Number(section.price);
       baseTotal = price * quantity;
       for (let i = 0; i < quantity; i++) {
@@ -374,6 +402,14 @@ export class OrdersService {
     };
   }
 
+  /**
+   * Stripe Webhook Handler
+   * Listens for 'checkout.session.completed' to:
+   * 1. Mark Order as PAID
+   * 2. Issue digital Tickets (with QR codes)
+   * 3. Permanently mark Seats as SOLD
+   * 4. Trigger confirmation email
+   */
   async handleStripeWebhook(event: any) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as any;
@@ -384,17 +420,20 @@ export class OrdersService {
       const order = await this.orderRepo.findOne({ where: { id: orderId } });
       if (!order || order.status !== OrderStatus.PENDING) return;
 
+      // Finalize order status
       await this.orderRepo.update(orderId, {
         status: OrderStatus.PAID,
         stripePaymentIntent: session.payment_intent as string,
       });
 
       const seatsInfo = JSON.parse(order.seatsData || '[]');
-
       const createdTickets: any[] = [];
+      
+      // Issue individual tickets for each seat
       for (const seatInfo of seatsInfo) {
         const ticketCode = nanoid(12).toUpperCase();
         const appUrl = this.configService.get('APP_URL');
+        // Generate QR code for entry validation
         const qrData = await QRCode.toDataURL(`${appUrl}/verify/${ticketCode}`);
 
         const ticket = this.ticketRepo.create({
@@ -414,6 +453,7 @@ export class OrdersService {
         const savedTicket = await this.ticketRepo.save(ticket);
         createdTickets.push(savedTicket);
 
+        // Permanently occupy the seat in the venue
         if (seatInfo.seatId) {
           await this.seatRepo.update(seatInfo.seatId, {
             status: SeatStatus.SOLD,
@@ -423,7 +463,7 @@ export class OrdersService {
         }
       }
 
-      // Send Email
+      // Send Email with QR codes
       try {
         const fullOrder = await this.orderRepo.findOne({
           where: { id: orderId },
@@ -443,6 +483,9 @@ export class OrdersService {
     }
   }
 
+  /**
+   * Retrieves all orders for a specific user.
+   */
   async getUserOrders(userId: string) {
     return this.orderRepo.find({
       where: { userId },
@@ -451,6 +494,9 @@ export class OrdersService {
     });
   }
 
+  /**
+   * Retrieves all tickets for a specific user, optionally filtered by Stripe Session ID.
+   */
   async getUserTickets(userId: string, sessionId?: string) {
     const where: any = { userId };
     if (sessionId) {
@@ -466,33 +512,45 @@ export class OrdersService {
     });
   }
 
+  /**
+   * Finds a ticket by its unique public code (used for scanning).
+   */
   async getTicketByCode(code: string) {
     const ticket = await this.ticketRepo.findOne({
       where: { ticketCode: code },
       relations: ['event', 'user'],
     });
-    if (!ticket) throw new NotFoundException('Ticket no encontrado');
+    if (!ticket) throw new NotFoundException('Ticket not found');
     return ticket;
   }
 
+  /**
+   * Validates a ticket (Scanning Logic).
+   * Ensures the user has permission to scan and that the ticket hasn't been used.
+   */
   async validateTicket(code: string, user: any) {
     const ticket = await this.getTicketByCode(code);
     
-    // Authorization check
+    // Authorization: Only admins or the event's organizer can scan
     if (user.role !== 'admin' && ticket.event.organizerId !== user.id) {
-      throw new ForbiddenException('No tienes permiso para validar tickets de este evento');
+      throw new ForbiddenException('You do not have permission to validate tickets for this event');
     }
 
     if (ticket.status === TicketStatus.USED) {
-      return { valid: false, message: 'Este ticket ya fue utilizado', ticket };
+      return { valid: false, message: 'This ticket has already been used', ticket };
     }
     if (ticket.status === TicketStatus.CANCELLED) {
-      return { valid: false, message: 'Este ticket fue cancelado', ticket };
+      return { valid: false, message: 'This ticket was cancelled', ticket };
     }
+    
+    // Mark as USED to prevent double-entry
     await this.ticketRepo.update(ticket.id, { status: TicketStatus.USED });
-    return { valid: true, message: 'Ticket válido — entrada confirmada', ticket };
+    return { valid: true, message: 'Valid Ticket — entry confirmed', ticket };
   }
 
+  /**
+   * Aggregate sales data for an event.
+   */
   async getEventSales(eventId: string) {
     const orders = await this.orderRepo.find({
       where: { eventId, status: OrderStatus.PAID },
@@ -504,6 +562,9 @@ export class OrdersService {
     return { orders, totalRevenue, totalTickets, totalOrders: orders.length };
   }
 
+  /**
+   * Retrieves list of attendees for an event.
+   */
   async getEventAttendees(eventId: string) {
     return this.ticketRepo.find({
       where: { eventId },
@@ -512,6 +573,9 @@ export class OrdersService {
     });
   }
 
+  /**
+   * Finds a detailed order by ID.
+   */
   async getOrderById(orderId: string) {
     return this.orderRepo.findOne({
       where: { id: orderId },
@@ -519,56 +583,62 @@ export class OrdersService {
     });
   }
 
+  /**
+   * Organizer tool to manually block/unblock a seat (e.g., for physical sale or guest list).
+   */
   async toggleBlockSeat(seatId: string, userId: string) {
     const seat = await this.seatRepo.findOne({ where: { id: seatId }, relations: ['section', 'section.event'] });
-    if (!seat) throw new NotFoundException('Asiento no encontrado');
+    if (!seat) throw new NotFoundException('Seat not found');
     
-    // Check if user is organizer or admin
+    // Authorization check
     if (seat.section.event.organizerId !== userId) {
       const user = await this.eventRepo.manager.findOne('User' as any, { where: { id: userId } }) as any;
       if (user?.role !== 'admin') {
-        throw new ForbiddenException('No tienes permiso para bloquear asientos de este evento');
+        throw new ForbiddenException('No permission to block seats for this event');
       }
     }
 
     if (seat.status === SeatStatus.SOLD) {
-      throw new BadRequestException('El asiento ya fue vendido y no puede bloquearse');
+      throw new BadRequestException('Seat is already sold and cannot be blocked');
     }
 
     if (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt) {
-      // It is permanently locked, let's unlock it!
+      // Release permanent lock
       seat.status = SeatStatus.AVAILABLE;
       seat.lockedBy = null as any;
       seat.lockExpiresAt = null as any;
     } else {
-      // Lock it permanently (lockExpiresAt: null)
+      // Apply permanent lock (null expiry)
       seat.status = SeatStatus.LOCKED;
       seat.lockedBy = userId;
       seat.lockExpiresAt = null as any;
     }
 
     await this.seatRepo.save(seat);
-    return { status: seat.status, message: seat.status === SeatStatus.LOCKED ? 'Asiento bloqueado permanentemente' : 'Asiento desbloqueado' };
+    return { status: seat.status, message: seat.status === SeatStatus.LOCKED ? 'Seat blocked permanently' : 'Seat unblocked' };
   }
 
+  /**
+   * Organizer tool to issue free tickets (Invitations).
+   * Creates a dummy PAID order with $0 total and sends QR tickets to recipient.
+   */
   async issueFreeTickets(eventId: string, seatIds: string[], email: string, name: string, organizerId: string) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
-    if (!event) throw new NotFoundException('Evento no encontrado');
+    if (!event) throw new NotFoundException('Event not found');
     
-    // Check permission
+    // Permission validation
     if (event.organizerId !== organizerId) {
       const user = await this.eventRepo.manager.findOne('User' as any, { where: { id: organizerId } }) as any;
       if (user?.role !== 'admin') {
-        throw new ForbiddenException('No tienes permiso para emitir invitaciones para este evento');
+        throw new ForbiddenException('No permission to issue invitations for this event');
       }
     }
 
-    // Find or create user by email
+    // Identify or provision the recipient user
     let recipientUser = await this.eventRepo.manager.findOne('User' as any, { where: { email } }) as any;
     if (!recipientUser) {
-      // Create a dummy user
       const [firstName, ...lastNameParts] = name.split(' ');
-      const lastName = lastNameParts.join(' ') || 'Invitado';
+      const lastName = lastNameParts.join(' ') || 'Guest';
       const username = `inv_${nanoid(6)}`;
       recipientUser = this.eventRepo.manager.create('User' as any, {
         firstName,
@@ -582,7 +652,7 @@ export class OrdersService {
       await this.eventRepo.manager.save(recipientUser);
     }
 
-    // 1. Create a dummy Order of status PAID with total = 0
+    // Create a Free ($0) Order record
     const order = this.orderRepo.create({
       userId: recipientUser.id,
       eventId,
@@ -604,9 +674,8 @@ export class OrdersService {
 
     for (const seatId of seatIds) {
       const seat = await this.seatRepo.findOne({ where: { id: seatId }, relations: ['section'] });
-      if (!seat) throw new NotFoundException('Asiento no encontrado');
+      if (!seat) throw new NotFoundException('Seat not found');
 
-      // Change status to SOLD
       seat.status = SeatStatus.SOLD;
       seat.lockedBy = null as any;
       seat.lockExpiresAt = null as any;
@@ -626,14 +695,14 @@ export class OrdersService {
         rowLabel: seat.rowLabel,
         seatNumber: seat.seatNumber,
         qrData,
-        price: 0, // Free ticket
+        price: 0,
         status: TicketStatus.ACTIVE,
       });
       const savedTicket = await this.ticketRepo.save(ticket);
       createdTickets.push(savedTicket);
     }
 
-    // Send Email notification using template service
+    // Send the invitations via email
     try {
       await this.mailService.sendTicketEmail(email, name, event.title, createdTickets);
     } catch (e) {

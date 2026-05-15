@@ -3,7 +3,11 @@ import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { EventCategoryEntity } from '../database/entities';
 
-// Default system categories seeded on first startup
+/**
+ * SYSTEM_CATEGORIES
+ * Initial set of categories provided by the platform.
+ * Supports multi-language labels (Spanish/English).
+ */
 const SYSTEM_CATEGORIES = [
   { slug: 'concierto',   labelEs: 'Concierto',   labelEn: 'Concert',    icon: '🎵', color: '#f97316', sortOrder: 0 },
   { slug: 'teatro',      labelEs: 'Teatro',      labelEn: 'Theater',    icon: '🎭', color: '#8b5cf6', sortOrder: 1 },
@@ -15,6 +19,11 @@ const SYSTEM_CATEGORIES = [
   { slug: 'otro',        labelEs: 'Otro',        labelEn: 'Other',      icon: '🎫', color: '#6b7280', sortOrder: 7 },
 ];
 
+/**
+ * CategoriesService
+ * Manages event categories. 
+ * Implements OnModuleInit to handle automatic seeding and database schema patches.
+ */
 @Injectable()
 export class CategoriesService implements OnModuleInit {
   constructor(
@@ -23,17 +32,30 @@ export class CategoriesService implements OnModuleInit {
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
-  /** Seed default categories once on startup if table is empty */
+  /**
+   * onModuleInit
+   * Hook that runs when the server starts.
+   */
   async onModuleInit() {
-    // Migrate events.category from PostgreSQL enum to varchar (safe no-op if already varchar)
+    /**
+     * DATABASE PATCH:
+     * Migrates the 'category' column from a strict Enum to a Varchar.
+     * This allows us to add new categories dynamically without requiring 
+     * complex database migrations or downtime.
+     */
     try {
       await this.dataSource.query(
         `ALTER TABLE events ALTER COLUMN category TYPE VARCHAR(50) USING category::text`,
       );
     } catch {
-      // Column is already varchar or table doesn't exist yet — ignore
+      // Ignore if column is already Varchar or if table doesn't exist yet
     }
 
+    /**
+     * SEEDING:
+     * If the categories table is empty (fresh install), populate it with
+     * the SYSTEM_CATEGORIES constants.
+     */
     const count = await this.categoryRepo.count();
     if (count === 0) {
       await this.categoryRepo.save(
@@ -42,6 +64,10 @@ export class CategoriesService implements OnModuleInit {
     }
   }
 
+  /**
+   * findAll
+   * Retrieves all categories, optionally including inactive ones for admin views.
+   */
   findAll(includeInactive = false) {
     const where = includeInactive ? {} : { isActive: true };
     return this.categoryRepo.find({ where, order: { sortOrder: 'ASC', labelEs: 'ASC' } });
@@ -53,6 +79,10 @@ export class CategoriesService implements OnModuleInit {
     return cat;
   }
 
+  /**
+   * create
+   * Adds a new category. Ensures the slug is unique.
+   */
   async create(dto: {
     slug: string; labelEs: string; labelEn: string;
     icon?: string; color?: string; sortOrder?: number;

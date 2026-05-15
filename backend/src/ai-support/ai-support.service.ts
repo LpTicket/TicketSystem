@@ -4,6 +4,11 @@ import OpenAI from 'openai';
 import * as fs from 'fs';
 import * as path from 'path';
 
+/**
+ * AiSupportService
+ * Provides AI-powered customer support capabilities using OpenAI.
+ * Dynamically loads its personality and instructions from a text file.
+ */
 @Injectable()
 export class AiSupportService implements OnModuleInit {
   private openai: OpenAI;
@@ -12,6 +17,10 @@ export class AiSupportService implements OnModuleInit {
 
   constructor(private configService: ConfigService) {}
 
+  /**
+   * onModuleInit
+   * Initializes the OpenAI client and loads the specialized prompt instructions.
+   */
   onModuleInit() {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     if (!apiKey) {
@@ -23,15 +32,20 @@ export class AiSupportService implements OnModuleInit {
     this.loadSystemPrompt();
   }
 
+  /**
+   * loadSystemPrompt
+   * Reads instructions from 'CHAT BOT - AI LP TICKET.txt'.
+   * This allows non-technical administrators to update the chatbot's knowledge 
+   * without redeploying code.
+   */
   private loadSystemPrompt() {
     try {
-      // Look for the instruction file in the root directory
+      // Instruction file is located at the project root level
       const filePath = path.join(process.cwd(), '..', 'CHAT BOT - AI LP TICKET.txt');
       if (fs.existsSync(filePath)) {
         this.systemPrompt = fs.readFileSync(filePath, 'utf-8');
         this.logger.log('AI System Prompt loaded successfully from root.');
       } else {
-        // Fallback or log error
         this.logger.error(`AI Instruction file not found at ${filePath}`);
         this.systemPrompt = 'You are a helpful support assistant for LPTicket.com.';
       }
@@ -41,6 +55,13 @@ export class AiSupportService implements OnModuleInit {
     }
   }
 
+  /**
+   * generateResponse
+   * Interacts with OpenAI's Chat Completion API.
+   * Uses gpt-4o-mini for a balance between speed, cost, and high-quality responses.
+   * 
+   * @param messages Conversation history including the latest user query
+   */
   async generateResponse(messages: any[]) {
     if (!this.openai) {
       return { 
