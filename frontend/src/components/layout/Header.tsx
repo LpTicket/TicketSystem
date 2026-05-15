@@ -282,7 +282,7 @@ export default function Header() {
     {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && !pathname.includes('/login') && !pathname.includes('/register') && (
       <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3 print:hidden pointer-events-none">
         {cartDropdown && (
-          <div className="w-80 bg-blue-50 rounded-3xl shadow-elevated border border-blue-100 p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden pointer-events-auto">
+          <div className="w-80 bg-blue-100 rounded-3xl shadow-elevated border border-blue-200 p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden pointer-events-auto">
             {/* Header */}
             <div className="flex justify-between items-center mb-3 shrink-0">
               <div className="flex items-center gap-2">
@@ -362,7 +362,7 @@ export default function Header() {
                   setCartDropdown(false);
                   router.push(`/events/${cartItems[0].eventSlug}/purchase`);
                 }}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-lg shadow-blue-500/10 transition-transform active:scale-[0.98] uppercase tracking-widest mt-2"
+                className="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-lg shadow-blue-600/10 transition-transform active:scale-[0.98] uppercase tracking-widest mt-2"
               >
                 {lang === 'es' ? 'Continuar Compra' : 'Checkout'}
               </button>
@@ -380,7 +380,7 @@ export default function Header() {
         <button 
           onClick={() => setCartDropdown(!cartDropdown)}
           className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 relative group active:scale-90 pointer-events-auto ${
-            cartDropdown ? 'bg-blue-900 text-white rotate-90' : 'bg-blue-600 text-white hover:bg-blue-700'
+            cartDropdown ? 'bg-blue-900 text-white rotate-90' : 'bg-blue-700 text-white hover:bg-blue-800'
           }`}
         >
           {cartDropdown ? <HiOutlineX className="w-6 h-6" /> : <HiOutlineShoppingCart className="w-7 h-7" />}
