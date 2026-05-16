@@ -350,7 +350,7 @@ const translations = {
     contactAddressText2: 'Fake City, 12345, Lorem Ipsum Country.',
     contactEmailTitle: 'E-mail',
     contactEmail: 'Info.lpticket@gmail.com',
-    contactPhone: '+1 (555) 123-4567',
+    contactPhone: '+1 (832) 379-0809',
     contactFollowUs: 'Follow us on our social networks!',
 
     // Organizer Panel
