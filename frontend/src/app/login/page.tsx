@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -17,14 +17,32 @@ function LoginContent() {
   const { t, lang } = useLang();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Load remembered email
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
+    // Save or clear email for "Remember Me"
+    if (rememberMe) {
+      localStorage.setItem('rememberedEmail', email);
+    } else {
+      localStorage.removeItem('rememberedEmail');
+    }
+
     try {
       await login(email, password);
       router.push(redirect || '/');
@@ -70,7 +88,17 @@ function LoginContent() {
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">{t('email')}</label>
             <div className="relative">
               <HiOutlineMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400 z-10" />
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input !pl-11" placeholder={t('emailPlaceholder' as any)} required />
+              <input 
+                id="email"
+                name="email"
+                type="email" 
+                autocomplete="email"
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                className="input !pl-11" 
+                placeholder={t('emailPlaceholder' as any)} 
+                required 
+              />
             </div>
           </div>
 
@@ -81,10 +109,36 @@ function LoginContent() {
             </div>
             <div className="relative">
               <HiOutlineLockClosed className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400 z-10" />
-              <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} className="input !pl-11 !pr-11" placeholder="••••••••" required />
+              <input 
+                id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'} 
+                autocomplete="current-password"
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                className="input !pl-11 !pr-11" 
+                placeholder="••••••••" 
+                required 
+              />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none z-10">
                 {showPassword ? <HiOutlineEyeOff className="w-4.5 h-4.5" /> : <HiOutlineEye className="w-4.5 h-4.5" />}
               </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between py-1">
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                name="remember-me"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+              />
+              <label htmlFor="remember-me" className="ml-2 block text-[13px] text-gray-600 cursor-pointer font-medium">
+                {lang === 'es' ? 'Recordarme' : 'Remember me'}
+              </label>
             </div>
           </div>
 
