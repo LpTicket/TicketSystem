@@ -124,8 +124,8 @@ export default function HomePage() {
       {loading ? (
         <section className="bg-white">
           <div className="w-full">
-            <div className="relative aspect-[16/9] sm:aspect-[21/8] min-h-[220px] sm:min-h-[400px] overflow-hidden bg-gray-100 animate-pulse flex items-center">
-              {/* Overlay removed */}
+            <div className="relative aspect-[16/9] sm:aspect-[21/8] min-h-[220px] sm:min-h-[400px] overflow-hidden animate-shimmer">
+              {/* Main Banner Skeleton */}
             </div>
           </div>
         </section>
@@ -286,7 +286,17 @@ export default function HomePage() {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="card"><div className="aspect-[3/4] skeleton" /><div className="p-4 space-y-2"><div className="h-4 skeleton rounded w-3/4" /><div className="h-3 skeleton rounded w-1/2" /><div className="h-9 skeleton rounded mt-2" /></div></div>
+              <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                <div className="aspect-[3/4] animate-shimmer" />
+                <div className="p-4 space-y-3">
+                  <div className="h-4 w-3/4 rounded-full animate-shimmer" />
+                  <div className="h-3 w-1/2 rounded-full animate-shimmer" />
+                  <div className="flex justify-between items-center pt-2">
+                    <div className="h-6 w-16 rounded-full animate-shimmer" />
+                    <div className="h-6 w-16 rounded-full animate-shimmer" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         ) : filteredEvents.length > 0 ? (
