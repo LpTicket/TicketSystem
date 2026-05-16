@@ -196,7 +196,7 @@ export default function EventDetailPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Hero Image */}
-      <div className="relative rounded-lg overflow-hidden mb-8 aspect-[21/9]">
+      <div className="relative rounded-lg overflow-hidden mb-8 aspect-[16/9] sm:aspect-[21/8]">
         {(event.bannerImageUrl || event.imageUrl) ? (
           <img 
             src={getImageUrl(event.bannerImageUrl || event.imageUrl)} 

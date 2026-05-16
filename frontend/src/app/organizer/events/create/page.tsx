@@ -263,7 +263,7 @@ export default function CreateEventPage() {
             <div className="bg-white rounded-2xl border border-gray-200 p-6 sticky top-8 shadow-sm">
               <h2 className="font-bold text-lg text-gray-900 mb-4">{t('orgEventImage')}</h2>
               <div className="space-y-4">
-                <div className="aspect-[4/3] w-full rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 group hover:border-primary-300 transition-colors">
+                <div className="aspect-[3/4] w-full rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 group hover:border-primary-300 transition-colors">
                   {imagePreview ? (
                     <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                   ) : (
@@ -276,12 +276,12 @@ export default function CreateEventPage() {
                     <HiOutlinePhotograph className="w-4 h-4" />
                     {lang === 'es' ? 'Imagen Miniatura' : 'Thumbnail Image'}
                   </div>
-                  <span className="text-[10px] opacity-60 font-medium">({lang === 'es' ? 'Recomendado: 800x600px' : 'Recommended: 800x600px'})</span>
+                  <span className="text-[10px] opacity-60 font-medium">({lang === 'es' ? 'Recomendado: 900x1200px' : 'Recommended: 900x1200px'})</span>
                   <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                 </label>
 
                 <h2 className="font-bold text-lg text-gray-900 mt-6 mb-4">{lang === 'es' ? 'Imagen Banner' : 'Banner Image'}</h2>
-                <div className="aspect-[21/9] w-full rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 group hover:border-primary-300 transition-colors">
+                <div className="aspect-[21/8] w-full rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 group hover:border-primary-300 transition-colors">
                   {bannerPreview ? (
                     <img src={bannerPreview} alt="Banner Preview" className="w-full h-full object-cover" />
                   ) : (
@@ -294,7 +294,7 @@ export default function CreateEventPage() {
                     <HiOutlinePhotograph className="w-4 h-4" />
                     {lang === 'es' ? 'Subir Banner' : 'Upload Banner'}
                   </div>
-                  <span className="text-[10px] opacity-60 font-medium">({lang === 'es' ? 'Recomendado: 1920x720px' : 'Recommended: 1920x720px'})</span>
+                  <span className="text-[10px] opacity-60 font-medium">({lang === 'es' ? 'Recomendado: 2520x960px' : 'Recommended: 2520x960px'})</span>
                   <input type="file" accept="image/*" onChange={handleBannerChange} className="hidden" />
                 </label>
                 <p className="text-[10px] text-center text-gray-400 font-bold uppercase tracking-widest">

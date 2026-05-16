@@ -723,7 +723,7 @@ export default function PurchasePage() {
                 <img
                   src={getImageUrl(event.imageUrl)}
                   alt={event.title}
-                  className="w-full object-cover aspect-[4/3]"
+                  className="w-full object-cover aspect-[3/4]"
                 />
               </div>
             )}

@@ -27,7 +27,7 @@ export default function EventCard({ event }: EventCardProps) {
   return (
     <Link href={`/events/${event.slug}`} className="card group block">
       {/* Image — responsive aspect ratio */}
-      <div className="relative aspect-[4/3] sm:aspect-[3/4] overflow-hidden">
+      <div className="relative aspect-[3/4] overflow-hidden">
         {event.imageUrl ? (
           <img
             src={getImageUrl(event.imageUrl)}

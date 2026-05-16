@@ -934,11 +934,11 @@ export default function EventDetailPage() {
               {/* Cover Image Upload */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Foto de Portada' : 'Cover Image'}</label>
-                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Tamaño recomendado: 1280 x 720 px (16:9)' : 'Recommended size: 1280 x 720 px (16:9)'}</p>
+                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Tamaño recomendado: 900 x 1200 px (3:4)' : 'Recommended size: 900 x 1200 px (3:4)'}</p>
                 
                 {/* Active Preview */}
                 {(imageFile || event.imageUrl) && (
-                  <div className="w-full relative rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden mb-3 shadow-inner group/preview max-h-[250px] sm:max-h-none sm:aspect-[16/9]">
+                  <div className="w-full relative rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden mb-3 shadow-inner group/preview aspect-[3/4]">
                     <img 
                       src={imageFile ? URL.createObjectURL(imageFile) : getImageUrl(event.imageUrl)} 
                       alt="Current Cover" 
@@ -991,12 +991,12 @@ export default function EventDetailPage() {
               {/* Banner Image Upload */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Foto de Banner de Inicio' : 'Homepage Banner Image'}</label>
-                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Tamaño recomendado: 1920 x 600 px (3:1)' : 'Recommended size: 1920 x 600 px (3:1)'}</p>
+                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Tamaño recomendado: 2520 x 960 px (21:8)' : 'Recommended size: 2520 x 960 px (21:8)'}</p>
 
                 {/* Active Preview */}
                 {(bannerFile || event?.bannerImageUrl) && (
                   <div className="space-y-4 mb-3">
-                    <div className="w-full aspect-[21/9] relative rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden shadow-inner group/preview">
+                    <div className="w-full aspect-[21/8] relative rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden shadow-inner group/preview">
                       <img 
                         src={bannerFile ? URL.createObjectURL(bannerFile) : getImageUrl(event?.bannerImageUrl)} 
                         alt="Current Banner" 
