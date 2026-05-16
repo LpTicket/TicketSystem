@@ -213,13 +213,15 @@ export default function Header() {
               </Link>
             )}
 
-            {/* 3. Create Event Button (Always Visible) */}
-            <Link 
-              href={isAuthenticated ? "/organizer/events/create" : "/login?redirect=/organizer/events/create"}
-              className="h-8 w-[110px] bg-blue-600 text-white hover:bg-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md transition-all text-center flex items-center justify-center shrink-0"
-            >
-              {lang === 'es' ? 'Crear Evento' : 'Create Event'}
-            </Link>
+            {/* 3. Create Event Button (Only for Guests) */}
+            {!isAuthenticated && (
+              <Link 
+                href="/login?redirect=/organizer/events/create"
+                className="h-8 w-[110px] bg-blue-600 text-white hover:bg-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md transition-all text-center flex items-center justify-center shrink-0"
+              >
+                {lang === 'es' ? 'Crear Evento' : 'Create Event'}
+              </Link>
+            )}
 
             {/* 4. User Profile (Only if Auth) */}
             {isAuthenticated && user && (
@@ -310,18 +312,6 @@ export default function Header() {
 
           {/* Mobile UI */}
           <div className="lg:hidden flex items-center gap-2 ml-auto">
-            {/* SCAN Button Orange */}
-            {isAuthenticated && (
-              <Link
-                href="/verify"
-                onClick={() => setMobileMenuOpen(false)}
-                className="h-9 px-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg flex items-center gap-2 transition-all shadow-md active:scale-95"
-              >
-                <HiOutlineQrcode className="w-4 h-4" />
-                <span className="text-[11px] font-black uppercase tracking-wider">SCAN</span>
-              </Link>
-            )}
-
             {/* Language Switcher Mobile (Small version) */}
             <div className="flex border border-gray-200 rounded-lg overflow-hidden h-9 w-[70px] shrink-0">
               <button 
@@ -337,6 +327,18 @@ export default function Header() {
                 EN
               </button>
             </div>
+
+            {/* SCAN Button Orange */}
+            {isAuthenticated && (
+              <Link
+                href="/verify"
+                onClick={() => setMobileMenuOpen(false)}
+                className="h-9 px-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg flex items-center gap-2 transition-all shadow-md active:scale-95"
+              >
+                <HiOutlineQrcode className="w-4 h-4" />
+                <span className="text-[11px] font-black uppercase tracking-wider">SCAN</span>
+              </Link>
+            )}
 
             <button className="p-1 text-blue-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <HiOutlineX className="w-8 h-8" /> : <HiOutlineMenu className="w-8 h-8" />}
