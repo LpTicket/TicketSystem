@@ -346,10 +346,10 @@ const translations = {
     contactSubtitle: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
     contactOnline: 'Online Contact',
     contactAddress: 'Our Address',
-    contactAddressText1: '123 Lorem Ipsum Street',
-    contactAddressText2: 'Fake City, 12345, Lorem Ipsum Country.',
+    contactAddressText1: '1325 Main St Suite 203',
+    contactAddressText2: 'Katy, TX, 77494, United States.',
     contactEmailTitle: 'E-mail',
-    contactEmail: 'Info.lpticket@gmail.com',
+    contactEmail: 'Info@lpticket.com',
     contactPhone: '+1 (832) 379-0809',
     contactFollowUs: 'Follow us on our social networks!',
 
