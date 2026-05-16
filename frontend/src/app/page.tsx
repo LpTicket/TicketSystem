@@ -9,6 +9,7 @@ import { Event, EventStatus } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineTicket } from 'react-icons/hi';
+import { AnimatePresence, motion } from 'framer-motion';
 
 // Demo events — se muestran cuando no hay eventos reales del API
 const DEMO_EVENTS: Event[] = [];
@@ -103,11 +104,17 @@ export default function HomePage() {
   }, [allEvents]);
   const bannerEvent = bannerEvents.length > 0 ? bannerEvents[currentBannerIdx % bannerEvents.length] : null;
 
+  const nextBanner = () => {
+    setCurrentBannerIdx((prev) => (prev + 1) % bannerEvents.length);
+  };
+
+  const prevBanner = () => {
+    setCurrentBannerIdx((prev) => (prev - 1 + bannerEvents.length) % bannerEvents.length);
+  };
+
   useEffect(() => {
     if (bannerEvents.length <= 1) return;
-    const interval = setInterval(() => {
-      setCurrentBannerIdx((prev) => (prev + 1) % bannerEvents.length);
-    }, 5000);
+    const interval = setInterval(nextBanner, 6000);
     return () => clearInterval(interval);
   }, [bannerEvents.length]);
 
@@ -116,54 +123,57 @@ export default function HomePage() {
       {/* Banner */}
       {loading ? (
         <section className="bg-white">
-          <div className="max-w-[1400px] mx-auto">
+          <div className="w-full">
             <div className="relative aspect-[16/9] sm:aspect-[21/8] min-h-[220px] sm:min-h-[400px] overflow-hidden bg-gray-100 animate-pulse flex items-center">
-              <div className="pl-6 sm:pl-16 max-w-lg space-y-3 w-full">
-                <div className="h-8 sm:h-12 bg-gray-200 rounded w-3/4" />
-                <div className="h-4 bg-gray-200 rounded w-1/2" />
-                <div className="h-9 sm:h-11 bg-gray-200 rounded w-1/3" />
-              </div>
+              {/* Overlay removed */}
             </div>
-          </div>
-          <div className="flex justify-center gap-1.5 py-4 bg-white max-w-[1400px] mx-auto flex-wrap px-4">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-1 w-6 sm:w-8 bg-gray-100 animate-pulse" />
-            ))}
           </div>
         </section>
       ) : bannerEvent ? (
         <section className="bg-white">
-          <div className="max-w-[1400px] mx-auto">
-            <Link href={usingDemo ? '#' : `/events/${bannerEvent.slug}`} className="block">
-              <div className="relative aspect-[16/9] sm:aspect-[21/8] min-h-[220px] sm:min-h-[400px] overflow-hidden bg-gray-100">
-                <img
+          <div className="w-full relative group">
+            <Link href={usingDemo ? '#' : `/events/${bannerEvent.slug}`} className="block relative aspect-[16/9] sm:aspect-[21/8] min-h-[220px] sm:min-h-[450px] overflow-hidden bg-black">
+              <AnimatePresence initial={false}>
+                <motion.img
+                  key={bannerEvent.id}
                   src={getImageUrl(bannerEvent.bannerImageUrl || bannerEvent.imageUrl) || '/demo/concert.png'}
                   alt={bannerEvent.title}
-                  className="w-full h-full object-cover block"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 1.2, ease: "easeInOut" }}
+                  className="absolute inset-0 w-full h-full object-cover block"
                   style={{ objectPosition: bannerEvent.bannerPosition || 'center' }}
                   loading="eager"
                   fetchPriority="high"
                   onError={(e) => { (e.target as HTMLImageElement).src = '/demo/concert.png'; }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent flex items-end pb-6 sm:pb-12">
-                  <div className="pl-6 sm:pl-16 pr-6 max-w-2xl w-full">
-                    <h2 className="text-white text-xl sm:text-4xl font-extrabold leading-tight drop-shadow-md uppercase tracking-tight">{bannerEvent.title}</h2>
-                    <p className="hidden sm:block text-white/90 mt-1.5 text-sm sm:text-base font-medium">{bannerEvent.venueName}</p>
-                    <span className="inline-block mt-2.5 sm:mt-3.5 btn-primary text-xs sm:text-sm px-4 py-2 sm:px-6 sm:py-3 rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95">{t('buyTickets')}</span>
-                  </div>
-                </div>
-              </div>
+              </AnimatePresence>
             </Link>
-          </div>
-          {/* Dashes indicator (mdticket style) */}
-          <div className="flex justify-center gap-1.5 py-4 bg-white max-w-[1400px] mx-auto flex-wrap px-4">
-            {bannerEvents.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentBannerIdx(i)}
-                className={`h-1 w-6 sm:w-8 transition-colors ${i === currentBannerIdx % bannerEvents.length ? 'bg-primary-500' : 'bg-[#e5d4c8] hover:bg-primary-300'}`}
-              />
-            ))}
+
+            {/* Navigation Arrows (Passline Style: No circle, always visible) */}
+            {bannerEvents.length > 1 && (
+              <>
+                <button 
+                  onClick={(e) => { e.preventDefault(); prevBanner(); }}
+                  className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 w-12 h-20 flex items-center justify-center text-white/70 hover:text-white active:scale-90 active:opacity-50 transition-all z-10"
+                  aria-label="Previous event"
+                >
+                  <svg className="w-8 h-8 sm:w-10 sm:h-10 drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button 
+                  onClick={(e) => { e.preventDefault(); nextBanner(); }}
+                  className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 w-12 h-20 flex items-center justify-center text-white/70 hover:text-white active:scale-90 active:opacity-50 transition-all z-10"
+                  aria-label="Next event"
+                >
+                  <svg className="w-8 h-8 sm:w-10 sm:h-10 drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </>
+            )}
           </div>
         </section>
       ) : null}

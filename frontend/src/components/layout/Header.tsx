@@ -139,134 +139,207 @@ export default function Header() {
 
   return (
     <>
-    <header className="sticky top-0 z-50 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-b border-gray-200/50 print:hidden">
-      <div className="max-w-[1400px] mx-auto px-3 sm:px-6 md:px-8">
-        <div className="flex lg:grid lg:grid-cols-3 items-center justify-between h-20">
+    <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm print:hidden">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-6">
+        <div className="flex items-center h-[60px] md:h-[70px]">
           
           {/* Left: Brand Logo */}
-          <div className="flex items-center justify-start shrink-0 min-w-0">
+          <div className="flex items-center shrink-0 mr-8">
             <Link href="/" className="flex shrink-0">
               <img 
                 src="/logo.png" 
                 alt="LPTicket" 
-                className="h-8 xs:h-10 sm:h-12 md:h-14 w-auto object-contain" 
+                className="h-10 md:h-14 w-auto object-contain transition-all" 
               />
             </Link>
           </div>
 
-          {/* Center: Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center justify-center gap-10">
-            <Link href="/about" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors whitespace-nowrap">{t('whoWeAre')}</Link>
-            <Link href={isAuthenticated ? "/dashboard?tab=tickets" : "/login?redirect=/dashboard?tab=tickets"} className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors whitespace-nowrap">{t('myTickets')}</Link>
-            <Link href="/contact" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors whitespace-nowrap">{t('contact')}</Link>
-            <Link href="/support" className="text-blue-600 hover:text-blue-800 font-medium text-[15px] transition-colors whitespace-nowrap">{t('support')}</Link>
+          {/* Navigation Links: Fixed widths to prevent layout shifting */}
+          <nav className="hidden lg:flex items-center gap-2">
+            <Link href="/events" className="text-blue-600 hover:text-blue-800 font-bold text-[14px] transition-colors whitespace-nowrap tracking-tight w-[80px] text-center">
+              {t('events')}
+            </Link>
+            <Link href="/about" className="text-blue-600 hover:text-blue-800 font-bold text-[14px] transition-colors whitespace-nowrap tracking-tight w-[120px] text-center">
+              {t('whoWeAre')}
+            </Link>
+            <Link href="/dashboard?tab=tickets" className="text-blue-600 hover:text-blue-800 font-bold text-[14px] transition-colors whitespace-nowrap tracking-tight w-[100px] text-center">
+              {t('myTickets')}
+            </Link>
+            <Link href="/contact" className="text-blue-600 hover:text-blue-800 font-bold text-[14px] transition-colors whitespace-nowrap tracking-tight w-[80px] text-center">
+              {t('contact')}
+            </Link>
+            <Link href="/support" className="text-blue-600 hover:text-blue-800 font-bold text-[14px] transition-colors whitespace-nowrap tracking-tight w-[80px] text-center">
+              {t('support')}
+            </Link>
           </nav>
 
-          {/* Right: Desktop Actions (Scanner, Language, Profile) */}
-          <div className="hidden lg:flex items-center justify-end gap-6 shrink-0">
-            {/* Ticket Scanner Portal (Available for all authenticated users) */}
-            {isAuthenticated && (
-              <Link
-                href="/verify"
-                className="flex items-center gap-1.5 px-4 py-1.5 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-all shadow-md active:scale-95 border border-primary-600 group"
-              >
-                <HiOutlineQrcode className="w-4 h-4 text-primary-100 group-hover:text-white transition-colors" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">
-                  {lang === 'es' ? 'Escanear' : 'Scan'}
-                </span>
-              </Link>
-            )}
+          {/* Large spacer */}
+          <div className="flex-1" />
 
-            {/* Language Switcher Toggle */}
-            <div className="flex items-center border border-gray-300 rounded-md overflow-hidden text-xs font-bold shrink-0">
-              <button
+          {/* Right: Actions */}
+          <div className="hidden lg:flex items-center gap-3 shrink-0 relative">
+            
+            {/* 1. Language Switcher (h-8 w-110) */}
+            <div className="flex border border-gray-200 rounded-lg overflow-hidden h-8 w-[110px] shrink-0">
+              <button 
                 onClick={() => setLang('es')}
-                className={`w-9 text-center py-1.5 transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                className={`flex-1 text-[10px] font-bold transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
               >
                 ES
               </button>
-              <button
+              <button 
                 onClick={() => setLang('en')}
-                className={`w-9 text-center py-1.5 transition-colors ${lang === 'en' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                className={`flex-1 text-[10px] font-bold border-l border-gray-200 transition-colors ${lang === 'en' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
               >
                 EN
               </button>
             </div>
 
-            {/* User Profile Section */}
-            {isAuthenticated && user ? (
-              <div className="relative" ref={profileRef}>
-                <button onClick={() => setProfileDropdown(!profileDropdown)} className="w-9 h-9 rounded-md border border-blue-600 flex items-center justify-center text-blue-600 hover:bg-blue-50 transition-colors">
-                  <HiOutlineUser className="w-5 h-5" />
+            {/* 2. SCAN Button (if Auth) or Login Button (if Guest) */}
+            {isAuthenticated ? (
+              <Link
+                href="/verify"
+                className="h-8 w-[110px] bg-orange-500 hover:bg-orange-600 text-white rounded-lg flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 shrink-0"
+              >
+                <HiOutlineQrcode className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-black uppercase tracking-wider">SCAN</span>
+              </Link>
+            ) : (
+              <Link 
+                href="/login" 
+                className="h-8 w-[110px] border border-blue-600 text-blue-600 hover:bg-blue-50 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all text-center flex items-center justify-center shrink-0"
+              >
+                {t('login')}
+              </Link>
+            )}
+
+            {/* 3. Create Event Button (Always Visible) */}
+            <Link 
+              href={isAuthenticated ? "/organizer/events/create" : "/login?redirect=/organizer/events/create"}
+              className="h-8 w-[110px] bg-blue-600 text-white hover:bg-blue-700 text-[10px] font-black uppercase tracking-wider rounded-lg shadow-md transition-all text-center flex items-center justify-center shrink-0"
+            >
+              {lang === 'es' ? 'Crear Evento' : 'Create Event'}
+            </Link>
+
+            {/* 4. User Profile (Only if Auth) */}
+            {isAuthenticated && user && (
+              <div ref={profileRef} className="flex items-center">
+                <button onClick={() => setProfileDropdown(!profileDropdown)} className="flex items-center justify-center gap-2 h-8 w-[110px] hover:bg-gray-50 rounded-lg text-blue-600 font-bold text-[13px] transition-all">
+                  <HiOutlineUser className="w-4 h-4 shrink-0" />
+                  <span className="truncate max-w-[65px]">{user.firstName}</span>
                 </button>
-                
-                {/* Profile Dropdown Menu */}
+
+                {/* Profile Dropdown */}
                 {profileDropdown && (
-                  <div className="absolute right-0 top-12 w-52 bg-white rounded-lg shadow-elevated border border-gray-200 py-2 animate-fade-in z-50">
-                    <div className="px-4 py-2 border-b border-gray-100 mb-1">
-                      <p className="text-sm font-bold text-gray-900">{user.firstName} {user.lastName}</p>
-                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  <div className="absolute right-0 top-[45px] w-72 bg-white rounded-xl shadow-elevated border border-gray-100 py-2 animate-fade-in z-50">
+                    {/* User Info Header */}
+                    <div className="px-4 py-3 border-b border-gray-50 mb-1">
+                      <p className="text-sm font-black text-gray-900 leading-tight">
+                        {user.firstName} {user.lastName}
+                      </p>
+                      <p className="text-[11px] font-medium text-gray-400 truncate">
+                        {user.email}
+                      </p>
                     </div>
 
-                    {/* Dashboard/Organizer Mode Toggle (for Clients) */}
-                    {user.role !== 'admin' && (
-                      <div className="px-4 py-2.5 bg-gray-50/50 border-b border-gray-100">
+                    {/* Mode Toggle */}
+                    {user?.role !== 'admin' && (
+                      <div className="px-4 py-3 bg-gray-50/50 border-b border-gray-50 mb-1 hover:bg-gray-100/80 transition-colors">
                         <ModeToggle variant="dropdown" />
                       </div>
                     )}
-                    
-                    <Link href="/dashboard?tab=profile" onClick={() => setProfileDropdown(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><HiOutlineUser className="w-4 h-4" /> {t('myProfile')}</Link>
-                    
-                    {/* Conditional links based on User Role and Current Active Mode */}
+
+                    <Link 
+                      href="/dashboard?tab=profile" 
+                      onClick={() => setProfileDropdown(false)} 
+                      className="flex items-center gap-3 px-4 py-3 text-[13px] font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                      <HiOutlineUser className="w-4 h-4 opacity-70" /> 
+                      {t('myProfile')}
+                    </Link>
+
+                    {/* My Tickets */}
                     {(user.role === 'admin' || mode === 'buyer') && (
-                      <Link href="/dashboard?tab=tickets" onClick={() => setProfileDropdown(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><HiOutlineTicket className="w-4 h-4" /> {t('myTickets')}</Link>
-                    )}
-                    
-                    {(user.role === 'admin' || mode === 'organizer') && (
-                      <Link href="/organizer" onClick={() => setProfileDropdown(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"><HiOutlineCog className="w-4 h-4" /> {t('organizerPanel')}</Link>
+                      <Link 
+                        href="/dashboard?tab=tickets" 
+                        onClick={() => setProfileDropdown(false)} 
+                        className="flex items-center gap-3 px-4 py-3 text-[13px] font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                      >
+                        <HiOutlineTicket className="w-4 h-4 opacity-70" /> 
+                        {t('myTickets')}
+                      </Link>
                     )}
 
-                    {user.role === 'admin' && (
-                      <Link href="/admin" onClick={() => setProfileDropdown(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-bold border-t border-gray-50 mt-1 pt-1"><HiOutlineCog className="w-4 h-4" /> Admin Panel</Link>
+                    {/* Organizer Panel Link */}
+                    {(user.role === 'admin' || mode === 'organizer') && (
+                      <Link 
+                        href="/organizer" 
+                        onClick={() => setProfileDropdown(false)} 
+                        className="flex items-center gap-3 px-4 py-3 text-[13px] font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                      >
+                        <HiOutlineCog className="w-4 h-4 opacity-70" /> 
+                        {t('organizerPanel') || 'Organizer Panel'}
+                      </Link>
                     )}
-                    
-                    <hr className="my-1 border-gray-100" />
-                    <button onClick={() => { logout(); setProfileDropdown(false); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"><HiOutlineLogout className="w-4 h-4" /> {t('logout')}</button>
+
+                    {/* Admin Panel Link */}
+                    {user.role === 'admin' && (
+                      <Link 
+                        href="/admin" 
+                        onClick={() => setProfileDropdown(false)} 
+                        className="flex items-center gap-3 px-4 py-3 text-[13px] font-bold text-red-600 hover:bg-red-50 transition-colors border-t border-gray-50 mt-1"
+                      >
+                        <HiOutlineCog className="w-4 h-4 opacity-70" /> 
+                        {t('adminPanel') || 'Admin Panel'}
+                      </Link>
+                    )}
+
+                    {/* Logout Button */}
+                    <button 
+                      onClick={() => { logout(); setProfileDropdown(false); }} 
+                      className="flex items-center gap-3 w-full px-4 py-3 text-[13px] font-bold text-red-600 hover:bg-red-50 border-t border-gray-50 mt-1 transition-colors"
+                    >
+                      <HiOutlineLogout className="w-4 h-4 opacity-70" /> 
+                      {t('logout')}
+                    </button>
                   </div>
                 )}
-              </div>
-
-            ) : (
-              /* Login/Register buttons for non-authenticated users */
-              <div className="flex items-center gap-2 shrink-0">
-                <Link href="/login" className="btn-secondary !py-2 !px-0 w-[110px] text-center !text-[11px] font-bold !border-blue-600 !text-blue-600 hover:!bg-blue-50">{t('login')}</Link>
-                <Link href="/register" className="btn-primary !py-2 !px-0 w-[120px] text-center !text-[11px] font-bold !bg-blue-600 hover:!bg-blue-700">{t('register')}</Link>
               </div>
             )}
           </div>
 
-          {/* Mobile UI elements (Scanner and Language) */}
-          <div className="lg:hidden flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {/* Mobile Scanner Button */}
+          {/* Mobile UI */}
+          <div className="lg:hidden flex items-center gap-2 ml-auto">
+            {/* SCAN Button Orange */}
             {isAuthenticated && (
               <Link
                 href="/verify"
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-primary-500 text-white rounded-md border border-gray-300 shadow-sm active:scale-95"
+                onClick={() => setMobileMenuOpen(false)}
+                className="h-9 px-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg flex items-center gap-2 transition-all shadow-md active:scale-95"
               >
-                <HiOutlineQrcode className="w-4 h-4 text-primary-100" />
-                <span className="text-[10px] font-bold uppercase tracking-tight">SCAN</span>
+                <HiOutlineQrcode className="w-4 h-4" />
+                <span className="text-[11px] font-black uppercase tracking-wider">SCAN</span>
               </Link>
             )}
 
-            {/* Mobile Language Switcher */}
-            <div className="flex items-center border border-gray-300 rounded-md overflow-hidden text-[10px] font-bold shrink-0">
-              <button onClick={() => setLang('es')} className={`w-8 text-center py-1.5 transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>ES</button>
-              <button onClick={() => setLang('en')} className={`w-8 text-center py-1.5 transition-colors ${lang === 'en' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>EN</button>
+            {/* Language Switcher Mobile (Small version) */}
+            <div className="flex border border-gray-200 rounded-lg overflow-hidden h-9 w-[70px] shrink-0">
+              <button 
+                onClick={() => setLang('es')}
+                className={`flex-1 text-[11px] font-bold transition-colors ${lang === 'es' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500'}`}
+              >
+                ES
+              </button>
+              <button 
+                onClick={() => setLang('en')}
+                className={`flex-1 text-[11px] font-bold border-l border-gray-200 transition-colors ${lang === 'en' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500'}`}
+              >
+                EN
+              </button>
             </div>
-            
-            {/* Mobile Menu Hamburger Toggle */}
-            <button className="p-0.5 text-blue-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-              {mobileMenuOpen ? <HiOutlineX className="w-7 h-7" /> : <HiOutlineMenu className="w-7 h-7" />}
+
+            <button className="p-1 text-blue-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              {mobileMenuOpen ? <HiOutlineX className="w-8 h-8" /> : <HiOutlineMenu className="w-8 h-8" />}
             </button>
           </div>
         </div>
@@ -274,44 +347,54 @@ export default function Header() {
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-white border-t border-gray-100 shadow-lg animate-fade-in absolute w-full left-0">
-          <div className="px-4 py-4 space-y-3">
-            <Link href="/events" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('events')}</Link>
-            <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('whoWeAre')}</Link>
-            <Link href="/dashboard?tab=tickets" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('myTickets')}</Link>
-            <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('contact')}</Link>
-            <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-blue-600 font-medium">{t('support')}</Link>
+        <div className="lg:hidden bg-white border-t border-gray-100 shadow-lg animate-fade-in absolute w-full left-0 z-[60] overflow-y-auto max-h-[calc(100vh-70px)]">
+          <div className="px-4 py-6 space-y-4">
             
-            {/* Mobile Mode Toggle (Buyer/Organizer) */}
-            <div className="py-2 border-b border-gray-100 flex justify-center">
-              {isAuthenticated && user?.role !== 'admin' && (
-                <ModeToggle variant="pill" />
-              )}
+            {/* Nav Links */}
+            <div className="space-y-1">
+              <Link href="/events" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-3 text-blue-600 font-bold text-[16px] hover:bg-blue-50 rounded-lg transition-colors">{t('events')}</Link>
+              <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-3 text-blue-600 font-bold text-[16px] hover:bg-blue-50 rounded-lg transition-colors">{t('whoWeAre')}</Link>
+              <Link href="/dashboard?tab=tickets" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-3 text-blue-600 font-bold text-[16px] hover:bg-blue-50 rounded-lg transition-colors">{t('myTickets')}</Link>
+              <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-3 text-blue-600 font-bold text-[16px] hover:bg-blue-50 rounded-lg transition-colors">{t('contact')}</Link>
+              <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-3 text-blue-600 font-bold text-[16px] hover:bg-blue-50 rounded-lg transition-colors">{t('support')}</Link>
             </div>
 
-            {/* Mobile Authentication Links */}
-            {isAuthenticated ? (
-              <>
-                <Link href="/dashboard?tab=profile" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-gray-700">{t('myProfile')}</Link>
-                
+            {/* Mode Toggle inside Mobile Menu (Pill version as in screenshot) */}
+            {isAuthenticated && user?.role !== 'admin' && (
+              <div className="flex justify-center py-4 border-t border-gray-50">
+                <ModeToggle variant="pill" />
+              </div>
+            )}
+
+            {/* Bottom Links (Profile, Tickets, Organizer, Logout) */}
+            {isAuthenticated && (
+              <div className="pt-4 border-t border-gray-100 space-y-1">
+                <Link href="/dashboard?tab=profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 text-gray-700 font-bold text-[15px] hover:bg-gray-50 rounded-lg transition-colors">
+                  <HiOutlineUser className="w-5 h-5 opacity-60" />
+                  {t('myProfile')}
+                </Link>
+
                 {(user?.role === 'admin' || mode === 'buyer') && (
-                  <Link href="/dashboard?tab=tickets" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-gray-700">{t('myTickets')}</Link>
+                  <Link href="/dashboard?tab=tickets" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 text-gray-700 font-bold text-[15px] hover:bg-gray-50 rounded-lg transition-colors">
+                    <HiOutlineTicket className="w-5 h-5 opacity-60" />
+                    {t('myTickets')}
+                  </Link>
                 )}
                 
                 {(user?.role === 'admin' || mode === 'organizer') && (
-                  <Link href="/organizer" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-gray-700">{t('organizerPanel')}</Link>
+                  <Link href="/organizer" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 text-gray-700 font-bold text-[15px] hover:bg-gray-50 rounded-lg transition-colors">
+                    <HiOutlineCog className="w-5 h-5 opacity-60" />
+                    {t('organizerPanel') || 'Organizer Panel'}
+                  </Link>
                 )}
 
-                {user?.role === 'admin' && (
-                  <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-red-600 font-bold">{t('adminPanel') || 'Admin Panel'}</Link>
-                )}
-                
-                <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 text-red-600 font-medium">{t('logout')}</button>
-              </>
-            ) : (
-              <div className="flex flex-col gap-2 pt-2">
-                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="btn-secondary w-full text-center py-2 !border-blue-600 !text-blue-600">{t('login')}</Link>
-                <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="btn-primary w-full text-center py-2 !bg-blue-600">{t('register')}</Link>
+                <button 
+                  onClick={() => { logout(); setMobileMenuOpen(false); }} 
+                  className="flex items-center gap-3 w-full px-3 py-3 text-red-600 font-bold text-[15px] hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <HiOutlineLogout className="w-5 h-5 opacity-60" />
+                  {t('logout')}
+                </button>
               </div>
             )}
           </div>
