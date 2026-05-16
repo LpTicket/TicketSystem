@@ -136,6 +136,13 @@ export default function Header() {
   };
 
   const pathname = usePathname();
+  const navItems = [
+    { href: '/events', label: t('events'), width: 'w-[80px]', match: (path: string) => path.startsWith('/events') },
+    { href: '/about', label: t('whoWeAre'), width: 'w-[120px]', match: (path: string) => path.startsWith('/about') },
+    { href: '/dashboard?tab=tickets', label: t('myTickets'), width: 'w-[100px]', match: (path: string) => path.startsWith('/dashboard') },
+    { href: '/contact', label: t('contact'), width: 'w-[80px]', match: (path: string) => path.startsWith('/contact') },
+    { href: '/support', label: t('support'), width: 'w-[80px]', match: (path: string) => path.startsWith('/support') },
+  ];
 
   return (
     <>
@@ -156,21 +163,29 @@ export default function Header() {
 
           {/* Navigation Links: Fixed widths to prevent layout shifting */}
           <nav className="hidden lg:flex items-center gap-2">
-            <Link href="/events" className="text-blue-600 hover:text-blue-800 font-bold text-[14px] transition-colors whitespace-nowrap tracking-tight w-[80px] text-center">
-              {t('events')}
-            </Link>
-            <Link href="/about" className="text-blue-600 hover:text-blue-800 font-bold text-[14px] transition-colors whitespace-nowrap tracking-tight w-[120px] text-center">
-              {t('whoWeAre')}
-            </Link>
-            <Link href="/dashboard?tab=tickets" className="text-blue-600 hover:text-blue-800 font-bold text-[14px] transition-colors whitespace-nowrap tracking-tight w-[100px] text-center">
-              {t('myTickets')}
-            </Link>
-            <Link href="/contact" className="text-blue-600 hover:text-blue-800 font-bold text-[14px] transition-colors whitespace-nowrap tracking-tight w-[80px] text-center">
-              {t('contact')}
-            </Link>
-            <Link href="/support" className="text-blue-600 hover:text-blue-800 font-bold text-[14px] transition-colors whitespace-nowrap tracking-tight w-[80px] text-center">
-              {t('support')}
-            </Link>
+            {navItems.map((item) => {
+              const active = item.match(pathname);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`group relative ${item.width} h-10 inline-flex items-center justify-center rounded-xl overflow-hidden font-black text-[13px] transition-all duration-300 whitespace-nowrap tracking-tight ${
+                    active
+                      ? 'text-blue-700 bg-blue-50 shadow-sm shadow-blue-500/10'
+                      : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50/70 hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-500/10'
+                  }`}
+                >
+                  <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_50%_0%,rgba(37,99,235,0.16),transparent_55%)]" />
+                  <span className="relative z-10">{item.label}</span>
+                  <span
+                    className={`absolute bottom-1.5 left-1/2 h-[3px] -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 via-cyan-400 to-orange-400 transition-all duration-300 ${
+                      active ? 'w-8 opacity-100' : 'w-0 opacity-0 group-hover:w-8 group-hover:opacity-100'
+                    }`}
+                  />
+                  {active && <span className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full bg-orange-400 shadow-[0_0_10px_rgba(251,146,60,0.8)]" />}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* Large spacer */}
@@ -363,11 +378,22 @@ export default function Header() {
             
             {/* Nav Links */}
             <div className="space-y-1">
-              <Link href="/events" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-3 text-blue-600 font-bold text-[16px] hover:bg-blue-50 rounded-lg transition-colors">{t('events')}</Link>
-              <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-3 text-blue-600 font-bold text-[16px] hover:bg-blue-50 rounded-lg transition-colors">{t('whoWeAre')}</Link>
-              <Link href="/dashboard?tab=tickets" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-3 text-blue-600 font-bold text-[16px] hover:bg-blue-50 rounded-lg transition-colors">{t('myTickets')}</Link>
-              <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-3 text-blue-600 font-bold text-[16px] hover:bg-blue-50 rounded-lg transition-colors">{t('contact')}</Link>
-              <Link href="/support" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-3 text-blue-600 font-bold text-[16px] hover:bg-blue-50 rounded-lg transition-colors">{t('support')}</Link>
+              {navItems.map((item) => {
+                const active = item.match(pathname);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`relative block px-4 py-3 font-black text-[16px] rounded-xl transition-all overflow-hidden ${
+                      active ? 'text-blue-700 bg-blue-50' : 'text-blue-600 hover:bg-blue-50'
+                    }`}
+                  >
+                    <span className="relative z-10">{item.label}</span>
+                    <span className={`absolute left-4 bottom-2 h-[3px] rounded-full bg-gradient-to-r from-blue-500 to-orange-400 transition-all ${active ? 'w-9' : 'w-0'}`} />
+                  </Link>
+                );
+              })}
             </div>
 
             {/* Mode Toggle inside Mobile Menu (Pill version as in screenshot) */}
