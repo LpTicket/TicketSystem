@@ -2,16 +2,16 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import api, { getImageUrl } from '@/lib/api';
 import EventCard from '@/components/events/EventCard';
 import { Event, EventStatus } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { useLang } from '@/context/LanguageContext';
-import { HiOutlineTicket } from 'react-icons/hi';
+import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineSearch, HiOutlineTicket } from 'react-icons/hi';
 import { AnimatePresence, motion } from 'framer-motion';
+import { format } from 'date-fns';
+import { enUS, es } from 'date-fns/locale';
 
-// Demo events — se muestran cuando no hay eventos reales del API
 const DEMO_EVENTS: Event[] = [];
 
 export default function HomePage() {
@@ -23,33 +23,30 @@ export default function HomePage() {
   const [usingDemo, setUsingDemo] = useState(false);
   const [currentBannerIdx, setCurrentBannerIdx] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [locationQuery, setLocationQuery] = useState('');
+  const [sortOpen, setSortOpen] = useState(false);
+  const [sortBy, setSortBy] = useState('fecha');
   const categoriesRef = useRef<HTMLDivElement>(null);
 
   const scrollCategories = (direction: 'left' | 'right') => {
-    if (categoriesRef.current) {
-      const scrollAmount = 200;
-      categoriesRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
-      });
-    }
+    categoriesRef.current?.scrollBy({
+      left: direction === 'left' ? -220 : 220,
+      behavior: 'smooth',
+    });
   };
 
   useEffect(() => { loadEvents(); }, []);
 
   const loadEvents = async () => {
-    // Safety timeout: if API doesn't respond in 3 seconds, show demo events
     const safetyTimeout = setTimeout(() => {
-      if (loading) {
-        setAllEvents(DEMO_EVENTS);
-        setUsingDemo(true);
-        setLoading(false);
-      }
+      setAllEvents(DEMO_EVENTS);
+      setUsingDemo(true);
+      setLoading(false);
     }, 3000);
 
     try {
       const response = await api.get('/events?limit=16').catch(() => null);
-      if (response && response.data && response.data.events && response.data.events.length > 0) {
+      if (response?.data?.events?.length > 0) {
         setAllEvents(response.data.events);
         setUsingDemo(false);
       } else {
@@ -68,49 +65,54 @@ export default function HomePage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      window.location.href = `/events?search=${encodeURIComponent(searchQuery)}`;
-    }
+    const params = new URLSearchParams();
+    if (searchQuery.trim()) params.set('search', searchQuery.trim());
+    if (activeCategory) params.set('category', activeCategory);
+    if (params.toString()) window.location.href = `/events?${params.toString()}`;
   };
 
-  const displayCategories = categories;
-  
   const filteredEvents = useMemo(() => {
-    let result = activeCategory
-      ? allEvents.filter((e) => e.category === activeCategory)
-      : allEvents;
+    let result = activeCategory ? allEvents.filter((e) => e.category === activeCategory) : allEvents;
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(e => 
-        e.title.toLowerCase().includes(q) || 
-        (e.venueName && e.venueName.toLowerCase().includes(q))
+      result = result.filter(e =>
+        e.title.toLowerCase().includes(q) ||
+        e.venueName?.toLowerCase().includes(q)
+      );
+    }
+
+    if (locationQuery.trim()) {
+      const q = locationQuery.toLowerCase();
+      result = result.filter(e =>
+        e.venueName?.toLowerCase().includes(q) ||
+        e.venueAddress?.toLowerCase().includes(q)
       );
     }
 
     return result;
-  }, [allEvents, activeCategory, searchQuery]);
+  }, [allEvents, activeCategory, searchQuery, locationQuery]);
 
-  const [sortOpen, setSortOpen] = useState(false);
-  const [sortBy, setSortBy] = useState('fecha');
-  const [categoryOpen, setCategoryOpen] = useState(false);
+  const sortedEvents = useMemo(() => {
+    const result = [...filteredEvents];
+    if (sortBy === 'precio') {
+      return result.sort((a, b) => Number(a.minPrice || 0) - Number(b.minPrice || 0));
+    }
+    return result.sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+  }, [filteredEvents, sortBy]);
 
-  // bannerEvents: 15 random published events
   const bannerEvents = useMemo(() => {
     return allEvents
       .filter((e) => e.status === EventStatus.PUBLISHED && e.isFeatured)
       .sort(() => Math.random() - 0.5)
       .slice(0, 15);
   }, [allEvents]);
+
   const bannerEvent = bannerEvents.length > 0 ? bannerEvents[currentBannerIdx % bannerEvents.length] : null;
+  const dateLocale = lang === 'es' ? es : enUS;
 
-  const nextBanner = () => {
-    setCurrentBannerIdx((prev) => (prev + 1) % bannerEvents.length);
-  };
-
-  const prevBanner = () => {
-    setCurrentBannerIdx((prev) => (prev - 1 + bannerEvents.length) % bannerEvents.length);
-  };
+  const nextBanner = () => setCurrentBannerIdx((prev) => (prev + 1) % bannerEvents.length);
+  const prevBanner = () => setCurrentBannerIdx((prev) => (prev - 1 + bannerEvents.length) % bannerEvents.length);
 
   useEffect(() => {
     if (bannerEvents.length <= 1) return;
@@ -119,170 +121,177 @@ export default function HomePage() {
   }, [bannerEvents.length]);
 
   return (
-    <div>
-      {/* Banner */}
+    <div className="home-signature min-h-screen">
       {loading ? (
-        <section className="bg-white">
-          <div className="w-full">
-            <div className="relative aspect-[16/9] sm:aspect-[21/8] min-h-[220px] sm:min-h-[450px] overflow-hidden animate-shimmer">
-              {/* Main Banner Loading Skeleton */}
-            </div>
+        <section className="home-hero-shell">
+          <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
+            <div className="home-hero-frame animate-shimmer" />
           </div>
         </section>
       ) : bannerEvent ? (
-        <section className="bg-white">
-          <div className="w-full relative group">
-            <Link href={usingDemo ? '#' : `/events/${bannerEvent.slug}`} className="block relative aspect-[16/9] sm:aspect-[21/8] min-h-[220px] sm:min-h-[450px] overflow-hidden bg-black">
-              <AnimatePresence initial={false}>
-                <motion.img
-                  key={bannerEvent.id}
-                  src={getImageUrl(bannerEvent.bannerImageUrl || bannerEvent.imageUrl) || '/demo/concert.png'}
-                  alt={bannerEvent.title}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1.2, ease: "easeInOut" }}
-                  className="absolute inset-0 w-full h-full object-cover block"
-                  style={{ objectPosition: bannerEvent.bannerPosition || 'center' }}
-                  loading="eager"
-                  fetchPriority="high"
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/demo/concert.png'; }}
-                />
-              </AnimatePresence>
-            </Link>
+        <section className="home-hero-shell">
+          <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
+            <div className="home-hero-frame group">
+              <Link href={usingDemo ? '#' : `/events/${bannerEvent.slug}`} className="absolute inset-0 block overflow-hidden bg-blue-950">
+                <AnimatePresence initial={false}>
+                  <motion.img
+                    key={bannerEvent.id}
+                    src={getImageUrl(bannerEvent.bannerImageUrl || bannerEvent.imageUrl) || '/demo/concert.png'}
+                    alt={bannerEvent.title}
+                    initial={{ opacity: 0, scale: 1.02 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 1.2, ease: 'easeInOut' }}
+                    className="absolute inset-0 w-full h-full object-cover block transition-transform duration-[1600ms] group-hover:scale-[1.025]"
+                    style={{ objectPosition: bannerEvent.bannerPosition || 'center' }}
+                    loading="eager"
+                    fetchPriority="high"
+                    onError={(e) => { (e.target as HTMLImageElement).src = '/demo/concert.png'; }}
+                  />
+                </AnimatePresence>
+                <span className="home-hero-overlay" />
+              </Link>
 
-            {/* Navigation Arrows (Passline Style: No circle, always visible) */}
-            {bannerEvents.length > 1 && (
-              <>
-                <button 
-                  onClick={(e) => { e.preventDefault(); prevBanner(); }}
-                  className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 w-12 h-20 flex items-center justify-center text-white/70 hover:text-white active:scale-90 active:opacity-50 transition-all z-10"
-                  aria-label="Previous event"
-                >
-                  <svg className="w-8 h-8 sm:w-10 sm:h-10 drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button 
-                  onClick={(e) => { e.preventDefault(); nextBanner(); }}
-                  className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 w-12 h-20 flex items-center justify-center text-white/70 hover:text-white active:scale-90 active:opacity-50 transition-all z-10"
-                  aria-label="Next event"
-                >
-                  <svg className="w-8 h-8 sm:w-10 sm:h-10 drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </>
-            )}
+              <div className="relative z-10 flex h-full items-end">
+                <div className="home-hero-content">
+                  <div className="mb-4 inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/12 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/90 backdrop-blur-md">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary-400 shadow-[0_0_14px_rgba(249,115,22,0.9)]" />
+                    {lang === 'es' ? 'Evento destacado' : 'Featured event'}
+                  </div>
+                  <h1 className="max-w-4xl text-4xl font-black leading-[0.98] tracking-normal text-white sm:text-6xl lg:text-7xl">
+                    {bannerEvent.title}
+                  </h1>
+                  <div className="mt-5 flex flex-wrap items-center gap-3 text-sm font-semibold text-white/90">
+                    <span className="inline-flex items-center gap-2 rounded-lg bg-white/12 px-3 py-2 backdrop-blur-md">
+                      <HiOutlineCalendar className="h-4 w-4" />
+                      {format(new Date(bannerEvent.eventDate), lang === 'es' ? 'd MMM yyyy' : 'MMM d, yyyy', { locale: dateLocale })}
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-lg bg-white/12 px-3 py-2 backdrop-blur-md">
+                      <HiOutlineLocationMarker className="h-4 w-4" />
+                      {bannerEvent.venueName}
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-lg bg-white/12 px-3 py-2 backdrop-blur-md">
+                      {lang === 'es' ? 'Desde' : 'From'} {Number(bannerEvent.minPrice || 0).toFixed(2)} {bannerEvent.currency || 'USD'}
+                    </span>
+                  </div>
+                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                    <Link href={usingDemo ? '#' : `/events/${bannerEvent.slug}`} className="inline-flex h-11 items-center justify-center rounded-lg bg-primary-500 px-6 text-xs font-black uppercase tracking-[0.12em] text-white shadow-[0_16px_35px_rgba(249,115,22,0.28)] transition-all hover:bg-primary-600 hover:-translate-y-0.5">
+                      {lang === 'es' ? 'Ver tickets' : 'View tickets'}
+                    </Link>
+                    <Link href="/events" className="inline-flex h-11 items-center justify-center rounded-lg border border-white/24 bg-white/10 px-5 text-xs font-black uppercase tracking-[0.12em] text-white backdrop-blur-md transition-all hover:bg-white/16">
+                      {lang === 'es' ? 'Explorar eventos' : 'Explore events'}
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {bannerEvents.length > 1 && (
+                <>
+                  <button onClick={(e) => { e.preventDefault(); prevBanner(); }} className="home-hero-arrow left-3 sm:left-5" aria-label="Previous event">
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 19l-7-7 7-7" /></svg>
+                  </button>
+                  <button onClick={(e) => { e.preventDefault(); nextBanner(); }} className="home-hero-arrow right-3 sm:right-5" aria-label="Next event">
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </section>
-      ) : null}
-
-      {/* Main Bar: Search + Categories + Sort */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 bg-white p-3 rounded-2xl border border-gray-200 shadow-sm">
-          
-          {/* Search (Pill style) */}
-          <form onSubmit={handleSearch} className="relative flex items-center bg-white rounded-xl border border-gray-300 w-full lg:w-[450px] shrink-0 transition-all focus-within:border-primary-400 focus-within:shadow-md">
-            <div className="pl-4 text-gray-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+      ) : (
+        <section className="home-hero-shell">
+          <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
+            <div className="home-empty-hero">
+              <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-primary-600">LPTicket</p>
+              <h1 className="max-w-3xl text-4xl font-black leading-tight text-blue-900 sm:text-6xl">
+                {lang === 'es' ? 'Descubre tu próximo evento.' : 'Discover your next event.'}
+              </h1>
+              <p className="mt-4 max-w-2xl text-base font-medium text-gray-500">
+                {lang === 'es' ? 'Una experiencia elegante para encontrar, reservar y vivir eventos memorables.' : 'An elegant experience to find, reserve, and enjoy memorable events.'}
+              </p>
             </div>
-            <input 
-              type="text"
-              placeholder={lang === 'es' ? 'Buscar eventos...' : 'Search events...'}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 py-3 px-3 text-gray-700 focus:outline-none text-sm bg-transparent"
-            />
+          </div>
+        </section>
+      )}
+
+      <section className="relative z-20 -mt-8 mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8">
+        <div className="home-discovery-panel">
+          <form onSubmit={handleSearch} className="grid gap-3 lg:grid-cols-[1.35fr_0.85fr_auto]">
+            <label className="home-search-field">
+              <span>{lang === 'es' ? 'Buscar evento' : 'Search event'}</span>
+              <div>
+                <HiOutlineSearch className="h-5 w-5 text-blue-700/70" />
+                <input type="text" placeholder={lang === 'es' ? 'Conciertos, teatro, talleres...' : 'Concerts, theater, workshops...'} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              </div>
+            </label>
+
+            <label className="home-search-field">
+              <span>{lang === 'es' ? 'Lugar' : 'Place'}</span>
+              <div>
+                <HiOutlineLocationMarker className="h-5 w-5 text-blue-700/70" />
+                <input type="text" placeholder={lang === 'es' ? 'Ciudad o venue' : 'City or venue'} value={locationQuery} onChange={(e) => setLocationQuery(e.target.value)} />
+              </div>
+            </label>
+
+            <button type="submit" className="inline-flex h-full min-h-[58px] items-center justify-center rounded-lg bg-blue-800 px-7 text-xs font-black uppercase tracking-[0.14em] text-white shadow-[0_16px_28px_rgba(10,55,90,0.18)] transition-all hover:bg-blue-700 hover:-translate-y-0.5">
+              {lang === 'es' ? 'Buscar' : 'Search'}
+            </button>
           </form>
 
-          {/* Categories (Scrollable Slider with chevrons) */}
-          <div className="flex-1 flex items-center gap-1.5 relative overflow-hidden group/cats px-1">
-            {/* Left Button */}
-            <button
-              type="button"
-              onClick={() => scrollCategories('left')}
-              className="p-1.5 rounded-full bg-white border border-gray-200 text-gray-400 hover:text-primary-500 hover:border-primary-300 shadow-sm transition-all hover:scale-110 active:scale-95 shrink-0"
-              aria-label="Scroll Left"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-
-            {/* Scrollable Container */}
-            <div 
-              ref={categoriesRef}
-              className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1 scroll-smooth"
-            >
-              <button
-                onClick={() => setActiveCategory('')}
-                className={`category-pill whitespace-nowrap !py-2.5 ${activeCategory === '' ? 'active' : ''}`}
-              >
-                {t('catAll')}
+          <div className="mt-4 flex flex-col gap-3 border-t border-blue-900/10 pt-4 lg:flex-row lg:items-center">
+            <div className="flex items-center gap-1.5 relative overflow-hidden group/cats lg:flex-1">
+              <button type="button" onClick={() => scrollCategories('left')} className="home-scroll-button" aria-label="Scroll Left">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
               </button>
-              {displayCategories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setActiveCategory(activeCategory === cat.slug ? '' : cat.slug)}
-                  className={`category-pill whitespace-nowrap !py-2.5 ${activeCategory === cat.slug ? 'active' : ''}`}
-                >
-                  {lang === 'en' ? cat.labelEn : cat.labelEs}
+
+              <div ref={categoriesRef} className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1 scroll-smooth">
+                <button onClick={() => setActiveCategory('')} className={`category-pill whitespace-nowrap ${activeCategory === '' ? 'active' : ''}`}>
+                  {t('catAll')}
                 </button>
-              ))}
+                {categories.map((cat) => (
+                  <button key={cat.id} onClick={() => setActiveCategory(activeCategory === cat.slug ? '' : cat.slug)} className={`category-pill whitespace-nowrap ${activeCategory === cat.slug ? 'active' : ''}`}>
+                    {lang === 'en' ? cat.labelEn : cat.labelEs}
+                  </button>
+                ))}
+              </div>
+
+              <button type="button" onClick={() => scrollCategories('right')} className="home-scroll-button" aria-label="Scroll Right">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+              </button>
             </div>
 
-            {/* Right Button */}
-            <button
-              type="button"
-              onClick={() => scrollCategories('right')}
-              className="p-1.5 rounded-full bg-white border border-gray-200 text-gray-400 hover:text-primary-500 hover:border-primary-300 shadow-sm transition-all hover:scale-110 active:scale-95 shrink-0"
-              aria-label="Scroll Right"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Sort (Desktop/Mobile) */}
-          <div className="relative shrink-0 w-full lg:w-auto">
-            <button 
-              onClick={() => setSortOpen(!sortOpen)}
-              className="w-full lg:w-auto bg-primary-500 hover:bg-primary-600 text-white font-black text-[10px] py-3 px-5 flex items-center justify-center lg:justify-between gap-2 rounded-xl transition-all shadow-sm tracking-widest uppercase"
-            >
-              {t('sortBy')}
-              <span className="text-[8px] opacity-70">▼</span>
-            </button>
-            {sortOpen && (
-              <div className="absolute right-0 top-full mt-2 w-full lg:w-44 bg-white border border-gray-100 rounded-2xl shadow-elevated overflow-hidden z-[60] animate-fade-in-up">
-                <div className="px-4 py-2 border-b border-gray-50 bg-gray-50/50">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{lang === 'es' ? 'Ordenar por' : 'Sort by'}</span>
+            <div className="relative shrink-0 w-full lg:w-auto">
+              <button onClick={() => setSortOpen(!sortOpen)} className="home-sort-button">
+                {t('sortBy')}
+                <span className="text-[8px] opacity-70">▼</span>
+              </button>
+              {sortOpen && (
+                <div className="absolute right-0 top-full mt-2 w-full lg:w-44 bg-white border border-gray-100 rounded-2xl shadow-elevated overflow-hidden z-[60] animate-fade-in-up">
+                  <div className="px-4 py-2 border-b border-gray-50 bg-gray-50/50">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{lang === 'es' ? 'Ordenar por' : 'Sort by'}</span>
+                  </div>
+                  <button onClick={() => { setSortBy('fecha'); setSortOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'fecha' ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}>
+                    📅 {t('date')}
+                  </button>
+                  <button onClick={() => { setSortBy('precio'); setSortOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'precio' ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}>
+                    💰 {t('price')}
+                  </button>
                 </div>
-                <button
-                  onClick={() => { setSortBy('fecha'); setSortOpen(false); }}
-                  className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'fecha' ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}
-                >
-                  📅 {t('date')}
-                </button>
-                <button
-                  onClick={() => { setSortBy('precio'); setSortOpen(false); }}
-                  className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'precio' ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}
-                >
-                  💰 {t('price')}
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </section>
 
+      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-14 mt-14">
+        <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{lang === 'es' ? 'Agenda curada' : 'Curated agenda'}</p>
+            <h2 className="mt-2 text-3xl font-black text-blue-950 sm:text-4xl">{lang === 'es' ? 'Eventos para vivir ahora' : 'Events to experience now'}</h2>
+          </div>
+          <p className="text-sm font-semibold text-gray-500">{sortedEvents.length} {lang === 'es' ? 'eventos disponibles' : 'available events'}</p>
+        </div>
 
-
-      {/* Events Grid — 4 columns (1 on mobile for larger cards) */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-12 mt-12">
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5">
             {[...Array(8)].map((_, i) => (
@@ -299,14 +308,12 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-        ) : filteredEvents.length > 0 ? (
+        ) : sortedEvents.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5">
-            {filteredEvents.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
+            {sortedEvents.map((event) => <EventCard key={event.id} event={event} />)}
           </div>
         ) : (
-          <div className="text-center py-20 border border-gray-200 rounded-lg">
+          <div className="text-center py-20 border border-gray-200 rounded-lg bg-white/80">
             <HiOutlineTicket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="font-bold text-xl text-gray-600 mb-2">{t('noEventsCategory')}</h3>
           </div>
