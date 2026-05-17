@@ -96,13 +96,20 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     const pasted: Partial<VenueSection> = JSON.parse(JSON.stringify(sec));
     pasted.id = `temp-${Date.now()}`;
     
-    const match = pasted.name?.match(/\((Copy|Copia)\s*(\d*)\)$/i);
+    const copyWord = lang === 'es' ? 'Copia' : 'Copy';
+    const regex = new RegExp(`\\s+${copyWord}\\s+(\\d+)$`, 'i');
+    const match = pasted.name?.match(regex);
+    
     if (match) {
-      const num = match[2] ? parseInt(match[2]) + 1 : 2;
-      const word = match[1];
-      pasted.name = pasted.name?.replace(/\((Copy|Copia)\s*\d*\)$/i, `(${word} ${num})`);
+      const nextNum = parseInt(match[1], 10) + 1;
+      pasted.name = pasted.name?.replace(regex, ` ${copyWord} ${nextNum}`);
     } else {
-      pasted.name = `${pasted.name} ${lang === 'es' ? '(Copia)' : '(Copy)'}`;
+      const bareRegex = new RegExp(`\\s+${copyWord}$`, 'i');
+      if (pasted.name && bareRegex.test(pasted.name)) {
+        pasted.name = pasted.name.replace(bareRegex, ` ${copyWord} 1`);
+      } else {
+        pasted.name = `${pasted.name} ${copyWord} 1`;
+      }
     }
 
     pasted.mapX = (pasted.mapX || 0) + 30;
