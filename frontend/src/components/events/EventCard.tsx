@@ -101,7 +101,7 @@ export default function EventCard({ event }: EventCardProps) {
               </span>
             </div>
 
-            <span className="inline-flex h-10 w-24 items-center justify-center rounded-lg bg-primary-500 text-[10px] font-black uppercase tracking-[0.1em] text-white transition-all group-hover:bg-primary-600">
+            <span className="inline-flex h-8 w-14 items-center justify-center rounded-lg bg-primary-500 text-[10px] font-black uppercase tracking-[0.1em] text-white transition-all group-hover:bg-primary-600">
               Tickets
             </span>
           </div>
@@ -114,7 +114,7 @@ export default function EventCard({ event }: EventCardProps) {
           eventPath={`/events/${event.slug}`}
           label={lang === 'es' ? 'Comparte con tus amigos' : 'Share with friends'}
           compact
-          className="shrink-0 !h-10 !w-24 !rounded-lg !border-blue-800 !bg-blue-800 !text-white !shadow-none hover:!bg-blue-700"
+          className="shrink-0 !h-8 !w-14 !rounded-lg !border-blue-800 !bg-blue-800 !text-white !shadow-none hover:!bg-blue-700"
         />
       </div>
     </div>
