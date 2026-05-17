@@ -6,6 +6,7 @@ import { Event } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineTag } from 'react-icons/hi';
+
 import { getImageUrl } from '@/lib/api';
 
 interface EventCardProps {
@@ -60,7 +61,6 @@ export default function EventCard({ event }: EventCardProps) {
         </div>
 
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-blue-950/82 via-blue-950/18 to-transparent" />
-
         <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-white/92 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-blue-900 shadow-sm backdrop-blur-md">
           <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
           {catLabel}
@@ -80,9 +80,7 @@ export default function EventCard({ event }: EventCardProps) {
 
         <div className="flex items-center gap-1.5 text-sm font-semibold text-blue-700">
           <HiOutlineCalendar className="h-4 w-4 shrink-0" />
-          <span>
-            {eventDay} {lang === 'es' ? 'a las' : 'at'} {eventTime}
-          </span>
+          <span>{eventDay} {lang === 'es' ? 'a las' : 'at'} {eventTime}</span>
         </div>
 
         <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-500">
@@ -97,6 +95,7 @@ export default function EventCard({ event }: EventCardProps) {
               {lang === 'es' ? 'Desde' : 'From'} {Number(event.minPrice || 0).toFixed(2)} {event.currency || 'USD'}
             </span>
           </div>
+
           <span className="rounded-lg bg-primary-500 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-white transition-all group-hover:bg-primary-600">
             Tickets
           </span>
