@@ -19,15 +19,25 @@ export default function Footer() {
             />
           </Link>
 
-          <div className="flex items-center gap-4">
-            <a href="#" className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white/10 hover:border-white transition-all">
-              <FaWhatsapp className="w-5 h-5" />
-            </a>
-            <a href="#" className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white/10 hover:border-white transition-all">
-              <FaInstagram className="w-5 h-5" />
-            </a>
-          </div>
-        </div>
+        <div className="flex items-center gap-4">
+  <a
+    href="https://wa.me/18323790809"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white/10 hover:border-white transition-all"
+  >
+    <FaWhatsapp className="w-5 h-5" />
+  </a>
+
+  <a
+    href="https://www.instagram.com/lpticket"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white hover:bg-white/10 hover:border-white transition-all"
+  >
+    <FaInstagram className="w-5 h-5" />
+  </a>
+</div>
 
         {/* Middle Section: Links Grid (4 Columns as in Passline) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-12 gap-y-12 mb-12">
