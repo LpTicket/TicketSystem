@@ -14,6 +14,7 @@ import {
   HiOutlineX,
   HiOutlineArrowLeft,
   HiOutlineCamera,
+  HiOutlineDuplicate,
 } from 'react-icons/hi';
 import { FaWheelchair } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -50,7 +51,77 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [hasMoved, setHasMoved] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [showStage, setShowStage] = useState(event?.showStage ?? false);
+  const [copiedSection, setCopiedSection] = useState<Partial<VenueSection> | null>(null);
   const templatesRef = useRef<HTMLDivElement>(null);
+
+  const handleDuplicateSelected = useCallback((sec: Partial<VenueSection>) => {
+    const pasted: Partial<VenueSection> = JSON.parse(JSON.stringify(sec));
+    pasted.id = `temp-${Date.now()}`;
+    
+    const match = pasted.name?.match(/\((Copy|Copia)\s*(\d*)\)$/i);
+    if (match) {
+      const num = match[2] ? parseInt(match[2]) + 1 : 2;
+      const word = match[1];
+      pasted.name = pasted.name?.replace(/\((Copy|Copia)\s*\d*\)$/i, `(${word} ${num})`);
+    } else {
+      pasted.name = `${pasted.name} ${lang === 'es' ? '(Copia)' : '(Copy)'}`;
+    }
+
+    pasted.mapX = (pasted.mapX || 0) + 30;
+    pasted.mapY = (pasted.mapY || 0) + 30;
+    
+    if (pasted.seats) {
+      delete pasted.seats;
+    }
+
+    setSections(prev => [...prev, pasted]);
+    setSelectedId(pasted.id);
+    toast.success(lang === 'es' ? 'Sección duplicada' : 'Section duplicated');
+  }, [lang]);
+
+  // Global Keyboard shortcuts for Ctrl+C, Ctrl+V, Backspace/Delete
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'SELECT' ||
+        document.activeElement?.tagName === 'TEXTAREA'
+      ) {
+        return;
+      }
+
+      // Ctrl+C or Cmd+C
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        if (selectedId) {
+          e.preventDefault();
+          const toCopy = sections.find(s => s.id === selectedId);
+          if (toCopy) {
+            setCopiedSection(JSON.parse(JSON.stringify(toCopy)));
+            toast.success(lang === 'es' ? 'Copia guardada en portapapeles local' : 'Copy saved to local clipboard');
+          }
+        }
+      }
+
+      // Ctrl+V or Cmd+V
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        if (copiedSection) {
+          e.preventDefault();
+          handleDuplicateSelected(copiedSection);
+        }
+      }
+
+      // Backspace or Delete
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedId && !selectedSeat) {
+          e.preventDefault();
+          setShowConfirm(true);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedId, sections, copiedSection, lang, selectedSeat, handleDuplicateSelected]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -882,6 +953,17 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             <svg className="w-5 h-5 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="6"/></svg>
             <span className="text-[9px] font-medium leading-none">{lang === 'es' ? 'Asiento' : 'Seat'}</span>
           </button>
+          
+          {copiedSection && (
+            <button 
+              onClick={() => handleDuplicateSelected(copiedSection)}
+              className="w-full aspect-square rounded flex flex-col items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-50 transition-colors group border border-green-200 bg-green-50/30 shadow-sm"
+              title={lang === 'es' ? 'Pegar sección copiada (Ctrl+V)' : 'Paste copied section (Ctrl+V)'}
+            >
+              <HiOutlineDuplicate className="w-5 h-5 mb-1" />
+              <span className="text-[9px] font-bold leading-none">{lang === 'es' ? 'Pegar' : 'Paste'}</span>
+            </button>
+          )}
 
           {/* Mobile-only action buttons */}
           <div className="lg:hidden w-full space-y-4 pt-4 border-t border-gray-200">
@@ -920,13 +1002,22 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   <h3 className="font-bold text-gray-800 text-[13px] uppercase tracking-wide">{lang === 'es' ? 'Inspector de Objeto' : 'Object Inspector'}</h3>
                 </div>
               </div>
-              <button 
-                onClick={handleDeleteSelected} 
-                className="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 hover:text-red-700 rounded transition-colors"
-                title="Eliminar"
-              >
-                <HiOutlineTrash className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => handleDuplicateSelected(selectedSection)} 
+                  className="w-8 h-8 flex items-center justify-center text-blue-500 hover:bg-blue-50 hover:text-blue-700 rounded transition-colors"
+                  title={lang === 'es' ? 'Duplicar sección (Ctrl+C / Ctrl+V)' : 'Duplicate section (Ctrl+C / Ctrl+V)'}
+                >
+                  <HiOutlineDuplicate className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={handleDeleteSelected} 
+                  className="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 hover:text-red-700 rounded transition-colors"
+                  title="Eliminar"
+                >
+                  <HiOutlineTrash className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             
             {/* Selected Seat Inspector Overlay */}
