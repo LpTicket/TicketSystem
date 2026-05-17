@@ -953,3 +953,37 @@ html {
   opacity: 1;
   transform: scale(1);
 }
+
+/* Orange active dot for selected home category */
+.category-pill {
+  position: relative !important;
+  isolation: isolate !important;
+}
+
+.category-pill::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 0.5rem !important;
+  right: 0.5rem !important;
+  width: 0.35rem !important;
+  height: 0.35rem !important;
+  border-radius: 999px !important;
+  background: #f97316 !important;
+  box-shadow: 0 0 0 3px rgba(249,115,22,.12), 0 0 9px rgba(249,115,22,.45) !important;
+  opacity: 0 !important;
+  transform: scale(.75) !important;
+  transition: opacity .22s ease, transform .22s ease !important;
+}
+
+.category-pill:hover::after {
+  opacity: 0 !important;
+}
+
+.category-pill.active {
+  padding-right: 1.25rem !important;
+}
+
+.category-pill.active::after {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
