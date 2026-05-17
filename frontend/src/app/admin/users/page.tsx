@@ -211,7 +211,8 @@ export default function AdminUsersPage() {
   });
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+    <>
+      <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
       <div>
         <h1 className="font-bold text-2xl text-gray-900">{t('adminUserManagement')}</h1>
         <p className="text-sm text-gray-500 mt-1">{lang === 'es' ? 'Administra los usuarios de la plataforma' : 'Manage platform users'}</p>
@@ -438,6 +439,8 @@ export default function AdminUsersPage() {
           <p className="text-gray-600 font-medium">{t('adminNoUsers')}</p>
         </div>
       )}
+      </div>
+
       {/* Selected User Detail Centered Modal */}
       {selectedUser && (
         <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
@@ -851,6 +854,6 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
