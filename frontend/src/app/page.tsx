@@ -288,7 +288,7 @@ export default function HomePage() {
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-14 mt-14">
         <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{lang === 'es' ? 'Agenda curada' : 'Curated agenda'}</p>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{lang === 'es' ? 'Agenda' : 'agenda'}</p>
             <h2 className="mt-2 text-3xl font-black text-blue-950 sm:text-4xl">{lang === 'es' ? 'Eventos para vivir ahora' : 'Events to experience now'}</h2>
           </div>
           <p className="text-sm font-semibold text-gray-500">{sortedEvents.length} {lang === 'es' ? 'eventos disponibles' : 'available events'}</p>
