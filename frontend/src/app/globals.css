@@ -1215,3 +1215,26 @@ html {
       linear-gradient(180deg, rgba(5, 24, 44, 0.05) 0%, rgba(5, 24, 44, 0.24) 62%, rgba(5, 24, 44, 0.88) 100%);
   }
 }
+
+
+@media (max-width: 639px) {
+  .home-hero-content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    padding: 0 1rem 1rem;
+  }
+
+  .home-hero-actions {
+    width: 100%;
+    margin-top: 0;
+    justify-content: center;
+  }
+
+  .home-hero-actions a {
+    flex: 1 1 0;
+    max-width: 11rem;
+  }
+}

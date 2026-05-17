@@ -154,7 +154,7 @@ export default function HomePage() {
                 <span className="home-hero-overlay" />
               </Link>
 
-              <div className="relative z-10 flex h-full items-end">
+              <div className="absolute inset-0 z-10 flex items-end">
                 <div className="home-hero-content">
                   <div className="mb-4 hidden items-center gap-2 rounded-lg border border-white/20 bg-white/12 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/90 backdrop-blur-md sm:inline-flex">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary-400 shadow-[0_0_14px_rgba(249,115,22,0.9)]" />
@@ -176,7 +176,7 @@ export default function HomePage() {
                       {lang === 'es' ? 'Desde' : 'From'} {Number(bannerEvent.minPrice || 0).toFixed(2)} {bannerEvent.currency || 'USD'}
                     </span>
                   </div>
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <div className="home-hero-actions mt-6 flex flex-wrap items-center gap-3">
                     <Link href={usingDemo ? '#' : `/events/${bannerEvent.slug}`} className="inline-flex h-11 items-center justify-center rounded-lg bg-primary-500 px-6 text-xs font-black uppercase tracking-[0.12em] text-white shadow-[0_16px_35px_rgba(249,115,22,0.28)] transition-all hover:bg-primary-600 hover:-translate-y-0.5">
                       {lang === 'es' ? 'Ver tickets' : 'View tickets'}
                     </Link>
