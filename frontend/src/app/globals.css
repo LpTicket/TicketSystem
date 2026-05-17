@@ -819,3 +819,57 @@ html {
   white-space: nowrap !important;
   text-overflow: ellipsis !important;
 }
+
+/* Corporate modern navigation */
+.premium-nav-link {
+  width: 6.875rem !important;
+  height: 2rem !important;
+  border-radius: 0.5rem !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: #155e96 !important;
+  font-size: 0.765rem !important;
+  font-weight: 800 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  transition: color .22s ease, background-color .22s ease, border-color .22s ease, box-shadow .22s ease !important;
+}
+
+.premium-nav-link::before {
+  background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(239,246,255,.72)) !important;
+  border: none !important;
+  opacity: 0 !important;
+  transform: none !important;
+}
+
+.premium-nav-link:hover,
+.premium-nav-link:focus-visible,
+.premium-nav-link.active {
+  color: #0a375a !important;
+  border-color: rgba(15,74,120,.14) !important;
+  box-shadow: 0 8px 18px rgba(15,74,120,.07) !important;
+}
+
+.premium-nav-link:hover::before,
+.premium-nav-link:focus-visible::before,
+.premium-nav-link.active::before {
+  opacity: 1 !important;
+}
+
+.premium-nav-link::after {
+  top: .42rem !important;
+  right: .48rem !important;
+  width: .34rem !important;
+  height: .34rem !important;
+  background: #0f4a78 !important;
+  box-shadow: 0 0 0 3px rgba(15,74,120,.1), 0 0 9px rgba(15,74,120,.35) !important;
+}
+
+.premium-nav-link:hover::after {
+  opacity: 0 !important;
+}
+
+.premium-nav-link.active::after {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
