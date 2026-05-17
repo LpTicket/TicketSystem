@@ -17,6 +17,7 @@ import {
 import SeatMapInteractive from '@/components/events/SeatMapInteractive';
 import ReservationTimer from '@/components/events/ReservationTimer';
 import InvoiceBreakdown, { InvoiceData } from '@/components/events/InvoiceBreakdown';
+import ShareEventButton from '@/components/events/ShareEventButton';
 
 /**
  * Steps for the checkout wizard.
@@ -394,7 +395,15 @@ export default function PurchasePage() {
         <div className="lg:col-span-2 space-y-4">
           {/* Event Header Information */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <h1 className="font-bold text-lg text-gray-900 leading-tight">{event.title}</h1>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <h1 className="font-bold text-lg text-gray-900 leading-tight">{event.title}</h1>
+              <ShareEventButton
+                eventTitle={event.title}
+                eventPath={`/events/${event.slug}`}
+                label={lang === 'es' ? 'Comparte con tus amigos' : 'Share with friends'}
+                className="w-full sm:w-auto"
+              />
+            </div>
             <div className="flex flex-wrap gap-4 mt-2 text-sm text-blue-600">
               <span className="flex items-center gap-1.5">
                 <HiOutlineLocationMarker className="w-4 h-4" />

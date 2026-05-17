@@ -6,6 +6,7 @@ import { Event } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineTag } from 'react-icons/hi';
+import ShareEventButton from '@/components/events/ShareEventButton';
 
 import { getImageUrl } from '@/lib/api';
 
@@ -32,7 +33,8 @@ export default function EventCard({ event }: EventCardProps) {
   const eventTime = eventDate.toLocaleTimeString(eventLocale, { hour: '2-digit', minute: '2-digit', hour12: true });
 
   return (
-    <Link href={`/events/${event.slug}`} className="event-signature-card group block">
+    <div className="event-signature-card group relative">
+      <Link href={`/events/${event.slug}`} className="block">
       <div className="relative aspect-[3/4] overflow-hidden bg-blue-950">
         {event.imageUrl && !imageLoaded && (
           <div className="absolute inset-0 z-10 h-full w-full animate-shimmer" />
@@ -101,6 +103,15 @@ export default function EventCard({ event }: EventCardProps) {
           </span>
         </div>
       </div>
-    </Link>
+      </Link>
+
+      <ShareEventButton
+        eventTitle={event.title}
+        eventPath={`/events/${event.slug}`}
+        label={lang === 'es' ? 'Comparte con tus amigos' : 'Share with friends'}
+        compact
+        className="absolute bottom-3 right-3 z-20"
+      />
+    </div>
   );
 }

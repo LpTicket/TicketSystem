@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineClock } from 'react-icons/hi';
 import SeatMapInteractive from '@/components/events/SeatMapInteractive';
+import ShareEventButton from '@/components/events/ShareEventButton';
 import { useLang } from '@/context/LanguageContext';
 
 import { getImageUrl } from '@/lib/api';
@@ -217,6 +218,12 @@ export default function EventDetailPage() {
           <div>
             <span className="category-pill text-xs mb-3 inline-block">{categoryInfo.icon} {categoryInfo.labelEs}</span>
             <h1 className="font-bold text-2xl sm:text-3xl text-gray-900">{event.title}</h1>
+            <ShareEventButton
+              eventTitle={event.title}
+              eventPath={`/events/${event.slug}`}
+              label={lang === 'es' ? 'Comparte con tus amigos' : 'Share with friends'}
+              className="mt-4"
+            />
           </div>
 
           {/* Quick info */}
