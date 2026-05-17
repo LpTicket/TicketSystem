@@ -725,3 +725,83 @@ html {
   background: radial-gradient(circle at calc(100% - .7rem) .65rem, #fb923c 0 .18rem, transparent .2rem), linear-gradient(135deg, rgba(26,115,181,.14), rgba(34,211,238,.1), rgba(249,115,22,.08)), rgba(239,246,255,.94) !important;
   box-shadow: 0 10px 24px rgba(15,74,120,.1);
 }
+
+
+/* Premium hover refinements */
+.premium-logo::before,
+.premium-logo::after {
+  display: none !important;
+}
+
+.premium-logo {
+  border-radius: 0 !important;
+  filter: none !important;
+}
+
+.premium-nav-link {
+  border-radius: 0.5rem !important;
+}
+
+.premium-nav-link::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 0.45rem !important;
+  right: 0.5rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: 0.4rem !important;
+  height: 0.4rem !important;
+  border-radius: 999px !important;
+  background: #f97316 !important;
+  box-shadow: 0 0 0 3px rgba(249,115,22,.14), 0 0 10px rgba(249,115,22,.5) !important;
+  opacity: 0 !important;
+  transform: scale(.75) !important;
+}
+
+.premium-nav-link:hover::after {
+  opacity: 0 !important;
+}
+
+.premium-nav-link.active::after {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
+
+.premium-nav-link.active {
+  background-image: none !important;
+}
+
+.category-pill {
+  border-radius: 0.5rem !important;
+}
+
+.category-pill::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 0.5rem !important;
+  right: 0.5rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: 0.35rem !important;
+  height: 0.35rem !important;
+  border-radius: 999px !important;
+  background: #f97316 !important;
+  box-shadow: 0 0 0 3px rgba(249,115,22,.12), 0 0 9px rgba(249,115,22,.45) !important;
+  opacity: 0 !important;
+  transform: scale(.75) !important;
+}
+
+.category-pill:hover::after {
+  opacity: 0 !important;
+}
+
+.category-pill.active::after {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
+
+.category-pill.active {
+  background:
+    linear-gradient(135deg, rgba(26,115,181,.14), rgba(34,211,238,.1), rgba(249,115,22,.08)),
+    rgba(239,246,255,.94) !important;
+}
