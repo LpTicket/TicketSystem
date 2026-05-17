@@ -5,11 +5,8 @@ import Link from 'next/link';
 import { Event } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { useLang } from '@/context/LanguageContext';
-import { format } from 'date-fns';
-import { es, enUS } from 'date-fns/locale';
 import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineTag } from 'react-icons/hi';
 import ShareEventButton from '@/components/events/ShareEventButton';
-
 import { getImageUrl } from '@/lib/api';
 
 interface EventCardProps {
@@ -18,7 +15,7 @@ interface EventCardProps {
 
 export default function EventCard({ event }: EventCardProps) {
   const { getCategoryInfo } = useCategories();
-  const { lang, t } = useLang();
+  const { lang } = useLang();
   const [imageLoaded, setImageLoaded] = useState(false);
 
   const categoryInfo = getCategoryInfo(event.category) || {
@@ -30,11 +27,14 @@ export default function EventCard({ event }: EventCardProps) {
 
   const catLabel = lang === 'en' ? categoryInfo.labelEn : categoryInfo.labelEs;
   const eventDate = new Date(event.eventDate);
-  const dateLocale = lang === 'en' ? enUS : es;
+  const eventLocale = lang === 'es' ? 'es' : 'en-US';
+  const eventDay = eventDate.toLocaleDateString(eventLocale, { day: '2-digit', month: '2-digit' });
+  const eventTime = eventDate.toLocaleTimeString(eventLocale, { hour: '2-digit', minute: '2-digit', hour12: true });
+  const eventHref = `/events/${event.slug}`;
 
   return (
-    <div className="event-signature-card group relative">
-      <Link href={`/events/${event.slug}`} className="block">
+    <article className="event-signature-card group">
+      <Link href={eventHref} className="block">
         <div className="relative aspect-[3/4] overflow-hidden bg-blue-950">
           {event.imageUrl && !imageLoaded && (
             <div className="absolute inset-0 z-10 h-full w-full animate-shimmer" />
@@ -76,54 +76,53 @@ export default function EventCard({ event }: EventCardProps) {
           )}
         </div>
 
-        <div className="space-y-3 p-4">
+        <div className="space-y-3 p-4 pb-3">
           <h3 className="line-clamp-2 min-h-[3rem] text-base font-black leading-tight text-blue-950">
             {event.title}
           </h3>
 
           <div className="flex items-center gap-1.5 text-sm font-semibold text-blue-700">
             <HiOutlineCalendar className="h-4 w-4 shrink-0" />
-            <span>
-              {format(eventDate, "dd/MM", { locale: dateLocale })} {t('atTime')} {format(eventDate, "hh:mm a")}
-            </span>
+            <span>{eventDay} {lang === 'es' ? 'a las' : 'at'} {eventTime}</span>
           </div>
 
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
-              <HiOutlineLocationMarker className="h-4 w-4 shrink-0 text-primary-500" />
-              <span className="truncate">{event.venueName}</span>
-            </div>
-            {event.venueAddress && (
-              <p className="text-xs text-gray-500 pl-5 truncate font-medium">
-                {event.venueAddress}
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-            <div className="flex items-center gap-1.5 text-blue-900">
-              <HiOutlineTag className="h-4 w-4 shrink-0 text-primary-500" />
-              <span className="text-sm font-black">
-                {t('fromPrice')} {Number(event.minPrice || 0).toFixed(2)} {event.currency || 'USD'}
-              </span>
-            </div>
-
-            <span className="inline-flex h-8 px-3 items-center justify-center rounded-lg bg-primary-500 text-[10px] font-black uppercase tracking-[0.1em] text-white transition-all group-hover:bg-primary-600">
-              {t('buyTickets')}
+          <div className="flex min-w-0 items-start gap-1.5 text-sm font-semibold text-gray-500">
+            <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0" />
+            <span className="min-w-0">
+              <span className="block truncate">{event.venueName}</span>
+              {event.venueAddress && (
+                <span className="block truncate text-xs font-semibold text-gray-400">{event.venueAddress}</span>
+              )}
             </span>
           </div>
         </div>
       </Link>
 
-      <div className="absolute right-4 bottom-[6.15rem] z-20">
-        <ShareEventButton
-          eventTitle={event.title}
-          eventPath={`/events/${event.slug}`}
-          label={lang === 'es' ? 'Comparte con tus amigos' : 'Share with friends'}
-          compact
-          className="shrink-0 !h-8 !w-[4.6rem] !rounded-lg !border-blue-800 !bg-blue-800 !text-white !shadow-none hover:!bg-blue-700"
-        />
+      <div className="mx-4 flex flex-col gap-3 border-t border-gray-100 pb-4 pt-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-1.5 text-blue-900">
+          <HiOutlineTag className="h-4 w-4 shrink-0 text-primary-500" />
+          <span className="text-sm font-black leading-tight">
+            {lang === 'es' ? 'Desde' : 'From'} {Number(event.minPrice || 0).toFixed(2)} {event.currency || 'USD'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <ShareEventButton
+            eventTitle={event.title}
+            eventPath={eventHref}
+            label={lang === 'es' ? 'Comparte con tus amigos' : 'Share with friends'}
+            compact
+            className="!h-10 !w-10 !rounded-lg !border-blue-800 !bg-blue-800 !text-white !shadow-none hover:!bg-blue-700"
+          />
+
+          <Link
+            href={eventHref}
+            className="inline-flex h-10 min-w-[7.75rem] flex-1 items-center justify-center rounded-lg bg-primary-500 px-4 text-[10px] font-black uppercase tracking-[0.1em] text-white transition-all hover:bg-primary-600 sm:flex-none"
+          >
+            {lang === 'es' ? 'Comprar tickets' : 'Buy tickets'}
+          </Link>
+        </div>
       </div>
-    </div>
+    </article>
   );
 }
