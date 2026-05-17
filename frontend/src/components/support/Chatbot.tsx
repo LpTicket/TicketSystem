@@ -11,6 +11,7 @@ import {
   HiOutlineUser
 } from 'react-icons/hi2';
 import { HiOutlineSupport } from 'react-icons/hi';
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -130,12 +131,36 @@ export default function Chatbot() {
                   }`}>
                     {m.role === 'user' ? <HiOutlineUser className="w-4 h-4" /> : <HiOutlineSparkles className="w-4 h-4" />}
                   </div>
-                  <div className={`p-3 rounded-2xl text-xs sm:text-sm shadow-sm whitespace-pre-wrap ${
+                  <div className={`p-3 rounded-2xl text-xs sm:text-sm shadow-sm ${
                     m.role === 'user' 
-                      ? 'bg-primary-600 text-white rounded-tr-none' 
+                      ? 'bg-primary-600 text-white rounded-tr-none whitespace-pre-wrap' 
                       : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
                   }`}>
-                    {m.content}
+                    {m.role === 'assistant' ? (
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed break-words">{children}</p>,
+                          strong: ({ children }) => <strong className="font-extrabold text-gray-900">{children}</strong>,
+                          ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
+                          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                          a: ({ href, children }) => (
+                            <a 
+                              href={href} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-blue-600 hover:text-blue-800 hover:underline font-semibold break-all"
+                            >
+                              {children}
+                            </a>
+                          ),
+                        }}
+                      >
+                        {m.content}
+                      </ReactMarkdown>
+                    ) : (
+                      m.content
+                    )}
                   </div>
                 </div>
               </div>
