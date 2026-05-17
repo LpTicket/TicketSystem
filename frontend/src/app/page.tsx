@@ -154,7 +154,7 @@ export default function HomePage() {
                 <span className="home-hero-overlay" />
               </Link>
 
-              <div className="absolute inset-0 z-10 flex items-end">
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-end">
                 <div className="home-hero-content">
                   <div className="mb-4 hidden items-center gap-2 rounded-lg border border-white/20 bg-white/12 px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/90 backdrop-blur-md sm:inline-flex">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary-400 shadow-[0_0_14px_rgba(249,115,22,0.9)]" />
