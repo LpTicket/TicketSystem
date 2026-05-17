@@ -15,6 +15,7 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
+backend/certs/
 
 # Bases de datos y logs
 *.sqlite

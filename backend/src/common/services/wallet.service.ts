@@ -114,10 +114,11 @@ export class WalletService {
     const issuerId   = this.configService.get<string>('GOOGLE_WALLET_ISSUER_ID');
     const saPath     = this.configService.get<string>('GOOGLE_WALLET_SERVICE_ACCOUNT');
     const classId    = this.configService.get<string>('GOOGLE_WALLET_CLASS_ID');
+    const saJsonEnv  = this.configService.get<string>('GOOGLE_WALLET_SERVICE_ACCOUNT_JSON');
 
     // Graceful degradation — credentials not configured yet
-    if (!issuerId || !saPath || !existsSync(saPath)) {
-      console.warn('[WalletService] Google Wallet credentials not configured. Set GOOGLE_WALLET_ISSUER_ID, GOOGLE_WALLET_SERVICE_ACCOUNT and GOOGLE_WALLET_CLASS_ID.');
+    if (!issuerId || (!saJsonEnv && (!saPath || !existsSync(saPath)))) {
+      console.warn('[WalletService] Google Wallet credentials not configured. Set GOOGLE_WALLET_ISSUER_ID, GOOGLE_WALLET_SERVICE_ACCOUNT or GOOGLE_WALLET_SERVICE_ACCOUNT_JSON.');
       throw new Error('Google Wallet not configured');
     }
 
@@ -125,7 +126,12 @@ export class WalletService {
       const { GoogleAuth } = require('google-auth-library');
       const jwt = require('jsonwebtoken');
 
-      const serviceAccount = JSON.parse(readFileSync(saPath, 'utf8'));
+      let serviceAccount;
+      if (saJsonEnv) {
+        serviceAccount = JSON.parse(saJsonEnv);
+      } else {
+        serviceAccount = JSON.parse(readFileSync(saPath, 'utf8'));
+      }
       const appUrl = (this.configService.get<string>('APP_URL') || 'https://lpticket.com').replace(/\/$/, '');
 
       const objectId = `${issuerId}.${ticket.ticketCode}`;
@@ -149,7 +155,7 @@ export class WalletService {
           defaultValue: { language: 'es', value: ticket.event?.title || 'LPTicket Event' },
         },
         logo: {
-          sourceUri: { uri: `${appUrl}/images/logo_wallet.png` },
+          sourceUri: { uri: `${appUrl}/logo.png` },
         },
         seatInfo: ticket.rowLabel ? {
           seat:    { defaultValue: { language: 'es', value: String(ticket.seatNumber || '') } },
