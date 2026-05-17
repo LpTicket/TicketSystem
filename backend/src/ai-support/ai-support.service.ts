@@ -71,26 +71,44 @@ export class AiSupportService implements OnModuleInit {
     }
 
     try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: this.systemPrompt },
-          ...messages
-        ],
-        temperature: 0.7,
-        max_tokens: 500,
+      // Use the newly published OpenAI managed Prompt version 1
+      const response = await (this.openai as any).responses.create({
+        prompt: {
+          id: 'pmpt_6a09f0196fb08193924d13ec1625b77f03192ec2a5d502da',
+          version: '1'
+        },
+        input: messages
       });
 
       return {
-        content: response.choices[0].message.content,
+        content: response.output_text,
         error: false
       };
     } catch (err) {
-      this.logger.error('Error calling OpenAI:', err);
-      return {
-        content: 'Lo siento, hubo un error al procesar tu solicitud. Por favor intenta de nuevo más tarde.',
-        error: true
-      };
+      this.logger.warn('Error calling OpenAI Responses API, falling back to Chat Completions:', err);
+      try {
+        // Fallback to local instruction prompt in case of API endpoint issues or version mismatches
+        const fallbackResponse = await this.openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: this.systemPrompt || 'You are a helpful support assistant for LPTicket.com.' },
+            ...messages
+          ],
+          temperature: 0.7,
+          max_tokens: 500,
+        });
+
+        return {
+          content: fallbackResponse.choices[0].message.content,
+          error: false
+        };
+      } catch (fallbackErr) {
+        this.logger.error('Fallback OpenAI Chat Completions failed:', fallbackErr);
+        return {
+          content: 'Lo siento, hubo un error al procesar tu solicitud. Por favor intenta de nuevo más tarde.',
+          error: true
+        };
+      }
     }
   }
 }
