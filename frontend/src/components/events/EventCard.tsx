@@ -98,7 +98,7 @@ export default function EventCard({ event }: EventCardProps) {
         </div>
       </Link>
 
-      <div className="mx-4 flex flex-col gap-3 border-t border-gray-100 pb-4 pt-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-4 flex flex-col gap-3 border-t border-gray-100 pb-4 pt-3">
         <div className="flex min-w-0 items-center gap-1.5 text-blue-900">
           <HiOutlineTag className="h-4 w-4 shrink-0 text-primary-500" />
           <span className="text-sm font-black leading-tight">
@@ -106,18 +106,18 @@ export default function EventCard({ event }: EventCardProps) {
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-3">
           <ShareEventButton
             eventTitle={event.title}
             eventPath={eventHref}
             label={lang === 'es' ? 'Comparte con tus amigos' : 'Share with friends'}
             compact
-            className="!h-10 !w-10 !rounded-lg !border-blue-800 !bg-blue-800 !text-white !shadow-none hover:!bg-blue-700"
+            className="!h-12 !w-12 !rounded-lg !border-blue-800 !bg-blue-800 !text-white !shadow-none hover:!bg-blue-700"
           />
 
           <Link
             href={eventHref}
-            className="inline-flex h-10 min-w-[7.75rem] flex-1 items-center justify-center rounded-lg bg-primary-500 px-4 text-[10px] font-black uppercase tracking-[0.1em] text-white transition-all hover:bg-primary-600 sm:flex-none"
+            className="inline-flex h-12 flex-1 items-center justify-center rounded-lg bg-primary-500 px-4 text-[11px] font-black uppercase tracking-[0.12em] text-white transition-all hover:bg-primary-600"
           >
             {lang === 'es' ? 'Comprar tickets' : 'Buy tickets'}
           </Link>
