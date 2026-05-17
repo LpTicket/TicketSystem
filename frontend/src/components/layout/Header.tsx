@@ -152,11 +152,11 @@ export default function Header() {
           
           {/* Left: Brand Logo */}
           <div className="flex items-center shrink-0 mr-8">
-            <Link href="/" className="flex shrink-0">
+            <Link href="/" className="premium-logo group flex shrink-0" aria-label="LPTicket home">
               <img 
                 src="/logo.png" 
                 alt="LPTicket" 
-                className="h-10 md:h-14 w-auto object-contain transition-all" 
+                className="relative z-10 h-10 md:h-14 w-auto object-contain transition-all duration-300 group-hover:scale-[1.035] group-active:scale-[0.98]" 
               />
             </Link>
           </div>
@@ -169,20 +169,9 @@ export default function Header() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`group relative ${item.width} h-10 inline-flex items-center justify-center rounded-xl overflow-hidden font-black text-[13px] transition-all duration-300 whitespace-nowrap tracking-tight ${
-                    active
-                      ? 'text-blue-700 bg-blue-50 shadow-sm shadow-blue-500/10'
-                      : 'text-blue-600 hover:text-blue-800 hover:bg-blue-50/70 hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-500/10'
-                  }`}
+                  className={`premium-nav-link ${item.width} ${active ? 'active' : ''}`}
                 >
-                  <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(circle_at_50%_0%,rgba(37,99,235,0.16),transparent_55%)]" />
-                  <span className="relative z-10">{item.label}</span>
-                  <span
-                    className={`absolute bottom-1.5 left-1/2 h-[3px] -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-500 via-cyan-400 to-orange-400 transition-all duration-300 ${
-                      active ? 'w-8 opacity-100' : 'w-0 opacity-0 group-hover:w-8 group-hover:opacity-100'
-                    }`}
-                  />
-                  {active && <span className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full bg-orange-400 shadow-[0_0_10px_rgba(251,146,60,0.8)]" />}
+                  {item.label}
                 </Link>
               );
             })}
