@@ -114,7 +114,7 @@ export default function EventCard({ event }: EventCardProps) {
           eventPath={`/events/${event.slug}`}
           label={lang === 'es' ? 'Comparte con tus amigos' : 'Share with friends'}
           compact
-          className="!h-9 !w-9 !rounded-md !bg-primary-50 !text-blue-900 !shadow-none"
+          className="shrink-0 !h-[3.25rem] !w-[4.75rem] !rounded-lg !border-blue-800 !bg-blue-800 !text-white !shadow-none hover:!bg-blue-700"
         />
       </div>
     </div>
