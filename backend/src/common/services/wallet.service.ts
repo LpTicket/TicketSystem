@@ -129,8 +129,10 @@ export class WalletService {
       let serviceAccount;
       if (saJsonEnv) {
         serviceAccount = JSON.parse(saJsonEnv);
-      } else {
+      } else if (saPath) {
         serviceAccount = JSON.parse(readFileSync(saPath, 'utf8'));
+      } else {
+        throw new Error('Google Wallet service account file path is not configured');
       }
       const appUrl = (this.configService.get<string>('APP_URL') || 'https://lpticket.com').replace(/\/$/, '');
 
