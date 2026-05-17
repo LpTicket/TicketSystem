@@ -81,7 +81,7 @@ export default function EventCard({ event }: EventCardProps) {
         <div className="flex items-center gap-1.5 text-sm font-semibold text-blue-700">
           <HiOutlineCalendar className="h-4 w-4 shrink-0" />
           <span>
-            {format(eventDate, 'dd/MM', { locale: es })} a las {format(eventDate, 'hh:mm a')}
+            {eventDay} {lang === 'es' ? 'a las' : 'at'} {eventTime}
           </span>
         </div>
 
