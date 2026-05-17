@@ -1293,3 +1293,11 @@ html {
 .home-hero-overlay {
   background: linear-gradient(180deg, rgba(5, 24, 44, 0.02) 0%, rgba(5, 24, 44, 0.12) 100%) !important;
 }
+
+/* Match sort label text with search field labels */
+.home-sort-button {
+  font-size: 0.64rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+}
