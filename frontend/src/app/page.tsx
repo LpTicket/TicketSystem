@@ -137,14 +137,28 @@ export default function HomePage() {
               <Link href={usingDemo ? '#' : `/events/${bannerEvent.slug}`} className="absolute inset-0 z-[5] block overflow-hidden bg-blue-950" aria-label={bannerEvent.title}>
                 <AnimatePresence initial={false}>
                   <motion.img
-                    key={bannerEvent.id}
+                    key={`${bannerEvent.id}-mobile`}
+                    src={getImageUrl(bannerEvent.imageUrl) || '/demo/concert.png'}
+                    alt={bannerEvent.title}
+                    initial={{ opacity: 0, scale: 1.02 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 1.2, ease: 'easeInOut' }}
+                    className="absolute inset-0 block h-full w-full object-cover transition-transform duration-[1600ms] group-hover:scale-[1.025] sm:hidden"
+                    style={{ objectPosition: bannerEvent.bannerPosition || 'center' }}
+                    loading="eager"
+                    fetchPriority="high"
+                    onError={(e) => { (e.target as HTMLImageElement).src = '/demo/concert.png'; }}
+                  />
+                  <motion.img
+                    key={`${bannerEvent.id}-desktop`}
                     src={getImageUrl(bannerEvent.bannerImageUrl || bannerEvent.imageUrl) || '/demo/concert.png'}
                     alt={bannerEvent.title}
                     initial={{ opacity: 0, scale: 1.02 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 1.2, ease: 'easeInOut' }}
-                    className="absolute inset-0 w-full h-full object-cover block transition-transform duration-[1600ms] group-hover:scale-[1.025]"
+                    className="absolute inset-0 hidden h-full w-full object-cover transition-transform duration-[1600ms] group-hover:scale-[1.025] sm:block"
                     style={{ objectPosition: bannerEvent.bannerPosition || 'center' }}
                     loading="eager"
                     fetchPriority="high"
@@ -270,7 +284,7 @@ export default function HomePage() {
               {sortOpen && (
                 <div className="absolute right-0 top-full mt-2 w-full lg:w-44 bg-white border border-gray-100 rounded-2xl shadow-elevated overflow-hidden z-[60] animate-fade-in-up">
                   <div className="px-4 py-2 border-b border-gray-50 bg-gray-50/50">
-                    <span className="text-[13px] font-bold text-gray-400 uppercase tracking-tighter">{lang === 'es' ? 'Ordenar por' : 'Sort by'}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{lang === 'es' ? 'Ordenar por' : 'Sort by'}</span>
                   </div>
                   <button onClick={() => { setSortBy('fecha'); setSortOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'fecha' ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}>
                     📅 {t('date')}
