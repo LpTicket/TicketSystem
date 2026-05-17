@@ -46,8 +46,10 @@ export default function HomePage() {
 
     try {
       const response = await api.get('/events?limit=16').catch(() => null);
-      if (response?.data?.events?.length > 0) {
-        setAllEvents(response.data.events);
+      const events = response?.data?.events;
+
+      if (Array.isArray(events) && events.length > 0) {
+        setAllEvents(events);
         setUsingDemo(false);
       } else {
         setAllEvents(DEMO_EVENTS);
