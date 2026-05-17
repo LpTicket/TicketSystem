@@ -54,12 +54,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   ): Promise<any> {
     const { name, emails, photos } = profile;
     
-    // Normalize user data for the AuthService to process (create or find user)
+    // Normalize user data with defensive fallbacks for missing google profile details
     const user = {
-      email: emails[0].value,
-      firstName: name.givenName,
-      lastName: name.familyName,
-      picture: photos[0].value,
+      email: emails && emails[0] ? emails[0].value : '',
+      firstName: (name && name.givenName) ? name.givenName : (profile.displayName || 'Usuario'),
+      lastName: (name && name.familyName) ? name.familyName : '',
+      picture: (photos && photos[0]) ? photos[0].value : null,
       accessToken,
     };
     

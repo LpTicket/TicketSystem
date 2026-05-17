@@ -69,7 +69,11 @@ export class AuthController {
       return res.status(302).redirect(redirectUrl);
     } catch (error) {
       console.error('Error in Google Redirect:', error);
-      const frontendUrl = this.configService.get('APP_URL') || 'https://ticketsystem-jzgf.onrender.com';
+      const frontendUrl = 
+        this.configService.get('FRONTEND_URL') || 
+        this.configService.get('APP_URL') || 
+        'https://ticketsystem-jzgf.onrender.com';
+      return res.status(302).redirect(`${frontendUrl}/login?error=auth_failed`);
     }
   }
 
