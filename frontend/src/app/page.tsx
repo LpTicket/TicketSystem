@@ -270,7 +270,7 @@ export default function HomePage() {
               {sortOpen && (
                 <div className="absolute right-0 top-full mt-2 w-full lg:w-44 bg-white border border-gray-100 rounded-2xl shadow-elevated overflow-hidden z-[60] animate-fade-in-up">
                   <div className="px-4 py-2 border-b border-gray-50 bg-gray-50/50">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{lang === 'es' ? 'Ordenar por' : 'Sort by'}</span>
+                    <span className="text-[13px] font-bold text-gray-400 uppercase tracking-tighter">{lang === 'es' ? 'Ordenar por' : 'Sort by'}</span>
                   </div>
                   <button onClick={() => { setSortBy('fecha'); setSortOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'fecha' ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}>
                     📅 {t('date')}
