@@ -873,3 +873,16 @@ html {
   opacity: 1 !important;
   transform: scale(1) !important;
 }
+
+/* Compact corporate nav with orange active dot */
+.premium-nav-link {
+  width: auto !important;
+  min-width: 4.75rem !important;
+  height: 2rem !important;
+  padding: 0 0.78rem !important;
+}
+
+.premium-nav-link::after {
+  background: #f97316 !important;
+  box-shadow: 0 0 0 3px rgba(249,115,22,.14), 0 0 9px rgba(249,115,22,.45) !important;
+}
