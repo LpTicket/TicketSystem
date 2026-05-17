@@ -46,6 +46,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [dismissWelcome, setDismissWelcome] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [customViewport, setCustomViewport] = useState<{ x: number; y: number; scale: number } | null>(null);
   const [hasMoved, setHasMoved] = useState(false);
@@ -53,6 +54,43 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [showStage, setShowStage] = useState(event?.showStage ?? false);
   const [copiedSection, setCopiedSection] = useState<Partial<VenueSection> | null>(null);
   const templatesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (templatesRef.current && !templatesRef.current.contains(event.target as Node)) {
+        setTemplatesOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Pan & zoom state stored in refs so we don't re-render on every frame
+  const viewRef = useRef({ x: 0, y: 0, scale: 0.6 });
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+
+  // Pointer-based pan of the viewport
+  const panningRef = useRef(false);
+  const panStartRef = useRef({ mx: 0, my: 0, vx: 0, vy: 0 });
+
+  // Pointer-based drag/resize of a section
+  const draggingRef = useRef<{ id: string; type: 'move' | 'resize'; startMx: number; startMy: number; origX: number; origY: number; origW: number; origH: number } | null>(null);
+
+  // Dragging individual seat
+  const draggingSeatRef = useRef<{ 
+    secId: string; 
+    seatKey: string; 
+    startMx: number; 
+    startMy: number; 
+    origXOffset: number; 
+    origYOffset: number;
+    angleDeg?: number;
+    isTableSeat?: boolean;
+    tableAngle?: number;
+    isRectTable?: boolean;
+  } | null>(null);
+  const [selectedSeat, setSelectedSeat] = useState<{ secId: string; seatKey: string } | null>(null);
 
   const handleDuplicateSelected = useCallback((sec: Partial<VenueSection>) => {
     const pasted: Partial<VenueSection> = JSON.parse(JSON.stringify(sec));
@@ -122,43 +160,6 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedId, sections, copiedSection, lang, selectedSeat, handleDuplicateSelected]);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (templatesRef.current && !templatesRef.current.contains(event.target as Node)) {
-        setTemplatesOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Pan & zoom state stored in refs so we don't re-render on every frame
-  const viewRef = useRef({ x: 0, y: 0, scale: 0.6 });
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const viewportRef = useRef<HTMLDivElement>(null);
-
-  // Pointer-based pan of the viewport
-  const panningRef = useRef(false);
-  const panStartRef = useRef({ mx: 0, my: 0, vx: 0, vy: 0 });
-
-  // Pointer-based drag/resize of a section
-  const draggingRef = useRef<{ id: string; type: 'move' | 'resize'; startMx: number; startMy: number; origX: number; origY: number; origW: number; origH: number } | null>(null);
-
-  // Dragging individual seat
-  const draggingSeatRef = useRef<{ 
-    secId: string; 
-    seatKey: string; 
-    startMx: number; 
-    startMy: number; 
-    origXOffset: number; 
-    origYOffset: number;
-    angleDeg?: number;
-    isTableSeat?: boolean;
-    tableAngle?: number;
-    isRectTable?: boolean;
-  } | null>(null);
-  const [selectedSeat, setSelectedSeat] = useState<{ secId: string; seatKey: string } | null>(null);
 
   // Multi-touch tracking
   const activePointersRef = useRef<Map<number, { x: number, y: number }>>(new Map());
@@ -697,7 +698,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     );
   };
 
-  const [showConfirm, setShowConfirm] = useState(false);
+
 
   const handleDeleteSelected = () => {
     setShowConfirm(true);
