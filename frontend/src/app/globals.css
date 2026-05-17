@@ -805,3 +805,17 @@ html {
     linear-gradient(135deg, rgba(26,115,181,.14), rgba(34,211,238,.1), rgba(249,115,22,.08)),
     rgba(239,246,255,.94) !important;
 }
+
+/* Match premium buttons to SCAN size */
+.premium-nav-link,
+.category-pill {
+  width: 6.875rem !important;
+  height: 2rem !important;
+  min-width: 6.875rem !important;
+  justify-content: center !important;
+  border-radius: 0.5rem !important;
+  padding: 0 0.75rem !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
