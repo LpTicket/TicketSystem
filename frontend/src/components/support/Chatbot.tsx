@@ -130,7 +130,7 @@ export default function Chatbot() {
                   }`}>
                     {m.role === 'user' ? <HiOutlineUser className="w-4 h-4" /> : <HiOutlineSparkles className="w-4 h-4" />}
                   </div>
-                  <div className={`p-3 rounded-2xl text-xs sm:text-sm shadow-sm ${
+                  <div className={`p-3 rounded-2xl text-xs sm:text-sm shadow-sm whitespace-pre-wrap ${
                     m.role === 'user' 
                       ? 'bg-primary-600 text-white rounded-tr-none' 
                       : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
