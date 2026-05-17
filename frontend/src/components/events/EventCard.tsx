@@ -29,6 +29,7 @@ export default function EventCard({ event }: EventCardProps) {
   const catLabel = lang === 'en' ? categoryInfo.labelEn : categoryInfo.labelEs;
   const eventDate = new Date(event.eventDate);
   const dateLocale = lang === 'es' ? es : enUS;
+  const dateLocale = lang === 'es' ? es : enUS;
 
   return (
     <Link href={`/events/${event.slug}`} className="event-signature-card group block">
