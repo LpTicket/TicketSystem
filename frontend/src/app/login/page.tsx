@@ -36,6 +36,10 @@ function LoginContent() {
     setError('');
     setLoading(true);
 
+    // Force showPassword to false so the input is typed as "password" during submission
+    // Otherwise, browsers refuse to save passwords from "text" type inputs
+    setShowPassword(false);
+
     // Save or clear email for "Remember Me"
     if (rememberMe) {
       localStorage.setItem('rememberedEmail', email);
@@ -45,7 +49,11 @@ function LoginContent() {
 
     try {
       await login(email, password);
-      router.push(redirect || '/');
+      // Introduce a tiny 150ms delay. This gives browser credential managers
+      // enough time to detect a successful form submit before Next.js changes the page state.
+      setTimeout(() => {
+        router.push(redirect || '/');
+      }, 150);
     } catch (err: any) {
       setError(err.response?.data?.message || t('loginError'));
     } finally { setLoading(false); }

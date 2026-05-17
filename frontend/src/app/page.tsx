@@ -121,15 +121,7 @@ export default function HomePage() {
   return (
     <div>
       {/* Banner */}
-      {loading ? (
-        <section className="bg-white">
-          <div className="w-full">
-            <div className="relative aspect-[16/9] sm:aspect-[21/8] min-h-[220px] sm:min-h-[400px] overflow-hidden animate-shimmer">
-              {/* Main Banner Skeleton */}
-            </div>
-          </div>
-        </section>
-      ) : bannerEvent ? (
+      {bannerEvent ? (
         <section className="bg-white">
           <div className="w-full relative group">
             <Link href={usingDemo ? '#' : `/events/${bannerEvent.slug}`} className="block relative aspect-[16/9] sm:aspect-[21/8] min-h-[220px] sm:min-h-[450px] overflow-hidden bg-black">
@@ -283,23 +275,7 @@ export default function HomePage() {
 
       {/* Events Grid — 4 columns (1 on mobile for larger cards) */}
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-12 mt-12">
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                <div className="aspect-[3/4] animate-shimmer" />
-                <div className="p-4 space-y-3">
-                  <div className="h-4 w-3/4 rounded-full animate-shimmer" />
-                  <div className="h-3 w-1/2 rounded-full animate-shimmer" />
-                  <div className="flex justify-between items-center pt-2">
-                    <div className="h-6 w-16 rounded-full animate-shimmer" />
-                    <div className="h-6 w-16 rounded-full animate-shimmer" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredEvents.length > 0 ? (
+        {filteredEvents.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5">
             {filteredEvents.map((event) => (
               <EventCard key={event.id} event={event} />

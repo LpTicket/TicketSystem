@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Event } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
@@ -17,6 +18,7 @@ interface EventCardProps {
 export default function EventCard({ event }: EventCardProps) {
   const { getCategoryInfo } = useCategories();
   const { lang } = useLang();
+  const [imageLoaded, setImageLoaded] = useState(false);
   
   const categoryInfo = getCategoryInfo(event.category) || {
     labelEs: 'Otro', labelEn: 'Other', icon: '🎫', color: '#6366f1'
@@ -27,13 +29,21 @@ export default function EventCard({ event }: EventCardProps) {
   return (
     <Link href={`/events/${event.slug}`} className="card group block">
       {/* Image — responsive aspect ratio */}
-      <div className="relative aspect-[3/4] overflow-hidden">
+      <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
+        
+        {/* Shimmer loading skeleton */}
+        {event.imageUrl && !imageLoaded && (
+          <div className="absolute inset-0 w-full h-full animate-shimmer z-10" />
+        )}
+
         {event.imageUrl ? (
           <img
             src={getImageUrl(event.imageUrl)}
             alt={event.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            onLoad={() => setImageLoaded(true)}
+            className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             onError={(e) => {
+              setImageLoaded(true);
               (e.target as HTMLImageElement).style.display = 'none';
               const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
               if (fallback) fallback.style.display = 'flex';
