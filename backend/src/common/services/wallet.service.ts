@@ -24,109 +24,75 @@ export class WalletService {
 
   // ── APPLE WALLET ────────────────────────────────────────────────────────────
   async generateApplePass(ticket: any): Promise<Buffer> {
-    const certPath = this.configService.get<string>('APPLE_PASS_CERT_PATH');
-    const keyPath  = this.configService.get<string>('APPLE_PASS_KEY_PATH');
-    const wwdrPath = this.configService.get<string>('APPLE_WWDR_CA_PATH');
+    const passTypeIdentifier = this.configService.get<string>('APPLE_PASS_TYPE_ID');
+    const teamIdentifier = this.configService.get<string>('APPLE_TEAM_ID');
+    const signerCert = this.readAppleCredential(['APPLE_PASS_CERT', 'APPLE_PASS_CERT_PEM'], 'APPLE_PASS_CERT_PATH');
+    const signerKey = this.readAppleCredential(['APPLE_PASS_KEY', 'APPLE_PASS_KEY_PEM'], 'APPLE_PASS_KEY_PATH');
+    const wwdr = this.readAppleCredential(['APPLE_WWDR_CA', 'APPLE_WWDR_CA_PEM'], 'APPLE_WWDR_CA_PATH');
 
-    const certPem = this.configService.get<string>('APPLE_PASS_CERT_PEM');
-    const keyPem  = this.configService.get<string>('APPLE_PASS_KEY_PEM');
-    const wwdrPem = this.configService.get<string>('APPLE_WWDR_CA_PEM');
-
-    const hasPemEnv = !!(certPem && keyPem && wwdrPem);
-    const hasFiles = !!(certPath && existsSync(certPath) && keyPath && existsSync(keyPath) && wwdrPath && existsSync(wwdrPath));
-
-    // Graceful degradation — credentials not configured yet
-    if (!hasPemEnv && !hasFiles) {
-      console.warn('[WalletService] Apple Wallet credentials not configured. Set APPLE_PASS_CERT_PATH, APPLE_PASS_KEY_PATH and APPLE_WWDR_CA_PATH, or their PEM equivalents.');
-      throw new Error('Apple Wallet not configured');
+    if (!passTypeIdentifier || !teamIdentifier || !signerCert || !signerKey || !wwdr) {
+      console.warn('[WalletService] Apple Wallet credentials not configured.');
+      throw new Error('Apple Wallet no está configurado. Faltan credenciales o certificados Apple Pass en el servidor.');
     }
 
     try {
       const { PKPass } = require('passkit-generator');
 
       const appUrl = (this.configService.get<string>('APP_URL') || 'https://lpticket.com').replace(/\/$/, '');
+      const eventDate = ticket.event?.eventDate ? new Date(ticket.event.eventDate) : null;
 
-      let wwdrBuffer: Buffer;
-      let certBuffer: Buffer;
-      let keyBuffer: Buffer;
+      const formattedDate = eventDate
+        ? eventDate.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })
+        : 'Por confirmar';
 
-      if (hasPemEnv) {
-        const normalizePem = (pem: string, type: 'CERTIFICATE' | 'PRIVATE KEY') => {
-          let clean = pem
-            .replace(/\\r/g, '')
-            .replace(/\\n/g, '\n')
-            .replace(/\r/g, '')
-            .trim();
+      const formattedTime = eventDate
+        ? eventDate.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+          })
+        : 'Por confirmar';
 
-          const header = `-----BEGIN ${type}-----`;
-          const footer = `-----END ${type}-----`;
+      const venueName = ticket.event?.venueName || 'LP Ticket';
+      const venueAddress = ticket.event?.venueAddress || venueName;
+      const verifyUrl = `${appUrl}/verify/${ticket.ticketCode}`;
 
-          let body = clean;
-          if (body.includes(header)) body = body.replace(header, '');
-          if (body.includes(footer)) body = body.replace(footer, '');
-          
-          body = body.replace(/\s+/g, '');
+      const barcodePayload = {
+        message: verifyUrl,
+        format: 'PKBarcodeFormatQR',
+        messageEncoding: 'iso-8859-1',
+        altText: ticket.ticketCode,
+      };
 
-          const lines: string[] = [];
-          lines.push(header);
-          for (let i = 0; i < body.length; i += 64) {
-            lines.push(body.substring(i, i + 64));
-          }
-          lines.push(footer);
-
-          return lines.join('\n');
-        };
-
-        wwdrBuffer = Buffer.from(normalizePem(wwdrPem, 'CERTIFICATE'), 'utf8');
-        certBuffer = Buffer.from(normalizePem(certPem, 'CERTIFICATE'), 'utf8');
-        keyBuffer = Buffer.from(normalizePem(keyPem, 'PRIVATE KEY'), 'utf8');
-      } else {
-        wwdrBuffer = readFileSync(wwdrPath!);
-        certBuffer = readFileSync(certPath!);
-        keyBuffer = readFileSync(keyPath!);
-      }
-
-      const passphrase = this.configService.get<string>('APPLE_PASS_KEY_PASS');
       const pass = new PKPass(
-        {},
         {
-          wwdr:              wwdrBuffer,
-          signerCert:        certBuffer,
-          signerKey:         keyBuffer,
-          ...(passphrase ? { signerKeyPassphrase: passphrase } : {}),
+          wwdr,
+          signerCert,
+          signerKey,
+          signerKeyPassphrase: this.configService.get<string>('APPLE_PASS_KEY_PASS') || '',
         },
         {
-          formatVersion:      1,
-          passTypeIdentifier: this.configService.get<string>('APPLE_PASS_TYPE_ID') || 'pass.com.lpticket.wallet',
-          teamIdentifier:     this.configService.get<string>('APPLE_TEAM_ID')       || 'YTL446KYZR',
-          organizationName:   'LPTicket',
-          serialNumber:       ticket.ticketCode,
-          description:        ticket.event?.title || 'LPTicket',
-          logoText:           'LPTicket',
-          foregroundColor:    'rgb(255,255,255)',
-          backgroundColor:    'rgb(239,68,68)',
-          labelColor:         'rgb(255,255,255)',
-          barcode: {
-            message:         `${appUrl}/verify/${ticket.ticketCode}`,
-            format:          'PKBarcodeFormatQR',
-            messageEncoding: 'iso-8859-1',
-          },
+          formatVersion: 1,
+          passTypeIdentifier,
+          teamIdentifier,
+          organizationName: 'LPTicket',
+          serialNumber: ticket.ticketCode,
+          description: ticket.event?.title || 'LPTicket',
+          logoText: 'LPTicket',
+          foregroundColor: 'rgb(255,255,255)',
+          backgroundColor: 'rgb(5,33,82)',
+          labelColor: 'rgb(255,138,38)',
+          barcode: barcodePayload,
+          barcodes: [barcodePayload],
         }
       );
 
-      // Load and add required assets (icon and logo)
-      const assetsDir = join(__dirname, '../../..', 'assets');
-      const iconPath = join(assetsDir, 'icon.png');
-      const icon2xPath = join(assetsDir, 'icon@2x.png');
-      const logoPath = join(assetsDir, 'logo.png');
-      const logo2xPath = join(assetsDir, 'logo@2x.png');
-
-      if (existsSync(iconPath)) pass.addBuffer('icon.png', readFileSync(iconPath));
-      if (existsSync(icon2xPath)) pass.addBuffer('icon@2x.png', readFileSync(icon2xPath));
-      if (existsSync(logoPath)) pass.addBuffer('logo.png', readFileSync(logoPath));
-      if (existsSync(logo2xPath)) pass.addBuffer('logo@2x.png', readFileSync(logo2xPath));
-
       pass.type = 'eventTicket';
+
       const walletAssetDir = join(__dirname, '../assets/apple-wallet');
       pass.addBuffer('icon.png', readFileSync(join(walletAssetDir, 'icon.png')));
       pass.addBuffer('icon@2x.png', readFileSync(join(walletAssetDir, 'icon@2x.png')));
@@ -134,41 +100,81 @@ export class WalletService {
       pass.addBuffer('logo@2x.png', readFileSync(join(walletAssetDir, 'logo@2x.png')));
 
       pass.primaryFields.push({
-        key:   'event',
+        key: 'event',
         label: 'EVENTO',
-        value: ticket.event?.title || '',
+        value: ticket.event?.title || 'LP Ticket Event',
       });
 
       pass.secondaryFields.push(
         {
-          key:   'section',
-          label: 'SECCIÓN',
-          value: ticket.sectionName || '',
+          key: 'date',
+          label: 'FECHA',
+          value: formattedDate,
         },
         {
-          key:          'date',
-          label:        'FECHA',
-          value:        ticket.event?.eventDate ? new Date(ticket.event.eventDate).toLocaleDateString('es-VE', { dateStyle: 'medium' }) : '',
-          dateStyle:    'PKDateStyleMedium',
-          timeStyle:    'PKDateStyleShort',
-          isRelative:   false,
+          key: 'time',
+          label: 'HORA',
+          value: formattedTime,
         },
       );
 
-      if (ticket.rowLabel) {
-        pass.auxiliaryFields.push(
-          { key: 'row',  label: 'FILA',    value: ticket.rowLabel },
-          { key: 'seat', label: 'ASIENTO', value: String(ticket.seatNumber || '') },
+      pass.auxiliaryFields.push(
+        {
+          key: 'section',
+          label: 'ZONA',
+          value: ticket.sectionName || 'General',
+        },
+        {
+          key: 'venue',
+          label: 'LUGAR',
+          value: venueName,
+        },
+      );
+
+      if (ticket.rowLabel || ticket.seatNumber) {
+        pass.headerFields.push(
+          {
+            key: 'row',
+            label: 'FILA',
+            value: ticket.rowLabel || '-',
+          },
+          {
+            key: 'seat',
+            label: 'ASIENTO',
+            value: String(ticket.seatNumber || '-'),
+          },
         );
       }
 
       pass.backFields.push(
-        { key: 'code',    label: 'Código',          value: ticket.ticketCode },
-        { key: 'terms',   label: 'Términos',         value: 'Este ticket es personal e intransferible. Preséntalo en la entrada del evento.' },
-        { key: 'support', label: 'Soporte',          value: appUrl },
+        {
+          key: 'ticketCode',
+          label: 'Código del ticket',
+          value: ticket.ticketCode,
+        },
+        {
+          key: 'eventDateTime',
+          label: 'Fecha y hora',
+          value: `${formattedDate} - ${formattedTime}`,
+        },
+        {
+          key: 'eventAddress',
+          label: 'Dirección',
+          value: venueAddress,
+        },
+        {
+          key: 'verifyUrl',
+          label: 'Verificación',
+          value: verifyUrl,
+        },
+        {
+          key: 'terms',
+          label: 'Términos',
+          value: 'Presenta este QR en la entrada del evento. Este ticket es personal y debe ser validado por LP Ticket.',
+        },
       );
 
-      return pass.getAsBuffer();
+      return await pass.export();
     } catch (err) {
       console.error('[WalletService] Error generating Apple pass:', err);
       throw err;
