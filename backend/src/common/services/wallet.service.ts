@@ -63,9 +63,13 @@ export class WalletService {
 
       const appUrl = (this.configService.get<string>('APP_URL') || 'https://lpticket.com').replace(/\/$/, '');
       const eventDate = ticket.event?.eventDate ? new Date(ticket.event.eventDate) : null;
+      const eventTime = ticket.event?.doorsOpen
+        ? new Date(ticket.event.doorsOpen)
+        : eventDate;
 
       const formattedDate = eventDate
         ? eventDate.toLocaleDateString('en-US', {
+            timeZone: 'America/Chicago',
             weekday: 'short',
             month: 'short',
             day: 'numeric',
@@ -73,8 +77,9 @@ export class WalletService {
           })
         : 'Por confirmar';
 
-      const formattedTime = eventDate
-        ? eventDate.toLocaleTimeString('en-US', {
+      const formattedTime = eventTime
+        ? eventTime.toLocaleTimeString('en-US', {
+            timeZone: 'America/Chicago',
             hour: 'numeric',
             minute: '2-digit',
           })
@@ -106,8 +111,8 @@ export class WalletService {
           serialNumber: ticket.ticketCode,
           description: ticket.event?.title || 'LPTicket',
           logoText: 'LPTicket',
-          foregroundColor: 'rgb(255,255,255)',
-          backgroundColor: 'rgb(5,33,82)',
+          foregroundColor: 'rgb(5,33,82)',
+          backgroundColor: 'rgb(255,255,255)',
           labelColor: 'rgb(255,138,38)',
           barcode: barcodePayload,
           barcodes: [barcodePayload],
@@ -122,6 +127,8 @@ export class WalletService {
       pass.addBuffer('icon@2x.png', readFileSync(join(walletAssetDir, 'icon@2x.png')));
       pass.addBuffer('logo.png', readFileSync(join(walletAssetDir, 'logo.png')));
       pass.addBuffer('logo@2x.png', readFileSync(join(walletAssetDir, 'logo@2x.png')));
+      pass.addBuffer('strip.png', readFileSync(join(walletAssetDir, 'strip.png')));
+      pass.addBuffer('strip@2x.png', readFileSync(join(walletAssetDir, 'strip@2x.png')));
 
       pass.primaryFields.push({
         key: 'event',
