@@ -1043,8 +1043,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                       <span className="text-[10px] font-bold text-[#1d4ed8] uppercase tracking-wider">{lang === 'es' ? 'Asiento Seleccionado' : 'Selected Seat'}</span>
                       <h4 className="text-[16px] font-black text-[#1e3a8a]">
                         {(() => {
-                          const row = seatOverride.rowLabel || seatKey.split('-')[0];
-                          const num = seatOverride.seatNumber !== undefined ? seatOverride.seatNumber : seatKey.split('-')[1];
+                          const row = ('rowLabel' in seatOverride ? (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) : undefined) || seatKey.split('-')[0];
+                          const num = ('seatNumber' in seatOverride && (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) !== undefined) ? (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) : seatKey.split('-')[1];
                           return `${row}-${num}`;
                         })()}
                       </h4>
@@ -1111,7 +1111,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                           <input 
                             type="text"
                             placeholder={seatKey.split('-')[0]}
-                            value={seatOverride.rowLabel || ''}
+                            value={String((('rowLabel' in seatOverride) ? seatOverride.rowLabel : '') || '')}
                             onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'rowLabel', e.target.value)}
                             className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none text-gray-800 font-semibold"
                           />
@@ -1123,7 +1123,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                           <input 
                             type="number"
                             placeholder={seatKey.split('-')[1]}
-                            value={seatOverride.seatNumber !== undefined && seatOverride.seatNumber !== null ? seatOverride.seatNumber : ''}
+                            value={String((('seatNumber' in seatOverride) ? seatOverride.seatNumber : '') || '')}
                             onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'seatNumber', e.target.value === '' ? undefined : +e.target.value)}
                             className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none text-gray-800 font-semibold"
                           />
@@ -1684,8 +1684,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                             {/* Seat label on hover */}
                             <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
                               {(() => {
-                                const row = seatOverride.rowLabel || rowLabel;
-                                const num = seatOverride.seatNumber !== undefined ? seatOverride.seatNumber : seatNumber;
+                                const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || rowLabel;
+                                const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) !== undefined ? (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) : seatNumber;
                                 return `${row}-${num}`;
                               })()}
                             </div>
@@ -1752,8 +1752,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               )}
                               <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
                                 {(() => {
-                                  const row = seatOverride.rowLabel || 'Mesa';
-                                  const num = seatOverride.seatNumber !== undefined ? seatOverride.seatNumber : seatNumber;
+                                  const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || 'Mesa';
+                                  const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) !== undefined ? (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) : seatNumber;
                                   return `${row}-${num}`;
                                 })()}
                               </div>
@@ -1835,8 +1835,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               )}
                               <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
                                 {(() => {
-                                  const row = seatOverride.rowLabel || 'Mesa';
-                                  const num = seatOverride.seatNumber !== undefined ? seatOverride.seatNumber : seatNumber;
+                                  const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || 'Mesa';
+                                  const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) !== undefined ? (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) : seatNumber;
                                   return `${row}-${num}`;
                                 })()}
                               </div>

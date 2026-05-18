@@ -3,14 +3,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLang } from '@/context/LanguageContext';
 import api from '@/lib/api';
-import { 
-  HiOutlineChatBubbleLeftRight, 
-  HiXMark, 
+import {
+  HiOutlineChatAlt2,
+  HiX,
   HiPaperAirplane,
   HiOutlineSparkles,
-  HiOutlineUser
-} from 'react-icons/hi2';
-import { HiOutlineSupport } from 'react-icons/hi';
+  HiOutlineUser,
+  HiOutlineSupport,
+} from 'react-icons/hi';
 import ReactMarkdown from 'react-markdown';
 
 interface Message {
@@ -85,10 +85,10 @@ export default function Chatbot() {
         className="w-14 h-14 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 hover:bg-blue-700 transition-all pointer-events-auto group relative"
       >
         {isOpen ? (
-          <HiXMark className="w-7 h-7" />
+          <HiX className="w-7 h-7" />
         ) : (
           <>
-            <HiOutlineChatBubbleLeftRight className="w-7 h-7" />
+            <HiOutlineChatAlt2 className="w-7 h-7" />
             <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-pulse" />
           </>
         )}
@@ -114,7 +114,7 @@ export default function Chatbot() {
               onClick={() => setIsOpen(false)}
               className="ml-auto p-1 hover:bg-white/10 rounded-lg transition-colors"
             >
-              <HiXMark className="w-5 h-5" />
+              <HiX className="w-5 h-5" />
             </button>
           </div>
 
