@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API_URL is always a string — never undefined
-const API_URL: string =
+export const API_URL: string =
   process.env.NEXT_PUBLIC_API_URL ||
   'http://localhost:3001/api';
 
