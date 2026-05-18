@@ -174,7 +174,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const initialPinchScaleRef = useRef<number>(1);
   const initialPinchMidpointRef = useRef<{ x: number, y: number } | null>(null);
 
-  const getSeatsConfig = (sec: Partial<VenueSection>): Record<string, { xOffset?: number; yOffset?: number; isWheelchair?: boolean; disabled?: boolean; reserved?: boolean; price?: number }> => {
+  const getSeatsConfig = (sec: Partial<VenueSection>): Record<string, { xOffset?: number; yOffset?: number; isWheelchair?: boolean; disabled?: boolean; reserved?: boolean; price?: number; rowLabel?: string; seatNumber?: number }> => {
     try {
       return sec.seatsConfig ? JSON.parse(sec.seatsConfig) : {};
     } catch (e) {
@@ -1423,6 +1423,23 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   </div>
                 )}
 
+                {/* Section Rotation */}
+                <div className="pt-1.5 pb-1">
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[12px] text-[#4b5563] font-medium">{lang === 'es' ? 'Rotación / Giro' : 'Rotation'}</label>
+                    <span className="text-[11px] text-gray-500 font-mono font-bold">{selectedSection.rotation || 0}°</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="360" 
+                    step="5"
+                    value={selectedSection.rotation || 0} 
+                    onChange={e => updateSelected('rotation', +e.target.value)} 
+                    className="w-full accent-[#1a73e8]" 
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-3 pt-2">
                   <div>
                     <label className="block text-[11px] font-semibold text-gray-600 mb-1.5">W (px)</label>
@@ -1564,6 +1581,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   top: sec.mapY ?? ((CANVAS_H / 2) - (sec.mapHeight || 100) / 2),
                   width: sec.mapWidth || 100,
                   height: sec.mapHeight || 100,
+                  transform: `rotate(${sec.rotation || 0}deg)`,
                   background: isStage ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' : (isStanding || isDecor ? sec.color : 'transparent'),
                   opacity: (isStanding || isDecor) ? 0.85 : 1,
                   border: isStage ? (isSelected ? '2.5px solid #60a5fa' : '2.5px solid #3b82f6') : (isDecor ? (isSelected ? '2.5px solid #1a73e8' : '1.5px solid #cbd5e1') : (isStanding ? `none` : isSelected ? `2px solid #1a73e8` : `1px solid transparent`)),

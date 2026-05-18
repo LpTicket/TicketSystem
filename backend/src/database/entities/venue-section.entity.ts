@@ -73,6 +73,9 @@ export class VenueSection {
   @Column({ type: 'float', default: 0 })
   curve: number;
 
+  @Column({ type: 'float', default: 0 })
+  rotation: number;
+
   @Column({ type: 'boolean', default: false })
   isWheelchair: boolean;
 

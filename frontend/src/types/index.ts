@@ -97,6 +97,7 @@ export interface VenueSection {
   mapWidth: number;
   mapHeight: number;
   curve?: number;
+  rotation?: number;
   isWheelchair?: boolean;
   tableShape?: 'round' | 'rectangular';
   tablePurchaseMode?: 'individual' | 'whole';

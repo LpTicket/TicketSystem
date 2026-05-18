@@ -500,6 +500,7 @@ export default function SeatMapInteractive({
                   top: section.mapY || 0,
                   width: section.mapWidth || 100,
                   height: section.mapHeight || 100,
+                  transform: `rotate(${section.rotation || 0}deg)`,
                   background: isStage 
                     ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)' 
                     : isStanding 
