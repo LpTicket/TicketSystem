@@ -749,6 +749,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           mapWidth: s.mapWidth ? parseFloat(Number(s.mapWidth).toFixed(2)) : 100,
           mapHeight: s.mapHeight ? parseFloat(Number(s.mapHeight).toFixed(2)) : 100,
           curve: Number(s.curve) || 0,
+          rotation: Number(s.rotation) || 0,
           isWheelchair: !!s.isWheelchair,
           tableShape: s.tableShape || 'round',
           tablePurchaseMode: s.tablePurchaseMode || 'individual',
@@ -1701,10 +1702,24 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                     {/* Table Surface */}
                     {tableShape === 'round' ? (
                       <>
-                        <div className="absolute rounded-full bg-[#f1f5f9] border shadow-inner flex items-center justify-center pointer-events-none" style={{
-                          width: '60%', height: '60%', borderColor: '#cbd5e1'
+                        <div className="absolute rounded-full bg-[#f8fafc] border border-slate-300 shadow-sm flex items-center justify-center pointer-events-none" style={{
+                          width: '60%', height: '60%'
                         }}>
-                          <span className="text-[10px] font-bold text-gray-400">TABLE</span>
+                          <span 
+                            className={`font-black uppercase tracking-tight text-center px-1 select-none leading-none ${
+                              (sec.name || '').length > 8 
+                                ? 'text-[7px] text-slate-400' 
+                                : (sec.name || '').length > 5 
+                                  ? 'text-[8px] text-slate-500' 
+                                  : 'text-[9.5px] text-slate-600'
+                            }`}
+                            style={{
+                              transform: `rotate(${-(sec.rotation || 0)}deg)`,
+                              display: 'inline-block'
+                            }}
+                          >
+                            {sec.name || ''}
+                          </span>
                         </div>
                         {/* Seats around the round table */}
                         {Array.from({ length: seatsCount }).map((_, i) => {
@@ -1763,10 +1778,24 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                       </>
                     ) : (
                       <>
-                        <div className="absolute rounded bg-[#f1f5f9] border shadow-inner flex items-center justify-center pointer-events-none" style={{
-                          width: '70%', height: '45%', borderColor: '#cbd5e1'
+                        <div className="absolute rounded bg-[#f8fafc] border border-slate-300 shadow-sm flex items-center justify-center pointer-events-none" style={{
+                          width: '70%', height: '45%'
                         }}>
-                          <span className="text-[10px] font-bold text-gray-400">TABLE</span>
+                          <span 
+                            className={`font-black uppercase tracking-tight text-center px-1 select-none leading-none ${
+                              (sec.name || '').length > 8 
+                                ? 'text-[7.5px] text-slate-400' 
+                                : (sec.name || '').length > 5 
+                                  ? 'text-[8.5px] text-slate-500' 
+                                  : 'text-[10px] text-slate-600'
+                            }`}
+                            style={{
+                              transform: `rotate(${-(sec.rotation || 0)}deg)`,
+                              display: 'inline-block'
+                            }}
+                          >
+                            {sec.name || ''}
+                          </span>
                         </div>
                         {/* Seats around the rectangular table */}
                         {Array.from({ length: seatsCount }).map((_, i) => {

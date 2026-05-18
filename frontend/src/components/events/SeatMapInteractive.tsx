@@ -600,6 +600,10 @@ export default function SeatMapInteractive({
                                     ? 'text-[8px] text-slate-500' 
                                     : 'text-[9.5px] text-slate-600'
                               }`}
+                              style={{
+                                transform: `rotate(${-(section.rotation || 0)}deg)`,
+                                display: 'inline-block'
+                              }}
                             >
                               {section.name}
                             </span>
@@ -685,6 +689,10 @@ export default function SeatMapInteractive({
                                     ? 'text-[8.5px] text-slate-500' 
                                     : 'text-[10px] text-slate-600'
                               }`}
+                              style={{
+                                transform: `rotate(${-(section.rotation || 0)}deg)`,
+                                display: 'inline-block'
+                              }}
                             >
                               {section.name}
                             </span>
