@@ -87,6 +87,10 @@ export class WalletService {
 
       const venueName = ticket.event?.venueName || 'LP Ticket';
       const venueAddress = ticket.event?.venueAddress || venueName;
+      const buyerName = [
+        ticket.user?.firstName,
+        ticket.user?.lastName,
+      ].filter(Boolean).join(' ').trim() || ticket.user?.username || ticket.user?.email || 'Asistente';
       const verifyUrl = `${appUrl}/verify/${ticket.ticketCode}`;
 
       const barcodePayload = {
@@ -131,9 +135,9 @@ export class WalletService {
       pass.addBuffer('strip@2x.png', readFileSync(join(walletAssetDir, 'strip@2x.png')));
 
       pass.primaryFields.push({
-        key: 'event',
-        label: 'EVENTO',
-        value: ticket.event?.title || 'LP Ticket Event',
+        key: 'buyer',
+        label: 'COMPRADOR',
+        value: buyerName,
       });
 
       pass.secondaryFields.push(
