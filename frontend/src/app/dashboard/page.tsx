@@ -114,7 +114,23 @@ function DashboardPageBody() {
       link.click();
       toast.success(lang === 'es' ? 'Boleto descargado para Apple Wallet' : 'Apple Wallet pass downloaded successfully', { id: loadingToast });
     } catch (err: any) {
-      toast.error(lang === 'es' ? 'El servidor no tiene configuradas las credenciales de Apple Pass todavía.' : 'Apple Pass credentials not configured on server yet.', { id: loadingToast });
+      let errorMsg = lang === 'es' 
+        ? 'El servidor no tiene configuradas las credenciales de Apple Pass todavía.' 
+        : 'Apple Pass credentials not configured on server yet.';
+
+      if (err.response?.data) {
+        try {
+          let rawData = err.response.data;
+          if (rawData instanceof Blob) {
+            const text = await rawData.text();
+            const parsed = JSON.parse(text);
+            if (parsed.message) errorMsg = parsed.message;
+          } else if (rawData.message) {
+            errorMsg = rawData.message;
+          }
+        } catch (_) {}
+      }
+      toast.error(errorMsg, { id: loadingToast });
     }
   };
 
