@@ -114,6 +114,18 @@ export class WalletService {
         }
       );
 
+      // Load and add required assets (icon and logo)
+      const assetsDir = join(__dirname, '../../..', 'assets');
+      const iconPath = join(assetsDir, 'icon.png');
+      const icon2xPath = join(assetsDir, 'icon@2x.png');
+      const logoPath = join(assetsDir, 'logo.png');
+      const logo2xPath = join(assetsDir, 'logo@2x.png');
+
+      if (existsSync(iconPath)) pass.addBuffer('icon.png', readFileSync(iconPath));
+      if (existsSync(icon2xPath)) pass.addBuffer('icon@2x.png', readFileSync(icon2xPath));
+      if (existsSync(logoPath)) pass.addBuffer('logo.png', readFileSync(logoPath));
+      if (existsSync(logo2xPath)) pass.addBuffer('logo@2x.png', readFileSync(logo2xPath));
+
       pass.type = 'eventTicket';
 
       pass.primaryFields.push({
