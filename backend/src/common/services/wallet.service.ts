@@ -75,7 +75,7 @@ export class WalletService {
             day: 'numeric',
             year: 'numeric',
           })
-        : 'Por confirmar';
+        : 'To be confirmed';
 
       const formattedTime = eventTime
         ? eventTime.toLocaleTimeString('en-US', {
@@ -83,14 +83,14 @@ export class WalletService {
             hour: 'numeric',
             minute: '2-digit',
           })
-        : 'Por confirmar';
+        : 'To be confirmed';
 
       const venueName = ticket.event?.venueName || 'LP Ticket';
       const venueAddress = ticket.event?.venueAddress || venueName;
       const buyerName = [
         ticket.user?.firstName,
         ticket.user?.lastName,
-      ].filter(Boolean).join(' ').trim() || ticket.user?.username || ticket.user?.email || 'Asistente';
+      ].filter(Boolean).join(' ').trim() || ticket.user?.username || ticket.user?.email || 'Guest';
       const verifyUrl = `${appUrl}/verify/${ticket.ticketCode}`;
 
       const barcodePayload = {
@@ -134,19 +134,19 @@ export class WalletService {
 
       pass.primaryFields.push({
         key: 'buyer',
-        label: 'COMPRADOR',
+        label: 'BUYER',
         value: buyerName,
       });
 
       pass.secondaryFields.push(
         {
           key: 'date',
-          label: 'FECHA',
+          label: 'DATE',
           value: formattedDate,
         },
         {
           key: 'time',
-          label: 'HORA',
+          label: 'TIME',
           value: formattedTime,
         },
       );
@@ -154,12 +154,12 @@ export class WalletService {
       pass.auxiliaryFields.push(
         {
           key: 'section',
-          label: 'ZONA',
+          label: 'ZONE',
           value: ticket.sectionName || 'General',
         },
         {
           key: 'venue',
-          label: 'LUGAR',
+          label: 'VENUE',
           value: [venueName, venueAddress].filter(Boolean).join(' - '),
         },
       );
@@ -182,28 +182,28 @@ export class WalletService {
       pass.backFields.push(
         {
           key: 'ticketCode',
-          label: 'Código del ticket',
+          label: 'Ticket Code',
           value: ticket.ticketCode,
         },
         {
           key: 'eventDateTime',
-          label: 'Fecha y hora',
+          label: 'Date and Time',
           value: `${formattedDate} - ${formattedTime}`,
         },
         {
           key: 'eventAddress',
-          label: 'Dirección',
+          label: 'Address',
           value: venueAddress,
         },
         {
           key: 'verifyUrl',
-          label: 'Verificación',
+          label: 'Verification',
           value: verifyUrl,
         },
         {
           key: 'terms',
-          label: 'Términos',
-          value: 'Presenta este QR en la entrada del evento. Este ticket es personal y debe ser validado por LP Ticket.',
+          label: 'Terms',
+          value: 'Present this QR code at the event entrance. This ticket is personal and must be validated by LP Ticket.',
         },
       );
 
@@ -251,7 +251,7 @@ export class WalletService {
         state: 'ACTIVE',
         ticketHolderName: ticket.user?.firstName
           ? `${ticket.user.firstName} ${ticket.user.lastName || ''}`.trim()
-          : 'Asistente',
+          : 'Guest',
         ticketNumber: ticket.ticketCode,
         barcode: {
           type:          'QR_CODE',
