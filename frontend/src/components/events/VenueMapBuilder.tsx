@@ -1041,7 +1041,13 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-[10px] font-bold text-[#1d4ed8] uppercase tracking-wider">{lang === 'es' ? 'Asiento Seleccionado' : 'Selected Seat'}</span>
-                      <h4 className="text-[16px] font-black text-[#1e3a8a]">{seatKey}</h4>
+                      <h4 className="text-[16px] font-black text-[#1e3a8a]">
+                        {(() => {
+                          const row = seatOverride.rowLabel || seatKey.split('-')[0];
+                          const num = seatOverride.seatNumber !== undefined ? seatOverride.seatNumber : seatKey.split('-')[1];
+                          return `${row}-${num}`;
+                        })()}
+                      </h4>
                     </div>
                     <button 
                       onClick={() => setSelectedSeat(null)}
@@ -1091,6 +1097,44 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                         {lang === 'es' ? 'Ocultar silla' : 'Hide seat'}
                       </span>
                     </label>
+
+                    {/* Seat Custom Row and Number inputs */}
+                    <div className="bg-white p-3 rounded border border-blue-200 shadow-sm space-y-2">
+                      <span className="text-[11px] font-bold text-[#1e3a8a] block">
+                        {lang === 'es' ? 'Personalizar Nombre / Etiqueta' : 'Customize Seat Name / Label'}
+                      </span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] text-gray-500 font-bold mb-0.5">
+                            {lang === 'es' ? 'Fila / Prefijo' : 'Row / Prefix'}
+                          </label>
+                          <input 
+                            type="text"
+                            placeholder={seatKey.split('-')[0]}
+                            value={seatOverride.rowLabel || ''}
+                            onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'rowLabel', e.target.value)}
+                            className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none text-gray-800 font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 font-bold mb-0.5">
+                            {lang === 'es' ? 'Número' : 'Number'}
+                          </label>
+                          <input 
+                            type="number"
+                            placeholder={seatKey.split('-')[1]}
+                            value={seatOverride.seatNumber !== undefined && seatOverride.seatNumber !== null ? seatOverride.seatNumber : ''}
+                            onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'seatNumber', e.target.value === '' ? undefined : +e.target.value)}
+                            className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 outline-none text-gray-800 font-semibold"
+                          />
+                        </div>
+                      </div>
+                      <span className="text-[9px] text-gray-400 block leading-tight">
+                        {lang === 'es' 
+                          ? 'Ejemplo: "VIP" y "12" resultará en "VIP-12".' 
+                          : 'Example: "VIP" and "12" results in "VIP-12".'}
+                      </span>
+                    </div>
 
                     {/* Individual Price override */}
                     {selectedSection.tablePurchaseMode !== 'whole' && (
@@ -1621,7 +1665,11 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                             )}
                             {/* Seat label on hover */}
                             <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                              {seatKey}
+                              {(() => {
+                                const row = seatOverride.rowLabel || rowLabel;
+                                const num = seatOverride.seatNumber !== undefined ? seatOverride.seatNumber : seatNumber;
+                                return `${row}-${num}`;
+                              })()}
                             </div>
                           </div>
                         );
@@ -1685,7 +1733,11 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                                 <FaWheelchair className="w-[70%] h-[70%] text-white absolute inset-0 m-auto" />
                               )}
                               <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                                {seatNumber}
+                                {(() => {
+                                  const row = seatOverride.rowLabel || 'Mesa';
+                                  const num = seatOverride.seatNumber !== undefined ? seatOverride.seatNumber : seatNumber;
+                                  return `${row}-${num}`;
+                                })()}
                               </div>
                             </div>
                           )
@@ -1764,7 +1816,11 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                                 <FaWheelchair className="w-[70%] h-[70%] text-white absolute inset-0 m-auto" />
                               )}
                               <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                                {seatNumber}
+                                {(() => {
+                                  const row = seatOverride.rowLabel || 'Mesa';
+                                  const num = seatOverride.seatNumber !== undefined ? seatOverride.seatNumber : seatNumber;
+                                  return `${row}-${num}`;
+                                })()}
                               </div>
                             </div>
                           )
