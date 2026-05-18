@@ -92,6 +92,7 @@ export class WalletService {
       };
 
       const pass = new PKPass(
+        {},
         {
           wwdr,
           signerCert,
@@ -115,6 +116,7 @@ export class WalletService {
       );
 
       pass.type = 'eventTicket';
+      pass.setBarcodes(barcodePayload);
 
       const walletAssetDir = join(__dirname, '../assets/apple-wallet');
       pass.addBuffer('icon.png', readFileSync(join(walletAssetDir, 'icon.png')));
