@@ -247,7 +247,8 @@ export default function AdminEventsPage() {
   const filteredEvents = events.filter((e) => !search || e.title.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div>
+      <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
       <div>
         <h1 className="font-bold text-2xl text-gray-900">{t('adminEventManagement')}</h1>
         <p className="text-sm text-gray-500 mt-1">{lang === 'es' ? 'Aprueba, rechaza y gestiona los eventos de la plataforma' : 'Approve, reject and manage platform events'}</p>
@@ -528,10 +529,11 @@ export default function AdminEventsPage() {
           <p className="text-gray-600 font-medium">{t('adminNoEvents')}</p>
         </div>
       )}
+      </div>
 
       {/* Pending Changes Modal */}
       {selectedEventForChanges && (
-        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
+        <div className="fixed inset-0 h-screen w-screen z-[9999] overflow-hidden flex justify-end">
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
@@ -539,7 +541,7 @@ export default function AdminEventsPage() {
           />
           
           {/* Drawer Panel */}
-          <div className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col z-10 animate-[slideOver_0.3s_ease-out] border-l border-gray-150">
+          <div className="relative w-full max-w-2xl bg-white h-screen shadow-2xl flex flex-col z-10 animate-[slideOver_0.3s_ease-out] border-l border-gray-150">
             {/* Drawer Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 shrink-0 bg-gray-50/50">
               <div className="flex items-center gap-4">
@@ -893,13 +895,13 @@ export default function AdminEventsPage() {
 
       {/* Fee Configuration Modal */}
       {selectedEventForFees && (
-        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
+        <div className="fixed inset-0 h-screen w-screen z-[9999] overflow-hidden flex justify-end">
           <div 
             className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
             onClick={() => setSelectedEventForFees(null)}
           />
           
-          <div className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col z-10 animate-[slideOver_0.3s_ease-out] border-l border-gray-150">
+          <div className="relative w-full max-w-2xl bg-white h-screen shadow-2xl flex flex-col z-10 animate-[slideOver_0.3s_ease-out] border-l border-gray-150">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 shrink-0 bg-purple-50/50">
               <div className="flex items-center gap-4">
