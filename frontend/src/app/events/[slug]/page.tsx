@@ -26,6 +26,7 @@ export default function EventDetailPage() {
   const [seatMap, setSeatMap] = useState<(VenueSection & { seats: Seat[] })[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   useEffect(() => { loadEvent(); }, [slug]);
 
@@ -141,7 +142,7 @@ export default function EventDetailPage() {
           next = next.filter(s => s.id !== seat.id);
         } else {
           if (next.length >= 10) {
-            alert(lang === 'es' ? 'No puedes seleccionar más de 10 asientos por transacción.' : 'You cannot select more than 10 seats per transaction.');
+            setAlertMessage(lang === 'es' ? 'No puedes seleccionar más de 10 asientos por transacción.' : 'You cannot select more than 10 seats per transaction.');
             break;
           }
           const seatWithTime = { ...seat, addedAt: Date.now() };
@@ -161,7 +162,7 @@ export default function EventDetailPage() {
 
   const handleBuyTickets = () => {
     if (selectedSeats.length === 0) {
-      alert(lang === 'es' ? 'Por favor selecciona al menos un asiento.' : 'Please select at least one seat.');
+      setAlertMessage(lang === 'es' ? 'Por favor selecciona al menos un asiento.' : 'Please select at least one seat.');
       return;
     }
 
@@ -333,26 +334,37 @@ export default function EventDetailPage() {
                       });
 
                       return (
-                        <>
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                           {Object.entries(standingGroups).map(([secId, seats]) => {
                             const section = seatMap.find(s => s.id === secId);
                             return (
-                              <div key={secId} className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">{seats.length}x {section?.name}</span>
-                                <span className="font-medium text-gray-800">${(Number(section?.price || 0) * seats.length).toFixed(2)}</span>
+                              <div key={secId} className="flex items-center justify-between text-sm py-1 px-1.5 rounded hover:bg-slate-50 transition-colors">
+                                <span className="text-gray-600 flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-white shadow-sm" style={{ background: section?.color || '#cbd5e1' }} />
+                                  <span className="font-extrabold text-slate-800">{seats.length}x</span>
+                                  <span className="font-semibold text-slate-800">{section?.name}</span>
+                                </span>
+                                <span className="font-extrabold text-slate-900">${(Number(section?.price || 0) * seats.length).toFixed(2)}</span>
                               </div>
                             );
                           })}
                           {regularSeats.map((seat) => {
                             const section = seatMap.find((s) => s.id === seat.sectionId);
                             return (
-                              <div key={seat.id} className="flex items-center justify-between text-sm">
-                                <span className="text-gray-600">{section?.name} — {seat.rowLabel}{seat.seatNumber}</span>
-                                <span className="font-medium text-gray-800">${getSeatPrice(seat, section).toFixed(2)}</span>
+                              <div key={seat.id} className="flex items-center justify-between text-sm py-1 px-1.5 rounded hover:bg-slate-50 transition-colors">
+                                <span className="text-gray-600 flex items-center gap-2 min-w-0">
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-white shadow-sm" style={{ background: section?.color || '#cbd5e1' }} />
+                                  <span className="font-semibold text-slate-800 truncate">{section?.name}</span>
+                                  <span className="text-slate-400 font-bold shrink-0">—</span>
+                                  <span className="bg-slate-100 text-slate-700 text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+                                    {seat.rowLabel}{seat.seatNumber}
+                                  </span>
+                                </span>
+                                <span className="font-extrabold text-slate-900 shrink-0">${getSeatPrice(seat, section).toFixed(2)}</span>
                               </div>
                             );
                           })}
-                        </>
+                        </div>
                       );
                     })()}
                   </div>
@@ -383,6 +395,60 @@ export default function EventDetailPage() {
           </div>
         </div>
       </div>
+      {/* Custom Premium Glassmorphic Modal Alert */}
+      {alertMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-300 animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 transform scale-100 transition-all duration-300 animate-scaleUp">
+            <div className="flex flex-col items-center text-center space-y-4">
+              {/* Animated Warning Icon */}
+              <div className="w-16 h-16 rounded-full bg-orange-50 flex items-center justify-center text-orange-500 animate-bounce-slow shadow-inner">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              
+              <h4 className="text-[17px] font-black text-slate-800 leading-tight">
+                {lang === 'es' ? 'Atención' : 'Attention'}
+              </h4>
+              
+              <p className="text-sm text-slate-500 font-semibold leading-relaxed">
+                {alertMessage}
+              </p>
+
+              <button 
+                onClick={() => setAlertMessage(null)}
+                className="w-full py-3 bg-[#f97316] hover:bg-[#ea580c] active:scale-[0.98] text-white font-extrabold rounded-xl transition-all shadow-md shadow-orange-500/20 text-sm tracking-wide uppercase"
+              >
+                {lang === 'es' ? 'Entendido' : 'Got it'}
+              </button>
+            </div>
+          </div>
+
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes scaleUp {
+              from { transform: scale(0.95); opacity: 0; }
+              to { transform: scale(1); opacity: 1; }
+            }
+            .animate-fadeIn {
+              animation: fadeIn 0.2s ease-out forwards;
+            }
+            .animate-scaleUp {
+              animation: scaleUp 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            }
+            @keyframes bounceSlow {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-4px); }
+            }
+            .animate-bounce-slow {
+              animation: bounceSlow 2s ease-in-out infinite;
+            }
+          `}} />
+        </div>
+      )}
     </div>
   );
 }
