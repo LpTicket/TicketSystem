@@ -22,6 +22,29 @@ import { join } from 'path';
 export class WalletService {
   constructor(private readonly configService: ConfigService) {}
 
+  private readAppleCredential(valueKeys: string[], pathKey: string): Buffer | null {
+    const rawValue = valueKeys
+      .map((key) => this.configService.get<string>(key))
+      .find(Boolean);
+
+    if (rawValue) {
+      const normalized = rawValue.replace(/\\n/g, '\n').trim();
+
+      if (normalized.includes('-----BEGIN')) {
+        return Buffer.from(normalized);
+      }
+
+      return Buffer.from(normalized, 'base64');
+    }
+
+    const filePath = this.configService.get<string>(pathKey);
+    if (filePath && existsSync(filePath)) {
+      return readFileSync(filePath);
+    }
+
+    return null;
+  }
+
   // ── APPLE WALLET ────────────────────────────────────────────────────────────
   async generateApplePass(ticket: any): Promise<Buffer> {
     const passTypeIdentifier = this.configService.get<string>('APPLE_PASS_TYPE_ID');
