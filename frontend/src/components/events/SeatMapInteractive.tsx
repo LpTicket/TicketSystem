@@ -543,8 +543,8 @@ export default function SeatMapInteractive({
                   </>
                 )}
 
-                {/* --- Section Tooltip Label --- */}
-                {!isStage && !isDecor && (
+                {/* --- Section Tooltip Label (Not for Tables) --- */}
+                {!isStage && !isDecor && !isTable && (
                   <div
                     className="absolute -top-7 text-[12px] font-bold uppercase tracking-widest px-2 py-0.5 rounded opacity-85 group-hover/sec:opacity-100 transition-opacity"
                     style={{ backgroundColor: 'white', color: '#1e293b', border: `1px solid ${section.color}`, boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}
@@ -592,8 +592,16 @@ export default function SeatMapInteractive({
                               }
                             }}
                           >
-                            <span className="text-[9px] font-extrabold tracking-wider text-slate-500 uppercase">
-                              {isTableFullyUnavailable ? (lang === 'es' ? 'LLENA' : 'FULL') : (lang === 'es' ? 'MESA' : 'TABLE')}
+                            <span 
+                              className={`font-black uppercase tracking-tight text-center px-1 select-none leading-none ${
+                                section.name.length > 8 
+                                  ? 'text-[7px] text-slate-400' 
+                                  : section.name.length > 5 
+                                    ? 'text-[8px] text-slate-500' 
+                                    : 'text-[9.5px] text-slate-600'
+                              }`}
+                            >
+                              {section.name}
                             </span>
                           </div>
                           {section.seats?.map((seat, i) => {
@@ -669,8 +677,16 @@ export default function SeatMapInteractive({
                               }
                             }}
                           >
-                            <span className="text-[9px] font-extrabold tracking-wider text-slate-500 uppercase">
-                              {isTableFullyUnavailable ? (lang === 'es' ? 'LLENA' : 'FULL') : (lang === 'es' ? 'MESA' : 'TABLE')}
+                            <span 
+                              className={`font-black uppercase tracking-tight text-center px-1 select-none leading-none ${
+                                section.name.length > 8 
+                                  ? 'text-[7.5px] text-slate-400' 
+                                  : section.name.length > 5 
+                                    ? 'text-[8.5px] text-slate-500' 
+                                    : 'text-[10px] text-slate-600'
+                              }`}
+                            >
+                              {section.name}
                             </span>
                           </div>
                           {section.seats?.map((seat, i) => {
