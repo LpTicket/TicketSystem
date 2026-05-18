@@ -131,8 +131,6 @@ export class WalletService {
       pass.addBuffer('icon@2x.png', readFileSync(join(walletAssetDir, 'icon@2x.png')));
       pass.addBuffer('logo.png', readFileSync(join(walletAssetDir, 'logo.png')));
       pass.addBuffer('logo@2x.png', readFileSync(join(walletAssetDir, 'logo@2x.png')));
-      pass.addBuffer('strip.png', readFileSync(join(walletAssetDir, 'strip.png')));
-      pass.addBuffer('strip@2x.png', readFileSync(join(walletAssetDir, 'strip@2x.png')));
 
       pass.primaryFields.push({
         key: 'buyer',
@@ -162,7 +160,7 @@ export class WalletService {
         {
           key: 'venue',
           label: 'LUGAR',
-          value: venueName,
+          value: [venueName, venueAddress].filter(Boolean).join(' - '),
         },
       );
 
