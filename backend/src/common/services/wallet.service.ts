@@ -151,7 +151,7 @@ export class WalletService {
         { key: 'support', label: 'Soporte',          value: appUrl },
       );
 
-      return await pass.export();
+      return pass.getAsBuffer();
     } catch (err) {
       console.error('[WalletService] Error generating Apple pass:', err);
       throw err;
