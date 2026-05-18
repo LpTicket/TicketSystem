@@ -541,9 +541,11 @@ export class OrdersService {
           relations: ['user', 'event'],
         });
         if (fullOrder && fullOrder.user) {
+          const buyerEmail = session.customer_details?.email || fullOrder.user.email;
+          const buyerName = session.customer_details?.name || fullOrder.user.firstName;
           await this.mailService.sendTicketEmail(
-            fullOrder.user.email,
-            fullOrder.user.firstName,
+            buyerEmail,
+            buyerName,
             fullOrder.event.title,
             createdTickets,
           );

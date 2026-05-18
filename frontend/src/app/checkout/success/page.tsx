@@ -138,7 +138,7 @@ function SuccessContent() {
             </div>
 
             <p className="text-center text-[10px] text-gray-400 pt-4">
-              ¿Problemas con tu compra? <Link href="/contact" className="text-primary-500 font-bold hover:underline">Contacta a soporte</Link>
+              ¿Problemas con tu compra? <a href="mailto:info@lpticket.com" className="text-primary-500 font-bold hover:underline">info@lpticket.com</a>
             </p>
           </div>
         </div>
