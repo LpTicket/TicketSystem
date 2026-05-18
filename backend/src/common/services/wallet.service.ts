@@ -86,17 +86,19 @@ export class WalletService {
         keyBuffer = readFileSync(keyPath!);
       }
 
+      const passphrase = this.configService.get<string>('APPLE_PASS_KEY_PASS');
       const pass = new PKPass(
+        {},
         {
           wwdr:              wwdrBuffer,
           signerCert:        certBuffer,
           signerKey:         keyBuffer,
-          signerKeyPassphrase: this.configService.get<string>('APPLE_PASS_KEY_PASS') || '',
+          ...(passphrase ? { signerKeyPassphrase: passphrase } : {}),
         },
         {
           formatVersion:      1,
-          passTypeIdentifier: this.configService.get<string>('APPLE_PASS_TYPE_ID') || 'pass.com.lpticket',
-          teamIdentifier:     this.configService.get<string>('APPLE_TEAM_ID')       || 'TEAMID',
+          passTypeIdentifier: this.configService.get<string>('APPLE_PASS_TYPE_ID') || 'pass.com.lpticket.wallet',
+          teamIdentifier:     this.configService.get<string>('APPLE_TEAM_ID')       || 'YTL446KYZR',
           organizationName:   'LPTicket',
           serialNumber:       ticket.ticketCode,
           description:        ticket.event?.title || 'LPTicket',
