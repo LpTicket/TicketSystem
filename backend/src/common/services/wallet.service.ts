@@ -168,12 +168,12 @@ export class WalletService {
         pass.headerFields.push(
           {
             key: 'row',
-            label: 'FILA',
+            label: 'ROW',
             value: ticket.rowLabel || '-',
           },
           {
             key: 'seat',
-            label: 'ASIENTO',
+            label: 'SEAT',
             value: String(ticket.seatNumber || '-'),
           },
         );
