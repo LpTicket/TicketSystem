@@ -102,35 +102,17 @@ function DashboardPageBody() {
   };
 
   const handleAppleWallet = async (code: string) => {
-    const loadingToast = toast.loading(lang === 'es' ? 'Generando Apple Pass...' : 'Generating Apple Pass...');
+    const loadingToast = toast.loading(lang === 'es' ? 'Abriendo Apple Wallet...' : 'Opening Apple Wallet...');
     try {
-      const response = await api.get(`/orders/ticket/${code}/apple-wallet`, {
-        responseType: 'blob'
-      });
-      const blob = new Blob([response.data], { type: 'application/vnd.apple.pkpass' });
-      const link = document.createElement('a');
-      link.href = window.URL.createObjectURL(blob);
-      link.download = `ticket-${code}.pkpass`;
-      link.click();
-      toast.success(lang === 'es' ? 'Boleto descargado para Apple Wallet' : 'Apple Wallet pass downloaded successfully', { id: loadingToast });
+      const token = localStorage.getItem('accessToken');
+      const url = `${api.defaults.baseURL}/orders/ticket/${code}/apple-wallet?token=${token || ''}`;
+      
+      // Direct navigation allows iOS Safari to natively parse and open the pass sheet!
+      window.location.href = url;
+      
+      toast.success(lang === 'es' ? 'Abriendo pase de Apple Wallet...' : 'Opening Apple Wallet pass...', { id: loadingToast });
     } catch (err: any) {
-      let errorMsg = lang === 'es' 
-        ? 'El servidor no tiene configuradas las credenciales de Apple Pass todavía.' 
-        : 'Apple Pass credentials not configured on server yet.';
-
-      if (err.response?.data) {
-        try {
-          let rawData = err.response.data;
-          if (rawData instanceof Blob) {
-            const text = await rawData.text();
-            const parsed = JSON.parse(text);
-            if (parsed.message) errorMsg = parsed.message;
-          } else if (rawData.message) {
-            errorMsg = rawData.message;
-          }
-        } catch (_) {}
-      }
-      toast.error(errorMsg, { id: loadingToast });
+      toast.error(lang === 'es' ? 'Error al abrir Apple Wallet' : 'Error opening Apple Wallet', { id: loadingToast });
     }
   };
 

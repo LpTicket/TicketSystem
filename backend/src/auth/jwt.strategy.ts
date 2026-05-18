@@ -16,8 +16,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly authService: AuthService,
   ) {
     super({
-      // Look for the token in 'Authorization: Bearer <token>'
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // Look for the token in 'Authorization: Bearer <token>' or query parameter '?token=<token>'
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        ExtractJwt.fromUrlQueryParameter('token'),
+      ]),
       ignoreExpiration: false,
       // CRITICAL: Ensure JWT_SECRET is set in environment variables
       secretOrKey: configService.get<string>('JWT_SECRET') || 'fallback-secret-for-production-please-change-it',
