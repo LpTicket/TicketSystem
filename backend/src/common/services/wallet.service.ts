@@ -28,9 +28,16 @@ export class WalletService {
     const keyPath  = this.configService.get<string>('APPLE_PASS_KEY_PATH');
     const wwdrPath = this.configService.get<string>('APPLE_WWDR_CA_PATH');
 
+    const certPem = this.configService.get<string>('APPLE_PASS_CERT_PEM');
+    const keyPem  = this.configService.get<string>('APPLE_PASS_KEY_PEM');
+    const wwdrPem = this.configService.get<string>('APPLE_WWDR_CA_PEM');
+
+    const hasPemEnv = !!(certPem && keyPem && wwdrPem);
+    const hasFiles = !!(certPath && existsSync(certPath) && keyPath && existsSync(keyPath) && wwdrPath && existsSync(wwdrPath));
+
     // Graceful degradation — credentials not configured yet
-    if (!certPath || !existsSync(certPath) || !keyPath || !wwdrPath) {
-      console.warn('[WalletService] Apple Wallet credentials not configured. Set APPLE_PASS_CERT_PATH, APPLE_PASS_KEY_PATH and APPLE_WWDR_CA_PATH.');
+    if (!hasPemEnv && !hasFiles) {
+      console.warn('[WalletService] Apple Wallet credentials not configured. Set APPLE_PASS_CERT_PATH, APPLE_PASS_KEY_PATH and APPLE_WWDR_CA_PATH, or their PEM equivalents.');
       throw new Error('Apple Wallet not configured');
     }
 
@@ -39,11 +46,25 @@ export class WalletService {
 
       const appUrl = (this.configService.get<string>('APP_URL') || 'https://lpticket.com').replace(/\/$/, '');
 
+      let wwdrBuffer: Buffer;
+      let certBuffer: Buffer;
+      let keyBuffer: Buffer;
+
+      if (hasPemEnv) {
+        wwdrBuffer = Buffer.from(wwdrPem, 'utf8');
+        certBuffer = Buffer.from(certPem, 'utf8');
+        keyBuffer = Buffer.from(keyPem, 'utf8');
+      } else {
+        wwdrBuffer = readFileSync(wwdrPath!);
+        certBuffer = readFileSync(certPath!);
+        keyBuffer = readFileSync(keyPath!);
+      }
+
       const pass = new PKPass(
         {
-          wwdr:              readFileSync(wwdrPath),
-          signerCert:        readFileSync(certPath),
-          signerKey:         readFileSync(keyPath),
+          wwdr:              wwdrBuffer,
+          signerCert:        certBuffer,
+          signerKey:         keyBuffer,
           signerKeyPassphrase: this.configService.get<string>('APPLE_PASS_KEY_PASS') || '',
         },
         {
