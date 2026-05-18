@@ -127,7 +127,7 @@ export class WalletService {
       if (existsSync(logo2xPath)) pass.addBuffer('logo@2x.png', readFileSync(logo2xPath));
 
       pass.type = 'eventTicket';
-      const walletAssetDir = join(process.cwd(), 'src/common/assets/apple-wallet');
+      const walletAssetDir = join(__dirname, '../assets/apple-wallet');
       pass.addBuffer('icon.png', readFileSync(join(walletAssetDir, 'icon.png')));
       pass.addBuffer('icon@2x.png', readFileSync(join(walletAssetDir, 'icon@2x.png')));
       pass.addBuffer('logo.png', readFileSync(join(walletAssetDir, 'logo.png')));
