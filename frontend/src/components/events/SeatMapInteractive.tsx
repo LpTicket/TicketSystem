@@ -547,7 +547,14 @@ export default function SeatMapInteractive({
                 {!isStage && !isDecor && !isTable && (
                   <div
                     className="absolute -top-7 text-[12px] font-bold uppercase tracking-widest px-2 py-0.5 rounded opacity-85 group-hover/sec:opacity-100 transition-opacity"
-                    style={{ backgroundColor: 'white', color: '#1e293b', border: `1px solid ${section.color}`, boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}
+                    style={{ 
+                      backgroundColor: 'white', 
+                      color: '#1e293b', 
+                      border: `1px solid ${section.color}`, 
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+                      transform: `rotate(${-(section.rotation || 0)}deg)`,
+                      transformOrigin: 'center bottom'
+                    }}
                   >
                     {section.name}
                   </div>

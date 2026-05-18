@@ -1877,8 +1877,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   </div>
                 )}
 
-                {/* Section Label overlay */}
-                {!isStage && !isDecor && (
+                {/* Section Label overlay (Not for Tables) */}
+                {!isStage && !isDecor && !isTable && (
                   <div className="relative z-10 flex flex-col items-center justify-center pointer-events-none">
                     <span style={{ 
                       fontWeight: 800, 
@@ -1889,6 +1889,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                       padding: '2px 8px', 
                       borderRadius: '12px',
                       boxShadow: isStanding ? 'none' : '0 2px 5px rgba(0,0,0,0.1)',
+                      transform: `rotate(${-(sec.rotation || 0)}deg)`,
+                      display: 'inline-block'
                     }}>
                       {sec.name}
                     </span>
