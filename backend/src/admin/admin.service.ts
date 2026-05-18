@@ -361,9 +361,18 @@ export class AdminService {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Evento no encontrado');
 
-    if (dto.serviceFeePercent !== undefined) event.serviceFeePercent = dto.serviceFeePercent;
+    if (dto.serviceFeePercent !== undefined) {
+      event.serviceFeePercent = dto.serviceFeePercent !== null && dto.serviceFeePercent >= 1
+        ? dto.serviceFeePercent / 100
+        : dto.serviceFeePercent;
+    }
     if (dto.serviceFeeFixedPerTicket !== undefined) event.serviceFeeFixedPerTicket = dto.serviceFeeFixedPerTicket;
-    if (dto.processingFeePercent !== undefined) event.processingFeePercent = dto.processingFeePercent;
+    
+    if (dto.processingFeePercent !== undefined) {
+      event.processingFeePercent = dto.processingFeePercent !== null && dto.processingFeePercent >= 1
+        ? dto.processingFeePercent / 100
+        : dto.processingFeePercent;
+    }
     if (dto.processingFeeFixedPerTicket !== undefined) event.processingFeeFixedPerTicket = dto.processingFeeFixedPerTicket;
 
     await this.eventRepo.save(event);
@@ -379,9 +388,18 @@ export class AdminService {
     const section = await this.sectionRepo.findOne({ where: { id: sectionId } });
     if (!section) throw new NotFoundException('Sección no encontrada');
 
-    if (dto.serviceFeePercent !== undefined) section.serviceFeePercent = dto.serviceFeePercent;
+    if (dto.serviceFeePercent !== undefined) {
+      section.serviceFeePercent = dto.serviceFeePercent !== null && dto.serviceFeePercent >= 1
+        ? dto.serviceFeePercent / 100
+        : dto.serviceFeePercent;
+    }
     if (dto.serviceFeeFixedPerTicket !== undefined) section.serviceFeeFixedPerTicket = dto.serviceFeeFixedPerTicket;
-    if (dto.processingFeePercent !== undefined) section.processingFeePercent = dto.processingFeePercent;
+    
+    if (dto.processingFeePercent !== undefined) {
+      section.processingFeePercent = dto.processingFeePercent !== null && dto.processingFeePercent >= 1
+        ? dto.processingFeePercent / 100
+        : dto.processingFeePercent;
+    }
     if (dto.processingFeeFixedPerTicket !== undefined) section.processingFeeFixedPerTicket = dto.processingFeeFixedPerTicket;
 
     await this.sectionRepo.save(section);
