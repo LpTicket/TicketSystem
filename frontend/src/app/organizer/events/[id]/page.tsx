@@ -31,6 +31,7 @@ import {
   HiOutlineX,
   HiOutlineBan,
   HiOutlineMail,
+  HiOutlineBell,
 } from 'react-icons/hi';
 import VenueMapBuilder from '@/components/events/VenueMapBuilder';
 import toast from 'react-hot-toast';
@@ -86,6 +87,12 @@ export default function EventDetailPage() {
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
   const [blockingActionLoading, setBlockingActionLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Email Reminder States
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [reminderDays, setReminderDays] = useState(3);
+  const [reminderMessage, setReminderMessage] = useState('');
+  const [sendingReminder, setSendingReminder] = useState(false);
 
   // Edit Event States
   const [editForm, setEditForm] = useState({
@@ -221,6 +228,28 @@ export default function EventDetailPage() {
       toast.error(err.response?.data?.message || 'Error issuing free tickets');
     } finally {
       setBlockingActionLoading(false);
+    }
+  };
+
+  const handleSendReminder = async () => {
+    if (!event) return;
+    setSendingReminder(true);
+    try {
+      const result = await api.post(`/orders/event/${id}/send-reminder`, {
+        daysUntilEvent: reminderDays,
+        customMessage: reminderMessage.trim() || undefined,
+      });
+      toast.success(
+        lang === 'es'
+          ? `✅ Recordatorios enviados a ${result.data.sent} asistentes`
+          : `✅ Reminders sent to ${result.data.sent} attendees`
+      );
+      setShowReminderModal(false);
+      setReminderMessage('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || (lang === 'es' ? 'Error al enviar recordatorios' : 'Error sending reminders'));
+    } finally {
+      setSendingReminder(false);
     }
   };
 
@@ -528,6 +557,102 @@ export default function EventDetailPage() {
         />
       )}
 
+      {/* Reminder Modal */}
+      {showReminderModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-md p-6 space-y-5 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+                  <HiOutlineBell className="w-5 h-5 text-orange-500" />
+                </div>
+                <div>
+                  <h3 className="font-black text-gray-900">{lang === 'es' ? 'Enviar Recordatorio' : 'Send Reminder'}</h3>
+                  <p className="text-xs text-gray-500">{lang === 'es' ? 'Se enviará desde info@lpticket.com' : 'Will be sent from info@lpticket.com'}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowReminderModal(false)} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400">
+                <HiOutlineX className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 text-sm text-orange-800">
+              <p className="font-bold mb-1">📢 {event?.title}</p>
+              <p className="text-xs">{lang === 'es' ? `Se notificará a todos los asistentes con entradas activas (${attendees.length} ticket${attendees.length !== 1 ? 's' : ''}).` : `All active ticket holders will be notified (${attendees.length} ticket${attendees.length !== 1 ? 's' : ''}).`}</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-black text-gray-700 uppercase tracking-wider">
+                {lang === 'es' ? 'Días hasta el evento' : 'Days until event'}
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="0"
+                  max="30"
+                  value={reminderDays}
+                  onChange={(e) => setReminderDays(Number(e.target.value))}
+                  className="w-24 px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold text-center focus:outline-none focus:ring-1 focus:ring-orange-400"
+                />
+                <div className="flex gap-1.5">
+                  {[1, 3, 7, 14].map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setReminderDays(d)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        reminderDays === d
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {d}d
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-400">
+                {reminderDays === 0 ? '⚡ Se enviará como recordatorio del día del evento' :
+                 reminderDays === 1 ? '📅 El correo dirá: ¡Mañana es el evento!' :
+                 `📅 El correo dirá: Faltan ${reminderDays} días para el evento`}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-black text-gray-700 uppercase tracking-wider">
+                {lang === 'es' ? 'Mensaje personalizado (opcional)' : 'Custom message (optional)'}
+              </label>
+              <textarea
+                value={reminderMessage}
+                onChange={(e) => setReminderMessage(e.target.value)}
+                placeholder={lang === 'es' ? 'Ej: Recuerda que el estacionamiento es gratuito en la parte trasera...' : 'E.g: Parking is free in the back lot...'}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-orange-400 h-24 resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowReminderModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all"
+              >
+                {lang === 'es' ? 'Cancelar' : 'Cancel'}
+              </button>
+              <button
+                onClick={handleSendReminder}
+                disabled={sendingReminder || attendees.length === 0}
+                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {sendingReminder ? (
+                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> {lang === 'es' ? 'Enviando...' : 'Sending...'}</>
+                ) : (
+                  <><HiOutlineMail className="w-4 h-4" /> {lang === 'es' ? 'Enviar Recordatorio' : 'Send Reminder'}</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Attendees & Sales Tab */}
       {activeTab === 'attendees' && (
         <div className="space-y-8">
@@ -541,10 +666,20 @@ export default function EventDetailPage() {
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">{attendees.length} {lang === 'es' ? 'entradas individuales vendidas' : 'individual tickets sold'}</p>
               </div>
-              <button onClick={exportCSV} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 self-start sm:self-auto">
-                <HiOutlineDownload className="w-4 h-4" />
-                {t('orgExportCSV')}
-              </button>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setShowReminderModal(true)}
+                  className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-1.5 px-3 rounded-xl transition-all shadow-sm"
+                  title={lang === 'es' ? 'Enviar recordatorio por email a los asistentes' : 'Send email reminder to attendees'}
+                >
+                  <HiOutlineBell className="w-4 h-4" />
+                  {lang === 'es' ? 'Enviar Recordatorio' : 'Send Reminder'}
+                </button>
+                <button onClick={exportCSV} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5">
+                  <HiOutlineDownload className="w-4 h-4" />
+                  {t('orgExportCSV')}
+                </button>
+              </div>
             </div>
             
             {attendees.length > 0 ? (

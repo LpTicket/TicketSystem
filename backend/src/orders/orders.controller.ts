@@ -180,4 +180,20 @@ export class OrdersController {
   ) {
     return this.ordersService.issueFreeTickets(eventId, body.seatIds, body.email, body.name, req.user.id);
   }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Post('event/:eventId/send-reminder')
+  sendEventReminder(
+    @Param('eventId') eventId: string,
+    @Body() body: { daysUntilEvent: number; customMessage?: string },
+    @Request() req: any
+  ) {
+    return this.ordersService.sendEventReminder(
+      eventId,
+      req.user.id,
+      body.daysUntilEvent,
+      body.customMessage,
+    );
+  }
 }

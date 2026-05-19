@@ -159,6 +159,135 @@ export class MailService {
       console.error('Error sending email:', err);
     }
   }
+  /**
+   * Sends a branded event reminder email to a list of attendees.
+   * Sent from info@lpticket.com
+   */
+  async sendReminderEmail(
+    to: string,
+    userName: string,
+    eventTitle: string,
+    eventDate: string,
+    venueName: string,
+    venueAddress: string,
+    daysUntilEvent: number,
+    customMessage?: string,
+  ) {
+    const appUrl = this.getAppUrl();
+
+    const urgencyColor = daysUntilEvent <= 1 ? '#dc2626' : daysUntilEvent <= 3 ? '#ea580c' : '#0f3f66';
+    const urgencyLabel = daysUntilEvent === 0
+      ? '¡HOY ES EL EVENTO!'
+      : daysUntilEvent === 1
+        ? '¡MAÑANA ES EL EVENTO!'
+        : `Faltan ${daysUntilEvent} días para el evento`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+      <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+        <div style="max-width:580px;margin:0 auto;padding:24px 12px;">
+
+          <!-- Header / Logo -->
+          <div style="background:#0f172a;border-radius:16px 16px 0 0;padding:24px 28px;text-align:center;">
+            <div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:4px;">
+              <span style="font-size:26px;font-weight:900;color:#f97316;letter-spacing:-1px;font-family:monospace;">LP</span>
+              <span style="font-size:26px;font-weight:900;color:#ffffff;letter-spacing:-1px;font-family:monospace;">Ticket</span>
+            </div>
+            <p style="margin:0;font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;font-weight:700;">Recordatorio de Evento</p>
+          </div>
+
+          <!-- Urgency Banner -->
+          <div style="background:${urgencyColor};padding:14px 28px;text-align:center;">
+            <p style="margin:0;color:#ffffff;font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:1px;">
+              ⏰ ${urgencyLabel}
+            </p>
+          </div>
+
+          <!-- Main Card -->
+          <div style="background:#ffffff;padding:32px 28px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+
+            <!-- Greeting -->
+            <h1 style="margin:0 0 8px 0;font-size:22px;font-weight:800;color:#0f172a;">
+              ¡Hola, ${userName}! 👋
+            </h1>
+            <p style="margin:0 0 24px 0;font-size:14px;color:#475569;line-height:1.6;">
+              Te recordamos que tienes una entrada confirmada para el siguiente evento:
+            </p>
+
+            <!-- Event Info Box -->
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:24px;">
+              <h2 style="margin:0 0 14px 0;font-size:20px;font-weight:900;color:#0f172a;text-transform:uppercase;letter-spacing:-0.5px;border-bottom:2px solid #f97316;padding-bottom:10px;">
+                ${eventTitle}
+              </h2>
+              <table style="width:100%;border-collapse:collapse;">
+                <tr>
+                  <td style="padding:5px 0;vertical-align:top;width:28px;">📅</td>
+                  <td style="padding:5px 0;font-size:13px;color:#1e293b;font-weight:600;">${eventDate}</td>
+                </tr>
+                <tr>
+                  <td style="padding:5px 0;vertical-align:top;">📍</td>
+                  <td style="padding:5px 0;font-size:13px;color:#1e293b;">
+                    <strong>${venueName}</strong>
+                    ${venueAddress ? `<br/><span style="color:#64748b;font-weight:400;">${venueAddress}</span>` : ''}
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Custom message (if any) -->
+            ${customMessage ? `
+            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+              <p style="margin:0;font-size:13px;color:#9a3412;line-height:1.6;font-style:italic;">${customMessage}</p>
+            </div>
+            ` : ''}
+
+            <!-- Reminder tips -->
+            <div style="margin-bottom:28px;">
+              <p style="margin:0 0 10px 0;font-size:12px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;">Recuerda llevar:</p>
+              <ul style="margin:0;padding:0;list-style:none;">
+                <li style="padding:4px 0;font-size:13px;color:#374151;">✅ Tu código QR (en este correo o en la app)</li>
+                <li style="padding:4px 0;font-size:13px;color:#374151;">✅ Documento de identificación</li>
+                <li style="padding:4px 0;font-size:13px;color:#374151;">✅ Llegar con anticipación para el registro</li>
+              </ul>
+            </div>
+
+            <!-- CTA Button -->
+            <div style="text-align:center;margin-bottom:8px;">
+              <a href="${appUrl}/dashboard" target="_blank"
+                style="display:inline-block;background:#f97316;color:#ffffff;text-decoration:none;border-radius:12px;padding:14px 32px;font-size:13px;font-weight:900;letter-spacing:0.5px;text-transform:uppercase;box-shadow:0 4px 12px rgba(249,115,22,0.3);">
+                Ver mis entradas →
+              </a>
+            </div>
+
+          </div>
+
+          <!-- Footer -->
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px;padding:18px 28px;text-align:center;">
+            <p style="margin:0 0 4px 0;font-size:11px;font-weight:700;color:#f97316;">lpticket.com</p>
+            <p style="margin:0;font-size:10px;color:#94a3b8;">Tus tickets. Tus eventos.</p>
+            <p style="margin:8px 0 0 0;font-size:9px;color:#cbd5e1;">Este recordatorio fue enviado por info@lpticket.com · LPTicket Platform</p>
+          </div>
+
+        </div>
+      </body>
+      </html>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: `"LPTicket" <info@lpticket.com>`,
+        to,
+        subject: `🎟️ Recordatorio: ${eventTitle} — ${urgencyLabel}`,
+        html,
+      });
+    } catch (err) {
+      console.error('Error sending reminder email:', err);
+      throw err;
+    }
+  }
+
   async sendContactEmail(name: string, email: string, subject: string, message: string) {
     const adminEmail = this.configService.get('ADMIN_EMAIL');
     const html = `

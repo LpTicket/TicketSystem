@@ -794,4 +794,88 @@ export class OrdersService {
 
     return { success: true, count: createdTickets.length, tickets: createdTickets };
   }
+
+  /**
+   * Sends reminder emails to all active ticket holders for an event.
+   * Only the event organizer or an admin can trigger this.
+   */
+  async sendEventReminder(
+    eventId: string,
+    organizerId: string,
+    daysUntilEvent: number,
+    customMessage?: string,
+  ) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+
+    // Authorization check
+    if (event.organizerId !== organizerId) {
+      const user = await this.eventRepo.manager.findOne('User' as any, { where: { id: organizerId } }) as any;
+      if (user?.role !== 'admin') {
+        throw new ForbiddenException('No permission to send reminders for this event');
+      }
+    }
+
+    // Get all active ticket holders with their user info
+    const { In } = require('typeorm');
+    const tickets = await this.ticketRepo.find({
+      where: { eventId, status: In([TicketStatus.ACTIVE]) },
+      relations: ['user'],
+    });
+
+    if (tickets.length === 0) {
+      return { success: true, sent: 0, message: 'No active ticket holders found' };
+    }
+
+    // De-duplicate by email — send one email per unique attendee
+    const seen = new Set<string>();
+    const uniqueAttendees: any[] = [];
+    for (const t of tickets) {
+      if (t.user?.email && !seen.has(t.user.email)) {
+        seen.add(t.user.email);
+        uniqueAttendees.push(t.user);
+      }
+    }
+
+    // Format event date for the email
+    const eventDateStr = event.eventDate
+      ? new Date(event.eventDate).toLocaleDateString('es', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : '';
+
+    let sent = 0;
+    let errors = 0;
+    for (const attendee of uniqueAttendees) {
+      try {
+        await this.mailService.sendReminderEmail(
+          attendee.email,
+          attendee.firstName || 'Asistente',
+          event.title,
+          eventDateStr,
+          event.venueName || '',
+          event.venueAddress || '',
+          daysUntilEvent,
+          customMessage,
+        );
+        sent++;
+      } catch (e) {
+        console.error(`Reminder email failed for ${attendee.email}:`, e);
+        errors++;
+      }
+    }
+
+    return {
+      success: true,
+      sent,
+      errors,
+      total: uniqueAttendees.length,
+      message: `Recordatorios enviados: ${sent}/${uniqueAttendees.length}`,
+    };
+  }
 }
