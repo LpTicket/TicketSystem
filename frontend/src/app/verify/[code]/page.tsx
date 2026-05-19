@@ -246,7 +246,7 @@ export default function VerifyTicketPage() {
                     <img
                       src="/logo.png"
                       alt="LPTicket"
-                      className="brand-logo w-56 h-auto object-contain"
+                      className="brand-logo w-52 h-auto object-contain"
                     />
                   </div>
 
@@ -281,7 +281,7 @@ export default function VerifyTicketPage() {
                     <img 
                       src={ticket.qrData} 
                       alt="QR Code" 
-                      className="qr-img w-40 h-40 object-contain border border-slate-200 rounded-xl p-2 bg-white shadow-sm" 
+                      className="qr-img w-36 h-36 object-contain border border-slate-200 rounded-xl p-2 bg-white shadow-sm" 
                     />
                   ) : (
                     <div className="w-40 h-40 bg-gray-100 flex items-center justify-center rounded-xl border border-gray-200">
@@ -293,11 +293,11 @@ export default function VerifyTicketPage() {
               </div>
 
               {/* Orange accent line */}
-              <div className="premium-divider mt-8 -mx-8" />
+              <div className="premium-divider mt-5 -mx-8" />
             </div>
 
             {/* ===== TICKET BODY: Attendee & Seat Info ===== */}
-            <div className="ticket-body px-8 py-7 space-y-6">
+            <div className="ticket-body px-8 py-5 space-y-4">
 
               {/* Status chip */}
               <div className="flex items-center gap-2">
@@ -342,7 +342,7 @@ export default function VerifyTicketPage() {
               </div>
 
               {/* Order Details divider */}
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                 <p className="text-[10px] font-black text-blue-900 uppercase tracking-widest mb-3">Detalles del Pedido</p>
                 <div className="grid grid-cols-1 gap-1.5 text-sm text-slate-600">
                   <div className="flex gap-2">
