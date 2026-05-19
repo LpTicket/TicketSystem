@@ -75,12 +75,13 @@ export class MailService {
 
       const qrCid = `qr-${t.ticketCode}`;
       const ticketUrl = `${appUrl}/verify/${t.ticketCode}`;
+      const whatsappShareUrl = `https://wa.me/?text=${encodeURIComponent(`Mi entrada para ${eventTitle}: ${ticketUrl}`)}`;
 
       return `
       <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 25px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
         <!-- Card branding header -->
         <div style="border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 18px; display: table; width: 100%;">
-          <div style="display: table-cell; font-size: 20px; font-weight: 900; color: #ef4444; font-family: monospace; letter-spacing: -1px;">LPTICKET</div>
+          <div style="display: table-cell; font-size: 20px; font-weight: 900; color: #ff6b1a; font-family: monospace; letter-spacing: -1px;">LPTICKET</div>
           <div style="display: table-cell; text-align: right; font-size: 9px; font-weight: bold; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; vertical-align: middle;">Digital Ticket</div>
         </div>
 
@@ -91,7 +92,7 @@ export class MailService {
           <p style="margin: 4px 0;"><strong>Comprador:</strong> ${userName}</p>
           ${shouldShowSection ? `<p style="margin: 4px 0;"><strong>Sección:</strong> ${t.sectionName}</p>` : ''}
           <p style="margin: 4px 0;"><strong>Ubicación:</strong> ${details}</p>
-          <p style="margin: 4px 0; font-family: monospace;"><strong>Código:</strong> <span style="color: #ef4444; font-weight: bold;">${t.ticketCode}</span></p>
+          <p style="margin: 4px 0; font-family: monospace;"><strong>Código:</strong> <span style="color: #ff6b1a; font-weight: bold;">${t.ticketCode}</span></p>
         </div>
 
         <!-- Center QR (CID inline image) -->
@@ -101,14 +102,24 @@ export class MailService {
         </div>
 
         <div style="text-align: center; margin: 18px 0 6px 0;">
-          <a href="${ticketUrl}" target="_blank" style="display: inline-block; background: #0f3f66; color: #ffffff; text-decoration: none; border-radius: 14px; padding: 12px 18px; font-size: 12px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;">
-            ↗ Compartir esta entrada
+          <a href="${whatsappShareUrl}" target="_blank" style="display: inline-block; background: #16a34a; color: #ffffff; text-decoration: none; border-radius: 14px; padding: 12px 18px; font-size: 12px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 10px;">
+            Compartir por WhatsApp
           </a>
+
+          <div style="margin-top: 10px; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;">
+            <p style="color: #64748b; font-size: 10px; margin: 0 0 6px 0; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
+              Copia este enlace para enviarlo por texto o correo:
+            </p>
+            <a href="${ticketUrl}" target="_blank" style="color: #0f3f66; font-size: 11px; font-weight: 800; word-break: break-all; text-decoration: underline;">
+              ${ticketUrl}
+            </a>
+          </div>
+
           <p style="color: #64748b; font-size: 10px; margin: 8px 0 0 0;">Este enlace pertenece solo a esta entrada.</p>
         </div>
 
-        <!-- Footer terms info -->
-        <div style="border-top: 1px dashed #cbd5e1; padding-top: 15px; margin-top: 15px; font-size: 9px; color: #94a3b8; text-align: center; line-height: 1.4; text-transform: uppercase; font-weight: bold;">
+
+        <!-- Footer terms info -->    <div style="border-top: 1px dashed #cbd5e1; padding-top: 15px; margin-top: 15px; font-size: 9px; color: #94a3b8; text-align: center; line-height: 1.4; text-transform: uppercase; font-weight: bold;">
           LPTICKET.COM — TUS TICKETS. TUS EVENTOS.
         </div>
       </div>
