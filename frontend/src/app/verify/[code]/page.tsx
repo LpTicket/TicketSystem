@@ -160,6 +160,7 @@ export default function VerifyTicketPage() {
 
           .ticket-footer {
             padding: 14pt 24pt !important;
+            margin-top: auto !important;
           }
 
           .qr-img {
