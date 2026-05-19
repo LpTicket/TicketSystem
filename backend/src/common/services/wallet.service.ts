@@ -183,6 +183,11 @@ export class WalletService {
           seatLabelText = 'SILLA';
           rowVal = mesaMatch[2];
           seatVal = String(ticket.seatNumber || '-');
+        } else if (/^(mesa|table)\b/i.test(String(ticket.rowLabel || '').trim())) {
+          rowLabelText = 'MESA';
+          seatLabelText = 'SILLA';
+          rowVal = ticket.sectionName || '-';
+          seatVal = String(ticket.seatNumber || '-');
         }
 
         pass.headerFields.push(
@@ -304,6 +309,9 @@ export class WalletService {
             seatVal = seatMesaMatch[2];
           } else if (mesaMatch) {
             rowVal = mesaMatch[2];
+            seatVal = String(ticket.seatNumber || '');
+          } else if (/^(mesa|table)\b/i.test(String(ticket.rowLabel || '').trim())) {
+            rowVal = ticket.sectionName || '';
             seatVal = String(ticket.seatNumber || '');
           }
 

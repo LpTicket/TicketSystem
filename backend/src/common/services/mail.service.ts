@@ -34,6 +34,9 @@ export class MailService {
         details = `${hasTableWord ? tableNum : `Mesa ${tableNum}`}, Silla ${chairNum}`;
       } else if (mesaMatch) {
         details = `Mesa ${num}, Silla ${mesaMatch[2]}`;
+      } else if (/^(mesa|table)\b/i.test(String(row).trim())) {
+        const tableNum = section;
+        details = `Mesa ${tableNum}, Silla ${num}`;
       } else if (row === 'GA') {
         details = `Entrada General`;
       } else {
