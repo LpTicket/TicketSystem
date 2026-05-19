@@ -100,12 +100,6 @@ const TIMEZONE_GROUPS = [
       { value: 'Pacific/Fiji', label: 'Fiji (FJT)' },
     ],
   },
-  {
-    region: 'Otros',
-    zones: [
-      { value: 'UTC', label: 'UTC (Coordinated Universal Time)' },
-    ],
-  },
 ];
 
 const getCurrentTimeInTimezone = (timezone: string): string => {
@@ -361,7 +355,7 @@ export default function CreateEventPage() {
                         <optgroup key={group.region} label={group.region}>
                           {group.zones.map(tz => (
                             <option key={tz.value} value={tz.value}>
-                              {tz.label} - {getCurrentTimeInTimezone(tz.value)}
+                              {tz.label} • {getCurrentTimeInTimezone(tz.value)}
                             </option>
                           ))}
                         </optgroup>
