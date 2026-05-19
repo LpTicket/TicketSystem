@@ -108,6 +108,21 @@ const TIMEZONE_GROUPS = [
   },
 ];
 
+const getCurrentTimeInTimezone = (timezone: string): string => {
+  try {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('es', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+    return formatter.format(now);
+  } catch {
+    return '??:??';
+  }
+};
+
 const buildLocalEventDate = (date: string, time: string) => {
   const safeTime = time || '00:00';
   return `${date}T${safeTime}:00`;
@@ -345,7 +360,9 @@ export default function CreateEventPage() {
                       {TIMEZONE_GROUPS.map(group => (
                         <optgroup key={group.region} label={group.region}>
                           {group.zones.map(tz => (
-                            <option key={tz.value} value={tz.value}>{tz.label}</option>
+                            <option key={tz.value} value={tz.value}>
+                              {tz.label} - {getCurrentTimeInTimezone(tz.value)}
+                            </option>
                           ))}
                         </optgroup>
                       ))}
