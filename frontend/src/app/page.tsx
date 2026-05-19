@@ -249,7 +249,7 @@ export default function HomePage() {
               </div>
             </label>
 
-            <button type="submit" className="inline-flex h-full min-h-[58px] items-center justify-center rounded-lg bg-blue-800 px-7 text-xs font-black uppercase tracking-[0.14em] text-white shadow-[0_16px_28px_rgba(10,55,90,0.18)] transition-all hover:bg-blue-700 hover:-translate-y-0.5">
+            <button type="submit" className="inline-flex h-full min-h-[58px] items-center justify-center rounded-lg bg-blue-800 px-7 text-xs font-black uppercase tracking-[0.14em] text-white shadow-[0_16px_28px_rgba(10,55,90,0.18)] transition-all hover:bg-blue-700 hover:-translate-y-0.5 lg:w-[10.5rem]">
               {lang === 'es' ? 'Buscar' : 'Search'}
             </button>
           </form>
@@ -276,7 +276,7 @@ export default function HomePage() {
               </button>
             </div>
 
-            <div className="relative shrink-0 w-full lg:w-auto">
+            <div className="relative shrink-0 w-full lg:w-[10.5rem]">
               <button onClick={() => setSortOpen(!sortOpen)} className="home-sort-button">
                 {t('sortBy')}
                 <span className="text-[8px] opacity-70">▼</span>
