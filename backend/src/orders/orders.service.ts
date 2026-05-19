@@ -803,11 +803,23 @@ export class OrdersService {
   async sendEventReminder(
     eventId: string,
     organizerId: string,
-    daysUntilEvent: number,
+    daysUntilEvent?: number,
     customMessage?: string,
   ) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
+
+    let days = daysUntilEvent;
+    if (days === undefined || days === null) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const eventDateOnly = new Date(event.eventDate);
+      eventDateOnly.setHours(0, 0, 0, 0);
+
+      const timeDiff = eventDateOnly.getTime() - today.getTime();
+      days = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    }
 
     // Authorization check
     if (event.organizerId !== organizerId) {
@@ -861,7 +873,7 @@ export class OrdersService {
           eventDateStr,
           event.venueName || '',
           event.venueAddress || '',
-          daysUntilEvent,
+          days,
           customMessage,
         );
         sent++;

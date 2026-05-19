@@ -186,7 +186,7 @@ export class OrdersController {
   @Post('event/:eventId/send-reminder')
   sendEventReminder(
     @Param('eventId') eventId: string,
-    @Body() body: { daysUntilEvent: number; customMessage?: string },
+    @Body() body: { daysUntilEvent?: number; customMessage?: string },
     @Request() req: any
   ) {
     return this.ordersService.sendEventReminder(
