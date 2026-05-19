@@ -407,9 +407,11 @@ export default function TicketScannerPage() {
         #reader video {
           width: 100% !important;
           height: auto !important;
-          max-height: 280px !important;
-          object-fit: cover !important;
+          min-height: 300px !important;
+          max-height: 420px !important;
+          object-fit: contain !important;
           border-radius: 1rem !important;
+          background: #020617 !important;
         }
         #reader__header, #reader__footer {
           display: none !important;
