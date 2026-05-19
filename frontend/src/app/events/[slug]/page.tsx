@@ -393,10 +393,8 @@ export default function EventDetailPage() {
                               <div key={seat.id} className="flex items-center justify-between text-sm py-1 px-1.5 rounded hover:bg-slate-50 transition-colors">
                                 <span className="text-gray-600 flex items-center gap-2 min-w-0">
                                   <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-white shadow-sm" style={{ background: section?.color || '#cbd5e1' }} />
-                                  <span className="font-semibold text-slate-800 truncate">{section?.name}</span>
-                                  <span className="text-slate-400 font-bold shrink-0">—</span>
                                   <span className="bg-slate-100 text-slate-700 text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
-                                    {formatSeatLabel({ rowLabel: seat.rowLabel, seatNumber: seat.seatNumber }, undefined, lang)}
+                                    {formatSeatLabel(seat, section, lang)}
                                   </span>
                                 </span>
                                 <span className="font-extrabold text-slate-900 shrink-0">${getSeatPrice(seat, section).toFixed(2)}</span>
