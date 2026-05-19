@@ -91,18 +91,22 @@ export class AiSupportService implements OnModuleInit {
 
       events.forEach(event => {
         const dateObj = new Date(event.eventDate);
+        // Use event timezone if available, otherwise fall back to America/Chicago (Houston)
+        const tz = (event as any).timezone || 'America/Chicago';
         const dateStr = dateObj.toLocaleDateString('es-ES', { 
           weekday: 'long', 
           year: 'numeric', 
           month: 'long', 
           day: 'numeric', 
           hour: '2-digit', 
-          minute: '2-digit' 
+          minute: '2-digit',
+          timeZone: tz,
         });
         
-        // Month helper for the AI to filter easily
+        // Month helper for the AI to filter easily (use same timezone)
         const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-        const monthName = months[dateObj.getMonth()];
+        const monthIndex = Number(dateObj.toLocaleString('en-US', { month: 'numeric', timeZone: tz })) - 1;
+        const monthName = months[monthIndex];
 
         const eventUrl = `${appUrl}/events/${event.slug}`;
         
