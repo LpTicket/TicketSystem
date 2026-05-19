@@ -52,6 +52,7 @@ export class MailService {
       }
 
       // For table sections, don't show section separately (it's already in "Ubicación")
+      const cleanSection = section.trim();
       const isTableSection = sectionType === 'table' || /^(mesa|table)\b/i.test(String(row).trim());
       const shouldShowSection = !isTableSection && cleanSection &&
         !['general', 'general admission', 'ga', 'default', 'default section', 'null', 'undefined', 'sección única', 'seccion unica'].includes(cleanSection.toLowerCase()) &&
