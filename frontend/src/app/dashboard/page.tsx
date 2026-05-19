@@ -8,6 +8,7 @@ import api, { getImageUrl } from '@/lib/api';
 import { formatSeatLabel } from '@/lib/seatLabel';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
+import { parseSafeDate } from '@/lib/dateUtils';
 import { Ticket, Order } from '@/types';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
@@ -195,7 +196,7 @@ function DashboardPageBody() {
                       <h3 className="font-bold text-gray-900 truncate">{ticket.event?.title || 'Evento'}</h3>
                       <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                         <HiOutlineCalendar className="w-3.5 h-3.5 shrink-0" />
-                        {ticket.event?.eventDate && format(new Date(ticket.event.eventDate), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })}
+                        {ticket.event?.eventDate && format(parseSafeDate(ticket.event.eventDate), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })}
                       </div>
                     </div>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ml-2 ${badge.classes}`}>{badge.label}</span>
@@ -208,7 +209,7 @@ function DashboardPageBody() {
                     <p className="font-mono text-xs text-primary-600">{t('clientCode')}: {ticket.ticketCode}</p>
                     {ticket.createdAt && (
                       <p className="text-[10px] text-gray-400 font-medium pt-1">
-                        🕒 {lang === 'es' ? 'Adquirido el' : 'Purchased on'}: {format(new Date(ticket.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })}
+                        🕒 {lang === 'es' ? 'Adquirido el' : 'Purchased on'}: {format(parseSafeDate(ticket.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })}
                       </p>
                     )}
                   </div>
@@ -278,7 +279,7 @@ function DashboardPageBody() {
                     <div className="min-w-0 flex-1">
                       <h4 className="font-semibold text-gray-900 text-sm truncate">{order.event?.title || 'Evento'}</h4>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {format(new Date(order.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })} · {order.ticketCount} ticket(s)
+                        {format(parseSafeDate(order.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })} · {order.ticketCount} ticket(s)
                       </p>
                     </div>
                     <div className="text-right shrink-0 ml-4">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { parseSafeDate } from '@/lib/dateUtils';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { Event } from '@/types';
@@ -182,7 +183,7 @@ export default function OrganizerEventsPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredEvents.map((ev) => {
-                  const isPast = new Date(ev.eventDate).getTime() < Date.now();
+                  const isPast = parseSafeDate(ev.eventDate).getTime() < Date.now();
                   const badge = getStatusBadge(ev.status, isPast);
                   const catInfo = getCategoryInfo(ev.category);
                   const catLabel = catInfo ? (lang === 'en' ? catInfo.labelEn : catInfo.labelEs) : ev.category;
@@ -206,7 +207,7 @@ export default function OrganizerEventsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600">
-                        {format(new Date(ev.eventDate), "dd MMM yyyy", { locale: dateFnsLocale })}
+                        {format(parseSafeDate(ev.eventDate), "dd MMM yyyy", { locale: dateFnsLocale })}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600 truncate max-w-[150px]">{ev.venueName}</td>
                       <td className="px-4 py-4 text-center">
@@ -244,7 +245,7 @@ export default function OrganizerEventsPage() {
           {/* Mobile Cards */}
           <div className="md:hidden divide-y divide-gray-100">
             {filteredEvents.map((ev) => {
-              const isPast = new Date(ev.eventDate).getTime() < Date.now();
+              const isPast = parseSafeDate(ev.eventDate).getTime() < Date.now();
               const badge = getStatusBadge(ev.status, isPast);
               const catInfo = getCategoryInfo(ev.category);
               return (
@@ -260,7 +261,7 @@ export default function OrganizerEventsPage() {
                     <div className="flex-1 min-w-0">
                       <h3 className={`font-semibold text-gray-900 text-sm truncate ${isPast ? 'line-through text-gray-400' : ''}`}>{ev.title}</h3>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        📅 {format(new Date(ev.eventDate), "dd MMM yyyy", { locale: dateFnsLocale })} · 📍 {ev.venueName}
+                        📅 {format(parseSafeDate(ev.eventDate), "dd MMM yyyy", { locale: dateFnsLocale })} · 📍 {ev.venueName}
                       </p>
                       <span className={`inline-block mt-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
                     </div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
+import { parseSafeDate } from '@/lib/dateUtils';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { Event, SalesReport, VenueSection } from '@/types';
@@ -45,7 +46,7 @@ interface Attendee {
 
 const formatDateInput = (value?: string) => {
   if (!value) return '';
-  const date = new Date(value);
+  const date = parseSafeDate(value);
   if (Number.isNaN(date.getTime())) return value.substring(0, 10);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -55,7 +56,7 @@ const formatDateInput = (value?: string) => {
 
 const formatTimeInput = (value?: string) => {
   if (!value) return '';
-  const date = new Date(value);
+  const date = parseSafeDate(value);
   if (Number.isNaN(date.getTime())) return '';
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
@@ -315,7 +316,7 @@ export default function EventDetailPage() {
     const csv = [
       lang === 'es' ? 'Cliente,Email,Cantidad Boletos,Total Pagado,Fecha' : 'Client,Email,Ticket Count,Total Paid,Date',
       ...sales.orders.map((o: any) =>
-        `"${o.user?.firstName || ''} ${o.user?.lastName || ''}","${o.user?.email || ''}",${o.ticketCount},"${Number(o.total).toFixed(2)}","${format(new Date(o.createdAt), 'yyyy-MM-dd HH:mm')}"`
+        `"${o.user?.firstName || ''} ${o.user?.lastName || ''}","${o.user?.email || ''}",${o.ticketCount},"${Number(o.total).toFixed(2)}","${format(parseSafeDate(o.createdAt), 'yyyy-MM-dd HH:mm')}"`
       ),
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -368,7 +369,7 @@ export default function EventDetailPage() {
               <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
             </div>
             <div className="flex flex-wrap gap-3 text-sm text-gray-500">
-              <span className="flex items-center gap-1"><HiOutlineCalendar className="w-4 h-4" /> {format(new Date(event.eventDate), "dd MMM yyyy — HH:mm", { locale: dateFnsLocale })}</span>
+              <span className="flex items-center gap-1"><HiOutlineCalendar className="w-4 h-4" /> {format(parseSafeDate(event.eventDate), "dd MMM yyyy — HH:mm", { locale: dateFnsLocale })}</span>
               <span className="flex items-center gap-1"><HiOutlineLocationMarker className="w-4 h-4" /> {event.venueName}</span>
               <span className="flex items-center gap-1">{catInfo?.icon || '🎫'} {catLabel}</span>
             </div>
@@ -638,7 +639,7 @@ export default function EventDetailPage() {
                         <td className="px-4 py-4 text-sm text-gray-600">{o.user?.email}</td>
                         <td className="px-4 py-4 text-sm text-gray-900 font-semibold text-center">{o.ticketCount}</td>
                         <td className="px-4 py-4 text-sm text-primary-600 font-bold text-right">${Number(o.total).toFixed(2)}</td>
-                        <td className="px-4 py-4 text-xs text-gray-500 text-center">{format(new Date(o.createdAt), 'dd MMM yyyy')}</td>
+                        <td className="px-4 py-4 text-xs text-gray-500 text-center">{format(parseSafeDate(o.createdAt), 'dd MMM yyyy')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -649,7 +650,7 @@ export default function EventDetailPage() {
                     <div key={o.id} className="p-4 flex justify-between items-center">
                       <div>
                         <p className="font-bold text-gray-900 text-sm">{o.user?.firstName} {o.user?.lastName}</p>
-                        <p className="text-xs text-gray-500">{o.ticketCount} {o.ticketCount === 1 ? 'boleto' : 'boletos'} · {format(new Date(o.createdAt), 'dd MMM')}</p>
+                        <p className="text-xs text-gray-500">{o.ticketCount} {o.ticketCount === 1 ? 'boleto' : 'boletos'} · {format(parseSafeDate(o.createdAt), 'dd MMM')}</p>
                       </div>
                       <p className="text-sm font-extrabold text-primary-600">${Number(o.total).toFixed(2)}</p>
                     </div>

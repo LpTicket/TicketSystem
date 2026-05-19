@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
+import { parseSafeDate } from '@/lib/dateUtils';
 import { toast } from 'react-hot-toast';
 import { useLang } from '@/context/LanguageContext';
 import { User } from '@/types';
@@ -305,7 +306,7 @@ export default function AdminUsersPage() {
                           </span>
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-500 hidden xl:table-cell font-medium">
-                          {format(new Date(u.createdAt), "dd MMM yyyy", { locale: dateFnsLocale })}
+                          {format(parseSafeDate(u.createdAt), "dd MMM yyyy", { locale: dateFnsLocale })}
                         </td>
                         <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
@@ -381,7 +382,7 @@ export default function AdminUsersPage() {
                         {u.isActive ? t('adminActive') : t('adminInactive')}
                       </span>
                       <span className="text-[10px] text-gray-400 font-medium italic">
-                        {format(new Date(u.createdAt), "dd/MM/yy", { locale: dateFnsLocale })}
+                        {format(parseSafeDate(u.createdAt), "dd/MM/yy", { locale: dateFnsLocale })}
                       </span>
                     </div>
                   </div>
@@ -561,7 +562,7 @@ export default function AdminUsersPage() {
                     </div>
                     <div className="flex items-center gap-2.5 text-gray-600">
                       <HiOutlineCalendar className="w-4 h-4 text-gray-400 shrink-0" />
-                      <span>{lang === 'es' ? 'Registrado el' : 'Registered on'} {format(new Date(selectedUser.createdAt), "dd MMM yyyy", { locale: dateFnsLocale })}</span>
+                      <span>{lang === 'es' ? 'Registrado el' : 'Registered on'} {format(parseSafeDate(selectedUser.createdAt), "dd MMM yyyy", { locale: dateFnsLocale })}</span>
                     </div>
                   </div>
                 </div>

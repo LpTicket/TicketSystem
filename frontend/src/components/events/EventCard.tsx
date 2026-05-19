@@ -9,6 +9,8 @@ import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineTag } from 'react-
 import ShareEventButton from '@/components/events/ShareEventButton';
 import { getImageUrl } from '@/lib/api';
 
+import { parseSafeDate } from '@/lib/dateUtils';
+
 interface EventCardProps {
   event: Event;
 }
@@ -26,7 +28,7 @@ export default function EventCard({ event }: EventCardProps) {
   };
 
   const catLabel = lang === 'en' ? categoryInfo.labelEn : categoryInfo.labelEs;
-  const eventDate = new Date(event.eventDate);
+  const eventDate = parseSafeDate(event.eventDate);
   const eventLocale = lang === 'es' ? 'es' : 'en-US';
   const eventDay = eventDate.toLocaleDateString(eventLocale, { day: '2-digit', month: '2-digit' });
   const eventTime = eventDate.toLocaleTimeString(eventLocale, { hour: '2-digit', minute: '2-digit', hour12: true });

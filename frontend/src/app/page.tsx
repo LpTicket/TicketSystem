@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
 import EventCard from '@/components/events/EventCard';
+import { parseSafeDate } from '@/lib/dateUtils';
 import { Event, EventStatus } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { useLang } from '@/context/LanguageContext';
@@ -100,7 +101,7 @@ export default function HomePage() {
     if (sortBy === 'precio') {
       return result.sort((a, b) => Number(a.minPrice || 0) - Number(b.minPrice || 0));
     }
-    return result.sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+    return result.sort((a, b) => parseSafeDate(a.eventDate).getTime() - parseSafeDate(b.eventDate).getTime());
   }, [filteredEvents, sortBy]);
 
   const bannerEvents = useMemo(() => {
@@ -180,7 +181,7 @@ export default function HomePage() {
                   <div className="mt-5 hidden flex-wrap items-center gap-3 text-sm font-semibold text-white/90 sm:flex">
                     <span className="inline-flex items-center gap-2 rounded-lg bg-white/12 px-3 py-2 backdrop-blur-md">
                       <HiOutlineCalendar className="h-4 w-4" />
-                      {format(new Date(bannerEvent.eventDate), lang === 'es' ? 'd MMM yyyy' : 'MMM d, yyyy', { locale: dateLocale })}
+                      {format(parseSafeDate(bannerEvent.eventDate), lang === 'es' ? 'd MMM yyyy' : 'MMM d, yyyy', { locale: dateLocale })}
                     </span>
                     <span className="inline-flex items-center gap-2 rounded-lg bg-white/12 px-3 py-2 backdrop-blur-md">
                       <HiOutlineLocationMarker className="h-4 w-4" />

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { parseSafeDate } from '@/lib/dateUtils';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { Event, SalesReport } from '@/types';
@@ -41,7 +42,7 @@ export default function OrganizerDashboard() {
       let totalRevenue = 0;
       let totalTickets = 0;
       let totalOrders = 0;
-      const activeEvents = myEvents.filter((e: Event) => e.status === 'published' && new Date(e.eventDate).getTime() >= Date.now()).length;
+      const activeEvents = myEvents.filter((e: Event) => e.status === 'published' && parseSafeDate(e.eventDate).getTime() >= Date.now()).length;
 
       for (const ev of myEvents) {
         try {
@@ -144,7 +145,7 @@ export default function OrganizerDashboard() {
         {events.length > 0 ? (
           <div className="divide-y divide-gray-100">
             {events.slice(0, 5).map((ev) => {
-              const isPast = new Date(ev.eventDate).getTime() < Date.now();
+              const isPast = parseSafeDate(ev.eventDate).getTime() < Date.now();
               const badge = getStatusBadge(ev.status, isPast);
               const catInfo = getCategoryInfo(ev.category);
               return (
@@ -165,7 +166,7 @@ export default function OrganizerDashboard() {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
                     </div>
                     <p className="text-xs text-gray-500">
-                      📅 {format(new Date(ev.eventDate), "dd MMM yyyy — HH:mm", { locale: dateFnsLocale })} · 📍 {ev.venueName}
+                      📅 {format(parseSafeDate(ev.eventDate), "dd MMM yyyy — HH:mm", { locale: dateFnsLocale })} · 📍 {ev.venueName}
                     </p>
                   </div>
 

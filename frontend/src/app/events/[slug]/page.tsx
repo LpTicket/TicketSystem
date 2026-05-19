@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { formatSeatLabel } from '@/lib/seatLabel';
+import { parseSafeDate } from '@/lib/dateUtils';
 import { useAuthStore } from '@/stores/auth';
 import type { Event } from '@/types';
 import { VenueSection, Seat, SeatStatus } from '@/types';
@@ -231,7 +232,7 @@ export default function EventDetailPage() {
   const categoryInfo = getCategoryInfo(event.category) || {
     labelEs: 'Otro', labelEn: 'Other', icon: '🎫', color: '#6366f1'
   };
-  const eventDate = new Date(event.eventDate);
+  const eventDate = parseSafeDate(event.eventDate);
   const dateLocale = lang === 'en' ? enUS : es;
 
   return (

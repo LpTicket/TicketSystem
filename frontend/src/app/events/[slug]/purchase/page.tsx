@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
 import { formatSeatLabel } from '@/lib/seatLabel';
+import { parseSafeDate } from '@/lib/dateUtils';
 import { useAuthStore } from '@/stores/auth';
 import type { Event } from '@/types';
 import { VenueSection, Seat, SeatStatus } from '@/types';
@@ -368,7 +369,7 @@ export default function PurchasePage() {
   }
   if (!event) return null;
 
-  const eventDate = new Date(event.eventDate);
+  const eventDate = parseSafeDate(event.eventDate);
 
   return (
     <div className="min-h-screen bg-gray-50">
