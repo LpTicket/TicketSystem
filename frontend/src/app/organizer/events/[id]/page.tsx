@@ -81,7 +81,7 @@ export default function EventDetailPage() {
   const [sections, setSections] = useState<VenueSection[]>([]);
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
-  const [activeTab, setActiveTab] = useState<'details' | 'overview' | 'attendees' | 'map' | 'blocks'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders'>('details');
   const [selectedBlockSection, setSelectedBlockSection] = useState('');
   const [selectedBlockSeats, setSelectedBlockSeats] = useState<string[]>([]);
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
@@ -512,117 +512,6 @@ export default function EventDetailPage() {
         </div>
       )}
 
-      {/* Email Reminders Configuration Panel */}
-      <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center">
-              <HiOutlineBell className="w-6 h-6 text-orange-500" />
-            </div>
-            <div>
-              <h2 className="font-extrabold text-lg text-gray-900">
-                {lang === 'es' ? 'Automatización de Recordatorios por Correo' : 'Email Reminder Automation'}
-              </h2>
-              <p className="text-xs text-gray-500">
-                {lang === 'es' 
-                  ? 'Configura recordatorios automáticos o envíalos de forma manual a tus asistentes desde info@lpticket.com' 
-                  : 'Configure automated reminders or send them manually to your attendees from info@lpticket.com'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowReminderModal(true)}
-            className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2.5 px-5 rounded-2xl transition-all shadow-md shadow-orange-500/10 shrink-0 self-start sm:self-auto"
-          >
-            <HiOutlineMail className="w-4 h-4" />
-            {lang === 'es' ? 'Enviar Recordatorio Manual Ahora' : 'Send Manual Reminder Now'}
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Active / Enabled Toggle */}
-          <div className="space-y-2">
-            <label className="text-xs font-black text-gray-700 uppercase tracking-wider block">
-              {lang === 'es' ? 'Estado del Recordatorio Automático' : 'Automated Reminder Status'}
-            </label>
-            <div className="flex items-center gap-3 bg-gray-50/50 border border-gray-100 rounded-2xl p-4">
-              <input
-                type="checkbox"
-                id="autoReminderEnabled"
-                checked={autoReminderEnabled}
-                onChange={(e) => setAutoReminderEnabled(e.target.checked)}
-                className="w-5 h-5 accent-orange-500 cursor-pointer rounded-lg"
-              />
-              <label htmlFor="autoReminderEnabled" className="text-sm font-bold text-gray-800 cursor-pointer select-none">
-                {autoReminderEnabled 
-                  ? (lang === 'es' ? '🟢 Activado' : '🟢 Activated') 
-                  : (lang === 'es' ? '🔴 Desactivado' : '🔴 Deactivated')}
-              </label>
-            </div>
-            <p className="text-[10px] text-gray-400">
-              {lang === 'es' 
-                ? 'Si está activado, el sistema enviará los correos a la hora programada en el día configurado.' 
-                : 'If active, the system will send the emails at the scheduled time on the configured day.'}
-            </p>
-          </div>
-
-          {/* Days Select */}
-          <div className="space-y-2">
-            <label className="text-xs font-black text-gray-700 uppercase tracking-wider block">
-              {lang === 'es' ? '¿Cuándo se enviará?' : 'When will it be sent?'}
-            </label>
-            <div className="flex items-center gap-3">
-              <select
-                value={autoReminderDays}
-                onChange={(e) => setAutoReminderDays(Number(e.target.value))}
-                disabled={!autoReminderEnabled}
-                className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white disabled:bg-gray-50 disabled:text-gray-400"
-              >
-                <option value={0}>{lang === 'es' ? 'El mismo día del evento (0 días)' : 'Same day of the event (0 days)'}</option>
-                <option value={1}>{lang === 'es' ? '1 día antes' : '1 day before'}</option>
-                <option value={3}>{lang === 'es' ? '3 días antes' : '3 days before'}</option>
-                <option value={7}>{lang === 'es' ? '7 días antes' : '7 days before'}</option>
-                <option value={14}>{lang === 'es' ? '14 días antes' : '14 days before'}</option>
-              </select>
-            </div>
-            <p className="text-[10px] text-gray-400">
-              {autoReminderDays === 0 
-                ? (lang === 'es' ? '⚡ El correo dirá: ¡HOY ES EL EVENTO!' : '⚡ Email will say: TODAY IS THE EVENT!') 
-                : autoReminderDays === 1 
-                  ? (lang === 'es' ? '📅 El correo dirá: ¡MAÑANA ES EL EVENTO!' : '📅 Email will say: TOMORROW IS THE EVENT!')
-                  : (lang === 'es' ? `📅 El correo dirá: Faltan ${autoReminderDays} días para el evento` : `📅 Email will say: ${autoReminderDays} days until the event`)}
-            </p>
-          </div>
-
-          {/* Custom Message */}
-          <div className="space-y-2">
-            <label className="text-xs font-black text-gray-700 uppercase tracking-wider block">
-              {lang === 'es' ? 'Mensaje Personalizado Opcional' : 'Optional Custom Message'}
-            </label>
-            <textarea
-              value={autoReminderMessage}
-              onChange={(e) => setAutoReminderMessage(e.target.value)}
-              disabled={!autoReminderEnabled}
-              placeholder={lang === 'es' ? 'Ej: Recuerda traer ropa abrigada...' : 'E.g: Remember to wear warm clothes...'}
-              className="w-full px-4 py-2 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white h-12 min-h-12 resize-none disabled:bg-gray-50 disabled:text-gray-400"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end pt-2">
-          <button
-            onClick={handleSaveReminderSettings}
-            disabled={savingSettings}
-            className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-black py-2.5 px-6 rounded-2xl transition-all shadow-sm disabled:opacity-60"
-          >
-            {savingSettings ? (
-              <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> {lang === 'es' ? 'Guardando...' : 'Saving...'}</>
-            ) : (
-              <>{lang === 'es' ? 'Guardar Configuración' : 'Save Configuration'}</>
-            )}
-          </button>
-        </div>
-      </div>
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1 border-b border-gray-200 pb-px">
@@ -666,7 +555,128 @@ export default function EventDetailPage() {
           <span className="hidden sm:inline whitespace-nowrap">{lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}</span>
           <span className="sm:hidden whitespace-nowrap">{lang === 'es' ? 'Bloqueos' : 'Blocks'}</span>
         </button>
+        <button
+          onClick={() => setActiveTab('reminders')}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'reminders' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <HiOutlineBell className="w-4 h-4 shrink-0" />
+          <span className="whitespace-nowrap">{lang === 'es' ? 'Recordatorios' : 'Reminders'}</span>
+        </button>
       </div>
+
+      {/* Email Reminders Tab Content */}
+      {activeTab === 'reminders' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 animate-fade-in space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center">
+                <HiOutlineBell className="w-6 h-6 text-orange-500" />
+              </div>
+              <div>
+                <h2 className="font-extrabold text-lg text-gray-900">
+                  {lang === 'es' ? 'Automatización de Recordatorios por Correo' : 'Email Reminder Automation'}
+                </h2>
+                <p className="text-xs text-gray-500">
+                  {lang === 'es' 
+                    ? 'Configura recordatorios automáticos o envíalos de forma manual a tus asistentes desde info@lpticket.com' 
+                    : 'Configure automated reminders or send them manually to your attendees from info@lpticket.com'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowReminderModal(true)}
+              className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold py-2.5 px-5 rounded-2xl transition-all shadow-md shadow-orange-500/10 shrink-0 self-start sm:self-auto"
+            >
+              <HiOutlineMail className="w-4 h-4" />
+              {lang === 'es' ? 'Enviar Recordatorio Manual Ahora' : 'Send Manual Reminder Now'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Active / Enabled Toggle */}
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-700 uppercase tracking-wider block">
+                {lang === 'es' ? 'Estado del Recordatorio Automático' : 'Automated Reminder Status'}
+              </label>
+              <div className="flex items-center gap-3 bg-gray-50/50 border border-gray-100 rounded-2xl p-4">
+                <input
+                  type="checkbox"
+                  id="autoReminderEnabled"
+                  checked={autoReminderEnabled}
+                  onChange={(e) => setAutoReminderEnabled(e.target.checked)}
+                  className="w-5 h-5 accent-orange-500 cursor-pointer rounded-lg"
+                />
+                <label htmlFor="autoReminderEnabled" className="text-sm font-bold text-gray-800 cursor-pointer select-none">
+                  {autoReminderEnabled 
+                    ? (lang === 'es' ? '🟢 Activado' : '🟢 Activated') 
+                    : (lang === 'es' ? '🔴 Desactivado' : '🔴 Deactivated')}
+                </label>
+              </div>
+              <p className="text-[10px] text-gray-400">
+                {lang === 'es' 
+                  ? 'Si está activado, el sistema enviará los correos a la hora programada en el día configurado.' 
+                  : 'If active, the system will send the emails at the scheduled time on the configured day.'}
+              </p>
+            </div>
+
+            {/* Days Select */}
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-700 uppercase tracking-wider block">
+                {lang === 'es' ? '¿Cuándo se enviará?' : 'When will it be sent?'}
+              </label>
+              <div className="flex items-center gap-3">
+                <select
+                  value={autoReminderDays}
+                  onChange={(e) => setAutoReminderDays(Number(e.target.value))}
+                  disabled={!autoReminderEnabled}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white disabled:bg-gray-50 disabled:text-gray-400"
+                >
+                  <option value={0}>{lang === 'es' ? 'El mismo día del evento (0 días)' : 'Same day of the event (0 days)'}</option>
+                  <option value={1}>{lang === 'es' ? '1 día antes' : '1 day before'}</option>
+                  <option value={3}>{lang === 'es' ? '3 días antes' : '3 days before'}</option>
+                  <option value={7}>{lang === 'es' ? '7 días antes' : '7 days before'}</option>
+                  <option value={14}>{lang === 'es' ? '14 días antes' : '14 days before'}</option>
+                </select>
+              </div>
+              <p className="text-[10px] text-gray-400">
+                {autoReminderDays === 0 
+                  ? (lang === 'es' ? '⚡ El correo dirá: ¡HOY ES EL EVENTO!' : '⚡ Email will say: TODAY IS THE EVENT!') 
+                  : autoReminderDays === 1 
+                    ? (lang === 'es' ? '📅 El correo dirá: ¡MAÑANA ES EL EVENTO!' : '📅 Email will say: TOMORROW IS THE EVENT!')
+                    : (lang === 'es' ? `📅 El correo dirá: Faltan ${autoReminderDays} días para el evento` : `📅 Email will say: ${autoReminderDays} days until the event`)}
+              </p>
+            </div>
+
+            {/* Custom Message */}
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-700 uppercase tracking-wider block">
+                {lang === 'es' ? 'Mensaje Personalizado Opcional' : 'Optional Custom Message'}
+              </label>
+              <textarea
+                value={autoReminderMessage}
+                onChange={(e) => setAutoReminderMessage(e.target.value)}
+                disabled={!autoReminderEnabled}
+                placeholder={lang === 'es' ? 'Ej: Recuerda traer ropa abrigada...' : 'E.g: Remember to wear warm clothes...'}
+                className="w-full px-4 py-2 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-1 focus:ring-orange-400 bg-white h-12 min-h-12 resize-none disabled:bg-gray-50 disabled:text-gray-400"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={handleSaveReminderSettings}
+              disabled={savingSettings}
+              className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-black py-2.5 px-6 rounded-2xl transition-all shadow-sm disabled:opacity-60"
+            >
+              {savingSettings ? (
+                <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> {lang === 'es' ? 'Guardando...' : 'Saving...'}</>
+              ) : (
+                <>{lang === 'es' ? 'Guardar Configuración' : 'Save Configuration'}</>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Sections Tab */}
       {activeTab === 'overview' && (
