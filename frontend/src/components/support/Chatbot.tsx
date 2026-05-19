@@ -78,7 +78,7 @@ export default function Chatbot() {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 p-6 pointer-events-none z-50">
+    <div className="fixed bottom-0 left-0 p-6 pointer-events-none z-50 print:hidden">
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}

@@ -122,14 +122,14 @@ export default function VerifyTicketPage() {
         @media print {
           @page {
             size: letter portrait;
-            margin: 8mm 10mm;
+            margin: 8mm;
           }
 
           html, body {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             background: #fff !important;
-            font-size: 11pt !important;
+            font-size: 10pt !important;\n            width: 100% !important;\n            min-height: 100% !important;
           }
 
           .no-print { display: none !important; }
@@ -151,15 +151,16 @@ export default function VerifyTicketPage() {
           }
 
           .ticket-header {
-            padding: 12pt 14pt !important;
+            padding: 22pt 24pt 0 !important;
           }
 
           .ticket-body {
-            padding: 10pt 14pt !important;
+            padding: 18pt 24pt !important;\n            flex: 1 !important;
           }
 
           .ticket-footer {
-            padding: 8pt 14pt !important;
+            padding: 14pt 24pt !important;
+            margin-top: auto !important;
           }
 
           .qr-img {
@@ -168,7 +169,7 @@ export default function VerifyTicketPage() {
           }
 
           .event-title {
-            font-size: 16pt !important;
+            font-size: 19pt !important;
           }
 
           .terms-text {
@@ -176,7 +177,7 @@ export default function VerifyTicketPage() {
             line-height: 1.35 !important;
           }
 
-          .status-banner { display: none !important; }
+          .status-banner { display: none !important; }\n\n          .brand-logo {\n            width: 190pt !important;\n            height: auto !important;\n          }\n\n          .premium-watermark {\n            display: block !important;\n          }
         }
 
         /* ==================== SCREEN STYLES ==================== */
@@ -184,16 +185,18 @@ export default function VerifyTicketPage() {
           .print-only { display: none !important; }
         }
 
-        /* ==================== SHARED WAVY BORDER ==================== */
-        .tear-line {
-          height: 12px;
-          background-image: radial-gradient(circle at 6px 6px, #f8fafc 6px, transparent 0),
-                            radial-gradient(circle at 6px 6px, #f8fafc 6px, transparent 0);
-          background-size: 12px 12px;
-          background-position: 0 0, 6px 0;
-          background-color: #e2e8f0;
+        .premium-divider {
+          height: 8px;
+          background:
+            linear-gradient(90deg, #f97316 0%, #f97316 42%, #1a73b5 42%, #1a73b5 100%);
           border: none;
           margin: 0;
+        }
+
+        .premium-watermark {
+          background-image:
+            radial-gradient(circle at 15% 20%, rgba(249, 115, 22, 0.09), transparent 28%),
+            radial-gradient(circle at 85% 10%, rgba(26, 115, 181, 0.10), transparent 32%);
         }
       `}</style>
 
@@ -226,41 +229,46 @@ export default function VerifyTicketPage() {
       </div>
 
       {/* Page wrapper */}
-      <div className="ticket-wrapper min-h-screen bg-slate-100 py-6 px-4 print:bg-white print:py-0 print:px-0">
-        <div className="max-w-2xl mx-auto">
+      <div className="ticket-wrapper min-h-screen bg-slate-100 py-8 px-4 print:bg-white print:py-0 print:px-0">
+        <div className="ticket-page max-w-[8.5in] mx-auto">
 
           {/* ===== MAIN TICKET CARD ===== */}
-          <div className="ticket-card bg-white rounded-2xl overflow-hidden shadow-xl border border-gray-200 print:rounded-none print:shadow-none">
+          <div className="ticket-card relative bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-200 print:shadow-none premium-watermark">
 
             {/* Header: Logo + Event Name */}
-            <div className="ticket-header bg-white px-6 pt-6 pb-0 print:px-4 print:pt-4">
+            <div className="ticket-header relative bg-white px-8 pt-8 pb-0">
               {/* Top row: Logo left, QR right */}
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-6">
                 {/* Left: Branding + Event info */}
                 <div className="flex-1 min-w-0">
-                  {/* LP Ticket Logo text */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-2xl font-black text-orange-500 tracking-tight print:text-xl leading-none">LP</span>
-                    <span className="text-2xl font-black text-gray-900 tracking-tight print:text-xl leading-none">Ticket</span>
-                    <span className="ml-1 text-[9px] font-black text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded uppercase tracking-widest">DIGITAL</span>
+                  <div className="mb-5">
+                    <img
+                      src="/logo.png"
+                      alt="LPTicket"
+                      className="brand-logo w-56 h-auto object-contain"
+                    />
                   </div>
 
-                  {/* Event Title */}
-                  <h1 className="event-title font-black text-2xl text-gray-900 uppercase leading-tight tracking-tight print:text-base mb-1">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 border border-orange-100 px-3 py-1 mb-3">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                    <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Digital Ticket Receipt</span>
+                  </div>
+
+                  <h1 className="event-title font-black text-3xl text-slate-950 uppercase leading-tight tracking-tight mb-2">
                     {ticket.event?.title || 'Evento'}
                   </h1>
 
                   {/* Date & Venue */}
-                  <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide mt-1">
+                  <p className="text-sm text-blue-900 font-black uppercase tracking-wide mt-1">
                     {eventDateFormatted}
                   </p>
                   {ticket.event?.venueName && (
-                    <p className="text-xs text-gray-600 font-bold uppercase mt-0.5">
+                    <p className="text-sm text-slate-800 font-black uppercase mt-1">
                       {ticket.event.venueName}
                     </p>
                   )}
                   {ticket.event?.venueAddress && (
-                    <p className="text-xs text-gray-500 font-medium mt-0.5">
+                    <p className="text-sm text-slate-500 font-semibold mt-1">
                       {ticket.event.venueAddress}
                     </p>
                   )}
@@ -272,31 +280,28 @@ export default function VerifyTicketPage() {
                     <img 
                       src={ticket.qrData} 
                       alt="QR Code" 
-                      className="qr-img w-32 h-32 print:w-28 print:h-28 object-contain border border-gray-100 rounded-lg p-1 bg-white" 
+                      className="qr-img w-40 h-40 object-contain border border-slate-200 rounded-xl p-2 bg-white shadow-sm" 
                     />
                   ) : (
-                    <div className="w-32 h-32 bg-gray-100 flex items-center justify-center rounded-lg border border-gray-200">
+                    <div className="w-40 h-40 bg-gray-100 flex items-center justify-center rounded-xl border border-gray-200">
                       <HiOutlineTicket className="w-10 h-10 text-gray-300" />
                     </div>
                   )}
-                  <span className="text-[9px] text-gray-400 mt-1 font-medium text-center">Presentar en acceso</span>
+                  <span className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wide text-center">Present at entry</span>
                 </div>
               </div>
 
               {/* Orange accent line */}
-              <div className="h-1 bg-gradient-to-r from-orange-500 via-orange-400 to-amber-300 mt-4 -mx-6 print:-mx-4" />
+              <div className="premium-divider mt-8 -mx-8" />
             </div>
 
-            {/* Tear-style divider */}
-            <div className="tear-line" />
-
             {/* ===== TICKET BODY: Attendee & Seat Info ===== */}
-            <div className="ticket-body px-6 py-5 print:px-4 print:py-3 space-y-4">
+            <div className="ticket-body px-8 py-7 space-y-6">
 
               {/* Status chip */}
-              <div className="flex items-center gap-2 no-print">
+              <div className="flex items-center gap-2">
                 <span 
-                  className="text-[10px] font-black tracking-widest uppercase px-3 py-1 rounded-full"
+                  className="text-[10px] font-black tracking-widest uppercase px-3 py-1.5 rounded-full"
                   style={{ 
                     backgroundColor: isActive ? '#dcfce7' : isUsed ? '#f3f4f6' : '#fee2e2',
                     color: statusColor
@@ -307,19 +312,19 @@ export default function VerifyTicketPage() {
               </div>
 
               {/* Info grid */}
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 print:gap-y-2">
+              <div className="grid grid-cols-2 gap-4">
                 {/* Holder */}
-                <div className="col-span-2 sm:col-span-1">
-                  <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Nombre / Name</span>
-                  <span className="block text-base font-black text-gray-900 uppercase leading-tight print:text-sm">
+                <div className="col-span-2 sm:col-span-1 rounded-xl border border-slate-200 bg-white/80 p-4">
+                  <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nombre / Name</span>
+                  <span className="block text-lg font-black text-slate-950 uppercase leading-tight">
                     {ticket.user?.firstName} {ticket.user?.lastName}
                   </span>
                 </div>
 
                 {/* Seat */}
-                <div className="col-span-2 sm:col-span-1">
-                  <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Ubicación / Seat</span>
-                  <span className="block text-base font-black text-gray-900 uppercase leading-tight print:text-sm">
+                <div className="col-span-2 sm:col-span-1 rounded-xl border border-slate-200 bg-white/80 p-4">
+                  <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ubicación / Seat</span>
+                  <span className="block text-lg font-black text-slate-950 uppercase leading-tight">
                     {seatLabel}
                   </span>
                 </div>
@@ -327,8 +332,8 @@ export default function VerifyTicketPage() {
                 {/* Section (if applicable) */}
                 {shouldShowSection && (
                   <div className="col-span-2 sm:col-span-1">
-                    <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Sección / Section</span>
-                    <span className="block text-sm font-bold text-orange-600 uppercase">
+                    <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sección / Section</span>
+                    <span className="block text-lg font-black text-orange-600 uppercase">
                       {ticket.sectionName}
                     </span>
                   </div>
@@ -336,48 +341,45 @@ export default function VerifyTicketPage() {
               </div>
 
               {/* Order Details divider */}
-              <div className="border-t border-dashed border-gray-200 pt-3 print:pt-2">
-                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Detalles del Pedido</p>
-                <div className="space-y-0.5 text-xs text-gray-600 print:text-[8pt]">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+                <p className="text-[10px] font-black text-blue-900 uppercase tracking-widest mb-3">Detalles del Pedido</p>
+                <div className="grid grid-cols-1 gap-1.5 text-sm text-slate-600">
                   <div className="flex gap-2">
-                    <span className="font-bold text-gray-800 w-28 shrink-0">TICKET ID:</span>
-                    <span className="font-mono text-gray-600 break-all">{ticket.id}</span>
+                    <span className="font-black text-slate-900 w-32 shrink-0">TICKET ID:</span>
+                    <span className="font-mono text-slate-600 break-all">{ticket.id}</span>
                   </div>
                   <div className="flex gap-2">
-                    <span className="font-bold text-gray-800 w-28 shrink-0">COMPRADO POR:</span>
+                    <span className="font-black text-slate-900 w-32 shrink-0">COMPRADO POR:</span>
                     <span>{ticket.user?.firstName} {ticket.user?.lastName}</span>
                   </div>
                   {ticket.createdAt && (
                     <div className="flex gap-2">
-                      <span className="font-bold text-gray-800 w-28 shrink-0">FECHA COMPRA:</span>
+                      <span className="font-black text-slate-900 w-32 shrink-0">FECHA COMPRA:</span>
                       <span>{format(parseSafeDate(ticket.createdAt), "dd MMM yyyy - hh:mm a", { locale: es })}</span>
                     </div>
                   )}
                   {shouldShowSection && (
                     <div className="flex gap-2">
-                      <span className="font-bold text-gray-800 w-28 shrink-0">TICKET TYPE:</span>
+                      <span className="font-black text-slate-900 w-32 shrink-0">TICKET TYPE:</span>
                       <span>{ticket.sectionName}</span>
                     </div>
                   )}
                   <div className="flex gap-2">
-                    <span className="font-bold text-gray-800 w-28 shrink-0">ORDER ID:</span>
-                    <span className="font-mono text-gray-600 break-all">{ticket.orderId}</span>
+                    <span className="font-black text-slate-900 w-32 shrink-0">ORDER ID:</span>
+                    <span className="font-mono text-slate-600 break-all">{ticket.orderId}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Tear-style divider */}
-            <div className="tear-line" />
-
             {/* ===== FOOTER: Terms + Branding ===== */}
-            <div className="ticket-footer px-6 py-4 print:px-4 print:py-2 bg-gray-50 print:bg-white">
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 print:gap-4">
+            <div className="ticket-footer px-8 py-6 bg-blue-950 text-white">
+              <div className="flex flex-col sm:flex-row gap-5 sm:gap-8">
 
                 {/* Terms */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1 print:mb-0.5">Terms & Conditions</p>
-                  <div className="terms-text text-[7px] text-gray-500 leading-relaxed space-y-0.5 uppercase font-medium print:text-[5.5pt] print:leading-tight print:space-y-0">
+                  <p className="text-[10px] font-black text-orange-300 uppercase tracking-widest mb-2">Terms & Conditions</p>
+                  <div className="terms-text text-[8px] text-white/75 leading-relaxed space-y-1 uppercase font-medium">
                     <p>This ticket is not subject to any refund and shall bear no cash value. If issued complimentarily, this ticket shall not be exchangeable.</p>
                     <p>Holder voluntarily assumes all risks and danger incidental to the event. Duplicate tickets or barcodes may be refused entry.</p>
                     <p>LPTicket and all respective agents are expressly released by holder from any claims arising from such causes.</p>
@@ -385,13 +387,13 @@ export default function VerifyTicketPage() {
                 </div>
 
                 {/* Branding */}
-                <div className="flex sm:flex-col items-center justify-between gap-2 sm:shrink-0 print:hidden">
+                <div className="flex sm:flex-col items-center justify-between gap-3 sm:shrink-0">
                   <div className="text-center">
-                    <p className="text-xl font-black text-orange-500 tracking-tight leading-none">LPTicket</p>
-                    <p className="text-[8px] text-gray-400 font-medium leading-tight">lpticket.com</p>
+                    <p className="text-2xl font-black text-orange-400 tracking-tight leading-none">LPTicket</p>
+                    <p className="text-[9px] text-white/60 font-semibold leading-tight">lpticket.com</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-black text-gray-900 leading-tight">Thank You</p>
+                    <p className="text-sm font-black text-white leading-tight">Thank You</p>
                   </div>
                 </div>
 
