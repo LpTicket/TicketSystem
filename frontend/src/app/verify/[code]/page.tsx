@@ -371,30 +371,27 @@ export default function VerifyTicketPage() {
             <div className="tear-line" />
 
             {/* ===== FOOTER: Terms + Branding ===== */}
-            <div className="ticket-footer px-6 py-5 print:px-4 print:py-3 bg-gray-50 print:bg-white">
-              <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 print:gap-6">
-                
+            <div className="ticket-footer px-6 py-4 print:px-4 print:py-2 bg-gray-50 print:bg-white">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 print:gap-4">
+
                 {/* Terms */}
-                <div className="flex-1">
-                  <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Terms & Conditions</p>
-                  <div className="terms-text text-[8px] text-gray-500 leading-relaxed space-y-1 uppercase font-medium print:text-[6pt] print:leading-tight">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1 print:mb-0.5">Terms & Conditions</p>
+                  <div className="terms-text text-[7px] text-gray-500 leading-relaxed space-y-0.5 uppercase font-medium print:text-[5.5pt] print:leading-tight print:space-y-0">
                     <p>This ticket is not subject to any refund and shall bear no cash value. If issued complimentarily, this ticket shall not be exchangeable.</p>
                     <p>Holder voluntarily assumes all risks and danger incidental to the event. Duplicate tickets or barcodes may be refused entry.</p>
                     <p>LPTicket and all respective agents are expressly released by holder from any claims arising from such causes.</p>
                   </div>
                 </div>
 
-                {/* Branding + Thank You */}
-                <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 sm:gap-2 print:gap-1 sm:shrink-0 sm:pl-4 sm:border-l border-gray-200">
-                  <div className="text-center sm:text-right">
-                    <p className="text-2xl font-black text-orange-500 tracking-tight leading-none print:text-lg">LPTicket</p>
-                    <p className="text-[9px] text-gray-400 font-medium leading-tight mt-0.5">Tus tickets.<br/>Tus eventos.</p>
+                {/* Branding */}
+                <div className="flex sm:flex-col items-center justify-between gap-2 sm:shrink-0 print:hidden">
+                  <div className="text-center">
+                    <p className="text-xl font-black text-orange-500 tracking-tight leading-none">LPTicket</p>
+                    <p className="text-[8px] text-gray-400 font-medium leading-tight">lpticket.com</p>
                   </div>
-                  <div className="text-center sm:text-right">
-                    <p className="text-lg font-black text-gray-900 leading-tight print:text-base">Thank<br/>You</p>
-                    <p className="text-[9px] text-gray-400 mt-0.5">
-                      <strong className="text-orange-500">lpticket.com</strong>
-                    </p>
+                  <div className="text-center">
+                    <p className="text-sm font-black text-gray-900 leading-tight">Thank You</p>
                   </div>
                 </div>
 
