@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import { formatTicketSeatLabel } from '../utils/seat-label';
 
 @Injectable()
 export class MailService {
@@ -18,7 +19,22 @@ export class MailService {
     });
   }
 
-  async sendTicketEmail(to: string, userName: string, eventTitle: string, tickets: any[]) {
+  private getAppUrl() {
+    const rawAppUrl = this.configService.get('APP_URL') || 'https://www.lpticket.com';
+    return rawAppUrl.startsWith('http://') || rawAppUrl.startsWith('https://')
+      ? rawAppUrl.replace(/\/$/, '')
+      : `https://${rawAppUrl.replace(/\/$/, '')}`;
+  }
+
+  async sendTicketEmail(
+    to: string,
+    userName: string,
+    eventTitle: string,
+    tickets: any[],
+    eventInfo?: { venueName?: string | null; venueAddress?: string | null },
+  ) {
+    const appUrl = this.getAppUrl();
+    const eventAddress = [eventInfo?.venueName, eventInfo?.venueAddress].filter(Boolean).join(' — ');
     const ticketDetails = tickets.map(t => {
       const row = t.rowLabel || '';
       const num = t.seatNumber;
@@ -82,6 +98,13 @@ export class MailService {
         <div style="text-align: center; margin: 20px 0;">
           <img src="cid:${qrCid}" alt="QR Code" width="160" height="160" style="border: 1px solid #e2e8f0; padding: 8px; border-radius: 12px; background: #ffffff;" />
           <span style="display: block; font-size: 10px; color: #94a3b8; margin-top: 8px; font-weight: bold; letter-spacing: 0.5px; text-transform: uppercase;">Presentar este código QR en el acceso</span>
+        </div>
+
+        <div style="text-align: center; margin: 18px 0 6px 0;">
+          <a href="${ticketUrl}" target="_blank" style="display: inline-block; background: #0f3f66; color: #ffffff; text-decoration: none; border-radius: 14px; padding: 12px 18px; font-size: 12px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;">
+            ↗ Compartir esta entrada
+          </a>
+          <p style="color: #64748b; font-size: 10px; margin: 8px 0 0 0;">Este enlace pertenece solo a esta entrada.</p>
         </div>
 
         <!-- Footer terms info -->

@@ -551,6 +551,10 @@ export class OrdersService {
             buyerName,
             fullOrder.event.title,
             createdTickets,
+            {
+              venueName: fullOrder.event.venueName,
+              venueAddress: fullOrder.event.venueAddress,
+            },
           );
         }
       } catch (err) {
@@ -780,7 +784,10 @@ export class OrdersService {
 
     // Send the invitations via email
     try {
-      await this.mailService.sendTicketEmail(email, name, event.title, createdTickets);
+      await this.mailService.sendTicketEmail(email, name, event.title, createdTickets, {
+        venueName: event.venueName,
+        venueAddress: event.venueAddress,
+      });
     } catch (e) {
       console.error('Error sending free ticket email:', e);
     }
