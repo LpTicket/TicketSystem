@@ -126,11 +126,16 @@ export default function TicketScannerPage() {
           await qrCodeScanner.start(
             { facingMode: 'environment' }, // Open device back camera
             {
-              fps: 15,
+              fps: 30, // Process 30 frames per second for ultra-fast response
               qrbox: (width, height) => {
-                // Ensure dynamic scale to support smaller responsive viewports
-                const size = Math.min(width, height) * 0.7;
+                // Slightly larger box for easier alignment
+                const size = Math.min(width, height) * 0.8;
                 return { width: size, height: size };
+              },
+              aspectRatio: 1.0, // Standard square aspect ratio for optimal QR resolution
+              rememberLastUsedCamera: true,
+              experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true, // Utilizes hardware-accelerated native mobile API if available (5x faster)
               },
             },
             async (decodedText) => {
