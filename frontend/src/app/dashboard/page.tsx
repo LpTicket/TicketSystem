@@ -39,6 +39,9 @@ function DashboardPageBody() {
   const [ticketsPage, setTicketsPage] = useState(1);
   const [ticketsPagination, setTicketsPagination] = useState({ total: 0, pages: 1 });
   const [loadingMoreTickets, setLoadingMoreTickets] = useState(false);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersPagination, setOrdersPagination] = useState({ total: 0, pages: 1 });
+  const [loadingMoreOrders, setLoadingMoreOrders] = useState(false);
   const [profileForm, setProfileForm] = useState({ 
     firstName: '', 
     lastName: '', 
@@ -83,20 +86,27 @@ function DashboardPageBody() {
   }, [searchParams]);
 
 
-  const loadData = async (page: number = 1) => {
+  const loadData = async (ticketPage: number = 1, orderPage: number = 1) => {
     try {
       const [t, o] = await Promise.all([
-        api.get('/orders/my-tickets', { params: { page, limit: 12 } }),
-        api.get('/orders/my-orders')
+        api.get('/orders/my-tickets', { params: { page: ticketPage, limit: 12 } }),
+        api.get('/orders/my-orders', { params: { page: orderPage, limit: 20 } })
       ]);
-      if (page === 1) {
+      if (ticketPage === 1) {
         setTickets(t.data.data);
       } else {
         setTickets(prev => [...prev, ...t.data.data]);
       }
       setTicketsPagination(t.data.pagination);
-      setTicketsPage(page);
-      setOrders(o.data);
+      setTicketsPage(ticketPage);
+
+      if (orderPage === 1) {
+        setOrders(o.data.data);
+      } else {
+        setOrders(prev => [...prev, ...o.data.data]);
+      }
+      setOrdersPagination(o.data.pagination);
+      setOrdersPage(orderPage);
     } catch (err) { console.error(err); }
   };
 
@@ -105,9 +115,21 @@ function DashboardPageBody() {
     if (nextPage <= ticketsPagination.pages) {
       setLoadingMoreTickets(true);
       try {
-        await loadData(nextPage);
+        await loadData(nextPage, ordersPage);
       } finally {
         setLoadingMoreTickets(false);
+      }
+    }
+  };
+
+  const loadMoreOrders = async () => {
+    const nextPage = ordersPage + 1;
+    if (nextPage <= ordersPagination.pages) {
+      setLoadingMoreOrders(true);
+      try {
+        await loadData(ticketsPage, nextPage);
+      } finally {
+        setLoadingMoreOrders(false);
       }
     }
   };
@@ -312,26 +334,44 @@ function DashboardPageBody() {
       {/* Orders */}
       {activeTab === 'orders' && (
         orders.length > 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="divide-y divide-gray-100">
-              {orders.map((order) => {
-                const badge = getOrderStatus(order.status);
-                return (
-                  <div key={order.id} className="px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-semibold text-gray-900 text-sm truncate">{order.event?.title || 'Evento'}</h4>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {format(parseSafeDate(order.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })} · {order.ticketCount} ticket(s)
-                      </p>
+          <div className="space-y-4">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="divide-y divide-gray-100">
+                {orders.map((order) => {
+                  const badge = getOrderStatus(order.status);
+                  return (
+                    <div key={order.id} className="px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-semibold text-gray-900 text-sm truncate">{order.event?.title || 'Evento'}</h4>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {format(parseSafeDate(order.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })} · {order.ticketCount} ticket(s)
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0 ml-4">
+                        <div className="font-bold text-gray-900">${Number(order.total).toFixed(2)}</div>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0 ml-4">
-                      <div className="font-bold text-gray-900">${Number(order.total).toFixed(2)}</div>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
+
+            {ordersPagination.pages > ordersPage && (
+              <div className="flex justify-center pt-2">
+                <button
+                  onClick={loadMoreOrders}
+                  disabled={loadingMoreOrders}
+                  className="px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium text-sm transition-all disabled:opacity-60 flex items-center gap-2"
+                >
+                  {loadingMoreOrders ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> {lang === 'es' ? 'Cargando...' : 'Loading...'}</>
+                  ) : (
+                    <>{lang === 'es' ? 'Cargar más pedidos' : 'Load more orders'} ({ordersPage}/{ordersPagination.pages})</>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">

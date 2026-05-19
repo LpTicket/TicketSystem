@@ -85,8 +85,12 @@ export class OrdersController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get('my-orders')
-  getMyOrders(@Request() req: any) {
-    return this.ordersService.getUserOrders(req.user.id);
+  getMyOrders(
+    @Request() req: any,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20'
+  ) {
+    return this.ordersService.getUserOrders(req.user.id, parseInt(page, 10), parseInt(limit, 10));
   }
 
   @UseGuards(AuthGuard('jwt'))

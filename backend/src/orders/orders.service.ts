@@ -567,12 +567,24 @@ export class OrdersService {
   /**
    * Retrieves all orders for a specific user.
    */
-  async getUserOrders(userId: string) {
-    return this.orderRepo.find({
+  async getUserOrders(userId: string, page: number = 1, limit: number = 20) {
+    const skip = (page - 1) * limit;
+    const [orders, total] = await this.orderRepo.findAndCount({
       where: { userId },
       relations: ['event'],
       order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
     });
+    return {
+      data: orders,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
   }
 
   /**
