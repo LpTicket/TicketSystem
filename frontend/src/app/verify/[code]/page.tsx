@@ -131,133 +131,84 @@ export default function VerifyTicketPage() {
     <div className="min-h-screen py-10 px-4 bg-slate-50 flex flex-col items-center justify-center print:bg-white print:py-0 print:px-0 print:min-h-0 print:block">
       <style>{`
         @media print {
-          @page { size: letter portrait; margin: 0.12in; }
+          @page {
+            size: letter portrait;
+            margin: 0.25in;
+          }
 
           html,
           body {
             width: 8.5in !important;
-            min-width: 8.5in !important;
-            height: 11in !important;
+            min-height: 11in !important;
             margin: 0 !important;
             padding: 0 !important;
-            background: #ffffff !important;
             overflow: visible !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
 
-          body,
-          body > div,
-          main,
-          #__next {
-            display: block !important;
-            width: 100% !important;
-            min-height: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: #ffffff !important;
-          }
-
-          body * {
-            box-sizing: border-box !important;
+          .fixed,
+          [class*="fixed"] {
+            display: none !important;
           }
 
           .ticket-print-sheet {
-            position: relative !important;
-            display: block !important;
-            width: 7.65in !important;
-            max-width: none !important;
-            height: 10.25in !important;
-            max-height: 10.25in !important;
+            width: 7.6in !important;
+            max-width: 7.6in !important;
             margin: 0 auto !important;
-            padding: 0.22in !important;
-            overflow: hidden !important;
-            transform: none !important;
-            box-shadow: none !important;
-            border: 0 !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-          }
-
-          .ticket-print-sheet > div:first-child {
-            display: grid !important;
-            grid-template-columns: 1.22in 1fr 0.13in !important;
-            gap: 0.20in !important;
-            align-items: start !important;
-            margin: 0 !important;
             padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            transform: none !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
 
-          .ticket-print-sheet > div:first-child > div:first-child {
-            width: 1.22in !important;
+          .ticket-print-sheet > div:first-of-type {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 0.16in !important;
           }
 
-          .ticket-print-sheet img[alt="QR Code"],
-          .ticket-print-sheet img[alt="QR Code"] + div {
-            width: 1.05in !important;
-            height: 1.05in !important;
+          .ticket-print-sheet > div:first-of-type > div:first-child {
+            width: 100% !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+
+          .ticket-print-sheet img {
+            width: 1.15in !important;
+            height: 1.15in !important;
+            object-fit: contain !important;
           }
 
           .ticket-print-sheet h1 {
-            font-size: 18px !important;
+            font-size: 22px !important;
             line-height: 1.05 !important;
-            margin: 0 0 0.04in !important;
           }
 
           .ticket-print-sheet p,
           .ticket-print-sheet span {
-            line-height: 1.15 !important;
+            line-height: 1.16 !important;
           }
 
-          .ticket-print-sheet .border.border-gray-300 {
+          .ticket-print-sheet .border {
+            margin-top: 0.16in !important;
+            padding: 0.13in !important;
+          }
+
+          .ticket-print-sheet > div:last-of-type {
             margin-top: 0.13in !important;
-            padding: 0.10in !important;
+            padding-top: 0.13in !important;
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 0.2in !important;
           }
 
-          .ticket-print-sheet > div:nth-child(3) {
-            display: grid !important;
-            grid-template-columns: 0.10in 1fr 1.15in !important;
-            gap: 0.14in !important;
-            margin-top: 0.12in !important;
-            padding-top: 0.10in !important;
-            align-items: start !important;
-            break-before: avoid !important;
-            page-break-before: avoid !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-          }
-
-          .ticket-print-sheet > div:nth-child(3) > div:nth-child(2) {
-            padding-left: 0.14in !important;
-          }
-
-          .ticket-print-sheet > div:nth-child(3) > div:nth-child(3) {
-            width: 1.15in !important;
-            padding-top: 0 !important;
-          }
-
-          .ticket-print-sheet h4 {
-            margin-bottom: 0.02in !important;
-            font-size: 9px !important;
-          }
-
-          .ticket-print-sheet h4 + div {
-            font-size: 5.2px !important;
-            line-height: 1.08 !important;
-            gap: 0 !important;
-            max-height: 1.45in !important;
-            overflow: hidden !important;
-          }
-
-          .ticket-print-sheet h4 + div p {
-            margin: 0 0 0.025in !important;
-          }
-
-          .ticket-print-sheet .fixed,
-          .ticket-print-sheet .sticky,
-          .fixed,
-          .sticky {
-            display: none !important;
+          .ticket-print-sheet > div:last-of-type p {
+            margin: 1px 0 !important;
           }
         }
       `}</style>
