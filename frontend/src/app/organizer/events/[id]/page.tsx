@@ -242,6 +242,16 @@ export default function EventDetailPage() {
     }
   };
 
+  const calculateDaysUntilEvent = () => {
+    if (!event) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const eventDateOnly = new Date(event.eventDate);
+    eventDateOnly.setHours(0, 0, 0, 0);
+    const timeDiff = eventDateOnly.getTime() - today.getTime();
+    return Math.ceil(timeDiff / (1000 * 3600 * 24));
+  };
+
   const handleSaveReminderSettings = async () => {
     setSavingSettings(true);
     try {
@@ -731,16 +741,27 @@ export default function EventDetailPage() {
                     </h4>
                   </div>
 
-                  <div className="bg-orange-50/70 border border-orange-100/50 rounded-2xl p-4 text-sm text-orange-900 space-y-1">
+                  <div className="bg-orange-50/70 border border-orange-100/50 rounded-2xl p-4 text-sm text-orange-900 space-y-2">
                     <p className="font-extrabold flex items-center gap-2">
                       <span>📢</span>
                       <span>{event?.title}</span>
                     </p>
                     <p className="text-xs text-orange-700">
-                      {lang === 'es' 
-                        ? `Se enviará un recordatorio manual de forma inmediata a los asistentes con entradas activas (${attendees.length} ticket${attendees.length !== 1 ? 's' : ''}).` 
+                      {lang === 'es'
+                        ? `Se enviará un recordatorio manual de forma inmediata a los asistentes con entradas activas (${attendees.length} ticket${attendees.length !== 1 ? 's' : ''}).`
                         : `Will send a manual reminder immediately to all active ticket holders (${attendees.length} ticket${attendees.length !== 1 ? 's' : ''}).`}
                     </p>
+                    <div className="bg-white/60 rounded-lg px-3 py-2 border border-orange-200/50">
+                      <p className="text-xs font-bold text-orange-800">
+                        ⏰ {calculateDaysUntilEvent() === 0
+                          ? (lang === 'es' ? '¡Hoy es el evento!' : '🔥 Today is the event!')
+                          : calculateDaysUntilEvent() === 1
+                          ? (lang === 'es' ? '¡Mañana es el evento!' : '⏰ Tomorrow is the event!')
+                          : (lang === 'es'
+                            ? `Faltan ${calculateDaysUntilEvent()} días para el evento`
+                            : `${calculateDaysUntilEvent()} days until the event`)}
+                      </p>
+                    </div>
                   </div>
 
 
