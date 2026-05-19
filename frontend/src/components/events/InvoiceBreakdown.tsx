@@ -1,5 +1,7 @@
 'use client';
 
+import { formatSeatLabel } from '@/lib/seatLabel';
+
 interface InvoiceItem {
   seatId?: string;
   sectionName: string;

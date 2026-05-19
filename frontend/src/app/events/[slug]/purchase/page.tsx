@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
+import { formatSeatLabel } from '@/lib/seatLabel';
 import { useAuthStore } from '@/stores/auth';
 import type { Event } from '@/types';
 import { VenueSection, Seat, SeatStatus } from '@/types';
@@ -225,6 +226,8 @@ export default function PurchasePage() {
         }))
       : selectedSeats.map(s => ({
           ...s,
+          sectionName: selectedSection?.name,
+          sectionType: selectedSection?.sectionType,
           addedAt: (s as any).addedAt || Date.now(),
           eventTitle: event.title,
           eventSlug: event.slug,

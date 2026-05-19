@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
+import { formatSeatLabel } from '@/lib/seatLabel';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { Ticket, Order } from '@/types';
@@ -203,7 +204,7 @@ function DashboardPageBody() {
                     <p className="flex items-center gap-1.5"><HiOutlineLocationMarker className="w-4 h-4 text-gray-400" /> {ticket.event?.venueName}</p>
                     {ticket.sectionName && (
                       <p className="text-xs text-gray-500">
-                        🪑 {t('clientSection')}: {ticket.sectionName} — {t('clientRow')} {ticket.rowLabel}, {t('clientSeat')} {ticket.seatNumber}
+                        🪑 {formatSeatLabel(ticket, ticket.sectionName, lang)}
                       </p>
                     )}
                     <p className="font-mono text-xs text-primary-600">{t('clientCode')}: {ticket.ticketCode}</p>

@@ -9,6 +9,7 @@ import { useLang } from '@/context/LanguageContext';
 import { HiOutlineSearch, HiOutlineMenu, HiOutlineX, HiOutlineUser, HiOutlineLogout, HiOutlineCog, HiOutlineTicket, HiOutlineShoppingCart, HiOutlineQrcode } from 'react-icons/hi';
 import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
 import api from '@/lib/api';
+import { formatSeatLabel } from '@/lib/seatLabel';
 
 import ModeToggle from './ModeToggle';
 
@@ -492,7 +493,7 @@ export default function Header() {
                       <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto no-scrollbar">
                         {item.seats.map((seat: any) => (
                           <span key={seat.id} className="inline-flex items-center text-[9px] font-bold bg-white border border-gray-200 text-gray-700 px-1.5 py-0.5 rounded-md">
-                            {seat.rowLabel || 'Row'}{seat.seatNumber}
+                            {formatSeatLabel(seat, seat.sectionName, lang)}
                           </span>
                         ))}
                       </div>

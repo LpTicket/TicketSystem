@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useLang } from '@/context/LanguageContext';
 import { useAuthStore } from '@/stores/auth';
 import api from '@/lib/api';
+import { formatSeatLabel } from '@/lib/seatLabel';
 import {
   HiOutlineQrcode,
   HiOutlineSearch,
@@ -294,9 +295,7 @@ export default function TicketScannerPage() {
                   <div>
                     <span className="block text-[8px] uppercase text-slate-400 font-bold tracking-wider">Ubicación</span>
                     <span className="font-mono font-bold text-slate-700 block truncate">
-                      {validationResult.ticket.rowLabel && validationResult.ticket.rowLabel !== 'GA'
-                        ? `${validationResult.ticket.rowLabel}-${validationResult.ticket.seatNumber}`
-                        : (validationResult.ticket.sectionName || 'Gral')}
+                      {formatSeatLabel(validationResult.ticket, validationResult.ticket.sectionName, lang)}
                     </span>
                   </div>
                 </div>

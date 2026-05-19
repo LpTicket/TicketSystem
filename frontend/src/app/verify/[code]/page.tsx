@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { formatSeatLabel } from '@/lib/seatLabel';
 import { Ticket } from '@/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -183,7 +184,7 @@ export default function VerifyTicketPage() {
             {ticket.user?.firstName} {ticket.user?.lastName}
           </span>
           <span className="block text-lg font-bold text-gray-900 uppercase mb-4">
-            {ticket.sectionName || 'Boleto General'} | {ticket.rowLabel && ticket.rowLabel !== 'GA' ? `Row: ${ticket.rowLabel}, Seat: ${ticket.seatNumber}` : 'General Admission'}
+            {formatSeatLabel(ticket, ticket.sectionName, 'en')}
           </span>
           
           <div className="text-gray-600 space-y-0.5 text-[13px] font-medium">

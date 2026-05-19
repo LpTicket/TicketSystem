@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { formatSeatLabel } from '@/lib/seatLabel';
 import { HiOutlineCheckCircle, HiOutlineTicket, HiOutlineHome, HiOutlineDownload } from 'react-icons/hi';
 import { motion } from 'framer-motion';
 
@@ -105,7 +106,7 @@ function SuccessContent() {
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full inline-block">
-                          {ticket.sectionName} — {ticket.rowLabel}{ticket.seatNumber}
+                          {formatSeatLabel(ticket, ticket.sectionName)}
                         </p>
                       </div>
                     </motion.div>
