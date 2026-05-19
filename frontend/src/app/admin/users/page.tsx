@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { parseSafeDate } from '@/lib/dateUtils';
+import { formatSeatLabel } from '@/lib/seatLabel';
 import { toast } from 'react-hot-toast';
 import { useLang } from '@/context/LanguageContext';
 import { User } from '@/types';
@@ -586,7 +587,7 @@ export default function AdminUsersPage() {
                           <div className="min-w-0 space-y-1">
                             <p className="font-bold text-xs text-gray-900 truncate">{t.eventName || (lang === 'es' ? 'Evento' : 'Event')}</p>
                             <p className="text-[10px] text-gray-500">
-                              {t.sectionName} · {lang === 'es' ? 'Asiento' : 'Seat'}: <span className="font-bold text-gray-700">{t.rowLabel}{t.seatNumber}</span>
+                              {t.sectionName} · {lang === 'es' ? 'Asiento' : 'Seat'}: <span className="font-bold text-gray-700">{formatSeatLabel({ rowLabel: t.rowLabel, seatNumber: t.seatNumber }, undefined, lang)}</span>
                             </p>
                             <p className="text-[10px] font-mono text-primary-600 font-semibold">{t.ticketCode}</p>
                           </div>

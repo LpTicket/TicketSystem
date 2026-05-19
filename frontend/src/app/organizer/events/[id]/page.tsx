@@ -7,6 +7,7 @@ import api, { getImageUrl } from '@/lib/api';
 import { parseSafeDate } from '@/lib/dateUtils';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
+import { formatSeatLabel } from '@/lib/seatLabel';
 import { Event, SalesReport, VenueSection } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { format } from 'date-fns';
@@ -566,7 +567,7 @@ export default function EventDetailPage() {
                         <td className="px-6 py-3 text-sm text-gray-900 font-medium">{a.user?.firstName} {a.user?.lastName}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{a.user?.email}</td>
                         <td className="px-4 py-3 text-sm text-gray-600">{a.sectionName}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 text-center">{a.rowLabel}{a.seatNumber}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 text-center">{formatSeatLabel({ rowLabel: a.rowLabel, seatNumber: a.seatNumber }, undefined, lang)}</td>
                         <td className="px-4 py-3 text-xs font-mono text-primary-600">{a.ticketCode}</td>
                         <td className="px-4 py-3 text-center">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -591,7 +592,7 @@ export default function EventDetailPage() {
                         }`}>{a.status}</span>
                       </div>
                       <p className="text-xs text-gray-500">{a.user?.email}</p>
-                      <p className="text-xs text-gray-500 mt-1">{a.sectionName} · {a.rowLabel}{a.seatNumber} · <span className="font-mono text-primary-600">{a.ticketCode}</span></p>
+                      <p className="text-xs text-gray-500 mt-1">{a.sectionName} · {formatSeatLabel({ rowLabel: a.rowLabel, seatNumber: a.seatNumber }, undefined, lang)} · <span className="font-mono text-primary-600">{a.ticketCode}</span></p>
                     </div>
                   ))}
                 </div>
@@ -765,7 +766,7 @@ export default function EventDetailPage() {
                             
                             {/* Hover tooltip */}
                             <div className="absolute bottom-11 scale-0 group-hover:scale-100 transition-all bg-gray-900 text-white text-[9px] py-1 px-2 rounded shadow-md z-10 whitespace-nowrap">
-                              {seat.rowLabel}{seat.seatNumber} — {isBlocked ? (lang === 'es' ? 'Bloqueado permanentemente' : 'Permanently Blocked') : isSold ? (lang === 'es' ? 'Vendido' : 'Sold') : (lang === 'es' ? 'Disponible' : 'Available')}
+                              {formatSeatLabel({ rowLabel: seat.rowLabel, seatNumber: seat.seatNumber }, undefined, lang)} — {isBlocked ? (lang === 'es' ? 'Bloqueado permanentemente' : 'Permanently Blocked') : isSold ? (lang === 'es' ? 'Vendido' : 'Sold') : (lang === 'es' ? 'Disponible' : 'Available')}
                             </div>
                           </button>
                         );

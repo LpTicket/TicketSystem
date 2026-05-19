@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
+import { formatSeatLabel } from '@/lib/seatLabel';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { Event } from '@/types';
@@ -188,7 +189,7 @@ export default function AttendeesPage() {
                       </div>
                       <div className="hidden sm:block text-xs text-gray-500 text-right shrink-0">
                         <p>{a.sectionName}</p>
-                        <p className="font-mono">{a.rowLabel}{a.seatNumber}</p>
+                        <p className="font-mono">{formatSeatLabel({ rowLabel: a.rowLabel, seatNumber: a.seatNumber }, undefined, lang)}</p>
                       </div>
                       <div className="hidden sm:block shrink-0">
                         <span className="font-mono text-xs text-primary-600">{a.ticketCode}</span>

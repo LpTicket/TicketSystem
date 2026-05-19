@@ -56,8 +56,8 @@ export function formatSeatLabel(
   if (mesaMatch) {
     const tableWord = lang === 'en' ? 'Table' : 'Mesa';
     const chairWord = lang === 'en' ? 'Chair' : 'Silla';
-    const chairNum = mesaMatch[2];
-    const tableNum = seatNumber;
+    const tableNum = mesaMatch[2];
+    const chairNum = seatNumber;
     return `${tableWord} ${tableNum} - ${chairWord} ${chairNum}${sectionSuffix}`;
   }
 

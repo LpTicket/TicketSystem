@@ -396,7 +396,7 @@ export default function EventDetailPage() {
                                   <span className="font-semibold text-slate-800 truncate">{section?.name}</span>
                                   <span className="text-slate-400 font-bold shrink-0">—</span>
                                   <span className="bg-slate-100 text-slate-700 text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
-                                    {seat.rowLabel}{seat.seatNumber}
+                                    {formatSeatLabel({ rowLabel: seat.rowLabel, seatNumber: seat.seatNumber }, undefined, lang)}
                                   </span>
                                 </span>
                                 <span className="font-extrabold text-slate-900 shrink-0">${getSeatPrice(seat, section).toFixed(2)}</span>

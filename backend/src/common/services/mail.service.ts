@@ -33,10 +33,11 @@ export class MailService {
         const hasTableWord = /^(mesa|table)\b/i.test(String(tableNum));
         details = `${hasTableWord ? tableNum : `Mesa ${tableNum}`}, Silla ${chairNum}`;
       } else if (mesaMatch) {
-        details = `Mesa ${num}, Silla ${mesaMatch[2]}`;
+        details = `Mesa ${mesaMatch[2]}, Silla ${num}`;
       } else if (/^(mesa|table)\b/i.test(String(row).trim())) {
         const tableNum = section;
-        details = `Mesa ${tableNum}, Silla ${num}`;
+        const hasTableWord = /^(mesa|table)\b/i.test(String(tableNum).trim());
+        details = `${hasTableWord ? tableNum : `Mesa ${tableNum}`}, Silla ${num}`;
       } else if (row === 'GA') {
         details = `Entrada General`;
       } else {
