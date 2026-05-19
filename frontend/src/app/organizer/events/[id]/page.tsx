@@ -279,6 +279,7 @@ export default function EventDetailPage() {
     setSendingReminder(true);
     try {
       const result = await api.post(`/orders/event/${id}/send-reminder`, {
+        daysUntilEvent: reminderDays,
         customMessage: reminderMessage.trim() || undefined,
       });
       toast.success(
