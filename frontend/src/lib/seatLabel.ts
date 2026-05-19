@@ -11,7 +11,7 @@ type SectionLabelInput = {
   sectionType?: string | null;
 };
 
-const isTableName = (value?: string | null) => /\b(mesa|table)\b/i.test(String(value || ''));
+const isTableName = (value?: string | null) => /^(mesa|table)\b|^(mesa|table)\d+/i.test(String(value || '').trim());
 
 export function formatSeatLabel(
   seat: SeatLabelInput,
