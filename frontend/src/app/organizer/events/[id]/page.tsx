@@ -90,7 +90,7 @@ export default function EventDetailPage() {
 
   // Email Reminder States
   const [showReminderModal, setShowReminderModal] = useState(false);
-  const [reminderDays, setReminderDays] = useState(calculateDaysUntilEvent());
+  const [reminderDays, setReminderDays] = useState(0);
   const [reminderMessage, setReminderMessage] = useState('');
   const [sendingReminder, setSendingReminder] = useState(false);
 
@@ -125,6 +125,17 @@ export default function EventDetailPage() {
   }, []);
 
   useEffect(() => { loadEvent(); refreshCategories(); }, [id]);
+
+  useEffect(() => {
+    if (event) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const eventDateOnly = new Date(event.eventDate);
+      eventDateOnly.setHours(0, 0, 0, 0);
+      const timeDiff = eventDateOnly.getTime() - today.getTime();
+      setReminderDays(Math.ceil(timeDiff / (1000 * 3600 * 24)));
+    }
+  }, [event]);
 
   const loadEvent = async () => {
     try {
@@ -240,16 +251,6 @@ export default function EventDetailPage() {
     } finally {
       setBlockingActionLoading(false);
     }
-  };
-
-  const calculateDaysUntilEvent = () => {
-    if (!event) return 0;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const eventDateOnly = new Date(event.eventDate);
-    eventDateOnly.setHours(0, 0, 0, 0);
-    const timeDiff = eventDateOnly.getTime() - today.getTime();
-    return Math.ceil(timeDiff / (1000 * 3600 * 24));
   };
 
   const handleSaveReminderSettings = async () => {
