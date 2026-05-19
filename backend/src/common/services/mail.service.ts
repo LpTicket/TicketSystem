@@ -175,12 +175,19 @@ export class MailService {
   ) {
     const appUrl = this.getAppUrl();
 
-    const urgencyColor = daysUntilEvent <= 1 ? '#dc2626' : daysUntilEvent <= 3 ? '#ea580c' : '#0f3f66';
-    const urgencyLabel = daysUntilEvent === 0
-      ? '¡HOY ES EL EVENTO!'
-      : daysUntilEvent === 1
-        ? '¡MAÑANA ES EL EVENTO!'
-        : `Faltan ${daysUntilEvent} días para el evento`;
+    const isHours = daysUntilEvent < 0;
+    const urgencyColor = isHours || daysUntilEvent <= 1 ? '#dc2626' : daysUntilEvent <= 3 ? '#ea580c' : '#0f3f66';
+    let urgencyLabel = '';
+    if (isHours) {
+      const hours = Math.abs(daysUntilEvent);
+      urgencyLabel = `¡EL EVENTO EMPIEZA EN ${hours} HORA${hours !== 1 ? 'S' : ''}!`;
+    } else {
+      urgencyLabel = daysUntilEvent === 0
+        ? '¡HOY ES EL EVENTO!'
+        : daysUntilEvent === 1
+          ? '¡MAÑANA ES EL EVENTO!'
+          : `Faltan ${daysUntilEvent} días para el evento`;
+    }
 
     const html = `
       <!DOCTYPE html>

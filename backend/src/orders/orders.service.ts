@@ -917,10 +917,10 @@ export class OrdersService {
   }
 
   /**
-   * Daily Cron Job to send automated email reminders for upcoming events.
-   * Runs every day at 8:00 AM.
+   * Cron Job to send automated email reminders for upcoming events.
+   * Runs every 30 minutes to support both daily and hourly reminder triggers.
    */
-  @Cron(CronExpression.EVERY_DAY_AT_8AM)
+  @Cron('0 */30 * * * *')
   async handleScheduledReminders() {
     console.log('[Cron] Checking scheduled email reminders...');
     const events = await this.eventRepo.find({
@@ -930,33 +930,53 @@ export class OrdersService {
       },
     });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     for (const event of events) {
       try {
-        const eventDate = new Date(event.eventDate);
-        eventDate.setHours(0, 0, 0, 0);
+        if (event.autoReminderDays < 0) {
+          // Hours mode (negative values represent hours)
+          const now = new Date();
+          const eventTime = new Date(event.eventDate);
+          const hoursDifference = (eventTime.getTime() - now.getTime()) / (1000 * 3600);
+          const targetHoursBefore = Math.abs(event.autoReminderDays);
 
-        const timeDiff = eventDate.getTime() - today.getTime();
-        const daysUntilEvent = Math.ceil(timeDiff / (1000 * 3600 * 24));
+          if (hoursDifference >= 0 && hoursDifference <= targetHoursBefore) {
+            console.log(`[Cron] Triggering automatic hourly reminder for event: ${event.title} (${hoursDifference.toFixed(2)} hours left)`);
+            await this.sendEventReminder(
+              event.id,
+              event.organizerId,
+              event.autoReminderDays, // passes negative number representing hours
+              event.autoReminderMessage || undefined,
+            );
+            event.autoReminderSent = true;
+            await this.eventRepo.save(event);
+            console.log(`[Cron] Successfully sent hourly reminder and marked event ${event.title} as completed.`);
+          }
+        } else {
+          // Days mode (positive values represent days)
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
 
-        // Trigger reminder if the event is within the configured window (e.g. today or in X days)
-        if (daysUntilEvent >= 0 && daysUntilEvent <= event.autoReminderDays) {
-          console.log(`[Cron] Triggering automatic reminder for event: ${event.title} (${daysUntilEvent} days left)`);
-          
-          // Call the sendEventReminder method using the event's organizer ID or a system default
-          await this.sendEventReminder(
-            event.id,
-            event.organizerId,
-            daysUntilEvent,
-            event.autoReminderMessage || undefined,
-          );
+          const eventDateOnly = new Date(event.eventDate);
+          eventDateOnly.setHours(0, 0, 0, 0);
 
-          // Mark as sent so we don't send it again
-          event.autoReminderSent = true;
-          await this.eventRepo.save(event);
-          console.log(`[Cron] Successfully sent reminders and marked event ${event.title} as completed.`);
+          const timeDiff = eventDateOnly.getTime() - today.getTime();
+          const daysUntilEvent = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+          if (daysUntilEvent >= 0 && daysUntilEvent <= event.autoReminderDays) {
+            const currentHour = new Date().getHours();
+            if (currentHour >= 8) { // Only trigger daily reminder at or after 8:00 AM
+              console.log(`[Cron] Triggering automatic daily reminder for event: ${event.title} (${daysUntilEvent} days left)`);
+              await this.sendEventReminder(
+                event.id,
+                event.organizerId,
+                daysUntilEvent,
+                event.autoReminderMessage || undefined,
+              );
+              event.autoReminderSent = true;
+              await this.eventRepo.save(event);
+              console.log(`[Cron] Successfully sent daily reminder and marked event ${event.title} as completed.`);
+            }
+          }
         }
       } catch (err) {
         console.error(`[Cron] Error processing reminder for event ${event.id}:`, err);
