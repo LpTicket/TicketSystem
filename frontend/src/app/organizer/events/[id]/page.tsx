@@ -412,6 +412,7 @@ export default function EventDetailPage() {
         venueName: editForm.venueName,
         venueAddress: editForm.venueAddress,
         eventDate: buildLocalEventDate(editForm.eventDate, editForm.eventTime),
+        eventTimezone: editForm.eventTimezone,
         category: editForm.category,
         hasSeatMap: true,
         bannerPosition: editForm.bannerPosition,
