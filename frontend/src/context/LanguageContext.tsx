@@ -118,8 +118,8 @@ const translations = {
     aboutVisionText: 'Ser la empresa de boletería líder en el ramo, combinando la inversión constante en nuevas tecnologías con los cambios que impone el mercado, abarcando otras áreas de interés que generen satisfacción plena al usuario, cliente y productor. Siempre forjando valores institucionales que mantengan firme el sentido de pertenencia de nuestro equipo y permitan ser transmitidos al público externo.',
 
     // Contact
-    contactPageTitle: 'Contacto',
-    contactSubtitle: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+    contactPageTitle: 'Estamos aquí para ayudarte',
+    contactSubtitle: 'Nuestro equipo está disponible para atender tus preguntas, escuchar tus necesidades y brindarte el soporte que necesitas. Escríbenos por este medio y nos pondremos en contacto contigo lo antes posible.',
     contactOnline: 'Contacto en línea',
     contactAddress: 'Nuestra dirección',
     contactAddressText1: '1325 Main St Suite 203',
@@ -371,8 +371,8 @@ const translations = {
     aboutVisionText: 'To be the leading ticketing company in the industry, combining constant investment in new technologies with market changes, covering other areas of interest that generate full satisfaction for the user, client, and producer. Always forging institutional values that keep our team\'s sense of belonging firm and allow it to be transmitted to the external public.',
 
     // Contact
-    contactPageTitle: 'Contact',
-    contactSubtitle: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+    contactPageTitle: 'We are here to help',
+    contactSubtitle: 'Our team is available to answer your questions, listen to your needs, and provide the support you need. Send us a message here and we will get back to you as soon as possible.',
     contactOnline: 'Online Contact',
     contactAddress: 'Our Address',
     contactAddressText1: '1325 Main St Suite 203',
