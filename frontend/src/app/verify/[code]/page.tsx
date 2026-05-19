@@ -39,6 +39,7 @@ export default function VerifyTicketPage() {
   const [validating, setValidating] = useState(false);
   const [result, setResult] = useState<{ valid: boolean; message: string } | null>(null);
   const [shareLabel, setShareLabel] = useState('Compartir');
+  const [printLabel, setPrintLabel] = useState('Imprimir');
 
   useEffect(() => { 
     loadTicket(); 
@@ -152,14 +153,14 @@ export default function VerifyTicketPage() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <button
             onClick={handleShare}
-            className="h-14 w-full sm:w-[210px] rounded-[14px] px-7 text-[16px] font-extrabold tracking-[0.08em] uppercase flex items-center justify-center gap-3 bg-blue-900 text-white shadow-lg shadow-blue-900/15 hover:bg-blue-950 transition-all"
+            className="h-12 w-full sm:w-[170px] rounded-[12px] px-5 text-[13px] font-extrabold tracking-[0.08em] uppercase flex items-center justify-center gap-2 bg-blue-900 text-white shadow-md shadow-blue-900/15 hover:bg-blue-950 transition-all"
           >
             <HiOutlineShare className="w-4 h-4" /> {shareLabel}
           </button>
 
           <button 
             onClick={handlePrint} 
-            className="h-14 w-full sm:w-[210px] rounded-[14px] px-7 text-[16px] font-extrabold tracking-[0.08em] uppercase flex items-center justify-center gap-3 bg-orange-500 text-white shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all"
+            className="h-12 w-full sm:w-[170px] rounded-[12px] px-5 text-[13px] font-extrabold tracking-[0.08em] uppercase flex items-center justify-center gap-2 bg-orange-500 text-white shadow-md shadow-orange-500/20 hover:bg-orange-600 transition-all"
           >
             <HiOutlinePrinter className="w-4 h-4" /> Imprimir
           </button>
