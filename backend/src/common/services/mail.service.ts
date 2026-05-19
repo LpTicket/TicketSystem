@@ -176,107 +176,142 @@ export class MailService {
     const appUrl = this.getAppUrl();
 
     const isHours = daysUntilEvent < 0;
-    const urgencyColor = isHours || daysUntilEvent <= 1 ? '#dc2626' : daysUntilEvent <= 3 ? '#ea580c' : '#0f3f66';
     let urgencyLabel = '';
+    let headingText = '';
     if (isHours) {
       const hours = Math.abs(daysUntilEvent);
-      urgencyLabel = `¡EL EVENTO EMPIEZA EN ${hours} HORA${hours !== 1 ? 'S' : ''}!`;
+      urgencyLabel = `¡En ${hours} hora${hours !== 1 ? 's' : ''}!`;
+      headingText = `¡En solo ${hours} hora${hours !== 1 ? 's' : ''}, ${eventTitle}!`;
+    } else if (daysUntilEvent === 0) {
+      urgencyLabel = '¡Hoy!';
+      headingText = `¡Hoy es el gran día de ${eventTitle}!`;
+    } else if (daysUntilEvent === 1) {
+      urgencyLabel = '¡Mañana!';
+      headingText = `¡En solo 1 día, ${eventTitle}!`;
     } else {
-      urgencyLabel = daysUntilEvent === 0
-        ? '¡HOY ES EL EVENTO!'
-        : daysUntilEvent === 1
-          ? '¡MAÑANA ES EL EVENTO!'
-          : `Faltan ${daysUntilEvent} días para el evento`;
+      urgencyLabel = `Faltan ${daysUntilEvent} días`;
+      headingText = `¡Faltan ${daysUntilEvent} días para ${eventTitle}!`;
     }
 
     const html = `
       <!DOCTYPE html>
       <html lang="es">
-      <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-      <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-        <div style="max-width:580px;margin:0 auto;padding:24px 12px;">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin:0;padding:0;background-color:#121214;color:#e4e4e7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;">
+        <div style="background-color:#121214;padding:40px 12px;min-height:100%;">
+          <div style="max-width:560px;margin:0 auto;">
 
-          <!-- Header / Logo -->
-          <div style="background:#0f172a;border-radius:16px 16px 0 0;padding:24px 28px;text-align:center;">
-            <div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:4px;">
-              <span style="font-size:26px;font-weight:900;color:#f97316;letter-spacing:-1px;font-family:monospace;">LP</span>
-              <span style="font-size:26px;font-weight:900;color:#ffffff;letter-spacing:-1px;font-family:monospace;">Ticket</span>
+            <!-- Header / Logo -->
+            <div style="text-align:center;margin-bottom:24px;">
+              <div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;">
+                <span style="font-size:24px;font-weight:900;color:#ea580c;letter-spacing:-1px;">LP</span>
+                <span style="font-size:24px;font-weight:900;color:#ffffff;letter-spacing:-1px;">Ticket</span>
+              </div>
+              <p style="margin:0;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:1px;font-weight:600;">
+                Este correo recordatorio fue enviado por LPTicket en nombre del organizador
+              </p>
             </div>
-            <p style="margin:0;font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;font-weight:700;">Recordatorio de Evento</p>
+
+            <!-- Main Card -->
+            <div style="background-color:#1a1a1e;border:1px solid #2d2d30;border-radius:16px;padding:32px;margin-bottom:24px;box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+
+              <!-- Greeting -->
+              <p style="margin:0 0 16px 0;font-size:16px;color:#ffffff;font-weight:600;">
+                ¡Hola, ${userName}! 👋
+              </p>
+
+              <!-- Urgency Banner Card -->
+              <div style="background-color:#242427;border:1px solid #3f3f46;border-radius:12px;padding:20px 24px;margin-bottom:24px;text-align:center;">
+                <p style="margin:0;font-size:18px;font-weight:800;color:#ffffff;line-height:1.4;">
+                  ${headingText}
+                </p>
+              </div>
+
+              <!-- Custom message / Greeting Body -->
+              ${customMessage ? `
+              <div style="margin-bottom:28px;">
+                <p style="margin:0;font-size:15px;color:#e4e4e7;line-height:1.7;white-space:pre-line;">
+                  ${customMessage}
+                </p>
+              </div>
+              ` : `
+              <div style="margin-bottom:28px;">
+                <p style="margin:0;font-size:15px;color:#e4e4e7;line-height:1.7;">
+                  Te recordamos que se acerca la fecha de tu evento. Estamos muy emocionados de recibirte y queremos asegurarnos de que tengas toda la información necesaria a la mano.
+                </p>
+              </div>
+              `}
+
+              <!-- Separate Event Box (Bottom Container) -->
+              <div style="background-color:#242427;border:1px solid #3f3f46;border-radius:14px;padding:24px;margin-bottom:24px;">
+                <p style="margin:0 0 8px 0;font-size:12px;color:#a1a1aa;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Detalles del Evento</p>
+                
+                <h3 style="margin:0 0 16px 0;font-size:20px;font-weight:800;color:#c084fc;line-height:1.3;">
+                  ${eventTitle}
+                </h3>
+                
+                <div style="margin-bottom:16px;border-bottom:1px solid #3f3f46;padding-bottom:16px;">
+                  <table style="width:100%;border-collapse:collapse;">
+                    <tr>
+                      <td style="width:30px;font-size:18px;vertical-align:top;padding:4px 0;">📅</td>
+                      <td style="font-size:14px;color:#ffffff;font-weight:600;padding:4px 0;">
+                        ${eventDate}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="width:30px;font-size:18px;vertical-align:top;padding:8px 0 4px 0;">📍</td>
+                      <td style="font-size:14px;color:#e4e4e7;padding:8px 0 4px 0;line-height:1.4;">
+                        <strong>${venueName}</strong>
+                        ${venueAddress ? `<br/><span style="color:#a1a1aa;font-size:13px;">${venueAddress}</span>` : ''}
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+
+                <!-- CTA Button inside Event Box -->
+                <div style="text-align:center;padding-top:8px;">
+                  <a href="${appUrl}/dashboard" target="_blank"
+                    style="display:inline-block;background-color:#ea580c;color:#ffffff;text-decoration:none;border-radius:12px;padding:14px 36px;font-size:14px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;box-shadow:0 4px 14px rgba(234,88,12,0.4);">
+                    Ver Entrada
+                  </a>
+                </div>
+              </div>
+
+              <!-- Recommendations -->
+              <div style="border-top:1px solid #2d2d30;padding-top:24px;">
+                <p style="margin:0 0 12px 0;font-size:12px;font-weight:800;color:#a1a1aa;text-transform:uppercase;letter-spacing:1px;">Recomendaciones para tu ingreso:</p>
+                <table style="width:100%;border-collapse:collapse;">
+                  <tr>
+                    <td style="width:24px;font-size:14px;vertical-align:top;padding:4px 0;">📱</td>
+                    <td style="font-size:13px;color:#d4d4d8;padding:4px 0;line-height:1.4;">Lleva tu entrada digital (código QR disponible en el dashboard de LPTicket).</td>
+                  </tr>
+                  <tr>
+                    <td style="width:24px;font-size:14px;vertical-align:top;padding:4px 0;">🪪</td>
+                    <td style="font-size:13px;color:#d4d4d8;padding:4px 0;line-height:1.4;">Lleva una identificación oficial con fotografía.</td>
+                  </tr>
+                  <tr>
+                    <td style="width:24px;font-size:14px;vertical-align:top;padding:4px 0;">⏰</td>
+                    <td style="font-size:13px;color:#d4d4d8;padding:4px 0;line-height:1.4;">Te recomendamos llegar 30 minutos antes para agilizar el registro.</td>
+                  </tr>
+                </table>
+              </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div style="text-align:center;padding:0 24px;">
+              <p style="margin:0 0 6px 0;font-size:13px;font-weight:800;color:#ea580c;letter-spacing:0.5px;">lpticket.com</p>
+              <p style="margin:0;font-size:11px;color:#71717a;">Plataforma líder de ticketing y eventos en vivo.</p>
+              <p style="margin:16px 0 0 0;font-size:10px;color:#52525b;line-height:1.4;">
+                Este es un mensaje automático enviado a ${to} en nombre de los organizadores del evento a través de LPTicket.<br/>
+                Por favor, no respondas directamente a este correo.
+              </p>
+            </div>
+
           </div>
-
-          <!-- Urgency Banner -->
-          <div style="background:${urgencyColor};padding:14px 28px;text-align:center;">
-            <p style="margin:0;color:#ffffff;font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:1px;">
-              ⏰ ${urgencyLabel}
-            </p>
-          </div>
-
-          <!-- Main Card -->
-          <div style="background:#ffffff;padding:32px 28px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
-
-            <!-- Greeting -->
-            <h1 style="margin:0 0 8px 0;font-size:22px;font-weight:800;color:#0f172a;">
-              ¡Hola, ${userName}! 👋
-            </h1>
-            <p style="margin:0 0 24px 0;font-size:14px;color:#475569;line-height:1.6;">
-              Te recordamos que tienes una entrada confirmada para el siguiente evento:
-            </p>
-
-            <!-- Event Info Box -->
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:20px 24px;margin-bottom:24px;">
-              <h2 style="margin:0 0 14px 0;font-size:20px;font-weight:900;color:#0f172a;text-transform:uppercase;letter-spacing:-0.5px;border-bottom:2px solid #f97316;padding-bottom:10px;">
-                ${eventTitle}
-              </h2>
-              <table style="width:100%;border-collapse:collapse;">
-                <tr>
-                  <td style="padding:5px 0;vertical-align:top;width:28px;">📅</td>
-                  <td style="padding:5px 0;font-size:13px;color:#1e293b;font-weight:600;">${eventDate}</td>
-                </tr>
-                <tr>
-                  <td style="padding:5px 0;vertical-align:top;">📍</td>
-                  <td style="padding:5px 0;font-size:13px;color:#1e293b;">
-                    <strong>${venueName}</strong>
-                    ${venueAddress ? `<br/><span style="color:#64748b;font-weight:400;">${venueAddress}</span>` : ''}
-                  </td>
-                </tr>
-              </table>
-            </div>
-
-            <!-- Custom message (if any) -->
-            ${customMessage ? `
-            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
-              <p style="margin:0;font-size:13px;color:#9a3412;line-height:1.6;font-style:italic;">${customMessage}</p>
-            </div>
-            ` : ''}
-
-            <!-- Reminder tips -->
-            <div style="margin-bottom:28px;">
-              <p style="margin:0 0 10px 0;font-size:12px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;">Recuerda llevar:</p>
-              <ul style="margin:0;padding:0;list-style:none;">
-                <li style="padding:4px 0;font-size:13px;color:#374151;">✅ Tu código QR (en este correo o en la app)</li>
-                <li style="padding:4px 0;font-size:13px;color:#374151;">✅ Documento de identificación</li>
-                <li style="padding:4px 0;font-size:13px;color:#374151;">✅ Llegar con anticipación para el registro</li>
-              </ul>
-            </div>
-
-            <!-- CTA Button -->
-            <div style="text-align:center;margin-bottom:8px;">
-              <a href="${appUrl}/dashboard" target="_blank"
-                style="display:inline-block;background:#f97316;color:#ffffff;text-decoration:none;border-radius:12px;padding:14px 32px;font-size:13px;font-weight:900;letter-spacing:0.5px;text-transform:uppercase;box-shadow:0 4px 12px rgba(249,115,22,0.3);">
-                Ver mis entradas →
-              </a>
-            </div>
-
-          </div>
-
-          <!-- Footer -->
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px;padding:18px 28px;text-align:center;">
-            <p style="margin:0 0 4px 0;font-size:11px;font-weight:700;color:#f97316;">lpticket.com</p>
-            <p style="margin:0;font-size:10px;color:#94a3b8;">Tus tickets. Tus eventos.</p>
-            <p style="margin:8px 0 0 0;font-size:9px;color:#cbd5e1;">Este recordatorio fue enviado por info@lpticket.com · LPTicket Platform</p>
-          </div>
-
         </div>
       </body>
       </html>
