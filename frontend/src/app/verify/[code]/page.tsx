@@ -153,14 +153,14 @@ export default function VerifyTicketPage() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <button
             onClick={handleShare}
-            className="h-12 w-full sm:w-[170px] rounded-[12px] px-5 text-[13px] font-extrabold tracking-[0.08em] uppercase flex items-center justify-center gap-2 bg-blue-900 text-white shadow-md shadow-blue-900/15 hover:bg-blue-950 transition-all"
+            className="h-10 w-full sm:w-[130px] rounded-[10px] px-3 text-[11px] font-extrabold tracking-[0.07em] uppercase flex items-center justify-center gap-2 bg-blue-900 text-white shadow-sm shadow-blue-900/15 hover:bg-blue-950 transition-all"
           >
             <HiOutlineShare className="w-4 h-4" /> {shareLabel}
           </button>
 
           <button 
             onClick={handlePrint} 
-            className="h-12 w-full sm:w-[170px] rounded-[12px] px-5 text-[13px] font-extrabold tracking-[0.08em] uppercase flex items-center justify-center gap-2 bg-orange-500 text-white shadow-md shadow-orange-500/20 hover:bg-orange-600 transition-all"
+            className="h-10 w-full sm:w-[130px] rounded-[10px] px-3 text-[11px] font-extrabold tracking-[0.07em] uppercase flex items-center justify-center gap-2 bg-orange-500 text-white shadow-sm shadow-orange-500/20 hover:bg-orange-600 transition-all"
           >
             <HiOutlinePrinter className="w-4 h-4" /> Imprimir
           </button>
