@@ -106,8 +106,14 @@ export default function VerifyTicketPage() {
     <div className="min-h-screen py-10 px-4 bg-slate-50 flex flex-col items-center justify-center print:bg-white print:py-0 print:px-0 print:min-h-0 print:block">
       <style>{`
         @media print {
-          @page { margin: 0.5cm; size: auto; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+          @page { margin: 0.25cm; size: auto; }
+          html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+          .ticket-print-sheet {
+            width: 100%;
+            max-width: 760px !important;
+            transform: scale(0.92);
+            transform-origin: top center;
+          }
         }
       `}</style>
       {/* Action Bar (hidden on print) */}
@@ -126,16 +132,16 @@ export default function VerifyTicketPage() {
         </button>
       </div>
       {/* Actual Physical-Style Digital Ticket */}
-      <div className="w-full max-w-[850px] bg-white shadow-2xl md:p-12 p-6 relative overflow-hidden print:shadow-none print:border-none print:p-0 mx-auto font-sans print:break-inside-avoid">
+      <div className="ticket-print-sheet w-full max-w-[850px] bg-white shadow-2xl md:p-12 p-6 relative overflow-hidden print:shadow-none print:border-none print:p-0 mx-auto font-sans print:break-inside-avoid">
         
         {/* TOP SECTION */}
         <div className="flex flex-col md:flex-row items-start gap-8 print:gap-4 relative">
           {/* QR Code */}
           <div className="flex flex-col items-center shrink-0 w-full md:w-auto">
             {ticket.qrData ? (
-              <img src={ticket.qrData} alt="QR Code" className="w-48 h-48 rounded-none object-contain" />
+              <img src={ticket.qrData} alt="QR Code" className="w-48 h-48 print:w-36 print:h-36 rounded-none object-contain" />
             ) : (
-              <div className="w-48 h-48 bg-gray-100 flex items-center justify-center">
+              <div className="w-48 h-48 print:w-36 print:h-36 bg-gray-100 flex items-center justify-center">
                 <HiOutlineTicket className="w-16 h-16 text-gray-400" />
               </div>
             )}
@@ -144,7 +150,7 @@ export default function VerifyTicketPage() {
 
           {/* Event Details */}
           <div className="flex-1 space-y-1 mt-2 md:mt-0 print:mt-2 md:print:mt-0">
-            <h1 className="font-extrabold text-3xl print:text-2xl text-gray-900 leading-tight">
+            <h1 className="font-extrabold text-3xl print:text-xl text-gray-900 leading-tight">
               {ticket.event?.title || 'Evento'}
             </h1>
             <p className="text-sm text-gray-600 uppercase tracking-wide">
@@ -190,7 +196,7 @@ export default function VerifyTicketPage() {
         </div>
 
         {/* MIDDLE BOX */}
-        <div className="border border-gray-300 mt-8 print:mt-4 p-6 md:p-8 print:p-5 bg-white text-sm print:text-xs relative">
+        <div className="border border-gray-300 mt-8 print:mt-3 p-6 md:p-8 print:p-3 bg-white text-sm print:text-xs relative">
           <span className="block text-xs text-gray-500 uppercase font-bold tracking-widest mb-1">Name</span>
           <span className="block text-xl font-black text-gray-900 uppercase mb-2">
             {ticket.user?.firstName} {ticket.user?.lastName}
@@ -219,7 +225,7 @@ export default function VerifyTicketPage() {
         </div>
 
         {/* BOTTOM SECTION */}
-        <div className="mt-8 print:mt-6 flex flex-col md:flex-row items-start gap-8 print:gap-6 relative border-t border-gray-200 pt-8 print:pt-6 print:border-t">
+        <div className="mt-8 print:mt-3 flex flex-col md:flex-row items-start gap-8 print:gap-6 relative border-t border-gray-200 pt-8 print:pt-3 print:border-t">
           
           {/* Left Vertical Bar */}
           <div className="hidden md:flex flex-col w-4 h-full min-h-[160px] shrink-0 absolute left-0 top-8">
@@ -229,7 +235,7 @@ export default function VerifyTicketPage() {
           {/* Terms */}
           <div className="flex-1 md:pl-8 print:pl-6">
             <h4 className="font-bold text-gray-900 text-sm mb-1">Terms</h4>
-            <div className="text-[10px] text-gray-600 space-y-2 uppercase leading-relaxed font-medium">
+            <div className="text-[10px] print:text-[7.5px] text-gray-600 space-y-2 print:space-y-1 uppercase leading-relaxed print:leading-snug font-medium">
               <p>This ticket is not subject to any refund and shall bear no cash value. If issued complimentarily, this ticket shall not be exchangeable.</p>
               <p>HOLDER VOLUNTARILY ASSUMES ALL RISKS AND DANGER INCIDENTAL TO THE EVENT FOR WHICH THE TICKET IS ISSUED, WHETHER OCCURRING PRIOR TO, DURING OR AFTER THE EVENT. HOLDER VOLUNTARILY AGREES THAT THE MANAGEMENT, FACILITY, LEAGUE, PARTICIPANTS, PARTICIPATING CLUBS, LPTICKET, AND ALL OF THEIR RESPECTIVE AGENTS, OFFICERS, DIRECTORS, OWNERS AND EMPLOYEES ARE EXPRESSLY RELEASED BY HOLDER FROM ANY CLAIMS ARISING FROM SUCH CAUSES.</p>
               <p>Duplicate tickets or barcodes may be refused entry to event.</p>
