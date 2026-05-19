@@ -89,7 +89,7 @@ export default function Chatbot() {
         ) : (
           <>
             <HiOutlineChatAlt2 className="w-7 h-7" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 border-2 border-white rounded-full animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-4 h-4 floating-action-status border-2 border-white rounded-full animate-pulse" />
           </>
         )}
       </button>
