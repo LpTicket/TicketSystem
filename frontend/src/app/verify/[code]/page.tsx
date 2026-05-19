@@ -51,8 +51,29 @@ export default function VerifyTicketPage() {
   };
 
   const handlePrint = () => {
+    const isMobilePrint = window.innerWidth <= 640;
+    document.documentElement.classList.toggle('mobile-print-mode', isMobilePrint);
     window.print();
   };
+
+  useEffect(() => {
+    const setMobilePrintMode = () => {
+      document.documentElement.classList.toggle('mobile-print-mode', window.innerWidth <= 640);
+    };
+
+    const clearMobilePrintMode = () => {
+      document.documentElement.classList.remove('mobile-print-mode');
+    };
+
+    window.addEventListener('beforeprint', setMobilePrintMode);
+    window.addEventListener('afterprint', clearMobilePrintMode);
+
+    return () => {
+      window.removeEventListener('beforeprint', setMobilePrintMode);
+      window.removeEventListener('afterprint', clearMobilePrintMode);
+      clearMobilePrintMode();
+    };
+  }, []);
 
   const handleShare = async () => {
     const ticketUrl = window.location.href;
@@ -228,12 +249,6 @@ export default function VerifyTicketPage() {
           }
         }
 
-        @media print and (max-width: 640px) {
-          @page {
-            size: letter portrait;
-            margin: 6mm;
-          }
-
           .ticket-card {
             position: relative !important;
             height: calc(11in - 12mm) !important;
@@ -276,6 +291,83 @@ export default function VerifyTicketPage() {
 
           .terms-text {
             font-size: 5.6pt !important;
+            line-height: 1.28 !important;
+          }
+        }
+
+
+        @media print {
+          html.mobile-print-mode,
+          html.mobile-print-mode body {
+            width: 100% !important;
+            min-height: auto !important;
+            overflow: visible !important;
+          }
+
+          html.mobile-print-mode .ticket-wrapper {
+            padding: 0 !important;
+            margin: 0 !important;
+            background: #fff !important;
+          }
+
+          html.mobile-print-mode .ticket-page {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+          }
+
+          html.mobile-print-mode .ticket-card {
+            position: static !important;
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+            padding-bottom: 0 !important;
+            overflow: visible !important;
+            border-radius: 8pt !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          html.mobile-print-mode .ticket-header {
+            padding: 12pt 12pt 0 !important;
+          }
+
+          html.mobile-print-mode .ticket-body {
+            display: block !important;
+            padding: 10pt 12pt 10pt !important;
+            flex: none !important;
+          }
+
+          html.mobile-print-mode .ticket-footer {
+            position: static !important;
+            left: auto !important;
+            right: auto !important;
+            bottom: auto !important;
+            min-height: 0 !important;
+            margin-top: 0 !important;
+            padding: 10pt 12pt !important;
+            box-sizing: border-box !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          html.mobile-print-mode .brand-logo {
+            width: 125pt !important;
+            height: auto !important;
+          }
+
+          html.mobile-print-mode .qr-img {
+            width: 82pt !important;
+            height: 82pt !important;
+          }
+
+          html.mobile-print-mode .event-title {
+            font-size: 14pt !important;
+            line-height: 1.05 !important;
+          }
+
+          html.mobile-print-mode .terms-text {
+            font-size: 5.5pt !important;
             line-height: 1.28 !important;
           }
         }
