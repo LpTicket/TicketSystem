@@ -155,12 +155,24 @@ export default function VerifyTicketPage() {
 
             <WavySeparator />
 
-            <div className="mt-4">
-              <span className="block text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Type of Ticket</span>
-              <span className="block text-2xl font-black text-gray-900 uppercase">
-                {ticket.sectionName || 'Boleto General'}
-              </span>
-              <span className="block text-sm text-gray-700 font-bold uppercase mt-1">
+            {(() => {
+              const section = ticket.sectionName || '';
+              const cleanSection = section.trim();
+              const shouldShowSection = cleanSection && 
+                !['general', 'general admission', 'ga', 'default', 'default section', 'null', 'undefined', 'sección única', 'seccion unica'].includes(cleanSection.toLowerCase());
+
+              if (!shouldShowSection) return null;
+              return (
+                <div className="mt-4">
+                  <span className="block text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Type of Ticket</span>
+                  <span className="block text-2xl font-black text-gray-900 uppercase">
+                    {ticket.sectionName}
+                  </span>
+                </div>
+              );
+            })()}
+            <div className="mt-2">
+              <span className="block text-sm text-gray-700 font-bold uppercase">
                 STATUS: {isActive ? 'COMPLETE' : isUsed ? 'USED' : 'CANCELLED'}
               </span>
             </div>
@@ -192,7 +204,16 @@ export default function VerifyTicketPage() {
             <p className="font-bold text-gray-900 mt-2">ORDER DETAILS</p>
             <p><span className="font-bold text-gray-900">PURCHASED BY:</span> {ticket.user?.firstName} {ticket.user?.lastName}</p>
             {ticket.createdAt && <p><span className="font-bold text-gray-900">PURCHASED ON:</span> {format(parseSafeDate(ticket.createdAt), "dd MMM yyyy - hh:mm a", { locale: es })}</p>}
-            <p><span className="font-bold text-gray-900">TICKET TYPE:</span> {ticket.sectionName || 'Boleto General'}</p>
+            {(() => {
+              const section = ticket.sectionName || '';
+              const cleanSection = section.trim();
+              const shouldShowSection = cleanSection && 
+                !['general', 'general admission', 'ga', 'default', 'default section', 'null', 'undefined', 'sección única', 'seccion unica'].includes(cleanSection.toLowerCase());
+
+              return shouldShowSection ? (
+                <p><span className="font-bold text-gray-900">TICKET TYPE:</span> {ticket.sectionName}</p>
+              ) : null;
+            })()}
             <p><span className="font-bold text-gray-900">ORDER ID:</span> {ticket.orderId}</p>
           </div>
         </div>

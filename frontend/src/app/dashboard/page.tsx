@@ -202,11 +202,9 @@ function DashboardPageBody() {
                   </div>
                   <div className="text-sm text-gray-600 space-y-1">
                     <p className="flex items-center gap-1.5"><HiOutlineLocationMarker className="w-4 h-4 text-gray-400" /> {ticket.event?.venueName}</p>
-                    {ticket.sectionName && (
-                      <p className="text-xs text-gray-500">
-                        🪑 {formatSeatLabel(ticket, ticket.sectionName, lang)}
-                      </p>
-                    )}
+                    <p className="text-xs text-gray-500">
+                      🪑 {formatSeatLabel(ticket, ticket.sectionName, lang)}
+                    </p>
                     <p className="font-mono text-xs text-primary-600">{t('clientCode')}: {ticket.ticketCode}</p>
                     {ticket.createdAt && (
                       <p className="text-[10px] text-gray-400 font-medium pt-1">

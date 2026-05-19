@@ -51,21 +51,7 @@ export default function InvoiceBreakdown({ invoice, eventTitle }: InvoiceBreakdo
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary-500" />
                 <span className="text-gray-600 font-medium">
-                  {(() => {
-                    const row = item.rowLabel;
-                    const num = item.seatNumber;
-                    if (row === 'GA') return `Entrada General (${item.sectionName})`;
-                    if (row === 'Mesa') return `Mesa ${num} (${item.sectionName})`;
-                    if (row.length > 2) {
-                      // If seatNumber is 1 or not generic, avoid double suffixing if they don't want it, e.g. "Asiento 12-1" -> "Asiento 12"
-                      if (num === 1) return `${row} (${item.sectionName})`;
-                      return `${row} - Silla ${num} (${item.sectionName})`;
-                    }
-                    if (row.length === 1) {
-                      return `Fila ${row}, Asiento ${num} (${item.sectionName})`;
-                    }
-                    return `${row}-${num} (${item.sectionName})`;
-                  })()}
+                  {formatSeatLabel(item, item.sectionName, 'es')}
                 </span>
               </div>
               <span className="font-bold text-gray-900">{fmt(item.price, cur)}</span>

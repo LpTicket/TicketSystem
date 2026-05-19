@@ -19,7 +19,26 @@ export class MailService {
   }
 
   async sendTicketEmail(to: string, userName: string, eventTitle: string, tickets: any[]) {
-    const ticketDetails = tickets.map(t => `
+    const ticketDetails = tickets.map(t => {
+      const row = t.rowLabel || '';
+      const num = t.seatNumber;
+      const section = t.sectionName || '';
+
+      const mesaMatch = row.match(/^(mesa|table)\s*(\d+)$/i);
+      let details = '';
+      if (mesaMatch) {
+        details = `Mesa ${num}, Silla ${mesaMatch[2]}`;
+      } else if (row === 'GA') {
+        details = `Entrada General`;
+      } else {
+        details = `Fila ${row}, Asiento ${num}`;
+      }
+
+      const cleanSection = section.trim();
+      const shouldShowSection = cleanSection && 
+        !['general', 'general admission', 'ga', 'default', 'default section', 'null', 'undefined', 'sección única', 'seccion unica'].includes(cleanSection.toLowerCase());
+
+      return `
       <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 25px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
         <!-- Card branding header -->
         <div style="border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 18px; display: table; width: 100%;">
@@ -32,8 +51,8 @@ export class MailService {
         <!-- Info labels -->
         <div style="margin-bottom: 15px; font-size: 12px; color: #475569; line-height: 1.6;">
           <p style="margin: 4px 0;"><strong>Comprador:</strong> ${userName}</p>
-          <p style="margin: 4px 0;"><strong>Tipo de Entrada:</strong> ${t.sectionName || 'Entrada General'}</p>
-          ${t.rowLabel ? `<p style="margin: 4px 0;"><strong>Ubicación:</strong> Fila ${t.rowLabel}, Asiento ${t.seatNumber}</p>` : ''}
+          ${shouldShowSection ? `<p style="margin: 4px 0;"><strong>Sección:</strong> ${t.sectionName}</p>` : ''}
+          <p style="margin: 4px 0;"><strong>Ubicación:</strong> ${details}</p>
           <p style="margin: 4px 0; font-family: monospace;"><strong>Código:</strong> <span style="color: #ef4444; font-weight: bold;">${t.ticketCode}</span></p>
         </div>
 
@@ -48,7 +67,8 @@ export class MailService {
           LPTICKET.COM — TUS TICKETS. TUS EVENTOS.
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     const html = `
       <div style="background-color: #f8fafc; padding: 30px 15px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
