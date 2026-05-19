@@ -165,6 +165,18 @@ export class Event {
   @Column({ type: 'timestamp', nullable: true })
   pendingEventDate: Date | null;
 
+  @Column({ default: false })
+  autoReminderEnabled: boolean;
+
+  @Column({ type: 'int', default: 0 })
+  autoReminderDays: number;
+
+  @Column({ type: 'text', nullable: true })
+  autoReminderMessage: string | null;
+
+  @Column({ default: false })
+  autoReminderSent: boolean;
+
   @Column('uuid')
   organizerId: string;
 

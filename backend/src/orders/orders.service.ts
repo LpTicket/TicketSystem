@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -877,5 +878,89 @@ export class OrdersService {
       total: uniqueAttendees.length,
       message: `Recordatorios enviados: ${sent}/${uniqueAttendees.length}`,
     };
+  }
+
+  /**
+   * Saves the auto-reminder settings for an event.
+   */
+  async saveReminderSettings(
+    eventId: string,
+    organizerId: string,
+    settings: { autoReminderEnabled: boolean; autoReminderDays: number; autoReminderMessage?: string }
+  ) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+
+    // Authorization check
+    if (event.organizerId !== organizerId) {
+      const user = await this.eventRepo.manager.findOne('User' as any, { where: { id: organizerId } }) as any;
+      if (user?.role !== 'admin') {
+        throw new ForbiddenException('No permission to update reminders for this event');
+      }
+    }
+
+    event.autoReminderEnabled = settings.autoReminderEnabled;
+    event.autoReminderDays = settings.autoReminderDays;
+    event.autoReminderMessage = settings.autoReminderMessage || null;
+    // Reset autoReminderSent if they are enabling it, so it can fire if the date is right
+    if (settings.autoReminderEnabled) {
+      event.autoReminderSent = false;
+    }
+
+    await this.eventRepo.save(event);
+
+    return {
+      success: true,
+      message: 'Configuración de recordatorio guardada correctamente',
+      event,
+    };
+  }
+
+  /**
+   * Daily Cron Job to send automated email reminders for upcoming events.
+   * Runs every day at 8:00 AM.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_8AM)
+  async handleScheduledReminders() {
+    console.log('[Cron] Checking scheduled email reminders...');
+    const events = await this.eventRepo.find({
+      where: {
+        autoReminderEnabled: true,
+        autoReminderSent: false,
+      },
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (const event of events) {
+      try {
+        const eventDate = new Date(event.eventDate);
+        eventDate.setHours(0, 0, 0, 0);
+
+        const timeDiff = eventDate.getTime() - today.getTime();
+        const daysUntilEvent = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+        // Trigger reminder if the event is within the configured window (e.g. today or in X days)
+        if (daysUntilEvent >= 0 && daysUntilEvent <= event.autoReminderDays) {
+          console.log(`[Cron] Triggering automatic reminder for event: ${event.title} (${daysUntilEvent} days left)`);
+          
+          // Call the sendEventReminder method using the event's organizer ID or a system default
+          await this.sendEventReminder(
+            event.id,
+            event.organizerId,
+            daysUntilEvent,
+            event.autoReminderMessage || undefined,
+          );
+
+          // Mark as sent so we don't send it again
+          event.autoReminderSent = true;
+          await this.eventRepo.save(event);
+          console.log(`[Cron] Successfully sent reminders and marked event ${event.title} as completed.`);
+        }
+      } catch (err) {
+        console.error(`[Cron] Error processing reminder for event ${event.id}:`, err);
+      }
+    }
   }
 }

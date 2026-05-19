@@ -196,4 +196,19 @@ export class OrdersController {
       body.customMessage,
     );
   }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Put('event/:eventId/reminder-settings')
+  saveReminderSettings(
+    @Param('eventId') eventId: string,
+    @Body() body: { autoReminderEnabled: boolean; autoReminderDays: number; autoReminderMessage?: string },
+    @Request() req: any
+  ) {
+    return this.ordersService.saveReminderSettings(
+      eventId,
+      req.user.id,
+      body,
+    );
+  }
 }
