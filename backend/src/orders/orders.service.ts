@@ -874,16 +874,15 @@ export class OrdersService {
       }
     }
 
-    // Format event date for the email
+    // Format event date for the email with time
     const eventDateStr = event.eventDate
-      ? new Date(event.eventDate).toLocaleDateString('es', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        })
+      ? (() => {
+          const date = new Date(event.eventDate);
+          const dayName = date.toLocaleDateString('es', { weekday: 'long' });
+          const dateStr = date.toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' });
+          const timeStr = date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: true });
+          return `${dayName}, ${dateStr} — ${timeStr}`;
+        })()
       : '';
 
     let sent = 0;
