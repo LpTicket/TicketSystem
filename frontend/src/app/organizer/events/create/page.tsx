@@ -16,7 +16,7 @@ import VenueMapBuilder from '@/components/events/VenueMapBuilder';
 
 const buildLocalEventDate = (date: string, time: string) => {
   const safeTime = time || '00:00';
-  return new Date(`${date}T${safeTime}:00`).toISOString();
+  return `${date}T${safeTime}:00`;
 };
 
 export default function CreateEventPage() {
@@ -81,7 +81,7 @@ export default function CreateEventPage() {
         payload.eventDate = buildLocalEventDate(form.eventDate, form.eventTime);
       }
       if (form.doorsOpen) {
-        payload.doorsOpen = new Date(`${form.eventDate}T${form.doorsOpen}:00`).toISOString();
+        payload.doorsOpen = `${form.eventDate}T${form.doorsOpen}:00`;
       } else {
         delete payload.doorsOpen;
       }

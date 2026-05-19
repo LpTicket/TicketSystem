@@ -50,9 +50,9 @@ const formatDateInput = (value?: string) => {
   if (!value) return '';
   const date = parseSafeDate(value);
   if (Number.isNaN(date.getTime())) return value.substring(0, 10);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
@@ -60,14 +60,14 @@ const formatTimeInput = (value?: string) => {
   if (!value) return '';
   const date = parseSafeDate(value);
   if (Number.isNaN(date.getTime())) return '';
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const hours = String(date.getUTCHours()).padStart(2, '0');
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
   return `${hours}:${minutes}`;
 };
 
 const buildLocalEventDate = (date: string, time: string) => {
   const safeTime = time || '00:00';
-  return new Date(`${date}T${safeTime}:00`).toISOString();
+  return `${date}T${safeTime}:00`;
 };
 
 export default function EventDetailPage() {
