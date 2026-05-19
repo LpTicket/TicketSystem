@@ -35,8 +35,6 @@ export class MailService {
     const appUrl = this.getAppUrl();
     const eventAddress = [eventInfo?.venueName, eventInfo?.venueAddress].filter(Boolean).join(' — ');
     const ticketDetails = tickets.map(t => {
-      const locationLabel = formatTicketSeatLabel(t);
-      const ticketUrl = `${appUrl}/verify/${t.ticketCode}`;
       const row = t.rowLabel || '';
       const num = t.seatNumber;
       const section = t.sectionName || '';
@@ -76,7 +74,6 @@ export class MailService {
         !/^\d+$/.test(cleanSection); // hide purely numeric section names
 
       const qrCid = `qr-${t.ticketCode}`;
-      const appUrl = this.configService.get('APP_URL') || 'https://www.lpticket.com';
       const ticketUrl = `${appUrl}/verify/${t.ticketCode}`;
 
       return `
