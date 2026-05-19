@@ -170,22 +170,40 @@ const formatTimeInput = (value?: string) => {
 
 const buildLocalEventDate = (date: string, time: string, timezone: string = 'UTC') => {
   const safeTime = time || '00:00';
-  const [hours, minutes] = safeTime.split(':').map(Number);
 
-  // Create date at midnight in the event's timezone
-  const dateStr = `${date}T00:00:00`;
-  const baseDate = new Date(dateStr);
+  // Create a date with the entered time
+  const dateTimeStr = `${date}T${safeTime}:00`;
+  const eventDateTime = new Date(dateTimeStr);
 
-  // Get the offset between UTC and the event's timezone
-  const utcDate = new Date(baseDate.toLocaleString('en-US', { timeZone: timezone }));
-  const tzDate = new Date(baseDate.toLocaleString('en-US', { timeZone: 'UTC' }));
-  const offset = (utcDate.getTime() - tzDate.getTime()) / (1000 * 60); // in minutes
+  // Get the time components in the selected timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
 
-  // Create the date with the time in the event's timezone, then adjust to UTC
-  baseDate.setHours(hours, minutes, 0, 0);
-  const utcTime = new Date(baseDate.getTime() - offset * 60 * 1000);
+  const parts = formatter.formatToParts(eventDateTime);
+  const timeInTZ: Record<string, string> = {};
+  parts.forEach(part => {
+    timeInTZ[part.type] = part.value;
+  });
 
-  return utcTime.toISOString().split('.')[0] + 'Z';
+  // Create a UTC date with the same wall-clock values
+  const utcDate = new Date(Date.UTC(
+    parseInt(timeInTZ['year']),
+    parseInt(timeInTZ['month']) - 1,
+    parseInt(timeInTZ['day']),
+    parseInt(timeInTZ['hour']),
+    parseInt(timeInTZ['minute']),
+    parseInt(timeInTZ['second'])
+  ));
+
+  return utcDate.toISOString();
 };
 
 export default function EventDetailPage() {
