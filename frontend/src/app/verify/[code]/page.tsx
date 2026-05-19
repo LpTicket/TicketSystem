@@ -181,6 +181,31 @@ export default function VerifyTicketPage() {
           .status-banner { display: none !important; }\n\n          .brand-logo {\n            width: 190pt !important;\n            height: auto !important;\n          }\n\n          .premium-watermark {\n            display: block !important;\n          }
         }
 
+
+          /* PRINT RECEIPT FOOTER FINAL POSITION */
+          .ticket-card {
+            position: relative !important;
+            height: 9.72in !important;
+            min-height: 9.72in !important;
+            padding-bottom: 112pt !important;
+            box-sizing: border-box !important;
+          }
+
+          .ticket-body {
+            flex: none !important;
+            padding-bottom: 10pt !important;
+          }
+
+          .ticket-footer {
+            position: absolute !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            min-height: 104pt !important;
+            box-sizing: border-box !important;
+          }
+          /* END PRINT RECEIPT FOOTER FINAL POSITION */
+
         /* ==================== SCREEN STYLES ==================== */
         @media screen {
           .print-only { display: none !important; }
