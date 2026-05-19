@@ -131,64 +131,84 @@ export default function VerifyTicketPage() {
     <div className="min-h-screen py-10 px-4 bg-slate-50 flex flex-col items-center justify-center print:bg-white print:py-0 print:px-0 print:min-h-0 print:block">
       <style>{`
         @media print {
-          @page { margin: 0.12cm; size: auto; }
+          @page {
+            size: letter portrait;
+            margin: 0.25in;
+          }
 
           html,
           body {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-            background: white !important;
-            width: 100% !important;
-            height: auto !important;
+            width: 8.5in !important;
+            min-height: 11in !important;
+            margin: 0 !important;
+            padding: 0 !important;
             overflow: visible !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          .fixed,
+          [class*="fixed"] {
+            display: none !important;
           }
 
           .ticket-print-sheet {
-            width: 100% !important;
-            max-width: 720px !important;
-            transform: scale(0.78);
-            transform-origin: top center;
+            width: 7.6in !important;
+            max-width: 7.6in !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            transform: none !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }
 
           .ticket-print-sheet > div:first-of-type {
             display: flex !important;
-            flex-direction: row !important;
-            align-items: flex-start !important;
-            gap: 12px !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 0.16in !important;
+          }
+
+          .ticket-print-sheet > div:first-of-type > div:first-child {
+            width: 100% !important;
+            align-items: center !important;
+            justify-content: center !important;
           }
 
           .ticket-print-sheet img {
-            width: 118px !important;
-            height: 118px !important;
+            width: 1.15in !important;
+            height: 1.15in !important;
+            object-fit: contain !important;
           }
 
           .ticket-print-sheet h1 {
-            font-size: 20px !important;
+            font-size: 22px !important;
             line-height: 1.05 !important;
           }
 
           .ticket-print-sheet p,
           .ticket-print-sheet span {
-            line-height: 1.15 !important;
+            line-height: 1.16 !important;
           }
 
           .ticket-print-sheet .border {
-            margin-top: 10px !important;
-            padding: 10px !important;
+            margin-top: 0.16in !important;
+            padding: 0.13in !important;
           }
 
           .ticket-print-sheet > div:last-of-type {
-            margin-top: 10px !important;
-            padding-top: 10px !important;
+            margin-top: 0.13in !important;
+            padding-top: 0.13in !important;
             display: flex !important;
             flex-direction: row !important;
-            gap: 12px !important;
+            gap: 0.2in !important;
           }
 
           .ticket-print-sheet > div:last-of-type p {
-            margin: 2px 0 !important;
+            margin: 1px 0 !important;
           }
         }
       `}</style>
