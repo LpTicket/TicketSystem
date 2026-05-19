@@ -150,17 +150,17 @@ export default function VerifyTicketPage() {
           <HiOutlineArrowLeft className="w-4 h-4" /> Volver
         </button>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="flex flex-row items-center justify-end gap-3">
           <button
             onClick={handleShare}
-            className="h-10 w-full sm:w-[130px] rounded-[10px] px-3 text-[11px] font-extrabold tracking-[0.07em] uppercase flex items-center justify-center gap-2 bg-blue-900 text-white shadow-sm shadow-blue-900/15 hover:bg-blue-950 transition-all"
+            className="h-10 w-[130px] rounded-[10px] px-3 text-[11px] font-extrabold tracking-[0.07em] uppercase flex items-center justify-center gap-2 bg-[#1f6aa5] text-white shadow-sm shadow-blue-700/20 hover:bg-[#185987] transition-all"
           >
             <HiOutlineShare className="w-4 h-4" /> {shareLabel}
           </button>
 
           <button 
             onClick={handlePrint} 
-            className="h-10 w-full sm:w-[130px] rounded-[10px] px-3 text-[11px] font-extrabold tracking-[0.07em] uppercase flex items-center justify-center gap-2 bg-orange-500 text-white shadow-sm shadow-orange-500/20 hover:bg-orange-600 transition-all"
+            className="h-10 w-[130px] rounded-[10px] px-3 text-[11px] font-extrabold tracking-[0.07em] uppercase flex items-center justify-center gap-2 bg-orange-500 text-white shadow-sm shadow-orange-500/20 hover:bg-orange-600 transition-all"
           >
             <HiOutlinePrinter className="w-4 h-4" /> Imprimir
           </button>
