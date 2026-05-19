@@ -155,11 +155,12 @@ export default function VerifyTicketPage() {
           }
 
           .ticket-body {
-            padding: 18pt 24pt !important;\n            flex: 1 !important;
+            padding: 18pt 24pt !important;\n            flex: 1 1 auto !important;
           }
 
           .ticket-footer {
             padding: 14pt 24pt !important;
+            margin-top: auto !important;
             margin-top: auto !important;
           }
 
