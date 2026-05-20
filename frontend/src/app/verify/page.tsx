@@ -34,7 +34,7 @@ export default function TicketScannerPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string } | null>(null);
   const [scannerInstance, setScannerInstance] = useState<any>(null);
-  const [highContrast, setHighContrast] = useState(true);
+  const [highContrast, setHighContrast] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [liveStats, setLiveStats] = useState({ total: 0, approved: 0, denied: 0 });
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
@@ -252,13 +252,9 @@ export default function TicketScannerPage() {
     setRecentScans([]);
   };
 
-  const shellClass = highContrast
-    ? 'min-h-screen bg-[#020817] text-white'
-    : 'min-h-screen bg-slate-50 text-slate-900';
+  const shellClass = 'min-h-screen bg-white text-slate-900';
 
-  const panelClass = highContrast
-    ? 'bg-[#061428] border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.35)]'
-    : 'bg-white border-gray-150 shadow-[0_20px_60px_rgba(15,23,42,0.04)]';
+  const panelClass = 'bg-white border-gray-150 shadow-[0_20px_60px_rgba(15,23,42,0.04)]';
 
   return (
     <div className={`${shellClass} flex flex-col items-center justify-center px-4 py-8 md:py-12`}>
