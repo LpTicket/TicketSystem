@@ -94,11 +94,13 @@ export class MailService {
       return `
       <div bgcolor="#ffffff" style="background:#ffffff !important; background-color:#ffffff !important; color:#0f172a !important; border:1px solid #e2e8f0; border-radius:20px; padding:25px; margin-bottom:20px; box-shadow:0 4px 12px rgba(0,0,0,0.03); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
         <!-- Card branding header -->
-        <div style="border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 18px; display: table; width: 100%;">
-          <div style="display: table-cell; vertical-align: middle;">
-            <img src="${appUrl}/logo.png" alt="LPTicket" width="150" style="display:block; width:150px; max-width:150px; height:auto; border:0; outline:none; text-decoration:none; filter: drop-shadow(0 0 2px #ffffff) drop-shadow(0 0 6px #ffffff) drop-shadow(0 0 10px #ffffff);" />
+        <div bgcolor="#ffffff" style="background:#ffffff !important; background-color:#ffffff !important; border-bottom:2px solid #f1f5f9; padding:12px 12px 14px 12px; margin-bottom:18px; display:table; width:100%; box-sizing:border-box;">
+          <div bgcolor="#ffffff" style="display:table-cell; vertical-align:middle; background:#ffffff !important; background-color:#ffffff !important;">
+            <img src="${appUrl}/logo.png" alt="LPTicket" width="150" style="display:block; width:150px; max-width:150px; height:auto; border:0; outline:none; text-decoration:none;" />
           </div>
-          <div style="display: table-cell; text-align: right; font-size: 9px; font-weight: bold; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; vertical-align: middle;">Digital Ticket</div>
+          <div bgcolor="#ffffff" style="display:table-cell; text-align:right; font-size:9px; font-weight:bold; color:#94a3b8 !important; text-transform:uppercase; letter-spacing:1px; vertical-align:middle; background:#ffffff !important; background-color:#ffffff !important;">
+            Digital Ticket
+          </div>
         </div>
 
         <h3 style="margin-top: 0; margin-bottom: 8px; color: #0A375A; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">${eventTitle}</h3>
