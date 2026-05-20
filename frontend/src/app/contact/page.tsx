@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from 'react-hot-toast';
+
 import { useState } from 'react';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker } from 'react-icons/hi';
@@ -20,7 +22,7 @@ export default function ContactPage() {
       setForm({ name: '', email: '', subject: '', message: '' });
     } catch (err) {
       console.error(err);
-      alert(lang === 'es' ? 'Error al enviar.' : 'Error sending.');
+      toast.error(lang === 'es' ? 'Error al enviar.' : 'Error sending.');
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from 'react-hot-toast';
+
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
@@ -90,10 +92,10 @@ export default function VerifyTicketPage() {
       }
 
       await navigator.clipboard.writeText(ticketUrl);
-      alert('¡Enlace de la entrada copiado al portapapeles!');
+      toast.success('¡Enlace de la entrada copiado al portapapeles!');
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
-      alert('No se pudo compartir esta entrada.');
+      toast.error('No se pudo compartir esta entrada.');
     }
   };
 

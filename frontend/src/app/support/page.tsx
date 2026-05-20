@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from 'react-hot-toast';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { useLang } from '@/context/LanguageContext';
@@ -14,6 +16,7 @@ import {
   HiOutlineUser,
 } from 'react-icons/hi';
 import api from '@/lib/api';
+import TrustBadges from '@/components/layout/TrustBadges';
 
 interface FAQItem {
   questionEs: string;
@@ -81,7 +84,7 @@ export default function SupportPage() {
       setContactForm({ name: '', email: '', subject: '', message: '' });
     } catch (err) {
       console.error(err);
-      alert(lang === 'es' ? 'Error al enviar el mensaje.' : 'Error sending message.');
+      toast.error(lang === 'es' ? 'Error al enviar el mensaje.' : 'Error sending message.');
     } finally {
       setSubmitting(false);
     }
@@ -113,6 +116,10 @@ export default function SupportPage() {
           <p className="text-gray-500 max-w-xl mx-auto text-sm sm:text-base">
             {lang === 'es' ? 'Encuentra respuestas rápidas sobre compras, accesos y mapas interactivos, o contáctanos directamente.' : 'Find quick answers regarding transactions, access scanner portals, or get in touch with support.'}
           </p>
+
+          <div className="pt-5">
+            <TrustBadges />
+          </div>
 
           {/* Search bar */}
           <div className="max-w-md mx-auto pt-4 relative">

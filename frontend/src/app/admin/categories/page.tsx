@@ -80,7 +80,7 @@ export default function AdminCategoriesPage() {
       await api.delete(`/categories/${id}`);
       await loadCategories();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al eliminar');
+      toast.error(err.response?.data?.message || 'Error al eliminar');
     }
   };
 

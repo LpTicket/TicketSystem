@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
 import EventCard from '@/components/events/EventCard';
+import TrustBadges from '@/components/layout/TrustBadges';
 import { parseSafeDate, formatDateInTimezone } from '@/lib/dateUtils';
 import { Event, EventStatus } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
@@ -295,6 +296,10 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="mx-auto mt-8 max-w-[1400px] px-4 sm:px-6 lg:px-8">
+        <TrustBadges />
       </section>
 
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-14 mt-14">

@@ -449,6 +449,7 @@ export default function EventDetailPage() {
                 {t('buyTickets')}
               </button>
               <p className="text-[10px] text-gray-400 text-center">{t('securePayments')}</p>
+              <TrustBadges compact />
             </div>
           </div>
         </div>

@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from 'react-hot-toast';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -274,7 +276,7 @@ export default function PurchasePage() {
       setSeatsLocked(true);
       setStep('info');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error reserving seats');
+      toast.error(err.response?.data?.message || 'Error reserving seats');
     }
   };
 
@@ -287,7 +289,7 @@ export default function PurchasePage() {
     } catch {}
     setSeatsLocked(false);
     setSelectedSeats([]);
-    alert(lang === 'es' ? '⏰ Tu reservación ha expirado. Los asientos fueron liberados.' : '⏰ Your reservation has expired. Seats have been released.');
+    toast.error(lang === 'es' ? '⏰ Tu reservación ha expirado. Los asientos fueron liberados.' : '⏰ Your reservation has expired. Seats have been released.');
     setStep('seats');
     
     // Refresh seat map to show updated availability
@@ -317,7 +319,7 @@ export default function PurchasePage() {
       setInvoice({ ...data, currency: event?.currency || 'USD' });
       setStep('payment');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error calculating invoice');
+      toast.error(err.response?.data?.message || 'Error calculating invoice');
     } finally {
       setInvoiceLoading(false);
     }
@@ -341,7 +343,7 @@ export default function PurchasePage() {
       // Redirect the user to the Stripe-hosted checkout page
       if (data.url) window.location.href = data.url;
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error processing payment');
+      toast.error(err.response?.data?.message || 'Error processing payment');
     } finally {
       setBuying(false);
     }
@@ -660,6 +662,7 @@ export default function PurchasePage() {
                 <p className="text-center text-[10px] text-gray-400">
                   {lang === 'es' ? 'Pagos seguros encriptados — procesado por Stripe' : 'Secure encrypted payments — processed by Stripe'}
                 </p>
+                <TrustBadges compact />
                 <button onClick={handleCancel} className="w-full py-2 text-xs text-red-500 hover:text-red-700 font-medium">
                   🗑 {lang === 'es' ? 'Eliminar reservación' : 'Delete reservation'}
                 </button>
