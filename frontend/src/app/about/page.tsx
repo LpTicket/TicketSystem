@@ -11,7 +11,7 @@ export default function AboutPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         
         <div className="text-center mb-16 animate-fade-in">
-          <h1 className="text-4xl md:text-5xl font-bold text-[#0b1a2e] mb-4">{t('aboutTitle')}</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-[#0a375a] mb-4">{t('aboutTitle')}</h1>
           <div className="w-24 h-1 bg-primary-500 mx-auto rounded-full"></div>
         </div>
 

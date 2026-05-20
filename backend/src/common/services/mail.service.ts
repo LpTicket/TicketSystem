@@ -99,7 +99,7 @@ export class MailService {
           <div style="display: table-cell; text-align: right; font-size: 9px; font-weight: bold; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; vertical-align: middle;">Digital Ticket</div>
         </div>
 
-        <h3 style="margin-top: 0; margin-bottom: 8px; color: #0b1a2e; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">${eventTitle}</h3>
+        <h3 style="margin-top: 0; margin-bottom: 8px; color: #0a375a; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">${eventTitle}</h3>
 
         <!-- Info labels -->
         <div style="margin-bottom: 15px; font-size: 12px; color: #475569; line-height: 1.6;">
@@ -133,7 +133,7 @@ export class MailService {
       <div style="background-color: #f8fafc; padding: 30px 15px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
         <div style="max-width: 560px; margin: 0 auto;">
           <div style="margin-bottom: 25px; text-align: center;">
-            <h1 style="color: #0b1a2e; font-size: 24px; font-weight: 850; margin: 0; letter-spacing: -0.5px;">¡Hola, ${userName}! 👋</h1>
+            <h1 style="color: #0a375a; font-size: 24px; font-weight: 850; margin: 0; letter-spacing: -0.5px;">¡Hola, ${userName}! 👋</h1>
             <p style="color: #475569; font-size: 14px; margin-top: 6px; margin-bottom: 0;">Gracias por tu compra. Aquí tienes tus entradas listas para el evento:</p>
           </div>
           
@@ -215,7 +215,7 @@ export class MailService {
           <div style="max-width:560px;margin:0 auto;box-shadow:0 10px 25px rgba(0,0,0,0.05);border-radius:16px;overflow:hidden;">
 
             <!-- Header / Logo -->
-            <div style="background-color:#0b1a2e;padding:24px 28px;text-align:center;">
+            <div style="background-color:#0a375a;padding:24px 28px;text-align:center;">
               <div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:4px;">
                 <span style="font-size:24px;font-weight:900;color:#f97316;letter-spacing:-1px;">LP</span>
                 <span style="font-size:24px;font-weight:900;color:#ffffff;letter-spacing:-1px;">Ticket</span>
@@ -236,7 +236,7 @@ export class MailService {
             <div style="background-color:#ffffff;padding:32px 28px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
 
               <!-- Greeting -->
-              <p style="margin:0 0 8px 0;font-size:18px;color:#0b1a2e;font-weight:800;">
+              <p style="margin:0 0 8px 0;font-size:18px;color:#0a375a;font-weight:800;">
                 ¡Hola, ${userName}! 👋
               </p>
               <p style="margin:0 0 24px 0;font-size:14px;color:#475569;line-height:1.6;">
@@ -245,7 +245,7 @@ export class MailService {
 
               <!-- Event Info Box -->
               <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:24px;margin-bottom:24px;">
-                <h3 style="margin:0 0 10px 0;font-size:20px;font-weight:800;color:#0b1a2e;line-height:1.3;text-transform:uppercase;letter-spacing:-0.5px;">
+                <h3 style="margin:0 0 10px 0;font-size:20px;font-weight:800;color:#0a375a;line-height:1.3;text-transform:uppercase;letter-spacing:-0.5px;">
                   ${eventTitle}
                 </h3>
                 <div style="width:60px;height:3px;background-color:#f97316;margin-bottom:18px;"></div>
@@ -338,7 +338,7 @@ export class MailService {
     const adminEmail = this.configService.get('ADMIN_EMAIL');
     const html = `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px;">
-        <h2 style="color: #0b1a2e; margin-top: 0;">Nuevo mensaje de contacto</h2>
+        <h2 style="color: #0a375a; margin-top: 0;">Nuevo mensaje de contacto</h2>
         <p style="color: #475569; font-size: 14px;">Has recibido una nueva consulta desde el Centro de Soporte:</p>
         
         <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">

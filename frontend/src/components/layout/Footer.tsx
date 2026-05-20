@@ -6,7 +6,7 @@ export default function Footer() {
   const { t, lang } = useLang();
   
   return (
-    <footer className="bg-[#0b1a2e] text-white print:hidden border-t border-white/5">
+    <footer className="bg-[#0a375a] text-white print:hidden border-t border-white/5">
       <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-10">
         
         {/* Top Section: Logo & Socials (As in Passline) */}
