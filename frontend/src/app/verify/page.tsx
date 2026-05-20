@@ -262,7 +262,7 @@ export default function TicketScannerPage() {
         <div className={`w-full rounded-lg border p-5 md:p-7 space-y-5 overflow-hidden ${panelClass}`}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-[#F97316] px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-sm">
+              <div className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-[#0A375A] px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-sm">
                 <HiOutlineQrcode className="h-4 w-4" />
                 {lang === 'es' ? 'Modo evento' : 'Event mode'}
               </div>
