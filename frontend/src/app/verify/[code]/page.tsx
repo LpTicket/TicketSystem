@@ -176,7 +176,8 @@ export default function VerifyTicketPage() {
           .ticket-card {
             box-shadow: none !important;
             border: 1px solid #d1d5db !important;
-            border-radius: 0 !important;
+            border-radius: 6pt !important;
+            overflow: hidden !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }
@@ -217,9 +218,9 @@ export default function VerifyTicketPage() {
           /* PRINT RECEIPT FOOTER FINAL POSITION */
           .ticket-card {
             position: relative !important;
-            height: 9.72in !important;
-            min-height: 9.72in !important;
-            padding-bottom: 112pt !important;
+            height: 9.42in !important;
+            min-height: 9.42in !important;
+            padding-bottom: 100pt !important;
             box-sizing: border-box !important;
           }
 
@@ -232,8 +233,9 @@ export default function VerifyTicketPage() {
             position: absolute !important;
             left: 0 !important;
             right: 0 !important;
-            bottom: 0 !important;
-            min-height: 104pt !important;
+            bottom: 10pt !important;
+            min-height: 90pt !important;
+            border-radius: 0 0 5pt 5pt !important;
             box-sizing: border-box !important;
           }
           /* END PRINT RECEIPT FOOTER FINAL POSITION */
