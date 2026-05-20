@@ -591,16 +591,26 @@ export default function EventDetailPage() {
   const scanRate = totalTickets > 0 ? Math.round((scannedTickets / totalTickets) * 100) : 0;
   const estimatedNetRevenue = Math.max(totalRevenue - (totalRevenue * 0.029) - (totalOrders * 0.30), 0);
 
-  const salesByDay = Object.values(
-    salesOrders.reduce<Record<string, { date: string; orders: number; tickets: number; revenue: number }>>((acc, order) => {
-      const key = format(parseSafeDate(order.createdAt), 'yyyy-MM-dd');
-      if (!acc[key]) acc[key] = { date: key, orders: 0, tickets: 0, revenue: 0 };
-      acc[key].orders += 1;
-      acc[key].tickets += Number(order.ticketCount || 0);
-      acc[key].revenue += Number(order.total || 0);
-      return acc;
-    }, {})
-  ).sort((a, b) => a.date.localeCompare(b.date));
+  const rawSalesByDay = salesOrders.reduce<Record<string, { date: string; orders: number; tickets: number; revenue: number }>>((acc, order) => {
+    const key = format(parseSafeDate(order.createdAt), 'yyyy-MM-dd');
+    if (!acc[key]) acc[key] = { date: key, orders: 0, tickets: 0, revenue: 0 };
+    acc[key].orders += 1;
+    acc[key].tickets += Number(order.ticketCount || 0);
+    acc[key].revenue += Number(order.total || 0);
+    return acc;
+  }, {});
+
+  const today = new Date();
+  const recentDayKeys = Array.from({ length: 7 }).map((_, index) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (6 - index));
+    return format(d, 'yyyy-MM-dd');
+  });
+
+  const salesByDay = recentDayKeys.map((date) => (
+    rawSalesByDay[date] || { date, orders: 0, tickets: 0, revenue: 0 }
+  ));
+
 
   const salesBySection = Object.values(
     attendees.reduce<Record<string, { section: string; tickets: number; scanned: number; pending: number }>>((acc, attendee) => {
@@ -756,7 +766,7 @@ export default function EventDetailPage() {
 
               {salesByDay.length > 0 ? (
                 <div className="space-y-3">
-                  {salesByDay.slice(-7).map((day) => {
+                  {salesByDay.map((day) => {
                     const maxRevenue = Math.max(...salesByDay.map((d) => d.revenue), 1);
                     return (
                       <div key={day.date}>
