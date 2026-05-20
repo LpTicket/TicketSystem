@@ -1,7 +1,7 @@
 'use client';
 
 import { HiOutlineCreditCard, HiOutlineQrcode, HiOutlineShieldCheck, HiOutlineSupport } from 'react-icons/hi';
-import { useLang } from '@/lib/i18n-client';
+import { useLang } from '@/context/LanguageContext';
 
 type TrustBadgesProps = {
   compact?: boolean;
