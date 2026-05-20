@@ -92,14 +92,16 @@ export class MailService {
       const whatsappShareUrl = `https://wa.me/?text=${encodeURIComponent(`Mi entrada para ${eventTitle}: ${ticketUrl}`)}`;
 
       return `
-      <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 25px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <div bgcolor="#ffffff" style="background:#ffffff !important; background-color:#ffffff !important; color:#0f172a !important; border:1px solid #e2e8f0; border-radius:20px; padding:25px; margin-bottom:20px; box-shadow:0 4px 12px rgba(0,0,0,0.03); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
         <!-- Card branding header -->
         <div style="border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 18px; display: table; width: 100%;">
-          <div style="display: table-cell; font-size: 20px; font-weight: 900; color: #ff6b1a; font-family: monospace; letter-spacing: -1px;">LPTICKET</div>
+          <div style="display: table-cell; vertical-align: middle;">
+            <img src="${appUrl}/logo.png" alt="LPTicket" width="150" style="display:block; width:150px; max-width:150px; height:auto; border:0; outline:none; text-decoration:none;" />
+          </div>
           <div style="display: table-cell; text-align: right; font-size: 9px; font-weight: bold; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; vertical-align: middle;">Digital Ticket</div>
         </div>
 
-        <h3 style="margin-top: 0; margin-bottom: 8px; color: #0a375a; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">${eventTitle}</h3>
+        <h3 style="margin-top: 0; margin-bottom: 8px; color: #0A375A; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">${eventTitle}</h3>
 
         <!-- Info labels -->
         <div style="margin-bottom: 15px; font-size: 12px; color: #475569; line-height: 1.6;">
@@ -107,7 +109,7 @@ export class MailService {
           ${eventDateFormatted ? `<p style="margin: 4px 0;"><strong>Fecha y Hora:</strong> ${eventDateFormatted}</p>` : ''}
           ${shouldShowSection ? `<p style="margin: 4px 0;"><strong>Sección:</strong> ${t.sectionName}</p>` : ''}
           <p style="margin: 4px 0;"><strong>Ubicación:</strong> ${details}</p>
-          <p style="margin: 4px 0; font-family: monospace;"><strong>Código:</strong> <span style="color: #ff6b1a; font-weight: bold;">${t.ticketCode}</span></p>
+          <p style="margin: 4px 0; font-family: monospace;"><strong>Código:</strong> <span style="color: #F97316; font-weight: bold;">${t.ticketCode}</span></p>
         </div>
 
         <!-- Center QR (CID inline image) -->
@@ -117,7 +119,7 @@ export class MailService {
         </div>
 
                 <div style="text-align: center; margin: 18px 0 6px 0;">
-          <a href="${ticketUrl}" target="_blank" style="display: inline-block; background: #ff6b1a; color: #ffffff; text-decoration: none; border-radius: 14px; padding: 12px 18px; font-size: 12px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;">
+          <a href="${ticketUrl}" target="_blank" style="display: inline-block; background: #F97316; color: #ffffff; text-decoration: none; border-radius: 14px; padding: 12px 18px; font-size: 12px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;">
             Compartir
           </a>
         </div>
@@ -126,14 +128,32 @@ export class MailService {
           LPTICKET.COM — TUS TICKETS. TUS EVENTOS.
         </div>
       </div>
+      </body>
+      </html>
     `;
     }).join('');
 
     const html = `
-      <div style="background-color: #f8fafc; padding: 30px 15px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <!doctype html>
+      <html>
+      <head>
+        <meta name="color-scheme" content="light">
+        <meta name="supported-color-schemes" content="light">
+        <style>
+          :root { color-scheme: light; supported-color-schemes: light; }
+          body, table, td, div, p, span { color-scheme: light !important; }
+          body { background: #ffffff !important; background-color: #ffffff !important; }
+          [data-ogsc] body, [data-ogsc] div, [data-ogsb] body, [data-ogsb] div {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+          }
+        </style>
+      </head>
+      <body bgcolor="#ffffff" style="margin:0; padding:0; background:#ffffff !important; background-color:#ffffff !important; color:#0f172a !important;">
+      <div bgcolor="#ffffff" style="background:#ffffff !important; background-color:#ffffff !important; padding:30px 15px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
         <div style="max-width: 560px; margin: 0 auto;">
           <div style="margin-bottom: 25px; text-align: center;">
-            <h1 style="color: #0a375a; font-size: 24px; font-weight: 850; margin: 0; letter-spacing: -0.5px;">¡Hola, ${userName}! 👋</h1>
+            <h1 style="color: #0A375A; font-size: 24px; font-weight: 850; margin: 0; letter-spacing: -0.5px;">¡Hola, ${userName}! 👋</h1>
             <p style="color: #475569; font-size: 14px; margin-top: 6px; margin-bottom: 0;">Gracias por tu compra. Aquí tienes tus entradas listas para el evento:</p>
           </div>
           
@@ -217,7 +237,7 @@ export class MailService {
             <!-- Header / Logo -->
             <div style="background-color:#ffffff;padding:24px 28px;text-align:center;">
               <img src="${appUrl}/logo.png" alt="LPTicket" width="180" style="display:block;margin:0 auto 8px auto;max-width:180px;height:auto;" />
-              <p style="margin:0;font-size:10px;color:#0a375a;text-transform:uppercase;letter-spacing:2px;font-weight:700;">
+              <p style="margin:0;font-size:10px;color:#0A375A;text-transform:uppercase;letter-spacing:2px;font-weight:700;">
                 Recordatorio de Evento
               </p>
             </div>
@@ -233,7 +253,7 @@ export class MailService {
             <div style="background-color:#ffffff;padding:32px 28px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
 
               <!-- Greeting -->
-              <p style="margin:0 0 8px 0;font-size:18px;color:#0a375a;font-weight:800;">
+              <p style="margin:0 0 8px 0;font-size:18px;color:#0A375A;font-weight:800;">
                 ¡Hola, ${userName}! 👋
               </p>
               <p style="margin:0 0 24px 0;font-size:14px;color:#475569;line-height:1.6;">
@@ -242,7 +262,7 @@ export class MailService {
 
               <!-- Event Info Box -->
               <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:24px;margin-bottom:24px;">
-                <h3 style="margin:0 0 10px 0;font-size:20px;font-weight:800;color:#0a375a;line-height:1.3;text-transform:uppercase;letter-spacing:-0.5px;">
+                <h3 style="margin:0 0 10px 0;font-size:20px;font-weight:800;color:#0A375A;line-height:1.3;text-transform:uppercase;letter-spacing:-0.5px;">
                   ${eventTitle}
                 </h3>
                 <div style="width:60px;height:3px;background-color:#f97316;margin-bottom:18px;"></div>
@@ -335,7 +355,7 @@ export class MailService {
     const adminEmail = this.configService.get('ADMIN_EMAIL');
     const html = `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px;">
-        <h2 style="color: #0a375a; margin-top: 0;">Nuevo mensaje de contacto</h2>
+        <h2 style="color: #0A375A; margin-top: 0;">Nuevo mensaje de contacto</h2>
         <p style="color: #475569; font-size: 14px;">Has recibido una nueva consulta desde el Centro de Soporte:</p>
         
         <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
