@@ -174,6 +174,9 @@ export class EventsService {
         pendingDescription: dto.description,
         pendingVenueName: dto.venueName,
         pendingCategory: dto.category,
+        // Timezone is always updated immediately so the displayed time stays
+        // consistent with whatever wall-clock time the organizer entered.
+        ...(dto.eventTimezone !== undefined ? { eventTimezone: dto.eventTimezone } : {}),
       };
 
       if (dto.eventDate) {

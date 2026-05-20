@@ -4,14 +4,12 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
 import EventCard from '@/components/events/EventCard';
-import { parseSafeDate } from '@/lib/dateUtils';
+import { parseSafeDate, formatDateInTimezone } from '@/lib/dateUtils';
 import { Event, EventStatus } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineSearch, HiOutlineTicket } from 'react-icons/hi';
 import { AnimatePresence, motion } from 'framer-motion';
-import { format } from 'date-fns';
-import { enUS, es } from 'date-fns/locale';
 
 const DEMO_EVENTS: Event[] = [];
 
@@ -112,7 +110,6 @@ export default function HomePage() {
   }, [allEvents]);
 
   const bannerEvent = bannerEvents.length > 0 ? bannerEvents[currentBannerIdx % bannerEvents.length] : null;
-  const dateLocale = lang === 'es' ? es : enUS;
 
   const nextBanner = () => setCurrentBannerIdx((prev) => (prev + 1) % bannerEvents.length);
   const prevBanner = () => setCurrentBannerIdx((prev) => (prev - 1 + bannerEvents.length) % bannerEvents.length);
@@ -181,7 +178,7 @@ export default function HomePage() {
                   <div className="mt-5 hidden flex-wrap items-center gap-3 text-sm font-semibold text-white/90 sm:flex">
                     <span className="inline-flex items-center gap-2 rounded-lg bg-white/12 px-3 py-2 backdrop-blur-md">
                       <HiOutlineCalendar className="h-4 w-4" />
-                      {format(parseSafeDate(bannerEvent.eventDate), lang === 'es' ? 'd MMM yyyy' : 'MMM d, yyyy', { locale: dateLocale })}
+                      {formatDateInTimezone(bannerEvent.eventDate, bannerEvent.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
                     <span className="inline-flex items-center gap-2 rounded-lg bg-white/12 px-3 py-2 backdrop-blur-md">
                       <HiOutlineLocationMarker className="h-4 w-4" />

@@ -4,13 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { formatSeatLabel } from '@/lib/seatLabel';
-import { parseSafeDate } from '@/lib/dateUtils';
+import { formatDateInTimezone } from '@/lib/dateUtils';
 import { useAuthStore } from '@/stores/auth';
 import type { Event } from '@/types';
 import { VenueSection, Seat, SeatStatus } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
-import { format } from 'date-fns';
-import { es, enUS } from 'date-fns/locale';
 import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineClock } from 'react-icons/hi';
 import SeatMapInteractive from '@/components/events/SeatMapInteractive';
 import ShareEventButton from '@/components/events/ShareEventButton';
@@ -248,8 +246,6 @@ export default function EventDetailPage() {
   const categoryInfo = getCategoryInfo(event.category) || {
     labelEs: 'Otro', labelEn: 'Other', icon: '🎫', color: '#6366f1'
   };
-  const eventDate = parseSafeDate(event.eventDate);
-  const dateLocale = lang === 'en' ? enUS : es;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -289,7 +285,7 @@ export default function EventDetailPage() {
               <HiOutlineCalendar className="w-5 h-5 text-blue-600 shrink-0" />
               <div>
                 <div className="text-xs text-gray-500">{t('dateLabel')}</div>
-                <div className="text-sm font-semibold text-gray-900">{format(eventDate, lang === 'en' ? "MMMM dd, yyyy" : "dd 'de' MMMM, yyyy", { locale: dateLocale })}</div>
+                <div className="text-sm font-semibold text-gray-900">{formatDateInTimezone(event.eventDate, event.eventTimezone || 'UTC', lang === 'en' ? 'en-US' : 'es', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -297,7 +293,7 @@ export default function EventDetailPage() {
               <div>
                 <div className="text-xs text-gray-500">{t('timeLabel')}</div>
                 <div className="text-sm font-semibold text-gray-900">
-                  {format(eventDate, 'hh:mm a')}
+                  {formatDateInTimezone(event.eventDate, event.eventTimezone || 'UTC', lang === 'en' ? 'en-US' : 'es', { hour: '2-digit', minute: '2-digit', hour12: true })}
                   {event?.eventTimezone && <span className="text-gray-500 ml-1">({getTimezoneAbbr(event.eventTimezone)})</span>}
                 </div>
               </div>

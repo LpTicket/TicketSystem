@@ -5,12 +5,10 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
 import { formatSeatLabel } from '@/lib/seatLabel';
-import { parseSafeDate } from '@/lib/dateUtils';
+import { formatDateInTimezone } from '@/lib/dateUtils';
 import { useAuthStore } from '@/stores/auth';
 import type { Event } from '@/types';
 import { VenueSection, Seat, SeatStatus } from '@/types';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { useLang } from '@/context/LanguageContext';
 import {
   HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineChevronRight,
@@ -369,8 +367,6 @@ export default function PurchasePage() {
   }
   if (!event) return null;
 
-  const eventDate = parseSafeDate(event.eventDate);
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── Breadcrumb Wizard Navigation ── */}
@@ -410,7 +406,7 @@ export default function PurchasePage() {
               </span>
               <span className="flex items-center gap-1.5">
                 <HiOutlineCalendar className="w-4 h-4" />
-                {format(eventDate, "dd/MM/yyyy 'a las' hh:mm a", { locale: es })}
+                {formatDateInTimezone(event.eventDate, event.eventTimezone || 'UTC', 'es', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
               </span>
             </div>
           </div>

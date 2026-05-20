@@ -9,7 +9,7 @@ import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineTag } from 'react-
 import ShareEventButton from '@/components/events/ShareEventButton';
 import { getImageUrl } from '@/lib/api';
 
-import { parseSafeDate } from '@/lib/dateUtils';
+import { formatDateInTimezone, getTimezoneAbbr } from '@/lib/dateUtils';
 
 interface EventCardProps {
   event: Event;
@@ -28,10 +28,11 @@ export default function EventCard({ event }: EventCardProps) {
   };
 
   const catLabel = lang === 'en' ? categoryInfo.labelEn : categoryInfo.labelEs;
-  const eventDate = parseSafeDate(event.eventDate);
   const eventLocale = lang === 'es' ? 'es' : 'en-US';
-  const eventDay = eventDate.toLocaleDateString(eventLocale, { day: '2-digit', month: '2-digit' });
-  const eventTime = eventDate.toLocaleTimeString(eventLocale, { hour: '2-digit', minute: '2-digit', hour12: true });
+  const eventTz = event.eventTimezone || 'UTC';
+  const eventDay = formatDateInTimezone(event.eventDate, eventTz, eventLocale, { day: '2-digit', month: '2-digit' });
+  const eventTime = formatDateInTimezone(event.eventDate, eventTz, eventLocale, { hour: '2-digit', minute: '2-digit', hour12: true });
+  const eventTzAbbr = event.eventTimezone ? getTimezoneAbbr(eventTz, event.eventDate) : '';
   const eventHref = `/events/${event.slug}`;
 
   return (
@@ -83,7 +84,7 @@ export default function EventCard({ event }: EventCardProps) {
 
           <div className="flex items-center gap-1.5 text-sm font-semibold text-blue-700">
             <HiOutlineCalendar className="h-4 w-4 shrink-0" />
-            <span>{eventDay} {lang === 'es' ? 'a las' : 'at'} {eventTime}</span>
+            <span>{eventDay} {lang === 'es' ? 'a las' : 'at'} {eventTime}{eventTzAbbr && <span className="ml-1 font-medium text-gray-500">({eventTzAbbr})</span>}</span>
           </div>
 
           <div className="flex min-w-0 items-start gap-1.5 text-sm font-semibold text-gray-500">

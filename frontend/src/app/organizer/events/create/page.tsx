@@ -119,12 +119,13 @@ const getCurrentTimeInTimezone = (timezone: string): string => {
 
 const buildLocalEventDate = (date: string, time: string, timezone: string = 'UTC') => {
   const safeTime = time || '00:00';
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = safeTime.split(':').map(Number);
 
-  // Create a date with the entered time
-  const dateTimeStr = `${date}T${safeTime}:00`;
-  const eventDateTime = new Date(dateTimeStr);
+  // Start with the input treating it as UTC
+  let utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
 
-  // Get the time components in the selected timezone
+  // Format this UTC date in the target timezone
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     year: 'numeric',
@@ -136,23 +137,22 @@ const buildLocalEventDate = (date: string, time: string, timezone: string = 'UTC
     hour12: false
   });
 
-  const parts = formatter.formatToParts(eventDateTime);
-  const timeInTZ: Record<string, string> = {};
-  parts.forEach(part => {
-    timeInTZ[part.type] = part.value;
+  const parts = formatter.formatToParts(utcDate);
+  const tzTime: Record<string, number> = {};
+  parts.forEach(p => {
+    tzTime[p.type] = parseInt(p.value);
   });
 
-  // Create a UTC date with the same wall-clock values
-  const utcDate = new Date(Date.UTC(
-    parseInt(timeInTZ['year']),
-    parseInt(timeInTZ['month']) - 1,
-    parseInt(timeInTZ['day']),
-    parseInt(timeInTZ['hour']),
-    parseInt(timeInTZ['minute']),
-    parseInt(timeInTZ['second'])
-  ));
+  // Calculate the offset between what we want and what we have
+  const tzDateStr = `${String(tzTime.year).padStart(4, '0')}-${String(tzTime.month).padStart(2, '0')}-${String(tzTime.day).padStart(2, '0')}T${String(tzTime.hour).padStart(2, '0')}:${String(tzTime.minute).padStart(2, '0')}:${String(tzTime.second).padStart(2, '0')}Z`;
+  const desiredDateStr = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00Z`;
 
-  return utcDate.toISOString();
+  const offsetMs = new Date(desiredDateStr).getTime() - new Date(tzDateStr).getTime();
+
+  // Apply the offset to get the correct UTC date
+  const correctUtcDate = new Date(utcDate.getTime() + offsetMs);
+
+  return correctUtcDate.toISOString();
 };
 
 export default function CreateEventPage() {

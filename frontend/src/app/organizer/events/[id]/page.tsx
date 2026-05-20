@@ -149,23 +149,37 @@ const getCurrentTimeInTimezone = (timezone: string): string => {
   }
 };
 
-const formatDateInput = (value?: string) => {
+const getPartsInTimezone = (date: Date, timezone: string) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const map: Record<string, string> = {};
+  formatter.formatToParts(date).forEach((p) => { map[p.type] = p.value; });
+  return map;
+};
+
+const formatDateInput = (value?: string, timezone: string = 'UTC') => {
   if (!value) return '';
   const date = parseSafeDate(value);
   if (Number.isNaN(date.getTime())) return value.substring(0, 10);
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  const parts = getPartsInTimezone(date, timezone);
+  return `${parts.year}-${parts.month}-${parts.day}`;
 };
 
-const formatTimeInput = (value?: string) => {
+const formatTimeInput = (value?: string, timezone: string = 'UTC') => {
   if (!value) return '';
   const date = parseSafeDate(value);
   if (Number.isNaN(date.getTime())) return '';
-  const hours = String(date.getUTCHours()).padStart(2, '0');
-  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
+  const parts = getPartsInTimezone(date, timezone);
+  // Intl returns "24" at midnight in some locales — normalize to "00"
+  const hour = parts.hour === '24' ? '00' : parts.hour;
+  return `${hour}:${parts.minute}`;
 };
 
 const buildLocalEventDate = (date: string, time: string, timezone: string = 'UTC') => {
@@ -286,8 +300,8 @@ export default function EventDetailPage() {
         description: ev.description || '',
         venueName: ev.venueName || '',
         venueAddress: ev.venueAddress || '',
-        eventDate: formatDateInput(ev.eventDate),
-        eventTime: formatTimeInput(ev.eventDate),
+        eventDate: formatDateInput(ev.eventDate, ev.eventTimezone || 'UTC'),
+        eventTime: formatTimeInput(ev.eventDate, ev.eventTimezone || 'UTC'),
         eventTimezone: ev.eventTimezone || 'UTC',
         category: ev.category || '',
         hasSeatMap: ev.hasSeatMap || false,

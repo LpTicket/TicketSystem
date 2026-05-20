@@ -8,7 +8,7 @@ import api, { getImageUrl } from '@/lib/api';
 import { formatSeatLabel } from '@/lib/seatLabel';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
-import { parseSafeDate } from '@/lib/dateUtils';
+import { parseSafeDate, formatDateInTimezone, getTimezoneAbbr } from '@/lib/dateUtils';
 import { Ticket, Order } from '@/types';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
@@ -243,7 +243,12 @@ function DashboardPageBody() {
                       <h3 className="font-bold text-gray-900 truncate">{ticket.event?.title || 'Evento'}</h3>
                       <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                         <HiOutlineCalendar className="w-3.5 h-3.5 shrink-0" />
-                        {ticket.event?.eventDate && format(parseSafeDate(ticket.event.eventDate), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })}
+                        {ticket.event?.eventDate && (
+                          <>
+                            {formatDateInTimezone(ticket.event.eventDate, ticket.event.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                            {ticket.event.eventTimezone && <span className="text-gray-400 ml-1">({getTimezoneAbbr(ticket.event.eventTimezone, ticket.event.eventDate)})</span>}
+                          </>
+                        )}
                       </div>
                     </div>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ml-2 ${badge.classes}`}>{badge.label}</span>

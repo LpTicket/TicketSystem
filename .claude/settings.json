@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"https://ticketsystembackend.up.railway.app/api/events\" -UseBasicParsing -TimeoutSec 15; \"Status: $\\($r.StatusCode\\)\"; $j = $r.Content | ConvertFrom-Json; \"Total events: $\\($j.total\\)\"; \"First event eventTimezone: $\\($j.events[0].eventTimezone\\)\"; \"First event eventDate: $\\($j.events[0].eventDate\\)\"; \"First event title: $\\($j.events[0].title\\)\" } catch { \"Error: $\\($_.Exception.Message\\)\" })",
+      "PowerShell(@\\(\"https://ticketsystembackend.up.railway.app/\", \"https://ticketsystembackend.up.railway.app/api\", \"https://ticketsystembackend.up.railway.app/api/events?page=1&limit=12\"\\) | ForEach-Object { try { $r = Invoke-WebRequest -Uri $_ -UseBasicParsing -TimeoutSec 10; \"$_ -> $\\($r.StatusCode\\) \\($\\($r.Content.Length\\) bytes\\)\" } catch { \"$_ -> ERROR: $\\($_.Exception.Message\\)\" } })"
+    ]
+  }
+}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import api, { getImageUrl } from '@/lib/api';
-import { parseSafeDate } from '@/lib/dateUtils';
+import { formatDateInTimezone } from '@/lib/dateUtils';
 import toast from 'react-hot-toast';
 import { useLang } from '@/context/LanguageContext';
 import { Event } from '@/types';
@@ -322,7 +322,7 @@ export default function AdminEventsPage() {
                         {catLabel}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600">
-                        {format(parseSafeDate(ev.eventDate), "dd MMM yyyy", { locale: dateFnsLocale })}
+                        {formatDateInTimezone(ev.eventDate, ev.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>
                       <td className="px-4 py-4 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
@@ -420,7 +420,7 @@ export default function AdminEventsPage() {
                       <h3 className="font-extrabold text-gray-900 text-sm leading-tight mb-1">{ev.title}</h3>
                       <p className="text-[10px] text-gray-500 flex items-center gap-1 font-medium">
                         <HiOutlineCalendar className="w-3 h-3" />
-                        {format(parseSafeDate(ev.eventDate), "dd MMM yyyy", { locale: dateFnsLocale })}
+                        {formatDateInTimezone(ev.eventDate, ev.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </p>
                       <div className="mt-2">
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${badge.classes}`}>
@@ -760,13 +760,13 @@ export default function AdminEventsPage() {
                       <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-100">
                         <span className="font-bold text-gray-400 block mb-1">{lang === 'es' ? 'Actual:' : 'Current:'}</span>
                         <p className="text-gray-600 font-medium">
-                          {format(parseSafeDate(selectedEventForChanges.eventDate), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })}
+                          {formatDateInTimezone(selectedEventForChanges.eventDate, selectedEventForChanges.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
                         </p>
                       </div>
                       <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-100">
                         <span className="font-bold text-amber-600 block mb-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
                         <p className="text-amber-900 font-extrabold">
-                          {format(parseSafeDate(selectedEventForChanges.pendingEventDate), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })}
+                          {formatDateInTimezone(selectedEventForChanges.pendingEventDate, selectedEventForChanges.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
                         </p>
                       </div>
                     </div>

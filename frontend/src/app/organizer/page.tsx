@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { parseSafeDate } from '@/lib/dateUtils';
+import { parseSafeDate, formatDateInTimezone } from '@/lib/dateUtils';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { Event, SalesReport } from '@/types';
@@ -166,7 +166,7 @@ export default function OrganizerDashboard() {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
                     </div>
                     <p className="text-xs text-gray-500">
-                      📅 {format(parseSafeDate(ev.eventDate), "dd MMM yyyy — HH:mm", { locale: dateFnsLocale })} · 📍 {ev.venueName}
+                      📅 {formatDateInTimezone(ev.eventDate, ev.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} · 📍 {ev.venueName}
                     </p>
                   </div>
 

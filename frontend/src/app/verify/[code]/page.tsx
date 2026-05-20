@@ -132,8 +132,18 @@ export default function VerifyTicketPage() {
 
   const seatLabel = formatSeatLabel(ticket, ticket.sectionName, 'en');
 
+  const eventTz = ticket.event?.eventTimezone || 'UTC';
   const eventDateFormatted = ticket.event?.eventDate
-    ? format(parseSafeDate(ticket.event.eventDate), "EEEE, MMM d, yyyy · h:mm a", { locale: es })
+    ? new Intl.DateTimeFormat('es', {
+        timeZone: eventTz,
+        weekday: 'long',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      }).format(parseSafeDate(ticket.event.eventDate))
     : '';
 
   return (

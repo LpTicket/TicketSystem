@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { parseSafeDate } from '@/lib/dateUtils';
+import { parseSafeDate, formatDateInTimezone } from '@/lib/dateUtils';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { Event } from '@/types';
@@ -207,7 +207,7 @@ export default function OrganizerEventsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600">
-                        {format(parseSafeDate(ev.eventDate), "dd MMM yyyy", { locale: dateFnsLocale })}
+                        {formatDateInTimezone(ev.eventDate, ev.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600 truncate max-w-[150px]">{ev.venueName}</td>
                       <td className="px-4 py-4 text-center">
@@ -261,7 +261,7 @@ export default function OrganizerEventsPage() {
                     <div className="flex-1 min-w-0">
                       <h3 className={`font-semibold text-gray-900 text-sm truncate ${isPast ? 'line-through text-gray-400' : ''}`}>{ev.title}</h3>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        📅 {format(parseSafeDate(ev.eventDate), "dd MMM yyyy", { locale: dateFnsLocale })} · 📍 {ev.venueName}
+                        📅 {formatDateInTimezone(ev.eventDate, ev.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })} · 📍 {ev.venueName}
                       </p>
                       <span className={`inline-block mt-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
                     </div>
