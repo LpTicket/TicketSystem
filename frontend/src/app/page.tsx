@@ -247,7 +247,7 @@ export default function HomePage() {
               </div>
             </label>
 
-            <button type="submit" className="inline-flex h-full min-h-[58px] items-center justify-center rounded-lg bg-blue-800 px-7 text-xs font-black uppercase tracking-[0.14em] text-white shadow-[0_16px_28px_rgba(10,55,90,0.18)] transition-all hover:bg-blue-700 hover:-translate-y-0.5 lg:w-[10.5rem]">
+            <button type="submit" className="inline-flex h-full min-h-[58px] items-center justify-center rounded-lg bg-blue-800 px-7 text-[0.64rem] font-black uppercase tracking-[0.14em] text-white shadow-[0_16px_28px_rgba(10,55,90,0.18)] transition-all hover:bg-blue-700 hover:-translate-y-0.5 lg:w-[10.5rem]">
               {lang === 'es' ? 'Buscar' : 'Search'}
             </button>
           </form>
