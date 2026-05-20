@@ -498,7 +498,7 @@ export default function VerifyTicketPage() {
         .premium-divider {
           height: 8px;
           background:
-            linear-gradient(90deg, #f97316 0%, #f97316 42%, #0A375A 42%, #0A375A 100%);
+            linear-gradient(90deg, #f97316 0%, #f97316 42%, #0b1a2e 42%, #0b1a2e 100%);
           border: none;
           margin: 0;
         }
@@ -506,7 +506,7 @@ export default function VerifyTicketPage() {
         .premium-watermark {
           background-image:
             radial-gradient(circle at 15% 20%, rgba(249, 115, 22, 0.09), transparent 28%),
-            radial-gradient(circle at 85% 10%, rgba(10, 55, 90, 0.10), transparent 32%);
+            radial-gradient(circle at 85% 10%, rgba(11, 26, 46, 0.10), transparent 32%);
         }
       `}</style>
 
@@ -523,7 +523,7 @@ export default function VerifyTicketPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleShare}
-              className="flex items-center gap-2 bg-[#0A375A] hover:bg-[#0A375A] text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-sm"
+              className="flex items-center gap-2 bg-[#0b1a2e] hover:bg-[#0b1a2e] text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-sm"
             >
               <HiOutlineShare className="w-4 h-4" /> {shareLabel}
             </button>
@@ -569,7 +569,7 @@ export default function VerifyTicketPage() {
                   </h1>
 
                   {/* Date & Venue */}
-                  <p className="text-sm text-[#0A375A] font-black uppercase tracking-wide mt-1">
+                  <p className="text-sm text-[#0b1a2e] font-black uppercase tracking-wide mt-1">
                     {eventDateFormatted}
                   </p>
                   {ticket.event?.venueName && (
@@ -652,7 +652,7 @@ export default function VerifyTicketPage() {
 
               {/* Order Details divider */}
               <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                <p className="text-[10px] font-black text-[#0A375A] uppercase tracking-widest mb-3">Detalles del Pedido</p>
+                <p className="text-[10px] font-black text-[#0b1a2e] uppercase tracking-widest mb-3">Detalles del Pedido</p>
                 <div className="grid grid-cols-1 gap-1.5 text-sm text-slate-600">
                   <div className="flex gap-2">
                     <span className="font-black text-slate-900 w-32 shrink-0">TICKET ID:</span>
@@ -683,7 +683,7 @@ export default function VerifyTicketPage() {
             </div>
 
             {/* ===== FOOTER: Terms + Branding ===== */}
-            <div className="ticket-footer px-8 py-6 bg-[#0A375A] text-white">
+            <div className="ticket-footer px-8 py-6 bg-[#0b1a2e] text-white">
               <div className="flex flex-col sm:flex-row gap-5 sm:gap-8">
 
                 {/* Terms */}
