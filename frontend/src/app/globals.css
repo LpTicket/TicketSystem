@@ -1308,7 +1308,6 @@ html {
   color: #0A375A !important;
   border: 1px solid rgba(10, 55, 90, .32) !important;
   background:
-    radial-gradient(circle at calc(100% - .7rem) .65rem, #F97316 0 .18rem, transparent .2rem),
     linear-gradient(135deg, rgba(10,55,90,.14), rgba(34,211,238,.10), rgba(249,115,22,.08)),
     rgba(239,246,255,.94) !important;
   box-shadow: 0 14px 30px rgba(10,55,90,.16), 0 4px 12px rgba(249,115,22,.08) !important;
