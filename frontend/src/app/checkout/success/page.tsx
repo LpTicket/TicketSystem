@@ -24,17 +24,26 @@ function SuccessContent() {
 
     const fetchOrder = async () => {
       try {
+        const pendingEventId = localStorage.getItem('pendingCheckoutEventId');
+        if (pendingEventId) {
+          localStorage.removeItem(`selectedSeats_${pendingEventId}`);
+          localStorage.removeItem('pendingCheckoutEventId');
+          localStorage.removeItem('pendingCheckoutEventSlug');
+          window.dispatchEvent(new Event('cart-updated'));
+        }
+
         // Wait a bit for the webhook to process
         await new Promise(r => setTimeout(r, 2000));
         
         const { data: myTickets } = await api.get('/orders/my-tickets', {
           params: { sessionId }
         });
-        setTickets(myTickets); // Show only recent ones from this session
+        const recentTickets = Array.isArray(myTickets) ? myTickets : (myTickets?.data || []);
+        setTickets(recentTickets); // Show only recent ones from this session
         
         // Clear cart for all events in this session
-        if (myTickets && myTickets.length > 0) {
-          const eventIds = Array.from(new Set(myTickets.map((t: any) => t.eventId)));
+        if (recentTickets && recentTickets.length > 0) {
+          const eventIds = Array.from(new Set(recentTickets.map((t: any) => t.eventId)));
           eventIds.forEach(id => {
             localStorage.removeItem(`selectedSeats_${id}`);
           });

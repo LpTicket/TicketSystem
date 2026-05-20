@@ -89,7 +89,24 @@ export default function EventDetailPage() {
         try {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
-            const valid = parsed.filter((s: any) => !s.addedAt || (Date.now() - s.addedAt < 10 * 60 * 1000));
+            const availableSeatIds = new Set(
+              seatMap.flatMap((section: any) =>
+                (section.seats || [])
+                  .filter((seat: any) => seat.status === SeatStatus.AVAILABLE)
+                  .map((seat: any) => seat.id)
+              )
+            );
+
+            const valid = parsed.filter((s: any) =>
+              (!s.addedAt || (Date.now() - s.addedAt < 10 * 60 * 1000)) &&
+              (!s.id || String(s.id).startsWith('standing-') || availableSeatIds.has(s.id))
+            );
+
+            if (valid.length !== parsed.length) {
+              localStorage.setItem(`selectedSeats_${event.id}`, JSON.stringify(valid));
+              window.dispatchEvent(new Event('cart-updated'));
+            }
+
             setSelectedSeats(valid);
           }
         } catch (e) {}

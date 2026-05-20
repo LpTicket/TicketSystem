@@ -341,6 +341,8 @@ export default function PurchasePage() {
       }
 
       const { data } = await api.post('/orders/checkout', payload);
+      localStorage.setItem('pendingCheckoutEventId', event!.id);
+      localStorage.setItem('pendingCheckoutEventSlug', event!.slug);
       // Redirect the user to the Stripe-hosted checkout page
       if (data.url) window.location.href = data.url;
     } catch (err: any) {
