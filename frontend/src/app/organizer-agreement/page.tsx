@@ -110,7 +110,7 @@ For Organizer-related matters, contact LPTicket LLC at info@lpticket.com or 1325
   return (
     <LegalPage 
       title="Organizer Agreement" 
-      lastUpdated="May 14, 2024" 
+      lastUpdated="May 14, 2026" 
       content={content} 
     />
   );

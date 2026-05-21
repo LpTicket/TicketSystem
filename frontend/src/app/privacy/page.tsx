@@ -100,7 +100,7 @@ For privacy questions or requests, contact LPTicket LLC at info@lpticket.com or 
   return (
     <LegalPage 
       title="Privacy Policy" 
-      lastUpdated="May 14, 2024" 
+      lastUpdated="May 14, 2026" 
       content={content} 
     />
   );

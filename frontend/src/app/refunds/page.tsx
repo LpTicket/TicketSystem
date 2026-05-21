@@ -100,7 +100,7 @@ For refund requests, contact LPTicket LLC at info@lpticket.com.`;
   return (
     <LegalPage 
       title="Refund Policy" 
-      lastUpdated="May 14, 2024" 
+      lastUpdated="May 14, 2026" 
       content={content} 
     />
   );

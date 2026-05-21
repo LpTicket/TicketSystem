@@ -158,7 +158,7 @@ For support, refunds, ticket issues, privacy requests, or legal matters, contact
   return (
     <LegalPage 
       title="Terms and Conditions" 
-      lastUpdated="May 14, 2024" 
+      lastUpdated="May 14, 2026" 
       content={content} 
     />
   );
