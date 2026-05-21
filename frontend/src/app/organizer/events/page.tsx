@@ -270,14 +270,14 @@ export default function OrganizerEventsPage() {
                   </div>
                   <div className="flex gap-2">
                     {ev.status === 'draft' && !isPast && (
-                      <button onClick={() => handlePublish(ev.id)} className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1">
+                      <button onClick={() => handlePublish(ev.id)} className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1 rounded-lg">
                         <HiOutlineGlobe className="w-3.5 h-3.5" /> {t('orgSendApproval')}
                       </button>
                     )}
                     <Link href={`/organizer/events/${ev.id}`} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1">
                       <HiOutlinePencil className="w-3.5 h-3.5" /> {t('orgEditEvent')}
                     </Link>
-                    <button onClick={() => exportCSV(ev.id)} className="btn-secondary text-xs py-1.5 px-3">
+                    <button onClick={() => exportCSV(ev.id)} className="btn-secondary text-xs py-1.5 px-3 rounded-lg">
                       <HiOutlineDownload className="w-3.5 h-3.5" />
                     </button>
                   </div>

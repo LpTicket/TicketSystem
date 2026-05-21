@@ -719,7 +719,7 @@ export default function EventDetailPage() {
               </div>
               <button
                 onClick={exportAnalyticsCSV}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F97316] px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-black/10 transition hover:bg-[#F97316]"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#F97316] px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-black/10 transition hover:bg-[#F97316]"
               >
                 <HiOutlineDownload className="h-4 w-4" />
                 {lang === 'es' ? 'Export premium' : 'Premium export'}
@@ -770,7 +770,7 @@ export default function EventDetailPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="premium-section-card p-5 transition-all">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black text-gray-900">{lang === 'es' ? 'Ventas por día' : 'Sales by day'}</h3>
@@ -806,7 +806,7 @@ export default function EventDetailPage() {
               )}
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="premium-section-card p-5 transition-all">
               <div className="mb-4 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black text-gray-900">{lang === 'es' ? 'Tickets por sección' : 'Tickets by section'}</h3>
@@ -820,7 +820,7 @@ export default function EventDetailPage() {
                   {salesBySection.slice(0, 8).map((section) => {
                     const maxTickets = Math.max(...salesBySection.map((item) => item.tickets), 1);
                     return (
-                      <div key={section.section} className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+                      <div key={section.section} className="rounded-lg border border-[rgba(10,55,90,0.10)] bg-white p-3 shadow-sm">
                         <div className="mb-2 flex items-center justify-between gap-3">
                           <span className="truncate text-xs font-black text-gray-800">{section.section}</span>
                           <span className="text-xs font-black text-[#0A375A]">{section.tickets} tickets</span>
@@ -1073,7 +1073,7 @@ export default function EventDetailPage() {
                 <button
                   onClick={handleSaveReminderSettings}
                   disabled={savingSettings}
-                  className="w-full mt-6 flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-black py-3 px-6 rounded-2xl transition-all shadow-sm disabled:opacity-60"
+                  className="w-full mt-6 flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-black py-3 px-6 rounded-lg transition-all shadow-sm disabled:opacity-60"
                 >
                   {savingSettings ? (
                     <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> {lang === 'es' ? 'Guardando...' : 'Saving...'}</>
@@ -1159,7 +1159,7 @@ export default function EventDetailPage() {
                 <button
                   onClick={handleSendReminder}
                   disabled={sendingReminder || attendees.length === 0}
-                  className="w-full mt-6 flex items-center justify-center gap-2 bg-[#F97316] hover:bg-[#F97316] text-white text-xs font-black py-3 px-6 rounded-2xl transition-all shadow-md shadow-orange-500/10 disabled:opacity-60"
+                  className="w-full mt-6 flex items-center justify-center gap-2 bg-[#F97316] hover:bg-[#F97316] text-white text-xs font-black py-3 px-6 rounded-lg transition-all shadow-md shadow-orange-500/10 disabled:opacity-60"
                 >
                   {sendingReminder ? (
                     <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> {lang === 'es' ? 'Enviando...' : 'Sending...'}</>
@@ -1190,7 +1190,7 @@ export default function EventDetailPage() {
               <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => setShowReminderModal(true)}
-                  className="flex items-center gap-1.5 bg-[#F97316] hover:bg-[#F97316] text-white text-xs font-bold py-1.5 px-3 rounded-xl transition-all shadow-sm"
+                  className="flex items-center gap-1.5 bg-[#F97316] hover:bg-[#F97316] text-white text-xs font-bold py-1.5 px-3 rounded-lg transition-all shadow-sm"
                   title={lang === 'es' ? 'Enviar recordatorio por email a los asistentes' : 'Send email reminder to attendees'}
                 >
                   <HiOutlineBell className="w-4 h-4" />

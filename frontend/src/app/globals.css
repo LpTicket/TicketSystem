@@ -1451,3 +1451,24 @@ html {
 .premium-muted {
   color: #64748b !important;
 }
+
+
+/* ===== LP Ticket Home Corrections ===== */
+.home-hero-overlay {
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+
+.home-sort-button {
+  background: #F97316 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(249, 115, 22, 0.35) !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+}
+
+.home-sort-button:hover {
+  background: #ea650c !important;
+  transform: none !important;
+  box-shadow: none !important;
+}

@@ -356,7 +356,7 @@ export default function AdminUsersPage() {
                 <div 
                   key={u.id}
                   onClick={() => handleSelectUser(u)}
-                  className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
+                  className="premium-section-card p-4 active:scale-[0.98] transition-all cursor-pointer"
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
