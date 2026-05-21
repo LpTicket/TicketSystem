@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'react-hot-toast';
-import type { IconType } from 'react-icons';
-import { HiOutlineSparkles, HiOutlineUserGroup, HiOutlineEyeOff, HiOutlineLocationMarker } from 'react-icons/hi';
-import { Event } from '@/types';
-import { getMySocialMatch, requestSocialMatchConnection,
+import {
+  getMySocialMatch,
+  getSocialMatchSuggestions,
+  requestSocialMatchConnection,
+  saveSocialMatchPreference,
+  updateSocialMatchConnection,
   SocialMatchConnection,
-  SocialMatchPreference, SocialMatchSummary, socialMatchInterestOptions } from '@/lib/socialMatch';
+  SocialMatchPreference,
+  SocialMatchSuggestion,
+  SocialMatchSummary,
+  socialMatchInterestOptions,
+} from '@/lib/socialMatch';
 
 type Props = { lang: 'es' | 'en' };
 
