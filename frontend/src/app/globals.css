@@ -1472,3 +1472,60 @@ html {
   transform: none !important;
   box-shadow: none !important;
 }
+
+
+/* ===== LP Ticket Dashboard Premium Pass ===== */
+.dashboard-premium-shell {
+  background:
+    radial-gradient(circle at top left, rgba(249, 115, 22, 0.07), transparent 26%),
+    radial-gradient(circle at top right, rgba(10, 55, 90, 0.07), transparent 28%),
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 72%, #ffffff 100%);
+}
+
+.dashboard-premium-card {
+  border: 1px solid rgba(10, 55, 90, 0.12) !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  box-shadow: 0 16px 45px rgba(10, 55, 90, 0.08) !important;
+}
+
+.dashboard-premium-card:hover {
+  border-color: rgba(249, 115, 22, 0.28) !important;
+  box-shadow: 0 24px 62px rgba(10, 55, 90, 0.13) !important;
+}
+
+.dashboard-premium-tabs {
+  border: 1px solid rgba(10, 55, 90, 0.12) !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  padding: 6px !important;
+  box-shadow: 0 14px 36px rgba(10, 55, 90, 0.07) !important;
+}
+
+.dashboard-premium-tab {
+  border-radius: 8px !important;
+  border: 0 !important;
+}
+
+.dashboard-premium-ticket {
+  border: 1px solid rgba(10, 55, 90, 0.12) !important;
+  border-radius: 14px !important;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
+  box-shadow: 0 16px 42px rgba(10, 55, 90, 0.08) !important;
+}
+
+.dashboard-premium-ticket:hover {
+  border-color: rgba(249, 115, 22, 0.30) !important;
+  box-shadow: 0 24px 60px rgba(10, 55, 90, 0.14) !important;
+}
+
+.dashboard-premium-input {
+  border-radius: 8px !important;
+  border-color: rgba(10, 55, 90, 0.14) !important;
+}
+
+.dashboard-premium-input:focus {
+  border-color: #F97316 !important;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14) !important;
+}

@@ -185,10 +185,10 @@ export default function PaymentMethods() {
   }
 
   return (
-    <div className="bg-white border border-gray-150 rounded-2xl p-6 max-w-2xl shadow-[0_4px_25px_rgba(0,0,0,0.02)]">
+    <div className="dashboard-premium-card p-6 max-w-2xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="font-bold text-lg text-gray-900">{lang === 'es' ? 'Métodos de Pago' : 'Payment Methods'}</h3>
+          <h3 className="font-black text-lg text-[#0A375A]">{lang === 'es' ? 'Métodos de Pago' : 'Payment Methods'}</h3>
           <p className="text-xs text-gray-500 mt-1">{lang === 'es' ? 'Administra tus tarjetas de crédito y cuentas bancarias asociadas.' : 'Manage your credit cards and bank accounts.'}</p>
         </div>
         {!adding && (
@@ -199,7 +199,7 @@ export default function PaymentMethods() {
       </div>
 
       {adding && (
-        <form onSubmit={handleAdd} className="bg-gray-50/70 p-6 rounded-2xl border border-gray-200/80 mb-6 space-y-4 animate-fade-in">
+        <form onSubmit={handleAdd} className="rounded-lg border border-[rgba(10,55,90,0.12)] bg-white p-6 mb-6 space-y-4 animate-fade-in shadow-sm">
           <div className="border-b border-gray-150 pb-3 mb-2 flex justify-between items-center">
             <h4 className="font-bold text-sm text-gray-800">{lang === 'es' ? 'Nuevo Método de Pago' : 'New Payment Method'}</h4>
             <span className="text-[10px] uppercase font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded">Secure / SSL</span>
@@ -211,7 +211,7 @@ export default function PaymentMethods() {
               <select 
                 value={methodType} 
                 onChange={e => setMethodType(e.target.value as any)} 
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-500 bg-white"
+                className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#F97316] bg-white"
               >
                 <option value="credit_card">{lang === 'es' ? '💳 Tarjeta de Crédito' : '💳 Credit Card'}</option>
                 <option value="bank_account">{lang === 'es' ? '🏦 Cuenta Bancaria' : '🏦 Bank Account'}</option>
@@ -226,7 +226,7 @@ export default function PaymentMethods() {
                 type="text" 
                 value={firstName} 
                 onChange={e => setFirstName(e.target.value)} 
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-500"
+                className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#F97316]"
                 placeholder={lang === 'es' ? 'Nombre' : 'John'} 
               />
             </div>
@@ -239,7 +239,7 @@ export default function PaymentMethods() {
                 type="text" 
                 value={lastName} 
                 onChange={e => setLastName(e.target.value)} 
-                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-500"
+                className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#F97316]"
                 placeholder={lang === 'es' ? 'Apellido' : 'Doe'} 
               />
             </div>
@@ -255,7 +255,7 @@ export default function PaymentMethods() {
                       type="text" 
                       value={cardNumber} 
                       onChange={e => handleCardNumberChange(e.target.value)} 
-                      className="w-full pl-10 pr-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-500"
+                      className="w-full pl-10 pr-3.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#F97316]"
                       placeholder="4000 1234 5678 9010" 
                     />
                     <HiCreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -269,7 +269,7 @@ export default function PaymentMethods() {
                     type="text" 
                     value={expiry} 
                     onChange={e => handleExpiryChange(e.target.value)} 
-                    className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-500"
+                    className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#F97316]"
                     placeholder="12/29" 
                   />
                 </div>
@@ -282,7 +282,7 @@ export default function PaymentMethods() {
                     maxLength={4}
                     value={cvc} 
                     onChange={e => setCvc(e.target.value.replace(/\D/g, ''))} 
-                    className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-500"
+                    className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#F97316]"
                     placeholder="123" 
                   />
                 </div>
@@ -296,7 +296,7 @@ export default function PaymentMethods() {
                     readOnly 
                     type="text" 
                     value={lang === 'es' ? '🇺🇸 Estados Unidos (Solo cuentas Americanas)' : '🇺🇸 United States (US Accounts Only)'} 
-                    className="w-full px-3.5 py-2 border border-gray-200 bg-gray-100 rounded-xl text-sm text-gray-600 font-medium focus:outline-none"
+                    className="w-full px-3.5 py-2 border border-gray-200 bg-gray-100 rounded-lg text-sm text-gray-600 font-medium focus:outline-none"
                   />
                 </div>
 
@@ -307,7 +307,7 @@ export default function PaymentMethods() {
                     type="text" 
                     value={bankName} 
                     onChange={e => setBankName(e.target.value)} 
-                    className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-500"
+                    className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#F97316]"
                     placeholder="Chase, Bank of America, Wells Fargo..." 
                   />
                 </div>
@@ -321,7 +321,7 @@ export default function PaymentMethods() {
                     type="text" 
                     value={routingNumber} 
                     onChange={e => handleRoutingNumberChange(e.target.value)} 
-                    className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-500"
+                    className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#F97316]"
                     placeholder="021000021" 
                   />
                 </div>
@@ -333,7 +333,7 @@ export default function PaymentMethods() {
                     type="text" 
                     value={accountNumber} 
                     onChange={e => handleAccountNumberChange(e.target.value)} 
-                    className="w-full px-3.5 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-500"
+                    className="w-full px-3.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#F97316]"
                     placeholder="123456789" 
                   />
                 </div>
@@ -345,7 +345,7 @@ export default function PaymentMethods() {
             <button type="submit" className="flex-1 btn-primary py-2.5 text-sm font-semibold rounded-lg">
               {lang === 'es' ? 'Guardar Método de Pago' : 'Save Payment Method'}
             </button>
-            <button type="button" onClick={() => setAdding(false)} className="flex-1 py-2.5 text-sm font-semibold text-gray-600 border border-gray-200 bg-white rounded-xl hover:bg-gray-50 transition-all">
+            <button type="button" onClick={() => setAdding(false)} className="flex-1 py-2.5 text-sm font-bold text-[#0A375A] border border-[rgba(10,55,90,0.14)] bg-white rounded-lg hover:bg-[rgba(10,55,90,0.05)] transition-all">
               {lang === 'es' ? 'Cancelar' : 'Cancel'}
             </button>
           </div>
@@ -355,7 +355,7 @@ export default function PaymentMethods() {
       {methods.length > 0 ? (
         <div className="space-y-3">
           {methods.map(method => (
-            <div key={method.id} className="flex items-center justify-between p-4 border border-gray-150 rounded-2xl hover:border-primary-400 hover:shadow-[0_4px_15px_rgba(0,0,0,0.015)] transition-all">
+            <div key={method.id} className="flex items-center justify-between p-4 border border-[rgba(10,55,90,0.12)] rounded-lg hover:border-[rgba(249,115,22,0.34)] hover:shadow-[0_14px_36px_rgba(10,55,90,0.09)] transition-all">
               <div className="flex items-center gap-4">
                 <div className={`w-11 h-11 rounded-full flex items-center justify-center ${method.type === 'credit_card' ? 'bg-[rgba(10,55,90,0.06)] text-[#0A375A]' : 'bg-emerald-50 text-emerald-600'}`}>
                   {method.type === 'credit_card' ? (
@@ -387,7 +387,7 @@ export default function PaymentMethods() {
         </div>
       ) : (
         !adding && (
-          <div className="text-center py-10 text-gray-500 border border-dashed border-gray-200 rounded-2xl">
+          <div className="text-center py-10 text-gray-500 border border-dashed border-[rgba(10,55,90,0.16)] rounded-lg bg-white">
             <span className="text-3xl block mb-2">💸</span>
             <p className="text-sm font-medium">{lang === 'es' ? 'No tienes métodos de pago registrados.' : 'No payment methods registered yet.'}</p>
           </div>

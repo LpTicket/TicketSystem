@@ -222,18 +222,18 @@ function DashboardPageBody() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
+    <div className="dashboard-premium-shell max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="font-bold text-2xl text-gray-900">{t('clientHello')}, {user.firstName} 👋</h1>
-        <p className="text-gray-500 text-sm mt-1">{t('clientManage')}</p>
+        <h1 className="font-black text-2xl text-[#0A375A]">{t('clientHello')}, {user.firstName} 👋</h1>
+        <p className="text-slate-500 text-sm mt-1 font-medium">{t('clientManage')}</p>
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-2 sm:flex sm:flex-row gap-1 mb-8 border-b border-gray-200">
+      <div className="dashboard-premium-tabs grid grid-cols-2 sm:flex sm:flex-row gap-1 mb-8">
         {tabs.map((tab) => (
           <button key={tab.id} onClick={() => { setActiveTab(tab.id); window.history.replaceState(null, '', `/dashboard?tab=${tab.id}`); }}
-            className={`flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all ${activeTab === tab.id ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            className={`dashboard-premium-tab flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-3 text-xs sm:text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-[#0A375A] text-white shadow-sm' : 'text-slate-500 hover:bg-[rgba(10,55,90,0.06)] hover:text-[#0A375A]'}`}>
             <tab.icon className="w-4 h-4 shrink-0" />
             <span className="truncate">{tab.label}</span>
             {tab.count !== undefined && <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] sm:text-xs text-gray-500">{tab.count}</span>}
@@ -249,11 +249,11 @@ function DashboardPageBody() {
               {tickets.map((ticket) => {
               const badge = getTicketStatus(ticket.status);
               return (
-                <div key={ticket.id} className="bg-white border border-gray-200 rounded-xl p-5 space-y-3 hover:shadow-md transition-shadow">
+                <div key={ticket.id} className="dashboard-premium-ticket p-5 space-y-3 transition-all">
                   <div className="flex justify-between items-start">
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-gray-900 truncate">{ticket.event?.title || 'Evento'}</h3>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                      <h3 className="font-black text-[#0A375A] truncate">{ticket.event?.title || 'Evento'}</h3>
+                      <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 font-semibold">
                         <HiOutlineCalendar className="w-3.5 h-3.5 shrink-0" />
                         {ticket.event?.eventDate && (
                           <>
@@ -270,7 +270,7 @@ function DashboardPageBody() {
                     <p className="text-xs text-gray-500">
                       🪑 {formatSeatLabel(ticket, ticket.sectionName, lang)}
                     </p>
-                    <p className="font-mono text-xs text-primary-600">{t('clientCode')}: {ticket.ticketCode}</p>
+                    <p className="font-mono text-xs text-[#F97316] font-bold">{t('clientCode')}: {ticket.ticketCode}</p>
                     {ticket.createdAt && (
                       <p className="text-[10px] text-gray-400 font-medium pt-1">
                         🕒 {lang === 'es' ? 'Adquirido el' : 'Purchased on'}: {format(parseSafeDate(ticket.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })}
@@ -328,7 +328,7 @@ function DashboardPageBody() {
                 <button
                   onClick={loadMoreTickets}
                   disabled={loadingMoreTickets}
-                  className="px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium text-sm transition-all disabled:opacity-60 flex items-center gap-2"
+                  className="px-6 py-2.5 bg-[#F97316] hover:bg-[#ea650c] text-white rounded-lg font-bold text-sm transition-all disabled:opacity-60 flex items-center gap-2"
                 >
                   {loadingMoreTickets ? (
                     <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> {lang === 'es' ? 'Cargando...' : 'Loading...'}</>
@@ -340,7 +340,7 @@ function DashboardPageBody() {
             )}
           </div>
         ) : (
-          <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
+          <div className="dashboard-premium-card text-center py-16">
             <HiOutlineTicket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 font-medium mb-4">{t('clientNoTickets')}</p>
             <Link href="/events" className="btn-primary text-sm inline-flex">{t('clientExplore')}</Link>
@@ -352,12 +352,12 @@ function DashboardPageBody() {
       {activeTab === 'orders' && (
         orders.length > 0 ? (
           <div className="space-y-4">
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="dashboard-premium-card overflow-hidden">
               <div className="divide-y divide-gray-100">
                 {orders.map((order) => {
                   const badge = getOrderStatus(order.status);
                   return (
-                    <div key={order.id} className="px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div key={order.id} className="px-5 py-4 flex items-center justify-between hover:bg-[rgba(10,55,90,0.04)] transition-colors">
                       <div className="min-w-0 flex-1">
                         <h4 className="font-semibold text-gray-900 text-sm truncate">{order.event?.title || 'Evento'}</h4>
                         <p className="text-xs text-gray-500 mt-0.5">
@@ -379,7 +379,7 @@ function DashboardPageBody() {
                 <button
                   onClick={loadMoreOrders}
                   disabled={loadingMoreOrders}
-                  className="px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium text-sm transition-all disabled:opacity-60 flex items-center gap-2"
+                  className="px-6 py-2.5 bg-[#F97316] hover:bg-[#ea650c] text-white rounded-lg font-bold text-sm transition-all disabled:opacity-60 flex items-center gap-2"
                 >
                   {loadingMoreOrders ? (
                     <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> {lang === 'es' ? 'Cargando...' : 'Loading...'}</>
@@ -391,7 +391,7 @@ function DashboardPageBody() {
             )}
           </div>
         ) : (
-          <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
+          <div className="dashboard-premium-card text-center py-16">
             <HiOutlineShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 font-medium">{t('clientNoOrders')}</p>
           </div>
@@ -401,7 +401,7 @@ function DashboardPageBody() {
       {/* Profile */}
       {activeTab === 'profile' && user && (
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white border border-gray-100 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.03)] p-8">
+          <div className="dashboard-premium-card p-8">
             <div className="flex flex-col items-center mb-10 text-center">
               <div className="relative group mb-4">
                 <div className="w-24 h-24 rounded-full bg-primary-100 border-4 border-white shadow-lg flex items-center justify-center overflow-hidden">
@@ -438,7 +438,7 @@ function DashboardPageBody() {
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-gray-50 pb-4">
                 <h4 className="font-bold text-sm text-gray-400 uppercase tracking-widest">{t('clientPersonalInfo')}</h4>
-                <button onClick={() => setEditMode(!editMode)} className="text-primary-600 hover:text-primary-700 text-sm font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-primary-50 transition-all">
+                <button onClick={() => setEditMode(!editMode)} className="text-[#0A375A] hover:text-[#F97316] text-sm font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-orange-50 transition-all">
                   {editMode ? (
                     <span className="flex items-center gap-1"><HiOutlineX className="w-4 h-4" /> {t('orgCancel')}</span>
                   ) : (
@@ -451,32 +451,32 @@ function DashboardPageBody() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-in">
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('firstName')}</label>
-                    <input type="text" value={profileForm.firstName} onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })} className="input bg-gray-50 border-transparent focus:bg-white" />
+                    <input type="text" value={profileForm.firstName} onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })} className="input dashboard-premium-input bg-gray-50 focus:bg-white" />
                   </div>
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('lastName')}</label>
-                    <input type="text" value={profileForm.lastName} onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })} className="input bg-gray-50 border-transparent focus:bg-white" />
+                    <input type="text" value={profileForm.lastName} onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })} className="input dashboard-premium-input bg-gray-50 focus:bg-white" />
                   </div>
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Nombre de Usuario' : 'Username'}</label>
-                    <input type="text" value={profileForm.username} onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })} className="input bg-gray-50 border-transparent focus:bg-white" />
+                    <input type="text" value={profileForm.username} onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })} className="input dashboard-premium-input bg-gray-50 focus:bg-white" />
                   </div>
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('email')}</label>
-                    <input type="email" value={profileForm.email} onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} className="input bg-gray-50 border-transparent focus:bg-white" />
+                    <input type="email" value={profileForm.email} onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} className="input dashboard-premium-input bg-gray-50 focus:bg-white" />
                   </div>
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('phone')}</label>
-                    <input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} className="input bg-gray-50 border-transparent focus:bg-white" />
+                    <input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} className="input dashboard-premium-input bg-gray-50 focus:bg-white" />
                   </div>
 
                   <div className="sm:col-span-2 space-y-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Dirección' : 'Address'}</label>
-                    <textarea value={profileForm.address} onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })} className="w-full input bg-gray-50 border-transparent focus:bg-white min-h-[80px] py-3" />
+                    <textarea value={profileForm.address} onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })} className="w-full input dashboard-premium-input bg-gray-50 focus:bg-white min-h-[80px] py-3" />
                   </div>
                   <div className="sm:col-span-2 space-y-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Nueva Contraseña (Opcional)' : 'New Password (Optional)'}</label>
-                    <input type="password" value={profileForm.password || ''} onChange={(e) => setProfileForm({ ...profileForm, password: e.target.value })} placeholder="******" className="input bg-gray-50 border-transparent focus:bg-white" />
+                    <input type="password" value={profileForm.password || ''} onChange={(e) => setProfileForm({ ...profileForm, password: e.target.value })} placeholder="******" className="input dashboard-premium-input bg-gray-50 focus:bg-white" />
                   </div>
                   <div className="sm:col-span-2 pt-4">
                     <button onClick={handleSaveProfile} className="btn-primary w-full py-3.5 rounded-lg font-bold shadow-lg shadow-primary-500/20">{t('clientSave')}</button>
