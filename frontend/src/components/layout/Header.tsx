@@ -238,9 +238,9 @@ export default function Header() {
 
                 {/* Profile Dropdown */}
                 {profileDropdown && (
-                  <div className="absolute right-0 top-[45px] w-72 bg-white rounded-xl shadow-elevated border border-gray-100 py-2 animate-fade-in z-50">
+                  <div className="lp-user-menu absolute right-0 top-[45px] w-72 py-2 animate-fade-in z-50">
                     {/* User Info Header */}
-                    <div className="px-4 py-3 border-b border-gray-50 mb-1">
+                    <div className="lp-user-menu-header px-4 py-3 mb-1">
                       <p className="text-sm font-black text-gray-900 leading-tight">
                         {user.firstName} {user.lastName}
                       </p>
@@ -251,7 +251,7 @@ export default function Header() {
 
                     {/* Mode Toggle */}
                     {user?.role !== 'admin' && (
-                      <div className="px-4 py-3 bg-gray-50/50 border-b border-gray-50 mb-1 hover:bg-gray-100/80 transition-colors">
+                      <div className="px-4 py-3 bg-white/70 border-b border-[rgba(10,55,90,0.08)] mb-1 hover:bg-orange-50 transition-colors">
                         <ModeToggle variant="dropdown" />
                       </div>
                     )}
@@ -259,7 +259,7 @@ export default function Header() {
                     <Link 
                       href="/dashboard?tab=profile" 
                       onClick={() => setProfileDropdown(false)} 
-                      className="flex items-center gap-3 px-4 py-3 text-[13px] font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                      className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
                     >
                       <HiOutlineUser className="w-4 h-4 opacity-70" /> 
                       {t('myProfile')}
@@ -270,7 +270,7 @@ export default function Header() {
                       <Link 
                         href="/dashboard?tab=tickets" 
                         onClick={() => setProfileDropdown(false)} 
-                        className="flex items-center gap-3 px-4 py-3 text-[13px] font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                        className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
                       >
                         <HiOutlineTicket className="w-4 h-4 opacity-70" /> 
                         {t('myTickets')}
@@ -282,7 +282,7 @@ export default function Header() {
                       <Link 
                         href="/organizer" 
                         onClick={() => setProfileDropdown(false)} 
-                        className="flex items-center gap-3 px-4 py-3 text-[13px] font-bold text-gray-600 hover:bg-gray-50 transition-colors"
+                        className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
                       >
                         <HiOutlineCog className="w-4 h-4 opacity-70" /> 
                         {t('organizerPanel') || 'Organizer Panel'}
@@ -294,7 +294,7 @@ export default function Header() {
                       <Link 
                         href="/admin" 
                         onClick={() => setProfileDropdown(false)} 
-                        className="flex items-center gap-3 px-4 py-3 text-[13px] font-bold text-red-600 hover:bg-red-50 transition-colors border-t border-gray-50 mt-1"
+                        className="lp-menu-danger mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors border-t border-gray-50 mt-1"
                       >
                         <HiOutlineCog className="w-4 h-4 opacity-70" /> 
                         {t('adminPanel') || 'Admin Panel'}
@@ -304,7 +304,7 @@ export default function Header() {
                     {/* Logout Button */}
                     <button 
                       onClick={() => { logout(); setProfileDropdown(false); }} 
-                      className="flex items-center gap-3 w-full px-4 py-3 text-[13px] font-bold text-red-600 hover:bg-red-50 border-t border-gray-50 mt-1 transition-colors"
+                      className="lp-menu-danger mx-2 flex items-center gap-3 w-[calc(100%-1rem)] px-3 py-3 text-[13px] font-bold border-t border-gray-50 mt-1 transition-colors text-left"
                     >
                       <HiOutlineLogout className="w-4 h-4 opacity-70" /> 
                       {t('logout')}
@@ -363,11 +363,11 @@ export default function Header() {
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-white border-t border-gray-100 shadow-lg animate-fade-in absolute w-full left-0 z-[60] overflow-y-auto max-h-[calc(100vh-70px)]">
-          <div className="px-4 py-6 space-y-4">
+        <div className="lp-mobile-menu lg:hidden animate-fade-in absolute w-full left-0 z-[60] overflow-y-auto max-h-[calc(100vh-70px)]">
+          <div className="lp-mobile-menu-inner space-y-4">
             
             {/* Nav Links */}
-            <div className="space-y-1">
+            <div className="lp-mobile-menu-card space-y-1 p-2">
               {navItems.map((item) => {
                 const active = item.match(pathname);
                 return (
@@ -388,35 +388,35 @@ export default function Header() {
 
             {/* Mode Toggle inside Mobile Menu (Pill version as in screenshot) */}
             {isAuthenticated && user?.role !== 'admin' && (
-              <div className="flex justify-center py-4 border-t border-gray-50">
+              <div className="lp-mobile-menu-card flex justify-center py-4">
                 <ModeToggle variant="pill" />
               </div>
             )}
 
             {/* Bottom Links (Profile, Tickets, Organizer, Logout) */}
             {isAuthenticated && (
-              <div className="pt-4 border-t border-gray-100 space-y-1">
-                <Link href="/dashboard?tab=profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 text-gray-700 font-bold text-[15px] hover:bg-gray-50 rounded-lg transition-colors">
+              <div className="lp-mobile-menu-card p-2 space-y-1">
+                <Link href="/dashboard?tab=profile" onClick={() => setMobileMenuOpen(false)} className="lp-menu-item flex items-center gap-3 px-3 py-3 font-bold text-[15px] transition-colors">
                   <HiOutlineUser className="w-5 h-5 opacity-60" />
                   {t('myProfile')}
                 </Link>
 
                 {(user?.role === 'admin' || mode === 'buyer') && (
-                  <Link href="/dashboard?tab=tickets" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 text-gray-700 font-bold text-[15px] hover:bg-gray-50 rounded-lg transition-colors">
+                  <Link href="/dashboard?tab=tickets" onClick={() => setMobileMenuOpen(false)} className="lp-menu-item flex items-center gap-3 px-3 py-3 font-bold text-[15px] transition-colors">
                     <HiOutlineTicket className="w-5 h-5 opacity-60" />
                     {t('myTickets')}
                   </Link>
                 )}
                 
                 {(user?.role === 'admin' || mode === 'organizer') && (
-                  <Link href="/organizer" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 text-gray-700 font-bold text-[15px] hover:bg-gray-50 rounded-lg transition-colors">
+                  <Link href="/organizer" onClick={() => setMobileMenuOpen(false)} className="lp-menu-item flex items-center gap-3 px-3 py-3 font-bold text-[15px] transition-colors">
                     <HiOutlineCog className="w-5 h-5 opacity-60" />
                     {t('organizerPanel') || 'Organizer Panel'}
                   </Link>
                 )}
 
                 {user?.role === 'admin' && (
-                  <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-3 text-red-600 font-bold text-[15px] hover:bg-red-50 rounded-lg transition-colors border-t border-gray-50 mt-1">
+                  <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="lp-menu-danger flex items-center gap-3 px-3 py-3 font-bold text-[15px] transition-colors border-t border-gray-50 mt-1">
                     <HiOutlineCog className="w-5 h-5 opacity-60" />
                     {t('adminPanel') || 'Admin Panel'}
                   </Link>
@@ -424,7 +424,7 @@ export default function Header() {
 
                 <button 
                   onClick={() => { logout(); setMobileMenuOpen(false); }} 
-                  className="flex items-center gap-3 w-full px-3 py-3 text-red-600 font-bold text-[15px] hover:bg-red-50 rounded-lg transition-colors"
+                  className="lp-menu-danger flex items-center gap-3 w-full px-3 py-3 font-bold text-[15px] transition-colors text-left"
                 >
                   <HiOutlineLogout className="w-5 h-5 opacity-60" />
                   {t('logout')}
