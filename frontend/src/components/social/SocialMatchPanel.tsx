@@ -8,7 +8,7 @@ import {
   HiOutlineSparkles,
   HiOutlineUserGroup,
 } from 'react-icons/hi';
-import { Event } from '@/types';
+import type { Event } from '@/types';
 import {
   getMySocialMatch,
   getSocialMatchMessages,
