@@ -245,7 +245,7 @@ export default function EventDetailPage() {
   const [sections, setSections] = useState<VenueSection[]>([]);
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
-  const [activeTab, setActiveTab] = useState<'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders'>('details');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders'>('analytics');
   const [selectedBlockSection, setSelectedBlockSection] = useState('');
   const [selectedBlockSeats, setSelectedBlockSeats] = useState<string[]>([]);
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
@@ -701,9 +701,93 @@ export default function EventDetailPage() {
         </div>
       </div>
 
-      {/* Premium Analytics */}
-      {sales && (
-        <div className="space-y-5">
+
+
+      {/* Event Submission Notice */}
+      {event.status === 'pending_approval' && (
+        <div className="p-4 bg-[rgba(10,55,90,0.06)] border border-[rgba(10,55,90,0.18)] rounded-2xl flex items-start gap-3 text-sm text-[#0A375A] shadow-sm animate-fade-in">
+          <span className="text-lg">✨</span>
+          <div className="space-y-1">
+            <p className="font-bold text-[#0A375A]">{lang === 'es' ? 'Evento en espera de aprobación' : 'Event pending approval'}</p>
+            <p className="text-xs text-[#0A375A] leading-relaxed">
+              {lang === 'es' 
+                ? 'Este evento ha sido enviado al administrador para su aprobación. Se publicará automáticamente en la plataforma una vez sea autorizado por el administrador.'
+                : 'This event has been submitted to the administrator for approval. It will be automatically published on the platform once authorized.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Changes Notice */}
+      {user?.role !== 'admin' && (event.pendingTitle || event.pendingDescription || event.pendingImageUrl || event.pendingBannerImageUrl || event.pendingVenueName || event.pendingCategory || event.pendingEventDate) && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-sm text-amber-800 shadow-sm animate-fade-in">
+          <span className="text-lg">⏳</span>
+          <div className="space-y-1">
+            <p className="font-bold text-amber-900">{lang === 'es' ? 'Cambios en espera de aprobación' : 'Edits pending admin approval'}</p>
+            <p className="text-xs text-amber-700 leading-relaxed">
+              {lang === 'es' 
+                ? 'Has guardado cambios en la información o imágenes de este evento. El administrador debe aprobarlos individualmente antes de que se actualicen públicamente. Mientras tanto, el evento sigue visible con su información original.'
+                : 'You have updated information or images for this event. The administrator must approve the edits before they become public. Until approved, the event remains visible with its original details.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-1 border-b border-gray-200 pb-px">
+        <button
+          onClick={() => setActiveTab('analytics')}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <HiOutlineChartBar className="w-4 h-4 shrink-0" />
+          <span className="whitespace-nowrap">{lang === 'es' ? 'Analíticas' : 'Analytics'}</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('details')}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'details' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <HiOutlinePencil className="w-4 h-4 shrink-0" />
+          <span className="whitespace-nowrap">{lang === 'es' ? 'Detalles e Imágenes' : 'Details & Media'}</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <span className="whitespace-nowrap">{t('orgSections')}</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('attendees')}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'attendees' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <HiOutlineUsers className="w-4 h-4 shrink-0" />
+          <span className="whitespace-nowrap">{lang === 'es' ? 'Asistentes y Ventas' : 'Attendees & Sales'}</span>
+          {attendees.length > 0 && <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] sm:text-xs shrink-0">{attendees.length} / {sales?.orders?.length || 0}</span>}
+        </button>
+        <button
+          onClick={() => setActiveTab('map')}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'map' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <HiOutlineMap className="w-4 h-4 shrink-0" />
+          <span className="whitespace-nowrap">{lang === 'es' ? 'Mapa Visual' : 'Venue Map'}</span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('blocks');
+            setSelectedBlockSection('');
+            setSelectedBlockSeats([]);
+          }}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'blocks' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <HiOutlineBan className="w-4 h-4 shrink-0" />
+          <span className="hidden sm:inline whitespace-nowrap">{lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}</span>
+          <span className="sm:hidden whitespace-nowrap">{lang === 'es' ? 'Bloqueos' : 'Blocks'}</span>
+        </button>
+      </div>
+
+      {/* Event Analytics Tab */}
+      {activeTab === 'analytics' && sales && (
+        <div className="space-y-5 animate-fade-in">
           <div className="overflow-hidden rounded-2xl border border-[rgba(10,55,90,0.10)] bg-white shadow-sm">
             <div className="flex flex-col gap-4 border-b border-gray-100 bg-gradient-to-r from-[#0A375A] to-[#0A375A] px-5 py-5 text-white sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -719,7 +803,7 @@ export default function EventDetailPage() {
               </div>
               <button
                 onClick={exportAnalyticsCSV}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#F97316] px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-black/10 transition hover:bg-[#F97316]"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#F97316] px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-black/10 transition hover:bg-[#EA6C10]"
               >
                 <HiOutlineDownload className="h-4 w-4" />
                 {lang === 'es' ? 'Export premium' : 'Premium export'}
@@ -845,80 +929,6 @@ export default function EventDetailPage() {
         </div>
       )}
 
-      {/* Event Submission Notice */}
-      {event.status === 'pending_approval' && (
-        <div className="p-4 bg-[rgba(10,55,90,0.06)] border border-[rgba(10,55,90,0.18)] rounded-2xl flex items-start gap-3 text-sm text-[#0A375A] shadow-sm animate-fade-in">
-          <span className="text-lg">✨</span>
-          <div className="space-y-1">
-            <p className="font-bold text-[#0A375A]">{lang === 'es' ? 'Evento en espera de aprobación' : 'Event pending approval'}</p>
-            <p className="text-xs text-[#0A375A] leading-relaxed">
-              {lang === 'es' 
-                ? 'Este evento ha sido enviado al administrador para su aprobación. Se publicará automáticamente en la plataforma una vez sea autorizado por el administrador.'
-                : 'This event has been submitted to the administrator for approval. It will be automatically published on the platform once authorized.'}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Pending Changes Notice */}
-      {user?.role !== 'admin' && (event.pendingTitle || event.pendingDescription || event.pendingImageUrl || event.pendingBannerImageUrl || event.pendingVenueName || event.pendingCategory || event.pendingEventDate) && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-sm text-amber-800 shadow-sm animate-fade-in">
-          <span className="text-lg">⏳</span>
-          <div className="space-y-1">
-            <p className="font-bold text-amber-900">{lang === 'es' ? 'Cambios en espera de aprobación' : 'Edits pending admin approval'}</p>
-            <p className="text-xs text-amber-700 leading-relaxed">
-              {lang === 'es' 
-                ? 'Has guardado cambios en la información o imágenes de este evento. El administrador debe aprobarlos individualmente antes de que se actualicen públicamente. Mientras tanto, el evento sigue visible con su información original.'
-                : 'You have updated information or images for this event. The administrator must approve the edits before they become public. Until approved, the event remains visible with its original details.'}
-            </p>
-          </div>
-        </div>
-      )}
-
-
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-1 border-b border-gray-200 pb-px">
-        <button
-          onClick={() => setActiveTab('details')}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'details' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-        >
-          <HiOutlinePencil className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap">{lang === 'es' ? 'Detalles e Imágenes' : 'Details & Media'}</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-        >
-          <span className="whitespace-nowrap">{t('orgSections')}</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('attendees')}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'attendees' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-        >
-          <HiOutlineUsers className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap">{lang === 'es' ? 'Asistentes y Ventas' : 'Attendees & Sales'}</span>
-          {attendees.length > 0 && <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] sm:text-xs shrink-0">{attendees.length} / {sales?.orders?.length || 0}</span>}
-        </button>
-        <button
-          onClick={() => setActiveTab('map')}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'map' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-        >
-          <HiOutlineMap className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap">{lang === 'es' ? 'Mapa Visual' : 'Venue Map'}</span>
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab('blocks');
-            setSelectedBlockSection('');
-            setSelectedBlockSeats([]);
-          }}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'blocks' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-        >
-          <HiOutlineBan className="w-4 h-4 shrink-0" />
-          <span className="hidden sm:inline whitespace-nowrap">{lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}</span>
-          <span className="sm:hidden whitespace-nowrap">{lang === 'es' ? 'Bloqueos' : 'Blocks'}</span>
-        </button>
-      </div>
 
       {/* Sections Tab */}
       {activeTab === 'overview' && (
