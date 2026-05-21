@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.lpticket.com';
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.lpticket.com').replace(/\/$/, '');
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://ticketsystembackend.up.railway.app/api';
 
 function resolveImage(url?: string | null) {
@@ -17,22 +17,44 @@ function cleanText(value?: string | null, fallback = '') {
   return String(value || fallback).replace(/\s+/g, ' ').trim();
 }
 
-function formatEventDate(value?: string | null, timezone = 'UTC') {
+function limitText(value: string, max = 220) {
+  if (value.length <= max) return value;
+  return `${value.slice(0, max - 1).trim()}…`;
+}
+
+function formatEventDate(value?: string | null, timezone = 'America/Chicago') {
   if (!value) return '';
   try {
-    return new Intl.DateTimeFormat('es-US', {
-      timeZone: timezone || 'UTC',
-      weekday: 'long',
-      month: 'long',
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone || 'America/Chicago',
+      weekday: 'short',
+      month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
+      timeZoneName: 'short',
     }).format(new Date(value));
   } catch {
     return '';
   }
+}
+
+function buildDescription(event: any) {
+  const dateText = formatEventDate(event.eventDate, event.eventTimezone || 'America/Chicago');
+  const venueText = cleanText(event.venueName || event.venueAddress);
+  const cityText = cleanText(event.venueAddress);
+
+  const parts = [
+    dateText,
+    venueText && `at ${venueText}`,
+    cityText && cityText !== venueText ? cityText : '',
+    'Buy verified tickets securely on LP Ticket.',
+  ].filter(Boolean);
+
+  const fallback = parts.join(' ');
+  return limitText(cleanText(event.description, fallback), 220);
 }
 
 export async function generateMetadata({
@@ -51,29 +73,31 @@ export async function generateMetadata({
     if (!response.ok) throw new Error('Event not found');
 
     const event = await response.json();
-    const image = resolveImage(event.bannerImageUrl || event.imageUrl);
-    const dateText = formatEventDate(event.eventDate, event.eventTimezone || 'UTC');
+
+    const eventName = cleanText(event.title, 'Event');
     const venueText = cleanText(event.venueName || event.venueAddress);
-    const title = `${cleanText(event.title, 'Evento')} — LPTicket`;
-    const description = cleanText(
-      event.description,
-      [event.title, venueText && `en ${venueText}`, dateText && `el ${dateText}`, 'Compra tickets seguros en LPTicket.']
-        .filter(Boolean)
-        .join(' ')
-    ).slice(0, 220);
+    const dateText = formatEventDate(event.eventDate, event.eventTimezone || 'America/Chicago');
+    const title = `${eventName} | LP Ticket`;
+    const description = buildDescription(event);
+    const image = resolveImage(event.bannerImageUrl || event.imageUrl);
 
     return {
       title,
       description,
+      applicationName: 'LP Ticket',
+      category: 'events',
       keywords: [
-        event.title,
-        event.venueName,
+        eventName,
+        venueText,
         event.venueAddress,
         event.category,
+        dateText,
+        'LP Ticket',
         'LPTicket',
         'tickets',
-        'eventos',
         'boletos',
+        'event tickets',
+        'verified tickets',
       ].filter(Boolean),
       alternates: {
         canonical: eventUrl,
@@ -82,10 +106,17 @@ export async function generateMetadata({
         title,
         description,
         url: eventUrl,
-        siteName: 'LPTicket',
-        images: [{ url: image, width: 1200, height: 630, alt: event.title }],
+        siteName: 'LP Ticket',
+        images: [
+          {
+            url: image,
+            width: 1200,
+            height: 630,
+            alt: `${eventName} - LP Ticket`,
+          },
+        ],
         type: 'website',
-        locale: 'es_US',
+        locale: 'en_US',
       },
       twitter: {
         card: 'summary_large_image',
@@ -96,14 +127,41 @@ export async function generateMetadata({
       robots: {
         index: true,
         follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          'max-image-preview': 'large',
+          'max-snippet': -1,
+        },
+      },
+      other: {
+        'og:brand': 'LP Ticket',
+        'event:start_time': event.eventDate || '',
+        'event:location': venueText || '',
+        'event:timezone': event.eventTimezone || 'America/Chicago',
       },
     };
   } catch {
     return {
-      title: 'Evento — LPTicket',
-      description: 'Compra tickets seguros para eventos en LPTicket.',
+      title: 'Event | LP Ticket',
+      description: 'Buy verified tickets securely on LP Ticket.',
       alternates: {
         canonical: eventUrl,
+      },
+      openGraph: {
+        title: 'Event | LP Ticket',
+        description: 'Buy verified tickets securely on LP Ticket.',
+        url: eventUrl,
+        siteName: 'LP Ticket',
+        images: [{ url: `${siteUrl}/logo.png`, width: 1200, height: 630, alt: 'LP Ticket' }],
+        type: 'website',
+        locale: 'en_US',
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: 'Event | LP Ticket',
+        description: 'Buy verified tickets securely on LP Ticket.',
+        images: [`${siteUrl}/logo.png`],
       },
     };
   }
