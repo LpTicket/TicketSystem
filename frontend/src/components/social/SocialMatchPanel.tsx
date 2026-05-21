@@ -106,6 +106,22 @@ export default function SocialMatchPanel({ lang }: Props) {
     }
   }, [selectedEventId, selectedPreference?.isActive]);
 
+
+  useEffect(() => {
+    if (!activeChatId) return;
+
+    const interval = window.setInterval(async () => {
+      try {
+        const data = await getSocialMatchMessages(activeChatId);
+        setChatMessages(data.messages || []);
+      } catch (error) {
+        console.error(error);
+      }
+    }, 6000);
+
+    return () => window.clearInterval(interval);
+  }, [activeChatId]);
+
   const loadSocialMatch = async () => {
     try {
       setLoading(true);
@@ -195,6 +211,7 @@ export default function SocialMatchPanel({ lang }: Props) {
     try {
       await updateSocialMatchConnection(connectionId, status);
       await loadSocialMatch();
+      window.dispatchEvent(new Event('social-match-updated'));
       toast.success(lang === 'es' ? 'Solicitud actualizada' : 'Request updated');
     } catch (error) {
       console.error(error);

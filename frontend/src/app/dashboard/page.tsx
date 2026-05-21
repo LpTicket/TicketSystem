@@ -36,6 +36,7 @@ function DashboardPageBody() {
   const searchParams = useSearchParams();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [pendingSocialRequests, setPendingSocialRequests] = useState(0);
   const [activeTab, setActiveTab] = useState<'tickets' | 'orders' | 'profile' | 'payments' | 'social'>('tickets');
   const [editMode, setEditMode] = useState(false);
   const [ticketsPage, setTicketsPage] = useState(1);
@@ -109,6 +110,14 @@ function DashboardPageBody() {
       }
       setOrdersPagination(o.data.pagination);
       setOrdersPage(orderPage);
+
+      try {
+        const social = await api.get('/social-match/me');
+        const pending = (social.data.connections || []).filter((connection: any) => connection.status === 'pending' && connection.direction === 'incoming').length;
+        setPendingSocialRequests(pending);
+      } catch (error) {
+        console.error(error);
+      }
     } catch (err) { console.error(err); }
   };
 
@@ -192,7 +201,7 @@ function DashboardPageBody() {
     { id: 'tickets' as const, label: t('clientMyTickets'), icon: HiOutlineTicket, count: tickets.length },
     { id: 'orders' as const, label: t('clientHistory'), icon: HiOutlineShoppingCart, count: orders.length },
     { id: 'payments' as const, label: 'Pagos', icon: HiOutlineCreditCard },
-    { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles },
+    { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles, count: pendingSocialRequests },
     { id: 'profile' as const, label: t('clientProfile'), icon: HiOutlineUser },
   ];
 
