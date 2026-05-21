@@ -1314,85 +1314,98 @@ export default function EventDetailPage() {
                     })}
                   </div>
 
-                  {/* Buyer Detail Modal */}
+                  {/* Buyer Detail Modal — same style as admin user modal */}
                   {selectedGroup && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" onClick={() => setExpandedAttendee(null)}>
+                    <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
                       {/* Backdrop */}
-                      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" style={{ animation: 'fadeInBackdrop 0.15s ease-out' }} />
-
-                      {/* Modal */}
-                      <div
-                        className="relative w-full max-w-lg bg-white rounded-2xl shadow-[0_25px_60px_rgba(0,0,0,0.15)] flex flex-col"
-                        style={{ maxHeight: '85vh', animation: 'scaleIn 0.2s ease-out' }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {/* Header */}
-                        <div className="shrink-0 p-6 pb-5 flex items-start justify-between gap-4">
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="shrink-0 w-12 h-12 rounded-full bg-[#F97316] flex items-center justify-center text-white text-base font-black uppercase shadow-md">
+                      <div 
+                        className="absolute inset-0 bg-gray-950/40 backdrop-blur-md transition-opacity"
+                        onClick={() => setExpandedAttendee(null)}
+                      />
+                      
+                      {/* Centered Modal Panel */}
+                      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl flex flex-col z-10 max-h-[85vh] overflow-hidden animate-[scaleIn_0.2s_ease-out]">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+                          <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-base shrink-0 uppercase">
                               {selectedGroup.name.charAt(0)}{selectedGroup.name.split(' ')[1]?.charAt(0) || ''}
                             </div>
-                            <div className="min-w-0">
-                              <h3 className="font-black text-gray-900 text-lg leading-tight truncate">{selectedGroup.name}</h3>
-                              <p className="text-sm text-gray-400 truncate mt-0.5">{selectedGroup.email}</p>
+                            <div>
+                              <h2 className="font-bold text-base text-gray-900 leading-tight">{selectedGroup.name}</h2>
+                              <p className="text-xs text-gray-500 mt-0.5">{selectedGroup.email}</p>
                             </div>
                           </div>
-                          <button
+                          <button 
                             onClick={() => setExpandedAttendee(null)}
-                            className="shrink-0 w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors text-gray-400 hover:text-gray-600 mt-0.5"
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
                           >
                             <HiOutlineX className="w-5 h-5" />
                           </button>
                         </div>
 
-                        {/* KPI cards */}
-                        <div className="shrink-0 grid grid-cols-3 gap-2.5 px-6 pb-5">
-                          <div className="bg-[#0A375A] rounded-xl px-3 py-3 text-center">
-                            <p className="text-lg font-black text-white">{selectedGroup.tickets.length}</p>
-                            <p className="text-[9px] text-white/60 font-bold uppercase mt-0.5 tracking-wider">Tickets</p>
-                          </div>
-                          <div className="bg-[#0A375A] rounded-xl px-3 py-3 text-center">
-                            <p className="text-lg font-black text-white">${selectedGroup.totalSpent.toFixed(2)}</p>
-                            <p className="text-[9px] text-white/60 font-bold uppercase mt-0.5 tracking-wider">{lang === 'es' ? 'Gastado' : 'Spent'}</p>
-                          </div>
-                          <div className="bg-[#0A375A] rounded-xl px-3 py-3 text-center">
-                            <p className="text-lg font-black text-white">{selectedGroup.tickets.filter(t => t.status === 'used').length}/{selectedGroup.tickets.length}</p>
-                            <p className="text-[9px] text-white/60 font-bold uppercase mt-0.5 tracking-wider">{lang === 'es' ? 'Escaneados' : 'Scanned'}</p>
-                          </div>
-                        </div>
-
-                        {/* Divider + ticket count label */}
-                        <div className="shrink-0 px-6 py-2.5 border-t border-gray-100 bg-gray-50/80">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                            {lang === 'es' ? `${selectedGroup.tickets.length} entradas compradas` : `${selectedGroup.tickets.length} tickets purchased`}
-                          </p>
-                        </div>
-
-                        {/* Ticket list - scrollable */}
-                        <div className="flex-1 overflow-y-auto overscroll-contain">
-                          <div className="divide-y divide-gray-100">
-                            {selectedGroup.tickets.map((ticket, idx) => (
-                              <div key={ticket.id} className="px-6 py-3.5 flex items-center gap-3.5 hover:bg-gray-50/60 transition-colors">
-                                <div className="shrink-0 w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-[11px] font-bold text-gray-400">
-                                  {idx + 1}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold text-gray-800">{ticket.sectionName}</p>
-                                  <p className="text-xs text-gray-400 mt-0.5">
-                                    {formatSeatLabel({ rowLabel: ticket.rowLabel, seatNumber: ticket.seatNumber }, undefined, lang)}
-                                    {' \u00b7 '}
-                                    <span className="font-mono text-[#0A375A] font-bold">{ticket.ticketCode}</span>
-                                  </p>
-                                </div>
-                                <span className={`shrink-0 px-3 py-1 rounded-full text-[10px] font-bold ${
-                                  ticket.status === 'active' ? 'bg-green-50 text-green-600 ring-1 ring-green-200' :
-                                  ticket.status === 'used' ? 'bg-gray-100 text-gray-400' : 'bg-red-50 text-red-600 ring-1 ring-red-200'
-                                }`}>
-                                  {ticket.status === 'active' ? (lang === 'es' ? 'Activo' : 'Active') : ticket.status === 'used' ? (lang === 'es' ? 'Escaneado' : 'Scanned') : ticket.status}
-                                </span>
+                        {/* Modal Content */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                          {/* Stats Card */}
+                          <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-3.5">
+                            <h3 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Resumen de Compras' : 'Purchase Summary'}</h3>
+                            
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="text-center">
+                                <p className="text-2xl font-black text-gray-900">{selectedGroup.tickets.length}</p>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Tickets</p>
                               </div>
-                            ))}
+                              <div className="text-center">
+                                <p className="text-2xl font-black text-gray-900">${selectedGroup.totalSpent.toFixed(2)}</p>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">{lang === 'es' ? 'Gastado' : 'Spent'}</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-2xl font-black text-gray-900">{selectedGroup.tickets.filter(t => t.status === 'used').length}<span className="text-gray-300 font-bold">/{selectedGroup.tickets.length}</span></p>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">{lang === 'es' ? 'Escaneados' : 'Scanned'}</p>
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Tickets List */}
+                          <div className="space-y-3">
+                            <h3 className="font-bold text-[10px] text-gray-400 uppercase tracking-widest">
+                              {lang === 'es' ? `${selectedGroup.tickets.length} Entradas Compradas` : `${selectedGroup.tickets.length} Tickets Purchased`}
+                            </h3>
+                            
+                            <div className="min-h-[120px] max-h-[340px] overflow-y-auto pr-1 select-none mt-2">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {selectedGroup.tickets.map((ticket) => (
+                                  <div key={ticket.id} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-start justify-between gap-3 shadow-[0_4px_15px_rgba(0,0,0,0.015)] hover:border-gray-200 transition-all">
+                                    <div className="min-w-0 space-y-1">
+                                      <p className="font-bold text-xs text-gray-900 truncate">{ticket.sectionName}</p>
+                                      <p className="text-[10px] text-gray-500">
+                                        {lang === 'es' ? 'Asiento' : 'Seat'}: <span className="font-bold text-gray-700">{formatSeatLabel({ rowLabel: ticket.rowLabel, seatNumber: ticket.seatNumber }, undefined, lang)}</span>
+                                      </p>
+                                      <p className="text-[10px] font-mono text-primary-600 font-semibold">{ticket.ticketCode}</p>
+                                    </div>
+                                    <div className="text-right shrink-0 space-y-1.5">
+                                      <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                                        ticket.status === 'active' ? 'bg-green-100 text-green-700' :
+                                        ticket.status === 'used' ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
+                                      }`}>
+                                        {ticket.status === 'active' ? (lang === 'es' ? 'Activo' : 'Active') : ticket.status === 'used' ? (lang === 'es' ? 'Escaneado' : 'Scanned') : ticket.status}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end">
+                          <button
+                            onClick={() => setExpandedAttendee(null)}
+                            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gray-900 text-white hover:bg-gray-800 transition-all shadow-sm cursor-pointer"
+                          >
+                            {lang === 'es' ? 'Cerrar' : 'Close'}
+                          </button>
                         </div>
                       </div>
                     </div>
