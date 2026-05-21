@@ -4,9 +4,12 @@ import type { ReactNode } from 'react';
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.lpticket.com').replace(/\/$/, '');
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://ticketsystembackend.up.railway.app/api';
 
-function resolveImage(url?: string | null) {
+function resolveImage(url?: string | null, slug?: string | null) {
   if (!url) return `${siteUrl}/logo.png`;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('data:') && slug) {
+    return `${apiUrl.replace(/\/$/, '')}/events/${encodeURIComponent(slug)}/og-image`;
+  }
   if (url.startsWith('data:')) return `${siteUrl}/logo.png`;
 
   const backendBase = apiUrl.replace(/\/api\/?$/, '');
@@ -107,7 +110,7 @@ export async function generateMetadata({
     const eventUrl = `${siteUrl}/events/${canonicalSlug}`;
     const title = `${eventName} | LP Ticket`;
     const description = buildDescription(event);
-    const image = resolveImage(event.bannerImageUrl || event.imageUrl);
+    const image = resolveImage(event.bannerImageUrl || event.imageUrl, canonicalSlug);
 
     return {
       title,

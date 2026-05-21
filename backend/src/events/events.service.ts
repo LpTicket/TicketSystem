@@ -153,6 +153,24 @@ export class EventsService {
     return event;
   }
 
+  async getOgImageBySlug(slug: string) {
+    const event = await this.eventRepo.findOne({ where: { slug } });
+    if (!event) throw new NotFoundException('Evento no encontrado');
+
+    const image = event.bannerImageUrl || event.imageUrl;
+    if (!image) throw new NotFoundException('Imagen del evento no encontrada');
+
+    const match = image.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) {
+      throw new BadRequestException('La imagen del evento no está guardada como Base64');
+    }
+
+    return {
+      mimeType: match[1],
+      buffer: Buffer.from(match[2], 'base64'),
+    };
+  }
+
   /**
    * update
    * Updates event metadata. If the event is already PUBLISHED, changes are

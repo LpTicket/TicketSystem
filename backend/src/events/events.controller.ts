@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Patch, Delete, Body, Param, Query,
-  UseGuards, Request, UseInterceptors, UploadedFile,
+  UseGuards, Request, UseInterceptors, UploadedFile, Res,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nest-lab/fastify-multer';
@@ -28,6 +28,17 @@ export class EventsController {
   @Get('featured')
   findFeatured() {
     return this.eventsService.findFeatured();
+  }
+
+  @Get(':slug/og-image')
+  async getOgImage(@Param('slug') slug: string, @Res() res: any) {
+    const image = await this.eventsService.getOgImageBySlug(slug);
+
+    res.header('Content-Type', image.mimeType);
+    res.header('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+    res.header('Content-Length', image.buffer.length);
+
+    return res.send(image.buffer);
   }
 
   @Get(':slug')
