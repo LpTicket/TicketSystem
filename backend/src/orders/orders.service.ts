@@ -663,8 +663,19 @@ export class OrdersService {
     const orders = await this.orderRepo.find({
       where: { eventId, status: OrderStatus.PAID },
       relations: ['user'],
-      order: { createdAt: 'DESC' },
+      order: { paidAt: 'DESC', createdAt: 'DESC' },
     });
+    const ordersMissingPaidAt = orders.filter((order) => !order.paidAt);
+    if (ordersMissingPaidAt.length > 0) {
+      await Promise.all(
+        ordersMissingPaidAt.map((order) =>
+          this.orderRepo.update(order.id, { paidAt: order.createdAt }),
+        ),
+      );
+      ordersMissingPaidAt.forEach((order) => {
+        order.paidAt = order.createdAt;
+      });
+    }
     const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total), 0);
     const totalTickets = orders.reduce((sum, o) => sum + o.ticketCount, 0);
     return { orders, totalRevenue, totalTickets, totalOrders: orders.length };

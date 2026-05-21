@@ -10,7 +10,7 @@ import { useLang } from '@/context/LanguageContext';
 import { formatSeatLabel } from '@/lib/seatLabel';
 import { Event, SalesReport, VenueSection } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
-import { format } from 'date-fns';
+import { format, type Locale } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
 import {
   HiOutlineArrowLeft,
@@ -163,6 +163,19 @@ const getPartsInTimezone = (date: Date, timezone: string) => {
   const map: Record<string, string> = {};
   formatter.formatToParts(date).forEach((p) => { map[p.type] = p.value; });
   return map;
+};
+
+const getDateKeyInTimezone = (dateVal: any, timezone: string) => {
+  const date = parseSafeDate(dateVal);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = getPartsInTimezone(date, timezone);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
+const formatDateKeyLabel = (dateKey: string, locale: Locale) => {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  if (!year || !month || !day) return dateKey;
+  return format(new Date(year, month - 1, day), 'dd MMM yyyy', { locale });
 };
 
 const formatDateInput = (value?: string, timezone: string = 'UTC') => {
