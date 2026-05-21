@@ -603,9 +603,11 @@ export default function EventDetailPage() {
   const averageOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   const scanRate = totalTickets > 0 ? Math.round((scannedTickets / totalTickets) * 100) : 0;
   const estimatedNetRevenue = Math.max(totalRevenue - (totalRevenue * 0.029) - (totalOrders * 0.30), 0);
+  const analyticsTimezone = event.eventTimezone || 'America/Chicago';
 
   const rawSalesByDay = salesOrders.reduce<Record<string, { date: string; orders: number; tickets: number; revenue: number }>>((acc, order) => {
-    const key = format(parseSafeDate(order.paidAt || order.createdAt), 'yyyy-MM-dd');
+    const key = getDateKeyInTimezone(order.paidAt || order.createdAt, analyticsTimezone);
+    if (!key) return acc;
     if (!acc[key]) acc[key] = { date: key, orders: 0, tickets: 0, revenue: 0 };
     acc[key].orders += 1;
     acc[key].tickets += Number(order.ticketCount || 0);
@@ -617,7 +619,7 @@ export default function EventDetailPage() {
   const recentDayKeys = Array.from({ length: 7 }).map((_, index) => {
     const d = new Date(today);
     d.setDate(today.getDate() - (6 - index));
-    return format(d, 'yyyy-MM-dd');
+    return getDateKeyInTimezone(d, analyticsTimezone);
   });
 
   const salesByDay = recentDayKeys.map((date) => (
@@ -784,7 +786,7 @@ export default function EventDetailPage() {
                     return (
                       <div key={day.date}>
                         <div className="mb-1 flex items-center justify-between text-xs">
-                          <span className="font-bold text-gray-700">{format(parseSafeDate(day.date), 'dd MMM yyyy', { locale: dateFnsLocale })}</span>
+                          <span className="font-bold text-gray-700">{formatDateKeyLabel(day.date, dateFnsLocale)}</span>
                           <span className="font-black text-[#0A375A]">${day.revenue.toFixed(2)}</span>
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-gray-100">
