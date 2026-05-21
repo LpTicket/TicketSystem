@@ -12,7 +12,6 @@ import { useAuthStore } from '@/stores/auth';
 import type { Event } from '@/types';
 import { VenueSection, Seat, SeatStatus } from '@/types';
 import { useLang } from '@/context/LanguageContext';
-import { SOCIAL_MATCH_INTERESTS, getSocialInterestLabel } from '@/lib/socialMatch';
 import {
   HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineChevronRight,
   HiOutlineCheckCircle, HiOutlineTrash,
@@ -95,8 +94,6 @@ export default function PurchasePage() {
     email: '',
     phone: '',
   });
-  const [socialMatchEnabled, setSocialMatchEnabled] = useState(false);
-  const [socialMatchInterests, setSocialMatchInterests] = useState<string[]>([]);
 
   // Step 4: Final Invoice and Payment state
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
@@ -306,28 +303,11 @@ export default function PurchasePage() {
   /**
    * Validates personal info and fetches a detailed invoice preview (fees, taxes, total).
    */
-  const toggleSocialInterest = (interest: string) => {
-    setSocialMatchInterests((current) =>
-      current.includes(interest)
-        ? current.filter((item) => item !== interest)
-        : [...current, interest],
-    );
-  };
-
   const handleConfirmInfo = async () => {
     if (!personalInfo.firstName || !personalInfo.lastName || !personalInfo.email) return;
     
     setInvoiceLoading(true);
     try {
-      if (event?.id && socialMatchEnabled) {
-        await api.put(`/social-match/events/${event.id}/preferences`, {
-          enabled: true,
-          interests: socialMatchInterests,
-          invisibleMode: false,
-          shareLocation: false,
-        });
-      }
-
       const params: any = { eventId: event!.id };
       if (selectedSection?.sectionType === 'standing') {
         params.sectionId = selectedSection.id;
@@ -639,39 +619,6 @@ export default function PurchasePage() {
                   <input className="input text-sm" value={personalInfo.phone}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, phone: e.target.value }))} />
                 </div>
-              </div>
-
-              <div className="mt-5 rounded-xl border border-[#0a375a]/15 bg-slate-50 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-black text-[#0a375a]">Social Match</p>
-                    <p className="text-xs font-semibold text-gray-500">
-                      {lang === 'es' ? 'Conecta con personas en el evento' : 'Connect with people at the event'}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSocialMatchEnabled((value) => !value)}
-                    className={`rounded-lg px-4 py-2 text-xs font-black uppercase tracking-wide text-white ${socialMatchEnabled ? 'bg-[#f97316]' : 'bg-[#0a375a]'}`}
-                  >
-                    {socialMatchEnabled ? (lang === 'es' ? 'Activado' : 'Enabled') : (lang === 'es' ? 'Activar' : 'Enable')}
-                  </button>
-                </div>
-
-                {socialMatchEnabled && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {SOCIAL_MATCH_INTERESTS.map((interest) => (
-                      <button
-                        key={interest.id}
-                        type="button"
-                        onClick={() => toggleSocialInterest(interest.id)}
-                        className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${socialMatchInterests.includes(interest.id) ? 'border-[#f97316] bg-orange-50 text-[#c2410c]' : 'border-gray-200 bg-white text-gray-600'}`}
-                      >
-                        {getSocialInterestLabel(interest.id, lang)}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <button
