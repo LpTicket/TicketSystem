@@ -373,7 +373,7 @@ export default function PurchasePage() {
   if (!event) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="purchase-premium-shell min-h-screen">
       {/* ── Breadcrumb Wizard Navigation ── */}
       <nav className="wizard-breadcrumb sticky top-0 z-20 shadow-sm">
         <Link href="/" className="wizard-breadcrumb-item done text-xs">{lang === 'es' ? 'Inicio' : 'Home'}</Link>
@@ -401,8 +401,8 @@ export default function PurchasePage() {
         {/* ── Main Content Area ── */}
         <div className="lg:col-span-2 space-y-4">
           {/* Event Header Information */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <h1 className="font-bold text-lg text-gray-900 leading-tight">{event.title}</h1>
+          <div className="purchase-premium-panel p-4">
+            <h1 className="font-black text-lg text-[#0A375A] leading-tight">{event.title}</h1>
             <div className="flex flex-wrap gap-4 mt-2 text-sm text-[#0A375A]">
               <span className="flex items-center gap-1.5">
                 <HiOutlineLocationMarker className="w-4 h-4" />
@@ -423,18 +423,18 @@ export default function PurchasePage() {
 
           {/* ── STEP 1: Section Selection ── */}
           {step === 'section' && (
-            <div className="bg-white rounded-lg border border-gray-200 p-5 step-panel">
+            <div className="purchase-premium-panel p-5 step-panel">
               <h2 className="font-bold text-base text-[#0A375A] mb-4 border-b border-gray-100 pb-2">
                 {lang === 'es' ? 'Escoge dónde quieres estar' : 'Choose where you want to be'}
               </h2>
 
-              <div className="relative bg-gray-50 border border-gray-200 rounded-lg overflow-hidden mb-5" style={{ minHeight: 200 }}>
+              <div className="relative bg-white border border-[rgba(10,55,90,0.12)] rounded-lg overflow-hidden mb-5 shadow-sm" style={{ minHeight: 200 }}>
                 <div className="p-4 flex flex-col gap-2">
                   {seatMap.map((sec) => (
                     <button
                       key={sec.id}
                       onClick={() => handleSelectSection(sec)}
-                      className="w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all hover:shadow-md hover:-translate-y-0.5"
+                      className="purchase-premium-section-button w-full flex items-center justify-between p-3 border-2 transition-all hover:-translate-y-0.5"
                       style={{ borderColor: sec.color, background: `${sec.color}15` }}
                     >
                       <div className="flex items-center gap-3">
@@ -465,7 +465,7 @@ export default function PurchasePage() {
 
           {/* ── STEP 2: Seat/Quantity Selection ── */}
           {step === 'seats' && selectedSection && (
-            <div className="bg-white rounded-lg border border-gray-200 p-5 step-panel">
+            <div className="purchase-premium-panel p-5 step-panel">
               <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
                 <h2 className="font-bold text-base text-[#0A375A]">
                   {selectedSection.sectionType === 'standing' ? (lang === 'es' ? 'Cantidad de entradas' : 'Number of tickets') : (lang === 'es' ? 'Selecciona tus asientos' : 'Select your seats')} — <span style={{ color: selectedSection.color }}>{selectedSection.name}</span>
@@ -480,7 +480,7 @@ export default function PurchasePage() {
 
               {selectedSection.sectionType === 'standing' ? (
                 /* Standing Section Quantity Selector */
-                <div className="py-8 px-4 flex flex-col items-center justify-center space-y-6 bg-gray-50 rounded-2xl border border-gray-200 shadow-inner">
+                <div className="py-8 px-4 flex flex-col items-center justify-center space-y-6 bg-white rounded-lg border border-[rgba(10,55,90,0.12)] shadow-sm">
                   <div className="text-center">
                     <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
                       {lang === 'es' ? 'Entradas para este sector' : 'Tickets for this sector'}
@@ -490,7 +490,7 @@ export default function PurchasePage() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-6 bg-white border border-gray-200 rounded-2xl p-2.5 shadow-md">
+                  <div className="flex items-center gap-6 bg-white border border-[rgba(10,55,90,0.12)] rounded-lg p-2.5 shadow-md">
                     <button
                       type="button"
                       onClick={() => setStandingQuantity((q) => Math.max(0, q - 1))}
@@ -566,7 +566,7 @@ export default function PurchasePage() {
                   }
                 }}
                 disabled={(selectedSection.sectionType === 'standing' && standingQuantity === 0) || (selectedSection.sectionType !== 'standing' && selectedSeats.length === 0)}
-                className="btn-primary w-full py-3 mt-4 disabled:opacity-40 disabled:cursor-not-allowed font-bold"
+                className="btn-primary w-full py-3 mt-4 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed font-black shadow-lg shadow-orange-500/20"
               >
                 {selectedSection.sectionType === 'standing'
                   ? (standingQuantity === 0 ? (lang === 'es' ? 'Selecciona al menos 1 entrada' : 'Select at least 1 ticket') : 'Continuar →')
@@ -587,12 +587,12 @@ export default function PurchasePage() {
 
           {/* ── STEP 3: Identification & Personal Info ── */}
           {step === 'info' && (
-            <div className="bg-white rounded-lg border border-gray-200 p-5 step-panel">
+            <div className="purchase-premium-panel p-5 step-panel">
               <h2 className="font-bold text-base text-[#0A375A] mb-1 border-b border-gray-100 pb-2">
                 {lang === 'es' ? 'Información personal' : 'Personal Information'}
               </h2>
               
-              <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm space-y-1">
+              <div className="bg-[rgba(10,55,90,0.04)] border border-[rgba(10,55,90,0.10)] rounded-lg p-3 mb-4 text-sm space-y-1">
                 <div><span className="text-gray-500">{lang === 'es' ? 'Nombre y apellido:' : 'Full Name:'}</span> <strong>{personalInfo.firstName} {personalInfo.lastName}</strong></div>
                 <div><span className="text-gray-500">Email:</span> <strong>{personalInfo.email}</strong></div>
                 <div><span className="text-gray-500">{lang === 'es' ? 'Teléfono:' : 'Phone:'}</span> <strong>{personalInfo.phone || (lang === 'es' ? 'No registrado' : 'Not registered')}</strong></div>
@@ -601,22 +601,22 @@ export default function PurchasePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Nombre:' : 'First Name:'}</label>
-                  <input className="input text-sm" value={personalInfo.firstName}
+                  <input className="input purchase-premium-input text-sm" value={personalInfo.firstName}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, firstName: e.target.value }))} required />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Apellido:' : 'Last Name:'}</label>
-                  <input className="input text-sm" value={personalInfo.lastName}
+                  <input className="input purchase-premium-input text-sm" value={personalInfo.lastName}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, lastName: e.target.value }))} required />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Correo electrónico:' : 'Email Address:'}</label>
-                  <input className="input text-sm" type="email" value={personalInfo.email}
+                  <input className="input purchase-premium-input text-sm" type="email" value={personalInfo.email}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, email: e.target.value }))} required />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Teléfono:' : 'Phone:'}</label>
-                  <input className="input text-sm" value={personalInfo.phone}
+                  <input className="input purchase-premium-input text-sm" value={personalInfo.phone}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, phone: e.target.value }))} />
                 </div>
               </div>
@@ -624,7 +624,7 @@ export default function PurchasePage() {
               <button
                 onClick={handleConfirmInfo}
                 disabled={invoiceLoading || !personalInfo.firstName || !personalInfo.lastName || !personalInfo.email}
-                className="btn-primary w-full py-3 mt-5 disabled:opacity-40"
+                className="btn-primary w-full py-3 mt-5 rounded-lg font-black disabled:opacity-40 shadow-lg shadow-orange-500/20"
               >
                 {invoiceLoading ? (lang === 'es' ? 'Calculando...' : 'Calculating...') : (lang === 'es' ? 'Continuar →' : 'Continue →')}
               </button>
@@ -637,7 +637,7 @@ export default function PurchasePage() {
 
           {/* ── STEP 4: Payment Summary ── */}
           {step === 'payment' && invoice && (
-            <div className="bg-white rounded-lg border border-gray-200 p-5 step-panel">
+            <div className="purchase-premium-panel p-5 step-panel">
               <h2 className="font-bold text-base text-[#0A375A] mb-4 border-b border-gray-100 pb-2">
                 {lang === 'es' ? 'Forma de pago' : 'Payment Method'}
               </h2>
@@ -648,7 +648,7 @@ export default function PurchasePage() {
                 <button
                   onClick={handlePay}
                   disabled={buying}
-                  className="btn-primary w-full py-3.5 text-sm disabled:opacity-50"
+                  className="btn-primary w-full py-3.5 rounded-lg text-sm font-black disabled:opacity-50 shadow-lg shadow-orange-500/20"
                 >
                   {buying ? (
                     <span className="flex items-center gap-2 justify-center">
@@ -679,7 +679,7 @@ export default function PurchasePage() {
           <div className="sticky top-20 space-y-4">
             {/* Real-time Order Summary */}
             {((selectedSection?.sectionType === 'standing' && standingQuantity > 0) || selectedSeats.length > 0) && (
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="purchase-premium-panel p-4">
                 <h3 className="font-bold text-sm text-gray-800 mb-2">
                   {selectedSection?.sectionType === 'standing'
                     ? (lang === 'es' ? `${standingQuantity} entrada${standingQuantity > 1 ? 's' : ''} seleccionada${standingQuantity > 1 ? 's' : ''}` : `${standingQuantity} ticket${standingQuantity > 1 ? 's' : ''} selected`)
@@ -723,7 +723,7 @@ export default function PurchasePage() {
                       </div>
                       <div className="flex justify-between font-bold text-sm mt-1 pt-1 border-t border-dashed border-gray-100">
                         <span>Total</span>
-                        <span className="text-primary-600">${Number(invoice.total).toFixed(2)} {event.currency || 'USD'}</span>
+                        <span className="text-[#F97316]">${Number(invoice.total).toFixed(2)} {event.currency || 'USD'}</span>
                       </div>
                     </div>
                   </>
@@ -733,7 +733,7 @@ export default function PurchasePage() {
 
             {/* Event Media */}
             {event.imageUrl && (
-              <div className="rounded-lg overflow-hidden border border-gray-200">
+              <div className="rounded-lg overflow-hidden border border-[rgba(10,55,90,0.12)] shadow-lg shadow-[rgba(10,55,90,0.10)]">
                 <img
                   src={getImageUrl(event.imageUrl)}
                   alt={event.title}

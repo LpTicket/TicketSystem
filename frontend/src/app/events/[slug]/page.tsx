@@ -258,7 +258,7 @@ export default function EventDetailPage() {
     router.push(`/events/${slug}/purchase`);
   };
 
-  if (loading) return <div className="max-w-7xl mx-auto px-4 py-8"><div className="h-64 skeleton rounded-lg mb-6" /><div className="h-6 skeleton rounded w-1/2 mb-3" /></div>;
+  if (loading) return <div className="event-premium-shell max-w-7xl mx-auto px-4 py-8"><div className="h-64 skeleton rounded-lg mb-6" /><div className="h-6 skeleton rounded w-1/2 mb-3" /></div>;
   if (!event) return null;
 
   const categoryInfo = getCategoryInfo(event.category) || {
@@ -310,7 +310,7 @@ export default function EventDetailPage() {
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Hero Image */}
-      <div className="relative rounded-lg overflow-hidden mb-8 aspect-[16/9] sm:aspect-[21/8]">
+      <div className="event-premium-hero relative overflow-hidden mb-8 aspect-[16/9] sm:aspect-[21/8]">
         {(event.bannerImageUrl || event.imageUrl) ? (
           <img 
             src={getImageUrl(event.bannerImageUrl || event.imageUrl)} 
@@ -319,7 +319,7 @@ export default function EventDetailPage() {
             style={{ objectPosition: event.bannerPosition || 'center' }}
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-r from-blue-600 to-primary-500 flex items-center justify-center">
+          <div className="w-full h-full bg-gradient-to-r from-[#0A375A] to-[#F97316] flex items-center justify-center">
             <span className="text-8xl">{categoryInfo.icon}</span>
           </div>
         )}
@@ -341,14 +341,14 @@ export default function EventDetailPage() {
 
           {/* Quick info */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="event-premium-info flex items-center gap-3 p-4">
               <HiOutlineCalendar className="w-5 h-5 text-[#0A375A] shrink-0" />
               <div>
                 <div className="text-xs text-gray-500">{t('dateLabel')}</div>
                 <div className="text-sm font-semibold text-gray-900">{formatDateInTimezone(event.eventDate, event.eventTimezone || 'UTC', lang === 'en' ? 'en-US' : 'es', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="event-premium-info flex items-center gap-3 p-4">
               <HiOutlineClock className="w-5 h-5 text-[#0A375A] shrink-0" />
               <div>
                 <div className="text-xs text-gray-500">{t('timeLabel')}</div>
@@ -358,11 +358,11 @@ export default function EventDetailPage() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="event-premium-info flex items-center gap-3 p-4">
               <HiOutlineLocationMarker className="w-5 h-5 text-[#0A375A] shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="text-xs text-gray-500">{t('venueLabel')}</div>
-                <div className="text-sm font-semibold text-gray-900 truncate">{event.venueName}</div>
+                <div className="text-sm font-black text-[#0A375A] truncate">{event.venueName}</div>
                 {event.venueAddress && (
                   <div className="text-xs text-gray-500 truncate mt-0.5">{event.venueAddress}</div>
                 )}
@@ -372,16 +372,16 @@ export default function EventDetailPage() {
 
           {/* Description */}
           {event.description && (
-            <div className="border border-gray-200 rounded-lg p-6">
-              <h2 className="font-bold text-lg text-gray-900 mb-3">{t('aboutEvent')}</h2>
+            <div className="event-premium-panel p-6">
+              <h2 className="event-premium-title font-black text-lg mb-3">{t('aboutEvent')}</h2>
               <div className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">{event.description}</div>
             </div>
           )}
 
           {/* Seat Map */}
           {seatMap.length > 0 && (
-            <div className="border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
-              <div className="font-bold text-base sm:text-lg text-gray-900 py-3 px-6 border-b border-gray-100 bg-gray-50/50">
+            <div className="event-premium-panel overflow-hidden">
+              <div className="font-black text-base sm:text-lg text-[#0A375A] py-3 px-6 border-b border-[rgba(10,55,90,0.10)] bg-[rgba(10,55,90,0.04)]">
                 <span>{lang === 'es' ? 'Selecciona tus asientos' : 'Select your seats'}</span>
               </div>
               <div className="p-6">
@@ -402,12 +402,12 @@ export default function EventDetailPage() {
         {/* Sidebar — Purchase */}
         <div className="lg:col-span-1">
           <div className="sticky top-20">
-            <div className="border border-gray-200 rounded-lg p-6 space-y-4 bg-white shadow-sm">
-              <h3 className="font-bold text-lg text-gray-900">{t('purchaseSummary')}</h3>
+            <div className="event-premium-panel p-6 space-y-4">
+              <h3 className="font-black text-lg text-[#0A375A]">{t('purchaseSummary')}</h3>
 
               {seatMap.length > 0 && (
-                <details className="group border border-gray-200 rounded-lg bg-gray-50 overflow-hidden">
-                  <summary className="px-4 py-3 text-sm font-semibold text-gray-700 cursor-pointer list-none flex justify-between items-center hover:bg-gray-100 transition-colors">
+                <details className="group border border-[rgba(10,55,90,0.12)] rounded-lg bg-white overflow-hidden shadow-sm">
+                  <summary className="px-4 py-3 text-sm font-bold text-[#0A375A] cursor-pointer list-none flex justify-between items-center hover:bg-orange-50 transition-colors">
                     <span>{lang === 'es' ? 'Ver Precios y Zonas' : 'View Prices & Zones'}</span>
                     <span className="text-gray-400 group-open:rotate-180 transition-transform text-xs">▼</span>
                   </summary>
@@ -499,13 +499,13 @@ export default function EventDetailPage() {
                     <hr className="border-gray-200" />
                     <div className="flex justify-between font-bold text-base">
                       <span className="text-gray-900">{t('total')}</span>
-                      <span className="text-primary-600">${(getTotalPrice() + getServiceFee() + getProcessingFee()).toFixed(2)} {event.currency || 'USD'}</span>
+                      <span className="text-[#F97316]">${(getTotalPrice() + getServiceFee() + getProcessingFee()).toFixed(2)} {event.currency || 'USD'}</span>
                     </div>
                   </div>
                 </>
               )}
 
-              <button onClick={handleBuyTickets} className="btn-primary w-full py-3 font-bold uppercase tracking-wide text-sm">
+              <button onClick={handleBuyTickets} className="btn-primary w-full py-3 rounded-lg font-black uppercase tracking-wide text-sm shadow-lg shadow-orange-500/20">
                 {t('buyTickets')}
               </button>
               <p className="text-[10px] text-gray-400 text-center">{t('securePayments')}</p>
@@ -536,7 +536,7 @@ export default function EventDetailPage() {
 
               <button 
                 onClick={() => setAlertMessage(null)}
-                className="w-full py-3 bg-[#f97316] hover:bg-[#ea580c] active:scale-[0.98] text-white font-extrabold rounded-xl transition-all shadow-md shadow-orange-500/20 text-sm tracking-wide uppercase"
+                className="w-full py-3 bg-[#F97316] hover:bg-[#ea650c] active:scale-[0.98] text-white font-extrabold rounded-lg transition-all shadow-md shadow-orange-500/20 text-sm tracking-wide uppercase"
               >
                 {lang === 'es' ? 'Entendido' : 'Got it'}
               </button>
