@@ -41,6 +41,36 @@ function formatEventDate(value?: string | null, timezone = 'America/Chicago') {
   }
 }
 
+function normalizeSlug(value: string) {
+  return decodeURIComponent(value || '').trim().toLowerCase();
+}
+
+async function fetchJson(url: string) {
+  const response = await fetch(url, { cache: 'no-store' });
+  if (!response.ok) return null;
+  return response.json();
+}
+
+async function findEventBySlug(slug: string) {
+  const cleanSlug = decodeURIComponent(slug || '').trim();
+  const candidates = Array.from(new Set([
+    cleanSlug,
+    cleanSlug.toLowerCase(),
+    cleanSlug.toUpperCase(),
+  ].filter(Boolean)));
+
+  for (const candidate of candidates) {
+    const event = await fetchJson(`${apiUrl.replace(/\/$/, '')}/events/${encodeURIComponent(candidate)}`);
+    if (event?.id) return event;
+  }
+
+  const listData = await fetchJson(`${apiUrl.replace(/\/$/, '')}/events?limit=200&includePast=true`);
+  const events = Array.isArray(listData?.events) ? listData.events : Array.isArray(listData) ? listData : [];
+  const target = normalizeSlug(cleanSlug);
+
+  return events.find((event: any) => normalizeSlug(event.slug || '') === target) || null;
+}
+
 function buildDescription(event: any) {
   const dateText = formatEventDate(event.eventDate, event.eventTimezone || 'America/Chicago');
   const venueText = cleanText(event.venueName || event.venueAddress);
@@ -63,20 +93,18 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const eventUrl = `${siteUrl}/events/${slug}`;
+  const requestedUrl = `${siteUrl}/events/${slug}`;
 
   try {
-    const response = await fetch(`${apiUrl.replace(/\/$/, '')}/events/${slug}`, {
-      cache: 'no-store',
-    });
+    const event = await findEventBySlug(slug);
 
-    if (!response.ok) throw new Error('Event not found');
-
-    const event = await response.json();
+    if (!event?.id) throw new Error('Event not found');
 
     const eventName = cleanText(event.title, 'Event');
     const venueText = cleanText(event.venueName || event.venueAddress);
     const dateText = formatEventDate(event.eventDate, event.eventTimezone || 'America/Chicago');
+    const canonicalSlug = event.slug || slug;
+    const eventUrl = `${siteUrl}/events/${canonicalSlug}`;
     const title = `${eventName} | LP Ticket`;
     const description = buildDescription(event);
     const image = resolveImage(event.bannerImageUrl || event.imageUrl);
@@ -146,12 +174,12 @@ export async function generateMetadata({
       title: 'Event | LP Ticket',
       description: 'Buy verified tickets securely on LP Ticket.',
       alternates: {
-        canonical: eventUrl,
+        canonical: requestedUrl,
       },
       openGraph: {
         title: 'Event | LP Ticket',
         description: 'Buy verified tickets securely on LP Ticket.',
-        url: eventUrl,
+        url: requestedUrl,
         siteName: 'LP Ticket',
         images: [{ url: `${siteUrl}/logo.png`, width: 1200, height: 630, alt: 'LP Ticket' }],
         type: 'website',
