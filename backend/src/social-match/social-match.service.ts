@@ -54,8 +54,8 @@ export class SocialMatchService {
     preference.interests = interests;
     preference.invisibleMode = Boolean(dto.invisibleMode);
     preference.shareLocation = Boolean(dto.shareLocation);
-    preference.instagram = dto.instagram?.trim() || null;
-    preference.industry = dto.industry?.trim() || null;
+    preference.instagram = dto.instagram?.trim() || undefined;
+    preference.industry = dto.industry?.trim() || undefined;
 
     return this.preferenceRepo.save(preference);
   }
