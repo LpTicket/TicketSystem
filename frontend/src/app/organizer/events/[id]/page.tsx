@@ -1210,7 +1210,7 @@ export default function EventDetailPage() {
               <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => setShowReminderModal(true)}
-                  className="flex items-center gap-1.5 bg-[#F97316] hover:bg-[#F97316] text-white text-xs font-bold py-1.5 px-3 rounded-lg transition-all shadow-sm"
+                  className="flex items-center gap-1.5 bg-[#F97316] hover:bg-[#EA6C10] text-white text-xs font-bold py-1.5 px-3 rounded-lg transition-all shadow-sm"
                   title={lang === 'es' ? 'Enviar recordatorio por email a los asistentes' : 'Send email reminder to attendees'}
                 >
                   <HiOutlineBell className="w-4 h-4" />
@@ -1220,12 +1220,16 @@ export default function EventDetailPage() {
                   <HiOutlineDownload className="w-4 h-4" />
                   {t('orgExportCSV')}
                 </button>
+                <button onClick={exportSalesCSV} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5">
+                  <HiOutlineDownload className="w-4 h-4" />
+                  {lang === 'es' ? 'Exportar Ventas' : 'Export Sales'}
+                </button>
               </div>
             </div>
             
             {attendees.length > 0 ? (() => {
               // Group attendees by email
-              const grouped: Record<string, { name: string; email: string; tickets: Attendee[] }> = {};
+              const grouped: Record<string, { name: string; email: string; tickets: Attendee[]; totalSpent: number; orderCount: number }> = {};
               attendees.forEach((a) => {
                 const email = a.user?.email || 'unknown';
                 if (!grouped[email]) {
@@ -1233,10 +1237,24 @@ export default function EventDetailPage() {
                     name: `${a.user?.firstName || ''} ${a.user?.lastName || ''}`.trim(),
                     email,
                     tickets: [],
+                    totalSpent: 0,
+                    orderCount: 0,
                   };
                 }
                 grouped[email].tickets.push(a);
               });
+
+              // Enrich with order totals
+              if (sales?.orders) {
+                sales.orders.forEach((o: any) => {
+                  const email = o.user?.email || 'unknown';
+                  if (grouped[email]) {
+                    grouped[email].totalSpent += Number(o.total || 0);
+                    grouped[email].orderCount += 1;
+                  }
+                });
+              }
+
               const groupedEntries = Object.values(grouped).sort((a, b) => b.tickets.length - a.tickets.length);
 
               return (
@@ -1274,8 +1292,14 @@ export default function EventDetailPage() {
 
                           {/* Stats */}
                           <div className="shrink-0 flex items-center gap-3">
+                            {group.totalSpent > 0 && (
+                              <div className="text-right hidden sm:block">
+                                <p className="text-sm font-black text-[#0A375A]">${group.totalSpent.toFixed(2)}</p>
+                                <p className="text-[10px] text-gray-400 font-semibold">{group.orderCount} {group.orderCount === 1 ? 'orden' : (lang === 'es' ? 'órdenes' : 'orders')}</p>
+                              </div>
+                            )}
                             <div className="text-right hidden sm:block">
-                              <p className="text-sm font-black text-[#0A375A]">{group.tickets.length}</p>
+                              <p className="text-sm font-black text-gray-700">{group.tickets.length}</p>
                               <p className="text-[10px] text-gray-400 font-semibold">{group.tickets.length === 1 ? 'ticket' : 'tickets'}</p>
                             </div>
                             <div className="flex gap-1">
@@ -1354,67 +1378,6 @@ export default function EventDetailPage() {
             })() : (
               <div className="px-6 py-12 text-center text-gray-500 text-sm">
                 {lang === 'es' ? 'No hay asistentes registrados' : 'No attendees registered'}
-              </div>
-            )}
-          </div>
-
-          {/* Orders Section */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                  <HiOutlineShoppingCart className="w-5 h-5 text-[rgba(10,55,90,0.05)]0" />
-                  {lang === 'es' ? 'Órdenes y Clientes' : 'Orders & Clients'}
-                </h3>
-                <p className="text-xs text-gray-500 mt-0.5">{sales?.orders?.length || 0} {lang === 'es' ? 'transacciones realizadas' : 'completed transactions'}</p>
-              </div>
-              <button onClick={exportSalesCSV} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 self-start sm:self-auto">
-                <HiOutlineDownload className="w-4 h-4" />
-                {lang === 'es' ? 'Exportar Ventas' : 'Export Sales'}
-              </button>
-            </div>
-
-            {sales?.orders && sales.orders.length > 0 ? (
-              <div className="overflow-x-auto">
-                {/* Desktop */}
-                <table className="w-full hidden md:table">
-                  <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Cliente' : 'Client'}</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Correo' : 'Email'}</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Boletos' : 'Qty'}</th>
-                      <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Total' : 'Total'}</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{lang === 'es' ? 'Fecha' : 'Date'}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {sales.orders.map((o: any) => (
-                      <tr key={o.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-sm text-gray-900 font-bold">{o.user?.firstName} {o.user?.lastName}</td>
-                        <td className="px-4 py-4 text-sm text-gray-600">{o.user?.email}</td>
-                        <td className="px-4 py-4 text-sm text-gray-900 font-semibold text-center">{o.ticketCount}</td>
-                        <td className="px-4 py-4 text-sm text-primary-600 font-bold text-right">${Number(o.total).toFixed(2)}</td>
-                        <td className="px-4 py-4 text-xs text-gray-500 text-center">{format(parseSafeDate(o.paidAt || o.createdAt), 'dd MMM yyyy')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {/* Mobile */}
-                <div className="md:hidden divide-y divide-gray-100">
-                  {sales.orders.map((o: any) => (
-                    <div key={o.id} className="p-4 flex justify-between items-center">
-                      <div>
-                        <p className="font-bold text-gray-900 text-sm">{o.user?.firstName} {o.user?.lastName}</p>
-                        <p className="text-xs text-gray-500">{o.ticketCount} {o.ticketCount === 1 ? 'boleto' : 'boletos'} · {format(parseSafeDate(o.paidAt || o.createdAt), 'dd MMM')}</p>
-                      </div>
-                      <p className="text-sm font-extrabold text-primary-600">${Number(o.total).toFixed(2)}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="px-6 py-12 text-center text-gray-500 text-sm">
-                {lang === 'es' ? 'No hay ventas registradas' : 'No sales recorded'}
               </div>
             )}
           </div>
