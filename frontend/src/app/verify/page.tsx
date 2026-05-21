@@ -337,7 +337,7 @@ export default function TicketScannerPage() {
           {validationResult && !validating && (
             <div className={`rounded-lg border p-6 text-center ${
               validationResult.valid
-                ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100'
+                ? 'border-emerald-400/40 bg-emerald-500/10 text-slate-950'
                 : 'border-red-400/40 bg-red-500/10 text-red-100'
             }`}>
               <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full text-white shadow-lg ${
@@ -349,12 +349,12 @@ export default function TicketScannerPage() {
               <p className="mt-5 text-[11px] font-black uppercase tracking-[0.24em]">
                 {validationResult.valid ? (lang === 'es' ? 'Aprobado' : 'Approved') : (lang === 'es' ? 'Denegado' : 'Denied')}
               </p>
-              <h3 className="mt-2 text-2xl font-black text-white">
+              <h3 className={`mt-2 text-2xl font-black ${validationResult.valid ? 'text-slate-950' : 'text-white'}`}>
                 {validationResult.valid
                   ? (lang === 'es' ? 'Entrada confirmada' : 'Entry confirmed')
                   : (lang === 'es' ? 'Boleto inválido' : 'Invalid ticket')}
               </h3>
-              <p className="mt-2 text-xs font-bold text-white/65">{validationResult.message}</p>
+              <p className={`mt-2 text-xs font-bold ${validationResult.valid ? 'text-slate-700' : 'text-white/65'}`}>{validationResult.message}</p>
 
               {validationResult.ticket && (
                 <div className="mt-5 rounded-lg border border-white/10 bg-white/95 p-4 text-left text-xs text-slate-800">
