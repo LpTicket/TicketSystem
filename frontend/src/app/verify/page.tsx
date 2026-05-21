@@ -413,7 +413,7 @@ export default function TicketScannerPage() {
                   <Link
                     href={`/verify/${validationResult.code}`}
                     target="_blank"
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-5 py-3 text-[10px] font-black uppercase tracking-wide text-white transition hover:bg-white/15"
+                    className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-[10px] font-black uppercase tracking-wide transition ${validationResult.valid ? 'border border-slate-300 bg-white text-slate-950 hover:bg-slate-50' : 'border border-white/10 bg-white/10 text-white hover:bg-white/15'}`}
                   >
                     <HiOutlineExternalLink className="h-4 w-4" />
                     {lang === 'es' ? 'Ver boleto digital' : 'View digital ticket'}
