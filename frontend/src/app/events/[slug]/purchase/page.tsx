@@ -320,11 +320,13 @@ export default function PurchasePage() {
     setInvoiceLoading(true);
     try {
       if (event?.id && socialMatchEnabled) {
-        await api.put(`/social-match/events/${event.id}/preferences`, {
+        api.put(`/social-match/events/${event.id}/preferences`, {
           enabled: true,
           interests: socialMatchInterests,
           invisibleMode: false,
           shareLocation: false,
+        }).catch(() => {
+          console.warn('Social Match preference could not be saved during checkout.');
         });
       }
 
