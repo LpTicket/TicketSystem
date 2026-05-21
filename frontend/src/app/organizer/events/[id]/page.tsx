@@ -1314,65 +1314,63 @@ export default function EventDetailPage() {
                     })}
                   </div>
 
-                  {/* Buyer Detail Modal Panel */}
+                  {/* Buyer Detail Modal */}
                   {selectedGroup && (
-                    <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setExpandedAttendee(null)}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setExpandedAttendee(null)}>
                       {/* Backdrop */}
-                      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" />
+                      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" />
 
-                      {/* Panel */}
+                      {/* Modal */}
                       <div
-                        className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col animate-slide-in-right"
+                        className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+                        style={{ maxHeight: '80vh', animation: 'scaleIn 0.2s ease-out' }}
                         onClick={(e) => e.stopPropagation()}
-                        style={{ animation: 'slideInRight 0.25s ease-out' }}
                       >
-                        {/* Panel Header */}
-                        <div className="shrink-0 bg-gradient-to-r from-[#0A375A] to-[#0F4C75] p-6 text-white">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white text-base font-black uppercase">
-                                {selectedGroup.name.charAt(0)}{selectedGroup.name.split(' ')[1]?.charAt(0) || ''}
-                              </div>
-                              <div>
-                                <h3 className="font-black text-lg">{selectedGroup.name}</h3>
-                                <p className="text-sm text-white/70">{selectedGroup.email}</p>
-                              </div>
+                        {/* Header */}
+                        <div className="shrink-0 px-6 py-5 border-b border-gray-100 flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4 min-w-0">
+                            <div className="shrink-0 w-11 h-11 rounded-full bg-[#0A375A] flex items-center justify-center text-white text-sm font-black uppercase">
+                              {selectedGroup.name.charAt(0)}{selectedGroup.name.split(' ')[1]?.charAt(0) || ''}
                             </div>
-                            <button
-                              onClick={() => setExpandedAttendee(null)}
-                              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-                            >
-                              <HiOutlineX className="w-4 h-4" />
-                            </button>
+                            <div className="min-w-0">
+                              <h3 className="font-black text-gray-900 text-base truncate">{selectedGroup.name}</h3>
+                              <p className="text-xs text-gray-500 truncate">{selectedGroup.email}</p>
+                            </div>
                           </div>
+                          <button
+                            onClick={() => setExpandedAttendee(null)}
+                            className="shrink-0 w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors text-gray-400 hover:text-gray-600"
+                          >
+                            <HiOutlineX className="w-5 h-5" />
+                          </button>
+                        </div>
 
-                          {/* KPI row */}
-                          <div className="grid grid-cols-3 gap-3 mt-5">
-                            <div className="bg-white/10 rounded-xl px-3 py-2.5 text-center">
-                              <p className="text-lg font-black">{selectedGroup.tickets.length}</p>
-                              <p className="text-[10px] text-white/60 font-bold uppercase">Tickets</p>
-                            </div>
-                            <div className="bg-white/10 rounded-xl px-3 py-2.5 text-center">
-                              <p className="text-lg font-black">${selectedGroup.totalSpent.toFixed(2)}</p>
-                              <p className="text-[10px] text-white/60 font-bold uppercase">{lang === 'es' ? 'Total' : 'Spent'}</p>
-                            </div>
-                            <div className="bg-white/10 rounded-xl px-3 py-2.5 text-center">
-                              <p className="text-lg font-black">{selectedGroup.tickets.filter(t => t.status === 'used').length}/{selectedGroup.tickets.length}</p>
-                              <p className="text-[10px] text-white/60 font-bold uppercase">{lang === 'es' ? 'Escaneados' : 'Scanned'}</p>
-                            </div>
+                        {/* KPI row */}
+                        <div className="shrink-0 grid grid-cols-3 gap-3 px-6 py-4 bg-gray-50 border-b border-gray-100">
+                          <div className="bg-white rounded-xl px-3 py-3 text-center border border-gray-100 shadow-sm">
+                            <p className="text-xl font-black text-[#0A375A]">{selectedGroup.tickets.length}</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Tickets</p>
+                          </div>
+                          <div className="bg-white rounded-xl px-3 py-3 text-center border border-gray-100 shadow-sm">
+                            <p className="text-xl font-black text-[#0A375A]">${selectedGroup.totalSpent.toFixed(2)}</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">{lang === 'es' ? 'Total' : 'Spent'}</p>
+                          </div>
+                          <div className="bg-white rounded-xl px-3 py-3 text-center border border-gray-100 shadow-sm">
+                            <p className="text-xl font-black text-[#0A375A]">{selectedGroup.tickets.filter(t => t.status === 'used').length}/{selectedGroup.tickets.length}</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">{lang === 'es' ? 'Escaneados' : 'Scanned'}</p>
                           </div>
                         </div>
 
                         {/* Ticket list - scrollable */}
                         <div className="flex-1 overflow-y-auto">
-                          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 sticky top-0">
+                          <div className="px-6 py-3 bg-white border-b border-gray-100 sticky top-0 z-10">
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                               {lang === 'es' ? `${selectedGroup.tickets.length} entradas compradas` : `${selectedGroup.tickets.length} tickets purchased`}
                             </p>
                           </div>
                           <div className="divide-y divide-gray-100">
                             {selectedGroup.tickets.map((ticket, idx) => (
-                              <div key={ticket.id} className="px-5 py-3.5 flex items-center gap-4 hover:bg-gray-50/50 transition-colors">
+                              <div key={ticket.id} className="px-6 py-3 flex items-center gap-4 hover:bg-gray-50/50 transition-colors">
                                 <div className="shrink-0 w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-[11px] font-bold text-gray-400">
                                   {idx + 1}
                                 </div>
