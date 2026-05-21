@@ -12,7 +12,8 @@ import { PaymentsModule } from './payments/payments.module';
 import { CommonModule } from './common/common.module';
 import { VenueTemplatesModule } from './venue-templates/venue-templates.module';
 import { AiSupportModule } from './ai-support/ai-support.module';
-import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate } from './database/entities';
+import { SocialMatchModule } from './social-match/social-match.module';
+import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference } from './database/entities';
 
 @Module({
   imports: [
@@ -32,7 +33,7 @@ import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, Pa
             password: config.get<string>('DB_PASSWORD'),
             database: config.get<string>('DB_NAME'),
           }),
-          entities: [User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate],
+          entities: [User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference],
           synchronize: true,
           logging: false,
           ssl: isProd ? { rejectUnauthorized: false } : false,
@@ -49,6 +50,7 @@ import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, Pa
     CommonModule,
     VenueTemplatesModule,
     AiSupportModule,
+    SocialMatchModule,
   ],
 })
 export class AppModule {}

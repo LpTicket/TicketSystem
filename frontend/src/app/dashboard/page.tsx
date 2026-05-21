@@ -23,8 +23,10 @@ import {
   HiOutlineCamera,
   HiOutlineX,
   HiOutlineDownload,
+  HiOutlineSparkles,
 } from 'react-icons/hi';
 import PaymentMethods from '@/components/dashboard/PaymentMethods';
+import SocialMatchPanel from '@/components/social/SocialMatchPanel';
 import { Suspense } from 'react';
 
 function DashboardPageBody() {
@@ -34,7 +36,7 @@ function DashboardPageBody() {
   const searchParams = useSearchParams();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [activeTab, setActiveTab] = useState<'tickets' | 'orders' | 'profile' | 'payments'>('tickets');
+  const [activeTab, setActiveTab] = useState<'tickets' | 'orders' | 'profile' | 'payments' | 'social'>('tickets');
   const [editMode, setEditMode] = useState(false);
   const [ticketsPage, setTicketsPage] = useState(1);
   const [ticketsPagination, setTicketsPagination] = useState({ total: 0, pages: 1 });
@@ -80,8 +82,8 @@ function DashboardPageBody() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'profile' || tabParam === 'orders' || tabParam === 'tickets' || tabParam === 'payments') {
-      setActiveTab(tabParam as 'tickets' | 'orders' | 'profile' | 'payments');
+    if (tabParam === 'profile' || tabParam === 'orders' || tabParam === 'tickets' || tabParam === 'payments' || tabParam === 'social') {
+      setActiveTab(tabParam as 'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'social');
     }
   }, [searchParams]);
 
@@ -190,6 +192,7 @@ function DashboardPageBody() {
     { id: 'tickets' as const, label: t('clientMyTickets'), icon: HiOutlineTicket, count: tickets.length },
     { id: 'orders' as const, label: t('clientHistory'), icon: HiOutlineShoppingCart, count: orders.length },
     { id: 'payments' as const, label: 'Pagos', icon: HiOutlineCreditCard },
+    { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles },
     { id: 'profile' as const, label: t('clientProfile'), icon: HiOutlineUser },
   ];
 
@@ -531,6 +534,12 @@ function DashboardPageBody() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'social' && (
+        <div className="max-w-3xl mx-auto">
+          <SocialMatchPanel lang={lang === 'es' ? 'es' : 'en'} />
         </div>
       )}
 

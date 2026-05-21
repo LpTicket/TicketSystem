@@ -7,3 +7,4 @@ export { Ticket, TicketStatus } from './ticket.entity';
 export { EventCategoryEntity } from './event-category.entity';
 export { PaymentMethod, PaymentMethodType } from './payment-method.entity';
 export { VenueTemplate } from './venue-template.entity';
+export { SocialMatchPreference, SocialMatchInterest } from './social-match-preference.entity';
