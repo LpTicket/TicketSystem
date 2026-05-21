@@ -157,7 +157,7 @@ export class EventsService {
     const event = await this.eventRepo.findOne({ where: { slug } });
     if (!event) throw new NotFoundException('Evento no encontrado');
 
-    const image = event.bannerImageUrl || event.imageUrl;
+    const image = event.imageUrl || event.bannerImageUrl;
     if (!image) throw new NotFoundException('Imagen del evento no encontrada');
 
     const match = image.match(/^data:([^;]+);base64,(.+)$/);

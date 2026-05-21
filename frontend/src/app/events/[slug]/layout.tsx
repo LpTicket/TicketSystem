@@ -110,7 +110,7 @@ export async function generateMetadata({
     const eventUrl = `${siteUrl}/events/${canonicalSlug}`;
     const title = `${eventName} | LP Ticket`;
     const description = buildDescription(event);
-    const image = resolveImage(event.bannerImageUrl || event.imageUrl, canonicalSlug);
+    const image = resolveImage(event.imageUrl || event.bannerImageUrl, canonicalSlug);
 
     return {
       title,
