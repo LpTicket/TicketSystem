@@ -44,10 +44,10 @@ export class SocialMatchPreference {
   shareLocation: boolean;
 
   @Column({ nullable: true, length: 120 })
-  instagram: string;
+  instagram: string | null;
 
   @Column({ nullable: true, length: 120 })
-  industry: string;
+  industry: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
