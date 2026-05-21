@@ -33,6 +33,8 @@ import {
   HiOutlineMail,
   HiOutlineBell,
   HiOutlineChartBar,
+  HiOutlineChevronDown,
+  HiOutlineChevronRight,
 } from 'react-icons/hi';
 import VenueMapBuilder from '@/components/events/VenueMapBuilder';
 import toast from 'react-hot-toast';
@@ -251,6 +253,7 @@ export default function EventDetailPage() {
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
   const [blockingActionLoading, setBlockingActionLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [expandedAttendee, setExpandedAttendee] = useState<string | null>(null);
 
   // Email Reminder States
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -1195,7 +1198,14 @@ export default function EventDetailPage() {
                   <HiOutlineUsers className="w-5 h-5 text-primary-500" />
                   {lang === 'es' ? 'Lista de Asistentes' : 'Attendee List'}
                 </h3>
-                <p className="text-xs text-gray-500 mt-0.5">{attendees.length} {lang === 'es' ? 'entradas individuales vendidas' : 'individual tickets sold'}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {(() => {
+                    const uniqueEmails = new Set(attendees.map(a => a.user?.email)).size;
+                    return lang === 'es'
+                      ? `${uniqueEmails} ${uniqueEmails === 1 ? 'comprador' : 'compradores'} · ${attendees.length} tickets`
+                      : `${uniqueEmails} ${uniqueEmails === 1 ? 'buyer' : 'buyers'} · ${attendees.length} tickets`;
+                  })()}
+                </p>
               </div>
               <div className="flex gap-2 flex-wrap">
                 <button
@@ -1213,57 +1223,135 @@ export default function EventDetailPage() {
               </div>
             </div>
             
-            {attendees.length > 0 ? (
-              <div className="overflow-x-auto">
-                {/* Desktop */}
-                <table className="w-full hidden md:table">
-                  <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">{t('orgAttendeeName')}</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{t('orgAttendeeEmail')}</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{t('orgAttendeeSection')}</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{t('orgAttendeeRow')}/{t('orgAttendeeSeat')}</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{t('orgAttendeeCode')}</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">{t('orgAttendeeStatus')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {attendees.map((a) => (
-                      <tr key={a.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-3 text-sm text-gray-900 font-medium">{a.user?.firstName} {a.user?.lastName}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{a.user?.email}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{a.sectionName}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 text-center">{formatSeatLabel({ rowLabel: a.rowLabel, seatNumber: a.seatNumber }, undefined, lang)}</td>
-                        <td className="px-4 py-3 text-xs font-mono text-primary-600">{a.ticketCode}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            a.status === 'active' ? 'bg-green-100 text-green-700' :
-                            a.status === 'used' ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
-                          }`}>
-                            {a.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {/* Mobile */}
-                <div className="md:hidden divide-y divide-gray-100">
-                  {attendees.map((a) => (
-                    <div key={a.id} className="p-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-gray-900 text-sm">{a.user?.firstName} {a.user?.lastName}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          a.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                        }`}>{a.status}</span>
+            {attendees.length > 0 ? (() => {
+              // Group attendees by email
+              const grouped: Record<string, { name: string; email: string; tickets: Attendee[] }> = {};
+              attendees.forEach((a) => {
+                const email = a.user?.email || 'unknown';
+                if (!grouped[email]) {
+                  grouped[email] = {
+                    name: `${a.user?.firstName || ''} ${a.user?.lastName || ''}`.trim(),
+                    email,
+                    tickets: [],
+                  };
+                }
+                grouped[email].tickets.push(a);
+              });
+              const groupedEntries = Object.values(grouped).sort((a, b) => b.tickets.length - a.tickets.length);
+
+              return (
+                <div className="divide-y divide-gray-100">
+                  {groupedEntries.map((group) => {
+                    const isExpanded = expandedAttendee === group.email;
+                    const usedCount = group.tickets.filter(t => t.status === 'used').length;
+                    const activeCount = group.tickets.filter(t => t.status === 'active').length;
+
+                    return (
+                      <div key={group.email}>
+                        {/* Clickable row */}
+                        <button
+                          onClick={() => setExpandedAttendee(isExpanded ? null : group.email)}
+                          className="w-full px-5 py-4 flex items-center gap-4 hover:bg-gray-50/80 transition-colors text-left group"
+                        >
+                          {/* Expand icon */}
+                          <div className="shrink-0 w-6 h-6 rounded-lg bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors">
+                            {isExpanded
+                              ? <HiOutlineChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                              : <HiOutlineChevronRight className="w-3.5 h-3.5 text-gray-400" />
+                            }
+                          </div>
+
+                          {/* Avatar */}
+                          <div className="shrink-0 w-9 h-9 rounded-full bg-[#0A375A] flex items-center justify-center text-white text-xs font-black uppercase">
+                            {group.name.charAt(0)}{group.name.split(' ')[1]?.charAt(0) || ''}
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-gray-900 truncate">{group.name}</p>
+                            <p className="text-xs text-gray-500 truncate">{group.email}</p>
+                          </div>
+
+                          {/* Stats */}
+                          <div className="shrink-0 flex items-center gap-3">
+                            <div className="text-right hidden sm:block">
+                              <p className="text-sm font-black text-[#0A375A]">{group.tickets.length}</p>
+                              <p className="text-[10px] text-gray-400 font-semibold">{group.tickets.length === 1 ? 'ticket' : 'tickets'}</p>
+                            </div>
+                            <div className="flex gap-1">
+                              {activeCount > 0 && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-green-100 text-green-700 text-[10px] font-bold">
+                                  {activeCount} {lang === 'es' ? 'act' : 'act'}
+                                </span>
+                              )}
+                              {usedCount > 0 && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500 text-[10px] font-bold">
+                                  {usedCount} {lang === 'es' ? 'esc' : 'used'}
+                                </span>
+                              )}
+                            </div>
+                            <span className="sm:hidden text-xs font-black text-[#0A375A]">{group.tickets.length}</span>
+                          </div>
+                        </button>
+
+                        {/* Expanded ticket detail panel */}
+                        {isExpanded && (
+                          <div className="px-5 pb-4 animate-fade-in">
+                            <div className="ml-10 bg-gray-50/80 rounded-xl border border-gray-100 overflow-hidden">
+                              {/* Desktop ticket table */}
+                              <table className="w-full hidden md:table">
+                                <thead>
+                                  <tr className="border-b border-gray-200/60">
+                                    <th className="text-left px-4 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('orgAttendeeSection')}</th>
+                                    <th className="text-center px-3 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('orgAttendeeRow')}/{t('orgAttendeeSeat')}</th>
+                                    <th className="text-left px-3 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('orgAttendeeCode')}</th>
+                                    <th className="text-center px-3 py-2.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('orgAttendeeStatus')}</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                  {group.tickets.map((ticket) => (
+                                    <tr key={ticket.id} className="hover:bg-white/60 transition-colors">
+                                      <td className="px-4 py-2.5 text-xs font-semibold text-gray-700">{ticket.sectionName}</td>
+                                      <td className="px-3 py-2.5 text-xs text-gray-600 text-center">{formatSeatLabel({ rowLabel: ticket.rowLabel, seatNumber: ticket.seatNumber }, undefined, lang)}</td>
+                                      <td className="px-3 py-2.5 text-[11px] font-mono text-[#0A375A] font-bold">{ticket.ticketCode}</td>
+                                      <td className="px-3 py-2.5 text-center">
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                          ticket.status === 'active' ? 'bg-green-100 text-green-700' :
+                                          ticket.status === 'used' ? 'bg-gray-200 text-gray-500' : 'bg-red-100 text-red-700'
+                                        }`}>
+                                          {ticket.status === 'active' ? (lang === 'es' ? 'Activo' : 'Active') : ticket.status === 'used' ? (lang === 'es' ? 'Escaneado' : 'Scanned') : ticket.status}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              {/* Mobile ticket list */}
+                              <div className="md:hidden divide-y divide-gray-100">
+                                {group.tickets.map((ticket) => (
+                                  <div key={ticket.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-bold text-gray-700 truncate">{ticket.sectionName}</p>
+                                      <p className="text-[11px] text-gray-500">{formatSeatLabel({ rowLabel: ticket.rowLabel, seatNumber: ticket.seatNumber }, undefined, lang)} · <span className="font-mono text-[#0A375A]">{ticket.ticketCode}</span></p>
+                                    </div>
+                                    <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                      ticket.status === 'active' ? 'bg-green-100 text-green-700' :
+                                      ticket.status === 'used' ? 'bg-gray-200 text-gray-500' : 'bg-red-100 text-red-700'
+                                    }`}>
+                                      {ticket.status === 'active' ? (lang === 'es' ? 'Activo' : 'Active') : ticket.status === 'used' ? (lang === 'es' ? 'Escaneado' : 'Scanned') : ticket.status}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <p className="text-xs text-gray-500">{a.user?.email}</p>
-                      <p className="text-xs text-gray-500 mt-1">{a.sectionName} · {formatSeatLabel({ rowLabel: a.rowLabel, seatNumber: a.seatNumber }, undefined, lang)} · <span className="font-mono text-primary-600">{a.ticketCode}</span></p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              </div>
-            ) : (
+              );
+            })() : (
               <div className="px-6 py-12 text-center text-gray-500 text-sm">
                 {lang === 'es' ? 'No hay asistentes registrados' : 'No attendees registered'}
               </div>
