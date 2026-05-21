@@ -196,15 +196,17 @@ export default function TicketScannerPage() {
           const qrCodeScanner = new Html5Qrcode('reader');
           setScannerInstance(qrCodeScanner);
 
+          const isMobileScanner = window.innerWidth <= 640;
+
           await qrCodeScanner.start(
             { facingMode: 'environment' },
             {
               fps: 30,
               qrbox: (width, height) => {
-                const size = Math.min(width, height) * 0.82;
+                const size = Math.min(width, height) * (isMobileScanner ? 0.62 : 0.82);
                 return { width: size, height: size };
               },
-              aspectRatio: 1.0,
+              aspectRatio: isMobileScanner ? 1.25 : 1.0,
             },
             async (decodedText) => {
               try {
@@ -294,9 +296,9 @@ export default function TicketScannerPage() {
           {!validationResult && !validating && (
             <div className="relative overflow-hidden rounded-lg border border-[rgba(10,55,90,0.12)] bg-white text-[#0A375A] shadow-sm">
               {isScanning ? (
-                <div className="relative w-full overflow-hidden">
+                <div className="scanner-camera-frame relative w-full overflow-hidden">
                   <div id="reader" className="relative w-full overflow-hidden" />
-                  <div className="pointer-events-none absolute inset-x-8 top-8 bottom-8 rounded-lg border-2 border-[#F97316]/80 shadow-[0_0_30px_rgba(249,115,22,0.30)]" />
+                  <div className="pointer-events-none absolute inset-x-6 top-6 bottom-16 rounded-lg border-2 border-[#F97316]/80 shadow-[0_0_30px_rgba(249,115,22,0.30)] sm:inset-x-8 sm:top-8 sm:bottom-8" />
                   <div className="absolute left-8 right-8 top-0 h-0.5 bg-[#F97316] shadow-[0_0_18px_#F97316] animate-[scan_2.1s_infinite] pointer-events-none z-10" />
 
                   <button
@@ -584,6 +586,21 @@ export default function TicketScannerPage() {
           display: flex !important;
           justify-content: center !important;
           align-items: center !important;
+        }
+        @media (max-width: 640px) {
+          .scanner-camera-frame,
+          #reader,
+          #reader__scan_region {
+            height: min(58vh, 430px) !important;
+            min-height: 300px !important;
+            max-height: 430px !important;
+          }
+          #reader video {
+            height: 100% !important;
+            min-height: 300px !important;
+            max-height: 430px !important;
+            object-fit: cover !important;
+          }
         }
         @keyframes scan {
           0% { top: 8%; }
