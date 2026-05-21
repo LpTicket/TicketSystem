@@ -616,9 +616,9 @@ export default function EventDetailPage() {
   }, {});
 
   const today = new Date();
-  const recentDayKeys = Array.from({ length: 7 }).map((_, index) => {
+  const recentDayKeys = Array.from({ length: 3 }).map((_, index) => {
     const d = new Date(today);
-    d.setDate(today.getDate() - (6 - index));
+    d.setDate(today.getDate() - (2 - index));
     return getDateKeyInTimezone(d, analyticsTimezone);
   });
 
