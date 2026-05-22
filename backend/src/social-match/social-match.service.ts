@@ -274,15 +274,45 @@ export class SocialMatchService {
       order: { updatedAt: 'DESC' },
     });
 
+    const accepted = connections.filter((c) => c.status === SocialMatchConnectionStatus.ACCEPTED);
+    const otherPrefConditions = accepted.map((c) => ({
+      userId: c.requesterId === userId ? c.receiverId : c.requesterId,
+      eventId: c.eventId,
+    }));
+    const myPrefConditions = accepted.map((c) => ({ userId, eventId: c.eventId }));
+    const [otherPrefs, myPrefs] = accepted.length
+      ? await Promise.all([
+          this.preferenceRepo.find({ where: otherPrefConditions }),
+          this.preferenceRepo.find({ where: myPrefConditions }),
+        ])
+      : [[], []];
+
     return connections.map((connection) => {
       const otherUser = connection.requesterId === userId ? connection.receiver : connection.requester;
+      const isAccepted = connection.status === SocialMatchConnectionStatus.ACCEPTED;
+
+      let profile: { fullName: string; industry: string | null; interests: string[]; instagram: string | null } | null = null;
+      if (isAccepted && otherUser) {
+        const otherPref = otherPrefs.find((p) => p.userId === otherUser.id && p.eventId === connection.eventId);
+        const myPref = myPrefs.find((p) => p.eventId === connection.eventId);
+        profile = {
+          fullName: `${otherUser.firstName} ${otherUser.lastName || ''}`.trim(),
+          industry: otherPref?.industry ?? null,
+          interests: otherPref?.interests ?? [],
+          instagram: otherPref?.shareInstagram && myPref?.shareInstagram ? (otherPref?.instagram ?? null) : null,
+        };
+      }
+
       return {
         id: connection.id,
         eventId: connection.eventId,
         eventTitle: connection.event?.title || 'Evento',
         status: connection.status,
         direction: connection.requesterId === userId ? 'outgoing' : 'incoming',
-        otherUserName: otherUser ? `${otherUser.firstName} ${otherUser.lastName?.[0] || ''}.`.trim() : 'Asistente',
+        otherUserName: isAccepted && profile
+          ? profile.fullName
+          : (otherUser ? `${otherUser.firstName} ${otherUser.lastName?.[0] || ''}.`.trim() : 'Asistente'),
+        profile,
         createdAt: connection.createdAt,
         updatedAt: connection.updatedAt,
       };

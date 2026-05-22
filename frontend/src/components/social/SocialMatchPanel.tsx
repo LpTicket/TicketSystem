@@ -24,6 +24,7 @@ import {
   SocialMatchSummary,
   socialMatchInterestOptions,
 } from '@/lib/socialMatch';
+import type { SocialMatchConnectionProfile } from '@/lib/socialMatch';
 import SocialMatchSwiper from './SocialMatchSwiper';
 
 type Props = {
@@ -41,6 +42,35 @@ const emptyPreference = (eventId: string): SocialMatchPreference => ({
   shareInstagram: false,
   shareLocation: false,
 });
+
+function ConnectionProfileCard({ profile, lang }: { profile: SocialMatchConnectionProfile; lang: 'es' | 'en' }) {
+  const hasDetails = profile.industry || (profile.interests && profile.interests.length > 0) || profile.instagram;
+  if (!hasDetails) return null;
+  return (
+    <div className="mt-3 pt-3 border-t border-orange-100 space-y-2">
+      {profile.industry && (
+        <p className="text-xs text-gray-600">
+          <span className="font-semibold">{lang === 'es' ? 'Industria' : 'Industry'}:</span> {profile.industry}
+        </p>
+      )}
+      {profile.interests && profile.interests.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {profile.interests.map((interest) => {
+            const opt = socialMatchInterestOptions.find((o) => o.id === interest);
+            return (
+              <span key={interest} className="px-2 py-0.5 rounded-full bg-orange-100 text-[#F97316] text-xs font-semibold">
+                {opt ? (lang === 'es' ? opt.es : opt.en) : interest}
+              </span>
+            );
+          })}
+        </div>
+      )}
+      {profile.instagram && (
+        <p className="text-xs font-semibold text-[#F97316]">@{profile.instagram.replace(/^@/, '')}</p>
+      )}
+    </div>
+  );
+}
 
 export default function SocialMatchPanel({ lang }: Props) {
   const [loading, setLoading] = useState(true);
@@ -375,25 +405,30 @@ export default function SocialMatchPanel({ lang }: Props) {
             <p className="text-xs font-bold uppercase tracking-wider text-[#0A375A] mb-3">{copy.requests}</p>
             <div className="space-y-3">
               {connections.map((connection) => (
-                <div key={connection.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
+                <div key={connection.id} className={`rounded-xl border p-4 ${connection.status === 'accepted' ? 'border-orange-100 bg-orange-50/40' : 'border-gray-100 bg-gray-50'}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="min-w-0">
                       <p className="font-bold text-gray-900">{connection.otherUserName}</p>
-                      <p className="text-xs text-gray-500">{connection.eventTitle} · {connection.status}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{connection.eventTitle} · {connection.status}</p>
                     </div>
-                    {connection.status === 'pending' && connection.direction === 'incoming' && (
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => handleUpdateConnection(connection.id, 'accepted')} className="px-3 py-2 rounded-lg bg-[#0A375A] text-white text-xs font-bold">{copy.accept}</button>
-                        <button type="button" onClick={() => handleUpdateConnection(connection.id, 'declined')} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 text-xs font-bold">{copy.decline}</button>
-                      </div>
-                    )}
-                    {connection.status === 'pending' && connection.direction === 'outgoing' && (
-                      <button type="button" onClick={() => handleUpdateConnection(connection.id, 'cancelled')} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 text-xs font-bold">{copy.cancel}</button>
-                    )}
-                    {connection.status === 'accepted' && (
-                      <button type="button" onClick={() => openChat(connection.id)} className="px-3 py-2 rounded-lg bg-[#F97316] text-white text-xs font-bold">{copy.chat}</button>
-                    )}
+                    <div className="flex gap-2 shrink-0">
+                      {connection.status === 'pending' && connection.direction === 'incoming' && (
+                        <>
+                          <button type="button" onClick={() => handleUpdateConnection(connection.id, 'accepted')} className="px-3 py-2 rounded-lg bg-[#0A375A] text-white text-xs font-bold">{copy.accept}</button>
+                          <button type="button" onClick={() => handleUpdateConnection(connection.id, 'declined')} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 text-xs font-bold">{copy.decline}</button>
+                        </>
+                      )}
+                      {connection.status === 'pending' && connection.direction === 'outgoing' && (
+                        <button type="button" onClick={() => handleUpdateConnection(connection.id, 'cancelled')} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 text-xs font-bold">{copy.cancel}</button>
+                      )}
+                      {connection.status === 'accepted' && (
+                        <button type="button" onClick={() => openChat(connection.id)} className="px-3 py-2 rounded-lg bg-[#F97316] text-white text-xs font-bold">{copy.chat}</button>
+                      )}
+                    </div>
                   </div>
+                  {connection.status === 'accepted' && connection.profile && (
+                    <ConnectionProfileCard profile={connection.profile} lang={lang} />
+                  )}
                 </div>
               ))}
             </div>

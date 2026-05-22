@@ -43,6 +43,13 @@ export type SocialMatchSuggestion = {
   score: number;
 };
 
+export type SocialMatchConnectionProfile = {
+  fullName: string;
+  industry: string | null;
+  interests: string[];
+  instagram: string | null;
+};
+
 export type SocialMatchConnection = {
   id: string;
   eventId: string;
@@ -50,6 +57,7 @@ export type SocialMatchConnection = {
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   direction: 'incoming' | 'outgoing';
   otherUserName: string;
+  profile: SocialMatchConnectionProfile | null;
   createdAt: string;
   updatedAt: string;
 };
