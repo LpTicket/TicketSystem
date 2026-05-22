@@ -45,6 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/events', label: t('adminEvents'), icon: HiOutlineCalendar },
     { href: '/admin/users', label: t('adminUsers'), icon: HiOutlineUsers },
     { href: '/admin/categories', label: t('adminCategories'), icon: HiOutlineTag },
+    { href: '/admin/special-codes', label: lang === 'es' ? 'Códigos especiales' : 'Special codes', icon: HiOutlineTag },
   ];
 
   const isActive = (href: string) => {
