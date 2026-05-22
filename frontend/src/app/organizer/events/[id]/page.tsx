@@ -261,17 +261,45 @@ function CreatorRewardsBlock({
   const [saving, setSaving] = useState(false);
   const [codes, setCodes] = useState<EventCode[]>([]);
   const [loadingCodes, setLoadingCodes] = useState(true);
+  const [codeInputs, setCodeInputs] = useState<Record<string, string>>({});
+  const [codeSaving, setCodeSaving] = useState<string | null>(null);
 
   const ticketSections = sections.filter(s => s.sectionType !== 'stage' && s.sectionType !== 'decor');
 
-  useEffect(() => {
+  const loadCodes = () => {
     import('@/lib/api').then(({ default: api }) =>
       api.get(`/special-codes/by-event/${event.id}`)
-        .then(r => setCodes(r.data || []))
+        .then(r => {
+          const data: EventCode[] = r.data || [];
+          setCodes(data);
+          const inputs: Record<string, string> = {};
+          data.forEach(c => { inputs[c.id] = Number(c.commissionFixed || 0).toFixed(2); });
+          setCodeInputs(inputs);
+        })
         .catch(() => setCodes([]))
         .finally(() => setLoadingCodes(false))
     );
-  }, [event.id]);
+  };
+
+  useEffect(() => { loadCodes(); }, [event.id]);
+
+  const handleSaveCodeReward = async (code: EventCode) => {
+    const amount = parseFloat(codeInputs[code.id] ?? '0');
+    if (isNaN(amount) || amount < 0) return;
+    setCodeSaving(code.id);
+    try {
+      const { default: apiLib } = await import('@/lib/api');
+      await apiLib.patch(`/special-codes/by-event/${event.id}/${code.id}/reward`, { commissionFixed: Math.round(amount * 100) / 100 });
+      const toastLib = (await import('react-hot-toast')).default;
+      toastLib.success(lang === 'es' ? 'Recompensa actualizada' : 'Reward updated');
+      loadCodes();
+    } catch (err: any) {
+      const toastLib = (await import('react-hot-toast')).default;
+      toastLib.error(err.response?.data?.message || 'Error');
+    } finally {
+      setCodeSaving(null);
+    }
+  };
 
   const calcEarning = (ticketPrice: number) => {
     const v = parseFloat(value) || 0;
@@ -308,8 +336,7 @@ function CreatorRewardsBlock({
   const activeReward = Number(event.creatorCommission || 0);
   const pendingReward = event.pendingCreatorCommission;
 
-  const effectiveReward = (code: EventCode) =>
-    Number(code.commissionFixed) > 0 ? Number(code.commissionFixed) : activeReward;
+
 
   return (
     <div className="space-y-5">
@@ -355,11 +382,10 @@ function CreatorRewardsBlock({
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {codes.map(code => {
-              const reward = effectiveReward(code);
-              const fromCode = Number(code.commissionFixed) > 0;
-              return (
-                <div key={code.id} className="flex items-center gap-3 px-4 py-3.5">
+            {codes.map(code => (
+              <div key={code.id} className="px-4 py-3.5 space-y-2">
+                {/* Creator info */}
+                <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 text-sm font-bold text-gray-500">
                     {(code.owner?.firstName?.[0] || '?').toUpperCase()}
                   </div>
@@ -367,19 +393,44 @@ function CreatorRewardsBlock({
                     <p className="text-sm font-bold text-gray-900 truncate">
                       {code.owner ? `${code.owner.firstName} ${code.owner.lastName}` : lang === 'es' ? 'Sin asignar' : 'Unassigned'}
                     </p>
-                    <p className="text-[10px] text-gray-400 font-mono mt-0.5">{code.code}</p>
+                    <p className="text-[10px] text-gray-400 font-mono">{code.code}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-base font-extrabold text-emerald-700">${reward.toFixed(2)}</p>
+                    <p className="text-base font-extrabold text-emerald-700">
+                      ${Number(codeInputs[code.id] ?? code.commissionFixed ?? 0).toFixed(2)}
+                    </p>
                     <p className="text-[10px] text-gray-400">
-                      {fromCode
+                      {Number(code.commissionFixed) > 0
                         ? (lang === 'es' ? 'monto propio' : 'own rate')
-                        : (lang === 'es' ? 'monto del evento' : 'event rate')}
+                        : (lang === 'es' ? 'usa base evento' : 'uses event base')}
                     </p>
                   </div>
                 </div>
-              );
-            })}
+                {/* Inline input */}
+                <div className="flex gap-2 items-center pl-12">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">$</span>
+                    <input
+                      type="number" step="0.01" min="0"
+                      value={codeInputs[code.id] ?? '0'}
+                      onChange={e => setCodeInputs(p => ({ ...p, [code.id]: e.target.value }))}
+                      className="w-full pl-6 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-orange-400"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={codeSaving === code.id}
+                    onClick={() => handleSaveCodeReward(code)}
+                    className="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 shrink-0"
+                  >
+                    {codeSaving === code.id
+                      ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : (lang === 'es' ? 'Guardar' : 'Save')}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

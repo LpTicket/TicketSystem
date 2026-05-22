@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, IsNull, Repository } from 'typeorm';
 import { Event, Order, OrderStatus, SpecialCode, SpecialCodePayout, User } from '../database/entities';
@@ -136,6 +136,16 @@ export class SpecialCodesService {
         })),
       };
     });
+  }
+
+  async updateCodeRewardByOrganizer(codeId: string, eventId: string, organizerId: string, commissionFixed: number) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId, organizerId } });
+    if (!event) throw new ForbiddenException('No tienes acceso a este evento.');
+    const code = await this.specialCodeRepo.findOne({ where: { id: codeId, eventId } });
+    if (!code) throw new NotFoundException('Código no encontrado.');
+    if (commissionFixed < 0) throw new BadRequestException('El monto no puede ser negativo.');
+    code.commissionFixed = commissionFixed;
+    return this.specialCodeRepo.save(code);
   }
 
   getMyCodes(ownerUserId: string) {

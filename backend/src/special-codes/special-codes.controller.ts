@@ -16,6 +16,17 @@ export class SpecialCodesController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Patch('by-event/:eventId/:codeId/reward')
+  updateCodeReward(
+    @Param('eventId') eventId: string,
+    @Param('codeId') codeId: string,
+    @Body() dto: { commissionFixed: number },
+    @Request() req: any,
+  ) {
+    return this.specialCodesService.updateCodeRewardByOrganizer(codeId, eventId, req.user.id, dto.commissionFixed);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Get('me')
   getMyCodes(@Request() req: any) {
     return this.specialCodesService.getMyCodes(req.user.id);
