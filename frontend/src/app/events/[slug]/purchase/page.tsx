@@ -14,7 +14,7 @@ import { VenueSection, Seat, SeatStatus } from '@/types';
 import { useLang } from '@/context/LanguageContext';
 import {
   HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineChevronRight,
-  HiOutlineCheckCircle, HiOutlineTrash, HiOutlineTag,
+  HiOutlineCheckCircle, HiOutlineTrash,
 } from 'react-icons/hi';
 import SeatMapInteractive from '@/components/events/SeatMapInteractive';
 import ReservationTimer from '@/components/events/ReservationTimer';
@@ -94,7 +94,6 @@ export default function PurchasePage() {
     email: '',
     phone: '',
   });
-  const [specialCode, setSpecialCode] = useState('');
 
   // Step 4: Final Invoice and Payment state
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
@@ -339,11 +338,6 @@ export default function PurchasePage() {
         payload.quantity = standingQuantity;
       } else {
         payload.seatIds = selectedSeats.map((s) => s.id);
-      }
-
-      const normalizedSpecialCode = specialCode.trim().toUpperCase();
-      if (normalizedSpecialCode) {
-        payload.specialCode = normalizedSpecialCode;
       }
 
       const { data } = await api.post('/orders/checkout', payload);
@@ -624,21 +618,6 @@ export default function PurchasePage() {
                   <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Teléfono:' : 'Phone:'}</label>
                   <input className="input purchase-premium-input text-sm" value={personalInfo.phone}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, phone: e.target.value }))} />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="flex items-center gap-2 text-xs font-medium text-gray-600 mb-1">
-                    <HiOutlineTag className="w-4 h-4 text-[#F97316]" />
-                    {lang === 'es' ? 'Código especial (opcional)' : 'Special code (optional)'}
-                  </label>
-                  <input
-                    className="input purchase-premium-input text-sm uppercase"
-                    value={specialCode}
-                    onChange={(e) => setSpecialCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
-                    placeholder={lang === 'es' ? 'Ej. MARIA' : 'Ex. MARIA'}
-                  />
-                  <p className="text-[10px] text-gray-400 mt-1">
-                    {lang === 'es' ? 'No cambia el total. Solo registra la venta con ese código.' : 'This does not change the total. It only tracks the sale with that code.'}
-                  </p>
                 </div>
               </div>
 

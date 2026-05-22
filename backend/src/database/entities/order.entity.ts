@@ -9,7 +9,6 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 import { Event } from './event.entity';
-import { SpecialCode } from './special-code.entity';
 
 /**
  * OrderStatus
@@ -89,23 +88,6 @@ export class Order {
 
   @Column({ type: 'timestamp', nullable: true })
   paidAt: Date | null;
-
-  @Column({ nullable: true, length: 80 })
-  specialCode: string | null;
-
-  @Column('uuid', { nullable: true })
-  specialCodeOwnerId: string | null;
-
-  @ManyToOne(() => User, { nullable: true })
-  @JoinColumn({ name: 'specialCodeOwnerId' })
-  specialCodeOwner: User | null;
-
-  @Column('uuid', { nullable: true })
-  specialCodeId: string | null;
-
-  @ManyToOne(() => SpecialCode, { nullable: true })
-  @JoinColumn({ name: 'specialCodeId' })
-  specialCodeEntity: SpecialCode | null;
 
   @CreateDateColumn()
   createdAt: Date;
