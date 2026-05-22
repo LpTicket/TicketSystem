@@ -100,11 +100,41 @@ export class SpecialCodesService {
     });
   }
 
-  getCodesByEvent(eventId: string) {
-    return this.specialCodeRepo.find({
+  async getCodesByEvent(eventId: string) {
+    const codes = await this.specialCodeRepo.find({
       where: { eventId },
       relations: ['owner'],
       order: { createdAt: 'ASC' },
+    });
+
+    const orders = await this.orderRepo.find({
+      where: { eventId, status: OrderStatus.PAID, specialCode: Not(IsNull()) },
+      relations: ['user'],
+      order: { paidAt: 'DESC', createdAt: 'DESC' },
+    });
+
+    return codes.map((code) => {
+      const codeOrders = orders.filter((order) => String(order.specialCode || '').toUpperCase() === code.code);
+      const commission = Number(code.commissionFixed || 0);
+      const ticketCount = codeOrders.reduce((sum, order) => sum + Number(order.ticketCount || 1), 0);
+
+      return {
+        ...code,
+        ticketCount,
+        totalGenerated: Math.round(ticketCount * commission * 100) / 100,
+        orders: codeOrders.map((order) => ({
+          id: order.id,
+          ticketCount: Number(order.ticketCount || 1),
+          total: Number(order.total || 0),
+          paidAt: order.paidAt || order.createdAt,
+          commissionGenerated: Math.round(Number(order.ticketCount || 1) * commission * 100) / 100,
+          buyer: order.user ? {
+            firstName: order.user.firstName,
+            lastName: order.user.lastName,
+            email: order.user.email,
+          } : null,
+        })),
+      };
     });
   }
 
