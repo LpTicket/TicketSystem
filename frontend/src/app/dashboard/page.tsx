@@ -23,10 +23,10 @@ import {
   HiOutlineCamera,
   HiOutlineX,
   HiOutlineDownload,
-  HiOutlineSparkles,\n  HiOutlineTag,
+  HiOutlineSparkles,
 } from 'react-icons/hi';
 import PaymentMethods from '@/components/dashboard/PaymentMethods';
-import SocialMatchPanel from '@/components/social/SocialMatchPanel';\nimport { getMySpecialCodeSales, SpecialCodeSale } from '@/lib/specialCodes';
+import SocialMatchPanel from '@/components/social/SocialMatchPanel';
 import { Suspense } from 'react';
 
 function DashboardPageBody() {
@@ -35,9 +35,9 @@ function DashboardPageBody() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);\n  const [specialCodeSales, setSpecialCodeSales] = useState<SpecialCodeSale[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [pendingSocialRequests, setPendingSocialRequests] = useState(0);
-  const [activeTab, setActiveTab] = useState<'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'codes'>('tickets');
+  const [activeTab, setActiveTab] = useState<'tickets' | 'orders' | 'profile' | 'payments' | 'social'>('tickets');
   const [editMode, setEditMode] = useState(false);
   const [ticketsPage, setTicketsPage] = useState(1);
   const [ticketsPagination, setTicketsPagination] = useState({ total: 0, pages: 1 });
@@ -83,8 +83,8 @@ function DashboardPageBody() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'profile' || tabParam === 'orders' || tabParam === 'tickets' || tabParam === 'payments' || tabParam === 'social' || tabParam === 'codes') {
-      setActiveTab(tabParam as 'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'codes');
+    if (tabParam === 'profile' || tabParam === 'orders' || tabParam === 'tickets' || tabParam === 'payments' || tabParam === 'social') {
+      setActiveTab(tabParam as 'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'social');
     }
   }, [searchParams]);
 
@@ -115,13 +115,6 @@ function DashboardPageBody() {
         const social = await api.get('/social-match/me');
         const pending = (social.data.connections || []).filter((connection: any) => connection.status === 'pending' && connection.direction === 'incoming').length;
         setPendingSocialRequests(pending);
-      } catch (error) {
-        console.error(error);
-      }
-
-      try {
-        const sales = await getMySpecialCodeSales();
-        setSpecialCodeSales(sales);
       } catch (error) {
         console.error(error);
       }
@@ -206,9 +199,9 @@ function DashboardPageBody() {
 
   const tabs = [
     { id: 'tickets' as const, label: t('clientMyTickets'), icon: HiOutlineTicket, count: tickets.length },
-    { id: 'orders' as const, label: t('clientHistory'), icon: HiOutlineShoppingCart, count: orders.length },\n    { id: 'codes' as const, label: lang === 'es' ? 'Mis ventas por código' : 'Code sales', icon: HiOutlineTag, count: specialCodeSales.length },
+    { id: 'orders' as const, label: t('clientHistory'), icon: HiOutlineShoppingCart, count: orders.length },
     { id: 'payments' as const, label: 'Pagos', icon: HiOutlineCreditCard },
-    { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles,\n  HiOutlineTag, count: pendingSocialRequests },
+    { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles, count: pendingSocialRequests },
     { id: 'profile' as const, label: t('clientProfile'), icon: HiOutlineUser },
   ];
 
@@ -401,75 +394,6 @@ function DashboardPageBody() {
           <div className="dashboard-premium-card text-center py-16">
             <HiOutlineShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 font-medium">{t('clientNoOrders')}</p>
-          </div>
-        )
-      )}
-
-      {activeTab === 'codes' && (
-        specialCodeSales.length > 0 ? (
-          <div className="space-y-4">
-            <div className="dashboard-premium-card p-5">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="font-black text-lg text-[#0A375A]">
-                    {lang === 'es' ? 'Mis ventas por código' : 'My code sales'}
-                  </h2>
-                  <p className="text-xs text-slate-500 font-semibold mt-1">
-                    {lang === 'es'
-                      ? 'Compras rastreadas con tus códigos especiales. Esta etapa no aplica descuentos.'
-                      : 'Purchases tracked with your special codes. This stage does not apply discounts.'}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-bold text-slate-400 uppercase">{lang === 'es' ? 'Total vendido' : 'Total sold'}</p>
-                  <p className="text-xl font-black text-[#F97316]">
-                    ${specialCodeSales.reduce((sum, sale) => sum + Number(sale.total || 0), 0).toFixed(2)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="dashboard-premium-card overflow-hidden">
-              <div className="divide-y divide-gray-100">
-                {specialCodeSales.map((sale) => (
-                  <div key={sale.id} className="px-5 py-4 hover:bg-[rgba(10,55,90,0.04)] transition-colors">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="px-2 py-1 rounded-md bg-orange-50 text-[#F97316] text-xs font-black tracking-wide">
-                            {sale.code}
-                          </span>
-                          <h4 className="font-black text-[#0A375A] text-sm truncate">{sale.eventTitle || 'Evento'}</h4>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1 font-semibold">
-                          {sale.buyerName || 'Cliente'} · {sale.buyerEmail || '—'}
-                        </p>
-                        <p className="text-[11px] text-slate-400 mt-1 font-medium">
-                          {format(parseSafeDate(sale.purchasedAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })}
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 lg:text-right shrink-0">
-                        <div>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase">{lang === 'es' ? 'Tickets' : 'Tickets'}</p>
-                          <p className="font-black text-slate-800">{sale.ticketCount}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase">{lang === 'es' ? 'Vendido' : 'Sold'}</p>
-                          <p className="font-black text-slate-900">${Number(sale.total || 0).toFixed(2)} {sale.currency || 'USD'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="dashboard-premium-card text-center py-16">
-            <HiOutlineTag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600 font-medium">
-              {lang === 'es' ? 'Todavía no tienes ventas generadas con tus códigos.' : 'You do not have sales generated by your codes yet.'}
-            </p>
           </div>
         )
       )}
