@@ -248,7 +248,9 @@ export default function EventDetailPage() {
   const [sections, setSections] = useState<VenueSection[]>([]);
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders' | 'prices'>('analytics');
+  const [priceSaving, setPriceSaving] = useState<string | null>(null);
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
   const [selectedBlockSection, setSelectedBlockSection] = useState('');
   const [selectedBlockSeats, setSelectedBlockSeats] = useState<string[]>([]);
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
@@ -786,6 +788,21 @@ export default function EventDetailPage() {
           <HiOutlineBan className="w-4 h-4 shrink-0" />
           <span className="hidden sm:inline whitespace-nowrap">{lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}</span>
           <span className="sm:hidden whitespace-nowrap">{lang === 'es' ? 'Bloqueos' : 'Blocks'}</span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('prices');
+            const inputs: Record<string, string> = {};
+            for (const s of sections) { inputs[s.id] = String(s.price ?? ''); }
+            setPriceInputs(inputs);
+          }}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'prices' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <HiOutlineCurrencyDollar className="w-4 h-4 shrink-0" />
+          <span className="whitespace-nowrap">{lang === 'es' ? 'Precios' : 'Prices'}</span>
+          {sections.some(s => s.pendingPrice !== null && s.pendingPrice !== undefined) && (
+            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+          )}
         </button>
       </div>
 
@@ -1957,6 +1974,100 @@ export default function EventDetailPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Prices Tab */}
+      {activeTab === 'prices' && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6 animate-fade-in">
+          <div>
+            <h3 className="font-extrabold text-gray-900 text-base">{lang === 'es' ? 'Precios por Sección' : 'Section Prices'}</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              {event?.status === 'published'
+                ? (lang === 'es'
+                    ? 'El evento está publicado. Los cambios de precio serán enviados al admin para aprobación antes de hacerse efectivos.'
+                    : 'Event is published. Price changes will be sent to admin for approval before taking effect.')
+                : (lang === 'es'
+                    ? 'El evento está en borrador. Los precios se aplican directamente.'
+                    : 'Event is in draft. Prices apply immediately.')}
+            </p>
+          </div>
+
+          {sections.filter(s => s.sectionType !== 'stage' && s.sectionType !== 'decor').length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">
+              {lang === 'es' ? 'No hay secciones configuradas. Configura el mapa del venue primero.' : 'No sections configured. Set up the venue map first.'}
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {sections.filter(s => s.sectionType !== 'stage' && s.sectionType !== 'decor').map((sec) => (
+                <div key={sec.id} className="p-4 border border-gray-200 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
+                      <div>
+                        <p className="font-bold text-sm text-gray-900">{sec.name}</p>
+                        <p className="text-[11px] text-gray-400 uppercase tracking-wider">{sec.sectionType}</p>
+                      </div>
+                    </div>
+                    <span className="text-lg font-extrabold text-gray-800">${Number(sec.price).toFixed(2)}</span>
+                  </div>
+
+                  {sec.pendingPrice !== null && sec.pendingPrice !== undefined && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+                      <span className="text-amber-800 font-semibold">
+                        {lang === 'es' ? 'Cambio pendiente:' : 'Pending change:'}{' '}
+                        <span className="font-extrabold">${Number(sec.pendingPrice).toFixed(2)}</span>
+                        {' — '}{lang === 'es' ? 'esperando aprobación del admin' : 'awaiting admin approval'}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={priceInputs[sec.id] ?? String(sec.price)}
+                      onChange={(e) => setPriceInputs(prev => ({ ...prev, [sec.id]: e.target.value }))}
+                      placeholder={lang === 'es' ? 'Nuevo precio...' : 'New price...'}
+                      className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300"
+                    />
+                    <button
+                      disabled={priceSaving === sec.id}
+                      onClick={async () => {
+                        const val = parseFloat(priceInputs[sec.id] ?? '');
+                        if (isNaN(val) || val < 0) { toast.error(lang === 'es' ? 'Precio inválido' : 'Invalid price'); return; }
+                        setPriceSaving(sec.id);
+                        try {
+                          await api.patch(`/events/${event?.id}/sections/${sec.id}/price`, { price: val });
+                          toast.success(
+                            event?.status === 'published'
+                              ? (lang === 'es' ? 'Solicitud enviada al admin' : 'Request sent to admin')
+                              : (lang === 'es' ? 'Precio actualizado' : 'Price updated')
+                          );
+                          await loadEvent();
+                        } catch (err: any) {
+                          toast.error(err.response?.data?.message || 'Error');
+                        } finally {
+                          setPriceSaving(null);
+                        }
+                      }}
+                      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {priceSaving === sec.id ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : event?.status === 'published' ? (
+                        lang === 'es' ? 'Solicitar cambio' : 'Request change'
+                      ) : (
+                        lang === 'es' ? 'Guardar precio' : 'Save price'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

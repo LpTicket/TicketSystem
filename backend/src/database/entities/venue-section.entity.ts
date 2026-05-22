@@ -88,6 +88,9 @@ export class VenueSection {
   @Column({ type: 'text', nullable: true })
   seatsConfig: string;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  pendingPrice: number | null;
+
   // --- Configurable Fee Parameters (Overrides Event-level fees if non-null) ---
   @Column({ type: 'decimal', precision: 5, scale: 4, nullable: true })
   serviceFeePercent: number | null;

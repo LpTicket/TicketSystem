@@ -717,4 +717,21 @@ export class EventsService {
       .where('lockedBy = :userId', { userId })
       .execute();
   }
+
+  async requestSectionPriceChange(eventId: string, sectionId: string, price: number, userId: string) {
+    const event = await this.findById(eventId);
+    const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
+    if (event.organizerId !== userId && user?.role !== 'admin') throw new ForbiddenException();
+
+    const section = await this.sectionRepo.findOne({ where: { id: sectionId, eventId } });
+    if (!section) throw new NotFoundException('Sección no encontrada');
+
+    if (user?.role === 'admin' || event.status === EventStatus.DRAFT) {
+      await this.sectionRepo.update(sectionId, { price, pendingPrice: null });
+    } else {
+      await this.sectionRepo.update(sectionId, { pendingPrice: price });
+    }
+
+    return this.sectionRepo.findOne({ where: { id: sectionId } });
+  }
 }

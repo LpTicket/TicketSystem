@@ -394,7 +394,7 @@ export class AdminService {
         : dto.serviceFeePercent;
     }
     if (dto.serviceFeeFixedPerTicket !== undefined) section.serviceFeeFixedPerTicket = dto.serviceFeeFixedPerTicket;
-    
+
     if (dto.processingFeePercent !== undefined) {
       section.processingFeePercent = dto.processingFeePercent !== null && dto.processingFeePercent >= 1
         ? dto.processingFeePercent / 100
@@ -402,6 +402,43 @@ export class AdminService {
     }
     if (dto.processingFeeFixedPerTicket !== undefined) section.processingFeeFixedPerTicket = dto.processingFeeFixedPerTicket;
 
+    await this.sectionRepo.save(section);
+    return { success: true, section };
+  }
+
+  async getEventPrices(eventId: string) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId }, relations: ['organizer'] });
+    if (!event) throw new NotFoundException('Evento no encontrado');
+    const sections = await this.sectionRepo.find({ where: { eventId }, order: { sortOrder: 'ASC' } });
+    return { event, sections };
+  }
+
+  async approveSectionPrice(sectionId: string) {
+    const section = await this.sectionRepo.findOne({ where: { id: sectionId } });
+    if (!section) throw new NotFoundException('Sección no encontrada');
+    if (section.pendingPrice === null || section.pendingPrice === undefined) {
+      throw new BadRequestException('No hay precio pendiente para esta sección');
+    }
+    section.price = section.pendingPrice;
+    section.pendingPrice = null;
+    await this.sectionRepo.save(section);
+    return { success: true, section };
+  }
+
+  async rejectSectionPrice(sectionId: string) {
+    const section = await this.sectionRepo.findOne({ where: { id: sectionId } });
+    if (!section) throw new NotFoundException('Sección no encontrada');
+    section.pendingPrice = null;
+    await this.sectionRepo.save(section);
+    return { success: true, section };
+  }
+
+  async setSectionPrice(sectionId: string, price: number) {
+    const section = await this.sectionRepo.findOne({ where: { id: sectionId } });
+    if (!section) throw new NotFoundException('Sección no encontrada');
+    if (price < 0) throw new BadRequestException('El precio no puede ser negativo');
+    section.price = price;
+    section.pendingPrice = null;
     await this.sectionRepo.save(section);
     return { success: true, section };
   }

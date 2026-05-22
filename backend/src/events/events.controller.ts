@@ -196,6 +196,18 @@ export class EventsController {
     return this.eventsService.getSeats(sectionId);
   }
 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Patch(':eventId/sections/:sectionId/price')
+  requestSectionPriceChange(
+    @Param('eventId') eventId: string,
+    @Param('sectionId') sectionId: string,
+    @Body('price') price: number,
+    @Request() req: any,
+  ) {
+    return this.eventsService.requestSectionPriceChange(eventId, sectionId, price, req.user.id);
+  }
+
   // Seat locking
   @UseGuards(AuthGuard('jwt'))
   @Post('seats/lock')

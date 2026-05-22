@@ -96,6 +96,7 @@ export interface VenueSection {
   seatsPerRow: number;
   capacity: number;
   price: number;
+  pendingPrice?: number | null;
   color: string;
   sortOrder: number;
   mapX: number;

@@ -19,6 +19,7 @@ import {
   HiOutlineStar,
   HiStar,
   HiOutlineCog,
+  HiOutlineCurrencyDollar,
 } from 'react-icons/hi';
 import Link from 'next/link';
 
@@ -40,6 +41,12 @@ export default function AdminEventsPage() {
   const [feeLoading, setFeeLoading] = useState(false);
   const [feeSaving, setFeeSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'global' | 'sections'>('global');
+
+  // Price management state
+  const [selectedEventForPrices, setSelectedEventForPrices] = useState<Event | null>(null);
+  const [eventPricesConfig, setEventPricesConfig] = useState<{ event: any; sections: any[] } | null>(null);
+  const [pricesLoading, setPricesLoading] = useState(false);
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
 
   const handleOpenFeesModal = async (ev: Event) => {
     setSelectedEventForFees(ev);
@@ -105,6 +112,59 @@ export default function AdminEventsPage() {
       toast.error(lang === 'es' ? 'Error al guardar fees de sección' : 'Error saving section fees');
     } finally {
       setFeeSaving(false);
+    }
+  };
+
+  const handleOpenPricesModal = async (ev: Event) => {
+    setSelectedEventForPrices(ev);
+    setPricesLoading(true);
+    try {
+      const { data } = await api.get(`/admin/events/${ev.id}/prices`);
+      setEventPricesConfig(data);
+      const inputs: Record<string, string> = {};
+      for (const sec of data.sections) {
+        inputs[sec.id] = String(sec.price ?? '');
+      }
+      setPriceInputs(inputs);
+    } catch {
+      toast.error(lang === 'es' ? 'Error al cargar precios' : 'Error loading prices');
+    } finally {
+      setPricesLoading(false);
+    }
+  };
+
+  const handleApproveSectionPrice = async (sectionId: string) => {
+    try {
+      await api.patch(`/admin/sections/${sectionId}/approve-price`);
+      toast.success(lang === 'es' ? 'Precio aprobado' : 'Price approved');
+      if (selectedEventForPrices) await handleOpenPricesModal(selectedEventForPrices);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error');
+    }
+  };
+
+  const handleRejectSectionPrice = async (sectionId: string) => {
+    try {
+      await api.patch(`/admin/sections/${sectionId}/reject-price`);
+      toast.success(lang === 'es' ? 'Precio rechazado' : 'Price rejected');
+      if (selectedEventForPrices) await handleOpenPricesModal(selectedEventForPrices);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error');
+    }
+  };
+
+  const handleSetSectionPrice = async (sectionId: string) => {
+    const val = parseFloat(priceInputs[sectionId]);
+    if (isNaN(val) || val < 0) {
+      toast.error(lang === 'es' ? 'Precio inválido' : 'Invalid price');
+      return;
+    }
+    try {
+      await api.patch(`/admin/sections/${sectionId}/price`, { price: val });
+      toast.success(lang === 'es' ? 'Precio actualizado' : 'Price updated');
+      if (selectedEventForPrices) await handleOpenPricesModal(selectedEventForPrices);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error');
     }
   };
 
@@ -373,6 +433,14 @@ export default function AdminEventsPage() {
                             </button>
                           )}
                           <button
+                            onClick={() => handleOpenPricesModal(ev)}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1 shrink-0 shadow-sm border border-emerald-200"
+                            title={lang === 'es' ? 'Gestionar Precios' : 'Manage Prices'}
+                          >
+                            <HiOutlineCurrencyDollar className="w-4 h-4" />
+                            {lang === 'es' ? 'Precios' : 'Prices'}
+                          </button>
+                          <button
                             onClick={() => handleOpenFeesModal(ev)}
                             className="px-3 py-1.5 rounded-lg bg-[rgba(10,55,90,0.05)] text-[#0A375A] text-xs font-bold hover:bg-[rgba(10,55,90,0.10)] transition-colors flex items-center gap-1 shrink-0 shadow-sm border border-[rgba(10,55,90,0.12)]"
                             title={lang === 'es' ? 'Configurar Fees' : 'Configure Fees'}
@@ -475,6 +543,13 @@ export default function AdminEventsPage() {
                     )}
 
                     <div className="flex gap-2 w-full mt-1">
+                      <button
+                        onClick={() => handleOpenPricesModal(ev)}
+                        className="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                      >
+                        <HiOutlineCurrencyDollar className="w-4 h-4" />
+                        {lang === 'es' ? 'PRECIOS' : 'PRICES'}
+                      </button>
                       <button
                         onClick={() => handleOpenFeesModal(ev)}
                         className="flex-1 bg-[rgba(10,55,90,0.05)] text-[#0A375A] border border-[rgba(10,55,90,0.10)] text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all"
@@ -1194,6 +1269,114 @@ export default function AdminEventsPage() {
                   </div>
                 )
               ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Prices Management Modal */}
+      {selectedEventForPrices && (
+        <div className="fixed inset-0 h-screen w-screen z-[9999] overflow-hidden flex justify-end">
+          <div
+            className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
+            onClick={() => setSelectedEventForPrices(null)}
+          />
+          <div className="relative w-full max-w-2xl bg-white h-screen shadow-2xl flex flex-col z-10 animate-[slideOver_0.3s_ease-out] border-l border-gray-150">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 shrink-0 bg-emerald-50/60">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <HiOutlineCurrencyDollar className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="font-extrabold text-lg text-gray-900 leading-tight">
+                    {lang === 'es' ? 'Gestión de Precios' : 'Price Management'}
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5 font-medium">{selectedEventForPrices.title}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedEventForPrices(null)}
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+              >
+                <HiOutlineXCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {pricesLoading ? (
+                <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-20 skeleton rounded-xl" />)}</div>
+              ) : !eventPricesConfig ? null : eventPricesConfig.sections.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-8">{lang === 'es' ? 'Este evento no tiene secciones configuradas.' : 'This event has no sections configured.'}</p>
+              ) : (
+                eventPricesConfig.sections.map((sec: any) => (
+                  <div key={sec.id} className="p-4 border border-gray-200 rounded-2xl bg-white space-y-3 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-extrabold text-sm text-gray-900">{sec.name}</h4>
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-[10px] font-bold uppercase tracking-wider">{sec.sectionType}</span>
+                      </div>
+                      <span className="text-lg font-extrabold text-gray-800">${Number(sec.price).toFixed(2)}</span>
+                    </div>
+
+                    {/* Pending price approval */}
+                    {sec.pendingPrice !== null && sec.pendingPrice !== undefined && (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                        <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">
+                          {lang === 'es' ? 'Cambio de precio pendiente' : 'Pending price change'}
+                        </p>
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className="text-gray-500 line-through">${Number(sec.price).toFixed(2)}</span>
+                          <span className="text-amber-800 font-extrabold text-base">${Number(sec.pendingPrice).toFixed(2)}</span>
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => handleRejectSectionPrice(sec.id)}
+                            className="flex-1 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition-all active:scale-95"
+                          >
+                            ❌ {lang === 'es' ? 'Rechazar' : 'Reject'}
+                          </button>
+                          <button
+                            onClick={() => handleApproveSectionPrice(sec.id)}
+                            className="flex-1 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition-all active:scale-95 shadow-sm"
+                          >
+                            ✓ {lang === 'es' ? 'Aprobar' : 'Approve'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Admin direct edit */}
+                    <div className="flex gap-2 items-center pt-1 border-t border-dashed border-gray-100">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={priceInputs[sec.id] ?? ''}
+                        onChange={(e) => setPriceInputs(prev => ({ ...prev, [sec.id]: e.target.value }))}
+                        placeholder={lang === 'es' ? 'Nuevo precio...' : 'New price...'}
+                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                      />
+                      <button
+                        onClick={() => handleSetSectionPrice(sec.id)}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-sm whitespace-nowrap"
+                      >
+                        {lang === 'es' ? 'Establecer precio' : 'Set price'}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-100 shrink-0">
+              <button
+                onClick={() => setSelectedEventForPrices(null)}
+                className="w-full py-3 text-sm font-semibold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+              >
+                {lang === 'es' ? 'Cerrar' : 'Close'}
+              </button>
             </div>
           </div>
         </div>

@@ -119,4 +119,25 @@ export class AdminController {
   updateSectionFees(@Param('id') id: string, @Body() body: any) {
     return this.adminService.updateSectionFees(id, body);
   }
+
+  // Prices Management
+  @Get('events/:id/prices')
+  getEventPrices(@Param('id') id: string) {
+    return this.adminService.getEventPrices(id);
+  }
+
+  @Patch('sections/:id/approve-price')
+  approveSectionPrice(@Param('id') id: string) {
+    return this.adminService.approveSectionPrice(id);
+  }
+
+  @Patch('sections/:id/reject-price')
+  rejectSectionPrice(@Param('id') id: string) {
+    return this.adminService.rejectSectionPrice(id);
+  }
+
+  @Patch('sections/:id/price')
+  setSectionPrice(@Param('id') id: string, @Body('price') price: number) {
+    return this.adminService.setSectionPrice(id, price);
+  }
 }
