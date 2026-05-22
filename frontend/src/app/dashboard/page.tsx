@@ -23,12 +23,10 @@ import {
   HiOutlineCamera,
   HiOutlineX,
   HiOutlineDownload,
-  HiOutlineSparkles,
-  HiOutlineTag,
+  HiOutlineSparkles,\n  HiOutlineTag,
 } from 'react-icons/hi';
 import PaymentMethods from '@/components/dashboard/PaymentMethods';
-import SocialMatchPanel from '@/components/social/SocialMatchPanel';
-import { getMySpecialCodeSales, SpecialCodeSale } from '@/lib/specialCodes';
+import SocialMatchPanel from '@/components/social/SocialMatchPanel';\nimport { getMySpecialCodeSales, SpecialCodeSale } from '@/lib/specialCodes';
 import { Suspense } from 'react';
 
 function DashboardPageBody() {
@@ -37,8 +35,7 @@ function DashboardPageBody() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [specialCodeSales, setSpecialCodeSales] = useState<SpecialCodeSale[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);\n  const [specialCodeSales, setSpecialCodeSales] = useState<SpecialCodeSale[]>([]);
   const [pendingSocialRequests, setPendingSocialRequests] = useState(0);
   const [activeTab, setActiveTab] = useState<'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'codes'>('tickets');
   const [editMode, setEditMode] = useState(false);
@@ -209,11 +206,9 @@ function DashboardPageBody() {
 
   const tabs = [
     { id: 'tickets' as const, label: t('clientMyTickets'), icon: HiOutlineTicket, count: tickets.length },
-    { id: 'orders' as const, label: t('clientHistory'), icon: HiOutlineShoppingCart, count: orders.length },
-    { id: 'codes' as const, label: lang === 'es' ? 'Mis ventas por código' : 'Code sales', icon: HiOutlineTag, count: specialCodeSales.length },
+    { id: 'orders' as const, label: t('clientHistory'), icon: HiOutlineShoppingCart, count: orders.length },\n    { id: 'codes' as const, label: lang === 'es' ? 'Mis ventas por código' : 'Code sales', icon: HiOutlineTag, count: specialCodeSales.length },
     { id: 'payments' as const, label: 'Pagos', icon: HiOutlineCreditCard },
-    { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles,
-  HiOutlineTag, count: pendingSocialRequests },
+    { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles,\n  HiOutlineTag, count: pendingSocialRequests },
     { id: 'profile' as const, label: t('clientProfile'), icon: HiOutlineUser },
   ];
 
