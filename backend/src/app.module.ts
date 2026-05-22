@@ -12,7 +12,8 @@ import { PaymentsModule } from './payments/payments.module';
 import { CommonModule } from './common/common.module';
 import { VenueTemplatesModule } from './venue-templates/venue-templates.module';
 import { AiSupportModule } from './ai-support/ai-support.module';
-import { SocialMatchModule } from './social-match/social-match.module';\nimport { SpecialCodesModule } from './special-codes/special-codes.module';
+import { SocialMatchModule } from './social-match/social-match.module';
+import { SpecialCodesModule } from './special-codes/special-codes.module';
 import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode } from './database/entities';
 
 @Module({

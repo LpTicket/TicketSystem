@@ -8,7 +8,8 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from './user.entity';
-import { Event } from './event.entity';\nimport { SpecialCode } from './special-code.entity';
+import { Event } from './event.entity';
+import { SpecialCode } from './special-code.entity';
 
 /**
  * OrderStatus

@@ -8,7 +8,8 @@ const Stripe = require('stripe');
 import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, VenueSection } from '../database/entities';
 import { nanoid } from 'nanoid';
 import * as QRCode from 'qrcode';
-import { MailService } from '../common/services/mail.service';\nimport { SpecialCodesService } from '../special-codes/special-codes.service';
+import { MailService } from '../common/services/mail.service';
+import { SpecialCodesService } from '../special-codes/special-codes.service';
 
 /**
  * Service constants for fee calculation.
@@ -39,6 +40,7 @@ export class OrdersService {
     private readonly sectionRepo: Repository<VenueSection>,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly specialCodesService: SpecialCodesService,
   ) {
     const key = this.configService.get('STRIPE_SECRET_KEY');
     // Log key presence for debugging (masking sensitive data)
@@ -93,9 +95,11 @@ export class OrdersService {
     seatIds: string[],
     sectionId?: string,
     quantity?: number,
+    specialCode?: string,
   ) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
-    if (!event) throw new NotFoundException('Event not found');\n    const validSpecialCode = await this.specialCodesService.validateForCheckout(specialCode, eventId);
+    if (!event) throw new NotFoundException('Event not found');
+    const validSpecialCode = await this.specialCodesService.validateForCheckout(specialCode, eventId);
 
     const maxLimit = event.maxTicketsPerTransaction || 10;
     if (seatIds && seatIds.length > maxLimit) {
@@ -308,7 +312,10 @@ export class OrdersService {
       total,
       status: OrderStatus.PENDING,
       ticketCount: cleanSeatsInfo.length,
-      seatsData: JSON.stringify(cleanSeatsInfo),\n      specialCode: validSpecialCode?.code || null,\n      specialCodeOwnerId: validSpecialCode?.ownerUserId || null,\n      specialCodeId: validSpecialCode?.id || null,
+      seatsData: JSON.stringify(cleanSeatsInfo),
+      specialCode: validSpecialCode?.code || null,
+      specialCodeOwnerId: validSpecialCode?.ownerUserId || null,
+      specialCodeId: validSpecialCode?.id || null,
     });
     const savedOrder = await this.orderRepo.save(order);
 
@@ -356,6 +363,7 @@ export class OrdersService {
     seatIds: string[],
     sectionId?: string,
     quantity?: number,
+    specialCode?: string,
   ) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
