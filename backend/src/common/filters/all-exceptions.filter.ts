@@ -20,12 +20,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     console.error('DETAILED ERROR:', exception);
 
-    response.status(status).send({
-      statusCode: status,
-      timestamp: new Date().toISOString(),
-      path: request.url,
-      error: exception instanceof Error ? exception.message : 'Unknown error',
-      stack: exception instanceof Error ? exception.stack : null,
-    });
+    if (exception instanceof HttpException) {
+      const res = exception.getResponse();
+      response.status(status).send(
+        typeof res === 'string' ? { statusCode: status, message: res } : res,
+      );
+    } else {
+      response.status(status).send({
+        statusCode: status,
+        message: exception instanceof Error ? exception.message : 'Internal server error',
+        timestamp: new Date().toISOString(),
+        path: request.url,
+      });
+    }
   }
 }

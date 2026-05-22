@@ -350,7 +350,8 @@ export default function PurchasePage() {
       // Redirect the user to the Stripe-hosted checkout page
       if (data.url) window.location.href = data.url;
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error processing payment');
+      console.error('[checkout error]', err);
+      toast.error(err.response?.data?.message || err.response?.data?.error || err.message || 'Error processing payment');
     } finally {
       setBuying(false);
     }
