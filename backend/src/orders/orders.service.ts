@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require('stripe');
-import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, VenueSection } from '../database/entities';
+import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, VenueSection, SpecialCode } from '../database/entities';
 import { nanoid } from 'nanoid';
 import * as QRCode from 'qrcode';
 import { MailService } from '../common/services/mail.service';
@@ -37,6 +37,8 @@ export class OrdersService {
     private readonly eventRepo: Repository<Event>,
     @InjectRepository(VenueSection)
     private readonly sectionRepo: Repository<VenueSection>,
+    @InjectRepository(SpecialCode)
+    private readonly specialCodeRepo: Repository<SpecialCode>,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
   ) {
@@ -93,6 +95,7 @@ export class OrdersService {
     seatIds: string[],
     sectionId?: string,
     quantity?: number,
+    specialCode?: string,
   ) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
@@ -103,6 +106,23 @@ export class OrdersService {
     }
     if (quantity && quantity > maxLimit) {
       throw new BadRequestException(`No puedes comprar más de ${maxLimit} entradas por transacción.`);
+    }
+
+    const normalizedSpecialCode = (specialCode || '').trim().toUpperCase().replace(/\s+/g, '');
+    let validSpecialCode: SpecialCode | null = null;
+
+    if (normalizedSpecialCode) {
+      validSpecialCode = await this.specialCodeRepo.findOne({
+        where: { code: normalizedSpecialCode },
+      });
+
+      if (!validSpecialCode || !validSpecialCode.isActive) {
+        throw new BadRequestException('Código especial inválido o inactivo.');
+      }
+
+      if (validSpecialCode.eventId && validSpecialCode.eventId !== eventId) {
+        throw new BadRequestException('Este código especial no aplica para este evento.');
+      }
     }
 
     let baseTotal = 0;
@@ -309,6 +329,9 @@ export class OrdersService {
       status: OrderStatus.PENDING,
       ticketCount: cleanSeatsInfo.length,
       seatsData: JSON.stringify(cleanSeatsInfo),
+      specialCode: validSpecialCode?.code || null,
+      specialCodeOwnerId: validSpecialCode?.ownerUserId || null,
+      specialCodeId: validSpecialCode?.id || null,
     });
     const savedOrder = await this.orderRepo.save(order);
 
