@@ -201,7 +201,7 @@ function DashboardPageBody() {
 
   const tabs = [
     { id: 'tickets' as const, label: t('clientMyTickets'), icon: HiOutlineTicket, count: tickets.length },
-    { id: 'orders' as const, label: t('clientHistory'), icon: HiOutlineShoppingCart, count: orders.length },
+    { id: 'orders' as const, label: 'Recibos', icon: HiOutlineShoppingCart, count: orders.length },
     { id: 'payments' as const, label: 'Pagos', icon: HiOutlineCreditCard },
     { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles, count: pendingSocialRequests },
     { id: 'codes' as const, label: lang === 'es' ? 'Códigos' : 'Codes', icon: HiOutlineTag },
