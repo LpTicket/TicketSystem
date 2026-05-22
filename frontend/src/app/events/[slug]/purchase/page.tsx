@@ -322,7 +322,8 @@ export default function PurchasePage() {
       setInvoice({ ...data, currency: event?.currency || 'USD' });
       setStep('payment');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error calculating invoice');
+      console.error('[previewInvoice error]', err);
+      toast.error(err.response?.data?.message || err.message || 'Error calculating invoice');
     } finally {
       setInvoiceLoading(false);
     }
