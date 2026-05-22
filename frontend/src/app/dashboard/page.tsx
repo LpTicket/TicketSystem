@@ -24,9 +24,11 @@ import {
   HiOutlineX,
   HiOutlineDownload,
   HiOutlineSparkles,
+  HiOutlineTag,
 } from 'react-icons/hi';
 import PaymentMethods from '@/components/dashboard/PaymentMethods';
 import SocialMatchPanel from '@/components/social/SocialMatchPanel';
+import MySpecialCodesPanel from '@/components/special-codes/MySpecialCodesPanel';
 import { Suspense } from 'react';
 
 function DashboardPageBody() {
@@ -37,7 +39,7 @@ function DashboardPageBody() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [pendingSocialRequests, setPendingSocialRequests] = useState(0);
-  const [activeTab, setActiveTab] = useState<'tickets' | 'orders' | 'profile' | 'payments' | 'social'>('tickets');
+  const [activeTab, setActiveTab] = useState<'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'codes'>('tickets');
   const [editMode, setEditMode] = useState(false);
   const [ticketsPage, setTicketsPage] = useState(1);
   const [ticketsPagination, setTicketsPagination] = useState({ total: 0, pages: 1 });
@@ -83,8 +85,8 @@ function DashboardPageBody() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'profile' || tabParam === 'orders' || tabParam === 'tickets' || tabParam === 'payments' || tabParam === 'social') {
-      setActiveTab(tabParam as 'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'social');
+    if (tabParam === 'profile' || tabParam === 'orders' || tabParam === 'tickets' || tabParam === 'payments' || tabParam === 'social' || tabParam === 'codes') {
+      setActiveTab(tabParam as 'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'codes');
     }
   }, [searchParams]);
 
@@ -202,6 +204,7 @@ function DashboardPageBody() {
     { id: 'orders' as const, label: t('clientHistory'), icon: HiOutlineShoppingCart, count: orders.length },
     { id: 'payments' as const, label: 'Pagos', icon: HiOutlineCreditCard },
     { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles, count: pendingSocialRequests },
+    { id: 'codes' as const, label: lang === 'es' ? 'Códigos' : 'Codes', icon: HiOutlineTag },
     { id: 'profile' as const, label: t('clientProfile'), icon: HiOutlineUser },
   ];
 
@@ -549,6 +552,12 @@ function DashboardPageBody() {
       {activeTab === 'social' && (
         <div className="max-w-3xl mx-auto">
           <SocialMatchPanel lang={lang === 'es' ? 'es' : 'en'} />
+        </div>
+      )}
+
+      {activeTab === 'codes' && (
+        <div className="max-w-3xl mx-auto">
+          <MySpecialCodesPanel lang={lang === 'es' ? 'es' : 'en'} />
         </div>
       )}
 
