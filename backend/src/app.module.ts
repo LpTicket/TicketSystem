@@ -13,8 +13,7 @@ import { CommonModule } from './common/common.module';
 import { VenueTemplatesModule } from './venue-templates/venue-templates.module';
 import { AiSupportModule } from './ai-support/ai-support.module';
 import { SocialMatchModule } from './social-match/social-match.module';
-import { SpecialCodesModule } from './special-codes/special-codes.module';
-import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode } from './database/entities';
+import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage } from './database/entities';
 
 @Module({
   imports: [
@@ -34,7 +33,7 @@ import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, Pa
             password: config.get<string>('DB_PASSWORD'),
             database: config.get<string>('DB_NAME'),
           }),
-          entities: [User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode],
+          entities: [User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage],
           synchronize: true,
           logging: false,
           ssl: isProd ? { rejectUnauthorized: false } : false,
@@ -52,7 +51,6 @@ import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, Pa
     VenueTemplatesModule,
     AiSupportModule,
     SocialMatchModule,
-    SpecialCodesModule,
   ],
 })
 export class AppModule {}

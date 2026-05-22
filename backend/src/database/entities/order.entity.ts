@@ -9,7 +9,6 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 import { Event } from './event.entity';
-import { SpecialCode } from './special-code.entity';
 
 /**
  * OrderStatus
@@ -86,23 +85,6 @@ export class Order {
    */
   @Column({ type: 'text', nullable: true })
   seatsData: string;
-
-  @Column({ nullable: true, length: 40 })
-  specialCode: string | null;
-
-  @Column({ type: 'uuid', nullable: true })
-  specialCodeOwnerId: string | null;
-
-  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'specialCodeOwnerId' })
-  specialCodeOwner: User | null;
-
-  @Column({ type: 'uuid', nullable: true })
-  specialCodeId: string | null;
-
-  @ManyToOne(() => SpecialCode, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'specialCodeId' })
-  specialCodeEntity: SpecialCode | null;
 
   @Column({ type: 'timestamp', nullable: true })
   paidAt: Date | null;
