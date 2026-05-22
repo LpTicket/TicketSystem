@@ -78,6 +78,7 @@ export default function AdminSpecialCodesPage() {
   const [payoutAmount, setPayoutAmount] = useState('');
   const [payoutNote, setPayoutNote] = useState('');
   const [payoutSaving, setPayoutSaving] = useState(false);
+  const [buyersModal, setBuyersModal] = useState<any | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -125,6 +126,7 @@ export default function AdminSpecialCodesPage() {
       tickets: number;
       commission: number;
       generated: number;
+      orders: any[];
     }>();
 
     for (const order of codeSales as any[]) {
@@ -168,11 +170,13 @@ export default function AdminSpecialCodesPage() {
         tickets: 0,
         commission,
         generated: 0,
+        orders: [] as any[],
       };
 
       current.tickets += tickets;
       current.generated += commission * tickets;
       current.commission = commission;
+      current.orders.push({ ...order, commissionGenerated: commission * tickets, buyer: order.user });
       groups.set(key, current);
     }
 
@@ -548,6 +552,7 @@ export default function AdminSpecialCodesPage() {
                   <th className="px-5 py-3 text-right">{lang === 'es' ? 'Entradas' : 'Tickets'}</th>
                   <th className="px-5 py-3 text-right">{lang === 'es' ? 'Comisión' : 'Commission'}</th>
                   <th className="px-5 py-3 text-right">{lang === 'es' ? 'Generado' : 'Generated'}</th>
+                  <th className="px-5 py-3 text-right">{lang === 'es' ? 'Compradores' : 'Buyers'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -567,6 +572,15 @@ export default function AdminSpecialCodesPage() {
                     <td className="px-5 py-4 text-right font-black text-gray-900">{row.tickets}</td>
                     <td className="px-5 py-4 text-right font-bold text-gray-700">${row.commission.toFixed(2)}</td>
                     <td className="px-5 py-4 text-right font-black text-[#0A375A]">${row.generated.toFixed(2)}</td>
+                    <td className="px-5 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setBuyersModal(row)}
+                        className="btn-secondary px-3 py-2 rounded-lg text-xs font-black"
+                      >
+                        {lang === 'es' ? 'Ver compradores' : 'View buyers'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -697,6 +711,67 @@ export default function AdminSpecialCodesPage() {
       )}
 
       {/* Payout modal */}
+
+      {buyersModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm" onClick={() => setBuyersModal(null)} />
+          <div className="relative w-full max-w-5xl rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden">
+            <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-500">LP Ticket</p>
+                <h2 className="text-xl font-black text-[#0A375A] mt-1">
+                  {lang === 'es' ? 'Compradores del código' : 'Code buyers'} {buyersModal.code}
+                </h2>
+                <p className="text-sm text-gray-500 mt-0.5">{buyersModal.eventTitle}</p>
+              </div>
+              <button onClick={() => setBuyersModal(null)} className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50">
+                <HiOutlineX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="overflow-x-auto max-h-[70vh]">
+              <table className="w-full min-w-[850px] text-sm">
+                <thead className="bg-gray-50 text-xs uppercase tracking-[0.16em] text-gray-400 sticky top-0">
+                  <tr>
+                    <th className="px-5 py-3 text-left">{lang === 'es' ? 'Comprador' : 'Buyer'}</th>
+                    <th className="px-5 py-3 text-left">Email</th>
+                    <th className="px-5 py-3 text-left">{lang === 'es' ? 'Fecha' : 'Date'}</th>
+                    <th className="px-5 py-3 text-right">{lang === 'es' ? 'Entradas' : 'Tickets'}</th>
+                    <th className="px-5 py-3 text-right">{lang === 'es' ? 'Total pagado' : 'Total paid'}</th>
+                    <th className="px-5 py-3 text-right">{lang === 'es' ? 'Comisión' : 'Commission'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {buyersModal.orders.map((order: any) => {
+                    const buyerName = [order.buyer?.firstName, order.buyer?.lastName].filter(Boolean).join(' ') || '-';
+                    const buyerEmail = order.buyer?.email || '-';
+                    const dateValue = order.paidAt || order.createdAt;
+                    const dateLabel = dateValue ? new Date(dateValue).toLocaleString(lang === 'es' ? 'es-US' : 'en-US') : '-';
+
+                    return (
+                      <tr key={order.id} className="hover:bg-gray-50">
+                        <td className="px-5 py-4 font-black text-gray-900">{buyerName}</td>
+                        <td className="px-5 py-4 text-gray-600">{buyerEmail}</td>
+                        <td className="px-5 py-4 text-gray-600">{dateLabel}</td>
+                        <td className="px-5 py-4 text-right font-black text-gray-900">{order.ticketCount || 1}</td>
+                        <td className="px-5 py-4 text-right font-bold text-gray-700">${Number(order.total || 0).toFixed(2)}</td>
+                        <td className="px-5 py-4 text-right font-black text-[#0A375A]">${Number(order.commissionGenerated || 0).toFixed(2)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="p-5 border-t border-gray-100 bg-gray-50 flex justify-end">
+              <button onClick={() => setBuyersModal(null)} className="btn-secondary px-5 py-2.5 rounded-lg text-sm font-black">
+                {lang === 'es' ? 'Cerrar' : 'Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {payoutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm" onClick={() => setPayoutModal(null)} />
