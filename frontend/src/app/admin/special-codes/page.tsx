@@ -185,7 +185,7 @@ export default function AdminSpecialCodesPage() {
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-primary-500">LP Ticket</p>
           <h1 className="font-bold text-2xl text-gray-900 mt-2">{lang === 'es' ? 'Códigos especiales' : 'Special codes'}</h1>
-          <p className="text-sm text-gray-500 mt-1 max-w-2xl">{lang === 'es' ? 'Crea y administra códigos rastreables con comisiones para influencers y socios.' : 'Create and manage trackable codes with commissions for influencers and partners.'}</p>
+          <p className="text-sm text-gray-500 mt-1 max-w-2xl">{lang === 'es' ? 'Crea y administra códigos rastreables para influencers y socios. Las comisiones se configuran por evento.' : 'Create and manage trackable codes for influencers and partners. Commissions are configured per event.'}</p>
         </div>
         <button onClick={loadData} disabled={loading} className="btn-secondary inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-bold">
           <HiOutlineRefresh className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
@@ -226,7 +226,7 @@ export default function AdminSpecialCodesPage() {
           </div>
           <div>
             <h2 className="text-lg font-black text-gray-900">{lang === 'es' ? 'Crear código' : 'Create code'}</h2>
-            <p className="text-sm text-gray-500">{lang === 'es' ? 'La comisión se paga manualmente fuera del sistema.' : 'Commission is paid manually outside the system.'}</p>
+            <p className="text-sm text-gray-500">{lang === 'es' ? 'La comisión se configura en cada evento y se paga manualmente fuera del sistema.' : 'Commission is configured per event and paid manually outside the system.'}</p>
           </div>
         </div>
 
@@ -242,19 +242,6 @@ export default function AdminSpecialCodesPage() {
               <option value="">{lang === 'es' ? 'Seleccionar usuario' : 'Select user'}</option>
               {users.map((u) => <option key={u.id} value={u.id}>{u.firstName} {u.lastName} - {u.email}</option>)}
             </select>
-          </label>
-
-          <label className="space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.16em] text-gray-500">{lang === 'es' ? 'Evento' : 'Event'}</span>
-            <select value={form.eventId} onChange={(e) => setForm((c) => ({ ...c, eventId: e.target.value }))} className="w-full px-4 py-3 border border-gray-200 public-premium-input text-sm">
-              <option value="">{lang === 'es' ? 'Todos los eventos' : 'All events'}</option>
-              {events.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
-            </select>
-          </label>
-
-          <label className="space-y-2">
-            <span className="text-xs font-black uppercase tracking-[0.16em] text-gray-500">{lang === 'es' ? 'Comisión por entrada ($)' : 'Commission per ticket ($)'}</span>
-            <input type="number" min="0" step="0.01" value={form.commissionFixed} onChange={(e) => setForm((c) => ({ ...c, commissionFixed: parseFloat(e.target.value) || 0 }))} placeholder="0.00" className="w-full px-4 py-3 border border-gray-200 public-premium-input text-sm" />
           </label>
         </div>
 
@@ -304,10 +291,6 @@ export default function AdminSpecialCodesPage() {
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">{lang === 'es' ? 'Evento' : 'Event'}</p>
                     <p className="text-sm font-bold text-gray-900 mt-1">{item.event?.title || (lang === 'es' ? 'Todos' : 'All')}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">{lang === 'es' ? 'Comisión/entrada' : 'Commission/ticket'}</p>
-                    <p className="text-sm font-black text-[#F97316] mt-1">${Number(item.commissionFixed || 0).toFixed(2)}</p>
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -419,15 +402,6 @@ export default function AdminSpecialCodesPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="space-y-2">
-                <span className="text-xs font-black uppercase tracking-[0.16em] text-gray-500">{lang === 'es' ? 'Código' : 'Code'}</span>
-                <input value={editForm.code} onChange={(e) => setEditForm((c) => ({ ...c, code: normalizeCodeInput(e.target.value) }))} className="w-full px-4 py-3 border border-gray-200 public-premium-input text-sm font-bold" />
-              </label>
-
-              <label className="space-y-2">
-                <span className="text-xs font-black uppercase tracking-[0.16em] text-gray-500">{lang === 'es' ? 'Comisión por entrada ($)' : 'Commission per ticket ($)'}</span>
-                <input type="number" min="0" step="0.01" value={editForm.commissionFixed} onChange={(e) => setEditForm((c) => ({ ...c, commissionFixed: parseFloat(e.target.value) || 0 }))} className="w-full px-4 py-3 border border-gray-200 public-premium-input text-sm" />
-              </label>
 
               <label className="space-y-2">
                 <span className="text-xs font-black uppercase tracking-[0.16em] text-gray-500">{lang === 'es' ? 'Evento' : 'Event'}</span>
