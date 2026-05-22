@@ -215,4 +215,14 @@ export class SpecialCodesService {
       }),
     );
   }
+  async remove(id: string) {
+    const code = await this.specialCodeRepo.findOne({ where: { id } });
+    if (!code) {
+      throw new NotFoundException('Special code not found');
+    }
+
+    await this.specialCodeRepo.delete(id);
+    return { deleted: true };
+  }
+
 }

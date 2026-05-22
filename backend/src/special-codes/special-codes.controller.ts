@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
+import {Body, Controller, Get, Param, Patch, Post, Request, UseGuards, Delete} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -65,4 +65,9 @@ export class SpecialCodesController {
   ) {
     return this.specialCodesService.updateCode(id, dto);
   }
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.specialCodesService.remove(id);
+  }
+
 }

@@ -160,6 +160,24 @@ export default function AdminSpecialCodesPage() {
 
   const normalizeCodeInput = (v: string) => v.toUpperCase().replace(/[^A-Z0-9_-]/g, '');
 
+
+  const handleDeleteCode = async (id: string, code: string) => {
+    const ok = window.confirm(lang === 'es'
+      ? `¿Eliminar el código ${code}? Esta acción no se puede deshacer.`
+      : `Delete code ${code}? This action cannot be undone.`
+    );
+
+    if (!ok) return;
+
+    try {
+      await api.delete(`/special-codes/${id}`);
+      toast.success(lang === 'es' ? 'Código eliminado' : 'Code deleted');
+      setCodes((current) => current.filter((item) => item.id !== id));
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || (lang === 'es' ? 'No se pudo eliminar el código' : 'Could not delete code'));
+    }
+  };
+
   return (
     <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
       {/* Header */}
@@ -296,6 +314,13 @@ export default function AdminSpecialCodesPage() {
                   <button onClick={() => startEdit(item)} className="btn-secondary inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-black">
                     <HiOutlinePencil className="w-5 h-5" />{lang === 'es' ? 'Editar' : 'Edit'}
                   </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCode(item.id, item.code)}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50"
+                      >
+                        {lang === 'es' ? 'Eliminar' : 'Delete'}
+                      </button>
                   <button onClick={() => handleToggleActive(item)} className={`inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-black transition-all ${item.isActive ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {item.isActive ? <HiOutlineCheckCircle className="w-5 h-5" /> : <HiOutlineXCircle className="w-5 h-5" />}
                     {item.isActive ? (lang === 'es' ? 'Activo' : 'Active') : (lang === 'es' ? 'Inactivo' : 'Inactive')}
