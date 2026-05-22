@@ -14,7 +14,7 @@ import { VenueSection, Seat, SeatStatus } from '@/types';
 import { useLang } from '@/context/LanguageContext';
 import {
   HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineChevronRight,
-  HiOutlineCheckCircle, HiOutlineTag, HiOutlineTrash,
+  HiOutlineCheckCircle, HiOutlineTrash,
 } from 'react-icons/hi';
 import SeatMapInteractive from '@/components/events/SeatMapInteractive';
 import ReservationTimer from '@/components/events/ReservationTimer';
@@ -99,7 +99,6 @@ export default function PurchasePage() {
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [buying, setBuying] = useState(false);
-  const [specialCode, setSpecialCode] = useState('');
   const [hasLoadedSaved, setHasLoadedSaved] = useState(false);
 
   /**
@@ -337,11 +336,8 @@ export default function PurchasePage() {
       if (selectedSection?.sectionType === 'standing') {
         payload.sectionId = selectedSection.id;
         payload.quantity = standingQuantity;
-      }
-
-      const normalizedSpecialCode = specialCode.trim().toUpperCase();
-      if (normalizedSpecialCode) {
-        payload.specialCode = normalizedSpecialCode;
+      } else {
+        payload.seatIds = selectedSeats.map((s) => s.id);
       }
 
       const { data } = await api.post('/orders/checkout', payload);
@@ -622,23 +618,6 @@ export default function PurchasePage() {
                   <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Teléfono:' : 'Phone:'}</label>
                   <input className="input purchase-premium-input text-sm" value={personalInfo.phone}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, phone: e.target.value }))} />
-                </div>
-                <div className="sm:col-span-2 rounded-lg border border-orange-100 bg-orange-50/50 p-3">
-                  <label className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-[#0A375A] mb-2">
-                    <HiOutlineTag className="w-4 h-4 text-[#F97316]" />
-                    {lang === 'es' ? 'Código especial' : 'Special code'}
-                  </label>
-                  <input
-                    className="input purchase-premium-input text-sm uppercase"
-                    value={specialCode}
-                    onChange={(e) => setSpecialCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
-                    placeholder={lang === 'es' ? 'Opcional' : 'Optional'}
-                  />
-                  <p className="text-[11px] text-gray-500 mt-2">
-                    {lang === 'es'
-                      ? 'Si tienes un código de influencer o invitado, escríbelo aquí. No cambia el precio.'
-                      : 'If you have an influencer or guest code, enter it here. It does not change the price.'}
-                  </p>
                 </div>
               </div>
 
