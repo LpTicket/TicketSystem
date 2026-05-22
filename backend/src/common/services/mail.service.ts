@@ -45,7 +45,7 @@ export class MailService {
     const appUrl = this.getAppUrl();
     const eventAddress = [eventInfo?.venueName, eventInfo?.venueAddress].filter(Boolean).join(' — ');
     const currency = eventInfo?.currency || 'USD';
-    const hasPaymentSummary = eventInfo?.subtotal !== undefined || eventInfo?.total !== undefined;
+    const hasPaymentSummary = eventInfo?.total !== undefined;
     const money = (value?: number) => `${Number(value || 0).toFixed(2)} ${currency}`;
 
     const eventDateFormatted = eventInfo?.eventDate && eventInfo?.eventTimezone
@@ -125,37 +125,7 @@ export class MailService {
           ${shouldShowSection ? `<p style="margin: 4px 0;"><strong>Sección:</strong> ${t.sectionName}</p>` : ''}
           <p style="margin: 4px 0;"><strong>Ubicación:</strong> ${details}</p>
           <p style="margin: 4px 0; font-family: monospace;"><strong>Código:</strong> <span style="color: #F97316; font-weight: bold;">${t.ticketCode}</span></p>
-          ${hasPaymentSummary ? `
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border-spacing:0;margin:12px 0 16px 0;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;">
-            <tr>
-              <td style="padding:10px 12px 4px 12px;">
-                <p style="margin:0;color:#0A375A;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.6px;">Resumen de pago</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:0 12px 10px 12px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;color:#334155;">
-                  <tr>
-                    <td style="padding:3px 0;border-bottom:1px solid #f1f5f9;">Subtotal de entradas:</td>
-                    <td align="right" style="padding:3px 0;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;">${money(eventInfo?.subtotal)}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:3px 0;border-bottom:1px solid #f1f5f9;">Cargo por servicio:</td>
-                    <td align="right" style="padding:3px 0;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;">${money(eventInfo?.lpFee)}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:3px 0;border-bottom:1px solid #f1f5f9;">Tarifa de procesamiento:</td>
-                    <td align="right" style="padding:3px 0;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;">${money(eventInfo?.processingFee)}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:6px 0 0 0;font-weight:900;color:#0A375A;">Total cobrado:</td>
-                    <td align="right" style="padding:6px 0 0 0;font-weight:900;color:#F97316;font-size:14px;">${money(eventInfo?.total)}</td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-          ` : ''}
+          <p style="margin: 4px 0;"><strong>Precio de esta entrada:</strong> ${money(Number(t.price || 0))}</p>
         </div>
 
         <!-- Center QR (CID inline image) -->
@@ -202,6 +172,21 @@ export class MailService {
             <h1 style="color: #0A375A; font-size: 24px; font-weight: 850; margin: 0; letter-spacing: -0.5px;">¡Hola, ${userName}! 👋</h1>
             <p style="color: #475569; font-size: 14px; margin-top: 6px; margin-bottom: 0;">Gracias por tu compra. Aquí tienes tus entradas listas para el evento:</p>
           </div>
+          
+          ${hasPaymentSummary ? `
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border-spacing:0;margin:0 0 16px 0;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            <tr>
+              <td style="padding:14px 16px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+                  <tr>
+                    <td style="font-size:13px;font-weight:900;color:#0A375A;text-transform:uppercase;letter-spacing:0.7px;">Total cobrado:</td>
+                    <td align="right" style="font-size:17px;font-weight:900;color:#F97316;">${money(eventInfo?.total)}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+          ` : ''}
           
           ${ticketDetails}
           
