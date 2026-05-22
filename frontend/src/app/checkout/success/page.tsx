@@ -8,6 +8,8 @@ import { formatSeatLabel } from '@/lib/seatLabel';
 import { HiOutlineCheckCircle, HiOutlineTicket, HiOutlineHome, HiOutlineDownload } from 'react-icons/hi';
 import { motion } from 'framer-motion';
 
+const money = (value: any, currency = 'USD') => `$${Number(value || 0).toFixed(2)} ${currency}`;
+
 function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -40,6 +42,7 @@ function SuccessContent() {
         });
         const recentTickets = Array.isArray(myTickets) ? myTickets : (myTickets?.data || []);
         setTickets(recentTickets); // Show only recent ones from this session
+        setOrder(recentTickets[0]?.order || null);
         
         // Clear cart for all events in this session
         if (recentTickets && recentTickets.length > 0) {
@@ -92,6 +95,30 @@ function SuccessContent() {
                 Tus tickets digitales ya están disponibles. Hemos enviado una copia a tu correo electrónico y también puedes descargarlos ahora mismo.
               </p>
             </div>
+
+            {order && (
+              <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-5">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center mb-4">Recibo de Pago</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Subtotal de entradas</span>
+                    <span className="font-bold text-gray-900">{money(order.subtotal, tickets[0]?.event?.currency || 'USD')}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Cargo por servicio</span>
+                    <span className="font-bold text-gray-900">{money(order.lpFee, tickets[0]?.event?.currency || 'USD')}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Tarifa de procesamiento</span>
+                    <span className="font-bold text-gray-900">{money(order.processingFee, tickets[0]?.event?.currency || 'USD')}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-dashed border-gray-200 pt-3 mt-3 text-base">
+                    <span className="font-black text-gray-900">Total cobrado</span>
+                    <span className="font-black text-primary-600">{money(order.total, tickets[0]?.event?.currency || 'USD')}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Tickets Preview */}
             <div className="space-y-3">

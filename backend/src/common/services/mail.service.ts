@@ -30,10 +30,23 @@ export class MailService {
     userName: string,
     eventTitle: string,
     tickets: any[],
-    eventInfo?: { venueName?: string | null; venueAddress?: string | null; eventDate?: string; eventTimezone?: string },
+    eventInfo?: {
+      venueName?: string | null;
+      venueAddress?: string | null;
+      eventDate?: string;
+      eventTimezone?: string;
+      currency?: string;
+      subtotal?: number;
+      lpFee?: number;
+      processingFee?: number;
+      total?: number;
+    },
   ) {
     const appUrl = this.getAppUrl();
     const eventAddress = [eventInfo?.venueName, eventInfo?.venueAddress].filter(Boolean).join(' — ');
+    const currency = eventInfo?.currency || 'USD';
+    const hasPaymentSummary = eventInfo?.subtotal !== undefined || eventInfo?.total !== undefined;
+    const money = (value?: number) => `${Number(value || 0).toFixed(2)} ${currency}`;
 
     const eventDateFormatted = eventInfo?.eventDate && eventInfo?.eventTimezone
       ? (() => {
@@ -158,6 +171,30 @@ export class MailService {
             <h1 style="color: #0A375A; font-size: 24px; font-weight: 850; margin: 0; letter-spacing: -0.5px;">¡Hola, ${userName}! 👋</h1>
             <p style="color: #475569; font-size: 14px; margin-top: 6px; margin-bottom: 0;">Gracias por tu compra. Aquí tienes tus entradas listas para el evento:</p>
           </div>
+
+          ${hasPaymentSummary ? `
+            <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;padding:18px 20px;margin-bottom:22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+              <p style="margin:0 0 12px 0;color:#0A375A;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:0.8px;">Resumen de pago</p>
+              <div style="font-size:13px;color:#334155;line-height:1.7;">
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding:4px 0;">
+                  <span>Subtotal de entradas</span>
+                  <strong>${money(eventInfo?.subtotal)}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding:4px 0;">
+                  <span>Cargo por servicio</span>
+                  <strong>${money(eventInfo?.lpFee)}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding:4px 0;">
+                  <span>Tarifa de procesamiento</span>
+                  <strong>${money(eventInfo?.processingFee)}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding:10px 0 0 0;color:#0A375A;font-size:15px;">
+                  <span style="font-weight:900;">Total cobrado</span>
+                  <strong style="color:#F97316;">${money(eventInfo?.total)}</strong>
+                </div>
+              </div>
+            </div>
+          ` : ''}
           
           ${ticketDetails}
           

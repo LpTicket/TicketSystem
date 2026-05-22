@@ -25,6 +25,8 @@ const parseSafeDate = (dateStr: any) => {
   return isNaN(d.getTime()) ? new Date(dateStr) : d;
 };
 
+const money = (value: any, currency = 'USD') => `$${Number(value || 0).toFixed(2)} ${currency}`;
+
 export default function VerifyTicketPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
@@ -130,6 +132,7 @@ export default function VerifyTicketPage() {
   const seatLabel = formatSeatLabel(ticket, ticket.sectionName, 'en');
 
   const eventTz = ticket.event?.eventTimezone || 'UTC';
+  const receiptCurrency = ticket.event?.currency || 'USD';
   const eventDateFormatted = ticket.event?.eventDate
     ? new Intl.DateTimeFormat('es', {
         timeZone: eventTz,
@@ -716,6 +719,30 @@ export default function VerifyTicketPage() {
                   </div>
                 </div>
               </div>
+
+              {ticket.order && (
+                <div className="rounded-2xl border border-slate-200 bg-white/90 p-4">
+                  <p className="text-[10px] font-black text-[#0a375a] uppercase tracking-widest mb-3">Resumen de Pago</p>
+                  <div className="space-y-1.5 text-sm text-slate-600">
+                    <div className="flex justify-between gap-4">
+                      <span>Subtotal de entradas</span>
+                      <strong className="text-slate-900">{money(ticket.order.subtotal, receiptCurrency)}</strong>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>Cargo por servicio</span>
+                      <strong className="text-slate-900">{money(ticket.order.lpFee, receiptCurrency)}</strong>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>Tarifa de procesamiento</span>
+                      <strong className="text-slate-900">{money(ticket.order.processingFee, receiptCurrency)}</strong>
+                    </div>
+                    <div className="flex justify-between gap-4 border-t border-dashed border-slate-200 pt-2 mt-2">
+                      <span className="font-black text-slate-900">Total cobrado</span>
+                      <strong className="text-orange-600">{money(ticket.order.total, receiptCurrency)}</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ===== FOOTER: Terms + Branding ===== */}

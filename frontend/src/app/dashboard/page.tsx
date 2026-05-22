@@ -366,6 +366,12 @@ function DashboardPageBody() {
                         <p className="text-xs text-gray-500 mt-0.5">
                           {format(parseSafeDate(order.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })} · {order.ticketCount} ticket(s)
                         </p>
+                        <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-gray-500">
+                          <span>Subtotal: <strong className="text-gray-700">${Number(order.subtotal || 0).toFixed(2)}</strong></span>
+                          <span>Servicio: <strong className="text-gray-700">${Number(order.lpFee || 0).toFixed(2)}</strong></span>
+                          <span>Procesamiento: <strong className="text-gray-700">${Number(order.processingFee || 0).toFixed(2)}</strong></span>
+                          <span>Total cobrado: <strong className="text-primary-600">${Number(order.total || 0).toFixed(2)}</strong></span>
+                        </div>
                       </div>
                       <div className="text-right shrink-0 ml-4">
                         <div className="font-bold text-gray-900">${Number(order.total).toFixed(2)}</div>
