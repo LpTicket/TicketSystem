@@ -237,7 +237,15 @@ const buildLocalEventDate = (date: string, time: string, timezone: string = 'UTC
   return correctUtcDate.toISOString();
 };
 
-function CreatorCommissionBlock({
+type EventCode = {
+  id: string;
+  code: string;
+  commissionFixed: number;
+  isActive: boolean;
+  owner?: { firstName: string; lastName: string; email: string };
+};
+
+function CreatorRewardsBlock({
   event,
   sections,
   lang,
@@ -251,8 +259,19 @@ function CreatorCommissionBlock({
   const [mode, setMode] = useState<'fixed' | 'percent'>('fixed');
   const [value, setValue] = useState(Number(event.creatorCommission || 0).toFixed(2));
   const [saving, setSaving] = useState(false);
+  const [codes, setCodes] = useState<EventCode[]>([]);
+  const [loadingCodes, setLoadingCodes] = useState(true);
 
   const ticketSections = sections.filter(s => s.sectionType !== 'stage' && s.sectionType !== 'decor');
+
+  useEffect(() => {
+    import('@/lib/api').then(({ default: api }) =>
+      api.get(`/special-codes/by-event/${event.id}`)
+        .then(r => setCodes(r.data || []))
+        .catch(() => setCodes([]))
+        .finally(() => setLoadingCodes(false))
+    );
+  }, [event.id]);
 
   const calcEarning = (ticketPrice: number) => {
     const v = parseFloat(value) || 0;
@@ -262,7 +281,7 @@ function CreatorCommissionBlock({
 
   const handleSave = async () => {
     const v = parseFloat(value);
-    if (isNaN(v) || v < 0) { return; }
+    if (isNaN(v) || v < 0) return;
     const amount = mode === 'percent'
       ? (ticketSections.length > 0 ? (ticketSections.reduce((sum, s) => sum + Number(s.price), 0) / ticketSections.length) * (v / 100) : 0)
       : v;
@@ -271,143 +290,193 @@ function CreatorCommissionBlock({
       await import('@/lib/api').then(({ default: api }) =>
         api.patch(`/events/${event.id}/creator-commission`, { amount: Math.round(amount * 100) / 100 })
       );
-      const toast = (await import('react-hot-toast')).default;
-      toast.success(
+      const toastLib = (await import('react-hot-toast')).default;
+      toastLib.success(
         event.status === 'published'
           ? (lang === 'es' ? 'Solicitud enviada al admin para aprobación' : 'Request sent to admin for approval')
-          : (lang === 'es' ? 'Comisión guardada' : 'Commission saved')
+          : (lang === 'es' ? 'Recompensa guardada' : 'Reward saved')
       );
       await onSaved();
     } catch (err: any) {
-      const toast = (await import('react-hot-toast')).default;
-      toast.error(err.response?.data?.message || 'Error');
+      const toastLib = (await import('react-hot-toast')).default;
+      toastLib.error(err.response?.data?.message || 'Error');
     } finally {
       setSaving(false);
     }
   };
 
-  const activeCommission = Number(event.creatorCommission || 0);
-  const pendingCommission = event.pendingCreatorCommission;
+  const activeReward = Number(event.creatorCommission || 0);
+  const pendingReward = event.pendingCreatorCommission;
+
+  const effectiveReward = (code: EventCode) =>
+    Number(code.commissionFixed) > 0 ? Number(code.commissionFixed) : activeReward;
 
   return (
-    <div className="pt-4 border-t border-gray-100 space-y-4">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
-          <HiOutlineCurrencyDollar className="w-5 h-5" />
+      <div className="flex items-start gap-3 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+        <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+          <HiOutlineCurrencyDollar className="w-6 h-6" />
         </div>
         <div>
           <p className="text-sm font-extrabold text-gray-900">
-            {lang === 'es' ? 'Comisión para Códigos de Creador' : 'Creator Code Commission'}
+            {lang === 'es' ? 'Recompensas para Creadores' : 'Creator Rewards'}
           </p>
-          <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">
+          <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
             {lang === 'es'
-              ? 'Cuánto gana el titular de un código de creador/influencer por cada entrada vendida en este evento usando su código. El admin debe aprobar el monto.'
-              : 'How much a creator/influencer code holder earns per ticket sold at this event using their code. Admin must approve the amount.'}
+              ? 'El admin crea los códigos y asigna creadores a tu evento. Cada vez que alguien compra una entrada con el código de un creador, se le acumula una recompensa. Los pagos son realizados directamente por el administrador.'
+              : 'The admin creates codes and assigns creators to your event. Every time someone buys a ticket using a creator\'s code, their reward accumulates. Payments are handled directly by the administrator.'}
           </p>
         </div>
       </div>
 
-      {/* Status badges */}
-      {activeCommission > 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-          <span className="text-emerald-800 font-semibold">
-            {lang === 'es' ? 'Comisión activa:' : 'Active commission:'}{' '}
-            <span className="font-extrabold">${activeCommission.toFixed(2)}</span>{' '}
-            {lang === 'es' ? 'por entrada vendida' : 'per ticket sold'}
+      {/* Active creators for this event */}
+      <div className="rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+            {lang === 'es' ? 'Creadores en este evento' : 'Creators on this event'}
+          </p>
+          <span className="text-[10px] text-gray-400 font-medium">
+            {lang === 'es' ? 'Creados por el admin' : 'Created by admin'}
           </span>
         </div>
-      )}
-      {pendingCommission !== null && pendingCommission !== undefined && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs">
-          <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
-          <span className="text-amber-800 font-semibold">
-            {lang === 'es' ? 'Pendiente de aprobación:' : 'Pending approval:'}{' '}
-            <span className="font-extrabold">${Number(pendingCommission).toFixed(2)}</span>{' '}
-            {lang === 'es' ? 'por entrada' : 'per ticket'}
-          </span>
-        </div>
-      )}
-
-      {/* Input row */}
-      <div className="flex gap-2 items-center">
-        {/* Mode toggle */}
-        <div className="flex rounded-xl overflow-hidden border border-gray-200 shrink-0 text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => setMode('fixed')}
-            className={`px-3 py-2 transition-colors ${mode === 'fixed' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-          >
-            $ {lang === 'es' ? 'Fijo' : 'Fixed'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('percent')}
-            className={`px-3 py-2 transition-colors ${mode === 'percent' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-          >
-            % {lang === 'es' ? 'del precio' : 'of price'}
-          </button>
-        </div>
-        <div className="relative flex-1">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">
-            {mode === 'fixed' ? '$' : '%'}
-          </span>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            max={mode === 'percent' ? 100 : undefined}
-            value={value}
-            onChange={e => setValue(e.target.value)}
-            className="w-full pl-7 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:outline-none"
-          />
-        </div>
-        <button
-          type="button"
-          disabled={saving}
-          onClick={handleSave}
-          className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
-        >
-          {saving ? (
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : event.status === 'published' ? (
-            lang === 'es' ? 'Solicitar' : 'Request'
-          ) : (
-            lang === 'es' ? 'Guardar' : 'Save'
-          )}
-        </button>
-      </div>
-
-      {/* Per-section preview */}
-      {ticketSections.length > 0 && parseFloat(value) > 0 && (
-        <div className="rounded-xl border border-gray-100 overflow-hidden">
-          <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              {lang === 'es' ? 'Vista previa — ganancias del creador por sección' : 'Preview — creator earnings per section'}
+        {loadingCodes ? (
+          <div className="px-4 py-6 text-center">
+            <div className="w-5 h-5 border-2 border-gray-300 border-t-orange-400 rounded-full animate-spin mx-auto" />
+          </div>
+        ) : codes.length === 0 ? (
+          <div className="px-4 py-8 text-center">
+            <p className="text-sm text-gray-400">
+              {lang === 'es' ? 'No hay códigos asignados a este evento todavía.' : 'No codes assigned to this event yet.'}
+            </p>
+            <p className="text-xs text-gray-300 mt-1">
+              {lang === 'es' ? 'El administrador puede crear códigos desde el panel de admin.' : 'The administrator can create codes from the admin panel.'}
             </p>
           </div>
+        ) : (
           <div className="divide-y divide-gray-100">
-            {ticketSections.map(sec => {
-              const earning = calcEarning(Number(sec.price));
-              const pct = Number(sec.price) > 0 ? (earning / Number(sec.price)) * 100 : 0;
+            {codes.map(code => {
+              const reward = effectiveReward(code);
+              const fromCode = Number(code.commissionFixed) > 0;
               return (
-                <div key={sec.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
+                <div key={code.id} className="flex items-center gap-3 px-4 py-3.5">
+                  <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0 text-sm font-bold text-gray-500">
+                    {(code.owner?.firstName?.[0] || '?').toUpperCase()}
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-gray-800 truncate">{sec.name}</p>
-                    <p className="text-[10px] text-gray-400">{lang === 'es' ? 'Precio entrada:' : 'Ticket price:'} <span className="font-semibold text-gray-600">${Number(sec.price).toFixed(2)}</span></p>
+                    <p className="text-sm font-bold text-gray-900 truncate">
+                      {code.owner ? `${code.owner.firstName} ${code.owner.lastName}` : lang === 'es' ? 'Sin asignar' : 'Unassigned'}
+                    </p>
+                    <p className="text-[10px] text-gray-400 font-mono mt-0.5">{code.code}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-extrabold text-emerald-700">${earning.toFixed(2)}</p>
-                    <p className="text-[10px] text-gray-400">{pct.toFixed(1)}% {lang === 'es' ? 'del precio' : 'of price'}</p>
+                    <p className="text-base font-extrabold text-emerald-700">${reward.toFixed(2)}</p>
+                    <p className="text-[10px] text-gray-400">
+                      {fromCode
+                        ? (lang === 'es' ? 'monto propio' : 'own rate')
+                        : (lang === 'es' ? 'monto del evento' : 'event rate')}
+                    </p>
                   </div>
                 </div>
               );
             })}
           </div>
+        )}
+      </div>
+
+      {/* Event default reward */}
+      <div className="rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+            {lang === 'es' ? 'Recompensa base del evento' : 'Event base reward'}
+          </p>
+          <p className="text-[10px] text-gray-400 mt-0.5">
+            {lang === 'es'
+              ? 'Se aplica a los creadores que no tengan un monto propio asignado por el admin.'
+              : 'Applies to creators that don\'t have their own rate set by the admin.'}
+          </p>
         </div>
-      )}
+        <div className="p-4 space-y-3">
+          {activeReward > 0 && pendingReward == null && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="text-emerald-800 font-semibold">
+                {lang === 'es' ? 'Activa:' : 'Active:'}{' '}
+                <span className="font-extrabold">${activeReward.toFixed(2)}</span>{' '}
+                {lang === 'es' ? 'por entrada' : 'per ticket'}
+              </span>
+            </div>
+          )}
+          {pendingReward != null && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs">
+              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+              <span className="text-amber-800 font-semibold">
+                {lang === 'es' ? 'Pendiente de aprobación:' : 'Pending approval:'}{' '}
+                <span className="font-extrabold">${Number(pendingReward).toFixed(2)}</span>{' '}
+                {lang === 'es' ? 'por entrada' : 'per ticket'}
+              </span>
+            </div>
+          )}
+
+          <div className="flex gap-2 items-center">
+            <div className="flex rounded-xl overflow-hidden border border-gray-200 shrink-0 text-xs font-bold">
+              <button type="button" onClick={() => setMode('fixed')}
+                className={`px-3 py-2 transition-colors ${mode === 'fixed' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+                $ {lang === 'es' ? 'Fijo' : 'Fixed'}
+              </button>
+              <button type="button" onClick={() => setMode('percent')}
+                className={`px-3 py-2 transition-colors ${mode === 'percent' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+                % {lang === 'es' ? 'del precio' : 'of price'}
+              </button>
+            </div>
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">{mode === 'fixed' ? '$' : '%'}</span>
+              <input
+                type="number" step="0.01" min="0" max={mode === 'percent' ? 100 : undefined}
+                value={value}
+                onChange={e => setValue(e.target.value)}
+                className="w-full pl-7 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-orange-400 text-sm focus:outline-none"
+              />
+            </div>
+            <button type="button" disabled={saving} onClick={handleSave}
+              className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap">
+              {saving
+                ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : event.status === 'published'
+                  ? (lang === 'es' ? 'Solicitar' : 'Request')
+                  : (lang === 'es' ? 'Guardar' : 'Save')}
+            </button>
+          </div>
+
+          {/* Per-section preview */}
+          {ticketSections.length > 0 && parseFloat(value) > 0 && (
+            <div className="rounded-xl border border-gray-100 overflow-hidden mt-1">
+              <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  {lang === 'es' ? 'Vista previa por sección' : 'Preview per section'}
+                </p>
+              </div>
+              {ticketSections.map(sec => {
+                const earning = calcEarning(Number(sec.price));
+                const pct = Number(sec.price) > 0 ? (earning / Number(sec.price)) * 100 : 0;
+                return (
+                  <div key={sec.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-gray-50 last:border-0">
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-800 truncate">{sec.name}</p>
+                      <p className="text-[10px] text-gray-400">{lang === 'es' ? 'Precio:' : 'Price:'} <span className="font-semibold">${Number(sec.price).toFixed(2)}</span></p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-extrabold text-emerald-700">${earning.toFixed(2)}</p>
+                      <p className="text-[10px] text-gray-400">{pct.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -967,7 +1036,7 @@ export default function EventDetailPage() {
           className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'commission' ? 'border-orange-500 text-orange-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           <HiOutlineCurrencyDollar className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap">{lang === 'es' ? 'Comisión' : 'Commission'}</span>
+          <span className="whitespace-nowrap">{lang === 'es' ? 'Recompensas' : 'Rewards'}</span>
           {(Number(event.pendingCreatorCommission) > 0) && (
             <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
           )}
@@ -2151,7 +2220,7 @@ export default function EventDetailPage() {
       {/* Commission Tab */}
       {activeTab === 'commission' && (
         <div className="animate-fade-in max-w-2xl">
-          <CreatorCommissionBlock event={event} sections={sections} lang={lang} onSaved={loadEvent} />
+          <CreatorRewardsBlock event={event} sections={sections} lang={lang} onSaved={loadEvent} />
         </div>
       )}
 

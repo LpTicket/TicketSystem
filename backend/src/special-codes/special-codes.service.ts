@@ -100,6 +100,14 @@ export class SpecialCodesService {
     });
   }
 
+  getCodesByEvent(eventId: string) {
+    return this.specialCodeRepo.find({
+      where: { eventId },
+      relations: ['owner'],
+      order: { createdAt: 'ASC' },
+    });
+  }
+
   getMyCodes(ownerUserId: string) {
     return this.specialCodeRepo.find({
       where: { ownerUserId },

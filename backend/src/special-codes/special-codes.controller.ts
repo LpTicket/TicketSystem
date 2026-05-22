@@ -10,6 +10,12 @@ export class SpecialCodesController {
   constructor(private readonly specialCodesService: SpecialCodesService) {}
 
   @UseGuards(AuthGuard('jwt'))
+  @Get('by-event/:eventId')
+  getCodesByEvent(@Param('eventId') eventId: string) {
+    return this.specialCodesService.getCodesByEvent(eventId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Get('me')
   getMyCodes(@Request() req: any) {
     return this.specialCodesService.getMyCodes(req.user.id);
