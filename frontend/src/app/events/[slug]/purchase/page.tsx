@@ -630,7 +630,7 @@ export default function PurchasePage() {
                   </label>
                   <input
                     className="input purchase-premium-input text-sm uppercase"
-                    placeholder={lang === 'es' ? 'Ej: INFLUENCER2025' : 'E.g. INFLUENCER2025'}
+                    placeholder={lang === 'es' ? 'Ej: LPTICKET2026' : 'E.g. LPTICKET2026'}
                     value={specialCode}
                     onChange={(e) => { setSpecialCode(e.target.value.toUpperCase()); setSpecialCodeError(''); }}
                   />
