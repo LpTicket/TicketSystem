@@ -202,7 +202,7 @@ function DashboardPageBody() {
   const tabs = [
     { id: 'tickets' as const, label: t('clientMyTickets'), icon: HiOutlineTicket, count: tickets.length },
     { id: 'orders' as const, label: t('clientReceipts'), icon: HiOutlineShoppingCart, count: orders.length },
-    { id: 'payments' as const, label: 'Pagos', icon: HiOutlineCreditCard },
+    { id: 'payments' as const, label: t('clientPayments'), icon: HiOutlineCreditCard },
     { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles, count: pendingSocialRequests },
     { id: 'codes' as const, label: lang === 'es' ? 'Códigos' : 'Codes', icon: HiOutlineTag },
     { id: 'profile' as const, label: t('clientProfile'), icon: HiOutlineUser },
@@ -276,7 +276,7 @@ function DashboardPageBody() {
                     <p className="font-mono text-xs text-[#F97316] font-bold">{t('clientCode')}: {ticket.ticketCode}</p>
                     {ticket.createdAt && (
                       <p className="text-[10px] text-gray-400 font-medium pt-1">
-                        🕒 {lang === 'es' ? 'Adquirido el' : 'Purchased on'}: {format(parseSafeDate(ticket.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })}
+                        🕒 {t('clientPurchasedOn')}: {format(parseSafeDate(ticket.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })}
                       </p>
                     )}
                   </div>
@@ -318,7 +318,7 @@ function DashboardPageBody() {
                       className="flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
                     >
                       <HiOutlineDownload className="w-3.5 h-3.5" />
-                      Descargar PDF / Imprimir
+                      {t('clientDownloadPrint')}
                     </button>
                   </div>
                 </div>
