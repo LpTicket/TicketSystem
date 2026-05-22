@@ -423,7 +423,7 @@ export default function EventDetailPage() {
   const [sections, setSections] = useState<VenueSection[]>([]);
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders' | 'commission'>('analytics');
   const [selectedBlockSection, setSelectedBlockSection] = useState('');
   const [selectedBlockSeats, setSelectedBlockSeats] = useState<string[]>([]);
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
@@ -961,6 +961,19 @@ export default function EventDetailPage() {
           <HiOutlineBan className="w-4 h-4 shrink-0" />
           <span className="hidden sm:inline whitespace-nowrap">{lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}</span>
           <span className="sm:hidden whitespace-nowrap">{lang === 'es' ? 'Bloqueos' : 'Blocks'}</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('commission')}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'commission' ? 'border-orange-500 text-orange-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          <HiOutlineCurrencyDollar className="w-4 h-4 shrink-0" />
+          <span className="whitespace-nowrap">{lang === 'es' ? 'Comisión' : 'Commission'}</span>
+          {(Number(event.pendingCreatorCommission) > 0) && (
+            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+          )}
+          {(Number(event.creatorCommission) > 0 && event.pendingCreatorCommission == null) && (
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+          )}
         </button>
       </div>
 
@@ -1926,9 +1939,6 @@ export default function EventDetailPage() {
               </div>
             </div>
 
-            {/* Creator Code Commission */}
-            <CreatorCommissionBlock event={event} sections={sections} lang={lang} onSaved={loadEvent} />
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
               {/* Cover Image Upload */}
               <div className="space-y-2">
@@ -2135,6 +2145,13 @@ export default function EventDetailPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Commission Tab */}
+      {activeTab === 'commission' && (
+        <div className="animate-fade-in max-w-2xl">
+          <CreatorCommissionBlock event={event} sections={sections} lang={lang} onSaved={loadEvent} />
         </div>
       )}
 
