@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api from '@/lib/api';
+import { normalizeCategoryForDisplay } from '@/lib/i18nDisplay';
 
 export interface Category {
   id: string;
@@ -35,7 +36,7 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
   const fetchCategories = async () => {
     try {
       const res = await api.get('/categories');
-      setCategories(res.data);
+      setCategories((res.data || []).map(normalizeCategoryForDisplay));
     } catch (err) {
       console.error('Failed to load categories', err);
     } finally {

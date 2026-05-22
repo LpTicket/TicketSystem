@@ -6,10 +6,12 @@ import api from '@/lib/api';
 import EventCard from '@/components/events/EventCard';
 import { Event, EventsResponse } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
+import { useLang } from '@/context/LanguageContext';
 import { HiOutlineSearch } from 'react-icons/hi';
 
 export default function EventsContent() {
   const searchParams = useSearchParams();
+  const { lang } = useLang();
   const { categories } = useCategories();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,7 @@ export default function EventsContent() {
             type="text" 
             value={search} 
             onChange={(e) => setSearch(e.target.value)} 
-            placeholder="Buscar eventos..." 
+            placeholder={lang === 'es' ? 'Buscar eventos...' : 'Search events...'} 
             className="flex-1 py-3 px-3 text-gray-700 focus:outline-none text-sm bg-transparent" 
           />
         </form>
@@ -70,13 +72,13 @@ export default function EventsContent() {
               onClick={() => { setCategory(cat.slug); setPage(1); }} 
               className={`category-pill whitespace-nowrap !py-2.5 ${category === cat.slug ? 'active' : ''}`}
             >
-              {cat.labelEs}
+              {lang === 'en' ? cat.labelEn : cat.labelEs}
             </button>
           ))}
         </div>
       </div>
 
-      <p className="text-sm text-gray-500 mb-4">{total} {total === 1 ? 'evento encontrado' : 'eventos encontrados'}</p>
+      <p className="text-sm text-gray-500 mb-4">{total} {lang === 'es' ? (total === 1 ? 'evento encontrado' : 'eventos encontrados') : (total === 1 ? 'event found' : 'events found')}</p>
 
       {/* Grid */}
       <div className="mt-12">
@@ -91,7 +93,7 @@ export default function EventsContent() {
             {events.map((event) => <EventCard key={event.id} event={event} />)}
           </div>
         ) : (
-          <div className="text-center py-20 border border-gray-200 rounded-lg"><p className="text-gray-500">No se encontraron eventos</p></div>
+          <div className="text-center py-20 border border-gray-200 rounded-lg"><p className="text-gray-500">{lang === 'es' ? 'No se encontraron eventos' : 'No events found'}</p></div>
         )}
       </div>
 

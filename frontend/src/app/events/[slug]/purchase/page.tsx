@@ -449,7 +449,7 @@ export default function PurchasePage() {
                         />
                         <span className="font-bold text-gray-900 text-sm">{sec.name}</span>
                         <span className="text-xs text-gray-500">
-                          {sec.sectionType === 'vip' ? '⭐ VIP' : sec.sectionType === 'standing' ? '🧍 General' : '💺 Numerado'}
+                          {sec.sectionType === 'vip' ? '⭐ VIP' : sec.sectionType === 'standing' ? (lang === 'es' ? '🧍 General' : '🧍 General Admission') : (lang === 'es' ? '💺 Numerado' : '💺 Assigned seating')}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">

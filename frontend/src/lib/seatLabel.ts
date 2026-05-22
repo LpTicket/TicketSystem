@@ -1,3 +1,5 @@
+import { translateSectionLabel } from '@/lib/i18nDisplay';
+
 type SeatLabelInput = {
   rowLabel?: string | null;
   seatNumber?: number | string | null;
@@ -26,7 +28,7 @@ export function formatSeatLabel(
   const rowLabel = String(seat.rowLabel || '').trim();
   const seatNumber = seat.seatNumber ?? '';
 
-  const cleanSection = rawSectionName.trim();
+  const cleanSection = translateSectionLabel(rawSectionName, lang).trim();
   const shouldShowSection = cleanSection && 
     !['general', 'general admission', 'ga', 'default', 'default section', 'null', 'undefined', 'sección única', 'seccion unica'].includes(cleanSection.toLowerCase());
 
