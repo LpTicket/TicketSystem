@@ -38,6 +38,7 @@ export type SocialMatchSuggestion = {
   displayName: string;
   sharedInterests: string[];
   industryMatch: boolean;
+  industry: string | null;
   canShareLocationLater: boolean;
   score: number;
 };

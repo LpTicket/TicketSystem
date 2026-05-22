@@ -24,6 +24,7 @@ import {
   SocialMatchSummary,
   socialMatchInterestOptions,
 } from '@/lib/socialMatch';
+import SocialMatchSwiper from './SocialMatchSwiper';
 
 type Props = {
   lang: 'es' | 'en';
@@ -356,23 +357,13 @@ export default function SocialMatchPanel({ lang }: Props) {
             {loadingSuggestions ? (
               <div className="h-16 bg-gray-50 rounded-xl animate-pulse" />
             ) : suggestions.length > 0 ? (
-              <div className="space-y-3">
-                {suggestions.map((suggestion) => (
-                  <div key={suggestion.userId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
-                    <div>
-                      <p className="font-bold text-gray-900">{suggestion.displayName}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {suggestion.sharedInterests.length} {lang === 'es' ? 'intereses en común' : 'shared interests'}
-                        {suggestion.industryMatch ? ` · ${lang === 'es' ? 'misma industria' : 'same industry'}` : ''}
-                        {suggestion.canShareLocationLater ? ` · ${lang === 'es' ? 'ubicación opcional' : 'optional location'}` : ''}
-                      </p>
-                    </div>
-                    <button type="button" onClick={() => handleRequestConnection(suggestion.userId)} className="px-4 py-2 rounded-lg bg-[#F97316] text-white text-xs font-bold hover:bg-[#F97316] transition-colors">
-                      {copy.connect}
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <SocialMatchSwiper
+                suggestions={suggestions}
+                lang={lang}
+                onConnect={async (userId) => {
+                  await handleRequestConnection(userId);
+                }}
+              />
             ) : (
               <p className="text-sm text-gray-500">{copy.noSuggestions}</p>
             )}

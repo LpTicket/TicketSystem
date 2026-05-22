@@ -112,13 +112,14 @@ export class SocialMatchService {
           displayName: candidate.privateMode ? 'Asistente compatible' : `${candidate.user?.firstName || 'Asistente'} ${candidate.user?.lastName?.[0] || ''}.`.trim(),
           sharedInterests,
           industryMatch,
+          industry: candidate.industry || null,
           canShareLocationLater: candidate.shareLocation && myPreference.shareLocation,
           score,
         };
       })
       .filter((suggestion) => suggestion.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
+      .slice(0, 20);
 
     return { suggestions };
   }
