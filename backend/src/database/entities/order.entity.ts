@@ -90,7 +90,7 @@ export class Order {
   paidAt: Date | null;
 
   /** Special influencer/referral code used at checkout */
-  @Column({ nullable: true, length: 40 })
+  @Column({ type: 'varchar', nullable: true, length: 40 })
   specialCode: string | null;
 
   /** ID of the SpecialCode record used */

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, IsNull, Repository } from 'typeorm';
 import { Event, Order, OrderStatus, SpecialCode, User } from '../database/entities';
 
 type CreateSpecialCodeDto = {
@@ -108,8 +108,7 @@ export class SpecialCodesService {
     });
   }
 
-  async getAllCodeSales() {
-    const { Not, IsNull } = await import('typeorm');
+  getAllCodeSales() {
     return this.orderRepo.find({
       where: { status: OrderStatus.PAID, specialCode: Not(IsNull()) },
       relations: ['event', 'user'],
