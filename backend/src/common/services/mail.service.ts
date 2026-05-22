@@ -47,6 +47,7 @@ export class MailService {
     const currency = eventInfo?.currency || 'USD';
     const hasPaymentSummary = eventInfo?.total !== undefined;
     const money = (value?: number) => `${Number(value || 0).toFixed(2)} ${currency}`;
+    const moneyFromCents = (value: number) => `${(value / 100).toFixed(2)} ${currency}`;
 
     const eventDateFormatted = eventInfo?.eventDate && eventInfo?.eventTimezone
       ? (() => {
@@ -61,7 +62,31 @@ export class MailService {
           return `${dayName}, ${dateStr} — ${timeStr} ${tzName}`;
         })()
       : '';
-    const ticketDetails = tickets.map(t => {
+    const ticketSubtotalCents = tickets.map((ticket) => Math.round(Number(ticket.price || 0) * 100));
+    const orderSubtotalCents = Math.round(Number(eventInfo?.subtotal || 0) * 100);
+    const allocateCents = (totalCents: number) => {
+      if (tickets.length === 0) return [];
+      if (orderSubtotalCents <= 0) {
+        const base = Math.floor(totalCents / tickets.length);
+        return tickets.map((_, index) => index === tickets.length - 1 ? totalCents - base * (tickets.length - 1) : base);
+      }
+
+      let used = 0;
+      return ticketSubtotalCents.map((subtotalCents, index) => {
+        if (index === ticketSubtotalCents.length - 1) return totalCents - used;
+        const value = Math.round((totalCents * subtotalCents) / orderSubtotalCents);
+        used += value;
+        return value;
+      });
+    };
+
+    const ticketLpFeeCents = allocateCents(Math.round(Number(eventInfo?.lpFee || 0) * 100));
+    const ticketProcessingFeeCents = allocateCents(Math.round(Number(eventInfo?.processingFee || 0) * 100));
+    const ticketTotalCents = ticketSubtotalCents.map((subtotalCents, index) =>
+      subtotalCents + (ticketLpFeeCents[index] || 0) + (ticketProcessingFeeCents[index] || 0)
+    );
+
+    const ticketDetails = tickets.map((t, index) => {
       const row = t.rowLabel || '';
       const num = t.seatNumber;
       const section = t.sectionName || '';
@@ -131,7 +156,37 @@ export class MailService {
           ${shouldShowSection ? `<p style="margin: 4px 0;"><strong>Sección:</strong> ${t.sectionName}</p>` : ''}
           <p style="margin: 4px 0;"><strong>Ubicación:</strong> ${details}</p>
           <p style="margin: 4px 0; font-family: monospace;"><strong>Código:</strong> <span style="color: #F97316; font-weight: bold;">${t.ticketCode}</span></p>
-          <p style="margin: 4px 0;"><strong>Precio de esta entrada:</strong> ${money(Number(t.price || 0))}</p>
+          ${hasPaymentSummary ? `
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border-spacing:0;margin:10px 0 0 0;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;">
+            <tr>
+              <td style="padding:9px 11px 4px 11px;">
+                <p style="margin:0;color:#0A375A;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.5px;">Resumen de esta entrada</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 11px 9px 11px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;color:#334155;">
+                  <tr>
+                    <td style="padding:3px 0;border-bottom:1px solid #f1f5f9;">Subtotal de esta entrada:</td>
+                    <td align="right" style="padding:3px 0;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;">${moneyFromCents(ticketSubtotalCents[index] || 0)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:3px 0;border-bottom:1px solid #f1f5f9;">Cargo por servicio:</td>
+                    <td align="right" style="padding:3px 0;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;">${moneyFromCents(ticketLpFeeCents[index] || 0)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:3px 0;border-bottom:1px solid #f1f5f9;">Tarifa de procesamiento:</td>
+                    <td align="right" style="padding:3px 0;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;">${moneyFromCents(ticketProcessingFeeCents[index] || 0)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:6px 0 0 0;font-weight:900;color:#0A375A;">Total de esta entrada:</td>
+                    <td align="right" style="padding:6px 0 0 0;font-weight:900;color:#F97316;font-size:14px;">${moneyFromCents(ticketTotalCents[index] || 0)}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+          ` : ''}
         </div>
 
         <!-- Center QR (CID inline image) -->
