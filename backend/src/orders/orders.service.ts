@@ -721,11 +721,23 @@ export class OrdersService {
   /**
    * Finds a detailed order by ID.
    */
-  async getOrderById(orderId: string) {
-    return this.orderRepo.findOne({
+  async getOrderById(orderId: string, user?: any) {
+    const order = await this.orderRepo.findOne({
       where: { id: orderId },
       relations: ['event', 'user'],
     });
+    if (!order) throw new NotFoundException('Order not found');
+
+    if (user && user.role !== 'admin' && order.userId !== user.id) {
+      throw new ForbiddenException('No tienes permiso para ver este recibo');
+    }
+
+    const tickets = await this.ticketRepo.find({
+      where: { orderId },
+      order: { createdAt: 'ASC' },
+    });
+
+    return { ...order, tickets };
   }
 
   /**

@@ -166,8 +166,8 @@ export class OrdersController {
 
   @UseGuards(AuthGuard('jwt'))
   @Get(':id')
-  getOrder(@Param('id') id: string) {
-    return this.ordersService.getOrderById(id);
+  getOrder(@Param('id') id: string, @Request() req: any) {
+    return this.ordersService.getOrderById(id, req.user);
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)

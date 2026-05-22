@@ -367,9 +367,15 @@ function DashboardPageBody() {
                           {format(parseSafeDate(order.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })} · {order.ticketCount} ticket(s)
                         </p>
                       </div>
-                      <div className="text-right shrink-0 ml-4">
+                      <div className="text-right shrink-0 ml-4 space-y-2">
                         <div className="font-bold text-gray-900">${Number(order.total).toFixed(2)}</div>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
+                        <Link
+                          href={`/orders/${order.id}/receipt`}
+                          className="block text-[11px] font-black text-[#0A375A] border border-[#0A375A]/20 rounded-lg px-3 py-1 hover:bg-[#0A375A]/5 transition-colors"
+                        >
+                          Ver recibo
+                        </Link>
                       </div>
                     </div>
                   );

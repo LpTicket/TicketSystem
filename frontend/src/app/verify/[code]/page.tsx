@@ -134,6 +134,13 @@ export default function VerifyTicketPage() {
   const eventTz = ticket.event?.eventTimezone || 'UTC';
   const receiptCurrency = ticket.event?.currency || 'USD';
   const receiptOrder = (ticket as any).order;
+  const orderSubtotal = Number(receiptOrder?.subtotal || 0);
+  const individualSubtotal = Number(ticket.price || 0);
+  const individualShare = orderSubtotal > 0 ? individualSubtotal / orderSubtotal : 1;
+  const individualLpFee = Number(receiptOrder?.lpFee || 0) * individualShare;
+  const individualProcessingFee = Number(receiptOrder?.processingFee || 0) * individualShare;
+  const individualTotal = individualSubtotal + individualLpFee + individualProcessingFee;
+
   const eventDateFormatted = ticket.event?.eventDate
     ? new Intl.DateTimeFormat('es', {
         timeZone: eventTz,
@@ -758,20 +765,20 @@ export default function VerifyTicketPage() {
                   <p className="text-[10px] font-black text-[#0a375a] uppercase tracking-widest mb-3">Resumen de Pago</p>
                   <div className="space-y-1.5 text-sm text-slate-600">
                     <div className="flex justify-between gap-4">
-                      <span>Subtotal de entradas:</span>
-                      <strong className="text-slate-900">{money(receiptOrder.subtotal, receiptCurrency)}</strong>
+                      <span>Subtotal de esta entrada:</span>
+                      <strong className="text-slate-900">{money(individualSubtotal, receiptCurrency)}</strong>
                     </div>
                     <div className="flex justify-between gap-4">
                       <span>Cargo por servicio:</span>
-                      <strong className="text-slate-900">{money(receiptOrder.lpFee, receiptCurrency)}</strong>
+                      <strong className="text-slate-900">{money(individualLpFee, receiptCurrency)}</strong>
                     </div>
                     <div className="flex justify-between gap-4">
                       <span>Tarifa de procesamiento:</span>
-                      <strong className="text-slate-900">{money(receiptOrder.processingFee, receiptCurrency)}</strong>
+                      <strong className="text-slate-900">{money(individualProcessingFee, receiptCurrency)}</strong>
                     </div>
                     <div className="flex justify-between gap-4 border-t border-dashed border-slate-200 pt-2 mt-2">
-                      <span className="font-black text-slate-900">Total cobrado:</span>
-                      <strong className="text-orange-600">{money(receiptOrder.total, receiptCurrency)}</strong>
+                      <span className="font-black text-slate-900">Total de esta entrada:</span>
+                      <strong className="text-orange-600">{money(individualTotal, receiptCurrency)}</strong>
                     </div>
                   </div>
                 </div>
