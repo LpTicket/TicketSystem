@@ -103,6 +103,12 @@ export class MailService {
       const qrCid = `qr-${t.ticketCode}`;
       const ticketUrl = `${appUrl}/verify/${t.ticketCode}`;
       const whatsappShareUrl = `https://wa.me/?text=${encodeURIComponent(`Mi entrada para ${eventTitle}: ${ticketUrl}`)}`;
+      const ticketSubtotal = Number(t.price || 0);
+      const orderSubtotal = Number(eventInfo?.subtotal || 0);
+      const ticketShare = orderSubtotal > 0 ? ticketSubtotal / orderSubtotal : 1 / Math.max(tickets.length, 1);
+      const ticketLpFee = Number(eventInfo?.lpFee || 0) * ticketShare;
+      const ticketProcessingFee = Number(eventInfo?.processingFee || 0) * ticketShare;
+      const ticketTotal = ticketSubtotal + ticketLpFee + ticketProcessingFee;
 
       return `
       <div bgcolor="#ffffff" style="background:#ffffff !important; background-color:#ffffff !important; color:#0f172a !important; border:1px solid #e2e8f0; border-radius:20px; padding:25px; margin-bottom:20px; box-shadow:0 4px 12px rgba(0,0,0,0.03); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
