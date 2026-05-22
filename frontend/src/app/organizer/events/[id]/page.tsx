@@ -237,6 +237,181 @@ const buildLocalEventDate = (date: string, time: string, timezone: string = 'UTC
   return correctUtcDate.toISOString();
 };
 
+function CreatorCommissionBlock({
+  event,
+  sections,
+  lang,
+  onSaved,
+}: {
+  event: Event;
+  sections: import('@/types').VenueSection[];
+  lang: string;
+  onSaved: () => Promise<void>;
+}) {
+  const [mode, setMode] = useState<'fixed' | 'percent'>('fixed');
+  const [value, setValue] = useState(Number(event.creatorCommission || 0).toFixed(2));
+  const [saving, setSaving] = useState(false);
+
+  const ticketSections = sections.filter(s => s.sectionType !== 'stage' && s.sectionType !== 'decor');
+
+  const calcEarning = (ticketPrice: number) => {
+    const v = parseFloat(value) || 0;
+    if (mode === 'percent') return ticketPrice * (v / 100);
+    return v;
+  };
+
+  const handleSave = async () => {
+    const v = parseFloat(value);
+    if (isNaN(v) || v < 0) { return; }
+    const amount = mode === 'percent'
+      ? (ticketSections.length > 0 ? (ticketSections.reduce((sum, s) => sum + Number(s.price), 0) / ticketSections.length) * (v / 100) : 0)
+      : v;
+    setSaving(true);
+    try {
+      await import('@/lib/api').then(({ default: api }) =>
+        api.patch(`/events/${event.id}/creator-commission`, { amount: Math.round(amount * 100) / 100 })
+      );
+      const toast = (await import('react-hot-toast')).default;
+      toast.success(
+        event.status === 'published'
+          ? (lang === 'es' ? 'Solicitud enviada al admin para aprobación' : 'Request sent to admin for approval')
+          : (lang === 'es' ? 'Comisión guardada' : 'Commission saved')
+      );
+      await onSaved();
+    } catch (err: any) {
+      const toast = (await import('react-hot-toast')).default;
+      toast.error(err.response?.data?.message || 'Error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const activeCommission = Number(event.creatorCommission || 0);
+  const pendingCommission = event.pendingCreatorCommission;
+
+  return (
+    <div className="pt-4 border-t border-gray-100 space-y-4">
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
+          <HiOutlineCurrencyDollar className="w-5 h-5" />
+        </div>
+        <div>
+          <p className="text-sm font-extrabold text-gray-900">
+            {lang === 'es' ? 'Comisión para Códigos de Creador' : 'Creator Code Commission'}
+          </p>
+          <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">
+            {lang === 'es'
+              ? 'Cuánto gana el titular de un código de creador/influencer por cada entrada vendida en este evento usando su código. El admin debe aprobar el monto.'
+              : 'How much a creator/influencer code holder earns per ticket sold at this event using their code. Admin must approve the amount.'}
+          </p>
+        </div>
+      </div>
+
+      {/* Status badges */}
+      {activeCommission > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+          <span className="text-emerald-800 font-semibold">
+            {lang === 'es' ? 'Comisión activa:' : 'Active commission:'}{' '}
+            <span className="font-extrabold">${activeCommission.toFixed(2)}</span>{' '}
+            {lang === 'es' ? 'por entrada vendida' : 'per ticket sold'}
+          </span>
+        </div>
+      )}
+      {pendingCommission !== null && pendingCommission !== undefined && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs">
+          <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+          <span className="text-amber-800 font-semibold">
+            {lang === 'es' ? 'Pendiente de aprobación:' : 'Pending approval:'}{' '}
+            <span className="font-extrabold">${Number(pendingCommission).toFixed(2)}</span>{' '}
+            {lang === 'es' ? 'por entrada' : 'per ticket'}
+          </span>
+        </div>
+      )}
+
+      {/* Input row */}
+      <div className="flex gap-2 items-center">
+        {/* Mode toggle */}
+        <div className="flex rounded-xl overflow-hidden border border-gray-200 shrink-0 text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => setMode('fixed')}
+            className={`px-3 py-2 transition-colors ${mode === 'fixed' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+          >
+            $ {lang === 'es' ? 'Fijo' : 'Fixed'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('percent')}
+            className={`px-3 py-2 transition-colors ${mode === 'percent' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+          >
+            % {lang === 'es' ? 'del precio' : 'of price'}
+          </button>
+        </div>
+        <div className="relative flex-1">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">
+            {mode === 'fixed' ? '$' : '%'}
+          </span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max={mode === 'percent' ? 100 : undefined}
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            className="w-full pl-7 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:outline-none"
+          />
+        </div>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={handleSave}
+          className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
+        >
+          {saving ? (
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : event.status === 'published' ? (
+            lang === 'es' ? 'Solicitar' : 'Request'
+          ) : (
+            lang === 'es' ? 'Guardar' : 'Save'
+          )}
+        </button>
+      </div>
+
+      {/* Per-section preview */}
+      {ticketSections.length > 0 && parseFloat(value) > 0 && (
+        <div className="rounded-xl border border-gray-100 overflow-hidden">
+          <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              {lang === 'es' ? 'Vista previa — ganancias del creador por sección' : 'Preview — creator earnings per section'}
+            </p>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {ticketSections.map(sec => {
+              const earning = calcEarning(Number(sec.price));
+              const pct = Number(sec.price) > 0 ? (earning / Number(sec.price)) * 100 : 0;
+              return (
+                <div key={sec.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-gray-800 truncate">{sec.name}</p>
+                    <p className="text-[10px] text-gray-400">{lang === 'es' ? 'Precio entrada:' : 'Ticket price:'} <span className="font-semibold text-gray-600">${Number(sec.price).toFixed(2)}</span></p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-extrabold text-emerald-700">${earning.toFixed(2)}</p>
+                    <p className="text-[10px] text-gray-400">{pct.toFixed(1)}% {lang === 'es' ? 'del precio' : 'of price'}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuthStore();
@@ -248,9 +423,7 @@ export default function EventDetailPage() {
   const [sections, setSections] = useState<VenueSection[]>([]);
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders' | 'prices'>('analytics');
-  const [priceSaving, setPriceSaving] = useState<string | null>(null);
-  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders'>('analytics');
   const [selectedBlockSection, setSelectedBlockSection] = useState('');
   const [selectedBlockSeats, setSelectedBlockSeats] = useState<string[]>([]);
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
@@ -788,21 +961,6 @@ export default function EventDetailPage() {
           <HiOutlineBan className="w-4 h-4 shrink-0" />
           <span className="hidden sm:inline whitespace-nowrap">{lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}</span>
           <span className="sm:hidden whitespace-nowrap">{lang === 'es' ? 'Bloqueos' : 'Blocks'}</span>
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab('prices');
-            const inputs: Record<string, string> = {};
-            for (const s of sections) { inputs[s.id] = String(s.price ?? ''); }
-            setPriceInputs(inputs);
-          }}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'prices' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-        >
-          <HiOutlineCurrencyDollar className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap">{lang === 'es' ? 'Precios' : 'Prices'}</span>
-          {sections.some(s => s.pendingPrice !== null && s.pendingPrice !== undefined) && (
-            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-          )}
         </button>
       </div>
 
@@ -1768,69 +1926,8 @@ export default function EventDetailPage() {
               </div>
             </div>
 
-            {/* Creator Commission */}
-            <div className="pt-4 border-t border-gray-100">
-              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">
-                {lang === 'es' ? 'Comisión para Códigos de Creador' : 'Creator Code Commission'}
-              </label>
-              <p className="text-[11px] text-gray-400 mb-3">
-                {lang === 'es'
-                  ? 'Monto fijo que se paga al titular de un código de creador por cada entrada vendida en este evento. Requiere aprobación del admin.'
-                  : 'Fixed amount paid to creator/influencer code holders per ticket sold at this event. Requires admin approval.'}
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="relative flex-1 max-w-xs">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    defaultValue={Number(event.creatorCommission || 0).toFixed(2)}
-                    id="creatorCommissionInput"
-                    className="w-full pl-7 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:outline-none"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const input = document.getElementById('creatorCommissionInput') as HTMLInputElement;
-                    const val = parseFloat(input?.value ?? '');
-                    if (isNaN(val) || val < 0) { toast.error(lang === 'es' ? 'Monto inválido' : 'Invalid amount'); return; }
-                    try {
-                      await api.patch(`/events/${event.id}/creator-commission`, { amount: val });
-                      toast.success(
-                        event.status === 'published'
-                          ? (lang === 'es' ? 'Solicitud enviada al admin para aprobación' : 'Request sent to admin for approval')
-                          : (lang === 'es' ? 'Comisión guardada' : 'Commission saved')
-                      );
-                      await loadEvent();
-                    } catch (err: any) {
-                      toast.error(err.response?.data?.message || 'Error');
-                    }
-                  }}
-                  className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-xl transition-all active:scale-95"
-                >
-                  {event.status === 'published'
-                    ? (lang === 'es' ? 'Solicitar cambio' : 'Request change')
-                    : (lang === 'es' ? 'Guardar' : 'Save')}
-                </button>
-              </div>
-              {event.pendingCreatorCommission !== null && event.pendingCreatorCommission !== undefined && (
-                <p className="mt-2 text-xs text-amber-700 font-semibold flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
-                  {lang === 'es'
-                    ? `Cambio pendiente de aprobación: $${Number(event.pendingCreatorCommission).toFixed(2)}`
-                    : `Pending approval: $${Number(event.pendingCreatorCommission).toFixed(2)}`}
-                </p>
-              )}
-              {Number(event.creatorCommission) > 0 && (
-                <p className="mt-1.5 text-xs text-emerald-700 font-semibold">
-                  {lang === 'es'
-                    ? `Comisión activa: $${Number(event.creatorCommission).toFixed(2)} por entrada`
-                    : `Active commission: $${Number(event.creatorCommission).toFixed(2)} per ticket`}
-                </p>
-              )}
-            </div>
+            {/* Creator Code Commission */}
+            <CreatorCommissionBlock event={event} sections={sections} lang={lang} onSaved={loadEvent} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
               {/* Cover Image Upload */}
@@ -2041,99 +2138,6 @@ export default function EventDetailPage() {
         </div>
       )}
 
-      {/* Prices Tab */}
-      {activeTab === 'prices' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6 animate-fade-in">
-          <div>
-            <h3 className="font-extrabold text-gray-900 text-base">{lang === 'es' ? 'Precios por Sección' : 'Section Prices'}</h3>
-            <p className="text-xs text-gray-500 mt-1">
-              {event?.status === 'published'
-                ? (lang === 'es'
-                    ? 'El evento está publicado. Los cambios de precio serán enviados al admin para aprobación antes de hacerse efectivos.'
-                    : 'Event is published. Price changes will be sent to admin for approval before taking effect.')
-                : (lang === 'es'
-                    ? 'El evento está en borrador. Los precios se aplican directamente.'
-                    : 'Event is in draft. Prices apply immediately.')}
-            </p>
-          </div>
-
-          {sections.filter(s => s.sectionType !== 'stage' && s.sectionType !== 'decor').length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">
-              {lang === 'es' ? 'No hay secciones configuradas. Configura el mapa del venue primero.' : 'No sections configured. Set up the venue map first.'}
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {sections.filter(s => s.sectionType !== 'stage' && s.sectionType !== 'decor').map((sec) => (
-                <div key={sec.id} className="p-4 border border-gray-200 rounded-xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
-                      <div>
-                        <p className="font-bold text-sm text-gray-900">{sec.name}</p>
-                        <p className="text-[11px] text-gray-400 uppercase tracking-wider">{sec.sectionType}</p>
-                      </div>
-                    </div>
-                    <span className="text-lg font-extrabold text-gray-800">${Number(sec.price).toFixed(2)}</span>
-                  </div>
-
-                  {sec.pendingPrice !== null && sec.pendingPrice !== undefined && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
-                      <span className="text-amber-800 font-semibold">
-                        {lang === 'es' ? 'Cambio pendiente:' : 'Pending change:'}{' '}
-                        <span className="font-extrabold">${Number(sec.pendingPrice).toFixed(2)}</span>
-                        {' — '}{lang === 'es' ? 'esperando aprobación del admin' : 'awaiting admin approval'}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 items-center">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={priceInputs[sec.id] ?? String(sec.price)}
-                      onChange={(e) => setPriceInputs(prev => ({ ...prev, [sec.id]: e.target.value }))}
-                      placeholder={lang === 'es' ? 'Nuevo precio...' : 'New price...'}
-                      className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300"
-                    />
-                    <button
-                      disabled={priceSaving === sec.id}
-                      onClick={async () => {
-                        const val = parseFloat(priceInputs[sec.id] ?? '');
-                        if (isNaN(val) || val < 0) { toast.error(lang === 'es' ? 'Precio inválido' : 'Invalid price'); return; }
-                        setPriceSaving(sec.id);
-                        try {
-                          await api.patch(`/events/${event?.id}/sections/${sec.id}/price`, { price: val });
-                          toast.success(
-                            event?.status === 'published'
-                              ? (lang === 'es' ? 'Solicitud enviada al admin' : 'Request sent to admin')
-                              : (lang === 'es' ? 'Precio actualizado' : 'Price updated')
-                          );
-                          await loadEvent();
-                        } catch (err: any) {
-                          toast.error(err.response?.data?.message || 'Error');
-                        } finally {
-                          setPriceSaving(null);
-                        }
-                      }}
-                      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
-                    >
-                      {priceSaving === sec.id ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : event?.status === 'published' ? (
-                        lang === 'es' ? 'Solicitar cambio' : 'Request change'
-                      ) : (
-                        lang === 'es' ? 'Guardar precio' : 'Save price'
-                      )}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
