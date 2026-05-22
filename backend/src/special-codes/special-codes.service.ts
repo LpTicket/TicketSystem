@@ -27,6 +27,25 @@ export class SpecialCodesService {
     return code.trim().toUpperCase().replace(/\s+/g, '');
   }
 
+  async validateForCheckout(code?: string, eventId?: string) {
+    if (!code || !code.trim()) return null;
+
+    const normalized = this.normalizeCode(code);
+    const specialCode = await this.specialCodeRepo.findOne({
+      where: { code: normalized, isActive: true },
+    });
+
+    if (!specialCode) {
+      throw new BadRequestException('Codigo especial invalido o inactivo.');
+    }
+
+    if (specialCode.eventId && eventId && specialCode.eventId !== eventId) {
+      throw new BadRequestException('Este codigo especial no aplica para este evento.');
+    }
+
+    return specialCode;
+  }
+
   async createCode(dto: CreateSpecialCodeDto) {
     const code = this.normalizeCode(dto.code);
     if (!code) throw new BadRequestException('El codigo es requerido.');
