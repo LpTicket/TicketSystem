@@ -30,10 +30,23 @@ export class MailService {
     userName: string,
     eventTitle: string,
     tickets: any[],
-    eventInfo?: { venueName?: string | null; venueAddress?: string | null; eventDate?: string; eventTimezone?: string },
+    eventInfo?: {
+      venueName?: string | null;
+      venueAddress?: string | null;
+      eventDate?: string;
+      eventTimezone?: string;
+      currency?: string;
+      subtotal?: number;
+      lpFee?: number;
+      processingFee?: number;
+      total?: number;
+    },
   ) {
     const appUrl = this.getAppUrl();
     const eventAddress = [eventInfo?.venueName, eventInfo?.venueAddress].filter(Boolean).join(' — ');
+    const currency = eventInfo?.currency || 'USD';
+    const hasPaymentSummary = eventInfo?.subtotal !== undefined || eventInfo?.total !== undefined;
+    const money = (value?: number) => `${Number(value || 0).toFixed(2)} ${currency}`;
 
     const eventDateFormatted = eventInfo?.eventDate && eventInfo?.eventTimezone
       ? (() => {
@@ -112,6 +125,37 @@ export class MailService {
           ${shouldShowSection ? `<p style="margin: 4px 0;"><strong>Sección:</strong> ${t.sectionName}</p>` : ''}
           <p style="margin: 4px 0;"><strong>Ubicación:</strong> ${details}</p>
           <p style="margin: 4px 0; font-family: monospace;"><strong>Código:</strong> <span style="color: #F97316; font-weight: bold;">${t.ticketCode}</span></p>
+          ${hasPaymentSummary ? `
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border-spacing:0;margin:12px 0 16px 0;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;">
+            <tr>
+              <td style="padding:10px 12px 4px 12px;">
+                <p style="margin:0;color:#0A375A;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.6px;">Resumen de pago</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 12px 10px 12px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:12px;color:#334155;">
+                  <tr>
+                    <td style="padding:3px 0;border-bottom:1px solid #f1f5f9;">Subtotal de entradas:</td>
+                    <td align="right" style="padding:3px 0;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;">${money(eventInfo?.subtotal)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:3px 0;border-bottom:1px solid #f1f5f9;">Cargo por servicio:</td>
+                    <td align="right" style="padding:3px 0;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;">${money(eventInfo?.lpFee)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:3px 0;border-bottom:1px solid #f1f5f9;">Tarifa de procesamiento:</td>
+                    <td align="right" style="padding:3px 0;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;">${money(eventInfo?.processingFee)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:6px 0 0 0;font-weight:900;color:#0A375A;">Total cobrado:</td>
+                    <td align="right" style="padding:6px 0 0 0;font-weight:900;color:#F97316;font-size:14px;">${money(eventInfo?.total)}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+          ` : ''}
         </div>
 
         <!-- Center QR (CID inline image) -->

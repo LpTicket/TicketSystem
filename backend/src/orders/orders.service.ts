@@ -579,6 +579,11 @@ export class OrdersService {
               venueAddress: fullOrder.event.venueAddress,
               eventDate: fullOrder.event.eventDate?.toString(),
               eventTimezone: fullOrder.event.eventTimezone,
+              currency: fullOrder.event.currency || 'USD',
+              subtotal: Number(fullOrder.subtotal || 0),
+              lpFee: Number(fullOrder.lpFee || 0),
+              processingFee: Number(fullOrder.processingFee || 0),
+              total: Number(fullOrder.total || 0),
             },
           );
         }
@@ -647,7 +652,7 @@ export class OrdersService {
   async getTicketByCode(code: string) {
     const ticket = await this.ticketRepo.findOne({
       where: { ticketCode: code },
-      relations: ['event', 'user'],
+      relations: ['event', 'user', 'order'],
     });
     if (!ticket) throw new NotFoundException('Ticket not found');
     return ticket;
