@@ -8,7 +8,7 @@ const Stripe = require('stripe');
 import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, VenueSection } from '../database/entities';
 import { nanoid } from 'nanoid';
 import * as QRCode from 'qrcode';
-import { MailService } from '../common/services/mail.service';
+import { MailService } from '../common/services/mail.service';\nimport { SpecialCodesService } from '../special-codes/special-codes.service';
 
 /**
  * Service constants for fee calculation.
@@ -95,7 +95,7 @@ export class OrdersService {
     quantity?: number,
   ) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
-    if (!event) throw new NotFoundException('Event not found');
+    if (!event) throw new NotFoundException('Event not found');\n    const validSpecialCode = await this.specialCodesService.validateForCheckout(specialCode, eventId);
 
     const maxLimit = event.maxTicketsPerTransaction || 10;
     if (seatIds && seatIds.length > maxLimit) {
@@ -308,7 +308,7 @@ export class OrdersService {
       total,
       status: OrderStatus.PENDING,
       ticketCount: cleanSeatsInfo.length,
-      seatsData: JSON.stringify(cleanSeatsInfo),
+      seatsData: JSON.stringify(cleanSeatsInfo),\n      specialCode: validSpecialCode?.code || null,\n      specialCodeOwnerId: validSpecialCode?.ownerUserId || null,\n      specialCodeId: validSpecialCode?.id || null,
     });
     const savedOrder = await this.orderRepo.save(order);
 

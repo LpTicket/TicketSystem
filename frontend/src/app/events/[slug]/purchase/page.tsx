@@ -19,7 +19,7 @@ import {
 import SeatMapInteractive from '@/components/events/SeatMapInteractive';
 import ReservationTimer from '@/components/events/ReservationTimer';
 import InvoiceBreakdown, { InvoiceData } from '@/components/events/InvoiceBreakdown';
-import TrustBadges from '@/components/layout/TrustBadges';
+import TrustBadges from '@/components/layout/TrustBadges';\nimport { validateSpecialCode } from '@/lib/specialCodes';
 
 /**
  * Steps for the checkout wizard.
@@ -94,6 +94,8 @@ export default function PurchasePage() {
     email: '',
     phone: '',
   });
+  const [specialCode, setSpecialCode] = useState('');
+  const [validatedSpecialCode, setValidatedSpecialCode] = useState<any>(null);
 
   // Step 4: Final Invoice and Payment state
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
@@ -308,6 +310,14 @@ export default function PurchasePage() {
     
     setInvoiceLoading(true);
     try {
+      const cleanSpecialCode = specialCode.trim();
+      if (cleanSpecialCode) {
+        const validCode = await validateSpecialCode(cleanSpecialCode, event!.id);
+        setValidatedSpecialCode(validCode);
+      } else {
+        setValidatedSpecialCode(null);
+      }
+
       const params: any = { eventId: event!.id };
       if (selectedSection?.sectionType === 'standing') {
         params.sectionId = selectedSection.id;
@@ -339,6 +349,7 @@ export default function PurchasePage() {
       } else {
         payload.seatIds = selectedSeats.map((s) => s.id);
       }
+      if (specialCode.trim()) payload.specialCode = specialCode.trim();
 
       const { data } = await api.post('/orders/checkout', payload);
       localStorage.setItem('pendingCheckoutEventId', event!.id);
@@ -619,6 +630,25 @@ export default function PurchasePage() {
                   <input className="input purchase-premium-input text-sm" value={personalInfo.phone}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, phone: e.target.value }))} />
                 </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {lang === 'es' ? 'Código especial (opcional)' : 'Special code (optional)'}
+                  </label>
+                  <input
+                    className="input purchase-premium-input text-sm uppercase"
+                    value={specialCode}
+                    onChange={(e) => {
+                      setSpecialCode(e.target.value.toUpperCase());
+                      setValidatedSpecialCode(null);
+                    }}
+                    placeholder={lang === 'es' ? 'Ej. MARIA, DJLUIS, CARLOSVIP' : 'Ex. MARIA, DJLUIS, CARLOSVIP'}
+                  />
+                  <p className="mt-1 text-[11px] text-gray-500 font-medium">
+                    {lang === 'es'
+                      ? 'No cambia el precio; solo ayuda a rastrear quién generó esta compra.'
+                      : 'This does not change the price; it only tracks who generated this purchase.'}
+                  </p>
+                </div>
               </div>
 
               <button
@@ -643,6 +673,17 @@ export default function PurchasePage() {
               </h2>
 
               <InvoiceBreakdown invoice={invoice} eventTitle={event.title} />
+
+              {validatedSpecialCode && (
+                <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm">
+                  <p className="font-black text-[#0A375A]">
+                    {lang === 'es' ? 'Código especial aplicado' : 'Special code applied'}: <span className="text-[#F97316]">{validatedSpecialCode.code}</span>
+                  </p>
+                  <p className="text-xs text-slate-600 font-semibold mt-1">
+                    {lang === 'es' ? 'El total no cambia en esta etapa.' : 'The total does not change in this stage.'}
+                  </p>
+                </div>
+              )}
 
               <div className="mt-5 space-y-3">
                 <button

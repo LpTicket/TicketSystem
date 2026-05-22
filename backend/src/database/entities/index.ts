@@ -10,3 +10,4 @@ export { VenueTemplate } from './venue-template.entity';
 export { SocialMatchPreference, SocialMatchInterest } from './social-match-preference.entity';
 export { SocialMatchConnection, SocialMatchConnectionStatus } from './social-match-connection.entity';
 export { SocialMatchMessage } from './social-match-message.entity';
+\nexport { SpecialCode } from './special-code.entity';\n

@@ -33,7 +33,7 @@ export class OrdersController {
   @UseGuards(AuthGuard('jwt'))
   @Post('checkout')
   createCheckout(
-    @Body() body: { eventId: string; seatIds?: string[]; sectionId?: string; quantity?: number },
+    @Body() body: { eventId: string; seatIds?: string[]; sectionId?: string; quantity?: number; specialCode?: string },
     @Request() req: any,
   ) {
     return this.ordersService.createCheckoutSession(
