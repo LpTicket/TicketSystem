@@ -8,11 +8,13 @@ import { Event, User } from '@/types';
 import {
   HiOutlineCalendar,
   HiOutlineCheckCircle,
+  HiOutlinePencil,
   HiOutlinePlus,
   HiOutlineRefresh,
   HiOutlineSearch,
   HiOutlineTag,
   HiOutlineUser,
+  HiOutlineX,
   HiOutlineXCircle,
 } from 'react-icons/hi';
 
@@ -41,9 +43,12 @@ export default function AdminSpecialCodesPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [form, setForm] = useState(emptyForm);
+  const [editingCode, setEditingCode] = useState<SpecialCode | null>(null);
+  const [editForm, setEditForm] = useState(emptyForm);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const copy = {
     title: lang === 'es' ? 'Códigos especiales' : 'Special codes',
@@ -63,6 +68,9 @@ export default function AdminSpecialCodesPage() {
     required: lang === 'es' ? 'El código y el dueño son obligatorios.' : 'Code and owner are required.',
     saved: lang === 'es' ? 'Código especial creado.' : 'Special code created.',
     updated: lang === 'es' ? 'Estado actualizado.' : 'Status updated.',
+    edit: lang === 'es' ? 'Editar' : 'Edit',
+    save: lang === 'es' ? 'Guardar cambios' : 'Save changes',
+    cancel: lang === 'es' ? 'Cancelar' : 'Cancel',
     error: lang === 'es' ? 'No se pudo cargar la información.' : 'Could not load information.',
   };
 
@@ -140,6 +148,43 @@ export default function AdminSpecialCodesPage() {
       toast.success(copy.updated);
     } catch (err: any) {
       toast.error(err.response?.data?.message || copy.error);
+    }
+  };
+
+  const startEdit = (item: SpecialCode) => {
+    setEditingCode(item);
+    setEditForm({
+      code: item.code,
+      ownerUserId: item.ownerUserId,
+      eventId: item.eventId || '',
+      isActive: item.isActive,
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingCode) return;
+    const code = editForm.code.trim().toUpperCase();
+
+    if (!code || !editForm.ownerUserId) {
+      toast.error(copy.required);
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      await api.patch(`/special-codes/${editingCode.id}`, {
+        code,
+        ownerUserId: editForm.ownerUserId,
+        eventId: editForm.eventId || null,
+        isActive: editForm.isActive,
+      });
+      setEditingCode(null);
+      await loadData();
+      toast.success(copy.updated);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || copy.error);
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -322,22 +367,120 @@ export default function AdminSpecialCodesPage() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleToggleActive(item)}
-                  className={`inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-black transition-all ${
-                    item.isActive
-                      ? 'bg-green-50 text-green-700 hover:bg-green-100'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {item.isActive ? <HiOutlineCheckCircle className="w-5 h-5" /> : <HiOutlineXCircle className="w-5 h-5" />}
-                  {item.isActive ? copy.active : copy.inactive}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={() => startEdit(item)}
+                    className="btn-secondary inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-black"
+                  >
+                    <HiOutlinePencil className="w-5 h-5" />
+                    {copy.edit}
+                  </button>
+                  <button
+                    onClick={() => handleToggleActive(item)}
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-black transition-all ${
+                      item.isActive
+                        ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {item.isActive ? <HiOutlineCheckCircle className="w-5 h-5" /> : <HiOutlineXCircle className="w-5 h-5" />}
+                    {item.isActive ? copy.active : copy.inactive}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+      {editingCode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm" onClick={() => setEditingCode(null)} />
+          <div className="relative w-full max-w-2xl public-premium-card p-5 md:p-6 space-y-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-500">LP Ticket</p>
+                <h2 className="text-xl font-black text-[#0A375A] mt-1">{copy.edit} {editingCode.code}</h2>
+              </div>
+              <button
+                onClick={() => setEditingCode(null)}
+                className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+              >
+                <HiOutlineX className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase tracking-[0.16em] text-gray-500">{copy.code}</span>
+                <input
+                  value={editForm.code}
+                  onChange={(event) => setEditForm((current) => ({ ...current, code: normalizeCodeInput(event.target.value) }))}
+                  className="w-full px-4 py-3 border border-gray-200 public-premium-input text-sm font-bold"
+                />
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-xs font-black uppercase tracking-[0.16em] text-gray-500">{copy.event}</span>
+                <select
+                  value={editForm.eventId}
+                  onChange={(event) => setEditForm((current) => ({ ...current, eventId: event.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-200 public-premium-input text-sm"
+                >
+                  <option value="">{copy.allEvents}</option>
+                  {events.map((event) => (
+                    <option key={event.id} value={event.id}>{event.title}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-xs font-black uppercase tracking-[0.16em] text-gray-500">{copy.owner}</span>
+                <select
+                  value={editForm.ownerUserId}
+                  onChange={(event) => setEditForm((current) => ({ ...current, ownerUserId: event.target.value }))}
+                  className="w-full px-4 py-3 border border-gray-200 public-premium-input text-sm"
+                >
+                  <option value="">{lang === 'es' ? 'Seleccionar usuario' : 'Select user'}</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName} - {user.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-2">
+              <label className="inline-flex items-center gap-3 text-sm font-bold text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={editForm.isActive}
+                  onChange={(event) => setEditForm((current) => ({ ...current, isActive: event.target.checked }))}
+                  className="w-5 h-5 accent-primary-500"
+                />
+                {copy.active}
+              </label>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => setEditingCode(null)}
+                  className="btn-secondary inline-flex items-center justify-center px-5 py-3 rounded-lg text-sm font-black"
+                >
+                  {copy.cancel}
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={updating}
+                  className="btn-primary inline-flex items-center justify-center px-5 py-3 rounded-lg text-sm font-black disabled:opacity-60"
+                >
+                  {updating ? (lang === 'es' ? 'Guardando...' : 'Saving...') : copy.save}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
