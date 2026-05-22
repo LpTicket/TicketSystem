@@ -703,7 +703,7 @@ export class OrdersService {
   async getOrderById(orderId: string) {
     return this.orderRepo.findOne({
       where: { id: orderId },
-      relations: ['event', 'user'],
+      relations: ['event', 'user', 'order'],
     });
   }
 

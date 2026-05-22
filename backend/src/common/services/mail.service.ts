@@ -173,27 +173,35 @@ export class MailService {
           </div>
 
           ${hasPaymentSummary ? `
-            <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;padding:18px 20px;margin-bottom:22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-              <p style="margin:0 0 12px 0;color:#0A375A;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:0.8px;">Resumen de pago</p>
-              <div style="font-size:13px;color:#334155;line-height:1.7;">
-                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding:4px 0;">
-                  <span>Subtotal de entradas</span>
-                  <strong>${money(eventInfo?.subtotal)}</strong>
-                </div>
-                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding:4px 0;">
-                  <span>Cargo por servicio</span>
-                  <strong>${money(eventInfo?.lpFee)}</strong>
-                </div>
-                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding:4px 0;">
-                  <span>Tarifa de procesamiento</span>
-                  <strong>${money(eventInfo?.processingFee)}</strong>
-                </div>
-                <div style="display:flex;justify-content:space-between;padding:10px 0 0 0;color:#0A375A;font-size:15px;">
-                  <span style="font-weight:900;">Total cobrado</span>
-                  <strong style="color:#F97316;">${money(eventInfo?.total)}</strong>
-                </div>
-              </div>
-            </div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border-spacing:0;margin:0 0 14px 0;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+              <tr>
+                <td style="padding:12px 14px 5px 14px;">
+                  <p style="margin:0;color:#0A375A;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:0.7px;">Resumen de pago</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0 14px 12px 14px;">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:13px;color:#334155;">
+                    <tr>
+                      <td style="padding:4px 0;border-bottom:1px solid #f1f5f9;">Subtotal de entradas:</td>
+                      <td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;">${money(eventInfo?.subtotal)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:4px 0;border-bottom:1px solid #f1f5f9;">Cargo por servicio:</td>
+                      <td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;">${money(eventInfo?.lpFee)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:4px 0;border-bottom:1px solid #f1f5f9;">Tarifa de procesamiento:</td>
+                      <td align="right" style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a;">${money(eventInfo?.processingFee)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:7px 0 0 0;font-weight:900;color:#0A375A;">Total cobrado:</td>
+                      <td align="right" style="padding:7px 0 0 0;font-weight:900;color:#F97316;font-size:15px;">${money(eventInfo?.total)}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
           ` : ''}
           
           ${ticketDetails}

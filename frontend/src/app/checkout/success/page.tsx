@@ -42,7 +42,14 @@ function SuccessContent() {
         });
         const recentTickets = Array.isArray(myTickets) ? myTickets : (myTickets?.data || []);
         setTickets(recentTickets); // Show only recent ones from this session
-        setOrder(recentTickets[0]?.order || null);
+
+        const firstOrderId = recentTickets[0]?.orderId;
+        if (firstOrderId) {
+          const { data: orderData } = await api.get(`/orders/${firstOrderId}`);
+          setOrder(orderData);
+        } else {
+          setOrder(null);
+        }
         
         // Clear cart for all events in this session
         if (recentTickets && recentTickets.length > 0) {

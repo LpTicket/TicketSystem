@@ -529,6 +529,38 @@ export default function VerifyTicketPage() {
         }
         /* END IOS MOBILE PRINT ONLY */
 
+        /* RECEIPT OVERLAP FIX */
+        @media screen {
+          .ticket-card {
+            height: auto !important;
+            min-height: 0 !important;
+            padding-bottom: 0 !important;
+          }
+
+          .ticket-footer {
+            position: static !important;
+          }
+        }
+
+        @media print {
+          .receipt-summary {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          .ticket-card {
+            height: auto !important;
+            min-height: 0 !important;
+            padding-bottom: 0 !important;
+          }
+
+          .ticket-footer {
+            position: static !important;
+            margin-top: 0 !important;
+          }
+        }
+        /* END RECEIPT OVERLAP FIX */
+
         /* ==================== SCREEN STYLES ==================== */
         @media screen {
           .print-only { display: none !important; }
