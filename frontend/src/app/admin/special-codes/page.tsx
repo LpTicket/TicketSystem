@@ -32,6 +32,20 @@ type SpecialCode = {
   event?: Event | null;
 };
 
+type CodeSale = {
+  id: string;
+  eventId: string;
+  specialCode: string | null;
+  specialCodeId: string | null;
+  specialCodeOwnerId: string | null;
+  ticketCount: number;
+  total: number;
+  paidAt?: string | null;
+  createdAt: string;
+  event?: Event | null;
+  user?: User | null;
+};
+
 type CommissionEntry = {
   ownerUserId: string;
   ownerName: string;
@@ -52,6 +66,7 @@ export default function AdminSpecialCodesPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [commissions, setCommissions] = useState<CommissionEntry[]>([]);
+  const [codeSales, setCodeSales] = useState<CodeSale[]>([]);
   const [form, setForm] = useState(emptyForm);
   const [editingCode, setEditingCode] = useState<SpecialCode | null>(null);
   const [editForm, setEditForm] = useState(emptyForm);
@@ -67,16 +82,18 @@ export default function AdminSpecialCodesPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [codesRes, usersRes, eventsRes, commissionsRes] = await Promise.all([
+      const [codesRes, usersRes, eventsRes, commissionsRes, salesRes] = await Promise.all([
         api.get('/special-codes'),
         api.get('/admin/users', { params: { limit: 200 } }),
         api.get('/admin/events', { params: { limit: 200 } }),
         api.get('/special-codes/admin/commission-summary'),
+        api.get('/special-codes/admin-sales'),
       ]);
       setCodes(codesRes.data || []);
       setUsers(usersRes.data?.users || []);
       setEvents(eventsRes.data?.events || []);
       setCommissions(commissionsRes.data || []);
+      setCodeSales(salesRes.data || []);
     } catch (err: any) {
       toast.error(err.response?.data?.message || (lang === 'es' ? 'No se pudo cargar la información.' : 'Could not load information.'));
     } finally {
@@ -94,6 +111,73 @@ export default function AdminSpecialCodesPage() {
       return item.code.toLowerCase().includes(term) || ownerName.includes(term) || (item.event?.title || '').toLowerCase().includes(term);
     });
   }, [codes, search]);
+
+
+  const salesByCode = useMemo(() => {
+    const eventById = new Map((events as any[]).map((event) => [event.id, event]));
+    const groups = new Map<string, {
+      key: string;
+      organizerName: string;
+      eventTitle: string;
+      code: string;
+      ownerName: string;
+      ownerEmail: string;
+      tickets: number;
+      commission: number;
+      generated: number;
+    }>();
+
+    for (const order of codeSales as any[]) {
+      const codeValue = String(order.specialCode || '').trim().toUpperCase();
+      if (!codeValue) continue;
+
+      const event = order.event || eventById.get(order.eventId) || {};
+      const specialCode = (codes as any[]).find((item) => {
+        const sameId = order.specialCodeId && item.id === order.specialCodeId;
+        const sameCode = item.code === codeValue;
+        const sameEvent = !item.eventId || item.eventId === order.eventId;
+        return sameId || (sameCode && sameEvent);
+      });
+
+      const organizer = event.organizer || {};
+      const organizerName = [organizer.firstName, organizer.lastName].filter(Boolean).join(' ')
+        || event.organizerName
+        || event.ownerName
+        || event.organizerEmail
+        || '-';
+
+      const owner = specialCode?.owner || {};
+      const ownerName = [owner.firstName, owner.lastName].filter(Boolean).join(' ')
+        || specialCode?.ownerName
+        || order.specialCodeOwnerId
+        || '-';
+
+      const ownerEmail = owner.email || specialCode?.ownerEmail || '';
+      const eventTitle = event.title || specialCode?.event?.title || '-';
+      const commission = Number(event.creatorCommission || specialCode?.commissionFixed || 0);
+      const tickets = Number(order.ticketCount || 1);
+      const key = `${order.eventId || 'no-event'}-${codeValue}-${specialCode?.ownerUserId || order.specialCodeOwnerId || 'no-owner'}`;
+
+      const current = groups.get(key) || {
+        key,
+        organizerName,
+        eventTitle,
+        code: codeValue,
+        ownerName,
+        ownerEmail,
+        tickets: 0,
+        commission,
+        generated: 0,
+      };
+
+      current.tickets += tickets;
+      current.generated += commission * tickets;
+      current.commission = commission;
+      groups.set(key, current);
+    }
+
+    return Array.from(groups.values()).sort((a, b) => b.generated - a.generated);
+  }, [codeSales, codes, events]);
 
   const activeCount = codes.filter((c) => c.isActive).length;
   const globalCount = codes.filter((c) => !c.eventId).length;
@@ -427,6 +511,68 @@ export default function AdminSpecialCodesPage() {
             })
           )}
         </div>
+      </div>
+
+
+      {/* Sales by code report */}
+      <div className="public-premium-card overflow-hidden">
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="public-premium-icon w-10 h-10 flex items-center justify-center">
+              <HiOutlineCurrencyDollar className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-gray-900">{lang === 'es' ? 'Ventas por código' : 'Sales by code'}</h2>
+              <p className="text-sm text-gray-500">
+                {lang === 'es'
+                  ? 'Reporte real de entradas vendidas y comisiones generadas por cada código.'
+                  : 'Real report of tickets sold and commissions generated by each code.'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {salesByCode.length === 0 ? (
+          <div className="p-5 text-sm text-gray-500">
+            {lang === 'es' ? 'Todavía no hay ventas asociadas a códigos.' : 'There are no sales associated with codes yet.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-sm">
+              <thead className="bg-gray-50 text-xs uppercase tracking-[0.16em] text-gray-400">
+                <tr>
+                  <th className="px-5 py-3 text-left">{lang === 'es' ? 'Organizador' : 'Organizer'}</th>
+                  <th className="px-5 py-3 text-left">{lang === 'es' ? 'Evento' : 'Event'}</th>
+                  <th className="px-5 py-3 text-left">{lang === 'es' ? 'Código' : 'Code'}</th>
+                  <th className="px-5 py-3 text-left">{lang === 'es' ? 'Dueño' : 'Owner'}</th>
+                  <th className="px-5 py-3 text-right">{lang === 'es' ? 'Entradas' : 'Tickets'}</th>
+                  <th className="px-5 py-3 text-right">{lang === 'es' ? 'Comisión' : 'Commission'}</th>
+                  <th className="px-5 py-3 text-right">{lang === 'es' ? 'Generado' : 'Generated'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {salesByCode.map((row) => (
+                  <tr key={row.key} className="hover:bg-gray-50">
+                    <td className="px-5 py-4 font-bold text-gray-800">{row.organizerName}</td>
+                    <td className="px-5 py-4 font-semibold text-gray-700">{row.eventTitle}</td>
+                    <td className="px-5 py-4">
+                      <span className="inline-flex rounded-full bg-orange-50 px-2.5 py-1 text-xs font-black text-orange-600">
+                        {row.code}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="font-black text-gray-900">{row.ownerName}</p>
+                      {row.ownerEmail && <p className="text-xs text-gray-400">{row.ownerEmail}</p>}
+                    </td>
+                    <td className="px-5 py-4 text-right font-black text-gray-900">{row.tickets}</td>
+                    <td className="px-5 py-4 text-right font-bold text-gray-700">${row.commission.toFixed(2)}</td>
+                    <td className="px-5 py-4 text-right font-black text-[#0A375A]">${row.generated.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Commission summary panel */}
