@@ -24,9 +24,11 @@ import {
   HiOutlineX,
   HiOutlineDownload,
   HiOutlineSparkles,
+  HiOutlineTag,
 } from 'react-icons/hi';
 import PaymentMethods from '@/components/dashboard/PaymentMethods';
 import SocialMatchPanel from '@/components/social/SocialMatchPanel';
+import { getMySpecialCodeSales, SpecialCodeSale } from '@/lib/specialCodes';
 import { Suspense } from 'react';
 
 function DashboardPageBody() {
@@ -36,8 +38,9 @@ function DashboardPageBody() {
   const searchParams = useSearchParams();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [specialCodeSales, setSpecialCodeSales] = useState<SpecialCodeSale[]>([]);
   const [pendingSocialRequests, setPendingSocialRequests] = useState(0);
-  const [activeTab, setActiveTab] = useState<'tickets' | 'orders' | 'profile' | 'payments' | 'social'>('tickets');
+  const [activeTab, setActiveTab] = useState<'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'codes'>('tickets');
   const [editMode, setEditMode] = useState(false);
   const [ticketsPage, setTicketsPage] = useState(1);
   const [ticketsPagination, setTicketsPagination] = useState({ total: 0, pages: 1 });
@@ -83,8 +86,8 @@ function DashboardPageBody() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'profile' || tabParam === 'orders' || tabParam === 'tickets' || tabParam === 'payments' || tabParam === 'social') {
-      setActiveTab(tabParam as 'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'social');
+    if (tabParam === 'profile' || tabParam === 'orders' || tabParam === 'tickets' || tabParam === 'payments' || tabParam === 'social' || tabParam === 'codes') {
+      setActiveTab(tabParam as 'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'codes');
     }
   }, [searchParams]);
 
@@ -110,6 +113,13 @@ function DashboardPageBody() {
       }
       setOrdersPagination(o.data.pagination);
       setOrdersPage(orderPage);
+
+      try {
+        const sales = await getMySpecialCodeSales();
+        setSpecialCodeSales(sales);
+      } catch (error) {
+        console.error(error);
+      }
 
       try {
         const social = await api.get('/social-match/me');
@@ -202,6 +212,7 @@ function DashboardPageBody() {
     { id: 'orders' as const, label: t('clientHistory'), icon: HiOutlineShoppingCart, count: orders.length },
     { id: 'payments' as const, label: 'Pagos', icon: HiOutlineCreditCard },
     { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles, count: pendingSocialRequests },
+    { id: 'codes' as const, label: lang === 'es' ? 'Ventas por código' : 'Code sales', icon: HiOutlineTag, count: specialCodeSales.length },
     { id: 'profile' as const, label: t('clientProfile'), icon: HiOutlineUser },
   ];
 
@@ -550,6 +561,43 @@ function DashboardPageBody() {
         <div className="max-w-3xl mx-auto">
           <SocialMatchPanel lang={lang === 'es' ? 'es' : 'en'} />
         </div>
+      )}
+
+      {activeTab === 'codes' && (
+        specialCodeSales.length > 0 ? (
+          <div className="dashboard-premium-card overflow-hidden">
+            <div className="divide-y divide-gray-100">
+              {specialCodeSales.map((sale) => (
+                <div key={sale.id} className="px-5 py-4 grid gap-3 sm:grid-cols-[1.2fr_1fr_auto] sm:items-center hover:bg-[rgba(10,55,90,0.04)] transition-colors">
+                  <div className="min-w-0">
+                    <div className="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-black text-orange-600 border border-orange-100">
+                      {sale.specialCode}
+                    </div>
+                    <h4 className="font-semibold text-gray-900 text-sm truncate mt-2">{sale.eventTitle || 'Evento'}</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {format(parseSafeDate(sale.purchasedAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })}
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-900 truncate">{sale.buyerName || 'Cliente'}</p>
+                    <p className="text-xs text-gray-500 truncate">{sale.buyerEmail || '—'}</p>
+                  </div>
+                  <div className="sm:text-right">
+                    <p className="text-sm font-black text-[#0A375A]">${Number(sale.total).toFixed(2)}</p>
+                    <p className="text-xs text-gray-500">{sale.ticketCount} ticket(s)</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="dashboard-premium-card text-center py-16">
+            <HiOutlineTag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-600 font-medium">
+              {lang === 'es' ? 'Aún no tienes ventas registradas por código.' : 'You do not have code sales yet.'}
+            </p>
+          </div>
+        )
       )}
 
       {/* Payments */}

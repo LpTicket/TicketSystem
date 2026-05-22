@@ -20,6 +20,7 @@ import SeatMapInteractive from '@/components/events/SeatMapInteractive';
 import ReservationTimer from '@/components/events/ReservationTimer';
 import InvoiceBreakdown, { InvoiceData } from '@/components/events/InvoiceBreakdown';
 import TrustBadges from '@/components/layout/TrustBadges';
+import { validateSpecialCode } from '@/lib/specialCodes';
 
 /**
  * Steps for the checkout wizard.
@@ -100,6 +101,8 @@ export default function PurchasePage() {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [buying, setBuying] = useState(false);
   const [hasLoadedSaved, setHasLoadedSaved] = useState(false);
+  const [specialCode, setSpecialCode] = useState('');
+  const [validatedSpecialCode, setValidatedSpecialCode] = useState('');
 
   /**
    * Redirect to login if not authenticated.
@@ -308,6 +311,14 @@ export default function PurchasePage() {
     
     setInvoiceLoading(true);
     try {
+      const normalizedSpecialCode = specialCode.trim().toUpperCase();
+      if (normalizedSpecialCode) {
+        const validated = await validateSpecialCode(normalizedSpecialCode, event!.id);
+        setValidatedSpecialCode(validated.code);
+      } else {
+        setValidatedSpecialCode('');
+      }
+
       const params: any = { eventId: event!.id };
       if (selectedSection?.sectionType === 'standing') {
         params.sectionId = selectedSection.id;
@@ -338,6 +349,9 @@ export default function PurchasePage() {
         payload.quantity = standingQuantity;
       } else {
         payload.seatIds = selectedSeats.map((s) => s.id);
+      }
+      if (validatedSpecialCode) {
+        payload.specialCode = validatedSpecialCode;
       }
 
       const { data } = await api.post('/orders/checkout', payload);
@@ -619,6 +633,25 @@ export default function PurchasePage() {
                   <input className="input purchase-premium-input text-sm" value={personalInfo.phone}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, phone: e.target.value }))} />
                 </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    {lang === 'es' ? 'Código especial (opcional):' : 'Special code (optional):'}
+                  </label>
+                  <input
+                    className="input purchase-premium-input text-sm uppercase"
+                    value={specialCode}
+                    onChange={(e) => {
+                      setSpecialCode(e.target.value.toUpperCase());
+                      setValidatedSpecialCode('');
+                    }}
+                    placeholder={lang === 'es' ? 'Ej: MARIA' : 'Example: MARIA'}
+                  />
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    {lang === 'es'
+                      ? 'Este código solo registra la venta. No cambia el total.'
+                      : 'This code only tracks the sale. It does not change the total.'}
+                  </p>
+                </div>
               </div>
 
               <button
@@ -643,6 +676,11 @@ export default function PurchasePage() {
               </h2>
 
               <InvoiceBreakdown invoice={invoice} eventTitle={event.title} />
+              {validatedSpecialCode && (
+                <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-bold text-orange-700">
+                  {lang === 'es' ? 'Código especial aplicado:' : 'Special code applied:'} {validatedSpecialCode}
+                </div>
+              )}
 
               <div className="mt-5 space-y-3">
                 <button
