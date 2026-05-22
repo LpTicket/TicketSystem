@@ -253,6 +253,12 @@ export class AdminService {
           event.pendingCategory = null;
         }
         break;
+      case 'creatorCommission':
+        if (event.pendingCreatorCommission !== null && event.pendingCreatorCommission !== undefined) {
+          event.creatorCommission = event.pendingCreatorCommission;
+          event.pendingCreatorCommission = null;
+        }
+        break;
       default:
         throw new BadRequestException('Campo inválido para aprobar');
     }
@@ -285,6 +291,9 @@ export class AdminService {
         break;
       case 'category':
         event.pendingCategory = null;
+        break;
+      case 'creatorCommission':
+        event.pendingCreatorCommission = null;
         break;
       default:
         throw new BadRequestException('Campo inválido para rechazar');
@@ -404,6 +413,15 @@ export class AdminService {
 
     await this.sectionRepo.save(section);
     return { success: true, section };
+  }
+
+  async setEventCreatorCommission(eventId: string, amount: number) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Evento no encontrado');
+    if (amount < 0) throw new BadRequestException('El monto no puede ser negativo');
+    event.creatorCommission = amount;
+    event.pendingCreatorCommission = null;
+    return this.eventRepo.save(event);
   }
 
   async getEventPrices(eventId: string) {

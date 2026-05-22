@@ -142,6 +142,14 @@ export class Event {
   @Column({ default: false })
   showStage: boolean;
 
+  // --- Creator Code Commission ---
+  /** Fixed amount paid to creator/influencer code owners per ticket sold at this event */
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  creatorCommission: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  pendingCreatorCommission: number | null;
+
   // --- Pending Approval Logic ---
   /**
    * When an organizer edits a 'PUBLISHED' event, the new values are saved here.

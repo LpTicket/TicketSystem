@@ -1768,6 +1768,70 @@ export default function EventDetailPage() {
               </div>
             </div>
 
+            {/* Creator Commission */}
+            <div className="pt-4 border-t border-gray-100">
+              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider block mb-1">
+                {lang === 'es' ? 'Comisión para Códigos de Creador' : 'Creator Code Commission'}
+              </label>
+              <p className="text-[11px] text-gray-400 mb-3">
+                {lang === 'es'
+                  ? 'Monto fijo que se paga al titular de un código de creador por cada entrada vendida en este evento. Requiere aprobación del admin.'
+                  : 'Fixed amount paid to creator/influencer code holders per ticket sold at this event. Requires admin approval.'}
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1 max-w-xs">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    defaultValue={Number(event.creatorCommission || 0).toFixed(2)}
+                    id="creatorCommissionInput"
+                    className="w-full pl-7 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const input = document.getElementById('creatorCommissionInput') as HTMLInputElement;
+                    const val = parseFloat(input?.value ?? '');
+                    if (isNaN(val) || val < 0) { toast.error(lang === 'es' ? 'Monto inválido' : 'Invalid amount'); return; }
+                    try {
+                      await api.patch(`/events/${event.id}/creator-commission`, { amount: val });
+                      toast.success(
+                        event.status === 'published'
+                          ? (lang === 'es' ? 'Solicitud enviada al admin para aprobación' : 'Request sent to admin for approval')
+                          : (lang === 'es' ? 'Comisión guardada' : 'Commission saved')
+                      );
+                      await loadEvent();
+                    } catch (err: any) {
+                      toast.error(err.response?.data?.message || 'Error');
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-xl transition-all active:scale-95"
+                >
+                  {event.status === 'published'
+                    ? (lang === 'es' ? 'Solicitar cambio' : 'Request change')
+                    : (lang === 'es' ? 'Guardar' : 'Save')}
+                </button>
+              </div>
+              {event.pendingCreatorCommission !== null && event.pendingCreatorCommission !== undefined && (
+                <p className="mt-2 text-xs text-amber-700 font-semibold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+                  {lang === 'es'
+                    ? `Cambio pendiente de aprobación: $${Number(event.pendingCreatorCommission).toFixed(2)}`
+                    : `Pending approval: $${Number(event.pendingCreatorCommission).toFixed(2)}`}
+                </p>
+              )}
+              {Number(event.creatorCommission) > 0 && (
+                <p className="mt-1.5 text-xs text-emerald-700 font-semibold">
+                  {lang === 'es'
+                    ? `Comisión activa: $${Number(event.creatorCommission).toFixed(2)} por entrada`
+                    : `Active commission: $${Number(event.creatorCommission).toFixed(2)} per ticket`}
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
               {/* Cover Image Upload */}
               <div className="space-y-2">

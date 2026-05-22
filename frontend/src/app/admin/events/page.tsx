@@ -176,7 +176,8 @@ export default function AdminEventsPage() {
       ev.pendingBannerImageUrl ||
       ev.pendingVenueName ||
       ev.pendingCategory ||
-      ev.pendingEventDate
+      ev.pendingEventDate ||
+      ev.pendingCreatorCommission !== null && ev.pendingCreatorCommission !== undefined
     );
   };
 
@@ -271,6 +272,7 @@ export default function AdminEventsPage() {
     if (selectedEventForChanges.pendingVenueName) fields.push('venueName');
     if (selectedEventForChanges.pendingCategory) fields.push('category');
     if (selectedEventForChanges.pendingEventDate) fields.push('eventDate');
+    if (selectedEventForChanges.pendingCreatorCommission !== null && selectedEventForChanges.pendingCreatorCommission !== undefined) fields.push('creatorCommission');
 
     if (fields.length === 0) return;
 
@@ -905,6 +907,43 @@ export default function AdminEventsPage() {
                   </div>
                 )}
 
+                {/* Creator Commission Change */}
+                {selectedEventForChanges.pendingCreatorCommission !== null && selectedEventForChanges.pendingCreatorCommission !== undefined && (
+                  <div className="p-4 border border-emerald-200 rounded-2xl bg-emerald-50/40 space-y-3 shadow-sm">
+                    <span className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider block">
+                      {lang === 'es' ? 'Comisión para Códigos de Creador' : 'Creator Code Commission'}
+                    </span>
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div className="p-2.5 bg-white rounded-xl border border-gray-100">
+                        <span className="font-bold text-gray-400 block mb-1">{lang === 'es' ? 'Actual:' : 'Current:'}</span>
+                        <p className="text-gray-600 font-bold text-base">${Number(selectedEventForChanges.creatorCommission || 0).toFixed(2)}</p>
+                        <p className="text-gray-400 text-[10px]">{lang === 'es' ? 'por entrada' : 'per ticket'}</p>
+                      </div>
+                      <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-100">
+                        <span className="font-bold text-amber-600 block mb-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
+                        <p className="text-amber-900 font-extrabold text-base">${Number(selectedEventForChanges.pendingCreatorCommission).toFixed(2)}</p>
+                        <p className="text-amber-600 text-[10px]">{lang === 'es' ? 'por entrada' : 'per ticket'}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2 border-t border-dashed border-emerald-100">
+                      <button
+                        disabled={!!processingField}
+                        onClick={() => handleRejectField(selectedEventForChanges.id, 'creatorCommission')}
+                        className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold flex items-center gap-1 active:scale-95 transition-all"
+                      >
+                        ❌ {lang === 'es' ? 'Rechazar' : 'Reject'}
+                      </button>
+                      <button
+                        disabled={!!processingField}
+                        onClick={() => handleApproveField(selectedEventForChanges.id, 'creatorCommission')}
+                        className="px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-bold flex items-center gap-1 active:scale-95 transition-all shadow-sm"
+                      >
+                        ✓ {lang === 'es' ? 'Aprobar' : 'Approve'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Banner Image Change */}
                 {selectedEventForChanges.pendingBannerImageUrl && (
                   <div className="p-4 border border-gray-200 rounded-2xl bg-white space-y-3 shadow-sm">
@@ -948,8 +987,42 @@ export default function AdminEventsPage() {
               </div>
             </div>
 
-            {/* Drawer Footer */}
-            <div className="p-6 border-t border-gray-100 flex gap-3 shrink-0">
+            {/* Drawer Footer — Admin direct commission override */}
+            <div className="p-6 border-t border-gray-100 space-y-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    id={`commission-override-${selectedEventForChanges.id}`}
+                    defaultValue={Number(selectedEventForChanges.creatorCommission || 0).toFixed(2)}
+                    placeholder="0.00"
+                    className="w-full pl-7 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const input = document.getElementById(`commission-override-${selectedEventForChanges.id}`) as HTMLInputElement;
+                    const val = parseFloat(input?.value ?? '');
+                    if (isNaN(val) || val < 0) { toast.error(lang === 'es' ? 'Monto inválido' : 'Invalid amount'); return; }
+                    try {
+                      await api.patch(`/admin/events/${selectedEventForChanges.id}/creator-commission`, { amount: val });
+                      toast.success(lang === 'es' ? 'Comisión establecida' : 'Commission set');
+                      await loadEvents();
+                      setSelectedEventForChanges(null);
+                    } catch (err: any) {
+                      toast.error(err.response?.data?.message || 'Error');
+                    }
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all active:scale-95 whitespace-nowrap"
+                >
+                  {lang === 'es' ? 'Fijar comisión' : 'Set commission'}
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400">{lang === 'es' ? 'Fija la comisión directamente sin necesitar solicitud del organizador.' : 'Set commission directly without needing an organizer request.'}</p>
               <button
                 type="button"
                 onClick={() => setSelectedEventForChanges(null)}

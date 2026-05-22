@@ -76,6 +76,8 @@ export interface Event {
   pendingVenueName?: string;
   pendingCategory?: string;
   pendingEventDate?: string;
+  creatorCommission?: number;
+  pendingCreatorCommission?: number | null;
 }
 
 export enum SectionType {

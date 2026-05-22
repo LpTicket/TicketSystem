@@ -120,6 +120,11 @@ export class AdminController {
     return this.adminService.updateSectionFees(id, body);
   }
 
+  @Patch('events/:id/creator-commission')
+  setEventCreatorCommission(@Param('id') id: string, @Body('amount') amount: number) {
+    return this.adminService.setEventCreatorCommission(id, amount);
+  }
+
   // Prices Management
   @Get('events/:id/prices')
   getEventPrices(@Param('id') id: string) {

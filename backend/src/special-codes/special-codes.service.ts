@@ -130,6 +130,11 @@ export class SpecialCodesService {
       where: { status: OrderStatus.PAID, specialCode: Not(IsNull()) },
       relations: ['event'],
     });
+    // Helper: determine effective commission for a code
+    const effectiveCommission = (code: typeof codes[number]) => {
+      const eventCommission = code.event ? Number(code.event.creatorCommission || 0) : 0;
+      return eventCommission > 0 ? eventCommission : Number(code.commissionFixed || 0);
+    };
     const payouts = await this.payoutRepo.find({ relations: ['owner'], order: { paidAt: 'DESC' } });
 
     // Group by ownerUserId
@@ -157,9 +162,10 @@ export class SpecialCodesService {
           payouts: [],
         });
       }
+      const commission = effectiveCommission(code);
       ownerMap.get(code.ownerUserId)!.codes.push({
         code: code.code,
-        commissionFixed: Number(code.commissionFixed || 0),
+        commissionFixed: commission,
         eventTitle: code.event?.title || null,
       });
     }
@@ -170,7 +176,7 @@ export class SpecialCodesService {
       if (!code) continue;
       const entry = ownerMap.get(code.ownerUserId);
       if (!entry) continue;
-      const commission = Number(code.commissionFixed || 0);
+      const commission = effectiveCommission(code);
       entry.totalTickets += order.ticketCount || 1;
       entry.totalEarned += commission * (order.ticketCount || 1);
     }

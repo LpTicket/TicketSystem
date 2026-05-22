@@ -718,6 +718,20 @@ export class EventsService {
       .execute();
   }
 
+  async requestCreatorCommissionChange(eventId: string, amount: number, userId: string) {
+    const event = await this.findById(eventId);
+    const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
+    if (event.organizerId !== userId && user?.role !== 'admin') throw new ForbiddenException();
+    if (amount < 0) throw new BadRequestException('El monto no puede ser negativo');
+
+    if (user?.role === 'admin' || event.status === EventStatus.DRAFT) {
+      await this.eventRepo.update(eventId, { creatorCommission: amount, pendingCreatorCommission: null });
+    } else {
+      await this.eventRepo.update(eventId, { pendingCreatorCommission: amount });
+    }
+    return this.findById(eventId);
+  }
+
   async requestSectionPriceChange(eventId: string, sectionId: string, price: number, userId: string) {
     const event = await this.findById(eventId);
     const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });

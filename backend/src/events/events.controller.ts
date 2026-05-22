@@ -198,6 +198,17 @@ export class EventsController {
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Patch(':eventId/creator-commission')
+  requestCreatorCommissionChange(
+    @Param('eventId') eventId: string,
+    @Body('amount') amount: number,
+    @Request() req: any,
+  ) {
+    return this.eventsService.requestCreatorCommissionChange(eventId, amount, req.user.id);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
   @Patch(':eventId/sections/:sectionId/price')
   requestSectionPriceChange(
     @Param('eventId') eventId: string,
