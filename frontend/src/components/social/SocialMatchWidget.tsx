@@ -7,6 +7,7 @@ import {
   HiOutlineX,
   HiOutlinePaperAirplane,
   HiOutlineChevronLeft,
+  HiOutlineBriefcase,
 } from 'react-icons/hi';
 import { useLang } from '@/context/LanguageContext';
 import { useAuthStore } from '@/stores/auth';
@@ -32,6 +33,7 @@ export default function SocialMatchWidget() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [viewingProfile, setViewingProfile] = useState(false);
+  const [profilePhotoIdx, setProfilePhotoIdx] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const accepted = connections.filter((c) => c.status === 'accepted');
@@ -73,6 +75,7 @@ export default function SocialMatchWidget() {
   const openChat = async (conn: SocialMatchConnection) => {
     setActiveChatConn(conn);
     setViewingProfile(false);
+    setProfilePhotoIdx(0);
     setMessages([]);
     try {
       const data = await getSocialMatchMessages(conn.id);
@@ -111,7 +114,7 @@ export default function SocialMatchWidget() {
   };
 
   return (
-    <div className="fixed bottom-6 right-24 z-[99] flex flex-col items-end gap-3 pointer-events-none print:hidden">
+    <div className="fixed bottom-0 right-0 p-6 z-[99] flex flex-col items-end gap-3 pointer-events-none print:hidden">
       {/* Popup panel */}
       {isOpen && (
         <div className="w-80 bg-white rounded-3xl shadow-elevated border border-gray-100 overflow-hidden flex flex-col pointer-events-auto animate-fade-in-up">
@@ -187,56 +190,81 @@ export default function SocialMatchWidget() {
           )}
 
           {/* Profile view */}
-          {activeChatConn && viewingProfile && (
-            <div className="overflow-y-auto max-h-80 p-4 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0A375A] to-[#F97316] flex items-center justify-center text-white font-black text-lg shrink-0">
-                  {activeChatConn.otherUserName.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-black text-base text-gray-900">{activeChatConn.otherUserName}</p>
-                  <p className="text-xs text-gray-400">{activeChatConn.eventTitle}</p>
+          {activeChatConn && viewingProfile && (() => {
+            const photos = activeChatConn.profile?.photos || [];
+            const idx = Math.min(profilePhotoIdx, Math.max(0, photos.length - 1));
+            return (
+              <div className="overflow-y-auto max-h-[420px]">
+                {/* Photo carousel */}
+                {photos.length > 0 ? (
+                  <div className="relative h-52 bg-[#0A375A]">
+                    <img src={photos[idx]} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                    {photos.length > 1 && (
+                      <>
+                        <button type="button" onClick={() => setProfilePhotoIdx((p) => Math.max(0, p - 1))} className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/30 text-white flex items-center justify-center text-lg font-bold">{idx > 0 ? '‹' : ''}</button>
+                        <button type="button" onClick={() => setProfilePhotoIdx((p) => Math.min(photos.length - 1, p + 1))} className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/30 text-white flex items-center justify-center text-lg font-bold">{idx < photos.length - 1 ? '›' : ''}</button>
+                        <div className="absolute top-2 left-2 right-2 flex gap-1">
+                          {photos.map((_, i) => <div key={i} className={`flex-1 h-0.5 rounded-full ${i <= idx ? 'bg-white' : 'bg-white/30'}`} />)}
+                        </div>
+                      </>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 px-3 pb-2 text-white">
+                      <p className="font-black text-sm">{activeChatConn.otherUserName}</p>
+                      {activeChatConn.profile?.industry && (
+                        <div className="flex items-center gap-1 text-white/80">
+                          <HiOutlineBriefcase className="w-3 h-3" />
+                          <span className="text-xs">{activeChatConn.profile.industry}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 px-4 py-4 bg-gradient-to-r from-[#0A375A] to-[#134E7A]">
+                    <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-black text-lg shrink-0">
+                      {activeChatConn.otherUserName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-black text-sm text-white">{activeChatConn.otherUserName}</p>
+                      {activeChatConn.profile?.industry && <p className="text-xs text-white/70">{activeChatConn.profile.industry}</p>}
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-4 space-y-3">
+                  {(activeChatConn.profile?.interests || []).length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{lang === 'es' ? 'Intereses' : 'Interests'}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(activeChatConn.profile?.interests || []).map((id) => {
+                          const opt = socialMatchInterestOptions.find((o) => o.id === id);
+                          return (
+                            <span key={id} className="px-2.5 py-1 rounded-lg bg-orange-50 text-[#F97316] text-xs font-bold border border-orange-200">
+                              {opt ? (lang === 'es' ? opt.es : opt.en) : id}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {activeChatConn.profile?.instagram && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-orange-50 to-pink-50 border border-orange-200">
+                      <FaInstagram className="w-4 h-4 text-[#E1306C] shrink-0" />
+                      <span className="text-sm font-black text-gray-800">@{activeChatConn.profile.instagram.replace(/^@/, '')}</span>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleUnmatch}
+                    className="w-full py-2 rounded-xl border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors"
+                  >
+                    {lang === 'es' ? 'Cancelar match' : 'Unmatch'}
+                  </button>
                 </div>
               </div>
-
-              {activeChatConn.profile?.industry && (
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Industria' : 'Industry'}</span>
-                  <span className="font-semibold">{activeChatConn.profile.industry}</span>
-                </div>
-              )}
-
-              {(activeChatConn.profile?.interests || []).length > 0 && (
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{lang === 'es' ? 'Intereses' : 'Interests'}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(activeChatConn.profile?.interests || []).map((id) => {
-                      const opt = socialMatchInterestOptions.find((o) => o.id === id);
-                      return (
-                        <span key={id} className="px-2.5 py-1 rounded-lg bg-orange-50 text-[#F97316] text-xs font-bold border border-orange-200">
-                          {opt ? (lang === 'es' ? opt.es : opt.en) : id}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {activeChatConn.profile?.instagram && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-orange-50 to-pink-50 border border-orange-200">
-                  <FaInstagram className="w-4 h-4 text-[#E1306C] shrink-0" />
-                  <span className="text-sm font-black text-gray-800">@{activeChatConn.profile.instagram.replace(/^@/, '')}</span>
-                </div>
-              )}
-
-              <button
-                onClick={handleUnmatch}
-                className="w-full py-2 rounded-xl border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors"
-              >
-                {lang === 'es' ? 'Cancelar match' : 'Unmatch'}
-              </button>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Chat view */}
           {activeChatConn && !viewingProfile && (

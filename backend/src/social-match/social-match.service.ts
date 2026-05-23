@@ -329,7 +329,7 @@ export class SocialMatchService {
       const otherUser = connection.requesterId === userId ? connection.receiver : connection.requester;
       const isAccepted = connection.status === SocialMatchConnectionStatus.ACCEPTED;
 
-      let profile: { fullName: string; industry: string | null; interests: string[]; instagram: string | null } | null = null;
+      let profile: { fullName: string; industry: string | null; interests: string[]; instagram: string | null; photos: string[] } | null = null;
       if (isAccepted && otherUser) {
         const otherPref = otherPrefs.find((p) => p.userId === otherUser.id && p.eventId === connection.eventId);
         const myPref = myPrefs.find((p) => p.eventId === connection.eventId);
@@ -338,6 +338,7 @@ export class SocialMatchService {
           industry: otherPref?.industry ?? null,
           interests: otherPref?.interests ?? [],
           instagram: otherPref?.shareInstagram && myPref?.shareInstagram ? (otherPref?.instagram ?? null) : null,
+          photos: otherPref?.photos ?? [],
         };
       }
 

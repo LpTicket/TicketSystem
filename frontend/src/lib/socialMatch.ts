@@ -52,6 +52,7 @@ export type SocialMatchConnectionProfile = {
   industry: string | null;
   interests: string[];
   instagram: string | null;
+  photos: string[];
 };
 
 export type SocialMatchConnection = {
