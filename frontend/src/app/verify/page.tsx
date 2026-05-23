@@ -118,7 +118,6 @@ export default function TicketScannerPage() {
           .filter((e: any) => e.organizerId === user.id)
           .map((e: any) => ({ id: e.id, title: e.title, date: e.date, status: e.status }));
         setMyEvents(events);
-        if (events.length > 0 && !selectedEventId) setSelectedEventId(events[0].id);
       })
       .catch(() => {});
   }, [isAuthenticated, user?.id]);
@@ -590,6 +589,7 @@ export default function TicketScannerPage() {
                   onChange={(e) => setSelectedEventId(e.target.value || null)}
                   className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-[#F97316] cursor-pointer"
                 >
+                  <option value="">{lang === 'es' ? '— Seleccionar evento —' : '— Select event —'}</option>
                   {myEvents.map((ev) => (
                     <option key={ev.id} value={ev.id}>{ev.title}</option>
                   ))}
