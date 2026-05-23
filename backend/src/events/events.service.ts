@@ -209,7 +209,7 @@ export class EventsService {
         pendingTitle: cleanDto.title,
         pendingDescription: cleanDto.description,
         pendingVenueName: cleanDto.venueName,
-        pendingCategory: cleanDto.category,
+        ...(cleanDto.category !== undefined ? { category: cleanDto.category, pendingCategory: null } : {}),
         // Timezone is always updated immediately so the displayed time stays
         // consistent with whatever wall-clock time the organizer entered.
         ...(cleanDto.eventTimezone !== undefined ? { eventTimezone: cleanDto.eventTimezone } : {}),
