@@ -173,6 +173,11 @@ export class SpecialCodesService {
     });
   }
 
+  async getMyPayoutSummary(ownerUserId: string) {
+    const summary = await this.getCommissionSummary();
+    return summary.filter((entry) => entry.ownerUserId === ownerUserId);
+  }
+
   async getCommissionSummary() {
     const codes = await this.specialCodeRepo.find({ relations: ['owner', 'event'] });
     const orders = await this.orderRepo.find({

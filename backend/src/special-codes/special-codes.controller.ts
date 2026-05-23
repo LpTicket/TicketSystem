@@ -38,6 +38,12 @@ export class SpecialCodesController {
     return this.specialCodesService.getMyCodeSales(req.user.id);
   }
 
+  @UseGuards(AuthGuard('jwt'))
+  @Get('my-payouts')
+  getMyPayoutSummary(@Request() req: any) {
+    return this.specialCodesService.getMyPayoutSummary(req.user.id);
+  }
+
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get('admin-sales')

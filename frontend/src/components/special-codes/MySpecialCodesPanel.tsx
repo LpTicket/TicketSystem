@@ -43,6 +43,17 @@ type CodeSale = {
   user?: { firstName: string; lastName: string; email: string } | null;
 };
 
+type PayoutSummary = {
+  eventId: string;
+  eventTitle: string;
+  totalTickets: number;
+  totalEarned: number;
+  totalPaid: number;
+  balance: number;
+  codes: { code: string; commissionFixed: number; eventTitle: string | null }[];
+  payouts: { id: string; amount: number; note: string | null; paidAt: string }[];
+};
+
 type Props = {
   lang: 'es' | 'en';
 };
@@ -50,8 +61,10 @@ type Props = {
 export default function MySpecialCodesPanel({ lang }: Props) {
   const [codes, setCodes] = useState<SpecialCode[]>([]);
   const [sales, setSales] = useState<CodeSale[]>([]);
+  const [payouts, setPayouts] = useState<PayoutSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [salesLoading, setSalesLoading] = useState(true);
+  const [payoutsLoading, setPayoutsLoading] = useState(true);
 
   const copy = {
     title: lang === 'es' ? 'Mis códigos especiales' : 'My special codes',
@@ -79,6 +92,12 @@ export default function MySpecialCodesPanel({ lang }: Props) {
     salesDate: lang === 'es' ? 'Fecha' : 'Date',
     salesTotal: lang === 'es' ? 'Total' : 'Total',
     salesTickets: lang === 'es' ? 'Entradas' : 'Tickets',
+    payoutsTitle: lang === 'es' ? 'Mis recompensas por evento' : 'My rewards by event',
+    payoutsEmpty: lang === 'es' ? 'Aún no tienes recompensas generadas.' : 'No rewards generated yet.',
+    earned: lang === 'es' ? 'Ganado' : 'Earned',
+    paid: lang === 'es' ? 'Pagado' : 'Paid',
+    balance: lang === 'es' ? 'Saldo' : 'Balance',
+    paymentHistory: lang === 'es' ? 'Historial de pagos' : 'Payment history',
     error: lang === 'es' ? 'No se pudieron cargar tus códigos.' : 'Could not load your codes.',
   };
 
@@ -106,9 +125,22 @@ export default function MySpecialCodesPanel({ lang }: Props) {
     }
   };
 
+  const loadPayouts = async () => {
+    setPayoutsLoading(true);
+    try {
+      const { data } = await api.get('/special-codes/my-payouts');
+      setPayouts(Array.isArray(data) ? data : []);
+    } catch {
+      // Payouts can be empty for creators without sales yet.
+    } finally {
+      setPayoutsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadCodes();
     loadSales();
+    loadPayouts();
   }, []);
 
   const stats = useMemo(() => {
@@ -116,8 +148,11 @@ export default function MySpecialCodesPanel({ lang }: Props) {
       total: codes.length,
       active: codes.filter((item) => item.isActive).length,
       eventCodes: codes.filter((item) => Boolean(item.eventId)).length,
+      totalEarned: payouts.reduce((sum, item) => sum + Number(item.totalEarned || 0), 0),
+      totalPaid: payouts.reduce((sum, item) => sum + Number(item.totalPaid || 0), 0),
+      balance: payouts.reduce((sum, item) => sum + Number(item.balance || 0), 0),
     };
-  }, [codes]);
+  }, [codes, payouts]);
 
   const handleCopy = async (code: string) => {
     try {
@@ -152,7 +187,7 @@ export default function MySpecialCodesPanel({ lang }: Props) {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-5 md:p-6 border-b border-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3 p-5 md:p-6 border-b border-gray-100">
           <div className="rounded-lg border border-gray-100 bg-white p-4">
             <div className="flex items-center justify-between">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">{copy.total}</p>
@@ -173,6 +208,18 @@ export default function MySpecialCodesPanel({ lang }: Props) {
               <HiOutlineTicket className="w-5 h-5 text-primary-500" />
             </div>
             <p className="text-3xl font-black text-[#0A375A] mt-2">{stats.eventCodes}</p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-white p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">{copy.earned}</p>
+            <p className="text-2xl font-black text-[#0A375A] mt-2">${stats.totalEarned.toFixed(2)}</p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-white p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">{copy.paid}</p>
+            <p className="text-2xl font-black text-green-600 mt-2">${stats.totalPaid.toFixed(2)}</p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-white p-4">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">{copy.balance}</p>
+            <p className="text-2xl font-black text-primary-500 mt-2">${stats.balance.toFixed(2)}</p>
           </div>
         </div>
 
@@ -220,6 +267,96 @@ export default function MySpecialCodesPanel({ lang }: Props) {
           </div>
         )}
       </div>
+
+      {codes.length > 0 && (
+        <div className="dashboard-premium-card overflow-hidden">
+          <div className="p-5 md:p-6 border-b border-gray-100 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="public-premium-icon w-10 h-10 shrink-0 flex items-center justify-center">
+                <HiOutlineCurrencyDollar className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-black text-[#0A375A]">{copy.payoutsTitle}</h3>
+                {payouts.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {copy.earned}: ${stats.totalEarned.toFixed(2)} · {copy.paid}: ${stats.totalPaid.toFixed(2)} · {copy.balance}: ${stats.balance.toFixed(2)}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={loadPayouts}
+              disabled={payoutsLoading}
+              className="btn-secondary inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold"
+            >
+              <HiOutlineRefresh className={`w-4 h-4 ${payoutsLoading ? 'animate-spin' : ''}`} />
+              {copy.refresh}
+            </button>
+          </div>
+
+          {payoutsLoading ? (
+            <div className="p-5 space-y-3">
+              {[...Array(2)].map((_, i) => <div key={i} className="h-24 skeleton rounded-lg" />)}
+            </div>
+          ) : payouts.length === 0 ? (
+            <div className="p-10 text-center">
+              <HiOutlineCurrencyDollar className="w-10 h-10 text-gray-300 mx-auto" />
+              <p className="text-sm text-gray-400 mt-3 font-medium">{copy.payoutsEmpty}</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {payouts.map((item) => (
+                <div key={`${item.eventId}-${item.codes.map((code) => code.code).join('-')}`} className="p-5 md:p-6 space-y-4">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div>
+                      <p className="font-black text-gray-900">{item.eventTitle}</p>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {item.codes.map((code) => (
+                          <span key={code.code} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-xs font-bold text-gray-600">
+                            {code.code} · ${Number(code.commissionFixed || 0).toFixed(2)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-right">
+                      <div>
+                        <p className="text-xs font-black uppercase text-gray-400">{copy.salesTickets}</p>
+                        <p className="text-lg font-black text-gray-900">{item.totalTickets}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase text-gray-400">{copy.earned}</p>
+                        <p className="text-lg font-black text-[#0A375A]">${Number(item.totalEarned || 0).toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase text-gray-400">{copy.paid}</p>
+                        <p className="text-lg font-black text-green-600">${Number(item.totalPaid || 0).toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase text-gray-400">{copy.balance}</p>
+                        <p className="text-lg font-black text-primary-500">${Number(item.balance || 0).toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {item.payouts.length > 0 && (
+                    <div className="rounded-xl bg-gray-50 p-3 space-y-1.5">
+                      <p className="text-xs font-black uppercase tracking-wider text-gray-400">{copy.paymentHistory}</p>
+                      {item.payouts.map((payment) => (
+                        <div key={payment.id} className="flex items-center justify-between gap-3 text-xs">
+                          <span className="text-gray-500">
+                            {new Date(payment.paidAt).toLocaleDateString(lang === 'es' ? 'es-US' : 'en-US')}{payment.note ? ` · ${payment.note}` : ''}
+                          </span>
+                          <span className="font-black text-green-700">${Number(payment.amount || 0).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {codes.length > 0 && (
         <div className="dashboard-premium-card overflow-hidden">
