@@ -416,6 +416,71 @@ function CreatorRewardsBlock({
                     </p>
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-2 pl-12">
+                  <div className="rounded-xl bg-gray-50 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase text-gray-400">
+                      {lang === 'es' ? 'Entradas vendidas' : 'Tickets sold'}
+                    </p>
+                    <p className="text-sm font-extrabold text-gray-900">{Number(code.ticketCount || 0)}</p>
+                  </div>
+                  <div className="rounded-xl bg-gray-50 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase text-gray-400">
+                      {lang === 'es' ? 'Comisión generada' : 'Generated commission'}
+                    </p>
+                    <p className="text-sm font-extrabold text-[#0A375A]">
+                      ${Number(code.totalGenerated || 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+
+                <details className="pl-12">
+                  <summary className="cursor-pointer list-none rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-700 transition hover:bg-gray-200">
+                    {lang === 'es' ? 'Ver compradores' : 'View buyers'} ({code.orders?.length || 0})
+                  </summary>
+                  <div className="mt-2 overflow-hidden rounded-xl border border-gray-100">
+                    {(code.orders || []).length === 0 ? (
+                      <div className="px-3 py-3 text-xs text-gray-400">
+                        {lang === 'es' ? 'Todavía no hay compradores con este código.' : 'There are no buyers with this code yet.'}
+                      </div>
+                    ) : (
+                      (code.orders || []).map((order) => {
+                        const buyerName = order.buyer ? `${order.buyer.firstName || ''} ${order.buyer.lastName || ''}`.trim() : '';
+                        return (
+                          <div key={order.id} className="grid grid-cols-1 gap-2 border-b border-gray-50 px-3 py-2 last:border-0 sm:grid-cols-[1fr_auto]">
+                            <div>
+                              <p className="text-xs font-bold text-gray-900">
+                                {buyerName || (lang === 'es' ? 'Comprador' : 'Buyer')}
+                              </p>
+                              <p className="text-[11px] text-gray-500">{order.buyer?.email || '-'}</p>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3 text-right">
+                              <div>
+                                <p className="text-[9px] font-black uppercase text-gray-400">
+                                  {lang === 'es' ? 'Entradas' : 'Tickets'}
+                                </p>
+                                <p className="text-xs font-black text-gray-900">{order.ticketCount}</p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-black uppercase text-gray-400">
+                                  {lang === 'es' ? 'Pagado' : 'Paid'}
+                                </p>
+                                <p className="text-xs font-black text-gray-900">${Number(order.total || 0).toFixed(2)}</p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-black uppercase text-gray-400">
+                                  {lang === 'es' ? 'Comisión' : 'Commission'}
+                                </p>
+                                <p className="text-xs font-black text-emerald-700">
+                                  ${Number(order.commissionGenerated || 0).toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </details>
                 {/* Inline input */}
                 <div className="flex gap-2 items-center pl-12">
                   <div className="relative flex-1">
