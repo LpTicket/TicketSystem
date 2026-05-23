@@ -428,27 +428,6 @@ export default function TicketScannerPage() {
                       <span className="mt-1 block text-3xl font-black text-[#F97316]">{validationResult.eventStats.ticketsToScan}</span>
                     </div>
                   </div>
-                  {validationResult.eventStats.totalCapacity != null && validationResult.eventStats.totalCapacity > 0 && (
-                    <div className="rounded-lg border border-white/10 bg-white/95 p-4 text-left">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">
-                            {lang === 'es' ? 'Capacidad del lugar' : 'Venue capacity'}
-                          </span>
-                          <span className="mt-1 block text-3xl font-black text-[#0A375A]">{validationResult.eventStats.totalCapacity}</span>
-                        </div>
-                        <span className="text-2xl font-black text-[#0A375A]">
-                          {Math.round((validationResult.eventStats.totalPurchased / validationResult.eventStats.totalCapacity) * 100)}%
-                        </span>
-                      </div>
-                      <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-[#0A375A] transition-all"
-                          style={{ width: `${Math.min(100, Math.round((validationResult.eventStats.totalPurchased / validationResult.eventStats.totalCapacity) * 100))}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -597,25 +576,11 @@ export default function TicketScannerPage() {
                 </div>
               </div>
               {eventTicketStats.totalCapacity != null && eventTicketStats.totalCapacity > 0 && (
-                <div className="rounded-lg border border-[#0A375A]/20 bg-[#0A375A]/5 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-wide text-[#0A375A]/60">{lang === 'es' ? 'Capacidad del lugar' : 'Venue capacity'}</p>
-                      <p className={`mt-1 text-3xl font-black ${highContrast ? 'text-white' : 'text-[#0A375A]'}`}>{eventTicketStats.totalCapacity}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-black uppercase tracking-wide text-[#0A375A]/60">{lang === 'es' ? 'Ocupación' : 'Occupancy'}</p>
-                      <p className="mt-1 text-2xl font-black text-[#0A375A]">
-                        {Math.round((eventTicketStats.totalPurchased / eventTicketStats.totalCapacity) * 100)}%
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3 h-2 rounded-full bg-[#0A375A]/10 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-[#0A375A] transition-all"
-                      style={{ width: `${Math.min(100, Math.round((eventTicketStats.totalPurchased / eventTicketStats.totalCapacity) * 100))}%` }}
-                    />
-                  </div>
+                <div className={`rounded-lg border p-4 ${highContrast ? 'border-white/10 bg-white/5' : 'border-[#0A375A]/20 bg-[#0A375A]/5'}`}>
+                  <p className={`text-[10px] font-black uppercase tracking-wide ${highContrast ? 'text-white/50' : 'text-[#0A375A]/60'}`}>
+                    {lang === 'es' ? 'Capacidad del lugar' : 'Venue capacity'}
+                  </p>
+                  <p className={`mt-2 text-3xl font-black ${highContrast ? 'text-white' : 'text-[#0A375A]'}`}>{eventTicketStats.totalCapacity}</p>
                 </div>
               )}
             </div>
