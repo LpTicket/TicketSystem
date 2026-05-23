@@ -663,16 +663,16 @@ export default function TicketScannerPage() {
                 </div>
               )}
               {eventTicketStats._debug && (
-                <details className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <summary className="cursor-pointer text-[10px] font-black uppercase tracking-wide text-slate-400">Debug: secciones ({eventTicketStats._debug.length})</summary>
+                <details open className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <summary className="cursor-pointer text-[10px] font-black uppercase tracking-wide text-slate-400">Debug: secciones ({eventTicketStats._debug.length}) — Total: {eventTicketStats._debug.reduce((acc, s) => acc + (s.contribution || 0), 0)}</summary>
                   <div className="mt-2 overflow-x-auto">
                     <table className="w-full text-[10px] text-slate-600">
-                      <thead><tr className="font-black text-slate-400"><th className="text-left pr-2">Sección</th><th className="pr-2">Tipo</th><th className="pr-2">DB seats</th><th className="pr-2">capField</th><th className="pr-2">rowsCalc</th><th>Contrib</th></tr></thead>
+                      <thead><tr className="font-black text-slate-400"><th className="text-left pr-2">Sección</th><th className="pr-2">Tipo</th><th className="pr-2">DB</th><th className="pr-2">cap</th><th className="pr-2">r×s</th><th>Total</th></tr></thead>
                       <tbody>
                         {eventTicketStats._debug.map((s, i) => (
                           <tr key={i} className="border-t border-slate-100">
-                            <td className="py-0.5 pr-2 font-semibold">{s.name}</td>
-                            <td className="pr-2">{s.type}</td>
+                            <td className="py-0.5 pr-2 font-semibold whitespace-nowrap">{s.name}</td>
+                            <td className="pr-2 whitespace-nowrap">{s.type}</td>
                             <td className="pr-2 text-center">{s.seatCount}</td>
                             <td className="pr-2 text-center">{s.capField}</td>
                             <td className="pr-2 text-center">{s.rowsCalc}</td>
