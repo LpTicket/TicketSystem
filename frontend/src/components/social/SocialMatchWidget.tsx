@@ -164,7 +164,7 @@ export default function SocialMatchWidget() {
   };
 
   return (
-    <div className="fixed bottom-[152px] right-3 z-[300] flex flex-col items-end gap-3 pointer-events-none print:hidden">
+    <div className="fixed bottom-20 right-3 z-[300] flex flex-col items-end gap-3 pointer-events-none print:hidden">
       {/* Popup panel */}
       {isOpen && (
         <div className="w-80 bg-white rounded-3xl shadow-elevated border border-gray-100 overflow-hidden flex flex-col pointer-events-auto animate-fade-in-up">
