@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLang } from '@/context/LanguageContext';
 import { useAuthStore } from '@/stores/auth';
 import api from '@/lib/api';
@@ -15,8 +15,11 @@ import {
   HiOutlineExternalLink,
   HiOutlineRefresh,
   HiOutlineClock,
+  HiOutlineChevronDown,
 } from 'react-icons/hi';
 import Link from 'next/link';
+
+type MyEvent = { id: string; title: string; date: string; status: string };
 
 type EventTicketStats = {
   totalPurchased: number;
@@ -40,7 +43,7 @@ const SCANNER_RECENT_STORAGE_KEY = 'lpticket_scanner_recent_scans';
 
 export default function TicketScannerPage() {
   const { lang } = useLang();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const [manualCode, setManualCode] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -50,6 +53,10 @@ export default function TicketScannerPage() {
   const [liveStats, setLiveStats] = useState({ total: 0, approved: 0, denied: 0 });
   const [eventTicketStats, setEventTicketStats] = useState<EventTicketStats | null>(null);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
+
+  const [myEvents, setMyEvents] = useState<MyEvent[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<{
@@ -101,6 +108,36 @@ export default function TicketScannerPage() {
       }
     };
   }, [scannerInstance]);
+
+  // Load organizer events
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    api.get('/events', { params: { limit: 100, includePast: 'true' } })
+      .then(({ data }) => {
+        const events: MyEvent[] = (data.events || [])
+          .filter((e: any) => e.organizerId === user.id)
+          .map((e: any) => ({ id: e.id, title: e.title, date: e.date, status: e.status }));
+        setMyEvents(events);
+        if (events.length > 0 && !selectedEventId) setSelectedEventId(events[0].id);
+      })
+      .catch(() => {});
+  }, [isAuthenticated, user?.id]);
+
+  // Fetch + poll scanner stats for selected event
+  useEffect(() => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    if (!selectedEventId) return;
+
+    const fetchStats = () => {
+      api.get(`/orders/event/${selectedEventId}/scanner-stats`)
+        .then(({ data }) => setEventTicketStats(data))
+        .catch(() => {});
+    };
+
+    fetchStats();
+    pollIntervalRef.current = setInterval(fetchStats, 15000);
+    return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
+  }, [selectedEventId]);
 
   const playFeedback = (valid: boolean) => {
     if (typeof window === 'undefined') return;
@@ -541,6 +578,27 @@ export default function TicketScannerPage() {
         </div>
 
         <div className={`rounded-lg border p-5 md:p-7 ${panelClass}`}>
+          {/* Event selector */}
+          {myEvents.length > 0 && (
+            <div className="mb-5">
+              <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                {lang === 'es' ? 'Evento' : 'Event'}
+              </p>
+              <div className="relative">
+                <select
+                  value={selectedEventId || ''}
+                  onChange={(e) => setSelectedEventId(e.target.value || null)}
+                  className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-[#F97316] cursor-pointer"
+                >
+                  {myEvents.map((ev) => (
+                    <option key={ev.id} value={ev.id}>{ev.title}</option>
+                  ))}
+                </select>
+                <HiOutlineChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#F97316]">
@@ -575,12 +633,29 @@ export default function TicketScannerPage() {
                   <p className="mt-2 text-3xl font-black text-[#F97316]">{eventTicketStats.ticketsToScan}</p>
                 </div>
               </div>
+              {(eventTicketStats.ticketsEntered ?? 0) > 0 && (
+                <div className="rounded-lg border border-emerald-400/20 bg-emerald-500/10 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-emerald-400">{lang === 'es' ? 'Ya ingresaron' : 'Already entered'}</p>
+                  <p className="mt-2 text-3xl font-black text-emerald-400">{eventTicketStats.ticketsEntered}</p>
+                </div>
+              )}
               {eventTicketStats.totalCapacity != null && eventTicketStats.totalCapacity > 0 && (
                 <div className={`rounded-lg border p-4 ${highContrast ? 'border-white/10 bg-white/5' : 'border-[#0A375A]/20 bg-[#0A375A]/5'}`}>
-                  <p className={`text-[10px] font-black uppercase tracking-wide ${highContrast ? 'text-white/50' : 'text-[#0A375A]/60'}`}>
-                    {lang === 'es' ? 'Capacidad del lugar' : 'Venue capacity'}
-                  </p>
-                  <p className={`mt-2 text-3xl font-black ${highContrast ? 'text-white' : 'text-[#0A375A]'}`}>{eventTicketStats.totalCapacity}</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className={`text-[10px] font-black uppercase tracking-wide ${highContrast ? 'text-white/50' : 'text-[#0A375A]/60'}`}>
+                        {lang === 'es' ? 'Capacidad del lugar' : 'Venue capacity'}
+                      </p>
+                      <p className={`mt-2 text-3xl font-black ${highContrast ? 'text-white' : 'text-[#0A375A]'}`}>{eventTicketStats.totalCapacity}</p>
+                    </div>
+                    <p className={`text-2xl font-black ${highContrast ? 'text-white/60' : 'text-[#0A375A]/60'}`}>
+                      {Math.round(((eventTicketStats.ticketsEntered ?? 0) / eventTicketStats.totalCapacity) * 100)}%
+                    </p>
+                  </div>
+                  <div className="mt-3 h-2 rounded-full bg-[#0A375A]/10 overflow-hidden">
+                    <div className="h-full rounded-full bg-[#0A375A] transition-all"
+                      style={{ width: `${Math.min(100, Math.round(((eventTicketStats.ticketsEntered ?? 0) / eventTicketStats.totalCapacity) * 100))}%` }} />
+                  </div>
                 </div>
               )}
             </div>

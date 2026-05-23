@@ -664,7 +664,7 @@ export class OrdersService {
    * Validates a ticket (Scanning Logic).
    * Ensures the user has permission to scan and that the ticket hasn't been used.
    */
-  private async getScannerEventStats(eventId: string) {
+  async getScannerEventStats(eventId: string) {
     const sections = await this.sectionRepo.find({ where: { eventId } });
 
     const activeSections = sections.filter(s => {

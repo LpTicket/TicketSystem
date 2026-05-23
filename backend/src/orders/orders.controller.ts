@@ -158,6 +158,13 @@ export class OrdersController {
   // Organizer endpoints
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Get('event/:eventId/scanner-stats')
+  getScannerStats(@Param('eventId') eventId: string) {
+    return this.ordersService.getScannerEventStats(eventId);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
   @Get('event/:eventId/sales')
   getEventSales(@Param('eventId') eventId: string) {
     return this.ordersService.getEventSales(eventId);
