@@ -523,7 +523,7 @@ function CreatorRewardsBlock({
                   </div>
                   <div className="rounded-xl bg-gray-50 px-3 py-2 min-h-[58px]">
                     <p className="text-[10px] font-black uppercase text-gray-400">
-                      {lang === 'es' ? 'Comisión generada' : 'Generated commission'}
+                      {lang === 'es' ? 'Recompensa generada' : 'Reward generated'}
                     </p>
                     <p className="text-sm font-extrabold text-[#0A375A]">
                       ${Number(code.totalGenerated || 0).toFixed(2)}
@@ -566,7 +566,7 @@ function CreatorRewardsBlock({
                               </div>
                               <div>
                                 <p className="text-[9px] font-black uppercase text-gray-400">
-                                  {lang === 'es' ? 'Comisión' : 'Commission'}
+                                  {lang === 'es' ? 'Recompensa' : 'Reward'}
                                 </p>
                                 <p className="text-xs font-black text-emerald-700">
                                   ${Number(order.commissionGenerated || 0).toFixed(2)}
