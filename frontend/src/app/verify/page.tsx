@@ -415,9 +415,9 @@ export default function TicketScannerPage() {
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <div className="rounded-lg border border-white/10 bg-white/95 p-4 text-left">
                     <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">
-                      {lang === 'es' ? 'Entradas emitidas' : 'Tickets purchased'}
+                      {lang === 'es' ? 'Entradas emitidas' : 'Issued tickets'}
                     </span>
-                    <span className="mt-1 block text-3xl font-black text-[#0A375A]">{(validationResult.eventStats.totalIssued ?? validationResult.eventStats.totalPurchased)}</span>
+                    <span className="mt-1 block text-3xl font-black text-[#0A375A]">{(validationResult.eventStats.totalIssued ?? (validationResult.eventStats.totalIssued ?? validationResult.eventStats.totalPurchased))}</span>
                   </div>
                   <div className="rounded-lg border border-white/10 bg-white/95 p-4 text-left">
                     <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">
@@ -563,7 +563,7 @@ export default function TicketScannerPage() {
           {eventTicketStats && (
             <div className="mt-5 grid grid-cols-2 gap-3">
               <div className={`rounded-lg border p-4 ${highContrast ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
-                <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{lang === 'es' ? 'Entradas emitidas' : 'Tickets purchased'}</p>
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{lang === 'es' ? 'Entradas emitidas' : 'Issued tickets'}</p>
                 <p className={`mt-2 text-3xl font-black ${highContrast ? 'text-white' : 'text-[#0A375A]'}`}>{eventTicketStats.totalPurchased}</p>
               </div>
               <div className="rounded-lg border border-orange-400/20 bg-orange-500/10 p-4">

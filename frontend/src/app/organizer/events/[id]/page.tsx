@@ -981,9 +981,19 @@ export default function EventDetailPage() {
   const scannedTickets = attendees.filter((a) => a.status === 'used').length;
   const pendingTickets = attendees.filter((a) => a.status === 'active').length;
   const cancelledTickets = attendees.filter((a) => a.status === 'cancelled').length;
+  const totalEventCapacity = sections.reduce((sum, section) => {
+    const sectionCapacity = Number(section.capacity) || Number(section.seats?.length) || (Number(section.rows || 0) * Number(section.seatsPerRow || 0));
+    return sum + sectionCapacity;
+  }, 0);
+  const remainingEventCapacity = Math.max(totalEventCapacity - totalTickets, 0);
   const averageOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   const scanRate = totalTickets > 0 ? Math.round((scannedTickets / totalTickets) * 100) : 0;
   const estimatedNetRevenue = Math.max(totalRevenue - (totalRevenue * 0.029) - (totalOrders * 0.30), 0);
+  const formatSectionAnalyticsLabel = (sectionName: string) => {
+    const cleanName = String(sectionName || '').trim();
+    if (/^\d+$/.test(cleanName)) return lang === 'es' ? `Mesa ${cleanName}` : `Table ${cleanName}`;
+    return cleanName || (lang === 'es' ? 'General' : 'General');
+  };
   const analyticsTimezone = event.eventTimezone || 'America/Chicago';
 
   const rawSalesByDay = salesOrders.reduce<Record<string, { date: string; orders: number; tickets: number; revenue: number }>>((acc, order) => {
@@ -1037,7 +1047,7 @@ export default function EventDetailPage() {
       [],
       [lang === 'es' ? 'Tickets por sección' : 'Tickets by section'],
       [lang === 'es' ? 'Sección' : 'Section', lang === 'es' ? 'Tickets' : 'Tickets', lang === 'es' ? 'Escaneados' : 'Scanned', lang === 'es' ? 'Pendientes' : 'Pending'],
-      ...salesBySection.map((section) => [section.section, String(section.tickets), String(section.scanned), String(section.pending)]),
+      ...salesBySection.map((section) => [formatSectionAnalyticsLabel(section.section), String(section.tickets), String(section.scanned), String(section.pending)]),
     ];
 
     const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -1204,7 +1214,7 @@ export default function EventDetailPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
               {[
                 {
                   label: lang === 'es' ? 'Ingresos brutos' : 'Gross revenue',
@@ -1229,6 +1239,12 @@ export default function EventDetailPage() {
                   value: `${scanRate}%`,
                   note: `${scannedTickets} ${lang === 'es' ? 'escaneados' : 'scanned'} · ${pendingTickets} ${lang === 'es' ? 'pendientes' : 'pending'}`,
                   icon: HiOutlineCheckCircle,
+                },
+                {
+                  label: lang === 'es' ? 'Capacidad total' : 'Total capacity',
+                  value: String(totalEventCapacity),
+                  note: `${remainingEventCapacity} ${lang === 'es' ? 'por vender o asignar' : 'left to sell or assign'}`,
+                  icon: HiOutlineUsers,
                 },
               ].map((card) => (
                 <div key={card.label} className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
@@ -1300,7 +1316,7 @@ export default function EventDetailPage() {
                     return (
                       <div key={section.section} className="rounded-lg border border-[rgba(10,55,90,0.10)] bg-white p-3 shadow-sm">
                         <div className="mb-2 flex items-center justify-between gap-3">
-                          <span className="truncate text-xs font-black text-gray-800">{section.section}</span>
+                          <span className="truncate text-xs font-black text-gray-800">{formatSectionAnalyticsLabel(section.section)}</span>
                           <span className="text-xs font-black text-[#0A375A]">{section.tickets} tickets</span>
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-white">
