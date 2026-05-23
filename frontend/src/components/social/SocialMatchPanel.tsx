@@ -497,11 +497,17 @@ export default function SocialMatchPanel({ lang }: Props) {
                   </div>
                 )}
                 {(selectedPreference?.interests || []).length > 0 && (
-                  <div className="px-4 py-3 bg-white flex flex-wrap gap-1.5">
+                  <div className="px-4 pt-3 pb-2 bg-white flex flex-wrap gap-1.5">
                     {(selectedPreference?.interests || []).map((id) => {
                       const opt = socialMatchInterestOptions.find((o) => o.id === id);
                       return <span key={id} className="px-2 py-0.5 rounded-full bg-orange-50 text-[#F97316] text-[10px] font-bold border border-orange-100">{opt ? (lang === 'es' ? opt.es : opt.en) : id}</span>;
                     })}
+                  </div>
+                )}
+                {selectedPreference?.instagram && (
+                  <div className="px-4 pb-3 bg-white flex items-center gap-1.5">
+                    <span className="text-xs font-black text-[#F97316]">@{selectedPreference.instagram.replace(/^@/, '')}</span>
+                    <span className="text-[10px] text-gray-400">{lang === 'es' ? '(visible si ambos aceptan)' : '(visible if both accept)'}</span>
                   </div>
                 )}
               </div>
