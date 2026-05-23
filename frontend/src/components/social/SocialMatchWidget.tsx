@@ -11,6 +11,7 @@ import {
 } from 'react-icons/hi';
 import { useLang } from '@/context/LanguageContext';
 import { useAuthStore } from '@/stores/auth';
+import { useSocialMatchWidgetStore } from '@/stores/socialMatchWidget';
 import {
   getMySocialMatch,
   getSocialMatchMessages,
@@ -37,7 +38,7 @@ function markAsRead(connId: string) {
 export default function SocialMatchWidget() {
   const { lang } = useLang();
   const { isAuthenticated } = useAuthStore();
-  const [isOpen, setIsOpen] = useState(false);
+  const { isOpen, setOpen, setUnreadCount } = useSocialMatchWidgetStore();
   const [connections, setConnections] = useState<SocialMatchConnection[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeChatConn, setActiveChatConn] = useState<SocialMatchConnection | null>(null);
@@ -52,6 +53,7 @@ export default function SocialMatchWidget() {
 
   const accepted = connections.filter((c) => c.status === 'accepted');
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
+  useEffect(() => { setUnreadCount(totalUnread); }, [totalUnread]);
 
   useEffect(() => { activeChatConnRef.current = activeChatConn; }, [activeChatConn]);
 
@@ -154,7 +156,7 @@ export default function SocialMatchWidget() {
   };
 
   const handleClose = () => {
-    setIsOpen(false);
+    setOpen(false);
     setActiveChatConn(null);
     setViewingProfile(false);
     setMessages([]);
@@ -368,22 +370,6 @@ export default function SocialMatchWidget() {
         </div>
       )}
 
-      {/* Floating trigger button */}
-      <button
-        onClick={() => setIsOpen((v) => !v)}
-        className="w-14 h-14 floating-action-pill rounded-full flex items-center justify-center transition-all duration-300 relative group active:scale-90 pointer-events-auto"
-        title={lang === 'es' ? 'Mis Matches' : 'My Matches'}
-      >
-        {isOpen
-          ? <HiOutlineX className="w-6 h-6" />
-          : <HiOutlineMail className="w-7 h-7" />
-        }
-        {!isOpen && totalUnread > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1 bg-orange-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center border-2 border-white shadow-lg">
-            {totalUnread > 9 ? '9+' : totalUnread}
-          </span>
-        )}
-      </button>
     </div>
   );
 }

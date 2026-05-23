@@ -6,7 +6,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
-import { HiOutlineSearch, HiOutlineMenu, HiOutlineX, HiOutlineUser, HiOutlineLogout, HiOutlineCog, HiOutlineTicket, HiOutlineShoppingCart, HiOutlineQrcode } from 'react-icons/hi';
+import { HiOutlineSearch, HiOutlineMenu, HiOutlineX, HiOutlineUser, HiOutlineLogout, HiOutlineCog, HiOutlineTicket, HiOutlineShoppingCart, HiOutlineQrcode, HiOutlineMail } from 'react-icons/hi';
+import { useSocialMatchWidgetStore } from '@/stores/socialMatchWidget';
 import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
 import api from '@/lib/api';
 import { formatSeatLabel } from '@/lib/seatLabel';
@@ -25,6 +26,7 @@ export default function Header() {
   const { user, isAuthenticated, logout, mode } = useAuthStore();
   const { lang, setLang, t } = useLang();
   const { mobileMenuOpen, setMobileMenuOpen } = useUIStore();
+  const { toggle: toggleSocialMatch, unreadCount: smUnread } = useSocialMatchWidgetStore();
   const [profileDropdown, setProfileDropdown] = useState(false);
   const [cartDropdown, setCartDropdown] = useState(false);
   const [cartItems, setCartItems] = useState<any[]>([]);
@@ -351,6 +353,18 @@ export default function Header() {
               >
                 {t('login')}
               </Link>
+            )}
+
+            {/* Social Match trigger */}
+            {isAuthenticated && (
+              <button onClick={toggleSocialMatch} className="relative p-1 text-[#0A375A] ml-1" title="Mis Matches">
+                <HiOutlineMail className="w-6 h-6" />
+                {smUnread > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 bg-orange-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                    {smUnread > 9 ? '9+' : smUnread}
+                  </span>
+                )}
+              </button>
             )}
 
             {/* Menu Toggle */}
