@@ -57,6 +57,9 @@ export class SocialMatchPreference {
   @Column({ default: false })
   shareLocation: boolean;
 
+  @Column({ type: 'simple-json', nullable: true })
+  photos: string[] | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

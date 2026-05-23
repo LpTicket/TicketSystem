@@ -1,4 +1,7 @@
-import { Body, Controller, Get, Param, Post, Put, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Request, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nest-lab/fastify-multer';
+import { memoryStorage } from 'fastify-multer';
+import { StorageService } from '../common/services/storage.service';
 import { AuthGuard } from '@nestjs/passport';
 import { SocialMatchConnectionStatus, SocialMatchInterest, UserRole } from '../database/entities';
 import { SocialMatchService } from './social-match.service';
@@ -19,7 +22,10 @@ type UpdateSocialMatchDto = {
 @UseGuards(AuthGuard('jwt'))
 @Controller('social-match')
 export class SocialMatchController {
-  constructor(private readonly socialMatchService: SocialMatchService) {}
+  constructor(
+    private readonly socialMatchService: SocialMatchService,
+    private readonly storageService: StorageService,
+  ) {}
 
   @Get('me')
   getMySocialMatch(@Request() req: any) {
@@ -66,6 +72,30 @@ export class SocialMatchController {
     @Body() dto: UpdateSocialMatchDto,
   ) {
     return this.socialMatchService.updatePreference(req.user.id, eventId, dto);
+  }
+
+  @Post('events/:eventId/photos')
+  @UseInterceptors(
+    FileInterceptor('photo', {
+      storage: memoryStorage(),
+      fileFilter: (_req: any, file: any, cb: any) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
+          cb(new Error('Solo se permiten imágenes'), false);
+        } else {
+          cb(null, true);
+        }
+      },
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  async uploadPhoto(@Request() req: any, @Param('eventId') eventId: string, @UploadedFile() file: any) {
+    const base64Url = await this.storageService.uploadFile(file, 'sm-photos');
+    return this.socialMatchService.uploadPhoto(req.user.id, eventId, base64Url);
+  }
+
+  @Delete('events/:eventId/photos/:index')
+  deletePhoto(@Request() req: any, @Param('eventId') eventId: string, @Param('index') index: string) {
+    return this.socialMatchService.deletePhoto(req.user.id, eventId, parseInt(index, 10));
   }
 
   @Post('seed-test-data')

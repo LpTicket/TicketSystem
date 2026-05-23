@@ -22,6 +22,7 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
   const [deck, setDeck] = useState<SocialMatchSuggestion[]>(suggestions);
   const [animating, setAnimating] = useState<'left' | 'right' | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
 
   const currentCard = deck[0] || null;
   const nextCard = deck[1] || null;
@@ -100,35 +101,60 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
             opacity: animating ? 0.5 : 1,
           }}
         >
-          {/* Top gradient header */}
-          <div className="relative px-6 pt-8 pb-6 bg-gradient-to-br from-[#0A375A] to-[#134E7A] text-white">
-            {/* Compatibility badge */}
-            <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[10px] font-black tracking-wider uppercase">
-              {getCompatibility(currentCard.score)}% {lang === 'es' ? 'compatible' : 'match'}
-            </div>
-
-            {/* Large avatar */}
-            {currentCard.avatarUrl ? (
-              <img
-                src={getImageUrl(currentCard.avatarUrl)}
-                alt={currentCard.displayName}
-                className="w-20 h-20 rounded-full border-2 border-white/30 object-cover mx-auto mb-4"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center text-3xl font-black uppercase mx-auto mb-4">
-                {currentCard.displayName.charAt(0)}
+          {/* Top section — photo carousel or avatar */}
+          {(() => {
+            const allPhotos = [
+              ...(currentCard.avatarUrl ? [getImageUrl(currentCard.avatarUrl)] : []),
+              ...(currentCard.photos || []),
+            ];
+            const clampedIndex = Math.min(photoIndex, allPhotos.length - 1);
+            if (allPhotos.length > 0) {
+              return (
+                <div className="relative h-48 bg-[#0A375A] overflow-hidden">
+                  <img src={allPhotos[clampedIndex]} alt="" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  {allPhotos.length > 1 && (
+                    <>
+                      <button type="button" onClick={() => setPhotoIndex((p) => Math.max(0, p - 1))} className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/30 text-white flex items-center justify-center text-lg font-bold">‹</button>
+                      <button type="button" onClick={() => setPhotoIndex((p) => Math.min(allPhotos.length - 1, p + 1))} className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/30 text-white flex items-center justify-center text-lg font-bold">›</button>
+                      <div className="absolute bottom-14 left-0 right-0 flex justify-center gap-1">
+                        {allPhotos.map((_, i) => <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === clampedIndex ? 'bg-white' : 'bg-white/40'}`} />)}
+                      </div>
+                    </>
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 text-white">
+                    <div className="absolute top-[-40px] right-3 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[10px] font-black tracking-wider uppercase">
+                      {getCompatibility(currentCard.score)}% {lang === 'es' ? 'compatible' : 'match'}
+                    </div>
+                    <h3 className="font-black text-lg leading-tight">{currentCard.displayName}</h3>
+                    {currentCard.industry && (
+                      <div className="flex items-center gap-1.5 text-white/80">
+                        <HiOutlineBriefcase className="w-3 h-3" />
+                        <span className="text-xs font-semibold">{currentCard.industry}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div className="relative px-6 pt-8 pb-6 bg-gradient-to-br from-[#0A375A] to-[#134E7A] text-white">
+                <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[10px] font-black tracking-wider uppercase">
+                  {getCompatibility(currentCard.score)}% {lang === 'es' ? 'compatible' : 'match'}
+                </div>
+                <div className="w-20 h-20 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center text-3xl font-black uppercase mx-auto mb-4">
+                  {currentCard.displayName.charAt(0)}
+                </div>
+                <h3 className="font-black text-xl text-center leading-tight">{currentCard.displayName}</h3>
+                {currentCard.industry && (
+                  <div className="flex items-center justify-center gap-1.5 mt-2 text-white/70">
+                    <HiOutlineBriefcase className="w-3.5 h-3.5" />
+                    <span className="text-xs font-semibold">{currentCard.industry}</span>
+                  </div>
+                )}
               </div>
-            )}
-
-            <h3 className="font-black text-xl text-center leading-tight">{currentCard.displayName}</h3>
-            
-            {currentCard.industry && (
-              <div className="flex items-center justify-center gap-1.5 mt-2 text-white/70">
-                <HiOutlineBriefcase className="w-3.5 h-3.5" />
-                <span className="text-xs font-semibold">{currentCard.industry}</span>
-              </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Card body */}
           <div className="flex-1 px-6 py-5 flex flex-col gap-4">

@@ -146,6 +146,7 @@ export class SocialMatchService {
           userId: t.userId,
           displayName: isPrivate ? 'Asistente' : `${t.user?.firstName || 'Asistente'} ${t.user?.lastName?.[0] || ''}.`.trim(),
           avatarUrl: t.user?.avatarUrl || null,
+          photos: pref?.photos || [],
           sharedInterests,
           industryMatch,
           industry: pref?.industry || null,
@@ -455,5 +456,31 @@ export class SocialMatchService {
     }
 
     return { success: true, eventId, eventTitle: event.title, createdProfiles: created };
+  }
+
+  async uploadPhoto(userId: string, eventId: string, base64Url: string) {
+    const canUseEvent = await this.userHasTicketForEvent(userId, eventId);
+    if (!canUseEvent) throw new ForbiddenException('No tienes entrada para este evento.');
+
+    let preference = await this.preferenceRepo.findOne({ where: { userId, eventId } });
+    if (!preference) preference = this.preferenceRepo.create({ userId, eventId });
+
+    const photos = preference.photos || [];
+    if (photos.length >= 6) throw new BadRequestException('Máximo 6 fotos permitidas.');
+    photos.push(base64Url);
+    preference.photos = photos;
+    const saved = await this.preferenceRepo.save(preference);
+    return { photos: saved.photos };
+  }
+
+  async deletePhoto(userId: string, eventId: string, index: number) {
+    const preference = await this.preferenceRepo.findOne({ where: { userId, eventId } });
+    if (!preference) throw new BadRequestException('Preferencia no encontrada.');
+    const photos = preference.photos || [];
+    if (index < 0 || index >= photos.length) throw new BadRequestException('Foto no encontrada.');
+    photos.splice(index, 1);
+    preference.photos = photos;
+    const saved = await this.preferenceRepo.save(preference);
+    return { photos: saved.photos };
   }
 }

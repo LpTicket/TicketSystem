@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import {
   HiOutlineEyeOff,
   HiOutlineLocationMarker,
   HiOutlineSparkles,
   HiOutlineUserGroup,
+  HiOutlineCamera,
+  HiOutlineTrash,
 } from 'react-icons/hi';
 import type { Event } from '@/types';
 import {
@@ -17,6 +19,8 @@ import {
   sendSocialMatchMessage,
   saveSocialMatchPreference,
   updateSocialMatchConnection,
+  uploadSocialMatchPhoto,
+  deleteSocialMatchPhoto,
   SocialMatchConnection,
   SocialMatchMessage,
   SocialMatchPreference,
@@ -87,6 +91,8 @@ export default function SocialMatchPanel({ lang }: Props) {
   const [chatDraft, setChatDraft] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatSending, setChatSending] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const selectedPreference = useMemo(() => {
     if (!selectedEventId) return null;
@@ -223,6 +229,33 @@ export default function SocialMatchPanel({ lang }: Props) {
       toast.error(copy.error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const myPhotos = selectedPreference?.photos || [];
+
+  const handleUploadPhoto = async (file: File) => {
+    if (!selectedEventId) return;
+    if (myPhotos.length >= 6) { toast.error(lang === 'es' ? 'Máximo 6 fotos' : 'Maximum 6 photos'); return; }
+    try {
+      setUploadingPhoto(true);
+      const result = await uploadSocialMatchPhoto(selectedEventId, file);
+      setPreferences((cur) => cur.map((p) => p.eventId === selectedEventId ? { ...p, photos: result.photos } : p));
+    } catch {
+      toast.error(lang === 'es' ? 'Error al subir foto' : 'Could not upload photo');
+    } finally {
+      setUploadingPhoto(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  const handleDeletePhoto = async (index: number) => {
+    if (!selectedEventId) return;
+    try {
+      const result = await deleteSocialMatchPhoto(selectedEventId, index);
+      setPreferences((cur) => cur.map((p) => p.eventId === selectedEventId ? { ...p, photos: result.photos } : p));
+    } catch {
+      toast.error(lang === 'es' ? 'Error al eliminar foto' : 'Could not delete photo');
     }
   };
 
@@ -371,6 +404,40 @@ export default function SocialMatchPanel({ lang }: Props) {
             <HiOutlineLocationMarker className="w-5 h-5 text-[#0A375A]" />
             <span className="text-sm font-semibold text-gray-700">{lang === 'es' ? 'Permitir ubicación aproximada solo si ambos aceptan' : 'Allow approximate location only if both accept'}</span>
           </label>
+        </div>
+
+        {/* Photo gallery */}
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+            {lang === 'es' ? `Mis fotos (${myPhotos.length}/6)` : `My photos (${myPhotos.length}/6)`}
+          </label>
+          <div className="flex flex-wrap gap-3">
+            {myPhotos.map((photo, i) => (
+              <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden group">
+                <img src={photo} alt="" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => handleDeletePhoto(i)}
+                  className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <HiOutlineTrash className="w-5 h-5 text-white" />
+                </button>
+              </div>
+            ))}
+            {myPhotos.length < 6 && (
+              <label className={`w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-all ${uploadingPhoto ? 'opacity-50 pointer-events-none' : ''}`}>
+                <HiOutlineCamera className="w-6 h-6 text-gray-400" />
+                <span className="text-[10px] text-gray-400 mt-1">{uploadingPhoto ? '...' : (lang === 'es' ? 'Agregar' : 'Add')}</span>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUploadPhoto(f); }}
+                />
+              </label>
+            )}
+          </div>
         </div>
 
         {selectedSummary && (

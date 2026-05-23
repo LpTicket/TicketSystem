@@ -22,6 +22,7 @@ export type SocialMatchPreference = {
   invisibleMode: boolean;
   shareInstagram: boolean;
   shareLocation: boolean;
+  photos?: string[] | null;
 };
 
 export type SocialMatchSummary = {
@@ -37,6 +38,7 @@ export type SocialMatchSuggestion = {
   userId: string;
   displayName: string;
   avatarUrl: string | null;
+  photos: string[];
   sharedInterests: string[];
   industryMatch: boolean;
   industry: string | null;
@@ -99,6 +101,20 @@ export type SocialMatchMessage = {
 
 export async function getSocialMatchMessages(connectionId: string) {
   const { data } = await api.get(`/social-match/connections/${connectionId}/messages`);
+  return data;
+}
+
+export async function uploadSocialMatchPhoto(eventId: string, file: File) {
+  const formData = new FormData();
+  formData.append('photo', file);
+  const { data } = await api.post(`/social-match/events/${eventId}/photos`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+}
+
+export async function deleteSocialMatchPhoto(eventId: string, index: number) {
+  const { data } = await api.delete(`/social-match/events/${eventId}/photos/${index}`);
   return data;
 }
 
