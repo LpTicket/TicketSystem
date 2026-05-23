@@ -461,7 +461,10 @@ export default function SocialMatchPanel({ lang }: Props) {
                 }}
               />
             ) : (
-              <p className="text-sm text-gray-500">{copy.noSuggestions}</p>
+              <div className="py-8 text-center">
+                <p className="text-sm font-semibold text-gray-500">{lang === 'es' ? 'No hay perfiles pendientes por descubrir' : 'No pending profiles to discover'}</p>
+                <p className="text-xs text-gray-400 mt-1">{lang === 'es' ? 'Vuelve más tarde, nuevos asistentes podrían unirse.' : 'Check back later, new attendees might join.'}</p>
+              </div>
             )}
           </div>
         )}

@@ -317,13 +317,9 @@ export class SocialMatchService {
       userId: c.requesterId === userId ? c.receiverId : c.requesterId,
       eventId: c.eventId,
     }));
-    const myPrefConditions = accepted.map((c) => ({ userId, eventId: c.eventId }));
-    const [otherPrefs, myPrefs] = accepted.length
-      ? await Promise.all([
-          this.preferenceRepo.find({ where: otherPrefConditions }),
-          this.preferenceRepo.find({ where: myPrefConditions }),
-        ])
-      : [[], []];
+    const otherPrefs = accepted.length
+      ? await this.preferenceRepo.find({ where: otherPrefConditions })
+      : [];
 
     return connections.map((connection) => {
       const otherUser = connection.requesterId === userId ? connection.receiver : connection.requester;
@@ -332,12 +328,11 @@ export class SocialMatchService {
       let profile: { fullName: string; industry: string | null; interests: string[]; instagram: string | null; photos: string[] } | null = null;
       if (isAccepted && otherUser) {
         const otherPref = otherPrefs.find((p) => p.userId === otherUser.id && p.eventId === connection.eventId);
-        const myPref = myPrefs.find((p) => p.eventId === connection.eventId);
         profile = {
           fullName: `${otherUser.firstName} ${otherUser.lastName || ''}`.trim(),
           industry: otherPref?.industry ?? null,
           interests: otherPref?.interests ?? [],
-          instagram: otherPref?.shareInstagram && myPref?.shareInstagram ? (otherPref?.instagram ?? null) : null,
+          instagram: otherPref?.instagram ?? null,
           photos: otherPref?.photos ?? [],
         };
       }
