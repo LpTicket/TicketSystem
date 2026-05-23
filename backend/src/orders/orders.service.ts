@@ -42,9 +42,11 @@ export class OrdersService {
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
   ) {
-    const key = this.configService.get('STRIPE_SECRET_KEY');
-    // Log key presence for debugging (masking sensitive data)
-    console.log('Stripe Key Loaded:', key ? `${key.substring(0, 7)}...${key.substring(key.length - 4)}` : 'MISSING - Stripe payments will be disabled');
+    const mode = this.configService.get('STRIPE_MODE') || 'test';
+    const key = mode === 'production'
+      ? this.configService.get('STRIPE_SECRET_KEY_PROD')
+      : (this.configService.get('STRIPE_SECRET_KEY_TEST') || this.configService.get('STRIPE_SECRET_KEY'));
+    console.log(`Stripe mode: ${mode} | Key: ${key ? `${key.substring(0, 7)}...${key.substring(key.length - 4)}` : 'MISSING'}`);
     if (key) {
       this.stripe = new Stripe(key, {
         apiVersion: '2024-12-18.acacia' as any,

@@ -22,7 +22,10 @@ export class OrdersController {
     private readonly configService: ConfigService,
     private readonly walletService: WalletService,
   ) {
-    const key = this.configService.get('STRIPE_SECRET_KEY');
+    const mode = this.configService.get('STRIPE_MODE') || 'test';
+    const key = mode === 'production'
+      ? this.configService.get('STRIPE_SECRET_KEY_PROD')
+      : (this.configService.get('STRIPE_SECRET_KEY_TEST') || this.configService.get('STRIPE_SECRET_KEY'));
     if (key) {
       this.stripe = new Stripe(key, {
         apiVersion: '2024-12-18.acacia' as any,
@@ -51,7 +54,10 @@ export class OrdersController {
     @Req() req: any,
     @Headers('stripe-signature') signature: string,
   ) {
-    const webhookSecret = this.configService.get('STRIPE_WEBHOOK_SECRET');
+    const mode = this.configService.get('STRIPE_MODE') || 'test';
+    const webhookSecret = mode === 'production'
+      ? this.configService.get('STRIPE_WEBHOOK_SECRET_PROD')
+      : (this.configService.get('STRIPE_WEBHOOK_SECRET_TEST') || this.configService.get('STRIPE_WEBHOOK_SECRET'));
     let event: any;
 
     try {
