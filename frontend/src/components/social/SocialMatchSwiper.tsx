@@ -54,6 +54,7 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
     // Wait for animation
     setTimeout(() => {
       setDeck((prev) => prev.slice(1));
+      setPhotoIndex(0);
       setAnimating(null);
       setProcessing(false);
     }, 350);
@@ -112,25 +113,42 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
               return (
                 <div className="relative h-[420px] bg-[#0A375A] overflow-hidden">
                   <img src={allPhotos[clampedIndex]} alt="" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+                  {/* Tap zones — left half goes back, right half goes forward */}
                   {allPhotos.length > 1 && (
                     <>
-                      <button type="button" onClick={() => setPhotoIndex((p) => Math.max(0, p - 1))} className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/30 text-white flex items-center justify-center text-lg font-bold">‹</button>
-                      <button type="button" onClick={() => setPhotoIndex((p) => Math.min(allPhotos.length - 1, p + 1))} className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/30 text-white flex items-center justify-center text-lg font-bold">›</button>
-                      <div className="absolute bottom-14 left-0 right-0 flex justify-center gap-1">
-                        {allPhotos.map((_, i) => <div key={i} className={`w-1.5 h-1.5 rounded-full ${i === clampedIndex ? 'bg-white' : 'bg-white/40'}`} />)}
+                      <button
+                        type="button"
+                        className="absolute left-0 top-0 w-1/2 h-full z-10"
+                        onClick={(e) => { e.stopPropagation(); setPhotoIndex((p) => Math.max(0, p - 1)); }}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-0 top-0 w-1/2 h-full z-10"
+                        onClick={(e) => { e.stopPropagation(); setPhotoIndex((p) => Math.min(allPhotos.length - 1, p + 1)); }}
+                      />
+                      {/* Progress bars (Instagram-style) */}
+                      <div className="absolute top-3 left-3 right-3 flex gap-1 z-20">
+                        {allPhotos.map((_, i) => (
+                          <div key={i} className="flex-1 h-0.5 rounded-full bg-white/30 overflow-hidden">
+                            <div className={`h-full rounded-full bg-white transition-all duration-300 ${i <= clampedIndex ? 'w-full' : 'w-0'}`} />
+                          </div>
+                        ))}
                       </div>
                     </>
                   )}
-                  <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 text-white">
-                    <div className="absolute top-[-40px] right-3 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[10px] font-black tracking-wider uppercase">
+
+                  {/* Name + info overlay */}
+                  <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 text-white z-20">
+                    <div className="absolute top-[-44px] right-3 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-[10px] font-black tracking-wider uppercase">
                       {getCompatibility(currentCard.score)}% {lang === 'es' ? 'compatible' : 'match'}
                     </div>
-                    <h3 className="font-black text-lg leading-tight">{currentCard.displayName}</h3>
+                    <h3 className="font-black text-xl leading-tight">{currentCard.displayName}</h3>
                     {currentCard.industry && (
-                      <div className="flex items-center gap-1.5 text-white/80">
-                        <HiOutlineBriefcase className="w-3 h-3" />
-                        <span className="text-xs font-semibold">{currentCard.industry}</span>
+                      <div className="flex items-center gap-1.5 text-white/80 mt-0.5">
+                        <HiOutlineBriefcase className="w-3.5 h-3.5" />
+                        <span className="text-sm font-semibold">{currentCard.industry}</span>
                       </div>
                     )}
                   </div>
