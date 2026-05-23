@@ -672,15 +672,17 @@ export class OrdersService {
       return t !== 'stage' && t !== 'decor';
     });
 
-    // For sections with individual seats (seated/vip/table): count actual rows in seats table.
-    // For GA/standing sections (no individual seats): use the capacity field.
+    // Per section: if seats exist in DB use the real count (reflects map edits like deleted seats).
+    // If no seats in DB (GA/standing or not yet generated) fall back to max(capacity, rows×seatsPerRow).
     let totalCapacity = 0;
     for (const section of activeSections) {
       const seatCount = await this.seatRepo.count({ where: { sectionId: section.id } });
       if (seatCount > 0) {
         totalCapacity += seatCount;
       } else {
-        totalCapacity += Number(section.capacity) || 0;
+        const capField = Number(section.capacity) || 0;
+        const rowsCalc = (Number(section.rows) || 0) * (Number(section.seatsPerRow) || 0);
+        totalCapacity += Math.max(capField, rowsCalc);
       }
     }
 
