@@ -339,7 +339,13 @@ export class EventsService {
     const event = await this.findById(eventId);
     if (event.organizerId !== userId) throw new ForbiddenException();
 
-    const section = this.sectionRepo.create({ ...data, eventId });
+    // GA/standing sections must have a non-zero capacity so the scanner counts them.
+    const normalized: Partial<VenueSection> = { ...data };
+    if (String(normalized.sectionType).toLowerCase() === 'standing' && !Number(normalized.capacity)) {
+      normalized.capacity = 100;
+    }
+
+    const section = this.sectionRepo.create({ ...normalized, eventId });
     const saved = await this.sectionRepo.save(section);
 
     // Auto-generate seat objects for purchasable section types
@@ -429,14 +435,19 @@ export class EventsService {
       const sectionData = { ...data };
       if (isNew) delete sectionData.id;
 
+      // GA/standing sections must have a non-zero capacity so the scanner counts them.
+      if (String(sectionData.sectionType).toLowerCase() === 'standing' && !Number(sectionData.capacity)) {
+        sectionData.capacity = 100;
+      }
+
       if (isNew) {
         await this.createSection(eventId, sectionData, userId);
       } else {
         const exists = existingSections.find(s => s.id === data.id);
         if (exists) {
           // Check if structural changes (rows/cols) require seat regeneration
-          const layoutChanged = 
-            exists.rows !== sectionData.rows || 
+          const layoutChanged =
+            exists.rows !== sectionData.rows ||
             exists.seatsPerRow !== sectionData.seatsPerRow ||
             exists.sectionType !== sectionData.sectionType;
 

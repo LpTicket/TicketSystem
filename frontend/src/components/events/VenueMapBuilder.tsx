@@ -700,7 +700,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         : (CANVAS_H / 2) - (h / 2),
       mapWidth: w,
       mapHeight: h,
-      capacity: 0,
+      capacity: type === 'standing' ? 100 : 0,
     };
     setSections(prev => [...prev, newSection]);
     setSelectedId(newSection.id!);
@@ -764,7 +764,11 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           sectionType: s.sectionType || 'seated',
           rows: Number(s.rows) || 1,
           seatsPerRow: Number(s.seatsPerRow) || 1,
-          capacity: Number(s.capacity) || 0,
+          // GA/standing sections must have a real capacity to be counted by the scanner.
+          // Default to 100 when the organizer leaves it at 0 (matches the editor placeholder).
+          capacity: s.sectionType === 'standing'
+            ? (Number(s.capacity) || 100)
+            : (Number(s.capacity) || 0),
           price: Number(s.price) || 0,
           color: s.color || '#6366f1',
           mapX: s.mapX ? parseFloat(Number(s.mapX).toFixed(2)) : 0,
@@ -1398,7 +1402,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 {selectedSection.sectionType === 'standing' && (
                   <div>
                     <label className="block text-[11px] font-semibold text-gray-600 mb-1.5">{t('orgCapacity')}</label>
-                    <input type="number" value={selectedSection.capacity || 100} onChange={e => updateSelected('capacity', +e.target.value)} className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:border-[#1a73e8] outline-none" />
+                    <input type="number" value={selectedSection.capacity ?? 0} placeholder="100" onChange={e => updateSelected('capacity', +e.target.value)} className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:border-[#1a73e8] outline-none" />
                   </div>
                 )}
 
