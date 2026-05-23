@@ -665,22 +665,18 @@ export class OrdersService {
    * Ensures the user has permission to scan and that the ticket hasn't been used.
    */
   private async getScannerEventStats(eventId: string) {
-    const sections = await this.sectionRepo.find({
-      where: { eventId },
-      relations: ['seats'],
+    const sections = await this.sectionRepo.find({ where: { eventId } });
+
+    const activeSections = sections.filter(s => {
+      const t = String(s.sectionType).toLowerCase();
+      return t !== 'stage' && t !== 'decor';
     });
 
-    const activeSections = sections.filter((section) => {
-      const sectionType = String(section.sectionType || '').toLowerCase();
-      return sectionType !== 'stage' && sectionType !== 'decor';
-    });
-
-    const sectionCapacity = activeSections.reduce((sum, section: any) => {
-      const capField = Number(section.capacity) || 0;
-      const rowsCalc = (Number(section.rows) || 0) * (Number(section.seatsPerRow) || 0);
-      const realSeatCount = Array.isArray(section.seats) ? section.seats.length : 0;
-
-      return sum + Math.max(capField, rowsCalc, realSeatCount);
+    // Per-section: use max(capacity, rows×seatsPerRow) — covers all section types
+    const sectionCapacity = activeSections.reduce((sum, s) => {
+      const capField = Number(s.capacity) || 0;
+      const rowsCalc = (Number(s.rows) || 0) * (Number(s.seatsPerRow) || 0);
+      return sum + Math.max(capField, rowsCalc);
     }, 0);
 
     const [activeTickets, usedTickets] = await Promise.all([
