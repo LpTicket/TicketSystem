@@ -199,7 +199,12 @@ export class SocialMatchService {
     if (!connection) throw new BadRequestException('Solicitud no encontrada.');
 
     if (status === SocialMatchConnectionStatus.CANCELLED) {
-      if (connection.requesterId !== userId) throw new ForbiddenException('Solo quien envió la solicitud puede cancelarla.');
+      const isMember = connection.requesterId === userId || connection.receiverId === userId;
+      if (!isMember) throw new ForbiddenException('No tienes acceso a esta conexión.');
+      // Pending: only requester can cancel. Accepted: either party can unmatch.
+      if (connection.status === SocialMatchConnectionStatus.PENDING && connection.requesterId !== userId) {
+        throw new ForbiddenException('Solo quien envió la solicitud puede cancelarla.');
+      }
       connection.status = SocialMatchConnectionStatus.CANCELLED;
       return this.connectionRepo.save(connection);
     }

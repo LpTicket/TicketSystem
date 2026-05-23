@@ -121,6 +121,7 @@ export default function SocialMatchPanel({ lang }: Props) {
     decline: lang === 'es' ? 'Rechazar' : 'Decline',
     cancel: lang === 'es' ? 'Cancelar' : 'Cancel',
     chat: lang === 'es' ? 'Chat' : 'Chat',
+    unmatch: lang === 'es' ? 'Cancelar match' : 'Unmatch',
     messagePlaceholder: lang === 'es' ? 'Escribe un mensaje...' : 'Write a message...',
     send: lang === 'es' ? 'Enviar' : 'Send',
   };
@@ -422,7 +423,10 @@ export default function SocialMatchPanel({ lang }: Props) {
                         <button type="button" onClick={() => handleUpdateConnection(connection.id, 'cancelled')} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 text-xs font-bold">{copy.cancel}</button>
                       )}
                       {connection.status === 'accepted' && (
-                        <button type="button" onClick={() => openChat(connection.id)} className="px-3 py-2 rounded-lg bg-[#F97316] text-white text-xs font-bold">{copy.chat}</button>
+                        <>
+                          <button type="button" onClick={() => openChat(connection.id)} className="px-3 py-2 rounded-lg bg-[#F97316] text-white text-xs font-bold">{copy.chat}</button>
+                          <button type="button" onClick={() => handleUpdateConnection(connection.id, 'cancelled')} className="px-3 py-2 rounded-lg bg-white border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50">{copy.unmatch}</button>
+                        </>
                       )}
                     </div>
                   </div>
