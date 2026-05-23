@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import Chatbot from '@/components/support/Chatbot';
+import SocialMatchWidget from '@/components/social/SocialMatchWidget';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { loadUser } = useAuthStore();
@@ -19,6 +20,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <main className="min-h-screen bg-white">{children}</main>
       <Footer />
       <Chatbot />
+      <SocialMatchWidget />
     </>
   );
 }

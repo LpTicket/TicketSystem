@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import {
-  HiOutlineSparkles,
+  HiOutlineMail,
+  HiOutlineMailOpen,
   HiOutlineX,
   HiOutlinePaperAirplane,
   HiOutlineChevronLeft,
 } from 'react-icons/hi';
+import { useLang } from '@/context/LanguageContext';
+import { useAuthStore } from '@/stores/auth';
 import {
   getMySocialMatch,
   getSocialMatchMessages,
@@ -15,9 +18,9 @@ import {
   SocialMatchMessage,
 } from '@/lib/socialMatch';
 
-type Props = { lang: 'es' | 'en' };
-
-export default function SocialMatchWidget({ lang }: Props) {
+export default function SocialMatchWidget() {
+  const { lang } = useLang();
+  const { isAuthenticated } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [connections, setConnections] = useState<SocialMatchConnection[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,17 +32,14 @@ export default function SocialMatchWidget({ lang }: Props) {
 
   const accepted = connections.filter((c) => c.status === 'accepted');
 
-  // Load connections count on mount for the badge
   useEffect(() => {
-    loadConnections();
-  }, []);
+    if (isAuthenticated) loadConnections();
+  }, [isAuthenticated]);
 
-  // Reload when popup opens
   useEffect(() => {
-    if (isOpen) loadConnections();
+    if (isOpen && isAuthenticated) loadConnections();
   }, [isOpen]);
 
-  // Poll messages when chat is open
   useEffect(() => {
     if (!activeChatConn) return;
     const interval = setInterval(async () => {
@@ -54,6 +54,8 @@ export default function SocialMatchWidget({ lang }: Props) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  if (!isAuthenticated) return null;
 
   const loadConnections = async () => {
     try {
@@ -92,21 +94,21 @@ export default function SocialMatchWidget({ lang }: Props) {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-24 right-6 z-[99] flex flex-col items-end gap-3 pointer-events-none print:hidden">
       {/* Popup panel */}
       {isOpen && (
-        <div className="w-80 bg-white rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.18)] border border-gray-100 overflow-hidden flex flex-col">
+        <div className="w-80 bg-white rounded-3xl shadow-elevated border border-gray-100 overflow-hidden flex flex-col pointer-events-auto animate-fade-in-up">
           {/* Header */}
-          <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-[#0A375A] to-[#134E7A] shrink-0">
+          <div className="flex items-center gap-2 px-4 py-3.5 bg-[#0A375A] shrink-0">
             {activeChatConn && (
               <button
                 onClick={() => { setActiveChatConn(null); setMessages([]); setDraft(''); }}
-                className="text-white/60 hover:text-white mr-1"
+                className="text-white/60 hover:text-white mr-1 transition-colors"
               >
                 <HiOutlineChevronLeft className="w-4 h-4" />
               </button>
             )}
-            <HiOutlineSparkles className="w-4 h-4 text-[#F97316] shrink-0" />
+            <HiOutlineMail className="w-4 h-4 text-orange-400 shrink-0" />
             <span className="flex-1 text-sm font-bold text-white truncate">
               {activeChatConn
                 ? activeChatConn.otherUserName
@@ -115,7 +117,7 @@ export default function SocialMatchWidget({ lang }: Props) {
             {activeChatConn && (
               <span className="text-[10px] text-white/50 truncate max-w-[80px]">{activeChatConn.eventTitle}</span>
             )}
-            <button onClick={handleClose} className="text-white/60 hover:text-white ml-2 shrink-0">
+            <button onClick={handleClose} className="text-white/60 hover:text-white ml-2 shrink-0 transition-colors">
               <HiOutlineX className="w-4 h-4" />
             </button>
           </div>
@@ -125,13 +127,16 @@ export default function SocialMatchWidget({ lang }: Props) {
             <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
               {loading ? (
                 <div className="flex flex-col gap-2 p-4">
-                  {[1, 2].map((i) => <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />)}
+                  {[1, 2].map((i) => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />)}
                 </div>
               ) : accepted.length === 0 ? (
                 <div className="py-10 px-6 text-center">
-                  <HiOutlineSparkles className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                  <HiOutlineMailOpen className="w-8 h-8 text-gray-200 mx-auto mb-2" />
                   <p className="text-sm text-gray-400 font-medium">
                     {lang === 'es' ? 'Aún no tienes matches' : 'No matches yet'}
+                  </p>
+                  <p className="text-xs text-gray-300 mt-1">
+                    {lang === 'es' ? 'Activa Social Match para conectar' : 'Activate Social Match to connect'}
                   </p>
                 </div>
               ) : (
@@ -149,7 +154,7 @@ export default function SocialMatchWidget({ lang }: Props) {
                       <p className="text-xs text-gray-400 truncate">{conn.eventTitle}</p>
                     </div>
                     <span className="text-[10px] font-bold text-[#F97316] opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      {lang === 'es' ? 'Chat' : 'Chat'} →
+                      Chat →
                     </span>
                   </button>
                 ))
@@ -160,7 +165,7 @@ export default function SocialMatchWidget({ lang }: Props) {
           {/* Chat view */}
           {activeChatConn && (
             <>
-              <div className="flex-1 h-60 overflow-y-auto p-3 space-y-2 bg-gray-50">
+              <div className="h-60 overflow-y-auto p-3 space-y-2 bg-gray-50/50">
                 {messages.length === 0 ? (
                   <p className="text-center text-xs text-gray-400 pt-10">
                     {lang === 'es' ? 'Di hola 👋' : 'Say hi 👋'}
@@ -201,15 +206,18 @@ export default function SocialMatchWidget({ lang }: Props) {
         </div>
       )}
 
-      {/* Floating trigger button */}
+      {/* Floating trigger button — same style as cart / chatbot */}
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="w-14 h-14 rounded-full bg-gradient-to-br from-[#F97316] to-orange-600 shadow-[0_4px_24px_rgba(249,115,22,0.45)] flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-all relative"
+        className="w-14 h-14 floating-action-pill rounded-full flex items-center justify-center transition-all duration-300 relative group active:scale-90 pointer-events-auto"
         title={lang === 'es' ? 'Mis Matches' : 'My Matches'}
       >
-        <HiOutlineSparkles className="w-6 h-6" />
-        {accepted.length > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 border-2 border-white text-white text-[9px] font-black flex items-center justify-center">
+        {isOpen
+          ? <HiOutlineX className="w-6 h-6" />
+          : <HiOutlineMail className="w-7 h-7" />
+        }
+        {!isOpen && accepted.length > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1 bg-green-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center border-2 border-white shadow-lg">
             {accepted.length > 9 ? '9+' : accepted.length}
           </span>
         )}

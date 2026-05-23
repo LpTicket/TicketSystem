@@ -28,7 +28,6 @@ import {
 } from 'react-icons/hi';
 import PaymentMethods from '@/components/dashboard/PaymentMethods';
 import SocialMatchPanel from '@/components/social/SocialMatchPanel';
-import SocialMatchWidget from '@/components/social/SocialMatchWidget';
 import MySpecialCodesPanel from '@/components/special-codes/MySpecialCodesPanel';
 import { Suspense } from 'react';
 
@@ -573,7 +572,6 @@ function DashboardPageBody() {
         <PaymentMethods />
       )}
 
-      <SocialMatchWidget lang={lang === 'es' ? 'es' : 'en'} />
     </div>
   );
 }
