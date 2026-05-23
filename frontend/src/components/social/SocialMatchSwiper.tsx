@@ -83,7 +83,7 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
   return (
     <div className="flex flex-col items-center gap-6 py-4">
       {/* Card stack */}
-      <div className="relative w-full max-w-sm mx-auto" style={{ height: 420 }}>
+      <div className="relative w-full max-w-sm mx-auto" style={{ height: 520 }}>
         {/* Next card (behind) */}
         {nextCard && (
           <div className="absolute inset-0 rounded-3xl bg-white border border-gray-100 shadow-md" style={{ transform: 'scale(0.95) translateY(12px)', opacity: 0.6 }} />
@@ -110,7 +110,7 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
             const clampedIndex = Math.min(photoIndex, allPhotos.length - 1);
             if (allPhotos.length > 0) {
               return (
-                <div className="relative h-48 bg-[#0A375A] overflow-hidden">
+                <div className="relative h-72 bg-[#0A375A] overflow-hidden">
                   <img src={allPhotos[clampedIndex]} alt="" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                   {allPhotos.length > 1 && (
