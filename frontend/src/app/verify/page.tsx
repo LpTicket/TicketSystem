@@ -18,6 +18,11 @@ import {
 } from 'react-icons/hi';
 import Link from 'next/link';
 
+type EventTicketStats = {
+  totalPurchased: number;
+  ticketsToScan: number;
+};
+
 type RecentScan = {
   code: string;
   valid: boolean;
@@ -40,6 +45,7 @@ export default function TicketScannerPage() {
   const [highContrast, setHighContrast] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [liveStats, setLiveStats] = useState({ total: 0, approved: 0, denied: 0 });
+  const [eventTicketStats, setEventTicketStats] = useState<EventTicketStats | null>(null);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
 
   const [validating, setValidating] = useState(false);
@@ -47,6 +53,7 @@ export default function TicketScannerPage() {
     valid: boolean;
     message: string;
     ticket?: any;
+    eventStats?: EventTicketStats;
     code: string;
   } | null>(null);
 
@@ -171,6 +178,7 @@ export default function TicketScannerPage() {
     setValidationResult(null);
     setScanResult(null);
     setManualCode('');
+    setEventTicketStats(null);
 
     try {
       let ticketData: any = null;
@@ -194,10 +202,12 @@ export default function TicketScannerPage() {
         valid: Boolean(res.valid),
         message: res.message,
         ticket: res.ticket || ticketData,
+        eventStats: res.eventStats,
         code: cleanCode,
       };
 
       setValidationResult(result);
+      setEventTicketStats(result.eventStats || null);
       registerScan(result);
     } catch (err: any) {
       const result = {
@@ -399,6 +409,23 @@ export default function TicketScannerPage() {
               </h3>
               <p className={`mt-2 text-xs font-bold ${validationResult.valid ? 'text-slate-700' : 'text-white/65'}`}>{validationResult.message}</p>
 
+              {validationResult.eventStats && (
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-white/10 bg-white/95 p-4 text-left">
+                    <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      {lang === 'es' ? 'Tickets comprados' : 'Tickets purchased'}
+                    </span>
+                    <span className="mt-1 block text-3xl font-black text-[#0A375A]">{validationResult.eventStats.totalPurchased}</span>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-white/95 p-4 text-left">
+                    <span className="block text-[9px] font-black uppercase tracking-widest text-slate-400">
+                      {lang === 'es' ? 'Por escanear' : 'Left to scan'}
+                    </span>
+                    <span className="mt-1 block text-3xl font-black text-[#F97316]">{validationResult.eventStats.ticketsToScan}</span>
+                  </div>
+                </div>
+              )}
+
               {validationResult.ticket && (
                 <div className="mt-5 rounded-lg border border-white/10 bg-white/95 p-4 text-left text-xs text-slate-800">
                   <div className="border-b border-slate-100 pb-3">
@@ -530,6 +557,19 @@ export default function TicketScannerPage() {
               {lang === 'es' ? 'Reiniciar' : 'Reset'}
             </button>
           </div>
+
+          {eventTicketStats && (
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className={`rounded-lg border p-4 ${highContrast ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{lang === 'es' ? 'Tickets comprados' : 'Tickets purchased'}</p>
+                <p className={`mt-2 text-3xl font-black ${highContrast ? 'text-white' : 'text-[#0A375A]'}`}>{eventTicketStats.totalPurchased}</p>
+              </div>
+              <div className="rounded-lg border border-orange-400/20 bg-orange-500/10 p-4">
+                <p className="text-[10px] font-black uppercase tracking-wide text-orange-400">{lang === 'es' ? 'Por escanear' : 'Left to scan'}</p>
+                <p className="mt-2 text-3xl font-black text-[#F97316]">{eventTicketStats.ticketsToScan}</p>
+              </div>
+            </div>
+          )}
 
           <div className="mt-5 grid grid-cols-3 gap-3">
             <div className={`rounded-lg border p-4 ${highContrast ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>

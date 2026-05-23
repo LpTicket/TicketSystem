@@ -662,6 +662,18 @@ export class OrdersService {
    * Validates a ticket (Scanning Logic).
    * Ensures the user has permission to scan and that the ticket hasn't been used.
    */
+  private async getScannerEventStats(eventId: string) {
+    const [activeTickets, usedTickets] = await Promise.all([
+      this.ticketRepo.count({ where: { eventId, status: TicketStatus.ACTIVE } }),
+      this.ticketRepo.count({ where: { eventId, status: TicketStatus.USED } }),
+    ]);
+
+    return {
+      totalPurchased: activeTickets + usedTickets,
+      ticketsToScan: activeTickets,
+    };
+  }
+
   async validateTicket(code: string, user: any) {
     const ticket = await this.getTicketByCode(code);
     
@@ -671,15 +683,15 @@ export class OrdersService {
     }
 
     if (ticket.status === TicketStatus.USED) {
-      return { valid: false, message: 'This ticket has already been used', ticket };
+      return { valid: false, message: 'This ticket has already been used', ticket, eventStats: await this.getScannerEventStats(ticket.eventId) };
     }
     if (ticket.status === TicketStatus.CANCELLED) {
-      return { valid: false, message: 'This ticket was cancelled', ticket };
+      return { valid: false, message: 'This ticket was cancelled', ticket, eventStats: await this.getScannerEventStats(ticket.eventId) };
     }
     
     // Mark as USED to prevent double-entry
     await this.ticketRepo.update(ticket.id, { status: TicketStatus.USED });
-    return { valid: true, message: 'Valid Ticket — entry confirmed', ticket };
+    return { valid: true, message: 'Valid Ticket — entry confirmed', ticket, eventStats: await this.getScannerEventStats(ticket.eventId) };
   }
 
   /**
