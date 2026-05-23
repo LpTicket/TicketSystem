@@ -459,9 +459,9 @@ export default function SocialMatchPanel({ lang }: Props) {
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
                 {lang === 'es' ? 'Así te ven los demás' : 'How others see you'}
               </label>
-              <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm max-w-xs">
+              <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
                 {allPhotos.length > 0 ? (
-                  <div className="relative h-64 bg-[#0A375A]">
+                  <div className="relative h-[420px] bg-[#0A375A]">
                     <img src={allPhotos[clampedIndex]} alt="" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                     {allPhotos.length > 1 && (
