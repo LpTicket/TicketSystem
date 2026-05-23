@@ -989,7 +989,7 @@ export default function EventDetailPage() {
     }
 
     if (sectionType === 'standing') {
-      return sum + (Number(section.capacity) || 0);
+      return sum + (Number(section.capacity) || 100);
     }
 
     const realSeatCount = Array.isArray(section.seats) ? section.seats.length : 0;
@@ -1256,7 +1256,7 @@ export default function EventDetailPage() {
                 },
                 {
                   label: lang === 'es' ? 'Capacidad total' : 'Total capacity',
-                  value: String(totalEventCapacity + remainingEventCapacity),
+                  value: String(totalEventCapacity),
                   note: `${remainingEventCapacity} ${lang === 'es' ? 'por vender o asignar' : 'left to sell or assign'}`,
                   icon: HiOutlineUsers,
                 },
