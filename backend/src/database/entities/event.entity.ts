@@ -62,7 +62,7 @@ export class Event {
    * Stores a category slug (e.g. 'concierto', 'teatro'). 
    * References the slug field in the EventCategoryEntity.
    */
-  @Column({ type: 'varchar', length: 40, default: 'otro' })
+  @Column({ type: 'varchar', length: 50, default: 'otro' })
   category: string;
 
   @Column({ type: 'text', nullable: true })
@@ -170,7 +170,7 @@ export class Event {
   @Column({ type: 'varchar', length: 60, nullable: true })
   pendingVenueName: string | null;
 
-  @Column({ type: 'varchar', length: 40, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   pendingCategory: string | null;
 
   @Column({ type: 'timestamp', nullable: true })

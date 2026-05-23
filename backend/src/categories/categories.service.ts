@@ -37,25 +37,24 @@ export class CategoriesService implements OnModuleInit {
    * Hook that runs when the server starts.
    */
   async onModuleInit() {
-    /**
-     * DATABASE PATCH:
-     * Migrates the 'category' column from a strict Enum to a Varchar.
-     * This allows us to add new categories dynamically without requiring 
-     * complex database migrations or downtime.
-     */
+    // Ensure the category columns are VARCHAR(50) — safe to run on every startup.
+    // TypeORM synchronize runs before onModuleInit, so we patch AFTER in case
+    // synchronize ever tries to alter these columns based on the entity definition.
+    // Both ALTER statements are idempotent: if the column is already the right
+    // type/length, the statement is a no-op on PostgreSQL.
     try {
       await this.dataSource.query(
         `ALTER TABLE events ALTER COLUMN category TYPE VARCHAR(50) USING category::text`,
       );
-    } catch {
-      // Ignore if column is already Varchar or if table doesn't exist yet
-    }
+    } catch { /* ignore: already varchar or table doesn't exist yet */ }
 
-    /**
-     * SEEDING:
-     * If the categories table is empty (fresh install), populate it with
-     * the SYSTEM_CATEGORIES constants.
-     */
+    try {
+      await this.dataSource.query(
+        `ALTER TABLE events ALTER COLUMN "pendingCategory" TYPE VARCHAR(50) USING "pendingCategory"::text`,
+      );
+    } catch { /* ignore */ }
+
+    // Seed system categories only on a fresh install (empty table).
     const count = await this.categoryRepo.count();
     if (count === 0) {
       await this.categoryRepo.save(
