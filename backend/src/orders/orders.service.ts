@@ -693,6 +693,12 @@ export class OrdersService {
       totalPurchased: totalIssued,
       ticketsToScan: activeTickets,
       ticketsEntered: usedTickets,
+      sectionCount: activeSections.length,
+      sections: activeSections.map(s => ({
+        name: s.name,
+        type: s.sectionType,
+        capacity: Math.max(Number(s.capacity) || 0, (Number(s.rows) || 0) * (Number(s.seatsPerRow) || 0)),
+      })),
     };
   }
 

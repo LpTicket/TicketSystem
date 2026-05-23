@@ -27,6 +27,8 @@ type EventTicketStats = {
   ticketsToScan: number;
   ticketsEntered?: number;
   totalCapacity?: number;
+  sectionCount?: number;
+  sections?: { name: string; type: string; capacity: number }[];
 };
 
 type RecentScan = {
@@ -657,6 +659,16 @@ export default function TicketScannerPage() {
                     <div className="h-full rounded-full bg-[#0A375A] transition-all"
                       style={{ width: `${Math.min(100, Math.round(((eventTicketStats.ticketsEntered ?? 0) / eventTicketStats.totalCapacity) * 100))}%` }} />
                   </div>
+                  {eventTicketStats.sections && eventTicketStats.sections.length > 0 && (
+                    <div className="mt-3 space-y-1 border-t border-[#0A375A]/10 pt-3">
+                      {eventTicketStats.sections.map((s, i) => (
+                        <div key={i} className="flex justify-between text-[10px]">
+                          <span className={`font-bold ${highContrast ? 'text-white/50' : 'text-[#0A375A]/60'}`}>{s.name}</span>
+                          <span className={`font-black ${highContrast ? 'text-white' : 'text-[#0A375A]'}`}>{s.capacity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
