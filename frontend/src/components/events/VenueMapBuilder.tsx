@@ -811,6 +811,29 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
   const selectedSection = sections.find(s => s.id === selectedId);
 
+  const getSectionCapacity = (section: Partial<VenueSection>): number => {
+    if (section.sectionType === 'stage' || section.sectionType === 'decor') return 0;
+    if (section.sectionType === 'standing') return Math.max(0, Number(section.capacity) || 0);
+
+    const rows = Math.max(1, Number(section.rows) || 1);
+    const seatsPerRow = Math.max(1, Number(section.seatsPerRow) || 1);
+    const totalSeats = rows * seatsPerRow;
+    const config = getSeatsConfig(section);
+
+    let unavailableSeats = 0;
+    for (let row = 1; row <= rows; row++) {
+      const rowLabel: string = section.sectionType === 'table' ? 'Mesa' : String.fromCharCode(64 + row);
+      for (let seat = 1; seat <= seatsPerRow; seat++) {
+        const key = section.sectionType === 'table' ? `seat-${seat}` : `${rowLabel}-${seat}`;
+        if (config[key]?.reserved || config[key]?.disabled) unavailableSeats += 1;
+      }
+    }
+
+    return Math.max(0, totalSeats - unavailableSeats);
+  };
+
+  const mapCapacity = sections.reduce((sum: number, section) => sum + getSectionCapacity(section), 0);
+
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
   return (
@@ -823,7 +846,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           </div>
           <div className="flex flex-col">
             <span className="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Chart</span>
-            <h2 className="font-semibold text-gray-800 text-sm leading-tight">{lang === 'es' ? 'Diseñador de Asientos' : 'Seat Designer'}</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-semibold text-gray-800 text-sm leading-tight">{lang === 'es' ? 'Diseñador de Asientos' : 'Seat Designer'}</h2>
+              <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-0.5 text-[11px] font-black text-[#1a73e8]">
+                {lang === 'es' ? 'Capacidad' : 'Capacity'}: {mapCapacity}
+              </span>
+            </div>
           </div>
         </div>
         
