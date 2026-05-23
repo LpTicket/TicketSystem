@@ -125,6 +125,7 @@ export default function TicketScannerPage() {
   // Fetch + poll scanner stats for selected event
   useEffect(() => {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    setEventTicketStats(null);
     if (!selectedEventId) return;
 
     const fetchStats = () => {
