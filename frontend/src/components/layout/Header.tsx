@@ -363,7 +363,7 @@ export default function Header() {
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="lp-mobile-menu lg:hidden animate-fade-in absolute w-full left-0 z-[150] overflow-y-auto max-h-[calc(100vh-70px)]">
+        <div className="lp-mobile-menu lg:hidden animate-fade-in fixed top-[60px] md:top-[70px] left-0 w-full z-[200] overflow-y-auto max-h-[calc(100vh-60px)] md:max-h-[calc(100vh-70px)]">
           <div className="lp-mobile-menu-inner space-y-4">
             
             {/* Nav Links */}
