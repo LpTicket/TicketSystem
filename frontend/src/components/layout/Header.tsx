@@ -8,6 +8,9 @@ import { useLang } from '@/context/LanguageContext';
 import { HiOutlineMenu, HiOutlineX, HiOutlineUser, HiOutlineLogout, HiOutlineCog, HiOutlineTicket, HiOutlineShoppingCart, HiOutlineQrcode } from 'react-icons/hi';
 import { formatSeatLabel } from '@/lib/seatLabel';
 
+const FLOATING_PANEL_EVENT = 'lpticket-floating-panel-open';
+const CART_PANEL = 'cart';
+
 import ModeToggle from './ModeToggle';
 
 import { useUIStore } from '@/stores/ui';
@@ -24,6 +27,7 @@ export default function Header() {
   const { mobileMenuOpen, setMobileMenuOpen } = useUIStore();
   const [profileDropdown, setProfileDropdown] = useState(false);
   const [cartDropdown, setCartDropdown] = useState(false);
+  const cartShellRef = useRef<HTMLDivElement>(null);
   const [cartItems, setCartItems] = useState<any[]>([]);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -46,6 +50,10 @@ export default function Header() {
    * Loads cart items from localStorage.
    * Filters out items that have exceeded the 10-minute reservation threshold.
    */
+  const notifyFloatingPanelOpen = (panel: string) => {
+    window.dispatchEvent(new CustomEvent(FLOATING_PANEL_EVENT, { detail: panel }));
+  };
+
   const loadCartItems = useCallback(() => {
     if (typeof window === 'undefined') return;
     const items: any[] = [];
@@ -92,6 +100,26 @@ export default function Header() {
    * Setup listeners for cart updates across the application and tab storage events.
    * Also sets up a 1-second interval to keep the countdown timers accurate.
    */
+  useEffect(() => {
+    const handleOtherFloatingPanel = (event: Event) => {
+      const panel = (event as CustomEvent<string>).detail;
+      if (panel !== CART_PANEL) setCartDropdown(false);
+    };
+    window.addEventListener(FLOATING_PANEL_EVENT, handleOtherFloatingPanel);
+    return () => window.removeEventListener(FLOATING_PANEL_EVENT, handleOtherFloatingPanel);
+  }, []);
+
+  useEffect(() => {
+    if (!cartDropdown) return;
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (cartShellRef.current && !cartShellRef.current.contains(event.target as Node)) {
+        setCartDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [cartDropdown]);
+
   useEffect(() => {
     loadCartItems();
     window.addEventListener('cart-updated', loadCartItems);
@@ -438,7 +466,7 @@ export default function Header() {
         This component stays visible across standard pages but hides in management panels.
     */}
     {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && !pathname.includes('/login') && !pathname.includes('/register') && (
-      <div className="fixed bottom-4 right-0 px-5 z-[100] flex flex-col items-end gap-3 print:hidden pointer-events-none">
+      <div ref={cartShellRef} className="fixed bottom-4 right-0 px-5 z-[100] flex flex-col items-end gap-3 print:hidden pointer-events-none">
         
         {/* Cart Dropdown Content */}
         {cartDropdown && (
@@ -539,7 +567,10 @@ export default function Header() {
         
         {/* Main Floating Cart Toggle Button */}
         <button 
-          onClick={() => setCartDropdown(!cartDropdown)}
+          onClick={() => {
+            if (!cartDropdown) notifyFloatingPanelOpen(CART_PANEL);
+            setCartDropdown(!cartDropdown);
+          }}
           className={`w-14 h-14 floating-action-pill rounded-full flex items-center justify-center transition-all duration-300 relative group active:scale-90 pointer-events-auto ${
             cartDropdown ? 'rotate-90' : ''
           }`}

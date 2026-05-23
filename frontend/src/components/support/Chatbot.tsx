@@ -18,6 +18,9 @@ interface Message {
   content: string;
 }
 
+const FLOATING_PANEL_EVENT = 'lpticket-floating-panel-open';
+const SUPPORT_CHAT_PANEL = 'support-chat';
+
 export default function Chatbot() {
   const { lang } = useLang();
   const [isOpen, setIsOpen] = useState(false);
@@ -25,14 +28,39 @@ export default function Chatbot() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatShellRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const notifyFloatingPanelOpen = (panel: string) => {
+    window.dispatchEvent(new CustomEvent(FLOATING_PANEL_EVENT, { detail: panel }));
+  };
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const handleOtherFloatingPanel = (event: Event) => {
+      const panel = (event as CustomEvent<string>).detail;
+      if (panel !== SUPPORT_CHAT_PANEL) setIsOpen(false);
+    };
+    window.addEventListener(FLOATING_PANEL_EVENT, handleOtherFloatingPanel);
+    return () => window.removeEventListener(FLOATING_PANEL_EVENT, handleOtherFloatingPanel);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (chatShellRef.current && !chatShellRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isOpen]);
 
   // Initial greeting
   useEffect(() => {
@@ -78,10 +106,13 @@ export default function Chatbot() {
   };
 
   return (
-    <div className="fixed bottom-4 left-0 px-5 sm:p-6 pointer-events-none z-50 print:hidden">
+    <div ref={chatShellRef} className="fixed bottom-4 left-0 px-5 sm:p-6 pointer-events-none z-50 print:hidden">
       {/* Floating Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!isOpen) notifyFloatingPanelOpen(SUPPORT_CHAT_PANEL);
+          setIsOpen(!isOpen);
+        }}
         className="w-14 h-14 floating-action-pill rounded-full flex items-center justify-center transition-all pointer-events-auto group relative active:scale-90"
       >
         {isOpen ? (

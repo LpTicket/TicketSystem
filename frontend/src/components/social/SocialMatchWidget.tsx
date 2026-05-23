@@ -24,6 +24,8 @@ import {
 import { FaInstagram } from 'react-icons/fa';
 
 const LAST_READ_KEY = 'sm_last_read';
+const FLOATING_PANEL_EVENT = 'lpticket-floating-panel-open';
+const SOCIAL_MATCH_PANEL = 'social-match';
 
 function getLastRead(): Record<string, string> {
   try { return JSON.parse(localStorage.getItem(LAST_READ_KEY) || '{}'); } catch { return {}; }
@@ -49,13 +51,38 @@ export default function SocialMatchWidget() {
   const [profilePhotoIdx, setProfilePhotoIdx] = useState(0);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const socialShellRef = useRef<HTMLDivElement>(null);
   const activeChatConnRef = useRef<SocialMatchConnection | null>(null);
 
   const accepted = connections.filter((c) => c.status === 'accepted');
+
+  const notifyFloatingPanelOpen = (panel: string) => {
+    window.dispatchEvent(new CustomEvent(FLOATING_PANEL_EVENT, { detail: panel }));
+  };
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
   useEffect(() => { setUnreadCount(totalUnread); }, [totalUnread]);
 
   useEffect(() => { activeChatConnRef.current = activeChatConn; }, [activeChatConn]);
+
+  useEffect(() => {
+    const handleOtherFloatingPanel = (event: Event) => {
+      const panel = (event as CustomEvent<string>).detail;
+      if (panel !== SOCIAL_MATCH_PANEL) handleClose();
+    };
+    window.addEventListener(FLOATING_PANEL_EVENT, handleOtherFloatingPanel);
+    return () => window.removeEventListener(FLOATING_PANEL_EVENT, handleOtherFloatingPanel);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (socialShellRef.current && !socialShellRef.current.contains(event.target as Node)) {
+        handleClose();
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isOpen]);
 
   useEffect(() => {
     if (isAuthenticated) loadConnections();
@@ -164,7 +191,7 @@ export default function SocialMatchWidget() {
   };
 
   return (
-    <div className="fixed bottom-20 right-0 px-5 z-[300] flex flex-col items-end gap-3 pointer-events-none print:hidden">
+    <div ref={socialShellRef} className="fixed bottom-20 right-0 px-5 z-[300] flex flex-col items-end gap-3 pointer-events-none print:hidden">
       {/* Popup panel */}
       {isOpen && (
         <div className="w-80 bg-white rounded-3xl shadow-elevated border border-gray-100 overflow-hidden flex flex-col pointer-events-auto animate-fade-in-up">
@@ -372,7 +399,10 @@ export default function SocialMatchWidget() {
 
       {/* Floating trigger button */}
       <button
-        onClick={() => setOpen(!isOpen)}
+        onClick={() => {
+          if (!isOpen) notifyFloatingPanelOpen(SOCIAL_MATCH_PANEL);
+          setOpen(!isOpen);
+        }}
         className="w-14 h-14 floating-action-pill rounded-full flex items-center justify-center transition-all duration-300 relative group active:scale-90 pointer-events-auto shrink-0"
         title={lang === 'es' ? 'Mis Matches' : 'My Matches'}
       >
