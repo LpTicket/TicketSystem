@@ -9,7 +9,6 @@ import {
   HiOutlineLocationMarker,
 } from 'react-icons/hi';
 import { SocialMatchSuggestion, socialMatchInterestOptions } from '@/lib/socialMatch';
-import { getImageUrl } from '@/lib/api';
 
 type Props = {
   suggestions: SocialMatchSuggestion[];
@@ -106,10 +105,7 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
         >
           {/* Top section — photo carousel or avatar */}
           {(() => {
-            const allPhotos = [
-              ...(currentCard.avatarUrl ? [getImageUrl(currentCard.avatarUrl)] : []),
-              ...(currentCard.photos || []),
-            ].filter((src) => !brokenPhotos.has(src));
+            const allPhotos = (currentCard.photos || []).filter((src) => !brokenPhotos.has(src));
             const clampedIndex = Math.min(photoIndex, Math.max(0, allPhotos.length - 1));
             if (allPhotos.length > 0) {
               return (

@@ -30,7 +30,6 @@ import {
   socialMatchInterestOptions,
 } from '@/lib/socialMatch';
 import type { SocialMatchConnectionProfile } from '@/lib/socialMatch';
-import { getImageUrl } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth';
 import SocialMatchSwiper from './SocialMatchSwiper';
 
@@ -448,11 +447,7 @@ export default function SocialMatchPanel({ lang }: Props) {
 
         {/* My card preview */}
         {(() => {
-          const smPhotos = selectedPreference?.photos || [];
-          const allPhotos = [
-            ...(user?.avatarUrl ? [getImageUrl(user.avatarUrl)] : []),
-            ...smPhotos,
-          ].filter((src) => !brokenPhotos.has(src));
+          const allPhotos = (selectedPreference?.photos || []).filter((src) => !brokenPhotos.has(src));
           const clampedIndex = Math.min(previewPhotoIndex, Math.max(0, allPhotos.length - 1));
           const isPrivate = selectedPreference?.privateMode ?? false;
           const displayName = isPrivate ? 'Asistente' : `${user?.firstName || ''} ${(user?.lastName || '')[0] || ''}.`.trim();
