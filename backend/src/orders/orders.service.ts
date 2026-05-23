@@ -672,19 +672,23 @@ export class OrdersService {
       return t !== 'stage' && t !== 'decor';
     });
 
-    // Per-section: use max(capacity, rows×seatsPerRow) — covers all section types
-    const sectionCapacity = activeSections.reduce((sum, s) => {
-      const capField = Number(s.capacity) || 0;
-      const rowsCalc = (Number(s.rows) || 0) * (Number(s.seatsPerRow) || 0);
-      return sum + Math.max(capField, rowsCalc);
-    }, 0);
+    // For sections with individual seats (seated/vip/table): count actual rows in seats table.
+    // For GA/standing sections (no individual seats): use the capacity field.
+    let totalCapacity = 0;
+    for (const section of activeSections) {
+      const seatCount = await this.seatRepo.count({ where: { sectionId: section.id } });
+      if (seatCount > 0) {
+        totalCapacity += seatCount;
+      } else {
+        totalCapacity += Number(section.capacity) || 0;
+      }
+    }
 
     const [activeTickets, usedTickets] = await Promise.all([
       this.ticketRepo.count({ where: { eventId, status: TicketStatus.ACTIVE } }),
       this.ticketRepo.count({ where: { eventId, status: TicketStatus.USED } }),
     ]);
 
-    const totalCapacity = sectionCapacity;
     const totalIssued = activeTickets + usedTickets;
 
     return {
@@ -693,12 +697,6 @@ export class OrdersService {
       totalPurchased: totalIssued,
       ticketsToScan: activeTickets,
       ticketsEntered: usedTickets,
-      sectionCount: activeSections.length,
-      sections: activeSections.map(s => ({
-        name: s.name,
-        type: s.sectionType,
-        capacity: Math.max(Number(s.capacity) || 0, (Number(s.rows) || 0) * (Number(s.seatsPerRow) || 0)),
-      })),
     };
   }
 
