@@ -667,24 +667,37 @@ export class OrdersService {
   private async getScannerEventStats(eventId: string) {
     const sections = await this.sectionRepo.find({ where: { eventId } });
 
-    const seatedSectionIds = sections
-      .filter(s => {
-        const t = String(s.sectionType).toLowerCase();
-        return t !== 'standing' && t !== 'stage' && t !== 'decor';
-      })
-      .map(s => s.id);
+    const activeSections = sections.filter(s => {
+      const t = String(s.sectionType).toLowerCase();
+      return t !== 'stage' && t !== 'decor';
+    });
 
-    const standingCapacity = sections
-      .filter(s => String(s.sectionType).toLowerCase() === 'standing')
-      .reduce((sum, s) => sum + (Number(s.capacity) || 0), 0);
+    const seatedSections = activeSections.filter(
+      s => String(s.sectionType).toLowerCase() !== 'standing',
+    );
+    const standingSections = activeSections.filter(
+      s => String(s.sectionType).toLowerCase() === 'standing',
+    );
 
-    const [activeTickets, usedTickets, seatedCapacity] = await Promise.all([
+    const standingCapacity = standingSections.reduce(
+      (sum, s) => sum + (Number(s.capacity) || 0), 0,
+    );
+
+    // For seated/table sections: count actual seat records; fall back to rows×seatsPerRow
+    const seatedSectionIds = seatedSections.map(s => s.id);
+    const [activeTickets, usedTickets, dbSeatCount] = await Promise.all([
       this.ticketRepo.count({ where: { eventId, status: TicketStatus.ACTIVE } }),
       this.ticketRepo.count({ where: { eventId, status: TicketStatus.USED } }),
       seatedSectionIds.length > 0
         ? this.seatRepo.count({ where: { sectionId: In(seatedSectionIds) } })
         : Promise.resolve(0),
     ]);
+
+    // If DB seat count looks too low, sum rows×seatsPerRow as fallback
+    const rowsCapacity = seatedSections.reduce(
+      (sum, s) => sum + (Number(s.rows) || 0) * (Number(s.seatsPerRow) || 0), 0,
+    );
+    const seatedCapacity = dbSeatCount > rowsCapacity ? dbSeatCount : rowsCapacity;
 
     const totalCapacity = standingCapacity + seatedCapacity;
     const totalIssued = activeTickets + usedTickets;
