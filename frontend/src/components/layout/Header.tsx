@@ -1,14 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
-import { HiOutlineSearch, HiOutlineMenu, HiOutlineX, HiOutlineUser, HiOutlineLogout, HiOutlineCog, HiOutlineTicket, HiOutlineShoppingCart, HiOutlineQrcode } from 'react-icons/hi';
-import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
-import api from '@/lib/api';
+import { HiOutlineMenu, HiOutlineX, HiOutlineUser, HiOutlineLogout, HiOutlineCog, HiOutlineTicket, HiOutlineShoppingCart, HiOutlineQrcode } from 'react-icons/hi';
 import { formatSeatLabel } from '@/lib/seatLabel';
 
 import ModeToggle from './ModeToggle';
@@ -441,7 +438,7 @@ export default function Header() {
         This component stays visible across standard pages but hides in management panels.
     */}
     {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && !pathname.includes('/login') && !pathname.includes('/register') && (
-      <div className="fixed bottom-24 right-6 z-[100] flex flex-col items-end gap-3 print:hidden pointer-events-none">
+      <div className="fixed bottom-[152px] right-6 z-[100] flex flex-col items-end gap-3 print:hidden pointer-events-none">
         
         {/* Cart Dropdown Content */}
         {cartDropdown && (
