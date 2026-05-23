@@ -14,22 +14,18 @@ import { FaInstagram } from 'react-icons/fa';
 import type { Event } from '@/types';
 import {
   getMySocialMatch,
-  getSocialMatchMessages,
   getSocialMatchSuggestions,
   requestSocialMatchConnection,
-  sendSocialMatchMessage,
   saveSocialMatchPreference,
   updateSocialMatchConnection,
   uploadSocialMatchPhoto,
   deleteSocialMatchPhoto,
   SocialMatchConnection,
-  SocialMatchMessage,
   SocialMatchPreference,
   SocialMatchSuggestion,
   SocialMatchSummary,
   socialMatchInterestOptions,
 } from '@/lib/socialMatch';
-import type { SocialMatchConnectionProfile } from '@/lib/socialMatch';
 import { useAuthStore } from '@/stores/auth';
 import SocialMatchSwiper from './SocialMatchSwiper';
 
@@ -49,34 +45,6 @@ const emptyPreference = (eventId: string): SocialMatchPreference => ({
   shareLocation: false,
 });
 
-function ConnectionProfileCard({ profile, lang }: { profile: SocialMatchConnectionProfile; lang: 'es' | 'en' }) {
-  const hasDetails = profile.industry || (profile.interests && profile.interests.length > 0) || profile.instagram;
-  if (!hasDetails) return null;
-  return (
-    <div className="mt-3 pt-3 border-t border-orange-100 space-y-2">
-      {profile.industry && (
-        <p className="text-xs text-gray-600">
-          <span className="font-semibold">{lang === 'es' ? 'Industria' : 'Industry'}:</span> {profile.industry}
-        </p>
-      )}
-      {profile.interests && profile.interests.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {profile.interests.map((interest) => {
-            const opt = socialMatchInterestOptions.find((o) => o.id === interest);
-            return (
-              <span key={interest} className="px-2 py-0.5 rounded-full bg-orange-100 text-[#F97316] text-xs font-semibold">
-                {opt ? (lang === 'es' ? opt.es : opt.en) : interest}
-              </span>
-            );
-          })}
-        </div>
-      )}
-      {profile.instagram && (
-        <p className="text-xs font-semibold text-[#F97316]">@{profile.instagram.replace(/^@/, '')}</p>
-      )}
-    </div>
-  );
-}
 
 export default function SocialMatchPanel({ lang }: Props) {
   const [loading, setLoading] = useState(true);
@@ -88,11 +56,6 @@ export default function SocialMatchPanel({ lang }: Props) {
   const [suggestions, setSuggestions] = useState<SocialMatchSuggestion[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState('');
-  const [activeChatId, setActiveChatId] = useState('');
-  const [chatMessages, setChatMessages] = useState<SocialMatchMessage[]>([]);
-  const [chatDraft, setChatDraft] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatSending, setChatSending] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [previewPhotoIndex, setPreviewPhotoIndex] = useState(0);
   const [brokenPhotos, setBrokenPhotos] = useState<Set<string>>(new Set());
@@ -131,10 +94,6 @@ export default function SocialMatchPanel({ lang }: Props) {
     accept: lang === 'es' ? 'Aceptar' : 'Accept',
     decline: lang === 'es' ? 'Rechazar' : 'Decline',
     cancel: lang === 'es' ? 'Cancelar' : 'Cancel',
-    chat: lang === 'es' ? 'Chat' : 'Chat',
-    unmatch: lang === 'es' ? 'Cancelar match' : 'Unmatch',
-    messagePlaceholder: lang === 'es' ? 'Escribe un mensaje...' : 'Write a message...',
-    send: lang === 'es' ? 'Enviar' : 'Send',
   };
 
   useEffect(() => {
@@ -149,21 +108,6 @@ export default function SocialMatchPanel({ lang }: Props) {
     }
   }, [selectedEventId, selectedPreference?.isActive]);
 
-
-  useEffect(() => {
-    if (!activeChatId) return;
-
-    const interval = window.setInterval(async () => {
-      try {
-        const data = await getSocialMatchMessages(activeChatId);
-        setChatMessages(data.messages || []);
-      } catch (error) {
-        console.error(error);
-      }
-    }, 6000);
-
-    return () => window.clearInterval(interval);
-  }, [activeChatId]);
 
   const loadSocialMatch = async () => {
     try {
@@ -289,35 +233,6 @@ export default function SocialMatchPanel({ lang }: Props) {
     }
   };
 
-
-  const openChat = async (connectionId: string) => {
-    try {
-      setActiveChatId(connectionId);
-      setChatLoading(true);
-      const data = await getSocialMatchMessages(connectionId);
-      setChatMessages(data.messages || []);
-    } catch (error) {
-      console.error(error);
-      toast.error(lang === 'es' ? 'No se pudo abrir el chat' : 'Could not open chat');
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if (!activeChatId || !chatDraft.trim()) return;
-    try {
-      setChatSending(true);
-      const saved = await sendSocialMatchMessage(activeChatId, chatDraft);
-      setChatMessages((current) => [...current, saved]);
-      setChatDraft('');
-    } catch (error) {
-      console.error(error);
-      toast.error(lang === 'es' ? 'No se pudo enviar el mensaje' : 'Could not send message');
-    } finally {
-      setChatSending(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -551,86 +466,35 @@ export default function SocialMatchPanel({ lang }: Props) {
           </div>
         )}
 
-        {connections.length > 0 && (
+        {connections.some((c) => c.status === 'pending') && (
           <div className="rounded-2xl border border-gray-100 bg-white p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-[#0A375A] mb-3">{copy.requests}</p>
             <div className="space-y-3">
-              {connections.map((connection) => (
-                <div key={connection.id} className={`rounded-xl border p-4 ${connection.status === 'accepted' ? 'border-orange-100 bg-orange-50/40' : 'border-gray-100 bg-gray-50'}`}>
+              {connections.filter((c) => c.status === 'pending').map((connection) => (
+                <div key={connection.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-bold text-gray-900">{connection.otherUserName}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{connection.eventTitle} · {connection.status}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{connection.eventTitle} · {connection.direction === 'incoming' ? (lang === 'es' ? 'quiere conectar contigo' : 'wants to connect') : (lang === 'es' ? 'solicitud enviada' : 'request sent')}</p>
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      {connection.status === 'pending' && connection.direction === 'incoming' && (
+                      {connection.direction === 'incoming' && (
                         <>
                           <button type="button" onClick={() => handleUpdateConnection(connection.id, 'accepted')} className="px-3 py-2 rounded-lg bg-[#0A375A] text-white text-xs font-bold">{copy.accept}</button>
                           <button type="button" onClick={() => handleUpdateConnection(connection.id, 'declined')} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 text-xs font-bold">{copy.decline}</button>
                         </>
                       )}
-                      {connection.status === 'pending' && connection.direction === 'outgoing' && (
+                      {connection.direction === 'outgoing' && (
                         <button type="button" onClick={() => handleUpdateConnection(connection.id, 'cancelled')} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 text-xs font-bold">{copy.cancel}</button>
-                      )}
-                      {connection.status === 'accepted' && (
-                        <>
-                          <button type="button" onClick={() => openChat(connection.id)} className="px-3 py-2 rounded-lg bg-[#F97316] text-white text-xs font-bold">{copy.chat}</button>
-                          <button type="button" onClick={() => handleUpdateConnection(connection.id, 'cancelled')} className="px-3 py-2 rounded-lg bg-white border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50">{copy.unmatch}</button>
-                        </>
                       )}
                     </div>
                   </div>
-                  {connection.status === 'accepted' && connection.profile && (
-                    <ConnectionProfileCard profile={connection.profile} lang={lang} />
-                  )}
                 </div>
               ))}
             </div>
           </div>
         )}
 
-
-        {activeChatId && (
-          <div className="rounded-2xl border border-gray-100 bg-white p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-bold uppercase tracking-wider text-[#0A375A]">{copy.chat}</p>
-              <button type="button" onClick={() => setActiveChatId('')} className="text-xs font-bold text-gray-400 hover:text-gray-700">Cerrar</button>
-            </div>
-            <div className="max-h-72 overflow-y-auto rounded-xl bg-gray-50 p-3 space-y-2">
-              {chatLoading ? (
-                <div className="h-16 bg-white rounded-xl animate-pulse" />
-              ) : chatMessages.length > 0 ? (
-                chatMessages.map((message) => (
-                  <div key={message.id} className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${message.isMine ? 'bg-[#0A375A] text-white' : 'bg-white text-gray-800 border border-gray-100'}`}>
-                      {!message.isMine && <p className="text-[10px] font-bold text-gray-400 mb-1">{message.senderName}</p>}
-                      <p>{message.message}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No hay mensajes todavía.</p>
-              )}
-            </div>
-            <div className="mt-3 flex gap-2">
-              <input
-                value={chatDraft}
-                onChange={(event) => setChatDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                className="input bg-gray-50 border-gray-200"
-                placeholder={copy.messagePlaceholder}
-              />
-              <button type="button" onClick={handleSendMessage} disabled={chatSending || !chatDraft.trim()} className="px-4 rounded-xl bg-[#F97316] text-white text-sm font-bold disabled:opacity-50">
-                {copy.send}
-              </button>
-            </div>
-          </div>
-        )}
 
         <button onClick={handleSave} disabled={saving} className="btn-primary w-full py-3.5 rounded-lg font-bold shadow-lg shadow-orange-500/20 disabled:opacity-60">
           {saving ? copy.saving : copy.save}

@@ -14,9 +14,12 @@ import {
   getMySocialMatch,
   getSocialMatchMessages,
   sendSocialMatchMessage,
+  updateSocialMatchConnection,
   SocialMatchConnection,
   SocialMatchMessage,
+  socialMatchInterestOptions,
 } from '@/lib/socialMatch';
+import { FaInstagram } from 'react-icons/fa';
 
 export default function SocialMatchWidget() {
   const { lang } = useLang();
@@ -28,6 +31,7 @@ export default function SocialMatchWidget() {
   const [messages, setMessages] = useState<SocialMatchMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [viewingProfile, setViewingProfile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const accepted = connections.filter((c) => c.status === 'accepted');
@@ -68,10 +72,22 @@ export default function SocialMatchWidget() {
 
   const openChat = async (conn: SocialMatchConnection) => {
     setActiveChatConn(conn);
+    setViewingProfile(false);
     setMessages([]);
     try {
       const data = await getSocialMatchMessages(conn.id);
       setMessages(data.messages || []);
+    } catch {}
+  };
+
+  const handleUnmatch = async () => {
+    if (!activeChatConn) return;
+    try {
+      await updateSocialMatchConnection(activeChatConn.id, 'cancelled');
+      await loadConnections();
+      setActiveChatConn(null);
+      setViewingProfile(false);
+      setMessages([]);
     } catch {}
   };
 
@@ -89,6 +105,7 @@ export default function SocialMatchWidget() {
   const handleClose = () => {
     setIsOpen(false);
     setActiveChatConn(null);
+    setViewingProfile(false);
     setMessages([]);
     setDraft('');
   };
@@ -102,18 +119,25 @@ export default function SocialMatchWidget() {
           <div className="flex items-center gap-2 px-4 py-3.5 bg-[#0A375A] shrink-0">
             {activeChatConn && (
               <button
-                onClick={() => { setActiveChatConn(null); setMessages([]); setDraft(''); }}
+                onClick={() => viewingProfile ? setViewingProfile(false) : (setActiveChatConn(null), setMessages([]), setDraft(''))}
                 className="text-white/60 hover:text-white mr-1 transition-colors"
               >
                 <HiOutlineChevronLeft className="w-4 h-4" />
               </button>
             )}
             <HiOutlineMail className="w-4 h-4 text-orange-400 shrink-0" />
-            <span className="flex-1 text-sm font-bold text-white truncate">
-              {activeChatConn
-                ? activeChatConn.otherUserName
-                : (lang === 'es' ? 'Mis Matches' : 'My Matches')}
-            </span>
+            {activeChatConn ? (
+              <button
+                onClick={() => setViewingProfile((v) => !v)}
+                className="flex-1 text-sm font-bold text-white truncate text-left hover:text-orange-300 transition-colors"
+              >
+                {activeChatConn.otherUserName}
+              </button>
+            ) : (
+              <span className="flex-1 text-sm font-bold text-white truncate">
+                {lang === 'es' ? 'Mis Matches' : 'My Matches'}
+              </span>
+            )}
             {activeChatConn && (
               <span className="text-[10px] text-white/50 truncate max-w-[80px]">{activeChatConn.eventTitle}</span>
             )}
@@ -162,8 +186,60 @@ export default function SocialMatchWidget() {
             </div>
           )}
 
+          {/* Profile view */}
+          {activeChatConn && viewingProfile && (
+            <div className="overflow-y-auto max-h-80 p-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#0A375A] to-[#F97316] flex items-center justify-center text-white font-black text-lg shrink-0">
+                  {activeChatConn.otherUserName.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-black text-base text-gray-900">{activeChatConn.otherUserName}</p>
+                  <p className="text-xs text-gray-400">{activeChatConn.eventTitle}</p>
+                </div>
+              </div>
+
+              {activeChatConn.profile?.industry && (
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Industria' : 'Industry'}</span>
+                  <span className="font-semibold">{activeChatConn.profile.industry}</span>
+                </div>
+              )}
+
+              {(activeChatConn.profile?.interests || []).length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{lang === 'es' ? 'Intereses' : 'Interests'}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(activeChatConn.profile?.interests || []).map((id) => {
+                      const opt = socialMatchInterestOptions.find((o) => o.id === id);
+                      return (
+                        <span key={id} className="px-2.5 py-1 rounded-lg bg-orange-50 text-[#F97316] text-xs font-bold border border-orange-200">
+                          {opt ? (lang === 'es' ? opt.es : opt.en) : id}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {activeChatConn.profile?.instagram && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-orange-50 to-pink-50 border border-orange-200">
+                  <FaInstagram className="w-4 h-4 text-[#E1306C] shrink-0" />
+                  <span className="text-sm font-black text-gray-800">@{activeChatConn.profile.instagram.replace(/^@/, '')}</span>
+                </div>
+              )}
+
+              <button
+                onClick={handleUnmatch}
+                className="w-full py-2 rounded-xl border border-red-200 text-red-500 text-xs font-bold hover:bg-red-50 transition-colors"
+              >
+                {lang === 'es' ? 'Cancelar match' : 'Unmatch'}
+              </button>
+            </div>
+          )}
+
           {/* Chat view */}
-          {activeChatConn && (
+          {activeChatConn && !viewingProfile && (
             <>
               <div className="h-60 overflow-y-auto p-3 space-y-2 bg-gray-50/50">
                 {messages.length === 0 ? (
