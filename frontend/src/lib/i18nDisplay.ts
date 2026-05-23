@@ -23,7 +23,7 @@ const CATEGORY_LABELS: Record<string, { es: string; en: string }> = {
   conference: { es: 'Conferencia', en: 'Conference' },
   infantil: { es: 'Infantil', en: 'Kids' },
   kids: { es: 'Infantil', en: 'Kids' },
-  networking: { es: 'Conexiones', en: 'Connections' },
+  networking: { es: 'Networking', en: 'Networking' },
   'professional networking': { es: 'Networking profesional', en: 'Professional networking' },
   taller: { es: 'Taller', en: 'Workshop' },
   talleres: { es: 'Talleres', en: 'Workshops' },
