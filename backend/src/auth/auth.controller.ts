@@ -15,9 +15,9 @@ import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { FacebookAuthGuard } from './guards/facebook-auth.guard';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nest-lab/fastify-multer';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { memoryStorage } from 'fastify-multer';
 import { AuthService } from './auth.service';
+import { StorageService } from '../common/services/storage.service';
 import { RegisterDto, LoginDto, UpdateProfileDto } from './dto/auth.dto';
 
 @Controller('auth')
@@ -25,6 +25,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
+    private readonly storageService: StorageService,
   ) {}
 
   @Post('register')
@@ -112,23 +113,19 @@ export class AuthController {
   @Post('profile/avatar')
   @UseInterceptors(
     FileInterceptor('avatar', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (_req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, 'avatar-' + uniqueSuffix + extname(file.originalname));
-        },
-      }) as any,
-      fileFilter: (_req, file, cb) => {
+      storage: memoryStorage(),
+      fileFilter: (_req: any, file: any, cb: any) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
           cb(new Error('Solo se permiten imágenes'), false);
+        } else {
+          cb(null, true);
         }
-        cb(null, true);
       },
-      limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
     }),
   )
-  uploadAvatar(@Request() req: any, @UploadedFile() file: any) {
-    return this.authService.updateProfile(req.user.id, { avatarUrl: file.filename });
+  async uploadAvatar(@Request() req: any, @UploadedFile() file: any) {
+    const avatarUrl = await this.storageService.uploadFile(file, 'avatars');
+    return this.authService.updateProfile(req.user.id, { avatarUrl });
   }
 }

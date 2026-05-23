@@ -9,6 +9,7 @@ import {
   HiOutlineLocationMarker,
 } from 'react-icons/hi';
 import { SocialMatchSuggestion, socialMatchInterestOptions } from '@/lib/socialMatch';
+import { getImageUrl } from '@/lib/api';
 
 type Props = {
   suggestions: SocialMatchSuggestion[];
@@ -109,7 +110,7 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
             {/* Large avatar */}
             {currentCard.avatarUrl ? (
               <img
-                src={currentCard.avatarUrl}
+                src={getImageUrl(currentCard.avatarUrl)}
                 alt={currentCard.displayName}
                 className="w-20 h-20 rounded-full border-2 border-white/30 object-cover mx-auto mb-4"
               />

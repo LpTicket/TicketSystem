@@ -415,7 +415,7 @@ function DashboardPageBody() {
               <div className="relative group mb-4">
                 <div className="w-24 h-24 rounded-full bg-primary-100 border-4 border-white shadow-lg flex items-center justify-center overflow-hidden">
                   {user.avatarUrl ? (
-                    <img src={getImageUrl(`/uploads/${user.avatarUrl}`)} alt="Profile" className="w-full h-full object-cover" />
+                    <img src={getImageUrl(user.avatarUrl)} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-3xl font-bold text-primary-600 uppercase">{user.firstName[0]}{user.lastName[0]}</span>
                   )}
