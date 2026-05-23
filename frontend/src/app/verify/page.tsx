@@ -663,7 +663,7 @@ export default function TicketScannerPage() {
                 </div>
               )}
               {eventTicketStats._debug && (
-                <details open className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <details className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <summary className="cursor-pointer text-[10px] font-black uppercase tracking-wide text-slate-400">Debug: secciones ({eventTicketStats._debug.length}) — Total: {eventTicketStats._debug.reduce((acc, s) => acc + (s.contribution || 0), 0)}</summary>
                   <div className="mt-2 overflow-x-auto">
                     <table className="w-full text-[10px] text-slate-600">
