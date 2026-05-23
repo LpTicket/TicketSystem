@@ -164,7 +164,7 @@ export default function SocialMatchWidget() {
   };
 
   return (
-    <div className="fixed bottom-0 right-0 p-6 z-[40] flex flex-col items-end gap-3 pointer-events-none print:hidden">
+    <div className="fixed top-[60px] md:top-[70px] right-2 z-[60] flex flex-col items-end pointer-events-none print:hidden">
       {/* Popup panel */}
       {isOpen && (
         <div className="w-80 bg-white rounded-3xl shadow-elevated border border-gray-100 overflow-hidden flex flex-col pointer-events-auto animate-fade-in-up">
@@ -370,19 +370,6 @@ export default function SocialMatchWidget() {
         </div>
       )}
 
-      {/* Floating trigger button */}
-      <button
-        onClick={() => setOpen(!isOpen)}
-        className="w-14 h-14 floating-action-pill rounded-full flex items-center justify-center transition-all duration-300 relative group active:scale-90 pointer-events-auto"
-        title={lang === 'es' ? 'Mis Matches' : 'My Matches'}
-      >
-        {isOpen ? <HiOutlineX className="w-6 h-6" /> : <HiOutlineMail className="w-7 h-7" />}
-        {!isOpen && totalUnread > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1 bg-orange-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center border-2 border-white shadow-lg">
-            {totalUnread > 9 ? '9+' : totalUnread}
-          </span>
-        )}
-      </button>
     </div>
   );
 }
