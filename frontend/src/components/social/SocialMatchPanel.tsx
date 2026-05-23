@@ -9,18 +9,24 @@ import {
   HiOutlineUserGroup,
   HiOutlineCamera,
   HiOutlineTrash,
+  HiOutlineChatAlt2,
+  HiOutlinePaperAirplane,
+  HiOutlineX,
 } from 'react-icons/hi';
 import { FaInstagram } from 'react-icons/fa';
 import type { Event } from '@/types';
 import {
   getMySocialMatch,
   getSocialMatchSuggestions,
+  getSocialMatchMessages,
   requestSocialMatchConnection,
   saveSocialMatchPreference,
+  sendSocialMatchMessage,
   updateSocialMatchConnection,
   uploadSocialMatchPhoto,
   deleteSocialMatchPhoto,
   SocialMatchConnection,
+  SocialMatchMessage,
   SocialMatchPreference,
   SocialMatchSuggestion,
   SocialMatchSummary,
@@ -59,7 +65,13 @@ export default function SocialMatchPanel({ lang }: Props) {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [previewPhotoIndex, setPreviewPhotoIndex] = useState(0);
   const [brokenPhotos, setBrokenPhotos] = useState<Set<string>>(new Set());
+  const [activeChatConnection, setActiveChatConnection] = useState<SocialMatchConnection | null>(null);
+  const [chatMessages, setChatMessages] = useState<SocialMatchMessage[]>([]);
+  const [chatDraft, setChatDraft] = useState('');
+  const [loadingChat, setLoadingChat] = useState(false);
+  const [sendingChat, setSendingChat] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuthStore();
 
   const selectedPreference = useMemo(() => {
@@ -68,6 +80,7 @@ export default function SocialMatchPanel({ lang }: Props) {
   }, [preferences, selectedEventId]);
 
   const selectedSummary = summaries.find((item) => item.eventId === selectedEventId);
+  const acceptedConnections = connections.filter((connection) => connection.status === 'accepted');
 
   const copy = {
     title: 'Social Match',
@@ -89,6 +102,14 @@ export default function SocialMatchPanel({ lang }: Props) {
     connect: lang === 'es' ? 'Solicitar conexión' : 'Request connection',
     sent: lang === 'es' ? 'Solicitud enviada' : 'Request sent',
     requests: lang === 'es' ? 'Solicitudes de conexión' : 'Connection requests',
+    myConnections: lang === 'es' ? 'Mis conexiones' : 'My connections',
+    myConnectionsSubtitle: lang === 'es'
+      ? 'Personas con match confirmado. Toca una tarjeta para abrir el chat.'
+      : 'Confirmed matches. Tap a card to open the chat.',
+    chat: lang === 'es' ? 'Chatear' : 'Chat',
+    noConnections: lang === 'es'
+      ? 'Cuando ambos acepten una conexión, aparecerá aquí.'
+      : 'When both people accept a connection, it will appear here.',
     suggestions: lang === 'es' ? 'Perfiles sugeridos' : 'Suggested profiles',
     noSuggestions: lang === 'es' ? 'Aún no hay perfiles compatibles para este evento.' : 'No compatible profiles for this event yet.',
     accept: lang === 'es' ? 'Aceptar' : 'Accept',
@@ -107,6 +128,10 @@ export default function SocialMatchPanel({ lang }: Props) {
       setSuggestions([]);
     }
   }, [selectedEventId, selectedPreference?.isActive]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, activeChatConnection]);
 
 
   const loadSocialMatch = async () => {
@@ -231,6 +256,44 @@ export default function SocialMatchPanel({ lang }: Props) {
       console.error(error);
       toast.error(lang === 'es' ? 'No se pudo actualizar la solicitud' : 'Could not update request');
     }
+  };
+
+  const openConnectionChat = async (connection: SocialMatchConnection) => {
+    setActiveChatConnection(connection);
+    setChatMessages([]);
+    setChatDraft('');
+    try {
+      setLoadingChat(true);
+      const data = await getSocialMatchMessages(connection.id);
+      setChatMessages(data.messages || []);
+    } catch (error) {
+      console.error(error);
+      toast.error(lang === 'es' ? 'No se pudo abrir el chat' : 'Could not open chat');
+    } finally {
+      setLoadingChat(false);
+    }
+  };
+
+  const handleSendChatMessage = async () => {
+    if (!activeChatConnection || !chatDraft.trim() || sendingChat) return;
+    try {
+      setSendingChat(true);
+      const saved = await sendSocialMatchMessage(activeChatConnection.id, chatDraft.trim());
+      setChatMessages((current) => [...current, saved]);
+      setChatDraft('');
+      window.dispatchEvent(new Event('social-match-updated'));
+    } catch (error) {
+      console.error(error);
+      toast.error(lang === 'es' ? 'No se pudo enviar el mensaje' : 'Could not send message');
+    } finally {
+      setSendingChat(false);
+    }
+  };
+
+  const closeConnectionChat = () => {
+    setActiveChatConnection(null);
+    setChatMessages([]);
+    setChatDraft('');
   };
 
 
@@ -447,6 +510,82 @@ export default function SocialMatchPanel({ lang }: Props) {
           </div>
         )}
 
+
+        <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-4 border-b border-gray-100 bg-gray-50/70">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-[#0A375A]">{copy.myConnections}</p>
+              <p className="text-xs text-gray-500 mt-1">{copy.myConnectionsSubtitle}</p>
+            </div>
+            <span className="w-fit rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-[#F97316] border border-orange-100">
+              {acceptedConnections.length}
+            </span>
+          </div>
+
+          {acceptedConnections.length === 0 ? (
+            <div className="px-4 py-8 text-center">
+              <HiOutlineChatAlt2 className="w-9 h-9 text-gray-200 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-gray-500">{copy.noConnections}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 p-4">
+              {acceptedConnections.map((connection) => {
+                const photos = connection.profile?.photos || [];
+                const firstPhoto = photos[0];
+                const interests = connection.profile?.interests || [];
+                return (
+                  <button
+                    key={connection.id}
+                    type="button"
+                    onClick={() => openConnectionChat(connection)}
+                    className="group text-left rounded-2xl border border-gray-100 bg-white hover:border-orange-200 hover:shadow-[0_16px_34px_rgba(15,23,42,0.08)] transition-all overflow-hidden"
+                  >
+                    <div className="flex gap-3 p-3">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0A375A] to-[#F97316] overflow-hidden shrink-0 flex items-center justify-center text-white text-lg font-black">
+                        {firstPhoto ? <img src={firstPhoto} alt="" className="w-full h-full object-cover" /> : connection.otherUserName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-black text-gray-900 truncate">{connection.otherUserName}</p>
+                            <p className="text-xs text-gray-500 truncate">{connection.eventTitle}</p>
+                          </div>
+                          <span className="hidden sm:inline-flex shrink-0 items-center gap-1 rounded-full bg-[#0A375A] px-2.5 py-1 text-[10px] font-black text-white group-hover:bg-[#F97316] transition-colors">
+                            <HiOutlineChatAlt2 className="w-3.5 h-3.5" />
+                            {copy.chat}
+                          </span>
+                        </div>
+
+                        {connection.profile?.industry && (
+                          <p className="text-xs text-gray-400 mt-1 truncate">{connection.profile.industry}</p>
+                        )}
+
+                        {interests.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {interests.slice(0, 3).map((id) => {
+                              const opt = socialMatchInterestOptions.find((item) => item.id === id);
+                              return (
+                                <span key={id} className="rounded-full bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#F97316]">
+                                  {opt ? (lang === 'es' ? opt.es : opt.en) : id}
+                                </span>
+                              );
+                            })}
+                            {interests.length > 3 && (
+                              <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold text-gray-500">
+                                +{interests.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {selectedPreference?.isActive && (
           <div className="rounded-2xl border border-gray-100 bg-white p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-[#0A375A] mb-3">{copy.suggestions}</p>
@@ -503,6 +642,101 @@ export default function SocialMatchPanel({ lang }: Props) {
           {saving ? copy.saving : copy.save}
         </button>
       </div>
+
+      {activeChatConnection && (
+        <div className="fixed inset-0 z-[120] bg-slate-900/45 px-4 py-6 flex items-end sm:items-center justify-center">
+          <div className="w-full max-w-lg max-h-[86vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center gap-3 px-4 py-3 bg-[#0A375A] text-white shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-white/15 overflow-hidden shrink-0 flex items-center justify-center text-sm font-black">
+                {activeChatConnection.profile?.photos?.[0]
+                  ? <img src={activeChatConnection.profile.photos[0]} alt="" className="w-full h-full object-cover" />
+                  : activeChatConnection.otherUserName.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black truncate">{activeChatConnection.otherUserName}</p>
+                <p className="text-xs text-white/60 truncate">{activeChatConnection.eventTitle}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeConnectionChat}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+                aria-label={lang === 'es' ? 'Cerrar chat' : 'Close chat'}
+              >
+                <HiOutlineX className="w-5 h-5" />
+              </button>
+            </div>
+
+            {(activeChatConnection.profile?.interests || []).length > 0 && (
+              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex gap-1.5 overflow-x-auto shrink-0">
+                {(activeChatConnection.profile?.interests || []).map((id) => {
+                  const opt = socialMatchInterestOptions.find((item) => item.id === id);
+                  return (
+                    <span key={id} className="rounded-full bg-white border border-orange-100 px-2.5 py-1 text-[10px] font-bold text-[#F97316] whitespace-nowrap">
+                      {opt ? (lang === 'es' ? opt.es : opt.en) : id}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="min-h-[260px] max-h-[52vh] overflow-y-auto px-4 py-4 space-y-2 bg-gray-50/60">
+              {loadingChat ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((item) => <div key={item} className="h-9 bg-white rounded-2xl animate-pulse" />)}
+                </div>
+              ) : chatMessages.length === 0 ? (
+                <div className="h-48 flex flex-col items-center justify-center text-center">
+                  <HiOutlineChatAlt2 className="w-9 h-9 text-gray-200 mb-2" />
+                  <p className="text-sm font-semibold text-gray-400">
+                    {lang === 'es' ? 'Aún no hay mensajes.' : 'No messages yet.'}
+                  </p>
+                  <p className="text-xs text-gray-300 mt-1">
+                    {lang === 'es' ? 'Empieza la conversación con tu match.' : 'Start the conversation with your match.'}
+                  </p>
+                </div>
+              ) : (
+                chatMessages.map((message) => (
+                  <div key={message.id} className={`flex ${message.isMine ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-snug ${
+                      message.isMine
+                        ? 'bg-[#0A375A] text-white rounded-br-md'
+                        : 'bg-white text-gray-800 border border-gray-100 rounded-bl-md'
+                    }`}>
+                      {message.message}
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <div className="flex items-center gap-2 p-3 border-t border-gray-100 bg-white shrink-0">
+              <input
+                value={chatDraft}
+                onChange={(event) => setChatDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    handleSendChatMessage();
+                  }
+                }}
+                placeholder={lang === 'es' ? 'Escribe un mensaje...' : 'Write a message...'}
+                className="flex-1 min-w-0 text-sm px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 outline-none focus:border-orange-300 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={handleSendChatMessage}
+                disabled={!chatDraft.trim() || sendingChat}
+                className="w-10 h-10 rounded-full bg-[#F97316] text-white flex items-center justify-center hover:bg-orange-600 disabled:opacity-40 transition-colors shrink-0"
+                aria-label={lang === 'es' ? 'Enviar mensaje' : 'Send message'}
+              >
+                <HiOutlinePaperAirplane className="w-5 h-5 -rotate-45" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
