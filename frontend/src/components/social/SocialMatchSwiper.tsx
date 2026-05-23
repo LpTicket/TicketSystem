@@ -107,9 +107,17 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
             </div>
 
             {/* Large avatar */}
-            <div className="w-20 h-20 rounded-full bg-white/20 border-3 border-white/30 flex items-center justify-center text-3xl font-black uppercase mx-auto mb-4">
-              {currentCard.displayName.charAt(0)}
-            </div>
+            {currentCard.avatarUrl ? (
+              <img
+                src={currentCard.avatarUrl}
+                alt={currentCard.displayName}
+                className="w-20 h-20 rounded-full border-2 border-white/30 object-cover mx-auto mb-4"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center text-3xl font-black uppercase mx-auto mb-4">
+                {currentCard.displayName.charAt(0)}
+              </div>
+            )}
 
             <h3 className="font-black text-xl text-center leading-tight">{currentCard.displayName}</h3>
             

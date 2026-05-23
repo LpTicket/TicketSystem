@@ -36,6 +36,7 @@ export type SocialMatchSummary = {
 export type SocialMatchSuggestion = {
   userId: string;
   displayName: string;
+  avatarUrl: string | null;
   sharedInterests: string[];
   industryMatch: boolean;
   industry: string | null;

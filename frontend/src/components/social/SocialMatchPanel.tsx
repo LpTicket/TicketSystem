@@ -37,7 +37,7 @@ const emptyPreference = (eventId: string): SocialMatchPreference => ({
   interests: [],
   industry: '',
   instagram: '',
-  privateMode: true,
+  privateMode: false,
   invisibleMode: false,
   shareInstagram: false,
   shareLocation: false,
