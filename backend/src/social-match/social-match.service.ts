@@ -100,26 +100,51 @@ export class SocialMatchService {
     });
     const connectedUserIds = new Set(existingConnections.flatMap((connection) => [connection.requesterId, connection.receiverId]));
 
-    const candidates = await this.preferenceRepo.find({
-      where: { eventId, isActive: true, invisibleMode: false, userId: Not(userId) },
+    // Get ALL other ticket holders for this event
+    const tickets = await this.ticketRepo.find({
+      where: { eventId, status: TicketStatus.ACTIVE, userId: Not(userId) },
       relations: ['user'],
     });
 
+    // De-duplicate by userId
+    const seenUserIds = new Set<string>();
+    const uniqueTickets = tickets.filter((t) => {
+      if (seenUserIds.has(t.userId)) return false;
+      seenUserIds.add(t.userId);
+      return true;
+    });
+
+    // Load SM preferences for those users (optional — not all will have one)
+    const otherUserIds = uniqueTickets.map((t) => t.userId);
+    const otherPreferences = otherUserIds.length
+      ? await this.preferenceRepo.find({ where: { eventId, userId: In(otherUserIds) } })
+      : [];
+    const prefMap = new Map(otherPreferences.map((p) => [p.userId, p]));
+
     const myInterests = myPreference.interests || [];
-    const suggestions = candidates
-      .filter((candidate) => !connectedUserIds.has(candidate.userId))
-      .map((candidate) => {
-        const sharedInterests = (candidate.interests || []).filter((interest) => myInterests.includes(interest));
-        const industryMatch = Boolean(myPreference.industry && candidate.industry && candidate.industry.toLowerCase() === myPreference.industry.toLowerCase());
-        const score = sharedInterests.length + (industryMatch ? 2 : 0) + (candidate.shareLocation && myPreference.shareLocation ? 1 : 0);
+    const suggestions = uniqueTickets
+      .filter((t) => {
+        if (connectedUserIds.has(t.userId)) return false;
+        const pref = prefMap.get(t.userId);
+        if (pref?.invisibleMode) return false;
+        return true;
+      })
+      .map((t) => {
+        const pref = prefMap.get(t.userId);
+        const sharedInterests = pref ? (pref.interests || []).filter((interest) => myInterests.includes(interest)) : [];
+        const industryMatch = Boolean(myPreference.industry && pref?.industry && pref.industry.toLowerCase() === myPreference.industry.toLowerCase());
+        const canShareLocationLater = Boolean(pref?.shareLocation && myPreference.shareLocation);
+        const score = sharedInterests.length + (industryMatch ? 2 : 0) + (canShareLocationLater ? 1 : 0);
+        // Show name unless user explicitly set privateMode; no preference = show name
+        const isPrivate = pref ? pref.privateMode : false;
 
         return {
-          userId: candidate.userId,
-          displayName: candidate.privateMode ? 'Asistente compatible' : `${candidate.user?.firstName || 'Asistente'} ${candidate.user?.lastName?.[0] || ''}.`.trim(),
+          userId: t.userId,
+          displayName: isPrivate ? 'Asistente' : `${t.user?.firstName || 'Asistente'} ${t.user?.lastName?.[0] || ''}.`.trim(),
           sharedInterests,
           industryMatch,
-          industry: candidate.industry || null,
-          canShareLocationLater: candidate.shareLocation && myPreference.shareLocation,
+          industry: pref?.industry || null,
+          canShareLocationLater,
           score,
         };
       })
@@ -133,7 +158,9 @@ export class SocialMatchService {
     if (!receiverId || receiverId === userId) throw new BadRequestException('Selecciona una conexión válida.');
 
     await this.ensureActivePreference(userId, eventId);
-    await this.ensureActivePreference(receiverId, eventId);
+    // Receiver only needs a ticket, not necessarily an active SM preference
+    const receiverHasTicket = await this.userHasTicketForEvent(receiverId, eventId);
+    if (!receiverHasTicket) throw new ForbiddenException('El destinatario no tiene entrada para este evento.');
 
     const existing = await this.connectionRepo.findOne({
       where: [
