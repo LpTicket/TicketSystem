@@ -670,9 +670,13 @@ export class OrdersService {
       this.ticketRepo.count({ where: { eventId, status: TicketStatus.USED } }),
     ]);
 
+    const totalIssued = activeTickets + usedTickets;
+
     return {
-      totalPurchased: activeTickets + usedTickets,
+      totalIssued,
+      totalPurchased: totalIssued,
       ticketsToScan: activeTickets,
+      ticketsEntered: usedTickets,
     };
   }
 
