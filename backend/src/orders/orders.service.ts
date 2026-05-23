@@ -665,14 +665,35 @@ export class OrdersService {
    * Ensures the user has permission to scan and that the ticket hasn't been used.
    */
   private async getScannerEventStats(eventId: string) {
-    const [activeTickets, usedTickets] = await Promise.all([
+    const [activeTickets, usedTickets, sections] = await Promise.all([
       this.ticketRepo.count({ where: { eventId, status: TicketStatus.ACTIVE } }),
       this.ticketRepo.count({ where: { eventId, status: TicketStatus.USED } }),
+      this.sectionRepo.find({ where: { eventId }, relations: ['seats'] }),
     ]);
+
+    const totalCapacity = sections.reduce((sum, section: any) => {
+      const sectionType = String(section.sectionType || '').toLowerCase();
+
+      if (sectionType === 'stage' || sectionType === 'decor') {
+        return sum;
+      }
+
+      if (sectionType === 'standing') {
+        return sum + (Number(section.capacity) || 0);
+      }
+
+      const realSeatCount = Array.isArray(section.seats) ? section.seats.length : 0;
+      if (realSeatCount > 0) {
+        return sum + realSeatCount;
+      }
+
+      return sum + (Number(section.rows || 0) * Number(section.seatsPerRow || 0));
+    }, 0);
 
     const totalIssued = activeTickets + usedTickets;
 
     return {
+      totalCapacity,
       totalIssued,
       totalPurchased: totalIssued,
       ticketsToScan: activeTickets,
