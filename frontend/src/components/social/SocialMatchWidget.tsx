@@ -17,6 +17,7 @@ import {
   getSocialMatchMessages,
   sendSocialMatchMessage,
   updateSocialMatchConnection,
+  deleteSocialMatchChat,
   SocialMatchConnection,
   SocialMatchMessage,
   socialMatchInterestOptions,
@@ -171,6 +172,20 @@ export default function SocialMatchWidget() {
     } catch {}
   };
 
+  const handleDeleteChat = async (conn: SocialMatchConnection) => {
+    if (!confirm(lang === 'es' ? '¿Eliminar este chat de tu lista?' : 'Delete this chat from your list?')) return;
+    try {
+      await deleteSocialMatchChat(conn.id);
+      setConnections((current) => current.filter((item) => item.id !== conn.id));
+      if (activeChatConn?.id === conn.id) {
+        setActiveChatConn(null);
+        setViewingProfile(false);
+        setMessages([]);
+        setDraft('');
+      }
+    } catch {}
+  };
+
   const handleSend = async () => {
     if (!activeChatConn || !draft.trim() || sending) return;
     try {
@@ -247,30 +262,42 @@ export default function SocialMatchWidget() {
                 accepted.map((conn) => {
                   const unread = unreadCounts[conn.id] || 0;
                   return (
-                    <button
-                      key={conn.id}
-                      onClick={() => openChat(conn)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-orange-50 transition-colors text-left group"
-                    >
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0A375A] to-[#F97316] flex items-center justify-center text-white font-black text-sm shrink-0">
-                        {conn.otherUserName.charAt(0).toUpperCase()}
+                      <div
+                        key={conn.id}
+                        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-orange-50 transition-colors text-left group"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => openChat(conn)}
+                          className="flex flex-1 min-w-0 items-center gap-3 text-left"
+                        >
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#0A375A] to-[#F97316] flex items-center justify-center text-white font-black text-sm shrink-0">
+                            {conn.otherUserName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm truncate ${unread > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-900'}`}>
+                              {conn.otherUserName}
+                            </p>
+                            <p className="text-xs text-gray-400 truncate">{conn.eventTitle}</p>
+                          </div>
+                          {unread > 0 ? (
+                            <span className="min-w-[20px] h-5 px-1 bg-orange-500 text-white rounded-full text-[10px] font-black flex items-center justify-center shrink-0">
+                              {unread > 9 ? '9+' : unread}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-[#F97316] opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                              Chat
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteChat(conn)}
+                          className="shrink-0 rounded-full border border-red-100 bg-red-50 px-2.5 py-1.5 text-[10px] font-black text-red-500 hover:bg-red-100 transition-colors"
+                        >
+                          {lang === 'es' ? 'Eliminar' : 'Delete'}
+                        </button>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm truncate ${unread > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-900'}`}>
-                          {conn.otherUserName}
-                        </p>
-                        <p className="text-xs text-gray-400 truncate">{conn.eventTitle}</p>
-                      </div>
-                      {unread > 0 ? (
-                        <span className="min-w-[20px] h-5 px-1 bg-orange-500 text-white rounded-full text-[10px] font-black flex items-center justify-center shrink-0">
-                          {unread > 9 ? '9+' : unread}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-bold text-[#F97316] opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                          Chat →
-                        </span>
-                      )}
-                    </button>
                   );
                 })
               )}
