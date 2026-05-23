@@ -435,7 +435,7 @@ export default function SocialMatchWidget() {
       >
         {isOpen ? <HiOutlineX className="w-6 h-6" /> : <HiOutlineMail className="w-7 h-7" />}
         {!isOpen && totalUnread > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1 bg-orange-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center border-2 border-white shadow-lg w-14 h-14">
+          <span className="absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1 bg-orange-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center border-2 border-white shadow-lg">
             {totalUnread > 9 ? '9+' : totalUnread}
           </span>
         )}

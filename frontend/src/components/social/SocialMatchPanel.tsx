@@ -25,6 +25,7 @@ import {
   updateSocialMatchConnection,
   uploadSocialMatchPhoto,
   deleteSocialMatchPhoto,
+  deleteSocialMatchChat,
   SocialMatchConnection,
   SocialMatchMessage,
   SocialMatchPreference,
@@ -290,6 +291,24 @@ export default function SocialMatchPanel({ lang }: Props) {
     }
   };
 
+  const handleDeleteConnectionChat = async (connection: SocialMatchConnection) => {
+    if (!confirm(lang === 'es' ? '¿Eliminar este chat de tu lista?' : 'Delete this chat from your list?')) return;
+    try {
+      await deleteSocialMatchChat(connection.id);
+      setConnections((current) => current.filter((item) => item.id !== connection.id));
+      if (activeChatConnection?.id === connection.id) {
+        setActiveChatConnection(null);
+        setChatMessages([]);
+        setChatDraft('');
+      }
+      window.dispatchEvent(new Event('social-match-updated'));
+      toast.success(lang === 'es' ? 'Chat eliminado' : 'Chat deleted');
+    } catch (error) {
+      console.error(error);
+      toast.error(lang === 'es' ? 'No se pudo eliminar el chat' : 'Could not delete chat');
+    }
+  };
+
   const closeConnectionChat = () => {
     setActiveChatConnection(null);
     setChatMessages([]);
@@ -534,12 +553,15 @@ export default function SocialMatchPanel({ lang }: Props) {
                 const firstPhoto = photos[0];
                 const interests = connection.profile?.interests || [];
                 return (
-                  <button
+                  <div
                     key={connection.id}
-                    type="button"
-                    onClick={() => openConnectionChat(connection)}
                     className="group text-left rounded-2xl border border-gray-100 bg-white hover:border-orange-200 hover:shadow-[0_16px_34px_rgba(15,23,42,0.08)] transition-all overflow-hidden"
                   >
+                    <button
+                      type="button"
+                      onClick={() => openConnectionChat(connection)}
+                      className="w-full text-left"
+                    >
                     <div className="flex gap-3 p-3">
                       <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0A375A] to-[#F97316] overflow-hidden shrink-0 flex items-center justify-center text-white text-lg font-black">
                         {firstPhoto ? <img src={firstPhoto} alt="" className="w-full h-full object-cover" /> : connection.otherUserName.charAt(0).toUpperCase()}
@@ -579,7 +601,18 @@ export default function SocialMatchPanel({ lang }: Props) {
                         )}
                       </div>
                     </div>
-                  </button>
+                    </button>
+                    <div className="flex items-center justify-end gap-2 border-t border-gray-50 px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteConnectionChat(connection)}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-red-100 bg-red-50 px-3 py-1.5 text-[10px] font-black text-red-500 hover:bg-red-100 transition-colors"
+                      >
+                        <HiOutlineTrash className="w-3.5 h-3.5" />
+                        {lang === 'es' ? 'Eliminar chat' : 'Delete chat'}
+                      </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
