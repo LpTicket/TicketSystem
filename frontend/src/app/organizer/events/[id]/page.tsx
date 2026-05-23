@@ -441,6 +441,7 @@ function CreatorRewardsBlock({
                   {lang === 'es' ? 'Vista previa por sección' : 'Preview per section'}
                 </p>
               </div>
+              <div className="overflow-y-auto max-h-64">
               {ticketSections.map(sec => {
                 const earning = calcEarning(Number(sec.price));
                 const pct = Number(sec.price) > 0 ? (earning / Number(sec.price)) * 100 : 0;
@@ -458,6 +459,7 @@ function CreatorRewardsBlock({
                   </div>
                 );
               })}
+              </div>
             </div>
           )}
         </div>
@@ -2349,7 +2351,7 @@ export default function EventDetailPage() {
 
       {/* Commission Tab */}
       {activeTab === 'commission' && (
-        <div className="animate-fade-in max-w-2xl">
+        <div className="animate-fade-in">
           <CreatorRewardsBlock event={event} sections={sections} lang={lang} onSaved={loadEvent} />
         </div>
       )}
