@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Request, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nest-lab/fastify-multer';
-import { memoryStorage } from 'fastify-multer';
+import { memoryStorage } from 'multer';
 import { StorageService } from '../common/services/storage.service';
 import { AuthGuard } from '@nestjs/passport';
 import { SocialMatchConnectionStatus, SocialMatchInterest, UserRole } from '../database/entities';
@@ -77,7 +77,7 @@ export class SocialMatchController {
   @Post('events/:eventId/photos')
   @UseInterceptors(
     FileInterceptor('photo', {
-      storage: memoryStorage(),
+      storage: memoryStorage() as any,
       fileFilter: (_req: any, file: any, cb: any) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
           cb(new Error('Solo se permiten imágenes'), false);
