@@ -687,7 +687,10 @@ export class OrdersService {
 
       let contribution = 0;
       if (type === 'standing') {
-        contribution = capField;
+        // GA sections store their capacity in capField. Fall back to rowsCalc
+        // (5x10 default) when the organizer never edited it, so the section
+        // still counts for something instead of disappearing as 0.
+        contribution = Math.max(capField, rowsCalc);
       } else {
         // seated / vip / table
         contribution = Math.max(seatCount, rowsCalc);
