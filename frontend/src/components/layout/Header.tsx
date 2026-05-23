@@ -147,7 +147,7 @@ export default function Header() {
 
   return (
     <>
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm print:hidden">
+    <header className={`sticky top-0 bg-white border-b border-gray-100 shadow-sm print:hidden ${mobileMenuOpen ? 'z-[200]' : 'z-50'}`}>
       <div className="max-w-[1600px] mx-auto px-4 md:px-6">
         <div className="flex items-center h-[60px] md:h-[70px]">
           
