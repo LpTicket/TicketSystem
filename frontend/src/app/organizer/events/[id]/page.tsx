@@ -367,7 +367,103 @@ function CreatorRewardsBlock({
         </div>
       </div>
 
-      {/* Active creators for this event */}
+      {/* Two-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+
+      {/* LEFT — Event base reward */}
+      <div className="rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+            {lang === 'es' ? 'Recompensa base del evento' : 'Event base reward'}
+          </p>
+          <p className="text-[10px] text-gray-400 mt-0.5">
+            {lang === 'es'
+              ? 'Se aplica a creadores sin monto propio.'
+              : "Applies to creators without their own rate."}
+          </p>
+        </div>
+        <div className="p-4 space-y-3">
+          {activeReward > 0 && pendingReward == null && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="text-emerald-800 font-semibold">
+                {lang === 'es' ? 'Activa:' : 'Active:'}{' '}
+                <span className="font-extrabold">${activeReward.toFixed(2)}</span>{' '}
+                {lang === 'es' ? 'por entrada' : 'per ticket'}
+              </span>
+            </div>
+          )}
+          {pendingReward != null && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs">
+              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+              <span className="text-amber-800 font-semibold">
+                {lang === 'es' ? 'Pendiente:' : 'Pending:'}{' '}
+                <span className="font-extrabold">${Number(pendingReward).toFixed(2)}</span>{' '}
+                {lang === 'es' ? 'por entrada' : 'per ticket'}
+              </span>
+            </div>
+          )}
+          <div className="flex gap-2 items-center">
+            <div className="flex rounded-xl overflow-hidden border border-gray-200 shrink-0 text-xs font-bold">
+              <button type="button" onClick={() => setMode('fixed')}
+                className={`px-3 py-2 transition-colors ${mode === 'fixed' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+                $ {lang === 'es' ? 'Fijo' : 'Fixed'}
+              </button>
+              <button type="button" onClick={() => setMode('percent')}
+                className={`px-3 py-2 transition-colors ${mode === 'percent' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+                %
+              </button>
+            </div>
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">{mode === 'fixed' ? '$' : '%'}</span>
+              <input
+                type="number" step="0.01" min="0" max={mode === 'percent' ? 100 : undefined}
+                value={value}
+                onChange={e => setValue(e.target.value)}
+                className="w-full pl-7 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-orange-400 text-sm focus:outline-none"
+              />
+            </div>
+            <button type="button" disabled={saving} onClick={handleSave}
+              className="px-3 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap shrink-0">
+              {saving
+                ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : event.status === 'published'
+                  ? (lang === 'es' ? 'Solicitar' : 'Request')
+                  : (lang === 'es' ? 'Guardar' : 'Save')}
+            </button>
+          </div>
+
+          {/* Per-section preview */}
+          {ticketSections.length > 0 && parseFloat(value) > 0 && (
+            <div className="rounded-xl border border-gray-100 overflow-hidden mt-1">
+              <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  {lang === 'es' ? 'Vista previa por sección' : 'Preview per section'}
+                </p>
+              </div>
+              {ticketSections.map(sec => {
+                const earning = calcEarning(Number(sec.price));
+                const pct = Number(sec.price) > 0 ? (earning / Number(sec.price)) * 100 : 0;
+                return (
+                  <div key={sec.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-gray-50 last:border-0">
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-800 truncate">{sec.name}</p>
+                      <p className="text-[10px] text-gray-400">{lang === 'es' ? 'Precio:' : 'Price:'} <span className="font-semibold">${Number(sec.price).toFixed(2)}</span></p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-extrabold text-emerald-700">${earning.toFixed(2)}</p>
+                      <p className="text-[10px] text-gray-400">{pct.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT — Creators list */}
       <div className="rounded-2xl border border-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
           <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
@@ -510,99 +606,7 @@ function CreatorRewardsBlock({
         )}
       </div>
 
-      {/* Event default reward */}
-      <div className="rounded-2xl border border-gray-200 overflow-hidden">
-        <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
-            {lang === 'es' ? 'Recompensa base del evento' : 'Event base reward'}
-          </p>
-          <p className="text-[10px] text-gray-400 mt-0.5">
-            {lang === 'es'
-              ? 'Se aplica a los creadores que no tengan un monto propio asignado por el admin.'
-              : 'Applies to creators that don\'t have their own rate set by the admin.'}
-          </p>
-        </div>
-        <div className="p-4 space-y-3">
-          {activeReward > 0 && pendingReward == null && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-              <span className="text-emerald-800 font-semibold">
-                {lang === 'es' ? 'Activa:' : 'Active:'}{' '}
-                <span className="font-extrabold">${activeReward.toFixed(2)}</span>{' '}
-                {lang === 'es' ? 'por entrada' : 'per ticket'}
-              </span>
-            </div>
-          )}
-          {pendingReward != null && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs">
-              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
-              <span className="text-amber-800 font-semibold">
-                {lang === 'es' ? 'Pendiente de aprobación:' : 'Pending approval:'}{' '}
-                <span className="font-extrabold">${Number(pendingReward).toFixed(2)}</span>{' '}
-                {lang === 'es' ? 'por entrada' : 'per ticket'}
-              </span>
-            </div>
-          )}
-
-          <div className="flex gap-2 items-center">
-            <div className="flex rounded-xl overflow-hidden border border-gray-200 shrink-0 text-xs font-bold">
-              <button type="button" onClick={() => setMode('fixed')}
-                className={`px-3 py-2 transition-colors ${mode === 'fixed' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
-                $ {lang === 'es' ? 'Fijo' : 'Fixed'}
-              </button>
-              <button type="button" onClick={() => setMode('percent')}
-                className={`px-3 py-2 transition-colors ${mode === 'percent' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
-                % {lang === 'es' ? 'del precio' : 'of price'}
-              </button>
-            </div>
-            <div className="relative w-full sm:flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">{mode === 'fixed' ? '$' : '%'}</span>
-              <input
-                type="number" step="0.01" min="0" max={mode === 'percent' ? 100 : undefined}
-                value={value}
-                onChange={e => setValue(e.target.value)}
-                className="w-full pl-7 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-orange-400 text-sm focus:outline-none"
-              />
-            </div>
-            <button type="button" disabled={saving} onClick={handleSave}
-              className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap">
-              {saving
-                ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                : event.status === 'published'
-                  ? (lang === 'es' ? 'Solicitar' : 'Request')
-                  : (lang === 'es' ? 'Guardar' : 'Save')}
-            </button>
-          </div>
-
-          {/* Per-section preview */}
-          {ticketSections.length > 0 && parseFloat(value) > 0 && (
-            <div className="rounded-xl border border-gray-100 overflow-hidden mt-1">
-              <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  {lang === 'es' ? 'Vista previa por sección' : 'Preview per section'}
-                </p>
-              </div>
-              {ticketSections.map(sec => {
-                const earning = calcEarning(Number(sec.price));
-                const pct = Number(sec.price) > 0 ? (earning / Number(sec.price)) * 100 : 0;
-                return (
-                  <div key={sec.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-gray-50 last:border-0">
-                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sec.color }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-gray-800 truncate">{sec.name}</p>
-                      <p className="text-[10px] text-gray-400">{lang === 'es' ? 'Precio:' : 'Price:'} <span className="font-semibold">${Number(sec.price).toFixed(2)}</span></p>
-                    </div>
-                    <div className="text-right shrink-0 min-w-[86px]">
-                      <p className="text-sm font-extrabold text-emerald-700">${earning.toFixed(2)}</p>
-                      <p className="text-[10px] text-gray-400">{pct.toFixed(1)}%</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+      </div>{/* end grid */}
     </div>
   );
 }
