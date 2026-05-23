@@ -94,7 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Mobile FAB */}
-      <div className="lg:hidden fixed bottom-4 right-4 z-40">
+      <div className="lg:hidden fixed bottom-4 right-0 px-5 z-40">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="lp-mobile-sidebar-toggle w-12 h-12 flex items-center justify-center transition-colors"
