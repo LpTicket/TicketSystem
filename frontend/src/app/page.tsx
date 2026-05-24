@@ -17,9 +17,7 @@ const DEMO_EVENTS: Event[] = [];
 type MarketingHomeBanner = {
   id: string;
   imageData: string;
-  mobileImageData?: string;
   fileName?: string;
-  mobileFileName?: string;
   bannerPosition?: string;
   isMarketingBanner: true;
 };
@@ -77,9 +75,7 @@ export default function HomePage() {
         setMarketingBanner({
           id: bannerResponse.data.id || 'marketing-home-banner',
           imageData: bannerResponse.data.imageData,
-          mobileImageData: bannerResponse.data.mobileImageData || '',
           fileName: bannerResponse.data.fileName || 'Banner publicitario LPTicket',
-          mobileFileName: bannerResponse.data.mobileFileName || '',
           bannerPosition: 'center',
           isMarketingBanner: true,
         });
@@ -170,7 +166,7 @@ export default function HomePage() {
                 <AnimatePresence initial={false}>
                   <motion.img
                     key={`${bannerEvent.id}-mobile`}
-                    src={isMarketingBanner(bannerEvent) ? (bannerEvent.mobileImageData || bannerEvent.imageData) : (getImageUrl(bannerEvent.imageUrl) || '/demo/concert.png')}
+                    src={isMarketingBanner(bannerEvent) ? bannerEvent.imageData : (getImageUrl(bannerEvent.imageUrl) || '/demo/concert.png')}
                     alt={isMarketingBanner(bannerEvent) ? (bannerEvent.fileName || 'Banner publicitario LPTicket') : bannerEvent.title}
                     initial={{ opacity: 0, scale: 1.02 }}
                     animate={{ opacity: 1, scale: 1 }}
