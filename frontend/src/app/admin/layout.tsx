@@ -1,7 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import {
+  useEffect,
+  useState } from 'react';
+import { useRouter,
+  usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
@@ -15,6 +18,7 @@ import {
   HiOutlineArrowLeft,
   HiOutlineShieldCheck,
   HiOutlineTag,
+  HiOutlineSpeakerphone,
 } from 'react-icons/hi';
 
 import { useUIStore } from '@/stores/ui';
@@ -46,6 +50,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/users', label: t('adminUsers'), icon: HiOutlineUsers },
     { href: '/admin/categories', label: t('adminCategories'), icon: HiOutlineTag },
     { href: '/admin/special-codes', label: lang === 'es' ? 'Códigos especiales' : 'Special codes', icon: HiOutlineTag },
+  { href: '/admin/marketing', label: 'Marketing', icon: HiOutlineSpeakerphone },
   ];
 
   const isActive = (href: string) => {

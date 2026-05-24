@@ -15,6 +15,7 @@ import { AiSupportModule } from './ai-support/ai-support.module';
 import { SocialMatchModule } from './social-match/social-match.module';
 import { SpecialCodesModule } from './special-codes/special-codes.module';
 import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout } from './database/entities';
+import { MarketingModule } from './marketing/marketing.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, Pa
     AiSupportModule,
     SocialMatchModule,
     SpecialCodesModule,
+    MarketingModule,
   ],
 })
 export class AppModule {}
