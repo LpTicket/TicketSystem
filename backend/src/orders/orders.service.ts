@@ -620,11 +620,11 @@ export class OrdersService {
    * Runs every 5 minutes. Only processes orders older than 10 minutes
    * (gives Stripe time to deliver the webhook first).
    */
-  @Cron('*/1 * * * * *')
+  @Cron('*/10 * * * * *')
   async recoverMissedWebhooks() {
     if (!this.stripe) return;
 
-    const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+    const fiveSecondsAgo = new Date(Date.now() - 5 * 1000);
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const pendingOrders = await this.orderRepo.find({
@@ -644,7 +644,7 @@ export class OrdersService {
     const staleOrders = [
       ...pendingOrders.filter(o => {
         const created = new Date(o.createdAt);
-        return created < oneMinuteAgo && created > twentyFourHoursAgo;
+        return created < fiveSecondsAgo && created > twentyFourHoursAgo;
       }),
       ...paidOrders,
     ];
