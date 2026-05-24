@@ -17,7 +17,7 @@ export class MarketingService {
     });
   }
 
-  async saveHomeBanner(data: { imageData: string; fileName?: string }) {
+  async saveHomeBanner(data: { imageData: string; fileName?: string; mobileImageData?: string | null; mobileFileName?: string | null }) {
     await this.bannerRepo.update(
       { placement: 'home', isActive: true },
       { isActive: false },
@@ -27,7 +27,9 @@ export class MarketingService {
       placement: 'home',
       title: 'Banner Home',
       imageData: data.imageData,
+      mobileImageData: data.mobileImageData || null,
       fileName: data.fileName || 'banner-home',
+      mobileFileName: data.mobileFileName || null,
       isActive: true,
     });
 

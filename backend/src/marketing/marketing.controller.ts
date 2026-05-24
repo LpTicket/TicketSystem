@@ -17,7 +17,7 @@ export class MarketingController {
   @Post('admin/banner/home')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
-  async saveHomeBanner(@Body() body: { imageData: string; fileName?: string }) {
+  async saveHomeBanner(@Body() body: { imageData: string; fileName?: string; mobileImageData?: string | null; mobileFileName?: string | null }) {
     return this.marketingService.saveHomeBanner(body);
   }
 
