@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import * as fs from 'fs';
@@ -13,6 +13,8 @@ import { CreateEventDto, UpdateEventDto, EventQueryDto } from './dto/event.dto';
  */
 @Injectable()
 export class EventsService {
+  private readonly logger = new Logger(EventsService.name);
+
   constructor(
     @InjectRepository(Event)
     private readonly eventRepo: Repository<Event>,
@@ -182,40 +184,56 @@ export class EventsService {
   }
 
   async getOgImageBySlug(slug: string, kind: 'image' | 'banner' = 'image') {
+    this.logger.log(`[OG-IMAGE] Fetching ${kind} for slug: ${slug}`);
     const event = await this.eventRepo.findOne({ where: { slug } });
-    if (!event) throw new NotFoundException('Evento no encontrado');
+    if (!event) {
+      this.logger.warn(`[OG-IMAGE] Event not found for slug: ${slug}`);
+      throw new NotFoundException(`Evento con slug "${slug}" no encontrado`);
+    }
 
     const image = kind === 'banner'
       ? event.bannerImageUrl || event.imageUrl
       : event.imageUrl || event.bannerImageUrl;
-    if (!image) throw new NotFoundException('Imagen del evento no encontrada');
+    if (!image) {
+      this.logger.warn(`[OG-IMAGE] No image found for slug: ${slug}`);
+      throw new NotFoundException(`No hay imagen guardada para evento "${slug}"`);
+    }
+    this.logger.log(`[OG-IMAGE] Image format: ${image.substring(0, 50)}...`);
 
-    // Base64 stored directly in the DB
+    // Base64 stored directly in the DB (most common for new uploads)
     const match = image.match(/^data:([^;]+);base64,(.+)$/);
     if (match) {
       return { mimeType: match[1], buffer: Buffer.from(match[2], 'base64') };
     }
 
-    // External HTTP(S) URL — proxy the image bytes so social crawlers get a simple response
+    // External HTTP(S) URL — proxy the image
     if (image.startsWith('http://') || image.startsWith('https://')) {
-      const res = await fetch(image);
-      if (!res.ok) throw new NotFoundException('Imagen externa no disponible');
-      const mimeType = res.headers.get('content-type') || 'image/jpeg';
-      const buffer = Buffer.from(await res.arrayBuffer());
-      return { mimeType, buffer };
+      try {
+        const res = await fetch(image);
+        if (!res.ok) throw new NotFoundException(`Imagen externa retornó ${res.status}`);
+        const mimeType = res.headers.get('content-type') || 'image/jpeg';
+        const buffer = Buffer.from(await res.arrayBuffer());
+        return { mimeType, buffer };
+      } catch (err) {
+        throw new NotFoundException(`Error al proxear imagen ${image}: ${String(err)}`);
+      }
     }
 
     // Local /uploads/ path — try to read from disk
-    const cleanPath = image.replace(/^\//, '');
-    const filePath = path.join(process.cwd(), cleanPath);
-    if (fs.existsSync(filePath)) {
-      const buffer = fs.readFileSync(filePath);
-      const ext = path.extname(filePath).toLowerCase();
-      const mimeMap: Record<string, string> = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp' };
-      return { mimeType: mimeMap[ext] || 'image/jpeg', buffer };
+    try {
+      const cleanPath = image.replace(/^\//, '');
+      const filePath = path.join(process.cwd(), cleanPath);
+      if (fs.existsSync(filePath)) {
+        const buffer = fs.readFileSync(filePath);
+        const ext = path.extname(filePath).toLowerCase();
+        const mimeMap: Record<string, string> = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp' };
+        return { mimeType: mimeMap[ext] || 'image/jpeg', buffer };
+      }
+    } catch (err) {
+      this.logger.error(`Error reading local image ${image}:`, err);
     }
 
-    throw new NotFoundException('Imagen del evento no encontrada');
+    throw new NotFoundException(`No se pudo servir imagen (formato no soportado o archivo no existe): ${image}`);
   }
 
   /**
