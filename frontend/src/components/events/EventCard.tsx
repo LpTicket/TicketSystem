@@ -47,6 +47,7 @@ export default function EventCard({ event }: EventCardProps) {
             <img
               src={getImageUrl(event.imageUrl)}
               alt={event.title}
+              loading="lazy"
               onLoad={() => setImageLoaded(true)}
               className={`h-full w-full object-cover transition-all duration-700 group-hover:scale-[1.035] ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
               onError={(e) => {

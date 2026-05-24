@@ -7,6 +7,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from './user.entity';
 
@@ -41,10 +42,15 @@ export enum EventCategory {
 /**
  * Event Entity
  * Represents a show or gathering hosted on the platform.
- * Includes sophisticated "pending approval" logic to allow organizers to 
+ * Includes sophisticated "pending approval" logic to allow organizers to
  * propose changes to live events without immediate public modification.
  */
 @Entity('events')
+@Index(['status', 'eventDate'])
+@Index(['status', 'isFeatured'])
+@Index(['category'])
+@Index(['organizerId'])
+@Index(['eventDate'])
 export class Event {
   @PrimaryGeneratedColumn('uuid')
   id: string;

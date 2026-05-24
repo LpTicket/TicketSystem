@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+export const revalidate = 3600; // ISR: revalidar cada hora
+
 export default function AboutPage() {
   return (
     <main className="min-h-screen bg-[#f8fafc]">

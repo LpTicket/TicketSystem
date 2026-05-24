@@ -1,6 +1,6 @@
-'use client';
-
 import LegalPage from '@/components/layout/LegalPage';
+
+export const revalidate = 3600; // ISR: revalidar cada hora
 
 export default function PrivacyPage() {
   const content = `1. Introduction

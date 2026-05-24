@@ -9,15 +9,21 @@ import { useCategories } from '@/context/CategoryContext';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineSearch } from 'react-icons/hi';
 
-export default function EventsContent() {
+interface EventsContentProps {
+  initialEvents: Event[];
+  initialTotal: number;
+  initialTotalPages: number;
+}
+
+export default function EventsContent({ initialEvents, initialTotal, initialTotalPages }: EventsContentProps) {
   const searchParams = useSearchParams();
   const { lang } = useLang();
   const { categories } = useCategories();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+  const [events, setEvents] = useState<Event[]>(initialEvents);
+  const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [category, setCategory] = useState(searchParams.get('category') || '');
 

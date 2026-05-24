@@ -1,11 +1,29 @@
-'use client';
-
 import { Suspense } from 'react';
-import dynamic from 'next/dynamic';
+import EventsContent from './EventsContent';
+import { EventsResponse } from '@/types';
 
-const EventsContent = dynamic(() => import('./EventsContent'), { ssr: false });
+export const revalidate = 60; // ISR: revalidar cada 60 segundos
 
-export default function EventsPage() {
+async function loadEventsData() {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+  try {
+    const res = await fetch(`${baseUrl}/events?limit=12&page=1`, { next: { revalidate: 60 } });
+    const data: EventsResponse = await res.json();
+    return {
+      events: data.events || [],
+      total: data.total || 0,
+      totalPages: data.totalPages || 1,
+    };
+  } catch (err) {
+    console.error('Error loading events:', err);
+    return { events: [], total: 0, totalPages: 1 };
+  }
+}
+
+export default async function EventsPage() {
+  const { events, total, totalPages } = await loadEventsData();
+
   return (
     <Suspense fallback={
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -17,7 +35,7 @@ export default function EventsPage() {
         </div>
       </div>
     }>
-      <EventsContent />
+      <EventsContent initialEvents={events} initialTotal={total} initialTotalPages={totalPages} />
     </Suspense>
   );
 }
