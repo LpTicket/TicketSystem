@@ -11,15 +11,33 @@ export class MarketingService {
   ) {}
 
   async getActiveHomeBanner() {
-    return this.bannerRepo.findOne({
+    const desktop = await this.bannerRepo.findOne({
       where: { placement: 'home', isActive: true },
       order: { updatedAt: 'DESC' },
     });
+
+    if (!desktop) return null;
+
+    const mobile = await this.bannerRepo.findOne({
+      where: { placement: 'home-mobile', isActive: true },
+      order: { updatedAt: 'DESC' },
+    });
+
+    return {
+      ...desktop,
+      mobileImageData: mobile?.imageData || null,
+      mobileFileName: mobile?.fileName || null,
+    };
   }
 
-  async saveHomeBanner(data: { imageData: string; fileName?: string }) {
+  async saveHomeBanner(data: { imageData: string; fileName?: string; mobileImageData?: string | null; mobileFileName?: string | null }) {
     await this.bannerRepo.update(
       { placement: 'home', isActive: true },
+      { isActive: false },
+    );
+
+    await this.bannerRepo.update(
+      { placement: 'home-mobile', isActive: true },
       { isActive: false },
     );
 
@@ -31,12 +49,31 @@ export class MarketingService {
       isActive: true,
     });
 
-    return this.bannerRepo.save(banner);
+    const savedDesktop = await this.bannerRepo.save(banner);
+
+    if (data.mobileImageData) {
+      const mobileBanner = this.bannerRepo.create({
+        placement: 'home-mobile',
+        title: 'Banner Home Mobile',
+        imageData: data.mobileImageData,
+        fileName: data.mobileFileName || 'banner-home-mobile',
+        isActive: true,
+      });
+
+      await this.bannerRepo.save(mobileBanner);
+    }
+
+    return savedDesktop;
   }
 
   async removeHomeBanner() {
     await this.bannerRepo.update(
       { placement: 'home', isActive: true },
+      { isActive: false },
+    );
+
+    await this.bannerRepo.update(
+      { placement: 'home-mobile', isActive: true },
       { isActive: false },
     );
 
