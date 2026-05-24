@@ -50,15 +50,27 @@ export default function AdminMarketingPage() {
   const [bannerPreview, setBannerPreview] = useState('');
   const [bannerFileName, setBannerFileName] = useState('');
   const [bannerStatus, setBannerStatus] = useState<'draft' | 'active'>('draft');
+  const [bannerLinkUrl, setBannerLinkUrl] = useState('');
+  const [bannerStartsAt, setBannerStartsAt] = useState('');
+  const [bannerEndsAt, setBannerEndsAt] = useState('');
+  const [bannerEnabled, setBannerEnabled] = useState(true);
 
   useEffect(() => {
     const savedBanner = localStorage.getItem('lpMarketingBannerPreview');
     const savedFileName = localStorage.getItem('lpMarketingBannerFileName');
     const savedStatus = localStorage.getItem('lpMarketingBannerStatus');
+    const savedLinkUrl = localStorage.getItem('lpMarketingBannerLinkUrl');
+    const savedStartsAt = localStorage.getItem('lpMarketingBannerStartsAt');
+    const savedEndsAt = localStorage.getItem('lpMarketingBannerEndsAt');
+    const savedEnabled = localStorage.getItem('lpMarketingBannerEnabled');
 
     if (savedBanner) setBannerPreview(savedBanner);
     if (savedFileName) setBannerFileName(savedFileName);
     if (savedStatus === 'active' || savedStatus === 'draft') setBannerStatus(savedStatus);
+    if (savedLinkUrl) setBannerLinkUrl(savedLinkUrl);
+    if (savedStartsAt) setBannerStartsAt(savedStartsAt);
+    if (savedEndsAt) setBannerEndsAt(savedEndsAt);
+    if (savedEnabled === 'false') setBannerEnabled(false);
   }, []);
 
   const handleBannerFile = (file?: File) => {
@@ -91,6 +103,10 @@ export default function AdminMarketingPage() {
     localStorage.removeItem('lpMarketingBannerPreview');
     localStorage.removeItem('lpMarketingBannerFileName');
     localStorage.removeItem('lpMarketingBannerStatus');
+    localStorage.removeItem('lpMarketingBannerLinkUrl');
+    localStorage.removeItem('lpMarketingBannerStartsAt');
+    localStorage.removeItem('lpMarketingBannerEndsAt');
+    localStorage.removeItem('lpMarketingBannerEnabled');
 
     try {
       await api.delete('/marketing/admin/banner/home');
@@ -106,10 +122,18 @@ export default function AdminMarketingPage() {
       await api.post('/marketing/admin/banner/home', {
         imageData: bannerPreview,
         fileName: bannerFileName || 'banner-home',
+        linkUrl: bannerLinkUrl.trim() || null,
+        startsAt: bannerStartsAt || null,
+        endsAt: bannerEndsAt || null,
+        isActive: bannerEnabled,
       });
 
-      setBannerStatus('active');
-      localStorage.setItem('lpMarketingBannerStatus', 'active');
+      setBannerStatus(bannerEnabled ? 'active' : 'draft');
+      localStorage.setItem('lpMarketingBannerStatus', bannerEnabled ? 'active' : 'draft');
+      localStorage.setItem('lpMarketingBannerLinkUrl', bannerLinkUrl.trim());
+      localStorage.setItem('lpMarketingBannerStartsAt', bannerStartsAt);
+      localStorage.setItem('lpMarketingBannerEndsAt', bannerEndsAt);
+      localStorage.setItem('lpMarketingBannerEnabled', String(bannerEnabled));
       alert('Banner publicado correctamente. Ya puede mostrarse en el Home.');
     } catch (error: any) {
       console.error('[publish marketing banner error]', error);
@@ -266,6 +290,53 @@ export default function AdminMarketingPage() {
                   Este banner se mezcla con los eventos destacados. Si el visitante usa las flechas o espera unos segundos, aparecera como una imagen mas dentro del carrusel.
                 </p>
               </div>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3">
+            <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+              <span>
+                <span className="block text-sm font-black text-gray-900">Banner activo</span>
+                <span className="block text-xs font-semibold text-gray-500">Si esta apagado, no aparece en el Home.</span>
+              </span>
+              <input
+                type="checkbox"
+                checked={bannerEnabled}
+                onChange={(event) => setBannerEnabled(event.target.checked)}
+                className="h-5 w-5 accent-[#F97316]"
+              />
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-[11px] font-black uppercase tracking-wide text-gray-500">Link opcional</span>
+              <input
+                value={bannerLinkUrl}
+                onChange={(event) => setBannerLinkUrl(event.target.value)}
+                placeholder="https://..."
+                className="h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+              />
+            </label>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="grid gap-2">
+                <span className="text-[11px] font-black uppercase tracking-wide text-gray-500">Inicia</span>
+                <input
+                  type="datetime-local"
+                  value={bannerStartsAt}
+                  onChange={(event) => setBannerStartsAt(event.target.value)}
+                  className="h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-[11px] font-black uppercase tracking-wide text-gray-500">Finaliza</span>
+                <input
+                  type="datetime-local"
+                  value={bannerEndsAt}
+                  onChange={(event) => setBannerEndsAt(event.target.value)}
+                  className="h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
+                />
+              </label>
             </div>
           </div>
 
