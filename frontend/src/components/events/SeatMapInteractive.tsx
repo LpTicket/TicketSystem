@@ -77,6 +77,9 @@ export default function SeatMapInteractive({
   /**
    * Determines if a seat is considered "unavailable" based on status or admin overrides.
    */
+  const isTemporaryHold = (seat: Seat) =>
+    seat.status === SeatStatus.LOCKED && Boolean(seat.lockExpiresAt);
+
   const isSeatUnavailable = (seat: Seat, seatOverride: any = {}) =>
     seat.status === SeatStatus.SOLD ||
     seat.status === SeatStatus.LOCKED ||
@@ -85,18 +88,21 @@ export default function SeatMapInteractive({
   // --- Seat Styling Logic ---
   const getSeatBg = (seat: Seat, seatOverride: any, sectionColor: string, isWC: boolean, selected: boolean) => {
     if (selected) return '#f97316'; // Vivid orange for selected/cart state!
-    if (isSeatUnavailable(seat, seatOverride)) return '#cbd5e1'; // Solid slate-200/gray for locked/sold
+    if (isTemporaryHold(seat)) return '#facc15'; // Temporary checkout hold
+    if (isSeatUnavailable(seat, seatOverride)) return '#cbd5e1'; // Sold or permanently blocked
     return isWC ? '#1a73e8' : sectionColor; // Solid vibrant section color for available!
   };
   
   const getSeatBorder = (seat: Seat, seatOverride: any, sectionColor: string, isWC: boolean, selected: boolean) => {
     if (selected) return '#ffffff';
-    if (isSeatUnavailable(seat, seatOverride)) return '#94a3b8'; // Solid slate-400 for locked/sold
+    if (isTemporaryHold(seat)) return '#eab308';
+    if (isSeatUnavailable(seat, seatOverride)) return '#94a3b8'; // Sold or permanently blocked
     return '#ffffff'; // White border, exactly like the designer!
   };
   
   const getSeatShadow = (seat: Seat, seatOverride: any, sectionColor: string, selected: boolean) => {
     if (selected) return `0 0 0 2.5px #f97316, 0 4px 10px rgba(249,115,22,0.4)`;
+    if (isTemporaryHold(seat)) return '0 0 0 2px rgba(250,204,21,0.45)';
     if (isSeatUnavailable(seat, seatOverride)) return 'none';
     return '0 1.5px 3px rgba(0,0,0,0.15)';
   };
@@ -507,7 +513,7 @@ export default function SeatMapInteractive({
                       ? (() => {
                           const isSelected = selectedSeats.some(s => s.sectionId === section.id);
                           if (isSelected) return '#f97316';
-                          const sold = (section.seats || []).filter(s => s.status === SeatStatus.SOLD || s.status === SeatStatus.LOCKED).length;
+                          const sold = (section.seats || []).filter(s => s.status === SeatStatus.SOLD || (s.status === SeatStatus.LOCKED && !s.lockExpiresAt)).length;
                           const total = Number(section.capacity) || (section.seats?.length) || 0;
                           if (total > 0 && sold >= total) return '#9ca3af';
                           return section.color || '#8b5cf6';
