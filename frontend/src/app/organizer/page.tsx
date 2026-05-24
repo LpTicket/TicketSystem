@@ -34,26 +34,26 @@ export default function OrganizerDashboard() {
 
   const loadData = async () => {
     try {
-      const { data } = await api.get('/events', { params: { limit: 100, includePast: 'true' } });
-      const myEvents = (data.events || []).filter((e: Event) => e.organizerId === user?.id);
+      // Fetch organizer events and aggregated stats in parallel via dedicated
+      // endpoints (1 DB query each) instead of N+1 requests per event.
+      const [eventsRes, statsRes] = await Promise.all([
+        api.get('/events/mine/list'),
+        api.get('/orders/organizer/stats'),
+      ]);
+
+      const myEvents: Event[] = eventsRes.data || [];
       setEvents(myEvents);
 
-      // Aggregate stats from all events
-      let totalRevenue = 0;
-      let totalTickets = 0;
-      let totalOrders = 0;
-      const activeEvents = myEvents.filter((e: Event) => e.status === 'published' && parseSafeDate(e.eventDate).getTime() >= Date.now()).length;
+      const activeEvents = myEvents.filter(
+        (e) => e.status === 'published' && parseSafeDate(e.eventDate).getTime() >= Date.now(),
+      ).length;
 
-      for (const ev of myEvents) {
-        try {
-          const { data: sales } = await api.get(`/orders/event/${ev.id}/sales`);
-          totalRevenue += sales.totalRevenue || 0;
-          totalTickets += sales.totalTickets || 0;
-          totalOrders += sales.totalOrders || 0;
-        } catch {}
-      }
-
-      setStats({ totalRevenue, totalTickets, activeEvents, totalOrders });
+      setStats({
+        totalRevenue: statsRes.data.totalRevenue || 0,
+        totalTickets: statsRes.data.totalTickets || 0,
+        totalOrders: statsRes.data.totalOrders || 0,
+        activeEvents,
+      });
     } catch (err) {
       console.error(err);
     } finally {

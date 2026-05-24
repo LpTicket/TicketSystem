@@ -36,8 +36,8 @@ export default function OrganizerEventsPage() {
 
   const loadEvents = async () => {
     try {
-      const { data } = await api.get('/events', { params: { limit: 100, includePast: 'true' } });
-      setEvents((data.events || []).filter((e: Event) => e.organizerId === user?.id));
+      const { data } = await api.get('/events/mine/list');
+      setEvents(data || []);
     } catch {} finally { setLoading(false); }
   };
 

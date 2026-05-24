@@ -30,6 +30,15 @@ export class EventsController {
     return this.eventsService.findFeatured();
   }
 
+  // Organizer's own events — fast path that filters in the DB instead of
+  // fetching every event in the system and filtering client-side.
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Get('mine/list')
+  findMine(@Request() req: any) {
+    return this.eventsService.getOrganizerEvents(req.user.id);
+  }
+
   @Get(':slug/og-image')
   async getOgImage(@Param('slug') slug: string, @Res() res: any) {
     const image = await this.eventsService.getOgImageBySlug(slug);

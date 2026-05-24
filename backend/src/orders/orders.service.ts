@@ -904,6 +904,28 @@ export class OrdersService {
   }
 
   /**
+   * Aggregate stats across ALL events owned by an organizer in a single SQL query.
+   * Replaces N+1 of getEventSales() calls from the dashboard.
+   */
+  async getOrganizerStats(organizerId: string) {
+    const result = await this.orderRepo
+      .createQueryBuilder('o')
+      .innerJoin('events', 'e', 'e.id = o."eventId"')
+      .where('e."organizerId" = :organizerId', { organizerId })
+      .andWhere('o.status = :status', { status: OrderStatus.PAID })
+      .select('COALESCE(SUM(o.total), 0)', 'totalRevenue')
+      .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'totalTickets')
+      .addSelect('COUNT(o.id)', 'totalOrders')
+      .getRawOne();
+
+    return {
+      totalRevenue: Number(result?.totalRevenue) || 0,
+      totalTickets: Number(result?.totalTickets) || 0,
+      totalOrders: Number(result?.totalOrders) || 0,
+    };
+  }
+
+  /**
    * Retrieves list of attendees for an event.
    */
   async getEventAttendees(eventId: string) {

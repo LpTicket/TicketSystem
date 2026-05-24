@@ -186,6 +186,13 @@ export class OrdersController {
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Get('organizer/stats')
+  getOrganizerStats(@Request() req: any) {
+    return this.ordersService.getOrganizerStats(req.user.id);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
   @Get('event/:eventId/attendees')
   getEventAttendees(@Param('eventId') eventId: string) {
     return this.ordersService.getEventAttendees(eventId);
