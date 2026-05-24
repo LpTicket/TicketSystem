@@ -524,7 +524,11 @@ export class OrdersService {
       if (!orderId) return;
 
       const order = await this.orderRepo.findOne({ where: { id: orderId } });
-      if (!order || order.status !== OrderStatus.PENDING) return;
+      // Allow re-entry if PAID but no tickets were created (partial failure)
+      if (!order) return;
+      const existingTickets = await this.ticketRepo.count({ where: { orderId } });
+      if (order.status === OrderStatus.PAID && existingTickets > 0) return;
+      if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.PAID) return;
 
       // Finalize order status
       await this.orderRepo.update(orderId, {
@@ -535,7 +539,7 @@ export class OrdersService {
 
       const seatsInfo = JSON.parse(order.seatsData || '[]');
       const createdTickets: any[] = [];
-      
+
       // Issue individual tickets for each seat
       for (const seatInfo of seatsInfo) {
         const ticketCode = nanoid(12).toUpperCase();
@@ -543,12 +547,19 @@ export class OrdersService {
         // Generate QR code for entry validation
         const qrData = await QRCode.toDataURL(`${appUrl}/verify/${ticketCode}`);
 
+        // Guard against FK violation if seat was deleted after purchase
+        let validSeatId: string | null = seatInfo.seatId || null;
+        if (validSeatId) {
+          const seatExists = await this.seatRepo.findOne({ where: { id: validSeatId }, select: ['id'] });
+          if (!seatExists) validSeatId = null;
+        }
+
         const ticket = this.ticketRepo.create({
           ticketCode,
           orderId,
           eventId: order.eventId,
           userId: order.userId,
-          seatId: seatInfo.seatId || null,
+          seatId: validSeatId,
           sectionId: seatInfo.sectionId,
           sectionName: seatInfo.sectionName,
           rowLabel: seatInfo.rowLabel,
@@ -620,13 +631,26 @@ export class OrdersService {
       where: { status: OrderStatus.PENDING },
     });
 
-    const staleOrders = pendingOrders.filter(o => {
-      const created = new Date(o.createdAt);
-      return created < tenMinutesAgo && created > twentyFourHoursAgo;
-    });
+    // Also catch PAID orders where ticket creation failed mid-flight (partial failure)
+    const paidOrders = await this.orderRepo
+      .createQueryBuilder('order')
+      .where('order.status = :status', { status: OrderStatus.PAID })
+      .andWhere('order.createdAt > :cutoff', { cutoff: twentyFourHoursAgo })
+      .andWhere(
+        'NOT EXISTS (SELECT 1 FROM tickets t WHERE t."orderId" = order.id)',
+      )
+      .getMany();
+
+    const staleOrders = [
+      ...pendingOrders.filter(o => {
+        const created = new Date(o.createdAt);
+        return created < tenMinutesAgo && created > twentyFourHoursAgo;
+      }),
+      ...paidOrders,
+    ];
 
     if (staleOrders.length === 0) return;
-    console.log(`[Cron] Checking ${staleOrders.length} stale PENDING orders against Stripe...`);
+    console.log(`[Cron] Checking ${staleOrders.length} stale orders against Stripe...`);
 
     for (const order of staleOrders) {
       try {
@@ -666,7 +690,11 @@ export class OrdersService {
       relations: ['user', 'event'],
     });
     if (!order) throw new NotFoundException(`Order ${orderId} not found`);
-    if (order.status !== OrderStatus.PENDING) {
+    if (order.status === OrderStatus.PAID) {
+      const ticketCount = await this.ticketRepo.count({ where: { orderId } });
+      if (ticketCount > 0) return { alreadyProcessed: true, status: order.status, ticketCount };
+      // PAID but no tickets — fall through to re-issue
+    } else if (order.status !== OrderStatus.PENDING) {
       return { alreadyProcessed: true, status: order.status, ticketCount: 0 };
     }
 
