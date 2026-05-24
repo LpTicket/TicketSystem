@@ -6,10 +6,13 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://ticketsystembackend.u
 
 function resolveImage(url?: string | null, slug?: string | null) {
   if (!url) return `${siteUrl}/logo.png`;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('data:') && slug) {
-    return `${apiUrl.replace(/\/$/, '')}/events/${encodeURIComponent(slug)}/og-image`;
+  if (slug && url.startsWith('data:')) {
+    return `${siteUrl}/events/${encodeURIComponent(slug)}/og-image`;
   }
+  if (slug && url.startsWith('/api/events/') && url.includes('/og-image')) {
+    return `${siteUrl}/events/${encodeURIComponent(slug)}/og-image`;
+  }
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
   if (url.startsWith('data:')) return `${siteUrl}/logo.png`;
 
   const backendBase = apiUrl.replace(/\/api\/?$/, '');
