@@ -630,10 +630,16 @@ export class OrdersService {
 
     for (const order of staleOrders) {
       try {
-        // Fetch the specific session by its stored ID — avoids the 100-result
-        // cap of sessions.list() that caused older paid orders to be missed.
-        if (!order.stripeSessionId) continue;
-        const session = await this.stripe.checkout.sessions.retrieve(order.stripeSessionId);
+        let session: any = null;
+
+        if (order.stripeSessionId) {
+          // Fast path: retrieve the exact session by stored ID
+          session = await this.stripe.checkout.sessions.retrieve(order.stripeSessionId);
+        } else {
+          // Fallback: search recent sessions by orderId in metadata
+          const list = await this.stripe.checkout.sessions.list({ limit: 100 });
+          session = list.data.find((s: any) => s.metadata?.orderId === order.id) ?? null;
+        }
 
         if (!session || session.payment_status !== 'paid') continue;
 
