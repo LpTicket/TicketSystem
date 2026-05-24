@@ -50,14 +50,14 @@ export class Ticket {
   @Column({ type: 'uuid', nullable: true })
   seatId: string | null;
 
-  @ManyToOne(() => Seat, { nullable: true })
+  @ManyToOne(() => Seat, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'seatId' })
   seat: Seat | null;
 
   @Column({ type: 'uuid', nullable: true })
   sectionId: string | null;
 
-  @ManyToOne(() => VenueSection, { nullable: true })
+  @ManyToOne(() => VenueSection, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'sectionId' })
   section: VenueSection | null;
 
