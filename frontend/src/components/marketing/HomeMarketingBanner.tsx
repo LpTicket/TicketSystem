@@ -32,14 +32,12 @@ export default function HomeMarketingBanner() {
   if (!banner?.imageData) return null;
 
   return (
-    <section className="mx-auto w-full max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
-      <div className="overflow-hidden rounded-2xl border border-[rgba(10,55,90,0.12)] bg-white shadow-xl shadow-[rgba(10,55,90,0.10)]">
-        <img
-          src={banner.imageData}
-          alt={banner.fileName || 'Banner publicitario LPTicket'}
-          className="block h-auto w-full object-cover"
-        />
-      </div>
-    </section>
+    <article className="group relative w-full overflow-hidden rounded-lg bg-black shadow-xl shadow-[rgba(10,55,90,0.12)]">
+      <img
+        src={banner.imageData}
+        alt={banner.fileName || 'Banner publicitario LPTicket'}
+        className="block w-full object-cover"
+      />
+    </article>
   );
 }
