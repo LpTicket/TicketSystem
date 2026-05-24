@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import api from '@/lib/api';
+import api, { getImageUrl } from '@/lib/api';
 import { parseSafeDate, formatDateInTimezone } from '@/lib/dateUtils';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
@@ -196,7 +196,7 @@ export default function OrganizerEventsPage() {
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center ${isPast ? 'grayscale' : ''}`}>
                             {ev.imageUrl ? (
-                              <img src={ev.imageUrl} alt="" className="w-full h-full object-cover" />
+                              <img src={getImageUrl(ev.imageUrl)} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <span className="text-lg">{catInfo?.icon || '🎫'}</span>
                             )}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import api from '@/lib/api';
+import api, { getImageUrl } from '@/lib/api';
 import { parseSafeDate, formatDateInTimezone } from '@/lib/dateUtils';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
@@ -153,7 +153,7 @@ export default function OrganizerDashboard() {
                   {/* Event image */}
                   <div className={`w-14 h-14 rounded-lg bg-gray-100 overflow-hidden shrink-0 ${isPast ? 'grayscale' : ''}`}>
                     {ev.imageUrl ? (
-                      <img src={ev.imageUrl} alt={ev.title} className="w-full h-full object-cover" />
+                      <img src={getImageUrl(ev.imageUrl)} alt={ev.title} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-2xl">{catInfo?.icon || '🎫'}</div>
                     )}
