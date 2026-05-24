@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   HiOutlineBadgeCheck,
   HiOutlineChartBar,
@@ -12,13 +12,15 @@ import {
   HiOutlinePresentationChartLine,
   HiOutlineSpeakerphone,
   HiOutlineSparkles,
+  HiOutlineUpload,
   HiOutlineUsers,
+  HiOutlineX,
 } from 'react-icons/hi';
 
 const channels = [
   {
     title: 'Banner Home',
-    description: 'Administra promociones visuales para mostrar en la pagina principal.',
+    description: 'Sube un diseno publicitario listo para mostrar en la pagina principal.',
     status: 'Estructura lista',
     icon: HiOutlinePhotograph,
   },
@@ -43,10 +45,58 @@ const channels = [
 ];
 
 export default function AdminMarketingPage() {
-  const [bannerTitle, setBannerTitle] = useState('LPTicket');
-  const [bannerSubtitle, setBannerSubtitle] = useState('Impulsa tus eventos con una plataforma moderna, segura y profesional.');
-  const [bannerImage, setBannerImage] = useState('');
-  const [buttonText, setButtonText] = useState('Conocer mas');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [bannerPreview, setBannerPreview] = useState('');
+  const [bannerFileName, setBannerFileName] = useState('');
+  const [bannerStatus, setBannerStatus] = useState<'draft' | 'active'>('draft');
+
+  useEffect(() => {
+    const savedBanner = localStorage.getItem('lpMarketingBannerPreview');
+    const savedFileName = localStorage.getItem('lpMarketingBannerFileName');
+    const savedStatus = localStorage.getItem('lpMarketingBannerStatus');
+
+    if (savedBanner) setBannerPreview(savedBanner);
+    if (savedFileName) setBannerFileName(savedFileName);
+    if (savedStatus === 'active' || savedStatus === 'draft') setBannerStatus(savedStatus);
+  }, []);
+
+  const handleBannerFile = (file?: File) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Selecciona una imagen valida para el banner.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      setBannerPreview(result);
+      setBannerFileName(file.name);
+      setBannerStatus('draft');
+
+      localStorage.setItem('lpMarketingBannerPreview', result);
+      localStorage.setItem('lpMarketingBannerFileName', file.name);
+      localStorage.setItem('lpMarketingBannerStatus', 'draft');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeBanner = () => {
+    setBannerPreview('');
+    setBannerFileName('');
+    setBannerStatus('draft');
+
+    localStorage.removeItem('lpMarketingBannerPreview');
+    localStorage.removeItem('lpMarketingBannerFileName');
+    localStorage.removeItem('lpMarketingBannerStatus');
+  };
+
+  const publishBanner = () => {
+    if (!bannerPreview) return;
+    setBannerStatus('active');
+    localStorage.setItem('lpMarketingBannerStatus', 'active');
+  };
 
   return (
     <div className="space-y-6">
@@ -58,7 +108,7 @@ export default function AdminMarketingPage() {
           </div>
           <h1 className="mt-3 text-3xl font-black text-[#0A375A]">Centro de Marketing</h1>
           <p className="mt-2 max-w-3xl text-sm text-gray-500">
-            Un espacio para banners, campanas, audiencias, email, SMS y WhatsApp. Primero dejamos la estructura lista y luego conectamos los envios reales.
+            Administra banners publicitarios y deja preparada la estructura para email, SMS, WhatsApp, audiencias y campanas.
           </p>
         </div>
 
@@ -73,7 +123,7 @@ export default function AdminMarketingPage() {
 
       <section className="grid gap-4 lg:grid-cols-4">
         {[
-          ['Banners activos', '0', HiOutlinePhotograph],
+          ['Banners activos', bannerStatus === 'active' ? '1' : '0', HiOutlinePhotograph],
           ['Audiencias', '0', HiOutlineUsers],
           ['Campanas', '0', HiOutlinePresentationChartLine],
           ['Clicks', '0', HiOutlineCursorClick],
@@ -90,95 +140,118 @@ export default function AdminMarketingPage() {
         ))}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-[#F97316]">
-              <HiOutlinePhotograph className="h-6 w-6" />
+              <HiOutlineUpload className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-gray-950">Banner publicitario del Home</h2>
-              <p className="text-sm text-gray-500">Estructura preparada para promocionar LPTicket sin crear un evento.</p>
+              <h2 className="text-lg font-black text-gray-950">Subir banner publicitario</h2>
+              <p className="text-sm text-gray-500">Carga un diseno terminado para promocionar LPTicket en el Home.</p>
             </div>
           </div>
 
-          <div className="mt-6 grid gap-4">
-            <label className="grid gap-2">
-              <span className="text-xs font-black uppercase tracking-wide text-gray-500">Titulo</span>
-              <input
-                value={bannerTitle}
-                onChange={(event) => setBannerTitle(event.target.value)}
-                className="rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
-              />
-            </label>
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              handleBannerFile(event.dataTransfer.files?.[0]);
+            }}
+            className="mt-6 flex min-h-[260px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-8 text-center transition hover:border-[#F97316] hover:bg-orange-50/40"
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={(event) => handleBannerFile(event.target.files?.[0])}
+            />
 
-            <label className="grid gap-2">
-              <span className="text-xs font-black uppercase tracking-wide text-gray-500">Mensaje</span>
-              <textarea
-                value={bannerSubtitle}
-                onChange={(event) => setBannerSubtitle(event.target.value)}
-                rows={3}
-                className="rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
-              />
-            </label>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2">
-                <span className="text-xs font-black uppercase tracking-wide text-gray-500">URL de imagen</span>
-                <input
-                  value={bannerImage}
-                  onChange={(event) => setBannerImage(event.target.value)}
-                  placeholder="https://..."
-                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
-                />
-              </label>
-
-              <label className="grid gap-2">
-                <span className="text-xs font-black uppercase tracking-wide text-gray-500">Boton</span>
-                <input
-                  value={buttonText}
-                  onChange={(event) => setButtonText(event.target.value)}
-                  className="rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100"
-                />
-              </label>
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-[#F97316] shadow-sm">
+              <HiOutlineUpload className="h-8 w-8" />
             </div>
 
-            <div className="flex flex-wrap gap-3 pt-2">
-              <button className="rounded-xl bg-[#0A375A] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#0A375A]/10">
-                Guardar borrador
-              </button>
-              <button className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-black text-gray-700 hover:bg-gray-50">
-                Vista previa
+            <h3 className="mt-5 text-base font-black text-gray-950">Haz clic para subir tu banner</h3>
+            <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
+              Tambien puedes arrastrar la imagen aqui. Recomendado: JPG, PNG o WebP en formato horizontal.
+            </p>
+            <p className="mt-4 rounded-full bg-white px-3 py-1 text-xs font-black text-gray-500 shadow-sm">
+              Sugerido: 1600 x 500 px
+            </p>
+          </div>
+
+          {bannerFileName && (
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-gray-900">{bannerFileName}</p>
+                <p className="text-xs font-semibold text-gray-500">
+                  Estado: {bannerStatus === 'active' ? 'Publicado' : 'Borrador'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={removeBanner}
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-500 transition hover:bg-red-100"
+                aria-label="Eliminar banner"
+              >
+                <HiOutlineX className="h-5 w-5" />
               </button>
             </div>
+          )}
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={!bannerPreview}
+              onClick={publishBanner}
+              className="rounded-xl bg-[#0A375A] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#0A375A]/10 transition disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Publicar banner
+            </button>
+            <button
+              type="button"
+              disabled={!bannerPreview}
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-black text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Cambiar imagen
+            </button>
           </div>
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div
-            className="relative min-h-[340px] p-6 text-white"
-            style={{
-              backgroundImage: bannerImage
-                ? `linear-gradient(120deg, rgba(10,55,90,0.88), rgba(249,115,22,0.68)), url(${bannerImage})`
-                : 'linear-gradient(120deg, #0A375A 0%, #174A71 48%, #F97316 100%)',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          >
-            <div className="absolute right-5 top-5 rounded-full bg-white/15 px-3 py-1 text-xs font-black uppercase backdrop-blur">
-              Preview
+          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+            <div>
+              <h2 className="text-sm font-black uppercase tracking-wide text-gray-500">Vista previa</h2>
+              <p className="text-xs text-gray-400">Asi se vera el diseno cargado.</p>
             </div>
-            <div className="flex min-h-[290px] flex-col justify-end">
-              <div className="mb-4 inline-flex w-fit items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-black uppercase backdrop-blur">
-                <HiOutlineBadgeCheck className="h-4 w-4" />
-                Publicidad LPTicket
+            <div className={`rounded-full px-3 py-1 text-xs font-black ${bannerStatus === 'active' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-[#F97316]'}`}>
+              {bannerStatus === 'active' ? 'Publicado' : 'Borrador'}
+            </div>
+          </div>
+
+          <div className="p-5">
+            {bannerPreview ? (
+              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
+                <img
+                  src={bannerPreview}
+                  alt="Preview del banner publicitario"
+                  className="h-auto w-full object-cover"
+                />
               </div>
-              <h3 className="text-4xl font-black leading-tight">{bannerTitle || 'LPTicket'}</h3>
-              <p className="mt-3 max-w-md text-sm leading-6 text-white/85">{bannerSubtitle}</p>
-              <button className="mt-6 w-fit rounded-xl bg-white px-5 py-3 text-sm font-black text-[#0A375A]">
-                {buttonText || 'Conocer mas'}
-              </button>
-            </div>
+            ) : (
+              <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-gray-400 shadow-sm">
+                  <HiOutlinePhotograph className="h-8 w-8" />
+                </div>
+                <h3 className="mt-5 text-base font-black text-gray-900">Aun no hay banner cargado</h3>
+                <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
+                  Sube un diseno listo y aqui aparecera la vista previa.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -210,7 +283,7 @@ export default function AdminMarketingPage() {
           <div>
             <h2 className="text-lg font-black text-gray-950">Proximas conexiones</h2>
             <p className="text-sm text-gray-500">
-              La pantalla queda lista para conectar base de datos, subida de imagenes y proveedores de envio.
+              Luego conectamos esta subida al backend para guardar el banner y mostrarlo automaticamente en el Home.
             </p>
           </div>
         </div>
