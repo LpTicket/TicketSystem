@@ -48,7 +48,7 @@ export class AiSupportService implements OnModuleInit {
   private loadSystemPrompt() {
     try {
       // Instruction file lives in the backend root so Railway includes it in the deployment
-      const filePath = path.join(process.cwd(), 'CHAT BOT - AI LP TICKET.txt');
+      const filePath = path.join(process.cwd(), 'chatbot-prompt.txt');
       if (fs.existsSync(filePath)) {
         this.systemPrompt = fs.readFileSync(filePath, 'utf-8');
         this.logger.log('AI System Prompt loaded successfully from root.');
