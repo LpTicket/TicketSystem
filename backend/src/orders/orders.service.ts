@@ -614,7 +614,7 @@ export class OrdersService {
     if (!this.stripe) return;
 
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const pendingOrders = await this.orderRepo.find({
       where: { status: OrderStatus.PENDING },
@@ -622,7 +622,7 @@ export class OrdersService {
 
     const staleOrders = pendingOrders.filter(o => {
       const created = new Date(o.createdAt);
-      return created < tenMinutesAgo && created > twoHoursAgo;
+      return created < tenMinutesAgo && created > twentyFourHoursAgo;
     });
 
     if (staleOrders.length === 0) return;
@@ -630,12 +630,12 @@ export class OrdersService {
 
     for (const order of staleOrders) {
       try {
-        // Search recent sessions for this order in metadata
-        const sessions = await this.stripe.checkout.sessions.list({ limit: 100 });
-        const session = sessions.data.find((s: any) => s.metadata?.orderId === order.id);
+        // Fetch the specific session by its stored ID — avoids the 100-result
+        // cap of sessions.list() that caused older paid orders to be missed.
+        if (!order.stripeSessionId) continue;
+        const session = await this.stripe.checkout.sessions.retrieve(order.stripeSessionId);
 
-        if (!session) continue;
-        if (session.payment_status !== 'paid') continue;
+        if (!session || session.payment_status !== 'paid') continue;
 
         console.log(`[Cron] Recovering order ${order.id} — Stripe session ${session.id} is paid`);
         await this.handleStripeWebhook({
@@ -666,10 +666,10 @@ export class OrdersService {
 
     // Verify payment with Stripe before issuing tickets
     if (!this.stripe) throw new BadRequestException('Stripe not configured');
-    const sessions = await this.stripe.checkout.sessions.list({ limit: 100 });
-    const session = sessions.data.find((s: any) => s.metadata?.orderId === orderId);
+    if (!order.stripeSessionId) throw new NotFoundException('No Stripe session ID stored for this order');
 
-    if (!session) throw new NotFoundException('No Stripe session found for this order');
+    const session = await this.stripe.checkout.sessions.retrieve(order.stripeSessionId);
+    if (!session) throw new NotFoundException('Stripe session not found');
     if (session.payment_status !== 'paid') {
       throw new BadRequestException(`Payment not completed — Stripe status: ${session.payment_status}`);
     }
