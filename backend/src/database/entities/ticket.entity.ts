@@ -48,18 +48,18 @@ export class Ticket {
   user: User;
 
   @Column({ type: 'uuid', nullable: true })
-  seatId: string;
+  seatId: string | null;
 
   @ManyToOne(() => Seat, { nullable: true })
   @JoinColumn({ name: 'seatId' })
-  seat: Seat;
+  seat: Seat | null;
 
   @Column({ type: 'uuid', nullable: true })
-  sectionId: string;
+  sectionId: string | null;
 
   @ManyToOne(() => VenueSection, { nullable: true })
   @JoinColumn({ name: 'sectionId' })
-  section: VenueSection;
+  section: VenueSection | null;
 
   @Column({ length: 40, nullable: true })
   sectionName: string;
