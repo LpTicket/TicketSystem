@@ -174,7 +174,10 @@ export class EventsService {
       order: { sortOrder: 'ASC' },
     });
 
-    return { ...event, sections };
+    // Replace base64 image URLs with og-image route paths so the API response
+    // stays small and the frontend can build proper meta tags
+    const cleaned = this.routeBase64EventImages(event);
+    return { ...cleaned, sections };
   }
 
   async findById(id: string) {
