@@ -21,8 +21,8 @@ import {
 const channels = [
   {
     title: 'Banner Home',
-    description: 'Sube un diseno publicitario listo para mostrar en la pagina principal.',
-    status: 'Estructura lista',
+    description: 'Sube un diseno publicitario listo para rotar junto a los eventos destacados.',
+    status: 'Activo',
     icon: HiOutlinePhotograph,
   },
   {
@@ -119,25 +119,137 @@ export default function AdminMarketingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-orange-600">
-            <HiOutlineSpeakerphone className="h-4 w-4" />
-            Marketing
-          </div>
-          <h1 className="mt-3 text-3xl font-black text-[#0A375A]">Centro de Marketing</h1>
-          <p className="mt-2 max-w-3xl text-sm text-gray-500">
-            Administra banners publicitarios y deja preparada la estructura para email, SMS, WhatsApp, audiencias y campanas.
-          </p>
-        </div>
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="grid gap-0 xl:grid-cols-[0.95fr_1.25fr]">
+          <div className="border-b border-gray-100 p-6 xl:border-b-0 xl:border-r">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-orange-600">
+                  <HiOutlineSpeakerphone className="h-4 w-4" />
+                  Marketing
+                </div>
+                <h1 className="mt-3 text-3xl font-black text-[#0A375A]">Banner publicitario</h1>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
+                  Sube un diseno terminado para que rote dentro del carrusel principal junto a los eventos destacados.
+                </p>
+              </div>
 
-        <button
-          type="button"
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F97316] px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
-        >
-          <HiOutlineSparkles className="h-5 w-5" />
-          Nueva campana
-        </button>
+              <div className={`w-fit rounded-full px-3 py-1 text-xs font-black ${bannerStatus === 'active' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-[#F97316]'}`}>
+                {bannerStatus === 'active' ? 'Publicado' : 'Borrador'}
+              </div>
+            </div>
+
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                handleBannerFile(event.dataTransfer.files?.[0]);
+              }}
+              className="mt-6 flex min-h-[250px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gradient-to-br from-gray-50 to-white px-6 py-8 text-center transition hover:border-[#F97316] hover:bg-orange-50/40"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(event) => handleBannerFile(event.target.files?.[0])}
+              />
+
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-[#F97316] shadow-sm ring-1 ring-gray-100">
+                <HiOutlineUpload className="h-8 w-8" />
+              </div>
+
+              <h3 className="mt-5 text-base font-black text-gray-950">Sube el arte final del banner</h3>
+              <p className="mt-2 max-w-md text-sm leading-6 text-gray-500">
+                Usa una imagen horizontal en alta calidad. Se mostrara en el mismo carrusel de los eventos destacados.
+              </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-gray-500 shadow-sm ring-1 ring-gray-100">
+                  Recomendado: 1600 x 520 px
+                </span>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-gray-500 shadow-sm ring-1 ring-gray-100">
+                  JPG, PNG o WebP
+                </span>
+              </div>
+            </div>
+
+            {bannerFileName && (
+              <div className="mt-4 flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-gray-900">{bannerFileName}</p>
+                  <p className="text-xs font-semibold text-gray-500">
+                    Estado: {bannerStatus === 'active' ? 'Publicado' : 'Borrador'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeBanner}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-500 transition hover:bg-red-100"
+                  aria-label="Eliminar banner"
+                >
+                  <HiOutlineX className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={!bannerPreview}
+                onClick={publishBanner}
+                className="rounded-xl bg-[#0A375A] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#0A375A]/10 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+              >
+                Publicar banner
+              </button>
+              <button
+                type="button"
+                disabled={!bannerPreview}
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-black text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Cambiar imagen
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-wide text-gray-500">Vista previa del carrusel</h2>
+                <p className="text-xs text-gray-400">Formato horizontal, igual al banner principal del Home.</p>
+              </div>
+              <div className="hidden items-center gap-2 rounded-full bg-[#0A375A]/5 px-3 py-1 text-xs font-black text-[#0A375A] sm:inline-flex">
+                <HiOutlineBadgeCheck className="h-4 w-4" />
+                Hero banner
+              </div>
+            </div>
+
+            {bannerPreview ? (
+              <div className="rounded-2xl bg-gradient-to-br from-[#0A375A]/10 via-white to-[#F97316]/10 p-3">
+                <div className="overflow-hidden rounded-xl bg-black shadow-2xl shadow-[rgba(10,55,90,0.18)]">
+                  <div className="relative aspect-[3.05/1] w-full">
+                    <img
+                      src={bannerPreview}
+                      alt="Preview del banner publicitario"
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex min-h-[340px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-gray-400 shadow-sm">
+                  <HiOutlinePhotograph className="h-8 w-8" />
+                </div>
+                <h3 className="mt-5 text-base font-black text-gray-900">Aun no hay banner cargado</h3>
+                <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
+                  Sube un diseno listo y aqui aparecera la vista previa horizontal.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <section className="grid gap-4 lg:grid-cols-4">
@@ -159,122 +271,6 @@ export default function AdminMarketingPage() {
         ))}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-[#F97316]">
-              <HiOutlineUpload className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-gray-950">Subir banner publicitario</h2>
-              <p className="text-sm text-gray-500">Carga un diseno terminado para promocionar LPTicket en el Home.</p>
-            </div>
-          </div>
-
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              handleBannerFile(event.dataTransfer.files?.[0]);
-            }}
-            className="mt-6 flex min-h-[260px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-8 text-center transition hover:border-[#F97316] hover:bg-orange-50/40"
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={(event) => handleBannerFile(event.target.files?.[0])}
-            />
-
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-[#F97316] shadow-sm">
-              <HiOutlineUpload className="h-8 w-8" />
-            </div>
-
-            <h3 className="mt-5 text-base font-black text-gray-950">Haz clic para subir tu banner</h3>
-            <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
-              Tambien puedes arrastrar la imagen aqui. Recomendado: JPG, PNG o WebP en formato horizontal.
-            </p>
-            <p className="mt-4 rounded-full bg-white px-3 py-1 text-xs font-black text-gray-500 shadow-sm">
-              Sugerido: 1600 x 500 px
-            </p>
-          </div>
-
-          {bannerFileName && (
-            <div className="mt-4 flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-gray-900">{bannerFileName}</p>
-                <p className="text-xs font-semibold text-gray-500">
-                  Estado: {bannerStatus === 'active' ? 'Publicado' : 'Borrador'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={removeBanner}
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-500 transition hover:bg-red-100"
-                aria-label="Eliminar banner"
-              >
-                <HiOutlineX className="h-5 w-5" />
-              </button>
-            </div>
-          )}
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={!bannerPreview}
-              onClick={publishBanner}
-              className="rounded-xl bg-[#0A375A] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#0A375A]/10 transition disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Publicar banner
-            </button>
-            <button
-              type="button"
-              disabled={!bannerPreview}
-              onClick={() => fileInputRef.current?.click()}
-              className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-black text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Cambiar imagen
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-            <div>
-              <h2 className="text-sm font-black uppercase tracking-wide text-gray-500">Vista previa</h2>
-              <p className="text-xs text-gray-400">Asi se vera el diseno cargado.</p>
-            </div>
-            <div className={`rounded-full px-3 py-1 text-xs font-black ${bannerStatus === 'active' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-[#F97316]'}`}>
-              {bannerStatus === 'active' ? 'Publicado' : 'Borrador'}
-            </div>
-          </div>
-
-          <div className="p-5">
-            {bannerPreview ? (
-              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
-                <img
-                  src={bannerPreview}
-                  alt="Preview del banner publicitario"
-                  className="h-auto w-full object-cover"
-                />
-              </div>
-            ) : (
-              <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-gray-400 shadow-sm">
-                  <HiOutlinePhotograph className="h-8 w-8" />
-                </div>
-                <h3 className="mt-5 text-base font-black text-gray-900">Aun no hay banner cargado</h3>
-                <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
-                  Sube un diseno listo y aqui aparecera la vista previa.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
       <section className="grid gap-4 lg:grid-cols-4">
         {channels.map((channel) => {
           const Icon = channel.icon;
@@ -286,7 +282,7 @@ export default function AdminMarketingPage() {
               </div>
               <h3 className="mt-4 text-base font-black text-gray-950">{channel.title}</h3>
               <p className="mt-2 min-h-[64px] text-sm leading-6 text-gray-500">{channel.description}</p>
-              <div className="mt-4 inline-flex rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-[#F97316]">
+              <div className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-black ${channel.status === 'Activo' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-[#F97316]'}`}>
                 {channel.status}
               </div>
             </div>
@@ -302,7 +298,7 @@ export default function AdminMarketingPage() {
           <div>
             <h2 className="text-lg font-black text-gray-950">Proximas conexiones</h2>
             <p className="text-sm text-gray-500">
-              Luego conectamos esta subida al backend para guardar el banner y mostrarlo automaticamente en el Home.
+              Aqui luego conectamos audiencias, email marketing, SMS, WhatsApp y analiticas de campanas.
             </p>
           </div>
         </div>
