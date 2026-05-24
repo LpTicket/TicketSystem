@@ -23,15 +23,49 @@ import {
 } from 'react-icons/hi';
 import Link from 'next/link';
 
+// Stale-while-revalidate cache key for the admin events list
+const ADMIN_EVENTS_CACHE_KEY = 'admin_events_cache_v1';
+
+type AdminEventsCache = {
+  events: Event[];
+  total: number;
+  page: number;
+  filter: string;
+  cachedAt: number;
+};
+
+function readEventsCache(filter: string, page: number): AdminEventsCache | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(ADMIN_EVENTS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AdminEventsCache;
+    if (parsed.filter === filter && parsed.page === page) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeEventsCache(data: AdminEventsCache) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(ADMIN_EVENTS_CACHE_KEY, JSON.stringify(data));
+  } catch {}
+}
+
 export default function AdminEventsPage() {
   const { t, lang } = useLang();
-  const [events, setEvents] = useState<Event[]>([]);
   const { getCategoryInfo } = useCategories();
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+
+  // Seed state from session cache so the first paint shows real rows, not skeletons.
+  const initialCache = typeof window !== 'undefined' ? readEventsCache('all', 1) : null;
+  const [events, setEvents] = useState<Event[]>(initialCache?.events || []);
+  const [total, setTotal] = useState(initialCache?.total || 0);
+  const [loading, setLoading] = useState(!initialCache);
+  const [search, setSearch] = useState('');
   const [selectedEventForChanges, setSelectedEventForChanges] = useState<Event | null>(null);
   const [processingField, setProcessingField] = useState<string | null>(null);
 
@@ -224,13 +258,29 @@ export default function AdminEventsPage() {
   useEffect(() => { loadEvents(); }, [page, filter]);
 
   const loadEvents = async () => {
-    setLoading(true);
+    // Stale-while-revalidate: if we have cached data for this (filter, page),
+    // show it immediately and refresh in the background. Otherwise, show skeleton.
+    const cached = readEventsCache(filter, page);
+    if (cached) {
+      setEvents(cached.events);
+      setTotal(cached.total);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     try {
       const params: any = { page, limit: 15 };
       if (filter !== 'all') params.status = filter;
       const { data } = await api.get('/admin/events', { params });
       setEvents(data.events);
       setTotal(data.total);
+      writeEventsCache({
+        events: data.events,
+        total: data.total,
+        page,
+        filter,
+        cachedAt: Date.now(),
+      });
     } catch {} finally { setLoading(false); }
   };
 
