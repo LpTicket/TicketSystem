@@ -45,7 +45,7 @@ export default function EventCard({ event, priority = false }: EventCardProps) {
             <div className="absolute inset-0 z-10 h-full w-full animate-shimmer" />
           )}
 
-          {event.imageUrl && (
+          {event.imageUrl ? (
             <img
               src={getImageUrl(event.imageUrl)}
               alt={event.title}
@@ -55,13 +55,11 @@ export default function EventCard({ event, priority = false }: EventCardProps) {
               className={`h-full w-full object-cover transition-all duration-700 group-hover:scale-[1.035] ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
               onError={() => setImageLoaded(true)}
             />
-          )}
+          ) : null}
 
-          {!imageLoaded && (
-            <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0A375A] via-[#0A375A] to-[#F97316]">
-              <span className="text-6xl">{categoryInfo?.icon || '🎫'}</span>
-            </div>
-          )}
+          <div className={`absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0A375A] via-[#0A375A] to-[#F97316] transition-opacity duration-300 ${imageLoaded && event.imageUrl ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            <span className="text-6xl">{categoryInfo?.icon || '🎫'}</span>
+          </div>
 
           <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-white/92 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-[#0A375A] shadow-sm backdrop-blur-md">
             <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
