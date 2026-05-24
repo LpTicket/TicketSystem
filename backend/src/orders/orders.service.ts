@@ -604,6 +604,51 @@ export class OrdersService {
   }
 
   /**
+   * Cron: auto-recover PENDING orders whose Stripe payment succeeded but
+   * whose webhook was never processed (cold start, wrong secret, etc.).
+   * Runs every 5 minutes. Only processes orders older than 10 minutes
+   * (gives Stripe time to deliver the webhook first).
+   */
+  @Cron('0 */5 * * * *')
+  async recoverMissedWebhooks() {
+    if (!this.stripe) return;
+
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+    const pendingOrders = await this.orderRepo.find({
+      where: { status: OrderStatus.PENDING },
+    });
+
+    const staleOrders = pendingOrders.filter(o => {
+      const created = new Date(o.createdAt);
+      return created < tenMinutesAgo && created > twoHoursAgo;
+    });
+
+    if (staleOrders.length === 0) return;
+    console.log(`[Cron] Checking ${staleOrders.length} stale PENDING orders against Stripe...`);
+
+    for (const order of staleOrders) {
+      try {
+        // Search recent sessions for this order in metadata
+        const sessions = await this.stripe.checkout.sessions.list({ limit: 100 });
+        const session = sessions.data.find((s: any) => s.metadata?.orderId === order.id);
+
+        if (!session) continue;
+        if (session.payment_status !== 'paid') continue;
+
+        console.log(`[Cron] Recovering order ${order.id} — Stripe session ${session.id} is paid`);
+        await this.handleStripeWebhook({
+          type: 'checkout.session.completed',
+          data: { object: session },
+        });
+      } catch (err: any) {
+        console.error(`[Cron] Error recovering order ${order.id}:`, err.message);
+      }
+    }
+  }
+
+  /**
    * Admin recovery: manually fulfill a PENDING order whose Stripe payment
    * succeeded but whose webhook was never processed (network failure, wrong
    * secret, cold-start race, etc.).

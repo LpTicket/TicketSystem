@@ -55,6 +55,7 @@ export class OrdersController {
   async handleWebhook(
     @Req() req: any,
     @Headers('stripe-signature') signature: string,
+    @Res() res: any,
   ) {
     const mode = this.configService.get('STRIPE_MODE') || 'test';
     const webhookSecret = mode === 'production'
@@ -63,19 +64,18 @@ export class OrdersController {
     let event: any;
 
     try {
-      const rawBody = req.rawBody || req.body;
-      event = this.stripe.webhooks.constructEvent(
-        rawBody,
-        signature,
-        webhookSecret!,
-      );
+      // Fastify stores the raw body on req.rawBody (populated by NestJS rawBody:true option).
+      // Stripe MUST receive the raw Buffer/string — a parsed object will fail HMAC verification.
+      const rawBody = req.rawBody ?? req.body;
+      event = this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret!);
     } catch (err: any) {
       console.error('❌ Webhook Signature Error:', err.message);
-      return { received: false, error: `Webhook signature verification failed: ${err.message}` };
+      // Return 400 so Stripe knows the webhook failed and will retry it.
+      return res.status(400).send({ received: false, error: err.message });
     }
 
     await this.ordersService.handleStripeWebhook(event);
-    return { received: true };
+    return res.status(200).send({ received: true });
   }
 
   // Invoice preview (no auth needed — wizard uses this before payment)
