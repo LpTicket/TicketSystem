@@ -270,6 +270,25 @@ export default function PurchasePage() {
   }, [lang, event?.maxTicketsPerTransaction]);
 
   /**
+   * Keeps the buyer map fresh while checkout holds can expire.
+   */
+  useEffect(() => {
+    if (!event?.id || step === 'section') return;
+
+    const refreshSeatMap = async () => {
+      try {
+        const { data: map } = await api.get(`/events/${event.id}/seatmap`);
+        setSeatMap(map);
+      } catch (err) {
+        console.error('[seatmap refresh error]', err);
+      }
+    };
+
+    const timer = window.setInterval(refreshSeatMap, 15000);
+    return () => window.clearInterval(timer);
+  }, [event?.id, step]);
+
+  /**
    * Locks the selected seats on the server to prevent other users from buying them.
    */
   const handleConfirmSeats = async () => {
