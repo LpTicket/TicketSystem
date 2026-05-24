@@ -15,22 +15,34 @@ export class AdminService {
   ) {}
 
   async getDashboardStats() {
-    const totalUsers = await this.userRepo.count();
-    const totalEvents = await this.eventRepo.count();
-    const publishedEvents = await this.eventRepo.count({ where: { status: EventStatus.PUBLISHED } });
-    const draftEvents = await this.eventRepo.count({ where: { status: EventStatus.DRAFT } });
-    const totalOrders = await this.orderRepo.count();
-    const paidOrders = await this.orderRepo.count({ where: { status: 'paid' as any } });
-
-    const revenueResult = await this.orderRepo
-      .createQueryBuilder('order')
-      .select('COALESCE(SUM(order.total), 0)', 'totalRevenue')
-      .where('order.status = :status', { status: 'paid' })
-      .getRawOne();
-
-    const totalTickets = await this.ticketRepo.count();
-    const clients = await this.userRepo.count({ where: { role: UserRole.CLIENT } });
-    const admins = await this.userRepo.count({ where: { role: UserRole.ADMIN } });
+    // Run all aggregate counts in parallel — these are independent reads.
+    const [
+      totalUsers,
+      totalEvents,
+      publishedEvents,
+      draftEvents,
+      totalOrders,
+      paidOrders,
+      revenueResult,
+      totalTickets,
+      clients,
+      admins,
+    ] = await Promise.all([
+      this.userRepo.count(),
+      this.eventRepo.count(),
+      this.eventRepo.count({ where: { status: EventStatus.PUBLISHED } }),
+      this.eventRepo.count({ where: { status: EventStatus.DRAFT } }),
+      this.orderRepo.count(),
+      this.orderRepo.count({ where: { status: 'paid' as any } }),
+      this.orderRepo
+        .createQueryBuilder('order')
+        .select('COALESCE(SUM(order.total), 0)', 'totalRevenue')
+        .where('order.status = :status', { status: 'paid' })
+        .getRawOne(),
+      this.ticketRepo.count(),
+      this.userRepo.count({ where: { role: UserRole.CLIENT } }),
+      this.userRepo.count({ where: { role: UserRole.ADMIN } }),
+    ]);
 
     return {
       totalUsers,

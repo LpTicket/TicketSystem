@@ -179,12 +179,14 @@ export class SpecialCodesService {
   }
 
   async getCommissionSummary() {
-    const codes = await this.specialCodeRepo.find({ relations: ['owner', 'event'] });
-    const orders = await this.orderRepo.find({
-      where: { status: OrderStatus.PAID, specialCode: Not(IsNull()) },
-      relations: ['event'],
-    });
-    const payouts = await this.payoutRepo.find({ relations: ['owner', 'event'], order: { paidAt: 'DESC' } });
+    const [codes, orders, payouts] = await Promise.all([
+      this.specialCodeRepo.find({ relations: ['owner', 'event'] }),
+      this.orderRepo.find({
+        where: { status: OrderStatus.PAID, specialCode: Not(IsNull()) },
+        relations: ['event'],
+      }),
+      this.payoutRepo.find({ relations: ['owner', 'event'], order: { paidAt: 'DESC' } }),
+    ]);
 
     const findCodeForOrder = (order: typeof orders[number]) => {
       const orderCode = String(order.specialCode || '').toUpperCase();

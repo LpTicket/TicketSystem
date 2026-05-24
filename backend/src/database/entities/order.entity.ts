@@ -6,6 +6,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from './user.entity';
 import { Event } from './event.entity';
@@ -27,6 +28,10 @@ export enum OrderStatus {
  * Stores detailed fee breakdowns and references to external payment processors.
  */
 @Entity('orders')
+@Index(['status'])
+@Index(['eventId', 'status'])
+@Index(['userId'])
+@Index(['specialCodeId'])
 export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;

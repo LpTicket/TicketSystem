@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from './user.entity';
 import { Event } from './event.entity';
@@ -19,6 +20,10 @@ export enum TicketStatus {
 }
 
 @Entity('tickets')
+@Index(['eventId'])
+@Index(['orderId'])
+@Index(['userId'])
+@Index(['status'])
 export class Ticket {
   @PrimaryGeneratedColumn('uuid')
   id: string;
