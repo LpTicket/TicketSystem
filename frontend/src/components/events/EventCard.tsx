@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Event } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { useLang } from '@/context/LanguageContext';
-import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineTag } from 'react-icons/hi';
+import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineTag, HiOutlinePhotograph } from 'react-icons/hi';
 import ShareEventButton from '@/components/events/ShareEventButton';
 import { getImageUrl } from '@/lib/api';
 
@@ -57,8 +57,9 @@ export default function EventCard({ event, priority = false }: EventCardProps) {
             />
           ) : null}
 
-          <div className={`absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0A375A] via-[#0A375A] to-[#F97316] transition-opacity duration-300 ${imageLoaded && event.imageUrl ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-            <span className="text-6xl">{categoryInfo?.icon || '🎫'}</span>
+          <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-gray-100 via-gray-50 to-gray-100 transition-opacity duration-300 ${imageLoaded && event.imageUrl ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            <HiOutlinePhotograph className="w-12 h-12 text-gray-400" />
+            <span className="text-xs text-gray-400 font-medium">Sin imagen</span>
           </div>
 
           <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-white/92 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-[#0A375A] shadow-sm backdrop-blur-md">
