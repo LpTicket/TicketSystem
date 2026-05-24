@@ -74,7 +74,12 @@ export class OrdersController {
       return res.status(400).send({ received: false, error: err.message });
     }
 
-    await this.ordersService.handleStripeWebhook(event);
+    try {
+      await this.ordersService.handleStripeWebhook(event);
+    } catch (err: any) {
+      console.error('❌ Webhook Processing Error:', err.message);
+      // Still return 200 so Stripe marks it as delivered; cron will recover any failed orders
+    }
     return res.status(200).send({ received: true });
   }
 
