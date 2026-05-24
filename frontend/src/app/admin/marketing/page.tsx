@@ -66,6 +66,31 @@ export default function AdminMarketingPage() {
     if (savedMobileBanner) setMobileBannerPreview(savedMobileBanner);
     if (savedMobileFileName) setMobileBannerFileName(savedMobileFileName);
     if (savedStatus === 'active' || savedStatus === 'draft') setBannerStatus(savedStatus);
+
+    api.get('/marketing/banner/home')
+      .then(({ data }) => {
+        if (!data?.imageData) return;
+
+        setBannerPreview(data.imageData);
+        setBannerFileName(data.fileName || 'banner-home');
+
+        localStorage.setItem('lpMarketingBannerPreview', data.imageData);
+        localStorage.setItem('lpMarketingBannerFileName', data.fileName || 'banner-home');
+
+        if (data.mobileImageData) {
+          setMobileBannerPreview(data.mobileImageData);
+          setMobileBannerFileName(data.mobileFileName || 'banner-home-mobile');
+
+          localStorage.setItem('lpMarketingMobileBannerPreview', data.mobileImageData);
+          localStorage.setItem('lpMarketingMobileBannerFileName', data.mobileFileName || 'banner-home-mobile');
+        }
+
+        setBannerStatus('active');
+        localStorage.setItem('lpMarketingBannerStatus', 'active');
+      })
+      .catch((error) => {
+        console.error('[load marketing banner preview error]', error);
+      });
   }, []);
 
   const handleBannerFile = (file?: File) => {
