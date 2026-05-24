@@ -20,8 +20,14 @@ export class MarketingBanner {
   @Column({ type: 'text' })
   imageData: string;
 
+  @Column({ type: 'text', nullable: true })
+  mobileImageData: string | null;
+
   @Column({ nullable: true })
   fileName: string;
+
+  @Column({ nullable: true })
+  mobileFileName: string | null;
 
   @Column({ default: true })
   isActive: boolean;
