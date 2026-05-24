@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import EventCard from '@/components/events/EventCard';
@@ -27,7 +27,17 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [category, setCategory] = useState(searchParams.get('category') || '');
 
-  useEffect(() => { loadEvents(); }, [page, category]);
+  // Skip the initial mount fetch — the server component already supplied
+  // initialEvents via ISR. Only refetch on actual user interaction.
+  const skipNextLoad = useRef(true);
+
+  useEffect(() => {
+    if (skipNextLoad.current) {
+      skipNextLoad.current = false;
+      return;
+    }
+    loadEvents();
+  }, [page, category]);
 
   const loadEvents = async () => {
     setLoading(true);
