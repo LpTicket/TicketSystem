@@ -157,6 +157,13 @@ export class OrdersController {
     }
   }
 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post('admin/recover/:orderId')
+  recoverOrder(@Param('orderId') orderId: string) {
+    return this.ordersService.fulfillPendingOrder(orderId);
+  }
+
   // Organizer endpoints
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.CLIENT, UserRole.ADMIN)

@@ -604,6 +604,42 @@ export class OrdersService {
   }
 
   /**
+   * Admin recovery: manually fulfill a PENDING order whose Stripe payment
+   * succeeded but whose webhook was never processed (network failure, wrong
+   * secret, cold-start race, etc.).
+   * Verifies payment via Stripe API before issuing tickets.
+   */
+  async fulfillPendingOrder(orderId: string) {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: ['user', 'event'],
+    });
+    if (!order) throw new NotFoundException(`Order ${orderId} not found`);
+    if (order.status !== OrderStatus.PENDING) {
+      return { alreadyProcessed: true, status: order.status, ticketCount: 0 };
+    }
+
+    // Verify payment with Stripe before issuing tickets
+    if (!this.stripe) throw new BadRequestException('Stripe not configured');
+    const sessions = await this.stripe.checkout.sessions.list({ limit: 100 });
+    const session = sessions.data.find((s: any) => s.metadata?.orderId === orderId);
+
+    if (!session) throw new NotFoundException('No Stripe session found for this order');
+    if (session.payment_status !== 'paid') {
+      throw new BadRequestException(`Payment not completed — Stripe status: ${session.payment_status}`);
+    }
+
+    // Reuse the webhook fulfillment path
+    await this.handleStripeWebhook({
+      type: 'checkout.session.completed',
+      data: { object: session },
+    });
+
+    const tickets = await this.ticketRepo.find({ where: { orderId } });
+    return { recovered: true, ticketCount: tickets.length, sessionId: session.id };
+  }
+
+  /**
    * Retrieves all orders for a specific user.
    */
   async getUserOrders(userId: string, page: number = 1, limit: number = 20) {
