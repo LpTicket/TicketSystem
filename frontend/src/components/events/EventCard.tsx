@@ -55,15 +55,13 @@ export default function EventCard({ event, priority = false }: EventCardProps) {
               onError={(e) => {
                 setImageLoaded(true);
                 (e.target as HTMLImageElement).style.display = 'none';
-                const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
-                if (fallback) fallback.style.display = 'flex';
               }}
             />
           ) : null}
 
           <div
             className="absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0A375A] via-[#0A375A] to-[#F97316]"
-            style={{ display: event.imageUrl ? 'none' : 'flex' }}
+            style={{ display: imageLoaded && event.imageUrl ? 'none' : 'flex' }}
           >
             <span className="text-6xl">{categoryInfo.icon}</span>
           </div>
