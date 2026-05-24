@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Event } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
@@ -21,10 +21,19 @@ export default function EventCard({ event, priority = false }: EventCardProps) {
   const { lang } = useLang();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   const resolvedSrc = !imageError && event.imageUrl
     ? getImageUrl(event.imageUrl) || '/demo/concert.png'
     : '/demo/concert.png';
+
+  // Fix hydration race: if image already finished loading before React hydrated,
+  // onLoad won't fire. Check img.complete on mount to catch that case.
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setImageLoaded(true);
+    }
+  }, []);
 
   const defaultCategory = {
     labelEs: 'Otro',
@@ -51,12 +60,13 @@ export default function EventCard({ event, priority = false }: EventCardProps) {
           )}
 
           <img
+            ref={imgRef}
             src={resolvedSrc}
             alt={event.title}
             loading={priority ? 'eager' : 'lazy'}
             fetchPriority={priority ? 'high' : 'auto'}
             onLoad={() => setImageLoaded(true)}
-            className={`h-full w-full object-cover transition-all duration-700 group-hover:scale-[1.035] ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className="h-full w-full object-cover transition-all duration-700 group-hover:scale-[1.035]"
             onError={() => { setImageError(true); setImageLoaded(true); }}
           />
 

@@ -207,6 +207,11 @@ export default function CreateEventPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Guard: prevent duplicate event creation from double-clicks, Enter key,
+    // or accidental re-submission after the first event is already created.
+    if (creating || createdEventId) return;
+
     setError('');
     setCreating(true);
 
