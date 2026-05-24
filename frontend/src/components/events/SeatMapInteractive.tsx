@@ -77,32 +77,38 @@ export default function SeatMapInteractive({
   /**
    * Determines if a seat is considered "unavailable" based on status or admin overrides.
    */
-  const isTemporaryHold = (seat: Seat) =>
-    seat.status === SeatStatus.LOCKED && Boolean(seat.lockExpiresAt);
+  const isActiveTemporaryHold = (seat: Seat) => {
+    if (seat.status !== SeatStatus.LOCKED || !seat.lockExpiresAt) return false;
+    return new Date(seat.lockExpiresAt).getTime() > Date.now();
+  };
+
+  const isPermanentBlock = (seat: Seat) =>
+    seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt;
 
   const isSeatUnavailable = (seat: Seat, seatOverride: any = {}) =>
     seat.status === SeatStatus.SOLD ||
-    seat.status === SeatStatus.LOCKED ||
+    isActiveTemporaryHold(seat) ||
+    isPermanentBlock(seat) ||
     !!seatOverride?.reserved;
 
   // --- Seat Styling Logic ---
   const getSeatBg = (seat: Seat, seatOverride: any, sectionColor: string, isWC: boolean, selected: boolean) => {
     if (selected) return '#f97316'; // Vivid orange for selected/cart state!
-    if (isTemporaryHold(seat)) return '#facc15'; // Temporary checkout hold
+    if (isActiveTemporaryHold(seat)) return '#facc15'; // Temporary checkout hold
     if (isSeatUnavailable(seat, seatOverride)) return '#cbd5e1'; // Sold or permanently blocked
     return isWC ? '#1a73e8' : sectionColor; // Solid vibrant section color for available!
   };
   
   const getSeatBorder = (seat: Seat, seatOverride: any, sectionColor: string, isWC: boolean, selected: boolean) => {
     if (selected) return '#ffffff';
-    if (isTemporaryHold(seat)) return '#eab308';
+    if (isActiveTemporaryHold(seat)) return '#eab308';
     if (isSeatUnavailable(seat, seatOverride)) return '#94a3b8'; // Sold or permanently blocked
     return '#ffffff'; // White border, exactly like the designer!
   };
   
   const getSeatShadow = (seat: Seat, seatOverride: any, sectionColor: string, selected: boolean) => {
     if (selected) return `0 0 0 2.5px #f97316, 0 4px 10px rgba(249,115,22,0.4)`;
-    if (isTemporaryHold(seat)) return '0 0 0 2px rgba(250,204,21,0.45)';
+    if (isActiveTemporaryHold(seat)) return '0 0 0 2px rgba(250,204,21,0.45)';
     if (isSeatUnavailable(seat, seatOverride)) return 'none';
     return '0 1.5px 3px rgba(0,0,0,0.15)';
   };
