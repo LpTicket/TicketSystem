@@ -21,7 +21,16 @@ export class MarketingBanner {
   imageData: string;
 
   @Column({ nullable: true })
-  fileName: string;
+  fileName: string | null;
+
+  @Column({ nullable: true })
+  linkUrl: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  startsAt: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  endsAt: Date | null;
 
   @Column({ default: true })
   isActive: boolean;

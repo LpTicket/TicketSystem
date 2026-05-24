@@ -18,6 +18,7 @@ type MarketingHomeBanner = {
   id: string;
   imageData: string;
   fileName?: string;
+  linkUrl?: string;
   bannerPosition?: string;
   isMarketingBanner: true;
 };
@@ -76,6 +77,7 @@ export default function HomePage() {
           id: bannerResponse.data.id || 'marketing-home-banner',
           imageData: bannerResponse.data.imageData,
           fileName: bannerResponse.data.fileName || 'Banner publicitario LPTicket',
+          linkUrl: bannerResponse.data.linkUrl || '',
           bannerPosition: 'center',
           isMarketingBanner: true,
         });
@@ -162,7 +164,7 @@ export default function HomePage() {
         <section className="home-hero-shell">
           <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
             <div className="home-hero-frame group">
-              <Link href={isMarketingBanner(bannerEvent) || usingDemo ? '#' : `/events/${bannerEvent.slug}`} className="absolute inset-0 z-[5] block overflow-hidden bg-[#0A375A]" aria-label={isMarketingBanner(bannerEvent) ? (bannerEvent.fileName || 'Banner publicitario LPTicket') : bannerEvent.title}>
+              <Link href={isMarketingBanner(bannerEvent) ? (bannerEvent.linkUrl || '#') : (usingDemo ? '#' : `/events/${bannerEvent.slug}`)} className="absolute inset-0 z-[5] block overflow-hidden bg-[#0A375A]" aria-label={isMarketingBanner(bannerEvent) ? (bannerEvent.fileName || 'Banner publicitario LPTicket') : bannerEvent.title}>
                 <AnimatePresence initial={false}>
                   <motion.img
                     key={`${bannerEvent.id}-mobile`}
