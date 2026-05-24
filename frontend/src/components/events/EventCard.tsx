@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Event } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { useLang } from '@/context/LanguageContext';
-import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineTag, HiOutlinePhotograph } from 'react-icons/hi';
+import { HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineTag } from 'react-icons/hi';
 import ShareEventButton from '@/components/events/ShareEventButton';
 import { getImageUrl } from '@/lib/api';
 
@@ -41,26 +41,19 @@ export default function EventCard({ event, priority = false }: EventCardProps) {
     <article className="event-signature-card group">
       <Link href={eventHref} className="block">
         <div className="relative aspect-[3/4] overflow-hidden bg-[#0A375A]">
-          {event.imageUrl && !imageLoaded && (
+          {!imageLoaded && (
             <div className="absolute inset-0 z-10 h-full w-full animate-shimmer" />
           )}
 
-          {event.imageUrl ? (
-            <img
-              src={getImageUrl(event.imageUrl)}
-              alt={event.title}
-              loading={priority ? 'eager' : 'lazy'}
-              fetchPriority={priority ? 'high' : 'auto'}
-              onLoad={() => setImageLoaded(true)}
-              className={`h-full w-full object-cover transition-all duration-700 group-hover:scale-[1.035] ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-              onError={() => setImageLoaded(true)}
-            />
-          ) : null}
-
-          <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-gray-100 via-gray-50 to-gray-100 transition-opacity duration-300 ${imageLoaded && event.imageUrl ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-            <HiOutlinePhotograph className="w-12 h-12 text-gray-400" />
-            <span className="text-xs text-gray-400 font-medium">Sin imagen</span>
-          </div>
+          <img
+            src={event.imageUrl ? getImageUrl(event.imageUrl) : '/demo/concert.png'}
+            alt={event.title}
+            loading={priority ? 'eager' : 'lazy'}
+            fetchPriority={priority ? 'high' : 'auto'}
+            onLoad={() => setImageLoaded(true)}
+            className={`h-full w-full object-cover transition-all duration-700 group-hover:scale-[1.035] ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onError={() => setImageLoaded(true)}
+          />
 
           <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-white/92 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-[#0A375A] shadow-sm backdrop-blur-md">
             <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
