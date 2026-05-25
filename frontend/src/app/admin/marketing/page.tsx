@@ -27,8 +27,8 @@ const channels = [
   },
   {
     title: 'Email Marketing',
-    description: 'Campanas para comunicar eventos, ofertas y novedades.',
-    status: 'Proximamente',
+    description: 'Diseña campañas premium antes de activar envíos reales.',
+    status: 'Diseño listo',
     icon: HiOutlineMail,
   },
   {
@@ -181,9 +181,9 @@ export default function AdminMarketingPage() {
             <HiOutlineSpeakerphone className="h-4 w-4" />
             Marketing
           </div>
-          <h1 className="mx-auto mt-3 max-w-[340px] text-3xl font-black leading-tight text-[#0A375A] sm:max-w-none sm:text-4xl lg:mx-0 lg:text-3xl">Banner publicitario</h1>
+          <h1 className="mx-auto mt-3 max-w-[340px] text-3xl font-black leading-tight text-[#0A375A] sm:max-w-none sm:text-4xl lg:mx-0 lg:text-3xl">Centro de marketing</h1>
           <p className="mx-auto mt-2 max-w-[360px] text-sm leading-6 text-gray-500 sm:max-w-2xl lg:mx-0 lg:max-w-3xl">
-            Sube un diseno terminado para que rote dentro del carrusel principal junto a los eventos destacados.
+            Prepara banners y diseña campañas de email premium antes de activar envíos reales.
           </p>
         </div>
 
@@ -192,7 +192,7 @@ export default function AdminMarketingPage() {
           className="inline-flex w-fit items-center justify-center gap-2 rounded-xl bg-[#F97316] px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 sm:px-5 sm:py-3 sm:text-sm lg:ml-auto"
         >
           <HiOutlineSparkles className="h-5 w-5" />
-          Nueva campana
+          Diseñar email
         </button>
       </div>
 
@@ -421,6 +421,80 @@ export default function AdminMarketingPage() {
             >
               Cambiar imagen
             </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-[#F97316]">
+              <HiOutlineMail className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-gray-950">Diseñador de Email Marketing</h2>
+              <p className="text-sm text-gray-500">Borrador visual seguro. Todavía no envía correos reales.</p>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-orange-100 bg-orange-50/50 p-4">
+            <p className="text-sm font-black text-orange-700">Fase segura</p>
+            <p className="mt-1 text-sm leading-6 text-orange-700/80">
+              Aquí podrás subir un arte hecho en Photoshop, revisar el diseño del correo y luego activar prueba al administrador en la siguiente fase.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-3">
+            <input className="input text-sm" placeholder="Nombre interno de campaña" />
+            <input className="input text-sm" placeholder="Asunto del correo" />
+            <input className="input text-sm" placeholder="Preheader / texto corto bajo el asunto" />
+            <select className="input text-sm" defaultValue="all_users">
+              <option value="all_users">Todos los usuarios</option>
+              <option value="all_buyers">Todos los compradores</option>
+              <option value="event_buyers">Compradores de un evento</option>
+            </select>
+            <input className="input text-sm" placeholder="Link del botón o evento" />
+          </div>
+
+          <div className="mt-5 flex min-h-[185px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gradient-to-br from-orange-50/40 to-white px-5 py-7 text-center">
+            <HiOutlineUpload className="h-9 w-9 text-[#F97316]" />
+            <h3 className="mt-3 text-sm font-black text-gray-950">Área para arte del email</h3>
+            <p className="mt-2 text-sm leading-6 text-gray-500">Recomendado: 1200 px de ancho, JPG optimizado, menos de 1 MB.</p>
+          </div>
+
+          <button type="button" disabled className="mt-5 inline-flex min-h-12 w-full cursor-not-allowed items-center justify-center rounded-xl bg-[#0A375A] px-5 py-3 text-sm font-black text-white opacity-50">
+            Guardar campaña próximamente
+          </button>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black text-gray-950">Preview premium</h2>
+              <p className="text-sm text-gray-500">Estructura visual propuesta para el correo.</p>
+            </div>
+            <div className="rounded-full bg-green-50 px-3 py-1 text-xs font-black text-green-600">Sin envío real</div>
+          </div>
+
+          <div className="mt-5 rounded-3xl bg-[#f5f7fb] p-4">
+            <div className="mx-auto max-w-[640px] overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl shadow-slate-200/80">
+              <div className="p-6 text-center">
+                <img src="/logo-email-orange.png" alt="LPTicket" className="mx-auto h-auto w-[180px]" />
+              </div>
+              <div className="px-4 pb-4">
+                <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-center">
+                  <div>
+                    <HiOutlinePhotograph className="mx-auto h-12 w-12 text-gray-300" />
+                    <p className="mt-3 text-sm font-black text-gray-400">Tu arte de Photoshop aparecerá aquí</p>
+                  </div>
+                </div>
+              </div>
+              <div className="px-8 pb-8 text-center">
+                <h3 className="text-2xl font-black leading-tight text-[#0A375A]">Título opcional de campaña</h3>
+                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">Texto breve opcional para acompañar la imagen principal del email.</p>
+                <div className="mt-5 inline-flex rounded-xl bg-[#F97316] px-5 py-3 text-xs font-black uppercase tracking-wide text-white">Ver evento</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
