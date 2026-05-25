@@ -23,8 +23,9 @@ export async function GET(
   const imageBuffer = await sharp(sourceBuffer, { failOn: 'none' })
     .rotate()
     .resize(1200, 630, {
-      fit: 'cover',
+      fit: 'contain',
       position: 'center',
+      background: '#050505',
       withoutEnlargement: false,
     })
     .jpeg({
