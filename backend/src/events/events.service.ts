@@ -196,7 +196,7 @@ export class EventsService {
 
     const image = kind === 'banner'
       ? event.bannerImageUrl || event.imageUrl
-      : event.imageUrl || event.bannerImageUrl;
+      : event.imageUrl;
     if (!image) {
       this.logger.warn(`[OG-IMAGE] No image found for slug: ${slug}`);
       throw new NotFoundException(`No hay imagen guardada para evento "${slug}"`);
