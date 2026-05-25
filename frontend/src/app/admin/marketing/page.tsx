@@ -167,6 +167,22 @@ export default function AdminMarketingPage() {
     }
   };
 
+  const removeMobileBanner = async () => {
+    setMobileBannerPreview('');
+    setMobileBannerFileName('');
+    setBannerStatus('draft');
+
+    localStorage.removeItem('lpMarketingMobileBannerPreview');
+    localStorage.removeItem('lpMarketingMobileBannerFileName');
+    localStorage.setItem('lpMarketingBannerStatus', 'draft');
+
+    try {
+      await api.delete('/marketing/admin/banner/home-mobile');
+    } catch (error: unknown) {
+      console.error('[remove mobile marketing banner error]', error);
+    }
+  };
+
   const publishBanner = async () => {
     if (!bannerPreview) return;
 
@@ -195,7 +211,7 @@ export default function AdminMarketingPage() {
   ];
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="mx-auto max-w-[1500px] space-y-6 px-4 pb-8 sm:px-6 lg:px-8">
       <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -413,23 +429,23 @@ export default function AdminMarketingPage() {
         </div>
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-3">
-        <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section className="grid gap-4 lg:grid-cols-3">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-[#F97316]">
-              <HiOutlineUpload className="h-6 w-6" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-50 text-[#F97316]">
+              <HiOutlineUpload className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-gray-950">Subir banner</h2>
-              <p className="text-sm text-gray-500">Arte horizontal para Home.</p>
+              <h2 className="text-base font-black text-gray-950">Subir banner</h2>
+              <p className="text-xs text-gray-500">Arte horizontal para Home.</p>
             </div>
           </div>
 
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleBannerFile(event.target.files?.[0])} />
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-5 w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-6 text-center transition hover:border-orange-200 hover:bg-orange-50/40">
-            <HiOutlineUpload className="mx-auto h-8 w-8 text-[#F97316]" />
-            <p className="mt-3 font-black text-gray-950">Cambiar banner</p>
-            <p className="mt-2 text-sm text-gray-500">Recomendado: 1600 x 520 px.</p>
+          <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-4 w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-4 text-center transition hover:border-orange-200 hover:bg-orange-50/40">
+            <HiOutlineUpload className="mx-auto h-7 w-7 text-[#F97316]" />
+            <p className="mt-2 font-black text-gray-950">Cambiar banner</p>
+            <p className="mt-1 text-xs text-gray-500">Recomendado: 1600 x 520 px.</p>
           </button>
 
           {bannerFileName && (
@@ -445,40 +461,45 @@ export default function AdminMarketingPage() {
           )}
         </div>
 
-        <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#0A375A]">
-              <HiOutlineDeviceMobile className="h-6 w-6" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-[#0A375A]">
+              <HiOutlineDeviceMobile className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-gray-950">Subir banner movil</h2>
-              <p className="text-sm text-gray-500">Flyer vertical para celulares.</p>
+              <h2 className="text-base font-black text-gray-950">Subir banner movil</h2>
+              <p className="text-xs text-gray-500">Flyer vertical para celulares.</p>
             </div>
           </div>
 
           <input ref={mobileFileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleMobileBannerFile(event.target.files?.[0])} />
-          <button type="button" onClick={() => mobileFileInputRef.current?.click()} className="mt-5 w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-6 text-center transition hover:border-blue-200 hover:bg-blue-50/40">
-            <HiOutlineDeviceMobile className="mx-auto h-8 w-8 text-[#0A375A]" />
-            <p className="mt-3 font-black text-gray-950">Cambiar flyer movil</p>
-            <p className="mt-2 text-sm text-gray-500">Recomendado: 1080 x 1440 px.</p>
+          <button type="button" onClick={() => mobileFileInputRef.current?.click()} className="mt-4 w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-4 text-center transition hover:border-blue-200 hover:bg-blue-50/40">
+            <HiOutlineDeviceMobile className="mx-auto h-7 w-7 text-[#0A375A]" />
+            <p className="mt-2 font-black text-gray-950">Cambiar flyer movil</p>
+            <p className="mt-1 text-xs text-gray-500">Recomendado: 1080 x 1440 px.</p>
           </button>
 
           {mobileBannerFileName && (
-            <div className="mt-4 rounded-2xl border border-gray-200 p-4">
-              <p className="truncate text-sm font-black text-gray-950">{mobileBannerFileName}</p>
-              <p className="text-xs font-bold text-gray-500">Movil</p>
+            <div className="mt-4 flex items-center justify-between rounded-2xl border border-gray-200 p-4">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-gray-950">{mobileBannerFileName}</p>
+                <p className="text-xs font-bold text-gray-500">Movil</p>
+              </div>
+              <button type="button" onClick={removeMobileBanner} className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500">
+                <HiOutlineX className="h-5 w-5" />
+              </button>
             </div>
           )}
         </div>
 
-        <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-50 text-green-600">
-              <HiOutlineBadgeCheck className="h-6 w-6" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-green-50 text-green-600">
+              <HiOutlineBadgeCheck className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-gray-950">Publicacion</h2>
-              <p className="text-sm text-gray-500">Guarda el banner en el Home.</p>
+              <h2 className="text-base font-black text-gray-950">Publicacion</h2>
+              <p className="text-xs text-gray-500">Guarda el banner en el Home.</p>
             </div>
           </div>
 
@@ -489,7 +510,7 @@ export default function AdminMarketingPage() {
             </p>
           </div>
 
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row lg:flex-col">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row lg:flex-col">
             <button type="button" onClick={publishBanner} disabled={!bannerPreview} className="rounded-2xl bg-[#0A375A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300">
               Publicar banner
             </button>
