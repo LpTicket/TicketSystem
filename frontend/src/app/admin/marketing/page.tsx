@@ -356,10 +356,11 @@ export default function AdminMarketingPage() {
           <div className="mt-6 rounded-[2rem] bg-slate-100 p-4 sm:p-6">
             <div className="overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-sm">
               <div className="p-6 text-center">
-                <div className="mx-auto inline-flex items-center gap-3 text-[#F97316]">
-                  <div className="rounded-2xl bg-[#F97316] px-3 py-2 text-xl font-black text-white">LP</div>
-                  <span className="text-3xl font-black">LPTicket</span>
-                </div>
+                <img
+                  src="/logo.png"
+                  alt="LP Ticket"
+                  className="mx-auto h-14 w-auto object-contain"
+                />
               </div>
 
               {emailArtPreview ? (
@@ -454,8 +455,8 @@ export default function AdminMarketingPage() {
                 <p className="truncate text-sm font-black text-gray-950">{bannerFileName}</p>
                 <p className="text-xs font-bold text-gray-500">Estado: {bannerStatus === 'active' ? 'Publicado' : 'Borrador'}</p>
               </div>
-              <button type="button" onClick={removeBanner} className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500">
-                <HiOutlineX className="h-5 w-5" />
+              <button type="button" onClick={removeBanner} className="group flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:bg-red-100 hover:text-red-600 hover:shadow-lg active:translate-y-0 active:scale-95">
+                <HiOutlineX className="h-5 w-5 transition-transform duration-200 group-hover:rotate-90" />
               </button>
             </div>
           )}
@@ -485,8 +486,8 @@ export default function AdminMarketingPage() {
                 <p className="truncate text-sm font-black text-gray-950">{mobileBannerFileName}</p>
                 <p className="text-xs font-bold text-gray-500">Movil</p>
               </div>
-              <button type="button" onClick={removeMobileBanner} className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500">
-                <HiOutlineX className="h-5 w-5" />
+              <button type="button" onClick={removeMobileBanner} className="group flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:bg-red-100 hover:text-red-600 hover:shadow-lg active:translate-y-0 active:scale-95">
+                <HiOutlineX className="h-5 w-5 transition-transform duration-200 group-hover:rotate-90" />
               </button>
             </div>
           )}
