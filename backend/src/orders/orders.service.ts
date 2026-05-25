@@ -585,7 +585,7 @@ export class OrdersService {
       try {
         const fullOrder = await this.orderRepo.findOne({
           where: { id: orderId },
-          relations: ['user', 'event'],
+          relations: ['user', 'event', 'event.organizer'],
         });
         if (fullOrder && fullOrder.user) {
           const buyerEmail = session.customer_details?.email || session.metadata?.buyerEmail || fullOrder.user.email;
@@ -605,6 +605,7 @@ export class OrdersService {
               lpFee: Number(fullOrder.lpFee || 0),
               processingFee: Number(fullOrder.processingFee || 0),
               total: Number(fullOrder.total || 0),
+              organizerEmail: fullOrder.event.organizer?.email || null,
             },
           );
         }

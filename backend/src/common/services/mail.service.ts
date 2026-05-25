@@ -40,6 +40,7 @@ export class MailService {
       lpFee?: number;
       processingFee?: number;
       total?: number;
+      organizerEmail?: string | null;
     },
   ) {
     const appUrl = this.getAppUrl();
@@ -273,11 +274,19 @@ export class MailService {
         };
       });
 
+    const bccRecipients = Array.from(new Set([
+      this.configService.get('ADMIN_EMAIL'),
+      eventInfo?.organizerEmail,
+    ]
+      .filter((email): email is string => Boolean(email && email.trim()))
+      .map((email) => email.trim())))
+      .filter((email) => email.toLowerCase() !== String(to || '').trim().toLowerCase());
+
     try {
       await this.transporter.sendMail({
         from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
         to,
-        bcc: this.configService.get('ADMIN_EMAIL'),
+        ...(bccRecipients.length > 0 ? { bcc: bccRecipients } : {}),
         subject: `Tus tickets para ${eventTitle} — LPTicket`,
         html,
         attachments,
