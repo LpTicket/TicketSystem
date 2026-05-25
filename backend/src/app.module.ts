@@ -17,6 +17,8 @@ import { SpecialCodesModule } from './special-codes/special-codes.module';
 import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout } from './database/entities';
 import { MarketingModule } from './marketing/marketing.module';
 import { MarketingBanner } from './marketing/marketing-banner.entity';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { AnalyticsPageView } from './analytics/analytics-page-view.entity';
 
 @Module({
   imports: [
@@ -36,7 +38,7 @@ import { MarketingBanner } from './marketing/marketing-banner.entity';
             password: config.get<string>('DB_PASSWORD'),
             database: config.get<string>('DB_NAME'),
           }),
-          entities: [MarketingBanner, User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout],
+          entities: [MarketingBanner, AnalyticsPageView, User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout],
           synchronize: true,
           logging: false,
           ssl: isProd ? { rejectUnauthorized: false } : false,
@@ -56,6 +58,7 @@ import { MarketingBanner } from './marketing/marketing-banner.entity';
     SocialMatchModule,
     SpecialCodesModule,
     MarketingModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}
