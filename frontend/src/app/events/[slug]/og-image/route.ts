@@ -22,11 +22,11 @@ export async function GET(
   const sourceBuffer = Buffer.from(await response.arrayBuffer());
   const imageBuffer = await sharp(sourceBuffer, { failOn: 'none' })
     .rotate()
-    .resize(1200, 630, {
-      fit: 'contain',
-      position: 'center',
-      background: '#050505',
-      withoutEnlargement: false,
+    .resize({
+      width: 1080,
+      height: 1350,
+      fit: 'inside',
+      withoutEnlargement: true,
     })
     .jpeg({
       quality: 82,

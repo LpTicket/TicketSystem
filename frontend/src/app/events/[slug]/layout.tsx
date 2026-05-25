@@ -142,8 +142,8 @@ export async function generateMetadata({
         images: [
           {
             url: image,
-            width: 1200,
-            height: 630,
+            width: 1080,
+            height: 1350,
             alt: `${eventName} - LP Ticket`,
           },
         ],
