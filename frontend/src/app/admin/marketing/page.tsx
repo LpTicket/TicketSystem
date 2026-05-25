@@ -211,7 +211,7 @@ export default function AdminMarketingPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6 px-4 pb-8 sm:px-6 lg:px-8">
+    <div className="space-y-6 pb-8">
       <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
