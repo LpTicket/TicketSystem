@@ -72,6 +72,10 @@ export class MarketingService {
       { isActive: false },
     );
 
+    return { ok: true };
+  }
+
+  async removeHomeMobileBanner() {
     await this.bannerRepo.update(
       { placement: 'home-mobile', isActive: true },
       { isActive: false },

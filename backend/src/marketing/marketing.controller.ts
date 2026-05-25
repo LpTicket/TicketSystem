@@ -27,4 +27,11 @@ export class MarketingController {
   async removeHomeBanner() {
     return this.marketingService.removeHomeBanner();
   }
+
+  @Delete('admin/banner/home-mobile')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async removeHomeMobileBanner() {
+    return this.marketingService.removeHomeMobileBanner();
+  }
 }
