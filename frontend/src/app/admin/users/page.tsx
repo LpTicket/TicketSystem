@@ -266,12 +266,15 @@ export default function AdminUsersPage() {
           {/* Desktop Table View */}
           <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                  <p className="text-sm font-bold text-gray-500">Usuarios registrados</p>
-                  <p className="mt-3 text-3xl font-black text-[#0A375A]">{users.length}</p>
-                </div>
-              </div>
+      <div className="mb-4 inline-flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-5 py-3 shadow-sm">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A375A]/5 text-[#0A375A]">
+          <span className="text-sm font-black">US</span>
+        </div>
+        <div>
+          <p className="text-xs font-black uppercase tracking-wide text-gray-400">Usuarios registrados</p>
+          <p className="text-2xl font-black text-[#0A375A]">{users.length}</p>
+        </div>
+      </div>
 
               <table className="w-full">
                 <thead>
