@@ -20,11 +20,13 @@ import {
   HiStar,
   HiOutlineCog,
   HiOutlineCurrencyDollar,
+  HiOutlineEye,
+  HiOutlineEyeOff,
 } from 'react-icons/hi';
 import Link from 'next/link';
 
 // Stale-while-revalidate cache key for the admin events list
-const ADMIN_EVENTS_CACHE_KEY = 'admin_events_cache_v1';
+const ADMIN_EVENTS_CACHE_KEY = 'admin_events_cache_v2';
 
 type AdminEventsCache = {
   events: Event[];
@@ -315,6 +317,15 @@ export default function AdminEventsPage() {
     }
   };
 
+  const handleTogglePublicVisibility = async (id: string) => {
+    try {
+      await api.patch(`/admin/events/${id}/toggle-public-visibility`);
+      await loadEvents();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error');
+    }
+  };
+
   const dateFnsLocale = lang === 'es' ? es : enUS;
 
   const handleApproveAll = async (eventId: string) => {
@@ -477,6 +488,18 @@ export default function AdminEventsPage() {
                                 {ev.isFeatured ? <HiStar className="w-4.5 h-4.5 text-amber-500 fill-amber-500 shrink-0" /> : <HiOutlineStar className="w-4.5 h-4.5 text-gray-500 shrink-0" />}
                                 <span>{ev.isFeatured ? (lang === 'es' ? 'Banner Activo' : 'Banner Active') : (lang === 'es' ? 'Poner Banner' : 'Set Banner')}</span>
                               </button>
+                              <button
+                                onClick={() => handleTogglePublicVisibility(ev.id)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 active:scale-95 ${
+                                  ev.publicVisible === false
+                                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                                    : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100'
+                                }`}
+                                title={ev.publicVisible === false ? (lang === 'es' ? 'Oculto de Home y Eventos' : 'Hidden from Home and Events') : (lang === 'es' ? 'Visible en Home y Eventos' : 'Visible on Home and Events')}
+                              >
+                                {ev.publicVisible === false ? <HiOutlineEyeOff className="w-4.5 h-4.5 shrink-0" /> : <HiOutlineEye className="w-4.5 h-4.5 shrink-0" />}
+                                <span>{ev.publicVisible === false ? (lang === 'es' ? 'Oculto' : 'Hidden') : (lang === 'es' ? 'Visible' : 'Visible')}</span>
+                              </button>
                             </div>
                           )}
                           {hasPendingChanges(ev) && (
@@ -576,17 +599,30 @@ export default function AdminEventsPage() {
                     )}
                     
                     {ev.status === 'published' && (
-                      <button
-                        onClick={() => handleToggleFeatured(ev.id)}
-                        className={`flex-1 text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-sm border ${
-                          ev.isFeatured
-                            ? 'bg-amber-100 text-amber-800 border-amber-200'
-                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                        }`}
-                      >
-                        {ev.isFeatured ? <HiStar className="w-4 h-4 text-amber-500 fill-amber-500" /> : <HiOutlineStar className="w-4 h-4 text-gray-400" />}
-                        {ev.isFeatured ? (lang === 'es' ? 'BANNER ACTIVO' : 'BANNER ACTIVE') : (lang === 'es' ? 'PONER BANNER' : 'SET BANNER')}
-                      </button>
+                      <div className="grid grid-cols-2 gap-2 w-full">
+                        <button
+                          onClick={() => handleToggleFeatured(ev.id)}
+                          className={`text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-sm border ${
+                            ev.isFeatured
+                              ? 'bg-amber-100 text-amber-800 border-amber-200'
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          {ev.isFeatured ? <HiStar className="w-4 h-4 text-amber-500 fill-amber-500" /> : <HiOutlineStar className="w-4 h-4 text-gray-400" />}
+                          {ev.isFeatured ? (lang === 'es' ? 'BANNER ACTIVO' : 'BANNER ACTIVE') : (lang === 'es' ? 'PONER BANNER' : 'SET BANNER')}
+                        </button>
+                        <button
+                          onClick={() => handleTogglePublicVisibility(ev.id)}
+                          className={`text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-sm border ${
+                            ev.publicVisible === false
+                              ? 'bg-gray-100 text-gray-700 border-gray-200'
+                              : 'bg-blue-50 text-blue-700 border-blue-100'
+                          }`}
+                        >
+                          {ev.publicVisible === false ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
+                          {ev.publicVisible === false ? (lang === 'es' ? 'OCULTO' : 'HIDDEN') : (lang === 'es' ? 'VISIBLE' : 'VISIBLE')}
+                        </button>
+                      </div>
                     )}
 
                     {hasPendingChanges(ev) && (

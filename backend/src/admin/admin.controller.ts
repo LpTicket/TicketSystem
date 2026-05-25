@@ -93,6 +93,11 @@ export class AdminController {
     return this.adminService.toggleFeatured(id);
   }
 
+  @Patch('events/:id/toggle-public-visibility')
+  togglePublicVisibility(@Param('id') id: string) {
+    return this.adminService.togglePublicVisibility(id);
+  }
+
   @Delete('events/:id')
   deleteEvent(@Param('id') id: string) {
     return this.adminService.deleteEvent(id);

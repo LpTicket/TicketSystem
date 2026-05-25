@@ -92,7 +92,7 @@ export class EventsService {
     const skip = (page - 1) * limit;
 
     const { MoreThanOrEqual, LessThanOrEqual, Between } = require('typeorm');
-    const where: any = { status: EventStatus.PUBLISHED };
+    const where: any = { status: EventStatus.PUBLISHED, publicVisible: true };
 
     // Filter out past events by default to ensure buyers only see upcoming shows
     if (query.includePast !== 'true' && !query.startDate) {
@@ -150,6 +150,7 @@ export class EventsService {
       where: { 
         status: EventStatus.PUBLISHED, 
         isFeatured: true,
+        publicVisible: true,
         eventDate: MoreThanOrEqual(new Date())
       },
       order: { eventDate: 'ASC' },

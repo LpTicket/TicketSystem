@@ -52,6 +52,7 @@ export interface Event {
   doorsOpen?: string;
   status: EventStatus;
   isFeatured: boolean;
+  publicVisible?: boolean;
   minPrice?: number;
   maxPrice?: number;
   currency?: string;

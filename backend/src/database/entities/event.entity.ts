@@ -106,6 +106,9 @@ export class Event {
   @Column({ default: false })
   isFeatured: boolean;
 
+  @Column({ default: true })
+  publicVisible: boolean;
+
   /** Denotes the cheapest ticket price available for search sorting */
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   minPrice: number;

@@ -90,6 +90,10 @@ export class UpdateEventDto {
   isFeatured?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  publicVisible?: boolean;
+
+  @IsOptional()
   @IsString()
   currency?: string;
 
