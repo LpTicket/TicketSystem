@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { VenueSection, Seat, SeatStatus } from '@/types';
+import { formatSeatLabel } from '@/lib/seatLabel';
 import { HiOutlineZoomIn, HiOutlineZoomOut, HiOutlineArrowLeft } from 'react-icons/hi';
 import { FaWheelchair } from 'react-icons/fa';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -34,6 +35,17 @@ const MAX_ZOOM = 2.5;
 const ZOOM_STEP = 0.25;
 const FIT_PADDING = 56;
 
+type SeatInfoCard = {
+  id: string;
+  title: string;
+  subtitle: string;
+  price: number;
+  status: string;
+  statusClass: string;
+  x: number;
+  y: number;
+};
+
 /**
  * SeatMapInteractive Component
  * A high-performance interactive seat map component.
@@ -55,6 +67,8 @@ export default function SeatMapInteractive({
   // State for camera/view transformation
   const [zoom, setZoom] = useState(0.8);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [hoveredSeatInfo, setHoveredSeatInfo] = useState<SeatInfoCard | null>(null);
+  const [pinnedSeatInfo, setPinnedSeatInfo] = useState<SeatInfoCard | null>(null);
   
   // focusedSection tracks if the user is "inside" a specific section view
   const [focusedSection, setFocusedSection] = useState<string | null>(null);
@@ -228,6 +242,97 @@ export default function SeatMapInteractive({
     }
     return Number(section.price || 0);
   };
+
+  const getPointerPosition = (e: React.MouseEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    return {
+      x: rect ? e.clientX - rect.left : 0,
+      y: rect ? e.clientY - rect.top : 0,
+    };
+  };
+
+  const getSeatStatusMeta = (seat: Seat, seatOverride: any, selected: boolean) => {
+    if (selected) {
+      return {
+        label: lang === 'es' ? 'Seleccionado' : 'Selected',
+        className: 'bg-orange-50 text-orange-700 border-orange-200',
+      };
+    }
+
+    if (seatOverride?.reserved) {
+      return {
+        label: lang === 'es' ? 'Reservado' : 'Reserved',
+        className: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+      };
+    }
+
+    if (seat.status === SeatStatus.SOLD) {
+      return {
+        label: lang === 'es' ? 'Vendido' : 'Sold',
+        className: 'bg-slate-100 text-slate-500 border-slate-200',
+      };
+    }
+
+    if (seat.status === SeatStatus.LOCKED) {
+      return {
+        label: lang === 'es' ? 'Bloqueado' : 'Locked',
+        className: 'bg-slate-100 text-slate-500 border-slate-200',
+      };
+    }
+
+    return {
+      label: lang === 'es' ? 'Disponible' : 'Available',
+      className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    };
+  };
+
+  const buildSeatInfo = (
+    e: React.MouseEvent,
+    section: VenueSection,
+    seat: Seat,
+    seatOverride: any,
+    selected: boolean
+  ): SeatInfoCard => {
+    const pos = getPointerPosition(e);
+    const status = getSeatStatusMeta(seat, seatOverride, selected);
+    const seatName = formatSeatLabel(seat as any, section as any, lang);
+
+    return {
+      id: seat.id,
+      title: seatName,
+      subtitle: section.name,
+      price: getSeatPrice(seat, section),
+      status: status.label,
+      statusClass: status.className,
+      x: pos.x,
+      y: pos.y,
+    };
+  };
+
+  const buildTableInfo = (e: React.MouseEvent, section: VenueSection, isUnavailable: boolean, selected: boolean): SeatInfoCard => {
+    const pos = getPointerPosition(e);
+    const availableSeats = (section.seats || []).filter((seat) => seat.status === SeatStatus.AVAILABLE).length;
+    return {
+      id: `table-${section.id}`,
+      title: section.name,
+      subtitle: lang === 'es' ? `${availableSeats} sillas disponibles` : `${availableSeats} chairs available`,
+      price: Number(section.price || 0),
+      status: selected
+        ? (lang === 'es' ? 'Seleccionada' : 'Selected')
+        : isUnavailable
+          ? (lang === 'es' ? 'No disponible' : 'Unavailable')
+          : (lang === 'es' ? 'Disponible' : 'Available'),
+      statusClass: selected
+        ? 'bg-orange-50 text-orange-700 border-orange-200'
+        : isUnavailable
+          ? 'bg-slate-100 text-slate-500 border-slate-200'
+          : 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      x: pos.x,
+      y: pos.y,
+    };
+  };
+
+  const activeSeatInfo = pinnedSeatInfo || hoveredSeatInfo;
 
   /**
    * Zooms in relative to the container center.
@@ -629,11 +734,25 @@ export default function SeatMapInteractive({
                               width: '60%', height: '60%',
                               cursor: isTableFullyUnavailable ? 'not-allowed' : 'pointer',
                             }}
+                            onMouseEnter={(e) => {
+                              const allSeats = section.seats || [];
+                              const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                              setHoveredSeatInfo(buildTableInfo(e, section as VenueSection, isTableFullyUnavailable, isTableSelected));
+                            }}
+                            onMouseMove={(e) => {
+                              if (!pinnedSeatInfo) {
+                                const allSeats = section.seats || [];
+                                const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                                setHoveredSeatInfo(buildTableInfo(e, section as VenueSection, isTableFullyUnavailable, isTableSelected));
+                              }
+                            }}
+                            onMouseLeave={() => setHoveredSeatInfo(null)}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (isTableFullyUnavailable) return;
                               const allSeats = section.seats || [];
                               const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                              setPinnedSeatInfo(isTableSelected ? null : buildTableInfo(e, section as VenueSection, isTableFullyUnavailable, false));
                               if (isTableSelected) {
                                 onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
                               } else {
@@ -688,12 +807,18 @@ export default function SeatMapInteractive({
                                     cursor: isSeatUnavailable(seat, seatOverride) && !selected ? 'not-allowed' : 'pointer',
                                     pointerEvents: 'auto'
                                   }}
+                                  onMouseEnter={(e) => setHoveredSeatInfo(buildSeatInfo(e, section as VenueSection, seat, seatOverride, selected))}
+                                  onMouseMove={(e) => {
+                                    if (!pinnedSeatInfo) setHoveredSeatInfo(buildSeatInfo(e, section as VenueSection, seat, seatOverride, selected));
+                                  }}
+                                  onMouseLeave={() => setHoveredSeatInfo(null)}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
                                     const seatKey = `seat-${seat.seatNumber}`;
                                     const seatOverride = overrides[seatKey] || {};
                                     if (isSeatUnavailable(seat, seatOverride) && !selected) return;
+                                    setPinnedSeatInfo(selected ? null : buildSeatInfo(e, section as VenueSection, seat, seatOverride, false));
                                     if (section.tablePurchaseMode === 'whole') {
                                       const allSeats = section.seats || [];
                                       const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
@@ -722,11 +847,25 @@ export default function SeatMapInteractive({
                               width: '70%', height: '45%',
                               cursor: isTableFullyUnavailable ? 'not-allowed' : 'pointer',
                             }}
+                            onMouseEnter={(e) => {
+                              const allSeats = section.seats || [];
+                              const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                              setHoveredSeatInfo(buildTableInfo(e, section as VenueSection, isTableFullyUnavailable, isTableSelected));
+                            }}
+                            onMouseMove={(e) => {
+                              if (!pinnedSeatInfo) {
+                                const allSeats = section.seats || [];
+                                const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                                setHoveredSeatInfo(buildTableInfo(e, section as VenueSection, isTableFullyUnavailable, isTableSelected));
+                              }
+                            }}
+                            onMouseLeave={() => setHoveredSeatInfo(null)}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (isTableFullyUnavailable) return;
                               const allSeats = section.seats || [];
                               const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
+                              setPinnedSeatInfo(isTableSelected ? null : buildTableInfo(e, section as VenueSection, isTableFullyUnavailable, false));
                               if (isTableSelected) {
                                 onToggleSeats(allSeats.filter(s => isSeatSelected(s.id)));
                               } else {
@@ -801,10 +940,16 @@ export default function SeatMapInteractive({
                                     cursor: isSeatUnavailable(seat, seatOverride) && !selected ? 'not-allowed' : 'pointer',
                                     pointerEvents: 'auto'
                                   }}
+                                  onMouseEnter={(e) => setHoveredSeatInfo(buildSeatInfo(e, section as VenueSection, seat, seatOverride, selected))}
+                                  onMouseMove={(e) => {
+                                    if (!pinnedSeatInfo) setHoveredSeatInfo(buildSeatInfo(e, section as VenueSection, seat, seatOverride, selected));
+                                  }}
+                                  onMouseLeave={() => setHoveredSeatInfo(null)}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     const overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
                                     if (isSeatUnavailable(seat, overrides[`seat-${seat.seatNumber}`]) && !selected) return;
+                                    setPinnedSeatInfo(selected ? null : buildSeatInfo(e, section as VenueSection, seat, seatOverride, false));
                                     if (section.tablePurchaseMode === 'whole') {
                                       const allSeats = section.seats || [];
                                       const isTableSelected = allSeats.some(s => isSeatSelected(s.id));
@@ -885,9 +1030,17 @@ export default function SeatMapInteractive({
                             cursor: isSeatUnavailable(seat, seatOverride) && !selected ? 'not-allowed' : 'pointer',
                             pointerEvents: 'auto'
                           }}
+                          onMouseEnter={(e) => setHoveredSeatInfo(buildSeatInfo(e, section as VenueSection, seat, seatOverride, selected))}
+                          onMouseMove={(e) => {
+                            if (!pinnedSeatInfo) setHoveredSeatInfo(buildSeatInfo(e, section as VenueSection, seat, seatOverride, selected));
+                          }}
+                          onMouseLeave={() => setHoveredSeatInfo(null)}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (!isSeatUnavailable(seat, seatOverride) || selected) onToggleSeats([seat]);
+                            if (!isSeatUnavailable(seat, seatOverride) || selected) {
+                              setPinnedSeatInfo(selected ? null : buildSeatInfo(e, section as VenueSection, seat, seatOverride, false));
+                              onToggleSeats([seat]);
+                            }
                           }}
                           disabled={isSeatUnavailable(seat, seatOverride) && !selected}
                         >
@@ -902,6 +1055,43 @@ export default function SeatMapInteractive({
         })}
 
         </div>
+
+        <AnimatePresence>
+          {activeSeatInfo && (
+            <motion.div
+              key={activeSeatInfo.id}
+              initial={{ opacity: 0, y: 8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              transition={{ duration: 0.12 }}
+              className="pointer-events-none absolute z-[70] w-48 rounded-2xl border border-slate-200 bg-white/95 p-3 text-left shadow-2xl shadow-slate-900/15 backdrop-blur"
+              style={{
+                left: Math.min(Math.max(activeSeatInfo.x + 14, 12), (containerRef.current?.clientWidth || 240) - 204),
+                top: Math.min(Math.max(activeSeatInfo.y - 18, 12), (containerRef.current?.clientHeight || 240) - 116),
+              }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-[#0A375A]">{activeSeatInfo.title}</p>
+                  <p className="truncate text-[11px] font-bold text-slate-400">{activeSeatInfo.subtitle}</p>
+                </div>
+                {pinnedSeatInfo && pinnedSeatInfo.id === activeSeatInfo.id && (
+                  <span className="rounded-full bg-orange-100 px-1.5 py-0.5 text-[9px] font-black text-orange-700">
+                    {lang === 'es' ? 'FIJO' : 'PIN'}
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className={`rounded-full border px-2 py-1 text-[10px] font-black ${activeSeatInfo.statusClass}`}>
+                  {activeSeatInfo.status}
+                </span>
+                <span className="text-sm font-black text-slate-900">
+                  ${activeSeatInfo.price.toFixed(2)}
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Sticky Bottom Toolbar (Seats.io Style) */}
         <AnimatePresence>
