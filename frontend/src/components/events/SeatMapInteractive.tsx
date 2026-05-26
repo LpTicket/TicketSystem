@@ -29,9 +29,10 @@ interface SeatMapInteractiveProps {
   showStage?: boolean;
 }
 
-const MIN_ZOOM = 0.5;
+const MIN_ZOOM = 0.12;
 const MAX_ZOOM = 2.5;
 const ZOOM_STEP = 0.25;
+const FIT_PADDING = 56;
 
 /**
  * SeatMapInteractive Component
@@ -71,6 +72,97 @@ export default function SeatMapInteractive({
       ? seatMap.filter((s) => s.id === filterSectionId)
       : seatMap;
   }, [seatMap, filterSectionId]);
+
+  const getMapBounds = useCallback((mapSections = sections) => {
+    if (!mapSections.length) return null;
+
+    return mapSections.reduce(
+      (bounds, section) => {
+        const x = section.mapX || 0;
+        const y = section.mapY || 0;
+        const width = section.mapWidth || 100;
+        const height = section.mapHeight || 100;
+
+        return {
+          minX: Math.min(bounds.minX, x),
+          minY: Math.min(bounds.minY, y),
+          maxX: Math.max(bounds.maxX, x + width),
+          maxY: Math.max(bounds.maxY, y + height),
+        };
+      },
+      { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+    );
+  }, [sections]);
+
+  const clampPan = useCallback((nextPan: { x: number; y: number }, nextZoom: number, mapSections = sections) => {
+    if (!containerRef.current) return nextPan;
+    const bounds = getMapBounds(mapSections);
+    if (!bounds) return nextPan;
+
+    const cw = containerRef.current.clientWidth || 800;
+    const ch = containerRef.current.clientHeight || 500;
+
+    const clampAxis = (
+      value: number,
+      minContent: number,
+      maxContent: number,
+      viewport: number
+    ) => {
+      const contentSize = (maxContent - minContent) * nextZoom;
+      const centerPan = viewport / 2 - ((minContent + maxContent) / 2) * nextZoom;
+
+      if (contentSize <= Math.max(0, viewport - FIT_PADDING * 2)) {
+        return centerPan;
+      }
+
+      const minPan = viewport - FIT_PADDING - maxContent * nextZoom;
+      const maxPan = FIT_PADDING - minContent * nextZoom;
+      return Math.min(maxPan, Math.max(minPan, value));
+    };
+
+    return {
+      x: clampAxis(nextPan.x, bounds.minX, bounds.maxX, cw),
+      y: clampAxis(nextPan.y, bounds.minY, bounds.maxY, ch),
+    };
+  }, [getMapBounds, sections]);
+
+  const getFitView = useCallback((mapSections = sections) => {
+    if (!containerRef.current) return null;
+    const bounds = getMapBounds(mapSections);
+    if (!bounds) return null;
+
+    const cw = containerRef.current.clientWidth;
+    const ch = containerRef.current.clientHeight;
+    if (cw === 0 || ch === 0) return null;
+
+    const contentW = Math.max(1, bounds.maxX - bounds.minX);
+    const contentH = Math.max(1, bounds.maxY - bounds.minY);
+    const padding = Math.min(FIT_PADDING, Math.max(24, Math.min(cw, ch) * 0.08));
+    const zoomX = (cw - padding * 2) / contentW;
+    const zoomY = (ch - padding * 2) / contentH;
+    const fitZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.min(zoomX, zoomY)));
+    const rawPan = {
+      x: cw / 2 - ((bounds.minX + bounds.maxX) / 2) * fitZoom,
+      y: ch / 2 - ((bounds.minY + bounds.maxY) / 2) * fitZoom,
+    };
+
+    return {
+      zoom: fitZoom,
+      pan: clampPan(rawPan, fitZoom, mapSections),
+    };
+  }, [clampPan, getMapBounds, sections]);
+
+  const fitViewRef = useRef({ zoom: 0.8, pan: { x: 0, y: 0 } });
+
+  const applyFitView = useCallback(() => {
+    const fitView = getFitView();
+    if (!fitView) return;
+
+    fitViewRef.current = fitView;
+    setZoom(fitView.zoom);
+    setPan(fitView.pan);
+    setFocusedSection(null);
+  }, [getFitView]);
 
   const isSeatSelected = (id: string) => selectedSeats.some((s) => s.id === id);
 
@@ -156,10 +248,7 @@ export default function SeatMapInteractive({
     const newY = my - (my - pan.y) * ratio;
 
     setZoom(newZoom);
-    setPan({
-      x: Math.min(cw - 100, Math.max(-2000 * newZoom + 100, newX)),
-      y: Math.min(ch - 100, Math.max(-1600 * newZoom + 100, newY)),
-    });
+    setPan(clampPan({ x: newX, y: newY }, newZoom));
   };
 
   /**
@@ -173,7 +262,8 @@ export default function SeatMapInteractive({
     const my = ch / 2;
 
     const oldZoom = zoom;
-    const newZoom = Math.max(zoom - ZOOM_STEP, MIN_ZOOM);
+    const minZoom = fitViewRef.current.zoom || MIN_ZOOM;
+    const newZoom = Math.max(zoom - ZOOM_STEP, minZoom);
     if (newZoom === oldZoom) return;
 
     const ratio = newZoom / oldZoom;
@@ -181,28 +271,14 @@ export default function SeatMapInteractive({
     const newY = my - (my - pan.y) * ratio;
 
     setZoom(newZoom);
-    setPan({
-      x: Math.min(cw - 100, Math.max(-2000 * newZoom + 100, newX)),
-      y: Math.min(ch - 100, Math.max(-1600 * newZoom + 100, newY)),
-    });
+    setPan(newZoom <= minZoom + 0.001 ? fitViewRef.current.pan : clampPan({ x: newX, y: newY }, newZoom));
   };
   
   /**
    * Resets view to the initial state or provided defaults.
    */
   const resetView = () => {
-    if (
-      typeof defaultViewX === 'number' &&
-      typeof defaultViewY === 'number' &&
-      typeof defaultViewZoom === 'number'
-    ) {
-      setZoom(defaultViewZoom);
-      setPan({ x: defaultViewX, y: defaultViewY });
-    } else {
-      setZoom(0.8);
-      setPan({ x: 0, y: 0 });
-    }
-    setFocusedSection(null);
+    applyFitView();
   };
 
   const initializedRef = useRef(false);
@@ -213,50 +289,15 @@ export default function SeatMapInteractive({
    */
   useEffect(() => {
     if (initializedRef.current) return;
-    if (!containerRef.current) return;
-    
-    const cw = containerRef.current.clientWidth;
-    const ch = containerRef.current.clientHeight;
-    if (cw === 0 || ch === 0) return;
 
-    if (
-      typeof defaultViewX === 'number' &&
-      typeof defaultViewY === 'number' &&
-      typeof defaultViewZoom === 'number'
-    ) {
-      setPan({ x: defaultViewX, y: defaultViewY });
-      setZoom(defaultViewZoom);
-    } else {
-      // Calculate map bounds
-      let minX = 2000, minY = 1600, maxX = 0, maxY = 0;
-      seatMap.forEach(sec => {
-        if ((sec.mapX || 0) < minX) minX = sec.mapX || 0;
-        if ((sec.mapY || 0) < minY) minY = sec.mapY || 0;
-        if ((sec.mapX || 0) + (sec.mapWidth || 100) > maxX) maxX = (sec.mapX || 0) + (sec.mapWidth || 100);
-        if ((sec.mapY || 0) + (sec.mapHeight || 100) > maxY) maxY = (sec.mapY || 0) + (sec.mapHeight || 100);
-      });
+    const fitView = getFitView();
+    if (!fitView) return;
 
-      if (seatMap.length > 0 && maxX > minX) {
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
-        const contentW = maxX - minX;
-        const contentH = maxY - minY;
-        const zoomX = cw / (contentW + 200);
-        const zoomY = ch / (contentH + 200);
-        const autoZoom = Math.min(zoomX, zoomY, 1.5);
-        setZoom(autoZoom);
-        setPan({
-          x: cw / 2 - cx * autoZoom,
-          y: ch / 2 - cy * autoZoom
-        });
-      } else {
-        // Default fallback position
-        setZoom(0.8);
-        setPan({ x: cw / 2 - 1000 * 0.8, y: ch / 4 - 60 * 0.8 });
-      }
-    }
+    fitViewRef.current = fitView;
+    setZoom(fitView.zoom);
+    setPan(fitView.pan);
     initializedRef.current = true;
-  }, [defaultViewX, defaultViewY, defaultViewZoom, seatMap]);
+  }, [getFitView]);
 
   /**
    * Smoothly pans and zooms the camera into a specific section.
@@ -307,7 +348,8 @@ export default function SeatMapInteractive({
       
       const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
       const oldZoom = zoom;
-      const newZoom = Math.min(Math.max(oldZoom + delta, MIN_ZOOM), MAX_ZOOM);
+      const minZoom = fitViewRef.current.zoom || MIN_ZOOM;
+      const newZoom = Math.min(Math.max(oldZoom + delta, minZoom), MAX_ZOOM);
 
       if (newZoom === oldZoom) return;
 
@@ -320,10 +362,7 @@ export default function SeatMapInteractive({
       const newY = my - (my - pan.y) * ratio;
 
       setZoom(newZoom);
-      setPan({
-        x: Math.min(rect.width - 100, Math.max(-2000 * newZoom + 100, newX)),
-        y: Math.min(rect.height - 100, Math.max(-1600 * newZoom + 100, newY)),
-      });
+      setPan(newZoom <= minZoom + 0.001 ? fitViewRef.current.pan : clampPan({ x: newX, y: newY }, newZoom));
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
@@ -344,10 +383,7 @@ export default function SeatMapInteractive({
     const cw = containerRef.current?.clientWidth || 800;
     const ch = containerRef.current?.clientHeight || 500;
     
-    setPan({
-      x: Math.min(cw - 100, Math.max(-2000 * zoom + 100, newX)),
-      y: Math.min(ch - 100, Math.max(-1600 * zoom + 100, newY)),
-    });
+    setPan(clampPan({ x: newX, y: newY }, zoom));
   };
 
   const onMouseUp = () => { isDragging.current = false; };
@@ -402,7 +438,8 @@ export default function SeatMapInteractive({
 
       const factor = dist / touchStart.current.pinchDist;
       const oldZoom = touchStart.current.pinchZoom;
-      const newZoom = Math.min(Math.max(oldZoom * factor, MIN_ZOOM), MAX_ZOOM);
+      const minZoom = fitViewRef.current.zoom || MIN_ZOOM;
+      const newZoom = Math.min(Math.max(oldZoom * factor, minZoom), MAX_ZOOM);
 
       const ratio = newZoom / oldZoom;
       const mx = touchStart.current.pinchCenterX;
@@ -412,20 +449,14 @@ export default function SeatMapInteractive({
       const newY = my - (my - touchStart.current.panY) * ratio;
 
       setZoom(newZoom);
-      setPan({
-        x: Math.min(cw - 100, Math.max(-2000 * newZoom + 100, newX)),
-        y: Math.min(ch - 100, Math.max(-1600 * newZoom + 100, newY)),
-      });
+      setPan(newZoom <= minZoom + 0.001 ? fitViewRef.current.pan : clampPan({ x: newX, y: newY }, newZoom));
     } else if (!touchStart.current.isPinch && e.touches.length === 1) {
       // Execute touch pan
       const t = e.touches[0];
       const newX = touchStart.current.panX + (t.clientX - touchStart.current.x);
       const newY = touchStart.current.panY + (t.clientY - touchStart.current.y);
 
-      setPan({
-        x: Math.min(cw - 100, Math.max(-2000 * zoom + 100, newX)),
-        y: Math.min(ch - 100, Math.max(-1600 * zoom + 100, newY)),
-      });
+      setPan(clampPan({ x: newX, y: newY }, zoom));
     }
   };
 
