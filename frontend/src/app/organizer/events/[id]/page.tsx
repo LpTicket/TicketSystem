@@ -1144,41 +1144,41 @@ export default function EventDetailPage() {
 
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-1 border-b border-gray-200 pb-px">
+      <div className="grid grid-cols-2 gap-2 rounded-[1.6rem] border border-gray-200 bg-white/90 p-2 shadow-sm backdrop-blur sm:grid-cols-3 lg:grid-cols-4">
         <button
           onClick={() => setActiveTab('analytics')}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'} min-h-[52px] justify-center rounded-xl sm:rounded-2xl border border-gray-200 text-center leading-tight transition-all duration-200 relative overflow-hidden min-w-0 bg-white/70 shadow-sm hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50/70 hover:text-[#F97316] hover:shadow-md active:translate-y-0 active:scale-[0.98]`}
+          className={`group relative flex min-h-[64px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl border px-2.5 py-3 text-center text-[13px] font-extrabold leading-tight shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] sm:min-h-[58px] sm:px-3 sm:text-sm ${activeTab === 'analytics' ? 'border-[#F97316] bg-orange-50 text-[#F97316] shadow-md shadow-orange-500/10' : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50/80 hover:text-[#F97316] hover:shadow-md'}`}
         >
-          <HiOutlineChartBar className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap">{lang === 'es' ? 'Analíticas' : 'Analytics'}</span>
+          <HiOutlineChartBar className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
+          <span className="min-w-0 truncate">{lang === 'es' ? 'Analíticas' : 'Analytics'}</span>
         </button>
         <button
           onClick={() => setActiveTab('details')}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'details' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`group relative flex min-h-[64px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl border px-2.5 py-3 text-center text-[13px] font-extrabold leading-tight shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] sm:min-h-[58px] sm:px-3 sm:text-sm ${activeTab === 'details' ? 'border-[#F97316] bg-orange-50 text-[#F97316] shadow-md shadow-orange-500/10' : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50/80 hover:text-[#F97316] hover:shadow-md'}`}
         >
-          <HiOutlinePencil className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap">{lang === 'es' ? 'Detalles e Imágenes' : 'Details & Media'}</span>
+          <HiOutlinePencil className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
+          <span className="min-w-0 truncate">{lang === 'es' ? 'Detalles e Imágenes' : 'Details & Media'}</span>
         </button>
         <button
           onClick={() => setActiveTab('overview')}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`group relative flex min-h-[64px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl border px-2.5 py-3 text-center text-[13px] font-extrabold leading-tight shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] sm:min-h-[58px] sm:px-3 sm:text-sm ${activeTab === 'overview' ? 'border-[#F97316] bg-orange-50 text-[#F97316] shadow-md shadow-orange-500/10' : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50/80 hover:text-[#F97316] hover:shadow-md'}`}
         >
-          <span className="whitespace-nowrap">{t('orgSections')}</span>
+          <span className="min-w-0 truncate">{t('orgSections')}</span>
         </button>
         <button
           onClick={() => setActiveTab('attendees')}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'attendees' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`group relative flex min-h-[64px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl border px-2.5 py-3 text-center text-[13px] font-extrabold leading-tight shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] sm:min-h-[58px] sm:px-3 sm:text-sm ${activeTab === 'attendees' ? 'border-[#F97316] bg-orange-50 text-[#F97316] shadow-md shadow-orange-500/10' : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50/80 hover:text-[#F97316] hover:shadow-md'}`}
         >
-          <HiOutlineUsers className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap">{lang === 'es' ? 'Asistentes y Ventas' : 'Attendees & Sales'}</span>
-          {attendees.length > 0 && <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] sm:text-xs shrink-0">{attendees.length} / {sales?.orders?.length || 0}</span>}
+          <HiOutlineUsers className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
+          <span className="min-w-0 truncate">{lang === 'es' ? 'Asistentes y Ventas' : 'Attendees & Sales'}</span>
+          {attendees.length > 0 && <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-black text-[#F97316] sm:text-xs">{attendees.length} / {sales?.orders?.length || 0}</span>}
         </button>
         <button
           onClick={() => setActiveTab('map')}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'map' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`group relative flex min-h-[64px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl border px-2.5 py-3 text-center text-[13px] font-extrabold leading-tight shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] sm:min-h-[58px] sm:px-3 sm:text-sm ${activeTab === 'map' ? 'border-[#F97316] bg-orange-50 text-[#F97316] shadow-md shadow-orange-500/10' : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50/80 hover:text-[#F97316] hover:shadow-md'}`}
         >
-          <HiOutlineMap className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap">{lang === 'es' ? 'Mapa Visual' : 'Venue Map'}</span>
+          <HiOutlineMap className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
+          <span className="min-w-0 truncate">{lang === 'es' ? 'Mapa Visual' : 'Venue Map'}</span>
         </button>
         <button
           onClick={() => {
@@ -1186,18 +1186,18 @@ export default function EventDetailPage() {
             setSelectedBlockSection('');
             setSelectedBlockSeats([]);
           }}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'blocks' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`group relative flex min-h-[64px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl border px-2.5 py-3 text-center text-[13px] font-extrabold leading-tight shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] sm:min-h-[58px] sm:px-3 sm:text-sm ${activeTab === 'blocks' ? 'border-[#F97316] bg-orange-50 text-[#F97316] shadow-md shadow-orange-500/10' : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50/80 hover:text-[#F97316] hover:shadow-md'}`}
         >
-          <HiOutlineBan className="w-4 h-4 shrink-0" />
-          <span className="hidden sm:inline whitespace-nowrap">{lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}</span>
-          <span className="sm:hidden whitespace-nowrap">{lang === 'es' ? 'Bloqueos' : 'Blocks'}</span>
+          <HiOutlineBan className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
+          <span className="hidden min-w-0 truncate sm:inline">{lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}</span>
+          <span className="min-w-0 truncate sm:hidden">{lang === 'es' ? 'Bloqueos' : 'Blocks'}</span>
         </button>
         <button
           onClick={() => setActiveTab('commission')}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'commission' ? 'border-orange-500 text-orange-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`group relative flex min-h-[64px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl border px-2.5 py-3 text-center text-[13px] font-extrabold leading-tight shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] sm:min-h-[58px] sm:px-3 sm:text-sm ${activeTab === 'commission' ? 'border-[#F97316] bg-orange-50 text-[#F97316] shadow-md shadow-orange-500/10' : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50/80 hover:text-[#F97316] hover:shadow-md'}`}
         >
-          <HiOutlineCurrencyDollar className="w-4 h-4 shrink-0" />
-          <span className="whitespace-nowrap">{lang === 'es' ? 'Recompensas' : 'Rewards'}</span>
+          <HiOutlineCurrencyDollar className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
+          <span className="min-w-0 truncate">{lang === 'es' ? 'Recompensas' : 'Rewards'}</span>
           {(Number(event.pendingCreatorCommission) > 0) && (
             <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
           )}
