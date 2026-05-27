@@ -1091,7 +1091,7 @@ export default function EventDetailPage() {
               <h1 className="font-bold text-2xl text-gray-900">{event.title}</h1>
               <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
             </div>
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 text-sm text-gray-500">
+            <div className="grid grid-cols-2 gap-2 rounded-[1.5rem] border border-gray-200 bg-white/85 p-2 shadow-sm backdrop-blur sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-2 gap-3 text-sm text-gray-500">
               <span className="flex items-center gap-1"><HiOutlineCalendar className="w-4 h-4" /> {formatDateInTimezone(event.eventDate, event.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}{event.eventTimezone && <span className="text-gray-400 ml-1">({getTimezoneAbbr(event.eventTimezone, event.eventDate)})</span>}</span>
               <span className="flex items-center gap-1"><HiOutlineLocationMarker className="w-4 h-4" /> {event.venueName}</span>
               <span className="flex items-center gap-1">{catInfo?.icon || '🎫'} {catLabel}</span>
@@ -1147,7 +1147,7 @@ export default function EventDetailPage() {
       <div className="flex flex-wrap gap-1 border-b border-gray-200 pb-px">
         <button
           onClick={() => setActiveTab('analytics')}
-          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'} min-h-[52px] justify-center rounded-2xl border border-transparent text-center leading-tight transition-all duration-200`}
+          className={`flex-1 sm:flex-none justify-center sm:justify-start px-3 sm:px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'border-primary-500 text-primary-600 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'} min-h-[52px] justify-center rounded-xl sm:rounded-2xl border border-gray-200 text-center leading-tight transition-all duration-200 relative overflow-hidden min-w-0 bg-white/70 shadow-sm hover:-translate-y-0.5 hover:border-orange-200 hover:bg-orange-50/70 hover:text-[#F97316] hover:shadow-md active:translate-y-0 active:scale-[0.98]`}
         >
           <HiOutlineChartBar className="w-4 h-4 shrink-0" />
           <span className="whitespace-nowrap">{lang === 'es' ? 'Analíticas' : 'Analytics'}</span>
