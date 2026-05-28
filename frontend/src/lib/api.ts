@@ -37,10 +37,12 @@ api.interceptors.response.use(
   },
 );
 
-export function getImageUrl(url: string | null | undefined): string {
+export function getImageUrl(url: string | null | undefined, cacheKey?: string | number | null): string {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
-    return url;
+    if (!cacheKey || url.startsWith('data:')) return url;
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}v=${encodeURIComponent(String(cacheKey))}`;
   }
   
   // Extract base server url (strip /api if present)
@@ -48,7 +50,10 @@ export function getImageUrl(url: string | null | undefined): string {
   
   // Ensure we don't double slash
   const cleanUrl = url.startsWith('/') ? url : `/${url}`;
-  return `${base}${cleanUrl}`;
+  const imageUrl = `${base}${cleanUrl}`;
+  if (!cacheKey) return imageUrl;
+  const separator = imageUrl.includes('?') ? '&' : '?';
+  return `${imageUrl}${separator}v=${encodeURIComponent(String(cacheKey))}`;
 }
 
 export default api;

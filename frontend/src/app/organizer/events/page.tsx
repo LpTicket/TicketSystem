@@ -256,7 +256,7 @@ export default function OrganizerEventsPage() {
                   <div className="flex items-start gap-3">
                     <div className={`w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center ${isPast ? 'grayscale' : ''}`}>
                       {ev.imageUrl ? (
-                        <img src={ev.imageUrl} alt="" className="w-full h-full object-cover" />
+                        <img src={getImageUrl(ev.imageUrl, ev.updatedAt)} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-xl">{catInfo?.icon || '🎫'}</span>
                       )}

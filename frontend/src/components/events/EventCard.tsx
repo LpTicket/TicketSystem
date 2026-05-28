@@ -24,7 +24,7 @@ export default function EventCard({ event, priority = false }: EventCardProps) {
   const imgRef = useRef<HTMLImageElement>(null);
 
   const resolvedSrc = !imageError && event.imageUrl
-    ? getImageUrl(event.imageUrl) || '/demo/concert.png'
+    ? getImageUrl(event.imageUrl, event.updatedAt) || '/demo/concert.png'
     : '/demo/concert.png';
 
   // Fix hydration race: if image already finished loading before React hydrated,

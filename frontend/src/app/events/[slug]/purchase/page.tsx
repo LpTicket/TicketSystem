@@ -776,7 +776,7 @@ export default function PurchasePage() {
             {/* Event Media */}
             <div className="rounded-lg overflow-hidden border border-[rgba(10,55,90,0.12)] shadow-lg shadow-[rgba(10,55,90,0.10)]">
               <img
-                src={event.imageUrl ? getImageUrl(event.imageUrl) : '/demo/concert.png'}
+                src={event.imageUrl ? getImageUrl(event.imageUrl, event.updatedAt) : '/demo/concert.png'}
                 alt={event.title}
                 className="w-full object-cover aspect-[3/4]"
               />

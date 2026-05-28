@@ -2323,7 +2323,7 @@ export default function EventDetailPage() {
                 {(imageFile || event.imageUrl) && (
                   <div className="w-full relative rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden mb-3 shadow-inner group/preview aspect-[3/4]">
                     <img 
-                      src={imageFile ? URL.createObjectURL(imageFile) : getImageUrl(event.imageUrl)} 
+                      src={imageFile ? URL.createObjectURL(imageFile) : getImageUrl(event.imageUrl, event.updatedAt)} 
                       alt="Current Cover" 
                       className="w-full h-full object-cover" 
                     />
@@ -2381,7 +2381,7 @@ export default function EventDetailPage() {
                   <div className="space-y-4 mb-3">
                     <div className="w-full aspect-[21/8] relative rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden shadow-inner group/preview">
                       <img 
-                        src={bannerFile ? URL.createObjectURL(bannerFile) : getImageUrl(event?.bannerImageUrl)} 
+                        src={bannerFile ? URL.createObjectURL(bannerFile) : getImageUrl(event?.bannerImageUrl, event.updatedAt)} 
                         alt="Current Banner" 
                         className="w-full h-full object-cover transition-all duration-300" 
                         style={{ objectPosition: editForm.bannerPosition || 'center' }}
