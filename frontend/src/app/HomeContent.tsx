@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { getImageUrl } from '@/lib/api';
 import EventCard from '@/components/events/EventCard';
@@ -27,6 +27,27 @@ type HomeBannerItem = Event | MarketingHomeBanner;
 const isMarketingBanner = (banner: HomeBannerItem): banner is MarketingHomeBanner =>
   'isMarketingBanner' in banner && banner.isMarketingBanner === true;
 
+
+const categoryVisuals = [
+  { keys: ['concert', 'concierto', 'music', 'musica', 'música', 'festival'], image: '/demo/concert.png', descriptionEs: 'Música en vivo y shows.', descriptionEn: 'Live music and shows.' },
+  { keys: ['sport', 'deporte', 'game', 'partido'], image: '/demo/sports.png', descriptionEs: 'Vive cada partido.', descriptionEn: 'Feel every game.' },
+  { keys: ['comedy', 'comedia', 'standup', 'stand-up'], image: '/demo/comedy.png', descriptionEs: 'Risas y buen ambiente.', descriptionEn: 'Laughs and good energy.' },
+  { keys: ['theater', 'teatro', 'arte', 'art', 'show'], image: '/demo/theater.png', descriptionEs: 'Escena, arte y cultura.', descriptionEn: 'Stage, art, and culture.' },
+  { keys: ['network', 'negocio', 'business', 'vip', 'conference', 'conferencia'], image: '/demo/concert.png', descriptionEs: 'Experiencias para conectar.', descriptionEn: 'Experiences to connect.' },
+];
+
+function getCategoryVisual(slug: string, label: string, lang: 'es' | 'en') {
+  const haystack = `${slug} ${label}`.toLowerCase();
+  const visual = categoryVisuals.find((item) => item.keys.some((key) => haystack.includes(key)));
+
+  return {
+    image: visual?.image || '/demo/theater.png',
+    description: lang === 'es'
+      ? visual?.descriptionEs || 'Eventos seleccionados.'
+      : visual?.descriptionEn || 'Curated events.',
+  };
+}
+
 interface HomeContentProps {
   initialEvents: Event[];
   initialBanner: MarketingHomeBanner | null;
@@ -41,14 +62,6 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
   const [locationQuery, setLocationQuery] = useState('');
   const [sortOpen, setSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState('fecha');
-  const categoriesRef = useRef<HTMLDivElement>(null);
-
-  const scrollCategories = (direction: 'left' | 'right') => {
-    categoriesRef.current?.scrollBy({
-      left: direction === 'left' ? -220 : 220,
-      behavior: 'smooth',
-    });
-  };
 
   const filteredEvents = useMemo(() => {
     let result = activeCategory ? initialEvents.filter((e) => e.category === activeCategory) : initialEvents;
@@ -216,7 +229,7 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
         <div className="home-discovery-panel">
           <form onSubmit={handleSearch} className="grid gap-3 lg:grid-cols-[1.35fr_0.85fr_auto]">
             <label className="home-search-field">
-              <span>{lang === 'es' ? 'Buscar evento' : 'Search event'}</span>
+              <span className="home-search-field-label">{lang === 'es' ? 'Buscar evento' : 'Search event'}</span>
               <div>
                 <HiOutlineSearch className="h-5 w-5 text-[#0A375A]/70" />
                 <input type="text" placeholder={lang === 'es' ? 'Conciertos, teatro, talleres...' : 'Concerts, theater, workshops...'} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
@@ -224,7 +237,7 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
             </label>
 
             <label className="home-search-field">
-              <span>{lang === 'es' ? 'Lugar' : 'Place'}</span>
+              <span className="home-search-field-label">{lang === 'es' ? 'Lugar' : 'Place'}</span>
               <div>
                 <HiOutlineLocationMarker className="h-5 w-5 text-[#0A375A]/70" />
                 <input type="text" placeholder={lang === 'es' ? 'Ciudad o venue' : 'City or venue'} value={locationQuery} onChange={(e) => setLocationQuery(e.target.value)} />
@@ -237,25 +250,38 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
           </form>
 
           <div className="mt-4 flex flex-col gap-3 border-t border-[#0A375A]/10 pt-4 lg:flex-row lg:items-center">
-            <div className="flex items-center gap-1.5 relative overflow-hidden group/cats lg:flex-1">
-              <button type="button" onClick={() => scrollCategories('left')} className="home-scroll-button" aria-label="Scroll Left">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-              </button>
+            <div className="flex items-start gap-1.5 relative overflow-visible group/cats lg:flex-1">
 
-              <div ref={categoriesRef} className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1 scroll-smooth">
-                <button onClick={() => setActiveCategory('')} className={`category-pill whitespace-nowrap ${activeCategory === '' ? 'active' : ''}`}>
-                  {t('catAll')}
+              <div className="home-category-rail flex-1 overflow-x-auto no-scrollbar scroll-smooth">
+                <button onClick={() => setActiveCategory('')} className={`home-category-card ${activeCategory === '' ? 'active' : ''}`} aria-pressed={activeCategory === ''}>
+                  <span className="home-category-image" style={{ backgroundImage: 'url(/demo/concert.png)' }} />
+                  <span className="home-category-shine" />
+                  <span className="home-category-content">
+                    <span className="home-category-icon">
+                      <HiOutlineTicket className="h-6 w-6" />
+                    </span>
+                    <span className="home-category-title">{t('catAll')}</span>
+                    <span className="home-category-description">{lang === 'es' ? 'Explora todo ahora.' : 'Explore everything now.'}</span>
+                  </span>
                 </button>
-                {categories.map((cat) => (
-                  <button key={cat.id} onClick={() => setActiveCategory(activeCategory === cat.slug ? '' : cat.slug)} className={`category-pill whitespace-nowrap ${activeCategory === cat.slug ? 'active' : ''}`}>
-                    {lang === 'en' ? cat.labelEn : cat.labelEs}
-                  </button>
-                ))}
-              </div>
+                {categories.map((cat) => {
+                  const label = lang === 'en' ? cat.labelEn : cat.labelEs;
+                  const visual = getCategoryVisual(cat.slug, label, lang);
+                  const image = (cat as typeof cat & { imageData?: string }).imageData || visual.image;
 
-              <button type="button" onClick={() => scrollCategories('right')} className="home-scroll-button" aria-label="Scroll Right">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-              </button>
+                  return (
+                    <button key={cat.id} onClick={() => setActiveCategory(activeCategory === cat.slug ? '' : cat.slug)} className={`home-category-card ${activeCategory === cat.slug ? 'active' : ''}`} aria-pressed={activeCategory === cat.slug}>
+                      <span className="home-category-image" style={{ backgroundImage: `url(${image})` }} />
+                      <span className="home-category-shine" />
+                      <span className="home-category-content">
+                        <span className="home-category-icon">{cat.icon}</span>
+                        <span className="home-category-title">{label}</span>
+                        <span className="home-category-description">{visual.description}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="relative shrink-0 w-full lg:w-[10.5rem]">
@@ -281,7 +307,7 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
         </div>
       </section>
 
-      <section className="mx-auto mt-8 max-w-[1400px] px-4 sm:px-6 lg:px-8">
+      <section className="home-trust-strip-section mx-auto mt-8 max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <TrustBadges />
       </section>
 
@@ -289,7 +315,7 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
         <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{lang === 'es' ? 'Destacados' : 'Highlights'}</p>
-            <h2 className="mt-2 text-3xl font-black text-[#0A375A] sm:text-4xl">{lang === 'es' ? 'Eventos cerca de ti' : 'Events near you'}</h2>
+            <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">{lang === 'es' ? 'Eventos cerca de ti' : 'Events near you'}</h2>
           </div>
           <p className="text-sm font-semibold text-gray-500">{sortedEvents.length} {lang === 'es' ? 'eventos disponibles' : 'available events'}</p>
         </div>
