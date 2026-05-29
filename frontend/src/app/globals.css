@@ -5466,41 +5466,6 @@ footer .rounded-full:hover {
   }
 }
 
-/* Mobile trust badges alignment */
-@media (max-width: 640px) {
-  .home-trust-strip-section .trust-badges {
-    padding: 0.95rem 1.05rem !important;
-  }
-
-  .home-trust-strip-section .trust-badge-item {
-    grid-template-columns: 3rem minmax(0, 1fr) !important;
-    gap: 0.9rem !important;
-    align-items: center !important;
-    min-height: 4.2rem !important;
-    padding: 0.55rem 0 !important;
-  }
-
-  .home-trust-strip-section .trust-badge-icon {
-    width: 2.55rem !important;
-    height: 2.55rem !important;
-    justify-self: center !important;
-  }
-
-  .home-trust-strip-section .trust-badge-copy {
-    align-self: center !important;
-    transform: translateY(-1px);
-  }
-
-  .home-trust-strip-section .trust-badge-copy strong,
-  .home-trust-strip-section .trust-badge-copy span {
-    line-height: 1.18 !important;
-  }
-
-  .home-trust-strip-section .trust-badge-item+.trust-badge-item {
-    border-top: 1px solid rgba(255, 255, 255, 0.13) !important;
-  }
-}
-
 /* Force mobile trust badges layout */
 @media (max-width: 768px) {
   section.home-trust-strip-section .trust-badges {
@@ -6245,24 +6210,6 @@ footer .rounded-full:hover {
   html body header.site-header-future .hamburger-danger-link svg {
     color: #ff5a45 !important;
     stroke: #ff5a45 !important;
-  }
-}
-
-/* Keep hamburger submenu fixed; page behind handles scroll */
-@media (max-width: 1023px) {
-  html body header.site-header-future div.hamburger-menu-panel.lg\:hidden.animate-fade-in {
-    overflow: visible !important;
-    max-height: none !important;
-    height: auto !important;
-    min-height: 0 !important;
-    pointer-events: none !important;
-  }
-
-  html body header.site-header-future .hamburger-menu-inner,
-  html body header.site-header-future .hamburger-menu-card {
-    overflow: visible !important;
-    max-height: none !important;
-    pointer-events: auto !important;
   }
 }
 
