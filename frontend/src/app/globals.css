@@ -1275,8 +1275,12 @@ html {
 }
 
 .page-dark-shell .bg-gray-50,
+.page-dark-shell .bg-gray-100,
+.page-dark-shell .bg-gray-200,
 .page-dark-shell .bg-white,
-.page-dark-shell .bg-slate-50 {
+.page-dark-shell .bg-slate-50,
+.page-dark-shell .bg-slate-100,
+.page-dark-shell .bg-slate-200 {
   background: rgba(8, 31, 51, 0.55) !important;
 }
 
@@ -1612,8 +1616,11 @@ html {
 
 .lp-management-layout .bg-white,
 .lp-management-layout .bg-gray-50,
+.lp-management-layout .bg-gray-100,
+.lp-management-layout .bg-gray-200,
 .lp-management-layout .bg-slate-50,
-.lp-management-layout .bg-slate-100 {
+.lp-management-layout .bg-slate-100,
+.lp-management-layout .bg-slate-200 {
   background: rgba(8, 31, 51, 0.55) !important;
 }
 
