@@ -233,14 +233,14 @@ body {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
-  background-size: 200% 100%;
+  background: linear-gradient(90deg, rgba(8, 31, 51, 0.55) 25%, rgba(23, 49, 74, 0.85) 50%, rgba(8, 31, 51, 0.55) 75%) !important;
+  background-size: 200% 100% !important;
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, #f3f4f6 25%, #f9fafb 50%, #f3f4f6 75%);
-  background-size: 200% 100%;
+  background: linear-gradient(90deg, rgba(8, 31, 51, 0.55) 25%, rgba(23, 49, 74, 0.85) 50%, rgba(8, 31, 51, 0.55) 75%) !important;
+  background-size: 200% 100% !important;
   animation: shimmer 1.5s infinite linear;
 }
 
