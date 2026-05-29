@@ -3461,13 +3461,13 @@ html {
   position: sticky !important;
   top: 0 !important;
   z-index: 80 !important;
-  border-bottom: 1px solid rgba(249, 115, 22, 0.40) !important;
+  border-bottom: 1px solid rgba(249, 115, 22, 0.35) !important;
   background:
-    radial-gradient(circle at 78% 0%, rgba(255, 122, 0, 0.14), transparent 22rem),
-    linear-gradient(180deg, rgba(4, 18, 38, 1.0), rgba(3, 14, 30, 1.0)) !important;
+    radial-gradient(circle at 80% 50%, rgba(249, 115, 22, 0.08), transparent 40%),
+    linear-gradient(180deg, #0d2240 0%, #0a1c38 100%) !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(249,115,22,0.18) !important;
-  backdrop-filter: blur(18px) saturate(1.2) !important;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: blur(12px) !important;
 }
 
 .site-header-future * {
