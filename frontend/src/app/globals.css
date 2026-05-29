@@ -1617,6 +1617,98 @@ html {
 }
 
 
+/* ===== Dark page shell — same theme as home-signature ===== */
+.page-dark-shell {
+  background:
+    radial-gradient(circle at 10% -8%, rgba(249, 115, 22, 0.20), transparent 28rem),
+    radial-gradient(circle at 86% 3%, rgba(56, 189, 248, 0.14), transparent 30rem),
+    linear-gradient(180deg, #061b2d 0%, #071827 46%, #05111f 100%) !important;
+  color: #ffffff;
+}
+
+.page-dark-shell .public-premium-card,
+.page-dark-shell .public-premium-hero,
+.page-dark-shell .auth-premium-card,
+.page-dark-shell .dashboard-premium-card,
+.page-dark-shell .dashboard-premium-ticket {
+  background: rgba(8, 31, 51, 0.82) !important;
+  border-color: rgba(246, 198, 95, 0.14) !important;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.28) !important;
+}
+
+.page-dark-shell .public-premium-card:hover,
+.page-dark-shell .public-premium-hero:hover,
+.page-dark-shell .auth-premium-card:hover {
+  border-color: rgba(249, 115, 22, 0.32) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38) !important;
+}
+
+.page-dark-shell .public-premium-title,
+.page-dark-shell h1,
+.page-dark-shell h2,
+.page-dark-shell h3 {
+  color: #f1f5f9 !important;
+}
+
+.page-dark-shell p,
+.page-dark-shell li,
+.page-dark-shell span:not([class*="bg-"]):not([class*="text-primary"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-orange"]) {
+  color: rgba(203, 213, 225, 0.88) !important;
+}
+
+.page-dark-shell .text-gray-400,
+.page-dark-shell .text-gray-500,
+.page-dark-shell .text-gray-600,
+.page-dark-shell .text-slate-500,
+.page-dark-shell .text-slate-600,
+.page-dark-shell .text-slate-700 {
+  color: rgba(148, 163, 184, 0.85) !important;
+}
+
+.page-dark-shell .text-gray-900,
+.page-dark-shell .text-slate-900,
+.page-dark-shell .text-gray-800 {
+  color: #f1f5f9 !important;
+}
+
+.page-dark-shell input,
+.page-dark-shell textarea,
+.page-dark-shell select,
+.page-dark-shell .public-premium-input,
+.page-dark-shell .dashboard-premium-input {
+  background: rgba(8, 31, 51, 0.7) !important;
+  border-color: rgba(117, 132, 153, 0.28) !important;
+  color: #f1f5f9 !important;
+}
+
+.page-dark-shell input::placeholder,
+.page-dark-shell textarea::placeholder {
+  color: rgba(148, 163, 184, 0.6) !important;
+}
+
+.page-dark-shell .bg-gray-50,
+.page-dark-shell .bg-white,
+.page-dark-shell .bg-slate-50 {
+  background: rgba(8, 31, 51, 0.55) !important;
+}
+
+.page-dark-shell .border-gray-100,
+.page-dark-shell .border-gray-200,
+.page-dark-shell .border-slate-200 {
+  border-color: rgba(117, 132, 153, 0.18) !important;
+}
+
+/* LegalPage dark overrides */
+.page-dark-shell .prose h2 {
+  color: #f1f5f9 !important;
+  border-color: rgba(117, 132, 153, 0.2) !important;
+}
+
+.page-dark-shell .prose p,
+.page-dark-shell .prose li {
+  color: rgba(203, 213, 225, 0.85) !important;
+}
+
 /* ===== LP Ticket Public Trust + Auth Premium Pass ===== */
 .public-premium-shell {
   background:

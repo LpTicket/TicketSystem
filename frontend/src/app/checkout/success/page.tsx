@@ -159,7 +159,7 @@ function SuccessContent() {
 
 export default function CheckoutSuccessPage() {
   return (
-    <div className="public-premium-shell min-h-screen px-4">
+    <div className="page-dark-shell min-h-screen px-4">
       <Suspense fallback={
         <div className="flex items-center justify-center min-h-screen">
           <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />

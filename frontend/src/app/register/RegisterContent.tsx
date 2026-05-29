@@ -79,7 +79,7 @@ export default function RegisterContent() {
   };
 
   return (
-    <div className="public-premium-shell flex items-start justify-center px-4 py-8 min-h-[calc(100vh-80px)]">
+    <div className="page-dark-shell flex items-start justify-center px-4 py-8 min-h-[calc(100vh-80px)]">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-6">
           <Link href="/">

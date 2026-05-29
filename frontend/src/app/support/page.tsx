@@ -102,7 +102,7 @@ export default function SupportPage() {
   });
 
   return (
-    <div className="public-premium-shell min-h-screen">
+    <div className="page-dark-shell min-h-screen">
       {/* Hero Header */}
       <section className="py-16 text-center">
         <div className="public-premium-hero max-w-4xl mx-auto px-4 py-10 space-y-4">

@@ -50,7 +50,7 @@ export default function LegalPage({ title, lastUpdated, content }: LegalPageProp
   };
 
   return (
-    <div className="public-premium-shell min-h-screen py-12">
+    <div className="page-dark-shell min-h-screen py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         <div className="public-premium-card overflow-hidden">
           {/* Header */}

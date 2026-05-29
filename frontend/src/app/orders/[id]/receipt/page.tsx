@@ -38,7 +38,7 @@ export default function OrderReceiptPage() {
 
   if (loading) {
     return (
-      <div className="public-premium-shell min-h-screen flex items-center justify-center">
+      <div className="page-dark-shell min-h-screen flex items-center justify-center">
         <div className="w-10 h-10 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -46,7 +46,7 @@ export default function OrderReceiptPage() {
 
   if (!order) {
     return (
-      <div className="public-premium-shell min-h-screen flex items-center justify-center px-4">
+      <div className="page-dark-shell min-h-screen flex items-center justify-center px-4">
         <div className="max-w-sm w-full bg-white border border-slate-200 rounded-2xl p-6 text-center">
           <h1 className="font-black text-xl text-slate-900 mb-2">Recibo no encontrado</h1>
           <p className="text-sm text-slate-500 mb-5">No pudimos encontrar este recibo o no tienes permiso para verlo.</p>
@@ -64,7 +64,7 @@ export default function OrderReceiptPage() {
   const tickets = Array.isArray(order.tickets) ? order.tickets : [];
 
   return (
-    <div className="public-premium-shell min-h-screen py-8 px-4 print:bg-white print:py-0">
+    <div className="page-dark-shell min-h-screen py-8 px-4 print:bg-white print:py-0">
       <div className="no-print max-w-3xl mx-auto mb-4 flex items-center justify-between gap-3">
         <Link href="/dashboard?tab=orders" className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-slate-900">
           <HiOutlineArrowLeft className="w-4 h-4" />
