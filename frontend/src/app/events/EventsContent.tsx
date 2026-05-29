@@ -58,7 +58,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Main Bar: Search + Categories */}
-      <div className="home-discovery-panel relative flex flex-col lg:flex-row items-stretch lg:items-center gap-3 p-3 mb-8">
+      <div className="events-filter-bar relative flex flex-col lg:flex-row items-stretch lg:items-center gap-3 p-3 mb-8">
 
         {/* Search */}
         <form onSubmit={handleSearch} className="relative flex items-center rounded-xl border border-[rgba(246,198,95,0.18)] bg-[rgba(5,17,31,0.7)] w-full lg:w-[450px] shrink-0 transition-all focus-within:border-primary-500">
