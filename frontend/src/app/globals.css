@@ -965,15 +965,6 @@ html {
   box-shadow: 0 0 0 3px rgba(10, 55, 90, .1), 0 0 9px rgba(10, 55, 90, .35) !important;
 }
 
-.premium-nav-link:hover::after {
-  opacity: 0 !important;
-}
-
-.premium-nav-link.active::after {
-  opacity: 1 !important;
-  transform: scale(1) !important;
-}
-
 /* Compact corporate nav with orange active dot */
 .premium-nav-link {
   width: auto !important;
@@ -1075,17 +1066,8 @@ html {
   transition: opacity .22s ease, transform .22s ease !important;
 }
 
-.category-pill:hover::after {
-  opacity: 0 !important;
-}
-
 .category-pill.active {
   padding-right: 1.25rem !important;
-}
-
-.category-pill.active::after {
-  opacity: 1 !important;
-  transform: scale(1) !important;
 }
 
 /* ===== Signature Home ===== */
@@ -2585,10 +2567,6 @@ html {
   color: #f6c65f !important;
 }
 
-.home-signature section>div>.mb-7 p:last-child {
-  color: rgba(255, 255, 255, .58) !important;
-}
-
 /* ===== RESCUE: horizontal category scroll ===== */
 .home-category-rail {
   display: flex !important;
@@ -2637,22 +2615,9 @@ html {
   overscroll-behavior-x: contain !important;
 }
 
-.home-category-card {
-  flex: 0 0 7.4rem !important;
-  width: 7.4rem !important;
-  min-width: 7.4rem !important;
-  height: 7.4rem !important;
-}
-
 .home-scroll-button {
   flex: 0 0 2rem !important;
   z-index: 5 !important;
-}
-
-/* ===== FINAL: category rail same span as search/place, no arrows ===== */
-.home-discovery-panel .group\/cats {
-  min-width: 0 !important;
-  overflow: hidden !important;
 }
 
 .home-category-rail {
@@ -2674,10 +2639,6 @@ html {
   width: 7.4rem !important;
   min-width: 7.4rem !important;
   height: 7.4rem !important;
-}
-
-.home-category-rail::-webkit-scrollbar {
-  display: none !important;
 }
 
 .home-category-rail {
@@ -3094,12 +3055,6 @@ html {
   transform: scale(1.075) !important;
 }
 
-.home-category-card:hover .home-category-shine,
-.home-category-card.active .home-category-shine {
-  opacity: 1 !important;
-  transform: translateX(42%) !important;
-}
-
 /* ===== Clean Trust Badges Strip ===== */
 .home-trust-strip-section {
   margin-top: 1.35rem !important;
@@ -3291,49 +3246,6 @@ html {
 .home-trust-strip-section .trust-badge-item+.trust-badge-item::before {
   top: 1.55rem !important;
   bottom: 1.55rem !important;
-}
-
-/* ===== Trust Badges Smaller: icon nearly fills circle ===== */
-.home-trust-strip-section .trust-badge-item {
-  min-height: 3.85rem !important;
-  padding: 0.55rem 1.1rem !important;
-  grid-template-columns: 2.45rem minmax(0, 1fr) !important;
-  gap: 0.72rem !important;
-}
-
-.home-trust-strip-section .trust-badge-icon {
-  width: 2.25rem !important;
-  height: 2.25rem !important;
-  border-color: rgba(255, 122, 0, 0.48) !important;
-  box-shadow:
-    0 0 0 1px rgba(255, 122, 0, 0.06) inset,
-    0 0 15px rgba(255, 122, 0, 0.12) !important;
-}
-
-.home-trust-strip-section .trust-badge-icon svg {
-  width: 1.72rem !important;
-  height: 1.72rem !important;
-  stroke-width: 1.55 !important;
-}
-
-.home-trust-strip-section .trust-badge-copy {
-  gap: 0.12rem !important;
-}
-
-.home-trust-strip-section .trust-badge-copy strong {
-  font-size: 0.78rem !important;
-  font-weight: 650 !important;
-  line-height: 1.05 !important;
-}
-
-.home-trust-strip-section .trust-badge-copy span {
-  font-size: 0.68rem !important;
-  line-height: 1.18 !important;
-}
-
-.home-trust-strip-section .trust-badge-item+.trust-badge-item::before {
-  top: 0.75rem !important;
-  bottom: 0.75rem !important;
 }
 
 /* ===== Trust Badges Smaller: icon nearly fills circle ===== */
@@ -4237,11 +4149,6 @@ body header .header-lang-switch button {
   font-size: .72rem !important;
   font-weight: 850 !important;
   transition: background .18s ease, color .18s ease, box-shadow .18s ease !important;
-}
-
-body header .header-lang-switch button:hover {
-  color: #ffffff !important;
-  background: rgba(255, 122, 0, .10) !important;
 }
 
 body header .header-lang-switch button[class*="bg-[#0A375A]"],
@@ -5297,12 +5204,6 @@ footer .rounded-full:hover {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
   text-shadow: 0 0 12px rgba(255, 255, 255, 0.2) !important;
-}
-
-.home-discovery-panel .home-search-field>div svg {
-  color: #ff7a00 !important;
-  stroke: #ff7a00 !important;
-  filter: drop-shadow(0 0 8px rgba(255, 122, 0, 0.45)) !important;
 }
 
 /* Final search panel correction: only labels white, icons orange */
@@ -6415,12 +6316,6 @@ html body header.site-header-future button.premium-user-button.group:hover {
     inset 0 0 0 1px rgba(255, 122, 0, 0.34),
     0 0 26px rgba(255, 122, 0, 0.34) !important;
   transform: translateY(-1px) !important;
-}
-
-html body header.site-header-future button.premium-user-button:hover span,
-html body header.site-header-future button.premium-user-button:hover svg {
-  color: #ff7a00 !important;
-  stroke: #ff7a00 !important;
 }
 
 /* Kill white overlay on Sundin button hover/focus */
