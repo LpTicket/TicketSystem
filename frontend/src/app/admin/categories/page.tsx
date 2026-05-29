@@ -111,11 +111,11 @@ export default function AdminCategoriesPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div className="premium-shell p-6 lg:p-8 space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-bold text-2xl text-gray-900">Categorías de eventos</h1>
+          <h1 className="premium-page-title font-black text-2xl">Categorías de eventos</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {categories.length} categoría{categories.length !== 1 ? 's' : ''} — los organizadores las verán al crear eventos
           </p>

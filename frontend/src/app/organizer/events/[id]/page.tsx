@@ -963,7 +963,7 @@ export default function EventDetailPage() {
 
   if (loading || !event) {
     return (
-      <div className="p-6 lg:p-8 space-y-4">
+      <div className="premium-shell p-6 lg:p-8 space-y-4">
         <div className="h-6 skeleton rounded w-1/4 mb-4" />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => <div key={i} className="h-28 skeleton rounded-xl" />)}
@@ -1077,7 +1077,7 @@ export default function EventDetailPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div className="premium-shell p-6 lg:p-8 space-y-6 animate-fade-in">
       {/* Back & Header */}
       <div>
         <Link href="/organizer/events" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary-500 transition-colors mb-3">
@@ -1088,7 +1088,7 @@ export default function EventDetailPage() {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="font-bold text-2xl text-gray-900">{event.title}</h1>
+              <h1 className="premium-page-title font-black text-2xl">{event.title}</h1>
               <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 rounded-[1.5rem] border border-gray-200 bg-white/85 p-2 shadow-sm backdrop-blur sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-2 gap-3 text-sm text-gray-500">

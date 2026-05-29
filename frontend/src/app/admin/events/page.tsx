@@ -377,9 +377,9 @@ export default function AdminEventsPage() {
 
   return (
     <div>
-      <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+      <div className="premium-shell p-6 lg:p-8 space-y-6 animate-fade-in">
       <div>
-        <h1 className="font-bold text-2xl text-gray-900">{t('adminEventManagement')}</h1>
+        <h1 className="premium-page-title font-black text-2xl">{t('adminEventManagement')}</h1>
         <p className="text-sm text-gray-500 mt-1">{lang === 'es' ? 'Aprueba, rechaza y gestiona los eventos de la plataforma' : 'Approve, reject and manage platform events'}</p>
       </div>
 

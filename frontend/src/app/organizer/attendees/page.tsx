@@ -117,10 +117,10 @@ export default function AttendeesPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div className="premium-shell p-6 lg:p-8 space-y-6 animate-fade-in">
       {/* Header */}
       <div>
-        <h1 className="font-bold text-2xl text-gray-900">{t('orgAttendees')}</h1>
+        <h1 className="premium-page-title font-black text-2xl">{t('orgAttendees')}</h1>
         <p className="text-sm text-gray-500 mt-1">{lang === 'es' ? 'Control de acceso y validación de tickets' : 'Access control and ticket validation'}</p>
       </div>
 

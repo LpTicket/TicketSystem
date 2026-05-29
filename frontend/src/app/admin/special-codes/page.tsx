@@ -271,12 +271,12 @@ export default function AdminSpecialCodesPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div className="premium-shell p-6 lg:p-8 space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-primary-500">LP Ticket</p>
-          <h1 className="font-bold text-2xl text-gray-900 mt-2">{lang === 'es' ? 'Códigos especiales' : 'Special codes'}</h1>
+          <h1 className="premium-page-title font-black text-2xl mt-2">{lang === 'es' ? 'Códigos especiales' : 'Special codes'}</h1>
           <p className="text-sm text-gray-500 mt-1 max-w-2xl">{lang === 'es' ? 'Crea y administra códigos rastreables para influencers y socios. Las recompensas se configuran por evento.' : 'Create and manage trackable codes for influencers and partners. Rewards are configured per event.'}</p>
         </div>
         <button onClick={loadData} disabled={loading} className="btn-secondary inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-bold">

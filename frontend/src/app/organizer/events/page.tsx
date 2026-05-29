@@ -112,7 +112,7 @@ export default function OrganizerEventsPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 animate-fade-in">
+    <div className="premium-shell p-6 lg:p-8 space-y-6 animate-fade-in">
       {/* Alert Banner / Cartel */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 lg:p-5 flex items-start gap-3.5 shadow-sm select-none">
         <div className="bg-amber-100 rounded-xl p-2 shrink-0 text-amber-800 text-lg">
@@ -132,7 +132,7 @@ export default function OrganizerEventsPage() {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="font-bold text-2xl text-gray-900">{t('orgMyEvents')}</h1>
+        <h1 className="premium-page-title font-black text-2xl">{t('orgMyEvents')}</h1>
         <Link href="/organizer/events/create" className="btn-primary text-sm inline-flex items-center gap-2 self-start">
           <HiOutlinePlusCircle className="w-5 h-5" />
           {t('orgCreateEvent')}
