@@ -1692,11 +1692,29 @@ html {
 
 /* Lighten the dark hue text ONLY inside these pastel cards (badges using
    bg-*-100 are untouched and stay readable) */
-.lp-management-layout .bg-green-50 [class*="text-green"] { color: #4ade80 !important; }
-.lp-management-layout .bg-red-50 [class*="text-red"] { color: #f87171 !important; }
-.lp-management-layout .bg-yellow-50 [class*="text-yellow"] { color: #fde047 !important; }
-.lp-management-layout .bg-orange-50 [class*="text-orange"] { color: #fdba74 !important; }
-.lp-management-layout .bg-blue-50 [class*="text-blue"] { color: #7dd3fc !important; }
+/* Semantic colored text is too dark on the dark panels — lighten it globally */
+.lp-management-layout .text-green-600,
+.lp-management-layout .text-green-700,
+.lp-management-layout .text-green-800 { color: #4ade80 !important; }
+.lp-management-layout .text-red-600,
+.lp-management-layout .text-red-700,
+.lp-management-layout .text-red-800 { color: #f87171 !important; }
+.lp-management-layout .text-yellow-600,
+.lp-management-layout .text-yellow-700,
+.lp-management-layout .text-yellow-800 { color: #fbbf24 !important; }
+.lp-management-layout .text-blue-600,
+.lp-management-layout .text-blue-700,
+.lp-management-layout .text-blue-800 { color: #7dd3fc !important; }
+
+/* …but colored badges (light bg-*-100) keep dark text for contrast on their pale pill */
+.lp-management-layout [class*="bg-green-100"][class*="text-green"],
+.lp-management-layout [class*="bg-green-100"] [class*="text-green"] { color: #15803d !important; }
+.lp-management-layout [class*="bg-red-100"][class*="text-red"],
+.lp-management-layout [class*="bg-red-100"] [class*="text-red"] { color: #b91c1c !important; }
+.lp-management-layout [class*="bg-yellow-100"][class*="text-yellow"],
+.lp-management-layout [class*="bg-yellow-100"] [class*="text-yellow"] { color: #a16207 !important; }
+.lp-management-layout [class*="bg-blue-100"][class*="text-blue"],
+.lp-management-layout [class*="bg-blue-100"] [class*="text-blue"] { color: #1d4ed8 !important; }
 
 /* Navy text (#0A375A) is invisible on dark — lighten it anywhere in the panels.
    Applies to the element itself (e.g. buttons that carry both bg-[rgba(10,55,90)] and
