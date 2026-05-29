@@ -1627,16 +1627,14 @@ html {
   backdrop-filter: blur(18px) saturate(1.2);
 }
 
-/* Home page: remove extra padding added by AppShell since it has its own full-bleed hero */
+/* Home page: pull up to fill behind the semi-transparent header */
 .home-signature {
   margin-top: -76px;
-  padding-top: 76px;
 }
 
 @media (min-width: 1024px) {
   .home-signature {
     margin-top: -80px;
-    padding-top: 80px;
   }
 }
 
