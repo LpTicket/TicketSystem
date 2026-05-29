@@ -58,34 +58,34 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Main Bar: Search + Categories */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 bg-white p-3 rounded-2xl border border-gray-200 shadow-sm mb-8">
-        
-        {/* Search (Pill style) */}
-        <form onSubmit={handleSearch} className="relative flex items-center bg-white rounded-xl border border-gray-300 w-full lg:w-[450px] shrink-0 transition-all focus-within:border-primary-400 focus-within:shadow-md">
+      <div className="home-discovery-panel relative flex flex-col lg:flex-row items-stretch lg:items-center gap-3 p-3 mb-8">
+
+        {/* Search */}
+        <form onSubmit={handleSearch} className="relative flex items-center rounded-xl border border-[rgba(246,198,95,0.18)] bg-[rgba(5,17,31,0.7)] w-full lg:w-[450px] shrink-0 transition-all focus-within:border-primary-500">
           <div className="pl-4 text-gray-400">
-            <HiOutlineSearch className="w-4 h-4" />
+            <HiOutlineSearch className="w-4 h-4 text-primary-400" />
           </div>
-          <input 
-            type="text" 
-            value={search} 
-            onChange={(e) => setSearch(e.target.value)} 
-            placeholder={lang === 'es' ? 'Buscar eventos...' : 'Search events...'} 
-            className="flex-1 py-3 px-3 text-gray-700 focus:outline-none text-sm bg-transparent" 
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={lang === 'es' ? 'Buscar eventos...' : 'Search events...'}
+            className="flex-1 py-3 px-3 text-white placeholder-gray-500 focus:outline-none text-sm bg-transparent"
           />
         </form>
 
         {/* Categories (Scrollable) */}
         <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-          <button 
-            onClick={() => { setCategory(''); setPage(1); }} 
+          <button
+            onClick={() => { setCategory(''); setPage(1); }}
             className={`category-pill whitespace-nowrap !py-2.5 ${!category ? 'active' : ''}`}
           >
             Todos
           </button>
           {categories.map((cat) => (
-            <button 
-              key={cat.slug} 
-              onClick={() => { setCategory(cat.slug); setPage(1); }} 
+            <button
+              key={cat.slug}
+              onClick={() => { setCategory(cat.slug); setPage(1); }}
               className={`category-pill whitespace-nowrap !py-2.5 ${category === cat.slug ? 'active' : ''}`}
             >
               {lang === 'en' ? cat.labelEn : cat.labelEs}
@@ -94,7 +94,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
         </div>
       </div>
 
-      <p className="text-sm text-gray-500 mb-4">{total} {lang === 'es' ? (total === 1 ? 'evento encontrado' : 'eventos encontrados') : (total === 1 ? 'event found' : 'events found')}</p>
+      <p className="text-sm text-gray-400 mb-4">{total} {lang === 'es' ? (total === 1 ? 'evento encontrado' : 'eventos encontrados') : (total === 1 ? 'event found' : 'events found')}</p>
 
       {/* Grid */}
       <div className="mt-12">
@@ -117,7 +117,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
       {totalPages > 1 && (
         <div className="flex justify-center gap-2 mt-10">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button key={p} onClick={() => setPage(p)} className={`w-9 h-9 rounded text-sm font-medium transition-all ${p === page ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{p}</button>
+            <button key={p} onClick={() => setPage(p)} className={`w-9 h-9 rounded text-sm font-medium transition-all ${p === page ? 'bg-primary-500 text-white' : 'bg-[rgba(8,31,51,0.8)] text-gray-300 border border-[rgba(246,198,95,0.14)] hover:border-primary-500 hover:text-white'}`}>{p}</button>
           ))}
         </div>
       )}

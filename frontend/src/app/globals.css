@@ -61,9 +61,10 @@ html, body {
 
 body {
   font-family: var(--font-sans);
-  background: #ffffff;
-  color: var(--color-gray-800);
+  background: #05111f;
+  color: #f1f5f9;
   -webkit-font-smoothing: antialiased;
+  scroll-padding-top: 5rem;
 }
 
 /* ===== Buttons ===== */
@@ -1617,6 +1618,15 @@ html {
 }
 
 
+/* ===== Admin/organizer pages keep white background ===== */
+.premium-shell,
+.lp-management-layout {
+  background:
+    radial-gradient(circle at top left, rgba(249, 115, 22, 0.06), transparent 30%),
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  color: var(--color-gray-800) !important;
+}
+
 /* ===== Dark page shell — same theme as home-signature ===== */
 .page-dark-shell {
   background:
@@ -1719,6 +1729,28 @@ html {
 .page-dark-shell h1,
 .page-dark-shell .text-\[\#0A375A\] {
   color: #f1f5f9 !important;
+}
+
+/* Category pills dark */
+.page-dark-shell .category-pill,
+.home-signature .category-pill {
+  background: rgba(8, 31, 51, 0.75) !important;
+  border-color: rgba(246, 198, 95, 0.16) !important;
+  color: rgba(226, 232, 240, 0.85) !important;
+}
+
+.page-dark-shell .category-pill:hover,
+.home-signature .category-pill:hover {
+  background: rgba(249, 115, 22, 0.12) !important;
+  border-color: rgba(249, 115, 22, 0.35) !important;
+  color: #ffffff !important;
+}
+
+.page-dark-shell .category-pill.active,
+.home-signature .category-pill.active {
+  background: rgba(249, 115, 22, 0.85) !important;
+  border-color: rgba(249, 115, 22, 0.5) !important;
+  color: #ffffff !important;
 }
 
 /* LegalPage dark overrides */
