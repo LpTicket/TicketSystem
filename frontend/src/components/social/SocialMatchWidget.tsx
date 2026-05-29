@@ -197,13 +197,13 @@ export default function SocialMatchWidget() {
     finally { setSending(false); }
   };
 
-  const handleClose = () => {
+  function handleClose() {
     setOpen(false);
     setActiveChatConn(null);
     setViewingProfile(false);
     setMessages([]);
     setDraft('');
-  };
+  }
 
   return (
     <div ref={socialShellRef} className="fixed bottom-20 right-0 px-5 z-[300] flex flex-col items-end gap-3 pointer-events-none print:hidden">
