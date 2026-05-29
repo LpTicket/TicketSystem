@@ -1630,6 +1630,15 @@ html {
 
 /* ===== Responsive utilities ===== */
 
+/* Mobile header height override to match h-16 (64px) */
+@media (max-width: 1023px) {
+  .site-header-future > div,
+  body header > div {
+    min-height: 4rem !important;
+    height: 4rem !important;
+  }
+}
+
 /* Dropdowns/menus: constrain to viewport on mobile */
 @media (max-width: 640px) {
   .lp-user-menu {
