@@ -64,14 +64,25 @@ html, body {
   width: 100%;
 }
 
-/* Contain all page-level sections to viewport width */
+/* Contain page shells to viewport width — NOT home-signature (uses negative margin) */
 .page-dark-shell,
-.home-signature,
 .public-premium-shell,
 .premium-shell,
 .lp-management-layout {
   overflow-x: hidden;
-  max-width: 100vw;
+  max-width: 100%;
+}
+
+/* Public & dashboard pages: top padding equal to header height */
+.page-dark-shell,
+.public-premium-shell {
+  padding-top: 4rem;
+}
+@media (min-width: 1024px) {
+  .page-dark-shell,
+  .public-premium-shell {
+    padding-top: 4.5rem;
+  }
 }
 
 body {
@@ -1645,15 +1656,6 @@ html {
 
 /* ===== Responsive utilities ===== */
 
-/* Mobile header height override to match h-16 (64px) */
-@media (max-width: 1023px) {
-  .site-header-future > div,
-  body header > div {
-    min-height: 4rem !important;
-    height: 4rem !important;
-  }
-}
-
 /* Dropdowns/menus: constrain to viewport on mobile */
 @media (max-width: 640px) {
   .lp-user-menu {
@@ -1709,14 +1711,9 @@ html {
   }
 }
 
-/* Home page: reduce gap between header and hero */
+/* Home page hero starts right below sticky header */
 .home-signature {
-  margin-top: -4rem;
-}
-@media (min-width: 1024px) {
-  .home-signature {
-    margin-top: -5rem;
-  }
+  margin-top: 0;
 }
 
 /* ===== Admin/organizer pages keep white background ===== */

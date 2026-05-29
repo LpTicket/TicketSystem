@@ -21,7 +21,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Suspense fallback={null}>
         <AnalyticsTracker />
       </Suspense>
-      <main className="min-h-screen pt-16 lg:pt-20 w-full overflow-hidden">{children}</main>
+      <main className="min-h-screen w-full">{children}</main>
       <Footer />
       <Chatbot />
       <SocialMatchWidget />
