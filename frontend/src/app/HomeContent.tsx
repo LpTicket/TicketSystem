@@ -311,7 +311,7 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
         <TrustBadges />
       </section>
 
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-14 mt-14">
+      <section className="max-w-[1400px] mx-auto px-5 sm:px-6 lg:px-8 pb-14 mt-14">
         <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{lang === 'es' ? 'Destacados' : 'Highlights'}</p>
