@@ -276,7 +276,7 @@ export default function Header() {
 
                     {/* Mode Toggle */}
                     {user?.role !== 'admin' && (
-                      <div className="px-4 py-3 bg-white/70 border-b border-[rgba(10,55,90,0.08)] mb-1 hover:bg-orange-50 transition-colors">
+                      <div className="px-4 py-3 bg-white/5 border-b border-white/10 mb-1 hover:bg-[rgba(249,115,22,0.10)] transition-colors">
                         <ModeToggle variant="dropdown" />
                       </div>
                     )}

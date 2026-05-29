@@ -41,12 +41,12 @@ export default function ModeToggle({ variant = 'pill' }: ModeToggleProps) {
           toggleMode();
         }}
       >
-        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider group-hover:text-gray-700 transition-colors">
+        <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider group-hover:text-white transition-colors">
           {mode === 'buyer' ? t('buyerMode' as any) : t('organizerMode' as any)}
         </span>
         <div
           className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-            mode === 'organizer' ? 'bg-[#0A375A]' : 'bg-gray-200'
+            mode === 'organizer' ? 'bg-[#F97316]' : 'bg-white/20'
           }`}
         >
           <span
@@ -60,13 +60,13 @@ export default function ModeToggle({ variant = 'pill' }: ModeToggleProps) {
   }
 
   return (
-    <div className="flex items-center gap-3 bg-gray-100/80 p-1 rounded-full border border-gray-200">
+    <div className="flex items-center gap-3 bg-white/10 p-1 rounded-full border border-white/15">
       <button
         onClick={() => handleModeChange('buyer')}
         className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
           mode === 'buyer'
-            ? 'bg-[#0A375A] text-white shadow-md'
-            : 'text-gray-500 hover:text-gray-700'
+            ? 'bg-[#F97316] text-white shadow-md'
+            : 'text-gray-300 hover:text-white'
         }`}
       >
         <HiOutlineUser className="w-3.5 h-3.5" />
@@ -76,8 +76,8 @@ export default function ModeToggle({ variant = 'pill' }: ModeToggleProps) {
         onClick={() => handleModeChange('organizer')}
         className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
           mode === 'organizer'
-            ? 'bg-[#0A375A] text-white shadow-md'
-            : 'text-gray-500 hover:text-gray-700'
+            ? 'bg-[#F97316] text-white shadow-md'
+            : 'text-gray-300 hover:text-white'
         }`}
       >
         <HiOutlineBriefcase className="w-3.5 h-3.5" />
