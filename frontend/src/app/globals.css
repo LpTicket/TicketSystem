@@ -139,29 +139,7 @@ body {
 
 .btn-secondary:hover {
   background: var(--color-primary-50);
-}
-
-.btn-blue {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.8125rem;
-  background: var(--color-blue-600);
-  color: white;
-  transition: all 0.2s ease;
-  cursor: pointer;
-  border: none;
-}
-
-.btn-blue:hover {
-  background: var(--color-blue-700);
-}
-
-/* ===== Cards ===== */
+}/* ===== Cards ===== */
 
 .card {
   background: white;
@@ -230,37 +208,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.seat-available {
-  background: #e0f2fe;
-  border-color: #7dd3fc;
-}
-
-.seat-available:hover {
-  background: #bae6fd;
-  transform: scale(1.15);
-}
-
-.seat-selected {
-  background: var(--color-primary-500);
-  border-color: var(--color-primary-600);
-  color: white;
-}
-
-.seat-sold {
-  background: var(--color-gray-200);
-  border-color: var(--color-gray-300);
-  cursor: not-allowed;
-}
-
-.seat-locked {
-  background: #fef3c7;
-  border-color: #fcd34d;
-  cursor: not-allowed;
-}
-
-.stage {
+}.stage {
   background: var(--color-blue-600);
   border-radius: 0 0 50% 50%;
   text-align: center;
@@ -301,19 +249,7 @@ body {
 html {
   overflow-y: scroll;
   scrollbar-gutter: stable;
-}
-
-/* ===== Utility ===== */
-
-.text-orange {
-  color: var(--color-primary-600);
-}
-
-.bg-orange {
-  background: var(--color-primary-500);
-}
-
-.animate-fade-in {
+}.animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
@@ -406,80 +342,7 @@ html {
   color: var(--color-gray-300);
   font-size: 0.65rem;
   padding: 0 0.125rem;
-}
-
-/* ===== Zoom Controls ===== */
-
-.zoom-controls {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  z-index: 10;
-}
-
-.zoom-btn {
-  width: 30px;
-  height: 30px;
-  background: var(--color-blue-600);
-  color: white;
-  border: none;
-  cursor: pointer;
-  font-size: 1.1rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s ease;
-  line-height: 1;
-}
-
-.zoom-btn:first-child {
-  border-radius: 4px 4px 0 0;
-}
-
-.zoom-btn:last-child {
-  border-radius: 0 0 4px 4px;
-}
-
-.zoom-btn:hover {
-  background: var(--color-blue-700);
-}
-
-.zoom-label {
-  font-size: 0.6rem;
-  text-align: center;
-  color: var(--color-gray-500);
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 0.1rem 0;
-}
-
-/* ===== Seat Map Container ===== */
-
-.seatmap-container {
-  position: relative;
-  overflow: hidden;
-  background: #f8fafc;
-  border: 1px solid var(--color-gray-200);
-  border-radius: 12px;
-  cursor: grab;
-  user-select: none;
-}
-
-.seatmap-container:active {
-  cursor: grabbing;
-}
-
-.seatmap-inner {
-  transform-origin: top left;
-  transition: transform 0.1s ease;
-}
-
-/* ===== Reservation Timer ===== */
+}/* ===== Reservation Timer ===== */
 
 .reservation-timer {
   display: flex;
@@ -543,53 +406,7 @@ html {
 
 .timer-bar.urgent {
   background: #ef4444;
-}
-
-/* ===== Invoice Table ===== */
-
-.invoice-table {
-  width: 100%;
-  font-size: 0.8125rem;
-  border-collapse: collapse;
-}
-
-.invoice-table tr td {
-  padding: 0.3rem 0.25rem;
-  vertical-align: top;
-}
-
-.invoice-table tr td:last-child {
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.invoice-section-header {
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: var(--color-gray-800);
-  padding-top: 0.75rem !important;
-}
-
-.invoice-subtotal td {
-  border-top: 1px solid var(--color-gray-200);
-  padding-top: 0.5rem !important;
-  color: var(--color-gray-600);
-}
-
-.invoice-total td {
-  border-top: 2px solid var(--color-gray-300);
-  font-weight: 800;
-  font-size: 0.9rem;
-  color: var(--color-gray-900);
-  padding-top: 0.5rem !important;
-}
-
-.invoice-tax td {
-  color: var(--color-blue-600);
-}
-
-/* ===== Theater Section Colors ===== */
+}/* ===== Theater Section Colors ===== */
 .section-badge {
   display: inline-flex;
   align-items: center;
@@ -605,36 +422,7 @@ html {
 /* ===== Step Panel ===== */
 .step-panel {
   animation: fadeIn 0.3s ease-out forwards;
-}
-
-/* ===== Seat tooltip ===== */
-.seat-tooltip {
-  position: absolute;
-  bottom: 110%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(17, 24, 39, 0.92);
-  color: white;
-  font-size: 0.65rem;
-  font-weight: 600;
-  padding: 0.2rem 0.45rem;
-  border-radius: 4px;
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 20;
-}
-
-.seat-tooltip::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 4px solid transparent;
-  border-top-color: rgba(17, 24, 39, 0.92);
-}
-
-/* ===== Selected seats chip ===== */
+}/* ===== Selected seats chip ===== */
 .seat-chip {
   display: inline-flex;
   align-items: center;
@@ -658,7 +446,6 @@ html {
   padding: 0;
 }
 
-
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -667,7 +454,6 @@ html {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
 
 /* Premium soft glass navigation */
 .premium-logo {
@@ -715,70 +501,7 @@ html {
 .premium-logo:hover::after {
   opacity: 1;
   transform: scale(1);
-}
-
-.premium-nav-link {
-  position: relative;
-  isolation: isolate;
-  display: inline-flex;
-  height: 2.5rem;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border-radius: 0.875rem;
-  color: var(--color-blue-600);
-  font-size: 0.8125rem;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: 0;
-  white-space: nowrap;
-  transition: color .28s ease, transform .28s ease, box-shadow .28s ease;
-}
-
-.premium-nav-link::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: linear-gradient(135deg, rgba(26, 115, 181, .1), rgba(34, 211, 238, .08), rgba(249, 115, 22, .08)), rgba(255, 255, 255, .86);
-  border: 1px solid rgba(26, 115, 181, .12);
-  opacity: 0;
-  transform: scale(.96);
-  transition: opacity .28s ease, transform .28s ease;
-}
-
-.premium-nav-link::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: .38rem;
-  width: 2rem;
-  height: 2px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #0a375a, #0a375a, #f97316);
-  opacity: 0;
-  transform: translateX(-50%) scaleX(.35);
-  transition: opacity .28s ease, transform .28s ease;
-}
-
-.premium-nav-link:hover {
-  transform: translateY(-1px);
-}
-
-.premium-nav-link:hover::before,
-.premium-nav-link.active::before {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.premium-nav-link:hover::after,
-.premium-nav-link.active::after {
-  opacity: 1;
-  transform: translateX(-50%) scaleX(1);
-}
-
-.category-pill {
+}.category-pill {
   border-radius: 999px !important;
   border: 1px solid rgba(26, 115, 181, .16) !important;
   color: var(--color-blue-700) !important;
@@ -795,7 +518,6 @@ html {
   transform: translateY(-1px);
 }
 
-
 /* Premium hover refinements */
 .premium-logo::before,
 .premium-logo::after {
@@ -805,38 +527,7 @@ html {
 .premium-logo {
   border-radius: 0 !important;
   filter: none !important;
-}
-
-.premium-nav-link::after {
-  content: '' !important;
-  position: absolute !important;
-  top: 0.45rem !important;
-  right: 0.5rem !important;
-  bottom: auto !important;
-  left: auto !important;
-  width: 0.4rem !important;
-  height: 0.4rem !important;
-  border-radius: 999px !important;
-  background: #f97316 !important;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, .14), 0 0 10px rgba(249, 115, 22, .5) !important;
-  opacity: 0 !important;
-  transform: scale(.75) !important;
-}
-
-.premium-nav-link:hover::after {
-  opacity: 0 !important;
-}
-
-.premium-nav-link.active::after {
-  opacity: 1 !important;
-  transform: scale(1) !important;
-}
-
-.premium-nav-link.active {
-  background-image: none !important;
-}
-
-.category-pill::after {
+}.category-pill::after {
   content: '' !important;
   position: absolute !important;
   top: 0.5rem !important;
@@ -873,68 +564,7 @@ html {
   overflow: hidden !important;
   white-space: nowrap !important;
   text-overflow: ellipsis !important;
-}
-
-/* Corporate modern navigation */
-.premium-nav-link {
-  width: 6.875rem !important;
-  height: 2rem !important;
-  border-radius: 0.5rem !important;
-  border: 1px solid transparent !important;
-  background: transparent !important;
-  color: #0a375a !important;
-  font-size: 0.765rem !important;
-  font-weight: 800 !important;
-  box-shadow: none !important;
-  transform: none !important;
-  transition: color .22s ease, background-color .22s ease, border-color .22s ease, box-shadow .22s ease !important;
-}
-
-.premium-nav-link::before {
-  background: linear-gradient(180deg, rgba(255, 255, 255, .94), rgba(239, 246, 255, .72)) !important;
-  border: none !important;
-  opacity: 0 !important;
-  transform: none !important;
-}
-
-.premium-nav-link:hover,
-.premium-nav-link:focus-visible,
-.premium-nav-link.active {
-  color: #0a375a !important;
-  border-color: rgba(10, 55, 90, .14) !important;
-  box-shadow: 0 8px 18px rgba(10, 55, 90, .07) !important;
-}
-
-.premium-nav-link:hover::before,
-.premium-nav-link:focus-visible::before,
-.premium-nav-link.active::before {
-  opacity: 1 !important;
-}
-
-.premium-nav-link::after {
-  top: .42rem !important;
-  right: .48rem !important;
-  width: .34rem !important;
-  height: .34rem !important;
-  background: #0a375a !important;
-  box-shadow: 0 0 0 3px rgba(10, 55, 90, .1), 0 0 9px rgba(10, 55, 90, .35) !important;
-}
-
-/* Compact corporate nav with orange active dot */
-.premium-nav-link {
-  width: auto !important;
-  min-width: 4.75rem !important;
-  height: 2rem !important;
-  padding: 0 0.78rem !important;
-}
-
-.premium-nav-link::after {
-  background: #f97316 !important;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, .14), 0 0 9px rgba(249, 115, 22, .45) !important;
-}
-
-
-/* Premium user menu button */
+}/* Premium user menu button */
 .premium-user-button {
   position: relative;
   isolation: isolate;
@@ -1165,29 +795,7 @@ html {
 .home-search-field input::placeholder {
   color: rgba(75, 85, 99, 0.72);
   font-weight: 600;
-}
-
-.home-scroll-button {
-  display: inline-flex;
-  width: 2rem;
-  height: 2rem;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  border: 1px solid rgba(15, 74, 120, 0.12);
-  background: white;
-  color: rgba(10, 55, 90, 0.56);
-  transition: color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.home-scroll-button:hover {
-  color: var(--color-blue-700);
-  border-color: rgba(15, 74, 120, 0.24);
-  box-shadow: 0 8px 18px rgba(15, 74, 120, 0.08);
-}
-
-.home-sort-button {
+}.home-sort-button {
   display: inline-flex;
   width: 100%;
   min-height: 3.625rem;
@@ -1248,7 +856,6 @@ html {
   }
 }
 
-
 @media (max-width: 639px) {
   .home-hero-content {
     position: absolute;
@@ -1282,7 +889,6 @@ html {
   clip-path: inset(0 round 0 0 1.35rem 1.35rem);
   transform: translateZ(0);
 }
-
 
 /* Mobile hero action placement */
 @media (max-width: 639px) {
@@ -1324,44 +930,12 @@ html {
   text-transform: uppercase !important;
 }
 
-
 .floating-action-pill:hover {
   color: #0a375a !important;
   border-color: rgba(10, 55, 90, .42) !important;
   box-shadow: 0 18px 34px rgba(10, 55, 90, .20), 0 6px 16px rgba(249, 115, 22, .12) !important;
   transform: translateY(-1px) scale(1.06);
-}
-
-
-/* ===== LP Ticket Premium Utilities ===== */
-.lp-brand-blue {
-  color: #0A375A;
-}
-
-.lp-brand-orange {
-  color: #F97316;
-}
-
-.lp-bg-blue {
-  background-color: #0A375A;
-}
-
-.lp-bg-orange {
-  background-color: #F97316;
-}
-
-.lp-border-blue {
-  border-color: rgba(10, 55, 90, 0.18);
-}
-
-.lp-focus:focus {
-  outline: none;
-  border-color: #F97316;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.16);
-}
-
-
-.category-pill {
+}.category-pill {
   border-radius: 8px !important;
   border-color: rgba(10, 55, 90, 0.14) !important;
   color: #0A375A !important;
@@ -1405,13 +979,11 @@ html {
   color: #64748b !important;
 }
 
-
 /* ===== LP Ticket Home Corrections ===== */
 .home-hero-overlay {
   background: transparent !important;
   backdrop-filter: none !important;
 }
-
 
 /* ===== LP Ticket Dashboard Premium Pass ===== */
 .dashboard-premium-shell {
@@ -1468,7 +1040,6 @@ html {
   border-color: #F97316 !important;
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14) !important;
 }
-
 
 /* ===== LP Ticket Event + Purchase Premium Pass ===== */
 .event-premium-shell {
@@ -1550,7 +1121,6 @@ html {
   box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.14) !important;
 }
 
-
 /* ===== Events filter bar — dark glass, no conflicting overrides ===== */
 .events-filter-bar {
   border-radius: 16px;
@@ -1559,7 +1129,6 @@ html {
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(18px) saturate(1.2);
 }
-
 
 /* ===== Responsive utilities ===== */
 
@@ -1821,20 +1390,6 @@ html {
   background: rgba(255, 255, 255, 0.98) !important;
   box-shadow: 0 24px 70px rgba(10, 55, 90, 0.12) !important;
 }
-
-.trust-premium-badge {
-  border: 1px solid rgba(10, 55, 90, 0.12) !important;
-  border-radius: 12px !important;
-  background: rgba(255, 255, 255, 0.96) !important;
-  box-shadow: 0 12px 30px rgba(10, 55, 90, 0.07) !important;
-}
-
-.trust-premium-badge:hover {
-  border-color: rgba(249, 115, 22, 0.28) !important;
-  transform: translateY(-1px);
-}
-
-
 /* ===== LP Ticket Premium Menus + Sidebars ===== */
 .lp-user-menu {
   border: 1px solid rgba(246, 198, 95, 0.18) !important;
@@ -2032,14 +1587,6 @@ html {
   border-color: rgba(246, 198, 95, 0.16) !important;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035)) !important;
 }
-
-.home-scroll-button {
-  border-radius: 12px !important;
-  border-color: rgba(246, 198, 95, 0.18) !important;
-  background: rgba(255, 255, 255, 0.06) !important;
-  color: rgba(246, 198, 95, 0.88) !important;
-}
-
 .home-category-card {
   position: relative;
   isolation: isolate;
@@ -2108,23 +1655,7 @@ html {
 .home-category-card.active .home-category-shine {
   opacity: 1;
   transform: translateX(42%);
-}
-
-.site-footer-future {
-  position: relative;
-  overflow: hidden;
-  border-top: 1px solid rgba(246, 198, 95, 0.18) !important;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(249, 115, 22, 0.18), transparent 24rem),
-    radial-gradient(circle at 88% 8%, rgba(56, 189, 248, 0.14), transparent 26rem),
-    linear-gradient(180deg, #071827 0%, #05111f 100%) !important;
-}
-
-.site-footer-future a:hover {
-  color: var(--lp-future-gold) !important;
-}
-
-@media (max-width: 639px) {
+}@media (max-width: 639px) {
 
   .home-hero-frame,
   .home-empty-hero {
@@ -2171,12 +1702,6 @@ html {
   scroll-behavior: smooth !important;
   overscroll-behavior-x: contain !important;
 }
-
-.home-scroll-button {
-  flex: 0 0 2rem !important;
-  z-index: 5 !important;
-}
-
 .home-category-rail {
   display: flex !important;
   flex: 1 1 0 !important;
@@ -2405,15 +1930,6 @@ html {
 .event-signature-card .text-gray-400 {
   color: var(--ref-muted) !important;
 }
-
-/* Footer */
-.site-footer-future {
-  background:
-    radial-gradient(circle at 12% 0%, rgba(255, 107, 0, 0.12), transparent 24rem),
-    linear-gradient(180deg, #07111d 0%, #050b12 100%) !important;
-  border-top: 1px solid var(--ref-border-soft) !important;
-}
-
 /* ===== RESTORE: category image cards, keep new dark theme ===== */
 .home-category-rail {
   display: flex !important;
@@ -3104,77 +2620,7 @@ body header .premium-nav-link.active::after {
 .site-header-future .premium-nav-link.active,
 body header .premium-nav-link.active {
   color: #ff7a00 !important;
-}
-
-/* ===== HARD FIX HEADER NAV + SCAN STYLE ===== */
-
-/* Quitar completamente el cuadro blanco del hover */
-body header .premium-nav-link,
-body header nav a.premium-nav-link {
-  position: relative !important;
-  isolation: auto !important;
-  overflow: visible !important;
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  transform: none !important;
-}
-
-body header .premium-nav-link::before,
-body header nav a.premium-nav-link::before {
-  content: none !important;
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
-body header .premium-nav-link:hover,
-body header .premium-nav-link:focus,
-body header .premium-nav-link:focus-visible,
-body header nav a.premium-nav-link:hover,
-body header nav a.premium-nav-link:focus,
-body header nav a.premium-nav-link:focus-visible {
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  transform: none !important;
-  color: #ff7a00 !important;
-}
-
-/* Línea suave debajo de cada nav item */
-body header .premium-nav-link::after,
-body header nav a.premium-nav-link::after {
-  content: '' !important;
-  position: absolute !important;
-  left: 50% !important;
-  right: auto !important;
-  top: auto !important;
-  bottom: -0.72rem !important;
-  width: 2.85rem !important;
-  height: 2px !important;
-  border-radius: 999px !important;
-  background: linear-gradient(90deg,
-      transparent 0%,
-      rgba(255, 122, 0, 0.65) 18%,
-      #ff7a00 50%,
-      rgba(255, 122, 0, 0.65) 82%,
-      transparent 100%) !important;
-  box-shadow: 0 0 15px rgba(255, 122, 0, 0.58) !important;
-  opacity: 0 !important;
-  transform: translateX(-50%) scaleX(0.35) !important;
-  transition: opacity 0.22s ease, transform 0.22s ease !important;
-}
-
-/* SCAN igual al estilo Search, sin cambiar tamaño */
+}/* SCAN igual al estilo Search, sin cambiar tamaño */
 body header a[class*="bg-primary"],
 body header button[class*="bg-primary"],
 body header a[href*="scan"],
@@ -3205,52 +2651,7 @@ body header .btn-primary:hover {
     0 0 26px rgba(255, 122, 0, 0.18),
     inset 0 1px 0 rgba(255, 231, 194, 0.48),
     inset 0 -12px 24px rgba(129, 31, 0, 0.22) !important;
-}
-
-/* ===== FINAL NAV ACTIVE: same line as hover, no side line ===== */
-body header .premium-nav-link.active {
-  color: #ff7a00 !important;
-  background: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
-body header .premium-nav-link.active::before {
-  content: none !important;
-  display: none !important;
-}
-
-body header .premium-nav-link.active::after,
-body header .premium-nav-link:hover::after,
-body header .premium-nav-link:focus-visible::after {
-  content: '' !important;
-  position: absolute !important;
-  left: 50% !important;
-  right: auto !important;
-  top: auto !important;
-  bottom: -0.72rem !important;
-  width: 2.85rem !important;
-  height: 2px !important;
-  border-radius: 999px !important;
-  background: linear-gradient(90deg,
-      transparent 0%,
-      rgba(255, 122, 0, 0.65) 18%,
-      #ff7a00 50%,
-      rgba(255, 122, 0, 0.65) 82%,
-      transparent 100%) !important;
-  box-shadow: 0 0 15px rgba(255, 122, 0, 0.58) !important;
-  opacity: 1 !important;
-  transform: translateX(-50%) scaleX(1) !important;
-}
-
-/* Hide any older active dot/side indicator */
-body header .premium-nav-link.active[style],
-body header .premium-nav-link.active {
-  background-image: none !important;
-}
-
-/* ===== SCAN exactly like Search orange gloss ===== */
+}/* ===== SCAN exactly like Search orange gloss ===== */
 body header a[href="/verify"],
 body header a[href*="/verify"],
 body header button[aria-label*="scan" i],
@@ -3380,13 +2781,6 @@ body header .header-scan-button span {
   position: relative !important;
   z-index: 1 !important;
 }
-
-/* ===== Header nav active fixed with .is-active only ===== */
-body header .premium-nav-link.active::after {
-  opacity: 0 !important;
-  transform: translateX(-50%) scaleX(0.35) !important;
-}
-
 body header .premium-nav-link.is-active {
   color: #ff7a00 !important;
 }
@@ -3458,14 +2852,6 @@ body header .header-nav-link.is-active::after {
   opacity: 1 !important;
   transform: translateX(-50%) scaleX(1) !important;
 }
-
-/* Apagar cualquier línea vieja de premium-nav-link que quede en desktop */
-body header .premium-nav-link::after,
-body header .premium-nav-link::before {
-  display: none !important;
-  content: none !important;
-}
-
 /* ===== ES/EN segmented control ===== */
 body header .header-lang-switch {
   width: 7.25rem !important;
