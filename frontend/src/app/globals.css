@@ -1685,6 +1685,16 @@ html {
   }
 }
 
+/* Home page: reduce gap between header and hero */
+.home-signature {
+  margin-top: -4rem;
+}
+@media (min-width: 1024px) {
+  .home-signature {
+    margin-top: -5rem;
+  }
+}
+
 /* ===== Admin/organizer pages keep white background ===== */
 .premium-shell,
 .lp-management-layout {

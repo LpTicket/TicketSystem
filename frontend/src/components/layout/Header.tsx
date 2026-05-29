@@ -342,45 +342,45 @@ export default function Header() {
 
           {/* Mobile UI */}
           <div className="lg:hidden flex items-center gap-2 ml-auto">
-            {/* Language Switcher Mobile (Small version) */}
-            <div className="flex border border-gray-200 rounded-lg overflow-hidden h-9 w-[70px] shrink-0">
-              <button 
+            {/* Language Switcher Mobile */}
+            <div className="flex border border-white/20 rounded-lg overflow-hidden h-9 w-[70px] shrink-0">
+              <button
                 onClick={() => setLang('es')}
-                className={`flex-1 text-[11px] font-bold transition-colors ${lang === 'es' ? 'bg-[#0A375A] text-white' : 'bg-white text-gray-500'}`}
+                className={`flex-1 text-[11px] font-bold transition-colors ${lang === 'es' ? 'bg-primary-500 text-white' : 'bg-white/10 text-white/70'}`}
               >
                 ES
               </button>
-              <button 
+              <button
                 onClick={() => setLang('en')}
-                className={`flex-1 text-[11px] font-bold border-l border-gray-200 transition-colors ${lang === 'en' ? 'bg-[#0A375A] text-white' : 'bg-white text-gray-500'}`}
+                className={`flex-1 text-[11px] font-bold border-l border-white/20 transition-colors ${lang === 'en' ? 'bg-primary-500 text-white' : 'bg-white/10 text-white/70'}`}
               >
                 EN
               </button>
             </div>
 
-            {/* 2. SCAN Button (if Auth) or Login Button (if Guest) */}
+            {/* SCAN / Login */}
             {isAuthenticated ? (
               <Link
                 href="/verify"
                 onClick={() => setMobileMenuOpen(false)}
-                className="h-9 px-3 bg-[#F97316] hover:bg-[#F97316] text-white rounded-lg flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0"
+                className="h-9 px-3 bg-[#F97316] text-white rounded-lg flex items-center gap-2 transition-all shadow-md active:scale-95 shrink-0"
               >
                 <HiOutlineQrcode className="w-4 h-4" />
                 <span className="text-[11px] font-black uppercase tracking-wider">SCAN</span>
               </Link>
             ) : (
-              <Link 
-                href="/login" 
+              <Link
+                href="/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="h-9 px-3 border border-blue-600 text-[#0A375A] hover:bg-[rgba(10,55,90,0.06)] text-[10px] font-black uppercase tracking-wider rounded-lg transition-all text-center flex items-center justify-center shrink-0"
+                className="h-9 px-3 border border-white/30 text-white text-[10px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center justify-center shrink-0"
               >
                 {t('login')}
               </Link>
             )}
 
-            {/* Menu Toggle */}
-            <button className="p-1 text-[#0A375A] ml-1" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-              {mobileMenuOpen ? <HiOutlineX className="w-8 h-8" /> : <HiOutlineMenu className="w-8 h-8" />}
+            {/* Hamburger — white so it's visible on dark header */}
+            <button className="p-1 text-white ml-1" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              {mobileMenuOpen ? <HiOutlineX className="w-7 h-7" /> : <HiOutlineMenu className="w-7 h-7" />}
             </button>
           </div>
         </div>
