@@ -5187,3 +5187,19 @@ html body header.site-header-future button.premium-user-button.active {
     margin: 0 !important;
   }
 }
+/* ============================================================
+   FINAL AUTHORITATIVE HEADER LOOK — make the top bar clearly
+   distinct from the dark page underneath (lighter navy band,
+   visible orange underline, pronounced drop shadow).
+   ============================================================ */
+html body header.site-header-future,
+html body header.site-header-future.site-header-future {
+  background:
+    radial-gradient(circle at 88% 0%, rgba(249, 115, 22, 0.14), transparent 26rem),
+    linear-gradient(180deg, #0f2d4f 0%, #0b2238 100%) !important;
+  border-bottom: 1px solid rgba(249, 115, 22, 0.45) !important;
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(14px) saturate(1.15) !important;
+}
