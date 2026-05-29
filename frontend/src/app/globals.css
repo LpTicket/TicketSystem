@@ -1195,10 +1195,10 @@ html {
     radial-gradient(circle at 86% 3%, rgba(56, 189, 248, 0.12), transparent 30rem),
     linear-gradient(180deg, #061b2d 0%, #071827 46%, #05111f 100%) !important;
   color: #e2e8f0 !important;
-  padding-top: 4rem;
+  padding-top: 5rem;
 }
 @media (min-width: 1024px) {
-  .lp-management-layout { padding-top: 4.5rem; }
+  .lp-management-layout { padding-top: 6rem; }
 }
 .premium-shell {
   background: transparent !important;
@@ -1561,6 +1561,10 @@ html {
 .lp-management-layout .premium-stat-card,
 .lp-management-layout .premium-section-card,
 .lp-management-layout .dashboard-premium-card,
+.lp-management-layout .dashboard-premium-ticket,
+.lp-management-layout .public-premium-card,
+.lp-management-layout .public-premium-hero,
+.lp-management-layout .auth-premium-card,
 .lp-management-layout .card {
   background: rgba(8, 31, 51, 0.82) !important;
   border-color: rgba(246, 198, 95, 0.14) !important;
@@ -1568,7 +1572,8 @@ html {
 }
 
 .lp-management-layout .premium-stat-card:hover,
-.lp-management-layout .premium-section-card:hover {
+.lp-management-layout .premium-section-card:hover,
+.lp-management-layout .public-premium-card:hover {
   border-color: rgba(249, 115, 22, 0.30) !important;
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.38) !important;
 }
