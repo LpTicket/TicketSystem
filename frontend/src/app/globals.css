@@ -1627,23 +1627,6 @@ html {
   backdrop-filter: blur(18px) saturate(1.2);
 }
 
-/* Home page: pull up to fill behind the semi-transparent header */
-.home-signature {
-  margin-top: -4rem; /* matches pt-16 mobile */
-}
-
-@media (min-width: 1024px) {
-  .home-signature {
-    margin-top: -5rem; /* matches pt-20 desktop */
-  }
-}
-
-/* Reduce hero-shell padding on mobile so hero is closer to the header */
-@media (max-width: 1023px) {
-  .home-hero-shell {
-    padding-top: 0.25rem !important;
-  }
-}
 
 /* ===== Responsive utilities ===== */
 
