@@ -59,11 +59,6 @@ html, body {
   max-width: 100vw;
 }
 
-/* Prevent any element from causing horizontal scroll */
-* {
-  max-width: 100%;
-}
-
 body {
   font-family: var(--font-sans);
   background: #05111f;
