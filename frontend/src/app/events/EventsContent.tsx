@@ -99,13 +99,13 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
       {/* Grid */}
       <div className="mt-12">
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="card"><div className="aspect-[3/4] skeleton" /><div className="p-4 space-y-2"><div className="h-4 skeleton rounded w-3/4" /><div className="h-3 skeleton rounded w-1/2" /></div></div>
             ))}
           </div>
         ) : events.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
             {events.map((event, idx) => <EventCard key={event.id} event={event} priority={idx < 4} />)}
           </div>
         ) : (
