@@ -1698,6 +1698,29 @@ html {
   border-color: rgba(117, 132, 153, 0.18) !important;
 }
 
+/* Dashboard tabs dark */
+.page-dark-shell .dashboard-premium-tabs {
+  background: rgba(8, 31, 51, 0.82) !important;
+  border-color: rgba(246, 198, 95, 0.14) !important;
+}
+
+.page-dark-shell .dashboard-premium-tab {
+  color: rgba(203, 213, 225, 0.75) !important;
+}
+
+.page-dark-shell .dashboard-premium-tab.active,
+.page-dark-shell .dashboard-premium-tab[class*="bg-[#0A375A]"],
+.page-dark-shell .dashboard-premium-tab[class*="bg-primary"] {
+  background: rgba(249, 115, 22, 0.85) !important;
+  color: #ffffff !important;
+}
+
+/* Stat cards dark h1 */
+.page-dark-shell h1,
+.page-dark-shell .text-\[\#0A375A\] {
+  color: #f1f5f9 !important;
+}
+
 /* LegalPage dark overrides */
 .page-dark-shell .prose h2 {
   color: #f1f5f9 !important;

@@ -225,10 +225,11 @@ function DashboardPageBody() {
   };
 
   return (
-    <div className="dashboard-premium-shell max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
+    <div className="page-dark-shell min-h-screen">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="font-black text-2xl text-[#0A375A]">{t('clientHello')}, {user.firstName} 👋</h1>
+        <h1 className="font-black text-2xl text-white">{t('clientHello')}, {user.firstName} 👋</h1>
         <p className="text-slate-500 text-sm mt-1 font-medium">{t('clientManage')}</p>
       </div>
 
@@ -572,6 +573,7 @@ function DashboardPageBody() {
         <PaymentMethods />
       )}
 
+    </div>
     </div>
   );
 }
