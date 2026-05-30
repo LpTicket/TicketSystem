@@ -1323,17 +1323,17 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   </select>
                 </div>
 
-                <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-white via-blue-50/40 to-orange-50/30 p-3 shadow-sm">
+                <div className="rounded-2xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-3 shadow-sm">
                   <div className="flex items-center justify-between gap-3 mb-2">
                     <div>
-                      <label className="block text-[11px] font-black uppercase tracking-[0.16em] text-[#0A375A]">
+                      <label className="block text-[11px] font-black uppercase tracking-[0.16em] text-[#F6C65F]">
                         {lang === 'es' ? 'Tamaño del texto' : 'Text size'}
                       </label>
                       <p className="text-[10px] font-semibold text-gray-400 mt-0.5">
                         {lang === 'es' ? 'Nombre visible en el mapa' : 'Visible map label'}
                       </p>
                     </div>
-                    <div className="min-w-[52px] rounded-xl bg-white px-2.5 py-1.5 text-center text-sm font-black text-[#F97316] border border-orange-100 shadow-sm">
+                    <div className="min-w-[52px] rounded-xl bg-[#071827] px-2.5 py-1.5 text-center text-sm font-black text-[#F97316] border border-[rgba(249,115,22,0.3)] shadow-sm">
                       {Number((selectedSection as any).labelFontSize || 0) || (selectedSection.sectionType === 'stage' ? 13 : selectedSection.sectionType === 'table' ? 10 : 12)}px
                     </div>
                   </div>
