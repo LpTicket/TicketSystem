@@ -211,7 +211,7 @@ export default function AdminMarketingPage() {
   ];
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="premium-shell p-6 lg:p-8 space-y-8">
       <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -237,7 +237,7 @@ export default function AdminMarketingPage() {
           </button>
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {statCards.map((card) => {
             const Icon = card.icon;
             return (
