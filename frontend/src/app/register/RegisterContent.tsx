@@ -83,7 +83,7 @@ export default function RegisterContent() {
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-6">
           <Link href="/">
-            <img src="/logo.png" alt="LPTicket" className="h-12 w-auto object-contain" />
+            <img src="/lp-logo-glow.png" alt="LPTicket" className="h-20 w-auto object-contain" />
           </Link>
         </div>
         <div className="text-center mb-8">

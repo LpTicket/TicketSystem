@@ -409,10 +409,10 @@ export default function Header() {
               })}
             </div>
 
-            {/* Mode Toggle inside Mobile Menu (Pill version as in screenshot) */}
+            {/* Mode Toggle inside Mobile Menu */}
             {isAuthenticated && user?.role !== 'admin' && (
-              <div className="hamburger-menu-card flex justify-center py-4">
-                <ModeToggle variant="pill" />
+              <div className="hamburger-menu-card mode-toggle-card px-4 py-4">
+                <ModeToggle variant="dropdown" />
               </div>
             )}
 
