@@ -5258,3 +5258,18 @@ html body header.site-header-future.site-header-future {
 .event-dark .relative.bg-\[\#f0f2f5\] {
   background: #f0f2f5 !important;
 }
+
+/* Event detail premium cards -> solid dark (these use their own classes, not bg-white) */
+.event-dark .event-premium-panel,
+.event-dark .event-premium-info {
+  background: #0b2236 !important;
+  border-color: rgba(246, 198, 95, 0.12) !important;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.28) !important;
+}
+.event-dark .event-premium-panel:hover,
+.event-dark .event-premium-info:hover {
+  border-color: rgba(249, 115, 22, 0.30) !important;
+}
+.event-dark .event-premium-title {
+  color: #f1f5f9 !important;
+}
