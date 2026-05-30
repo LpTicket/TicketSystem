@@ -49,7 +49,10 @@ function normalizeSlug(value: string) {
 }
 
 async function fetchJson(url: string) {
-  const response = await fetch(url, { cache: 'no-store' });
+  // ISR: cache for 60s so the whole /events/[slug] route stays static-ISR
+  // (no-store here would force the entire route into dynamic rendering).
+  // OG image freshness is handled separately via the ?v=updatedAt version param.
+  const response = await fetch(url, { next: { revalidate: 60 } });
   if (!response.ok) return null;
   return response.json();
 }

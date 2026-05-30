@@ -3,6 +3,23 @@ import type { Event, VenueSection, Seat } from '@/types';
 
 export const revalidate = 60; // ISR: regenerate every 60s
 
+// Prerender current events at build time (SSG + ISR). Slugs not generated here
+// (e.g. events created later) still render on-demand thanks to dynamicParams.
+export async function generateStaticParams() {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+  try {
+    const res = await fetch(`${baseUrl}/events?limit=200`, { next: { revalidate: 60 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const events: { slug?: string }[] = data.events || data || [];
+    return events
+      .filter((e) => e.slug)
+      .map((e) => ({ slug: String(e.slug) }));
+  } catch {
+    return [];
+  }
+}
+
 async function loadEventData(slug: string) {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
