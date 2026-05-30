@@ -931,12 +931,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         </div>
       </div>
 
-      <div className="flex flex-1 relative min-h-0 bg-[#f3f4f6]">
+      <div className="flex flex-1 relative min-h-0 bg-[#0d2138]">
         {/* Infinite Grid Background */}
-        <div 
+        <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(rgba(148,163,184,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.06) 1px, transparent 1px)`,
             backgroundSize: '20px 20px',
             backgroundPosition: 'center center'
           }}
@@ -1567,7 +1567,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       {/* ── Canvas Viewport (Seats.io Light Grid Style) ─────────────────────────────────────────── */}
       <div
         ref={viewportRef}
-        className="flex-1 relative overflow-hidden bg-[#f3f4f6]"
+        className="flex-1 relative overflow-hidden bg-[#0d2138]"
         style={{ cursor: 'default', userSelect: 'none', touchAction: 'none' }}
         onPointerDown={onViewportPointerDown}
         onPointerMove={onViewportPointerMove}
@@ -1582,14 +1582,14 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         <div 
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(rgba(148,163,184,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.10) 1px, transparent 1px)`,
             backgroundSize: '100px 100px',
             backgroundPosition: 'center center'
           }}
         >
           {/* Subtle minor grid */}
           <div className="absolute inset-0" style={{
-            backgroundImage: `linear-gradient(#f3f4f6 1px, transparent 1px), linear-gradient(90deg, #f3f4f6 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(rgba(148,163,184,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.05) 1px, transparent 1px)`,
             backgroundSize: '20px 20px',
             backgroundPosition: 'center center'
           }} />

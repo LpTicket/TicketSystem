@@ -592,7 +592,7 @@ export default function SeatMapInteractive({
       {/* --- Interactive Stage/Arena Canvas --- */}
       <div
         ref={containerRef}
-        className="relative bg-[#f0f2f5] border border-gray-300 rounded overflow-hidden shadow-inner"
+        className="relative bg-[#0d2138] border border-[rgba(246,198,95,0.14)] rounded overflow-hidden shadow-inner"
         style={{ height: '65vh', minHeight: 450, cursor: isDragging.current ? 'grabbing' : 'grab', touchAction: 'none' }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
@@ -605,13 +605,13 @@ export default function SeatMapInteractive({
         <div 
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(rgba(148,163,184,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.10) 1px, transparent 1px)`,
             backgroundSize: '100px 100px',
             backgroundPosition: 'center center'
           }}
         >
           <div className="absolute inset-0" style={{
-            backgroundImage: `linear-gradient(#f3f4f6 1px, transparent 1px), linear-gradient(90deg, #f3f4f6 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(rgba(148,163,184,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.05) 1px, transparent 1px)`,
             backgroundSize: '20px 20px',
             backgroundPosition: 'center center'
           }} />
