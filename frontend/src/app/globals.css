@@ -5213,3 +5213,48 @@ html body header.site-header-future.site-header-future {
     padding-top: 7.5rem !important;
   }
 }
+
+/* ============================================================
+   Event detail page: dark cards (solid, NOT transparent) + readable text
+   Scoped to .event-dark so it doesn't affect anything else.
+   ============================================================ */
+.event-dark .bg-white,
+.event-dark [class*="bg-white/"] {
+  background: #0b2236 !important;
+  border-color: rgba(246, 198, 95, 0.12) !important;
+}
+.event-dark .bg-gray-50,
+.event-dark .bg-slate-50,
+.event-dark .bg-gray-100,
+.event-dark .bg-slate-100 {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+.event-dark h1,
+.event-dark h2,
+.event-dark h3,
+.event-dark h4,
+.event-dark [class*="text-[#0A375A]"],
+.event-dark .text-slate-900,
+.event-dark .text-gray-900,
+.event-dark .text-slate-800,
+.event-dark .text-gray-800 {
+  color: #f1f5f9 !important;
+}
+.event-dark .text-gray-500,
+.event-dark .text-gray-600,
+.event-dark .text-gray-700,
+.event-dark .text-slate-500,
+.event-dark .text-slate-600,
+.event-dark .text-slate-700 {
+  color: rgba(203, 213, 225, 0.82) !important;
+}
+.event-dark .border-gray-100,
+.event-dark .border-gray-200,
+.event-dark .border-slate-100,
+.event-dark .border-slate-200 {
+  border-color: rgba(117, 132, 153, 0.18) !important;
+}
+/* The seat-map canvas keeps its own light floor look — don't darken it here */
+.event-dark .relative.bg-\[\#f0f2f5\] {
+  background: #f0f2f5 !important;
+}
