@@ -11,6 +11,7 @@ import {
   HiOutlineCurrencyDollar,
   HiOutlinePencil,
   HiOutlinePlus,
+  HiOutlineQrcode,
   HiOutlineRefresh,
   HiOutlineSearch,
   HiOutlineTag,
@@ -314,7 +315,7 @@ export default function AdminSpecialCodesPage() {
       <form onSubmit={handleCreate} className="public-premium-card p-5 md:p-6 space-y-4">
         <div className="flex items-center gap-3">
           <div className="public-premium-icon w-11 h-11 flex items-center justify-center">
-            <HiOutlinePlus className="w-5 h-5" />
+            <HiOutlineQrcode className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-lg font-black text-gray-900">{lang === 'es' ? 'Crear código' : 'Create code'}</h2>
