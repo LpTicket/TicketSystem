@@ -5593,3 +5593,25 @@ html body,
 .lp-user-menu .lp-menu-danger:active {
   transform: translateX(3px) scale(0.985) !important;
 }
+
+/* ===== Home "lit-up" white text glow, applied site-wide ===== */
+/* Same soft white halo the Home search labels/titles use, so white headings and
+   labels look "encendidos" on every dark page. */
+.page-dark-shell h1, .page-dark-shell h2, .page-dark-shell h3, .page-dark-shell h4,
+.page-dark-shell label,
+.public-premium-shell h1, .public-premium-shell h2, .public-premium-shell h3,
+.public-premium-title,
+.event-dark h1, .event-dark h2, .event-dark h3,
+.purchase-premium-shell h1, .purchase-premium-shell h2, .purchase-premium-shell h3,
+.lp-management-layout h1, .lp-management-layout h2, .lp-management-layout h3 {
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.20), 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+/* Soften the thick/bright light borders so they read like the Home's faint lines
+   instead of solid white lines on the dark profile/dashboard cards. */
+.page-dark-shell .border-slate-100,
+.page-dark-shell .border-slate-200,
+.page-dark-shell [class*="border-white"]:not(img),
+.page-dark-shell .border-gray-100,
+.page-dark-shell .border-gray-200 {
+  border-color: rgba(246, 198, 95, 0.16) !important;
+}
