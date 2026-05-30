@@ -30,7 +30,7 @@ export default function ContactPage() {
 
   return (
     <div className="page-dark-shell min-h-screen pt-28 pb-16">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 md:mt-16">
         
         <div className="text-center mb-16 animate-fade-in">
           <h1 className="public-premium-title text-4xl md:text-5xl font-black mb-4">{t('contactPageTitle')}</h1>

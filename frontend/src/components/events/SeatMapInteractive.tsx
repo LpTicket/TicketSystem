@@ -733,7 +733,7 @@ export default function SeatMapInteractive({
                       {tableShape === 'round' ? (
                         <>
                           <div 
-                            className="absolute rounded-full bg-[#f8fafc] border border-slate-300 shadow-sm flex items-center justify-center z-10 transition-all hover:bg-slate-50" 
+                            className="absolute rounded-full bg-[#22415c] border border-[rgba(246,198,95,0.28)] shadow-sm flex items-center justify-center z-10 transition-all hover:bg-[#284b6a]"
                             style={{
                               width: '60%', height: '60%',
                               cursor: isTableFullyUnavailable ? 'not-allowed' : 'pointer',
@@ -766,7 +766,7 @@ export default function SeatMapInteractive({
                             }}
                           >
                             <span 
-                              className="font-black uppercase tracking-tight text-center px-1 select-none leading-none text-slate-600"
+                              className="font-black uppercase tracking-tight text-center px-1 select-none leading-none text-slate-100"
                               style={{
                                 transform: `rotate(${-(section.rotation || 0)}deg)`,
                                 display: 'inline-block',
@@ -843,7 +843,7 @@ export default function SeatMapInteractive({
                       ) : (
                         <>
                           <div 
-                            className="absolute rounded bg-[#f8fafc] border border-slate-300 shadow-sm flex items-center justify-center z-10 transition-all hover:bg-slate-50" 
+                            className="absolute rounded bg-[#22415c] border border-[rgba(246,198,95,0.28)] shadow-sm flex items-center justify-center z-10 transition-all hover:bg-[#284b6a]"
                             style={{
                               width: '70%', height: '45%',
                               cursor: isTableFullyUnavailable ? 'not-allowed' : 'pointer',
@@ -876,7 +876,7 @@ export default function SeatMapInteractive({
                             }}
                           >
                             <span 
-                              className="font-black uppercase tracking-tight text-center px-1 select-none leading-none text-slate-600"
+                              className="font-black uppercase tracking-tight text-center px-1 select-none leading-none text-slate-100"
                               style={{
                                 transform: `rotate(${-(section.rotation || 0)}deg)`,
                                 display: 'inline-block',

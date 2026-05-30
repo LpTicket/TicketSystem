@@ -1815,11 +1815,11 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                     {/* Table Surface */}
                     {tableShape === 'round' ? (
                       <>
-                        <div className="absolute rounded-full bg-[#f8fafc] border border-slate-300 shadow-sm flex items-center justify-center pointer-events-none" style={{
+                        <div className="absolute rounded-full bg-[#22415c] border border-[rgba(246,198,95,0.28)] shadow-sm flex items-center justify-center pointer-events-none" style={{
                           width: '60%', height: '60%'
                         }}>
-                          <span 
-                            className="font-black uppercase tracking-tight text-center px-1 select-none leading-none text-slate-600"
+                          <span
+                            className="font-black uppercase tracking-tight text-center px-1 select-none leading-none text-slate-100"
                             style={{
                               transform: `rotate(${-(sec.rotation || 0)}deg)`,
                               display: 'inline-block',
@@ -1890,11 +1890,11 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                       </>
                     ) : (
                       <>
-                        <div className="absolute rounded bg-[#f8fafc] border border-slate-300 shadow-sm flex items-center justify-center pointer-events-none" style={{
+                        <div className="absolute rounded bg-[#22415c] border border-[rgba(246,198,95,0.28)] shadow-sm flex items-center justify-center pointer-events-none" style={{
                           width: '70%', height: '45%'
                         }}>
-                          <span 
-                            className="font-black uppercase tracking-tight text-center px-1 select-none leading-none text-slate-600"
+                          <span
+                            className="font-black uppercase tracking-tight text-center px-1 select-none leading-none text-slate-100"
                             style={{
                               transform: `rotate(${-(sec.rotation || 0)}deg)`,
                               display: 'inline-block',
