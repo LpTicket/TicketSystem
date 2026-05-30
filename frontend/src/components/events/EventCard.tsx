@@ -54,6 +54,7 @@ export default function EventCard({ event, priority = false }: EventCardProps) {
             src={resolvedSrc}
             alt={event.title}
             loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
             fetchPriority={priority ? 'high' : 'auto'}
             onLoad={() => setImageLoaded(true)}
             className="h-full w-full object-cover transition-all duration-700 group-hover:scale-[1.035]"
