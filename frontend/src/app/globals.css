@@ -5549,12 +5549,9 @@ html body header.site-header-future.site-header-future {
    page shell (and the body, for pages without a shell like event detail), so the
    grid always sits behind content and scrolls with it — exactly like the Home.
    The grid alphas are pre-multiplied (~0.55 of the Home values) to match. */
-html body,
-.page-dark-shell,
-.public-premium-shell,
-.premium-shell,
-.purchase-premium-shell,
-.lp-management-layout {
+/* The full background lives ONLY on the body — one continuous gradient for the
+   whole document, so there is no seam where a shell ends and the footer begins. */
+html body {
   background:
     linear-gradient(90deg, rgba(148, 163, 184, 0.025) 1px, transparent 1px),
     linear-gradient(180deg, rgba(148, 163, 184, 0.019) 1px, transparent 1px),
@@ -5563,6 +5560,15 @@ html body,
     linear-gradient(180deg, #050b12 0%, #07111d 46%, #050b12 100%) !important;
   background-size: 92px 92px, 92px 92px, auto, auto, auto !important;
   background-repeat: repeat, repeat, no-repeat, no-repeat, no-repeat !important;
+}
+/* Shells stay transparent so the single body background shows through with no
+   overlapping/duplicated gradient. */
+.page-dark-shell,
+.public-premium-shell,
+.premium-shell,
+.purchase-premium-shell,
+.lp-management-layout {
+  background: transparent !important;
 }
 /* .home-signature is intentionally left untouched — the Home keeps its own
    original background and its own grid exactly as before. */
