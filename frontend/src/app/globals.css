@@ -5273,3 +5273,20 @@ html body header.site-header-future.site-header-future {
 .event-dark .event-premium-title {
   color: #f1f5f9 !important;
 }
+
+/* Secondary (outline) buttons are white by default — make them dark on dark pages */
+.page-dark-shell .btn-secondary,
+.lp-management-layout .btn-secondary,
+.event-dark .btn-secondary {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: #F97316 !important;
+  border-color: rgba(249, 115, 22, 0.5) !important;
+}
+.page-dark-shell .btn-secondary:hover,
+.lp-management-layout .btn-secondary:hover,
+.event-dark .btn-secondary:hover,
+.page-dark-shell [class*="hover:bg-orange-50"]:hover,
+.lp-management-layout [class*="hover:bg-orange-50"]:hover {
+  background: rgba(249, 115, 22, 0.14) !important;
+  color: #F97316 !important;
+}
