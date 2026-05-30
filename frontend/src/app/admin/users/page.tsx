@@ -265,7 +265,7 @@ export default function AdminUsersPage() {
         <div className="space-y-4">
           {/* Desktop Table View */}
           <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-auto max-h-[65vh] custom-scrollbar">
       <div className="mb-4 inline-flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-5 py-3 shadow-sm">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A375A]/5 text-[#0A375A]">
           <span className="text-sm font-black">US</span>
@@ -277,8 +277,8 @@ export default function AdminUsersPage() {
       </div>
 
               <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-[#0d2236] border-b border-gray-200">
                     <th className="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Usuario' : 'User'}</th>
                     <th className="text-left px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Email</th>
                     <th className="text-center px-4 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">{t('adminRole')}</th>
