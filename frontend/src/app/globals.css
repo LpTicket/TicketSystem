@@ -5352,3 +5352,17 @@ html body header.site-header-future.site-header-future {
 .purchase-premium-shell input::placeholder {
   color: rgba(148, 163, 184, 0.6) !important;
 }
+
+/* Gray opacity-variant bars (e.g. InvoiceBreakdown header/footer bg-gray-50/50)
+   weren't caught by exact bg-gray-50 — darken them in dark contexts */
+.purchase-premium-shell [class*="bg-gray-50/"],
+.purchase-premium-shell [class*="bg-gray-100/"],
+.purchase-premium-shell [class*="bg-slate-50/"],
+.purchase-premium-shell [class*="bg-slate-100/"],
+.purchase-premium-shell .bg-gray-100,
+.page-dark-shell [class*="bg-gray-50/"],
+.page-dark-shell [class*="bg-gray-100/"],
+.page-dark-shell [class*="bg-slate-50/"],
+.event-dark [class*="bg-gray-50/"] {
+  background: rgba(255, 255, 255, 0.045) !important;
+}
