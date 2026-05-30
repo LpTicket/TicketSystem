@@ -4,7 +4,7 @@ export const revalidate = 3600;
 
 export default function AboutPage() {
   return (
-    <div className="page-dark-shell min-h-screen py-16">
+    <div className="page-dark-shell min-h-screen pt-28 pb-16">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
 
         {/* Hero */}
