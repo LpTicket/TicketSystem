@@ -2606,13 +2606,11 @@ html {
   color: rgba(255, 255, 255, 0.88) !important;
 }
 
-.site-header-future a[href="/events"].is-active,
 .site-header-future .premium-nav-link.active {
   position: relative !important;
   color: #ff7a00 !important;
 }
 
-.site-header-future a[href="/events"].is-active::after,
 .site-header-future .premium-nav-link.active::after {
   content: '' !important;
   position: absolute !important;
@@ -2727,12 +2725,10 @@ body header .premium-nav-link:hover {
 }
 
 /* Active Events underline */
-body header a[href="/events"].is-active,
 body header .premium-nav-link.active {
   color: #ff7a00 !important;
 }
 
-body header a[href="/events"].is-active::after,
 body header .premium-nav-link.active::after {
   content: '' !important;
   position: absolute !important;
