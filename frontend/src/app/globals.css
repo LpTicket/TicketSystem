@@ -822,6 +822,9 @@ html {
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 10px 26px rgba(10, 55, 90, 0.07);
   transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+  /* Skip rendering/painting off-screen cards for smoother scrolling on long lists */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
 }
 
 .event-signature-card:hover {

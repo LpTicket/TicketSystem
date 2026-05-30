@@ -48,7 +48,7 @@ export default function ShareEventButton({
     <button
       type="button"
       onClick={handleShare}
-      className={`inline-flex items-center justify-center gap-2 border border-[#0A375A]/10 bg-white/92 text-[#0A375A] shadow-[0_12px_28px_rgba(10,55,90,0.12)] backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-primary-500/30 hover:text-primary-600 ${compact ? 'h-10 w-10 rounded-lg' : 'h-11 rounded-lg px-4'} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 border border-[#0A375A]/10 bg-white text-[#0A375A] shadow-[0_12px_28px_rgba(10,55,90,0.12)] transition-all hover:-translate-y-0.5 hover:border-primary-500/30 hover:text-primary-600 ${compact ? 'h-10 w-10 rounded-lg' : 'h-11 rounded-lg px-4'} ${className}`}
       aria-label={copied ? 'Link copiado' : label}
     >
       {copied ? <HiOutlineCheck className="h-5 w-5" /> : <HiOutlineShare className="h-5 w-5" />}

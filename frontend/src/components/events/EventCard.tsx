@@ -59,7 +59,7 @@ export default function EventCard({ event, priority = false }: EventCardProps) {
             className="h-full w-full object-cover transition-all duration-700 group-hover:scale-[1.035]"
             onError={() => { setImageError(true); setImageLoaded(true); }}
           />
-          <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-white/92 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-[#0A375A] shadow-sm backdrop-blur-md">
+          <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-[#0A375A] shadow-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
             {catLabel}
           </div>
