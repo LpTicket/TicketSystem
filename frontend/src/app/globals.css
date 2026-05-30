@@ -5543,36 +5543,24 @@ html body header.site-header-future.site-header-future {
 }
 
 /* ===== Unified background across ALL pages (same as Home) ===== */
-/* The base gradient lives on <body> so every page — even those without a dark
-   shell (e.g. event detail) — shares the exact same background. */
-html body {
-  background:
-    radial-gradient(circle at 78% 12%, rgba(255, 107, 0, 0.18), transparent 27rem),
-    radial-gradient(circle at 16% 2%, rgba(65, 110, 155, 0.16), transparent 24rem),
-    linear-gradient(180deg, #050b12 0%, #07111d 46%, #050b12 100%) !important;
-  background-repeat: no-repeat !important;
-}
-/* Subtle 92px square grid. Fixed so it never repaints on scroll (cheap, no jank);
-   z-index:-1 keeps it behind all content while the transparent shells reveal it. */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.55;
-  background:
-    linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px);
-  background-size: 92px 92px;
-}
-/* Page shells go transparent so the unified body background shows through.
-   NOTE: .home-signature is intentionally left untouched — the Home keeps its own
-   original background and its own (scrolling) grid exactly as before. */
+/* Gradient + subtle 92px grid applied directly as background layers on every
+   page shell (and the body, for pages without a shell like event detail), so the
+   grid always sits behind content and scrolls with it — exactly like the Home.
+   The grid alphas are pre-multiplied (~0.55 of the Home values) to match. */
+html body,
 .page-dark-shell,
 .public-premium-shell,
 .premium-shell,
 .purchase-premium-shell,
 .lp-management-layout {
-  background: transparent !important;
+  background:
+    linear-gradient(90deg, rgba(148, 163, 184, 0.025) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(148, 163, 184, 0.019) 1px, transparent 1px),
+    radial-gradient(circle at 78% 12%, rgba(255, 107, 0, 0.18), transparent 27rem),
+    radial-gradient(circle at 16% 2%, rgba(65, 110, 155, 0.16), transparent 24rem),
+    linear-gradient(180deg, #050b12 0%, #07111d 46%, #050b12 100%) !important;
+  background-size: 92px 92px, 92px 92px, auto, auto, auto !important;
+  background-repeat: repeat, repeat, no-repeat, no-repeat, no-repeat !important;
 }
+/* .home-signature is intentionally left untouched — the Home keeps its own
+   original background and its own grid exactly as before. */
