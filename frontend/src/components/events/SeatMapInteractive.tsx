@@ -592,7 +592,7 @@ export default function SeatMapInteractive({
       {/* --- Interactive Stage/Arena Canvas --- */}
       <div
         ref={containerRef}
-        className="relative bg-[#0c2032] border border-[rgba(246,198,95,0.14)] rounded overflow-hidden shadow-inner"
+        className="relative bg-[#f0f2f5] border border-gray-300 rounded overflow-hidden shadow-inner"
         style={{ height: '65vh', minHeight: 450, cursor: isDragging.current ? 'grabbing' : 'grab', touchAction: 'none' }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
