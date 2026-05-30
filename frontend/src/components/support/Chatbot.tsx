@@ -127,7 +127,7 @@ export default function Chatbot() {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="absolute bottom-24 left-6 w-[90vw] sm:w-[380px] h-[500px] max-h-[calc(100dvh-11rem)] bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-gray-100 flex flex-col overflow-hidden pointer-events-auto animate-in slide-in-from-bottom-10 duration-300">
+        <div className="absolute bottom-24 left-6 w-[90vw] sm:w-[380px] h-[500px] max-h-[calc(100dvh-11rem)] bg-[#0b2236] rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] border border-[rgba(246,198,95,0.14)] flex flex-col overflow-hidden pointer-events-auto animate-in slide-in-from-bottom-10 duration-300">
           
           {/* Header */}
           <div className="bg-orange-500 p-5 text-white flex items-center gap-3">
@@ -150,7 +150,7 @@ export default function Chatbot() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-gray-50/50 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#071827] custom-scrollbar">
             {messages.map((m, i) => (
               <div 
                 key={i} 
@@ -158,20 +158,20 @@ export default function Chatbot() {
               >
                 <div className={`flex gap-2 max-w-[85%] ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                    m.role === 'user' ? 'bg-primary-100 text-primary-600' : 'bg-white border border-gray-100 text-gray-400'
+                    m.role === 'user' ? 'bg-primary-500/20 text-primary-400' : 'bg-[rgba(255,255,255,0.06)] border border-[rgba(246,198,95,0.14)] text-primary-400'
                   }`}>
                     {m.role === 'user' ? <HiOutlineUser className="w-4 h-4" /> : <HiOutlineSparkles className="w-4 h-4" />}
                   </div>
                   <div className={`p-3 rounded-2xl text-xs sm:text-sm shadow-sm ${
-                    m.role === 'user' 
-                      ? 'bg-primary-600 text-white rounded-tr-none whitespace-pre-wrap' 
-                      : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
+                    m.role === 'user'
+                      ? 'bg-primary-600 text-white rounded-tr-none whitespace-pre-wrap'
+                      : 'bg-[rgba(255,255,255,0.05)] text-slate-200 border border-[rgba(246,198,95,0.12)] rounded-tl-none'
                   }`}>
                     {m.role === 'assistant' ? (
                       <ReactMarkdown
                         components={{
                           p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed break-words">{children}</p>,
-                          strong: ({ children }) => <strong className="font-extrabold text-gray-900">{children}</strong>,
+                          strong: ({ children }) => <strong className="font-extrabold text-white">{children}</strong>,
                           ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
                           ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
                           li: ({ children }) => <li className="leading-relaxed">{children}</li>,
@@ -198,10 +198,10 @@ export default function Chatbot() {
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-white border border-gray-100 p-3 rounded-2xl rounded-tl-none shadow-sm flex gap-1">
-                  <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" />
+                <div className="bg-[rgba(255,255,255,0.05)] border border-[rgba(246,198,95,0.12)] p-3 rounded-2xl rounded-tl-none shadow-sm flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
                 </div>
               </div>
             )}
@@ -209,14 +209,14 @@ export default function Chatbot() {
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSend} className="p-4 bg-white border-t border-gray-100">
+          <form onSubmit={handleSend} className="p-4 bg-[#0b2236] border-t border-[rgba(246,198,95,0.12)]">
             <div className="relative">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={lang === 'es' ? 'Escribe tu pregunta...' : 'Type your question...'}
-                className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all"
+                className="w-full pl-4 pr-12 py-3 bg-[rgba(8,31,51,0.7)] border border-[rgba(117,132,153,0.28)] text-slate-100 placeholder-slate-500 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all"
                 disabled={isLoading}
               />
               <button

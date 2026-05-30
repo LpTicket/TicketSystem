@@ -209,7 +209,7 @@ export default function SocialMatchWidget() {
     <div ref={socialShellRef} className="fixed bottom-20 right-0 px-5 z-[300] flex flex-col items-end gap-3 pointer-events-none print:hidden">
       {/* Popup panel */}
       {isOpen && (
-        <div className="w-80 bg-white rounded-3xl shadow-elevated border border-gray-100 overflow-hidden flex flex-col pointer-events-auto animate-fade-in-up">
+        <div className="lp-floating-dark w-80 rounded-3xl shadow-elevated border overflow-hidden flex flex-col pointer-events-auto animate-fade-in-up">
           {/* Header */}
           <div className="flex items-center gap-2 px-4 py-3.5 bg-[#0A375A] shrink-0">
             {activeChatConn && (

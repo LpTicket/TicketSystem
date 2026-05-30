@@ -468,7 +468,7 @@ export default function Header() {
         
         {/* Cart Dropdown Content */}
         {cartDropdown && (
-          <div className="w-80 bg-white rounded-2xl shadow-elevated border border-gray-100 p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden pointer-events-auto">
+          <div className="lp-floating-dark w-80 rounded-2xl shadow-elevated border p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden pointer-events-auto">
             {/* Cart Header */}
             <div className="flex justify-between items-center mb-3 shrink-0">
               <div className="flex items-center gap-2">

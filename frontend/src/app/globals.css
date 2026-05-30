@@ -5365,3 +5365,60 @@ html body header.site-header-future.site-header-future {
 .event-dark [class*="bg-gray-50/"] {
   background: rgba(255, 255, 255, 0.045) !important;
 }
+
+/* ============================================================
+   Floating overlay widgets (cart popup, social match) — dark theme.
+   These render outside any page shell, so they're styled directly.
+   ============================================================ */
+.lp-floating-dark {
+  background: #0b2236 !important;
+  border-color: rgba(246, 198, 95, 0.14) !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5) !important;
+}
+.lp-floating-dark .bg-white,
+.lp-floating-dark [class*="bg-white/"],
+.lp-floating-dark [class*="bg-gray-50/"],
+.lp-floating-dark .bg-gray-50,
+.lp-floating-dark .bg-gray-100,
+.lp-floating-dark .bg-slate-50 {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+.lp-floating-dark h4,
+.lp-floating-dark h5,
+.lp-floating-dark .text-gray-900,
+.lp-floating-dark .text-slate-900,
+.lp-floating-dark .text-gray-800 {
+  color: #f1f5f9 !important;
+}
+.lp-floating-dark .text-gray-400,
+.lp-floating-dark .text-gray-500,
+.lp-floating-dark .text-gray-600,
+.lp-floating-dark .text-gray-700,
+.lp-floating-dark .text-slate-500,
+.lp-floating-dark .text-slate-600 {
+  color: rgba(203, 213, 225, 0.8) !important;
+}
+.lp-floating-dark .border-gray-50,
+.lp-floating-dark .border-gray-100,
+.lp-floating-dark .border-gray-200,
+.lp-floating-dark [class*="border-gray-100/"],
+.lp-floating-dark .border-slate-100,
+.lp-floating-dark .border-slate-200 {
+  border-color: rgba(117, 132, 153, 0.18) !important;
+}
+.lp-floating-dark input,
+.lp-floating-dark textarea {
+  background: rgba(8, 31, 51, 0.7) !important;
+  border-color: rgba(117, 132, 153, 0.28) !important;
+  color: #f1f5f9 !important;
+}
+.lp-floating-dark input::placeholder,
+.lp-floating-dark textarea::placeholder {
+  color: rgba(148, 163, 184, 0.6) !important;
+}
+/* hover states inside floating widgets */
+.lp-floating-dark [class*="hover:bg-gray-100"]:hover,
+.lp-floating-dark [class*="hover:bg-gray-50"]:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
