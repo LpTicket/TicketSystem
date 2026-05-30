@@ -230,7 +230,7 @@ export default function AdminMarketingPage() {
           <button
             type="button"
             onClick={() => document.getElementById('email-designer')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            className="inline-flex w-fit items-center justify-center gap-2 rounded-2xl bg-[#F97316] px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
+            className="btn-primary w-fit px-5"
           >
             <HiOutlineSparkles className="h-5 w-5" />
             Disenar email
@@ -379,7 +379,7 @@ export default function AdminMarketingPage() {
                 <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
                   {campaignPreheader || 'Texto breve opcional para acompanar la imagen principal del email.'}
                 </p>
-                <div className="mt-6 inline-flex rounded-2xl bg-[#F97316] px-7 py-3 text-sm font-black text-white">
+                <div className="btn-primary mt-6 px-7">
                   {campaignLink ? 'VER DETALLES' : 'VER EVENTO'}
                 </div>
               </div>
