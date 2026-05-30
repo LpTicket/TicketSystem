@@ -180,9 +180,9 @@ export default function Header() {
           <div className="flex items-center shrink-0 mr-4 md:mr-8">
             <Link href="/" className="premium-logo group flex shrink-0" aria-label="LPTicket home">
               <img
-                src="/lp-logo-full.png"
+                src="/logo.png"
                 alt="LPTicket"
-                className="relative z-10 h-9 md:h-12 w-auto object-contain transition-all duration-300 group-hover:scale-[1.035] group-active:scale-[0.98]"
+                className="relative z-10 h-9 md:h-14 w-auto object-contain transition-all duration-300 group-hover:scale-[1.035] group-active:scale-[0.98]"
               />
             </Link>
           </div>

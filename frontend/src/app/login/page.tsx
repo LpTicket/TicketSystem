@@ -79,7 +79,7 @@ function LoginContent() {
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-6">
           <Link href="/">
-            <img src="/lp-logo-glow.png" alt="LPTicket" className="h-20 w-auto object-contain" />
+            <img src="/logo.png" alt="LPTicket" className="h-14 w-auto brightness-0 invert object-contain" />
           </Link>
         </div>
         <div className="text-center mb-6">

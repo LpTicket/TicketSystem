@@ -13,9 +13,9 @@ export default function Footer() {
         <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pb-10 border-b border-white/5 mb-10">
           <Link href="/" className="flex-shrink-0">
             <img
-              src="/lp-logo-full.png"
+              src="/logo.png"
               alt="LPTicket"
-              className="h-12 md:h-14 w-auto object-contain"
+              className="h-12 md:h-14 w-auto brightness-0 invert object-contain"
             />
           </Link>
 

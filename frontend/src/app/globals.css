@@ -5198,9 +5198,3 @@ html body header.site-header-future.site-header-future {
   box-shadow: 0 6px 26px rgba(0, 0, 0, 0.34) !important;
   backdrop-filter: blur(16px) saturate(1.1) !important;
 }
-
-/* New brand logo is already colored (orange glow) — kill the old white-invert
-   filter so it renders in full color in the header. */
-html body header.site-header-future img[alt="LPTicket"] {
-  filter: none !important;
-}
