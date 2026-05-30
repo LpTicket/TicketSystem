@@ -318,7 +318,7 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(eventJsonLd) }}
       />
-      <div className="event-dark max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="event-dark max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-8 lg:pt-24">
       {/* Hero Image */}
       <div className="event-premium-hero relative overflow-hidden mb-8 aspect-[16/9] sm:aspect-[21/8]">
         {(event.bannerImageUrl || event.imageUrl) ? (
