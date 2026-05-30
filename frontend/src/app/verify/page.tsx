@@ -348,9 +348,9 @@ export default function TicketScannerPage() {
     }
   };
 
-  const shellClass = 'min-h-screen bg-white text-slate-900';
+  const shellClass = 'page-dark-shell min-h-screen';
 
-  const panelClass = 'bg-white border-gray-150 shadow-[0_20px_60px_rgba(15,23,42,0.04)]';
+  const panelClass = 'bg-[rgba(8,31,51,0.82)] border-[rgba(246,198,95,0.14)] shadow-[0_16px_45px_rgba(0,0,0,0.28)]';
 
   return (
     <div className={`${shellClass} flex flex-col items-center justify-center px-4 py-8 md:py-12`}>

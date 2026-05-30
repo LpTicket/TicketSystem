@@ -1621,8 +1621,12 @@ html {
 .lp-management-layout .bg-gray-200,
 .lp-management-layout .bg-slate-50,
 .lp-management-layout .bg-slate-100,
-.lp-management-layout .bg-slate-200 {
-  background: rgba(8, 31, 51, 0.55) !important;
+.lp-management-layout .bg-slate-200,
+.lp-management-layout [class*="bg-white/"],
+.lp-management-layout [class*="bg-gray-50/"],
+.lp-management-layout [class*="bg-slate-50/"],
+.page-dark-shell [class*="bg-white/"] {
+  background: rgba(8, 31, 51, 0.6) !important;
 }
 
 .lp-management-layout .border-gray-100,
