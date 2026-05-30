@@ -61,10 +61,11 @@ body {
   width: 100%;
 }
 
-/* Contain page shells to viewport width — NOT home-signature (uses negative margin) */
+/* Contain page shells to viewport width */
 .page-dark-shell,
 .public-premium-shell,
 .premium-shell,
+.home-signature,
 .lp-management-layout {
   overflow-x: hidden;
   max-width: 100%;
