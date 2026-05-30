@@ -5541,3 +5541,41 @@ html body header.site-header-future.site-header-future {
     -webkit-backdrop-filter: none !important;
   }
 }
+
+/* ===== Unified background across ALL pages (same as Home) ===== */
+/* The base gradient lives on <body> so every page — even those without a dark
+   shell (e.g. event detail) — shares the exact same background. */
+html body {
+  background:
+    radial-gradient(circle at 78% 12%, rgba(255, 107, 0, 0.18), transparent 27rem),
+    radial-gradient(circle at 16% 2%, rgba(65, 110, 155, 0.16), transparent 24rem),
+    linear-gradient(180deg, #050b12 0%, #07111d 46%, #050b12 100%) !important;
+  background-repeat: no-repeat !important;
+}
+/* Subtle 92px square grid. Fixed so it never repaints on scroll (cheap, no jank);
+   z-index:-1 keeps it behind all content while the transparent shells reveal it. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.55;
+  background:
+    linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px);
+  background-size: 92px 92px;
+}
+/* Page shells go transparent so the unified body background shows through. */
+.home-signature,
+.page-dark-shell,
+.public-premium-shell,
+.premium-shell,
+.purchase-premium-shell,
+.lp-management-layout {
+  background: transparent !important;
+}
+/* The Home grid is now provided by the body — drop its own to avoid doubling. */
+.home-signature::before {
+  display: none !important;
+}
