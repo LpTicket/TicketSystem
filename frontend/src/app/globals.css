@@ -5566,16 +5566,13 @@ body::before {
     linear-gradient(180deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px);
   background-size: 92px 92px;
 }
-/* Page shells go transparent so the unified body background shows through. */
-.home-signature,
+/* Page shells go transparent so the unified body background shows through.
+   NOTE: .home-signature is intentionally left untouched — the Home keeps its own
+   original background and its own (scrolling) grid exactly as before. */
 .page-dark-shell,
 .public-premium-shell,
 .premium-shell,
 .purchase-premium-shell,
 .lp-management-layout {
   background: transparent !important;
-}
-/* The Home grid is now provided by the body — drop its own to avoid doubling. */
-.home-signature::before {
-  display: none !important;
 }
