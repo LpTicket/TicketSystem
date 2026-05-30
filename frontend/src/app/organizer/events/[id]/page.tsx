@@ -982,6 +982,17 @@ export default function EventDetailPage() {
   const totalRevenue = Number(sales?.totalRevenue || 0);
   const totalOrders = Number(sales?.totalOrders || salesOrders.length || 0);
   const totalTickets = Number(sales?.totalTickets || attendees.length || 0);
+
+  // Map each sold seat to its buyer name so the seat map can show it on hover.
+  const seatBuyers = attendees.reduce<Record<string, string>>((map, a) => {
+    if (!a.sectionName || a.rowLabel == null || a.seatNumber == null) return map;
+    if (a.status === 'cancelled') return map;
+    const name = `${a.user?.firstName || ''} ${a.user?.lastName || ''}`.trim();
+    if (!name) return map;
+    map[`${a.sectionName}|${a.rowLabel}|${a.seatNumber}`.toLowerCase()] = name;
+    return map;
+  }, {});
+
   const scannedTickets = attendees.filter((a) => a.status === 'used').length;
   const pendingTickets = attendees.filter((a) => a.status === 'active').length;
   const cancelledTickets = attendees.filter((a) => a.status === 'cancelled').length;
@@ -1381,12 +1392,13 @@ export default function EventDetailPage() {
 
       {/* Map Builder Tab */}
       {activeTab === 'map' && (
-        <VenueMapBuilder 
-          eventId={id} 
-          initialSections={sections} 
+        <VenueMapBuilder
+          eventId={id}
+          initialSections={sections}
           event={event}
           isAdmin={user?.role === 'admin'}
-          onSaved={handleMapSaved} 
+          seatBuyers={seatBuyers}
+          onSaved={handleMapSaved}
           onChange={handleMapChange}
         />
       )}

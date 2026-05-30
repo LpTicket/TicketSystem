@@ -27,6 +27,8 @@ interface VenueMapBuilderProps {
   onChange?: (sections: Partial<VenueSection>[]) => void;
   event?: any;
   isAdmin?: boolean;
+  /** Map of sold seats to the buyer name, keyed by `${sectionName}|${rowLabel}|${seatNumber}` (lowercased). */
+  seatBuyers?: Record<string, string>;
 }
 
 const SECTION_COLORS = ['#3b82f6', '#f97316', '#10b981', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#6366f1'];
@@ -39,7 +41,7 @@ const CANVAS_H = 600;
 const STAGE_X = (CANVAS_W - STAGE_W) / 2;
 const STAGE_Y = 60;
 
-export default function VenueMapBuilder({ eventId, initialSections, onSaved, onChange, event, isAdmin }: VenueMapBuilderProps) {
+export default function VenueMapBuilder({ eventId, initialSections, onSaved, onChange, event, isAdmin, seatBuyers }: VenueMapBuilderProps) {
   const { t, lang } = useLang();
   const [sections, setSections] = useState<Partial<VenueSection>[]>([]);
   const [dbTemplates, setDbTemplates] = useState<any[]>([]);
@@ -837,6 +839,20 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
   const mapCapacity = sections.reduce((sum: number, section) => sum + getSectionCapacity(section), 0);
 
+  // Sold / available counts for the organizer header (sold = DB seat status 'sold').
+  const soldCount = sections.reduce(
+    (sum: number, section) => sum + ((section.seats || []).filter((seat) => seat.status === 'sold').length),
+    0
+  );
+  const availableCount = Math.max(0, mapCapacity - soldCount);
+
+  // Buyer name for a given sold seat, looked up in the seatBuyers map.
+  const getSeatBuyer = (sectionName: string | undefined, rowLabel: string | number, seatNumber: string | number): string | undefined => {
+    if (!seatBuyers || !sectionName) return undefined;
+    const key = `${sectionName}|${rowLabel}|${seatNumber}`.toLowerCase();
+    return seatBuyers[key];
+  };
+
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
   return (
@@ -849,10 +865,16 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           </div>
           <div className="flex flex-col">
             <span className="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Chart</span>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               <h2 className="font-semibold text-gray-800 text-sm leading-tight">{lang === 'es' ? 'Diseñador de Asientos' : 'Seat Designer'}</h2>
               <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-0.5 text-[11px] font-black text-[#1a73e8]">
-                {lang === 'es' ? 'Capacidad' : 'Capacity'}: {mapCapacity}
+                {lang === 'es' ? 'Capacidad total' : 'Total capacity'}: {mapCapacity}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black text-emerald-600">
+                {lang === 'es' ? 'Disponibles' : 'Available'}: {availableCount}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-orange-100 bg-orange-50 px-2.5 py-0.5 text-[11px] font-black text-[#F97316]">
+                {lang === 'es' ? 'Vendidas' : 'Sold'}: {soldCount}
               </span>
             </div>
           </div>
@@ -1800,7 +1822,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               {(() => {
                                 const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || rowLabel;
                                 const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) !== undefined ? (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) : seatNumber;
-                                return `${row}-${num}`;
+                                const buyer = getSeatBuyer(sec.name, row as any, num as any);
+                                return buyer ? `${row}-${num} · ${buyer}` : `${row}-${num}`;
                               })()}
                             </div>
                           </div>
@@ -1881,7 +1904,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                                 {(() => {
                                   const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || 'Mesa';
                                   const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) !== undefined ? (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) : seatNumber;
-                                  return `${row}-${num}`;
+                                  const buyer = getSeatBuyer(sec.name, row as any, num as any);
+                                  return buyer ? `${row}-${num} · ${buyer}` : `${row}-${num}`;
                                 })()}
                               </div>
                             </div>
@@ -1977,7 +2001,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                                 {(() => {
                                   const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || 'Mesa';
                                   const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) !== undefined ? (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) : seatNumber;
-                                  return `${row}-${num}`;
+                                  const buyer = getSeatBuyer(sec.name, row as any, num as any);
+                                  return buyer ? `${row}-${num} · ${buyer}` : `${row}-${num}`;
                                 })()}
                               </div>
                             </div>
