@@ -5422,3 +5422,65 @@ html body header.site-header-future.site-header-future {
 .lp-floating-dark [class*="hover:bg-gray-50"]:hover {
   background: rgba(255, 255, 255, 0.07) !important;
 }
+
+/* ============================================================
+   Venue Map Builder (creation) — dark UI chrome (toolbar, inspector, fields).
+   Solid colors so they beat lp-management-layout's translucent bg-white override.
+   The canvas (#0d2138) is NOT in these selectors, so it stays as set.
+   ============================================================ */
+.venue-builder-dark {
+  background: #071827 !important;
+  border-color: rgba(246, 198, 95, 0.14) !important;
+}
+.venue-builder-dark .bg-white,
+.venue-builder-dark [class*="bg-[#ffffff]"],
+.venue-builder-dark [class*="bg-[#fff]"],
+.venue-builder-dark [class*="bg-[#f9fafb]"],
+.venue-builder-dark [class*="bg-[#fafafa]"],
+.venue-builder-dark .bg-gray-50,
+.venue-builder-dark .bg-gray-100,
+.venue-builder-dark .bg-slate-50,
+.venue-builder-dark .bg-slate-100 {
+  background: #0b2236 !important;
+}
+.venue-builder-dark .text-gray-700,
+.venue-builder-dark .text-gray-800,
+.venue-builder-dark .text-gray-900,
+.venue-builder-dark .text-slate-700,
+.venue-builder-dark .text-slate-800,
+.venue-builder-dark .text-slate-900,
+.venue-builder-dark [class*="text-[#1e293b]"],
+.venue-builder-dark [class*="text-[#0f172a]"] {
+  color: #e2e8f0 !important;
+}
+.venue-builder-dark .text-gray-400,
+.venue-builder-dark .text-gray-500,
+.venue-builder-dark .text-gray-600,
+.venue-builder-dark .text-slate-400,
+.venue-builder-dark .text-slate-500,
+.venue-builder-dark .text-slate-600 {
+  color: rgba(203, 213, 225, 0.75) !important;
+}
+.venue-builder-dark .border-gray-100,
+.venue-builder-dark .border-gray-200,
+.venue-builder-dark .border-gray-300,
+.venue-builder-dark [class*="border-[#e5e7eb]"],
+.venue-builder-dark [class*="border-[#f"] {
+  border-color: rgba(117, 132, 153, 0.2) !important;
+}
+.venue-builder-dark input,
+.venue-builder-dark select,
+.venue-builder-dark textarea {
+  background: rgba(8, 31, 51, 0.7) !important;
+  border-color: rgba(117, 132, 153, 0.28) !important;
+  color: #f1f5f9 !important;
+}
+.venue-builder-dark input::placeholder,
+.venue-builder-dark textarea::placeholder {
+  color: rgba(148, 163, 184, 0.6) !important;
+}
+.venue-builder-dark [class*="hover:bg-gray-50"]:hover,
+.venue-builder-dark [class*="hover:bg-gray-100"]:hover,
+.venue-builder-dark [class*="hover:bg-slate-50"]:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}

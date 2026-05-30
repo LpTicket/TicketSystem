@@ -840,7 +840,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
   return (
-    <div className="flex flex-col h-[100vh] md:h-[800px] border border-gray-300 rounded-lg overflow-hidden bg-white relative font-sans">
+    <div className="venue-builder-dark flex flex-col h-[100vh] md:h-[800px] border border-gray-300 rounded-lg overflow-hidden bg-white relative font-sans">
       {/* ── Top Bar (Seats.io Style) ─────────────────────────────────── */}
       <div className="h-14 bg-white border-b border-gray-300 flex items-center justify-between px-4 shrink-0 z-40 shadow-sm">
         <div className="flex items-center gap-3">
