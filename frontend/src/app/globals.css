@@ -5566,3 +5566,30 @@ html body,
 }
 /* .home-signature is intentionally left untouched — the Home keeps its own
    original background and its own grid exactly as before. */
+
+/* ===== Profile dropdown: one complete, uniform hover on every item ===== */
+/* All items (Perfil, Mis Tickets, Organizer, Admin, Cerrar sesión) get the same
+   rich effect: orange highlight + inset border/glow + slide-right with a slight
+   scale-up on hover (and a small press-in on click). */
+.lp-user-menu .lp-menu-item,
+.lp-user-menu .lp-menu-danger {
+  transition: background-color 0.18s ease, color 0.18s ease,
+    transform 0.18s ease, box-shadow 0.18s ease !important;
+}
+.lp-user-menu .lp-menu-item:hover,
+.lp-user-menu .lp-menu-danger:hover {
+  background: rgba(249, 115, 22, 0.12) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 122, 0, 0.24),
+    0 0 18px rgba(255, 122, 0, 0.12) !important;
+  transform: translateX(3px) scale(1.02) !important;
+}
+.lp-user-menu .lp-menu-item:hover {
+  color: #ffffff !important;
+}
+.lp-user-menu .lp-menu-danger:hover {
+  color: #F97316 !important;
+}
+.lp-user-menu .lp-menu-item:active,
+.lp-user-menu .lp-menu-danger:active {
+  transform: translateX(3px) scale(0.985) !important;
+}
