@@ -80,7 +80,7 @@ export default function RegisterContent() {
 
   return (
     <div className="page-dark-shell flex items-start justify-center px-4 pt-40 pb-12 min-h-[calc(100vh-80px)]">
-      <div className="w-full max-w-md mt-20">
+      <div className="w-full max-w-md mt-8">
         <div className="text-center mb-8">
           <h1 className="public-premium-title font-black text-2xl mt-4 tracking-tight">{t('registerTitle')}</h1>
           <p className="text-gray-500 text-sm mt-1">
