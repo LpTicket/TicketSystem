@@ -493,7 +493,7 @@ export default function AdminEventsPage() {
                                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 active:scale-95 ${
                                   ev.publicVisible === false
                                     ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
-                                    : 'bg-blue-500/15 text-blue-300 hover:bg-blue-500/25 border border-blue-400/30'
+                                    : 'bg-[#dbeafe] text-[#1d4ed8] hover:bg-[#bfdbfe] border border-[#bfdbfe] shadow-sm'
                                 }`}
                                 title={ev.publicVisible === false ? (lang === 'es' ? 'Oculto de Home y Eventos' : 'Hidden from Home and Events') : (lang === 'es' ? 'Visible en Home y Eventos' : 'Visible on Home and Events')}
                               >
@@ -616,7 +616,7 @@ export default function AdminEventsPage() {
                           className={`text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-sm border ${
                             ev.publicVisible === false
                               ? 'bg-gray-100 text-gray-700 border-gray-200'
-                              : 'bg-blue-500/15 text-blue-300 border-blue-400/30'
+                              : 'bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]'
                           }`}
                         >
                           {ev.publicVisible === false ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
