@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import api from '@/lib/api';
 import { useLang } from '@/context/LanguageContext';
 import {
@@ -51,6 +50,7 @@ export default function AdminDashboard() {
   const { t, lang } = useLang();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [eventFinancials, setEventFinancials] = useState<EventFinancial[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadStats(); }, []);
@@ -89,6 +89,24 @@ export default function AdminDashboard() {
     { label: t('adminTotalEvents'), value: stats.totalEvents.toString(), icon: HiOutlineCalendar, bg: 'bg-orange-50', iconColor: 'text-[#F97316]', iconBg: 'bg-orange-50' },
     { label: t('adminTotalOrders'), value: stats.totalOrders.toString(), icon: HiOutlineShoppingCart, bg: 'bg-[rgba(10,55,90,0.05)]', iconColor: 'text-[#0A375A]', iconBg: 'bg-[rgba(10,55,90,0.10)]' },
   ];
+
+  // Financial figures for the selected scope: a single event, or all events (global stats).
+  const selectedEvent = selectedEventId ? eventFinancials.find((e) => e.id === selectedEventId) : null;
+  const fin = selectedEvent
+    ? {
+        totalRevenue: selectedEvent.totalCharged,
+        ticketSales: selectedEvent.ticketSales,
+        serviceFees: selectedEvent.serviceFees,
+        stripeFees: selectedEvent.stripeFees,
+        lpticketProfit: selectedEvent.lpticketProfit,
+      }
+    : {
+        totalRevenue: stats.totalRevenue,
+        ticketSales: stats.ticketSales,
+        serviceFees: stats.serviceFees,
+        stripeFees: stats.stripeFees,
+        lpticketProfit: stats.lpticketProfit,
+      };
 
   return (
     <div className="premium-shell p-6 lg:p-8 space-y-6 animate-fade-in">
@@ -160,46 +178,60 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Financial breakdown */}
+      {/* Financial breakdown — global or per selected event */}
       <div className="premium-section-card p-6 transition-all">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <h3 className="font-bold text-gray-900 flex items-center gap-2">
             <HiOutlineCurrencyDollar className="w-5 h-5 text-gray-400" />
             {lang === 'es' ? 'Desglose financiero' : 'Financial breakdown'}
           </h3>
-          <span className="text-[11px] font-bold text-gray-400">
-            {lang === 'es' ? 'Solo órdenes pagadas' : 'Paid orders only'}
-          </span>
+          <select
+            value={selectedEventId}
+            onChange={(e) => setSelectedEventId(e.target.value)}
+            className="input text-sm max-w-full sm:max-w-[320px]"
+          >
+            <option value="">{lang === 'es' ? 'Todos los eventos (global)' : 'All events (global)'}</option>
+            {eventFinancials.map((ev) => (
+              <option key={ev.id} value={ev.id}>{ev.title}</option>
+            ))}
+          </select>
         </div>
+
+        {selectedEvent && (
+          <p className="text-xs text-gray-400 mb-4">
+            {selectedEvent.ticketsSold} {lang === 'es' ? 'boletos' : 'tickets'} · {selectedEvent.orders} {lang === 'es' ? 'órdenes pagadas' : 'paid orders'}
+          </p>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Total charged */}
           <div className="rounded-xl p-4 border border-[rgba(10,55,90,0.14)] bg-[rgba(10,55,90,0.06)]">
             <p className="text-[11px] font-black uppercase tracking-wider text-[#0A375A]">{lang === 'es' ? 'Total cobrado' : 'Total charged'}</p>
-            <p className="text-2xl font-black text-[#0A375A] mt-1">${stats.totalRevenue.toFixed(2)}</p>
+            <p className="text-2xl font-black text-[#0A375A] mt-1">${fin.totalRevenue.toFixed(2)}</p>
             <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Lo que pagaron los compradores' : 'What buyers paid'}</p>
           </div>
           {/* Ticket sales (to organizers) */}
           <div className="rounded-xl p-4 border border-blue-100 bg-blue-50">
             <p className="text-[11px] font-black uppercase tracking-wider text-blue-700">{lang === 'es' ? 'Venta de entradas' : 'Ticket sales'}</p>
-            <p className="text-2xl font-black text-blue-700 mt-1">${stats.ticketSales.toFixed(2)}</p>
+            <p className="text-2xl font-black text-blue-700 mt-1">${fin.ticketSales.toFixed(2)}</p>
             <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Para los organizadores' : 'To organizers'}</p>
           </div>
           {/* Service fees collected */}
           <div className="rounded-xl p-4 border border-orange-100 bg-orange-50">
             <p className="text-[11px] font-black uppercase tracking-wider text-[#F97316]">{lang === 'es' ? 'Comisión LPTicket' : 'LPTicket fees'}</p>
-            <p className="text-2xl font-black text-[#F97316] mt-1">${stats.serviceFees.toFixed(2)}</p>
+            <p className="text-2xl font-black text-[#F97316] mt-1">${fin.serviceFees.toFixed(2)}</p>
             <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Cargo sobre el precio base' : 'Markup over base price'}</p>
           </div>
           {/* Stripe fees */}
           <div className="rounded-xl p-4 border border-[rgba(168,85,247,0.3)] bg-[rgba(168,85,247,0.12)]">
             <p className="text-[11px] font-black uppercase tracking-wider text-purple-300">{lang === 'es' ? 'Comisión Stripe' : 'Stripe fees'}</p>
-            <p className="text-2xl font-black text-purple-300 mt-1">-${stats.stripeFees.toFixed(2)}</p>
+            <p className="text-2xl font-black text-purple-300 mt-1">-${fin.stripeFees.toFixed(2)}</p>
             <p className="text-[11px] text-gray-400 mt-1">{(stats.stripePercent * 100).toFixed(1)}% + ${stats.stripeFixed.toFixed(2)} {lang === 'es' ? 'por orden' : 'per order'}</p>
           </div>
           {/* LPTicket net profit */}
           <div className="rounded-xl p-4 border border-green-200 bg-green-50 sm:col-span-2 lg:col-span-1">
             <p className="text-[11px] font-black uppercase tracking-wider text-green-700">{lang === 'es' ? 'Ganancia LPTicket' : 'LPTicket profit'}</p>
-            <p className="text-2xl font-black text-green-700 mt-1">${stats.lpticketProfit.toFixed(2)}</p>
+            <p className="text-2xl font-black text-green-700 mt-1">${fin.lpticketProfit.toFixed(2)}</p>
             <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Comisión − Stripe (neto)' : 'Fees − Stripe (net)'}</p>
           </div>
         </div>
@@ -207,58 +239,6 @@ export default function AdminDashboard() {
           {lang === 'es'
             ? 'La comisión de Stripe es estimada con su tarifa estándar (2.9% + $0.30 por cargo).'
             : 'Stripe fees are estimated using its standard rate (2.9% + $0.30 per charge).'}
-        </p>
-      </div>
-
-      {/* Per-event financial breakdown */}
-      <div className="premium-section-card p-6 transition-all">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-gray-900 flex items-center gap-2">
-            <HiOutlineCurrencyDollar className="w-5 h-5 text-gray-400" />
-            {lang === 'es' ? 'Métricas por evento' : 'Per-event metrics'}
-          </h3>
-          <span className="text-[11px] font-bold text-gray-400">{eventFinancials.length} {lang === 'es' ? 'eventos' : 'events'}</span>
-        </div>
-
-        {eventFinancials.length === 0 ? (
-          <p className="text-sm text-gray-500 py-6 text-center">{lang === 'es' ? 'No hay eventos todavía.' : 'No events yet.'}</p>
-        ) : (
-          <div className="overflow-x-auto custom-scrollbar -mx-2 px-2">
-            <table className="w-full text-sm min-w-[860px]">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wider text-gray-400 border-b border-white/10">
-                  <th className="py-3 pr-4 font-bold">{lang === 'es' ? 'Evento' : 'Event'}</th>
-                  <th className="py-3 px-3 font-bold text-center">{lang === 'es' ? 'Boletos' : 'Tickets'}</th>
-                  <th className="py-3 px-3 font-bold text-right">{lang === 'es' ? 'Total cobrado' : 'Total charged'}</th>
-                  <th className="py-3 px-3 font-bold text-right">{lang === 'es' ? 'Venta entradas' : 'Ticket sales'}</th>
-                  <th className="py-3 px-3 font-bold text-right">{lang === 'es' ? 'Comisión LPT' : 'LPTicket fees'}</th>
-                  <th className="py-3 px-3 font-bold text-right">Stripe</th>
-                  <th className="py-3 pl-3 font-bold text-right">{lang === 'es' ? 'Ganancia LPT' : 'LPTicket profit'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {eventFinancials.map((ev) => (
-                  <tr key={ev.id} className="hover:bg-white/5 transition-colors">
-                    <td className="py-3 pr-4 max-w-[240px]">
-                      <Link href={`/events/${ev.slug}`} className="font-bold text-[#e2e8f0] hover:text-[#F97316] truncate block">{ev.title}</Link>
-                      <span className="text-[10px] uppercase tracking-wider text-gray-500">{ev.status} · {ev.orders} {lang === 'es' ? 'órdenes' : 'orders'}</span>
-                    </td>
-                    <td className="py-3 px-3 text-center font-bold text-slate-300">{ev.ticketsSold}</td>
-                    <td className="py-3 px-3 text-right font-bold text-slate-200">${ev.totalCharged.toFixed(2)}</td>
-                    <td className="py-3 px-3 text-right font-bold text-blue-300">${ev.ticketSales.toFixed(2)}</td>
-                    <td className="py-3 px-3 text-right font-bold text-[#F97316]">${ev.serviceFees.toFixed(2)}</td>
-                    <td className="py-3 px-3 text-right font-bold text-purple-300">-${ev.stripeFees.toFixed(2)}</td>
-                    <td className="py-3 pl-3 text-right font-black text-green-400">${ev.lpticketProfit.toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <p className="text-[11px] text-gray-400 mt-3">
-          {lang === 'es'
-            ? 'Comisión Stripe estimada (2.9% + $0.30 por orden). Ganancia LPT = comisión − Stripe.'
-            : 'Stripe fees estimated (2.9% + $0.30 per order). LPTicket profit = fees − Stripe.'}
         </p>
       </div>
     </div>
