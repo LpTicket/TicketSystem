@@ -1664,14 +1664,22 @@ html {
   font-weight: 800 !important;
 }
 
-/* No white focus box left behind after clicking a link (matches header/events nav).
-   Keyboard users still get a subtle orange ring via :focus-visible. */
-.lp-sidebar-link:focus {
+/* No white focus box left behind after clicking a link — same as the events/header
+   nav: kill outline + border + box-shadow on focus for non-active links (the active
+   link keeps its orange glow). */
+.lp-sidebar-link:focus,
+.lp-sidebar-link:focus-visible {
   outline: none !important;
 }
-.lp-sidebar-link:focus-visible {
-  outline: 2px solid rgba(249, 115, 22, 0.55) !important;
-  outline-offset: 2px !important;
+.lp-sidebar-link:not(.active):focus,
+.lp-sidebar-link:not(.active):focus-visible,
+.lp-sidebar-link:not(.active):active {
+  outline: none !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
 }
 
 .lp-sidebar-link.active {
