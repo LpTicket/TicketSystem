@@ -90,6 +90,62 @@ export class AdminService {
     };
   }
 
+  /**
+   * Per-event financial breakdown (paid orders): total charged, ticket sales,
+   * LPTicket fees, estimated Stripe fees and net profit — one row per event.
+   */
+  async getEventsFinancials() {
+    const STRIPE_PERCENT = 0.029;
+    const STRIPE_FIXED = 0.30;
+
+    const rows = await this.orderRepo
+      .createQueryBuilder('o')
+      .select('o."eventId"', 'eventId')
+      .addSelect('COALESCE(SUM(o.total), 0)', 'totalCharged')
+      .addSelect('COALESCE(SUM(o.subtotal), 0)', 'ticketSales')
+      .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'ticketsSold')
+      .addSelect('COUNT(o.id)', 'orders')
+      .where('o.status = :status', { status: 'paid' })
+      .groupBy('o."eventId"')
+      .getRawMany();
+
+    const byId = new Map(rows.map((r) => [r.eventId, r]));
+
+    const events = await this.eventRepo.find({
+      select: ['id', 'title', 'slug', 'status', 'eventDate'],
+      order: { createdAt: 'DESC' },
+    });
+
+    const result = events.map((ev) => {
+      const r = byId.get(ev.id);
+      const totalCharged = Number(r?.totalCharged || 0);
+      const ticketSales = Number(r?.ticketSales || 0);
+      const orders = Number(r?.orders || 0);
+      const ticketsSold = Number(r?.ticketsSold || 0);
+      const serviceFees = Math.max(0, +(totalCharged - ticketSales).toFixed(2));
+      const stripeFees = totalCharged > 0
+        ? +(totalCharged * STRIPE_PERCENT + orders * STRIPE_FIXED).toFixed(2)
+        : 0;
+      const lpticketProfit = +(serviceFees - stripeFees).toFixed(2);
+      return {
+        id: ev.id,
+        title: ev.title,
+        slug: ev.slug,
+        status: ev.status,
+        eventDate: ev.eventDate,
+        totalCharged,
+        ticketSales,
+        serviceFees,
+        stripeFees,
+        lpticketProfit,
+        ticketsSold,
+        orders,
+      };
+    });
+
+    return { events: result, stripePercent: STRIPE_PERCENT, stripeFixed: STRIPE_FIXED };
+  }
+
   async getUsers(page: number, limit: number, role?: string) {
     const where: any = {};
     if (role && ['client', 'admin'].includes(role)) {

@@ -68,6 +68,12 @@ export class AdminController {
     return this.adminService.getAllEvents(page || 1, limit || 20, status);
   }
 
+  // Per-event financial breakdown (declared before ':id' routes to avoid clashes)
+  @Get('events/financials')
+  getEventsFinancials() {
+    return this.adminService.getEventsFinancials();
+  }
+
   @Patch('events/:id/approve')
   approveEvent(@Param('id') id: string) {
     return this.adminService.approveEvent(id);

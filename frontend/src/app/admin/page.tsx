@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import api from '@/lib/api';
 import { useLang } from '@/context/LanguageContext';
 import {
@@ -31,17 +32,37 @@ interface DashboardStats {
   totalTickets: number;
 }
 
+interface EventFinancial {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+  eventDate: string;
+  totalCharged: number;
+  ticketSales: number;
+  serviceFees: number;
+  stripeFees: number;
+  lpticketProfit: number;
+  ticketsSold: number;
+  orders: number;
+}
+
 export default function AdminDashboard() {
   const { t, lang } = useLang();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [eventFinancials, setEventFinancials] = useState<EventFinancial[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadStats(); }, []);
 
   const loadStats = async () => {
     try {
-      const { data } = await api.get('/admin/stats');
-      setStats(data);
+      const [statsRes, finRes] = await Promise.all([
+        api.get('/admin/stats'),
+        api.get('/admin/events/financials').catch(() => ({ data: { events: [] } })),
+      ]);
+      setStats(statsRes.data);
+      setEventFinancials(finRes.data?.events || []);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -186,6 +207,58 @@ export default function AdminDashboard() {
           {lang === 'es'
             ? 'La comisión de Stripe es estimada con su tarifa estándar (2.9% + $0.30 por cargo).'
             : 'Stripe fees are estimated using its standard rate (2.9% + $0.30 per charge).'}
+        </p>
+      </div>
+
+      {/* Per-event financial breakdown */}
+      <div className="premium-section-card p-6 transition-all">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2">
+            <HiOutlineCurrencyDollar className="w-5 h-5 text-gray-400" />
+            {lang === 'es' ? 'Métricas por evento' : 'Per-event metrics'}
+          </h3>
+          <span className="text-[11px] font-bold text-gray-400">{eventFinancials.length} {lang === 'es' ? 'eventos' : 'events'}</span>
+        </div>
+
+        {eventFinancials.length === 0 ? (
+          <p className="text-sm text-gray-500 py-6 text-center">{lang === 'es' ? 'No hay eventos todavía.' : 'No events yet.'}</p>
+        ) : (
+          <div className="overflow-x-auto custom-scrollbar -mx-2 px-2">
+            <table className="w-full text-sm min-w-[860px]">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wider text-gray-400 border-b border-white/10">
+                  <th className="py-3 pr-4 font-bold">{lang === 'es' ? 'Evento' : 'Event'}</th>
+                  <th className="py-3 px-3 font-bold text-center">{lang === 'es' ? 'Boletos' : 'Tickets'}</th>
+                  <th className="py-3 px-3 font-bold text-right">{lang === 'es' ? 'Total cobrado' : 'Total charged'}</th>
+                  <th className="py-3 px-3 font-bold text-right">{lang === 'es' ? 'Venta entradas' : 'Ticket sales'}</th>
+                  <th className="py-3 px-3 font-bold text-right">{lang === 'es' ? 'Comisión LPT' : 'LPTicket fees'}</th>
+                  <th className="py-3 px-3 font-bold text-right">Stripe</th>
+                  <th className="py-3 pl-3 font-bold text-right">{lang === 'es' ? 'Ganancia LPT' : 'LPTicket profit'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {eventFinancials.map((ev) => (
+                  <tr key={ev.id} className="hover:bg-white/5 transition-colors">
+                    <td className="py-3 pr-4 max-w-[240px]">
+                      <Link href={`/events/${ev.slug}`} className="font-bold text-[#e2e8f0] hover:text-[#F97316] truncate block">{ev.title}</Link>
+                      <span className="text-[10px] uppercase tracking-wider text-gray-500">{ev.status} · {ev.orders} {lang === 'es' ? 'órdenes' : 'orders'}</span>
+                    </td>
+                    <td className="py-3 px-3 text-center font-bold text-slate-300">{ev.ticketsSold}</td>
+                    <td className="py-3 px-3 text-right font-bold text-slate-200">${ev.totalCharged.toFixed(2)}</td>
+                    <td className="py-3 px-3 text-right font-bold text-blue-300">${ev.ticketSales.toFixed(2)}</td>
+                    <td className="py-3 px-3 text-right font-bold text-[#F97316]">${ev.serviceFees.toFixed(2)}</td>
+                    <td className="py-3 px-3 text-right font-bold text-purple-300">-${ev.stripeFees.toFixed(2)}</td>
+                    <td className="py-3 pl-3 text-right font-black text-green-400">${ev.lpticketProfit.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="text-[11px] text-gray-400 mt-3">
+          {lang === 'es'
+            ? 'Comisión Stripe estimada (2.9% + $0.30 por orden). Ganancia LPT = comisión − Stripe.'
+            : 'Stripe fees estimated (2.9% + $0.30 per order). LPTicket profit = fees − Stripe.'}
         </p>
       </div>
     </div>
