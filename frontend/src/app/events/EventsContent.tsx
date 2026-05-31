@@ -78,7 +78,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
         <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
           <button
             onClick={() => { setCategory(''); setPage(1); }}
-            className={`category-pill whitespace-nowrap !py-2.5 ${!category ? 'active' : ''}`}
+            className={`category-pill whitespace-nowrap !py-2.5 !text-[0.76rem] !font-normal ${!category ? 'active' : ''}`}
           >
             Todos
           </button>
@@ -86,7 +86,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
             <button
               key={cat.slug}
               onClick={() => { setCategory(cat.slug); setPage(1); }}
-              className={`category-pill whitespace-nowrap !py-2.5 ${category === cat.slug ? 'active' : ''}`}
+              className={`category-pill whitespace-nowrap !py-2.5 !text-[0.76rem] !font-normal ${category === cat.slug ? 'active' : ''}`}
             >
               {lang === 'en' ? cat.labelEn : cat.labelEs}
             </button>
