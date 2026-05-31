@@ -50,12 +50,25 @@ export class AdminService {
       this.orderRepo
         .createQueryBuilder('order')
         .select('COALESCE(SUM(order.total), 0)', 'totalRevenue')
+        .addSelect('COALESCE(SUM(order.subtotal), 0)', 'ticketSales')
         .where('order.status = :status', { status: 'paid' })
         .getRawOne(),
       this.ticketRepo.count(),
       this.userRepo.count({ where: { role: UserRole.CLIENT } }),
       this.userRepo.count({ where: { role: UserRole.ADMIN } }),
     ]);
+
+    // Financial breakdown for the admin.
+    const totalRevenue = Number(revenueResult?.totalRevenue || 0); // total charged to buyers
+    const ticketSales = Number(revenueResult?.ticketSales || 0);   // goes to organizers
+    const serviceFees = Math.max(0, +(totalRevenue - ticketSales).toFixed(2)); // LPTicket markup collected
+    // Stripe standard pricing (US cards): 2.9% + $0.30 per successful charge.
+    const STRIPE_PERCENT = 0.029;
+    const STRIPE_FIXED = 0.30;
+    const stripeFees = totalRevenue > 0
+      ? +(totalRevenue * STRIPE_PERCENT + paidOrders * STRIPE_FIXED).toFixed(2)
+      : 0;
+    const lpticketProfit = +(serviceFees - stripeFees).toFixed(2); // LPTicket net after Stripe
 
     return {
       totalUsers,
@@ -66,7 +79,13 @@ export class AdminService {
       draftEvents,
       totalOrders,
       paidOrders,
-      totalRevenue: Number(revenueResult?.totalRevenue || 0),
+      totalRevenue,
+      ticketSales,
+      serviceFees,
+      stripeFees,
+      stripePercent: STRIPE_PERCENT,
+      stripeFixed: STRIPE_FIXED,
+      lpticketProfit,
       totalTickets,
     };
   }

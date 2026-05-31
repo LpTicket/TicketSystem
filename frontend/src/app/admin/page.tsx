@@ -22,6 +22,12 @@ interface DashboardStats {
   totalOrders: number;
   paidOrders: number;
   totalRevenue: number;
+  ticketSales: number;
+  serviceFees: number;
+  stripeFees: number;
+  stripePercent: number;
+  stripeFixed: number;
+  lpticketProfit: number;
   totalTickets: number;
 }
 
@@ -131,6 +137,56 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Financial breakdown */}
+      <div className="premium-section-card p-6 transition-all">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2">
+            <HiOutlineCurrencyDollar className="w-5 h-5 text-gray-400" />
+            {lang === 'es' ? 'Desglose financiero' : 'Financial breakdown'}
+          </h3>
+          <span className="text-[11px] font-bold text-gray-400">
+            {lang === 'es' ? 'Solo órdenes pagadas' : 'Paid orders only'}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Total charged */}
+          <div className="rounded-xl p-4 border border-[rgba(10,55,90,0.14)] bg-[rgba(10,55,90,0.06)]">
+            <p className="text-[11px] font-black uppercase tracking-wider text-[#0A375A]">{lang === 'es' ? 'Total cobrado' : 'Total charged'}</p>
+            <p className="text-2xl font-black text-[#0A375A] mt-1">${stats.totalRevenue.toFixed(2)}</p>
+            <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Lo que pagaron los compradores' : 'What buyers paid'}</p>
+          </div>
+          {/* Ticket sales (to organizers) */}
+          <div className="rounded-xl p-4 border border-blue-100 bg-blue-50">
+            <p className="text-[11px] font-black uppercase tracking-wider text-blue-700">{lang === 'es' ? 'Venta de entradas' : 'Ticket sales'}</p>
+            <p className="text-2xl font-black text-blue-700 mt-1">${stats.ticketSales.toFixed(2)}</p>
+            <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Para los organizadores' : 'To organizers'}</p>
+          </div>
+          {/* Service fees collected */}
+          <div className="rounded-xl p-4 border border-orange-100 bg-orange-50">
+            <p className="text-[11px] font-black uppercase tracking-wider text-[#F97316]">{lang === 'es' ? 'Comisión LPTicket' : 'LPTicket fees'}</p>
+            <p className="text-2xl font-black text-[#F97316] mt-1">${stats.serviceFees.toFixed(2)}</p>
+            <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Cargo sobre el precio base' : 'Markup over base price'}</p>
+          </div>
+          {/* Stripe fees */}
+          <div className="rounded-xl p-4 border border-purple-100 bg-purple-50">
+            <p className="text-[11px] font-black uppercase tracking-wider text-purple-700">{lang === 'es' ? 'Comisión Stripe' : 'Stripe fees'}</p>
+            <p className="text-2xl font-black text-purple-700 mt-1">-${stats.stripeFees.toFixed(2)}</p>
+            <p className="text-[11px] text-gray-500 mt-1">{(stats.stripePercent * 100).toFixed(1)}% + ${stats.stripeFixed.toFixed(2)} {lang === 'es' ? 'por orden' : 'per order'}</p>
+          </div>
+          {/* LPTicket net profit */}
+          <div className="rounded-xl p-4 border border-green-200 bg-green-50 sm:col-span-2 lg:col-span-1">
+            <p className="text-[11px] font-black uppercase tracking-wider text-green-700">{lang === 'es' ? 'Ganancia LPTicket' : 'LPTicket profit'}</p>
+            <p className="text-2xl font-black text-green-700 mt-1">${stats.lpticketProfit.toFixed(2)}</p>
+            <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Comisión − Stripe (neto)' : 'Fees − Stripe (net)'}</p>
+          </div>
+        </div>
+        <p className="text-[11px] text-gray-400 mt-3">
+          {lang === 'es'
+            ? 'La comisión de Stripe es estimada con su tarifa estándar (2.9% + $0.30 por cargo).'
+            : 'Stripe fees are estimated using its standard rate (2.9% + $0.30 per charge).'}
+        </p>
       </div>
     </div>
   );
