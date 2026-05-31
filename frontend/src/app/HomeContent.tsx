@@ -290,14 +290,14 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
                 <span className="text-[10px] opacity-70">▼</span>
               </button>
               {sortOpen && (
-                <div className="absolute right-0 top-full mt-2 w-full lg:w-44 bg-white border border-gray-100 rounded-2xl shadow-elevated overflow-hidden z-[60] animate-fade-in-up">
-                  <div className="px-4 py-2 border-b border-gray-50 bg-gray-50/50">
-                    <span className="text-[10px] font-bold text-gray-600 uppercase tracking-tighter">{lang === 'es' ? 'Ordenar por' : 'Sort by'}</span>
+                <div className="absolute right-0 top-full mt-2 w-full lg:w-44 bg-[#0b2236] border border-[rgba(246,198,95,0.18)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-[60] animate-fade-in-up">
+                  <div className="px-4 py-2 border-b border-white/10 bg-white/5">
+                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">{lang === 'es' ? 'Ordenar por' : 'Sort by'}</span>
                   </div>
-                  <button onClick={() => { setSortBy('fecha'); setSortOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'fecha' ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}>
+                  <button onClick={() => { setSortBy('fecha'); setSortOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'fecha' ? 'bg-[rgba(249,115,22,0.16)] text-[#F97316]' : 'text-slate-200 hover:bg-white/5'}`}>
                     📅 {t('date')}
                   </button>
-                  <button onClick={() => { setSortBy('precio'); setSortOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'precio' ? 'bg-primary-50 text-primary-600' : 'text-gray-700 hover:bg-gray-50'}`}>
+                  <button onClick={() => { setSortBy('precio'); setSortOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'precio' ? 'bg-[rgba(249,115,22,0.16)] text-[#F97316]' : 'text-slate-200 hover:bg-white/5'}`}>
                     💰 {t('price')}
                   </button>
                 </div>
