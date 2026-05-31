@@ -10,7 +10,6 @@ import {
   HiOutlineChartBar,
   HiOutlineCalendar,
   HiOutlinePlusCircle,
-  HiOutlineUsers,
   HiOutlineCog,
   HiOutlineMenu,
   HiOutlineX,
@@ -45,7 +44,7 @@ export default function OrganizerLayout({ children }: { children: React.ReactNod
     { href: '/organizer', label: t('orgDashboard'), icon: HiOutlineChartBar },
     { href: '/organizer/events', label: t('orgMyEvents'), icon: HiOutlineCalendar },
     { href: '/organizer/events/create', label: t('orgCreateEvent'), icon: HiOutlinePlusCircle },
-    { href: '/organizer/attendees', label: t('orgAttendees'), icon: HiOutlineUsers },
+    // Standalone "Asistentes" removed — covered by the per-event Asistentes tab.
   ];
 
   const isActive = (href: string) => {
