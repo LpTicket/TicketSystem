@@ -56,7 +56,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setPage(1); loadEvents(); };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-14">
       {/* Main Bar: Search + Categories */}
       <div className="events-filter-bar relative flex flex-col lg:flex-row items-stretch lg:items-center gap-3 p-3 mb-8">
 
@@ -100,7 +100,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
       <div className="mt-12">
         {events.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            {events.map((event, idx) => <EventCard key={event.id} event={event} priority={idx < 4} />)}
+            {events.map((event, idx) => <EventCard key={event.id} event={event} priority={idx < 8} />)}
           </div>
         ) : (
           <div className="text-center py-20 border border-gray-200 rounded-lg"><p className="text-gray-500">{lang === 'es' ? 'No se encontraron eventos' : 'No events found'}</p></div>
