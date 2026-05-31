@@ -182,7 +182,7 @@ export default function Header() {
               <img
                 src="/logo.png"
                 alt="LPTicket"
-                className="relative z-10 h-[1.41rem] md:h-[1.35rem] w-auto object-contain transition-all duration-300 group-hover:scale-[1.035] group-active:scale-[0.98]"
+                className="relative z-10 h-[2.12rem] md:h-[2.03rem] w-auto object-contain transition-all duration-300 group-hover:scale-[1.035] group-active:scale-[0.98]"
               />
             </Link>
           </div>
