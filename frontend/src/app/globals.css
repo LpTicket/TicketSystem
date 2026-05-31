@@ -3464,7 +3464,7 @@ html body header.site-header-future>div>div {
 
   body header .premium-logo img,
   body header img[alt="LPTicket"] {
-    height: 1.41rem !important;
+    height: 1.83rem !important;
     filter: none !important;
   }
 
@@ -3585,7 +3585,7 @@ html body header.site-header-future>div>div {
 
   body header .premium-logo img,
   body header img[alt="LPTicket"] {
-    height: 1.35rem !important;
+    height: 1.76rem !important;
     filter: none !important;
   }
 
@@ -5317,7 +5317,7 @@ html body header.site-header-future.site-header-future {
    ============================================================ */
 @media (min-width: 1024px) {
   html body .home-signature {
-    padding-top: 7.5rem !important;
+    padding-top: 6rem !important;
   }
 }
 
@@ -5826,4 +5826,34 @@ body header .header-main-actions {
   box-shadow:
     0 22px 58px rgba(0, 0, 0, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+/* ===== Header logo vertical alignment ===== */
+body header .premium-logo {
+  transform: translateY(0.18rem) !important;
+}
+
+/* ===== Final transparent global header ===== */
+html body header.site-header-future,
+html body header.site-header-future.site-header-future {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+html body header.site-header-future > div,
+html body header.site-header-future > div > div {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+/* ===== Final home content lift under transparent header ===== */
+html body main .home-signature {
+  transform: translateY(-0.60rem) !important;
 }
