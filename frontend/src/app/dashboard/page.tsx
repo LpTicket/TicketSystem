@@ -237,7 +237,7 @@ function DashboardPageBody() {
       <div className="dashboard-premium-tabs grid grid-cols-2 sm:flex sm:flex-row gap-1 mb-8">
         {tabs.map((tab) => (
           <button key={tab.id} onClick={() => { setActiveTab(tab.id); window.history.replaceState(null, '', `/dashboard?tab=${tab.id}`); }}
-            className={`dashboard-premium-tab flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-3 text-xs sm:text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-primary-500 text-white shadow-sm' : 'text-slate-300 hover:bg-[rgba(255,255,255,0.06)] hover:text-white'}`}>
+            className={`dashboard-premium-tab flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-2.5 !text-[0.76rem] !font-normal transition-all ${activeTab === tab.id ? 'bg-primary-500 text-white shadow-sm' : 'text-slate-300 hover:bg-[rgba(255,255,255,0.06)] hover:text-white'}`}>
             <tab.icon className="w-4 h-4 shrink-0" />
             <span className="truncate">{tab.label}</span>
             {tab.count !== undefined && <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] sm:text-xs text-gray-500">{tab.count}</span>}
