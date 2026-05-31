@@ -899,7 +899,8 @@ export class OrdersService {
       });
     }
 
-    const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total), 0);
+    // Organizer revenue = ticket sales only (subtotal), excluding the buyer's service fee.
+    const totalRevenue = orders.reduce((sum, o) => sum + Number(o.subtotal), 0);
     const totalTickets = orders.reduce((sum, o) => sum + o.ticketCount, 0);
     return { orders, totalRevenue, totalTickets, totalOrders: orders.length };
   }
@@ -914,7 +915,7 @@ export class OrdersService {
       .innerJoin('events', 'e', 'e.id = o."eventId"')
       .where('e."organizerId" = :organizerId', { organizerId })
       .andWhere('o.status = :status', { status: OrderStatus.PAID })
-      .select('COALESCE(SUM(o.total), 0)', 'totalRevenue')
+      .select('COALESCE(SUM(o.subtotal), 0)', 'totalRevenue')
       .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'totalTickets')
       .addSelect('COUNT(o.id)', 'totalOrders')
       .getRawOne();

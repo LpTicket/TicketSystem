@@ -1031,7 +1031,7 @@ export default function EventDetailPage() {
     if (!acc[key]) acc[key] = { date: key, orders: 0, tickets: 0, revenue: 0 };
     acc[key].orders += 1;
     acc[key].tickets += Number(order.ticketCount || 0);
-    acc[key].revenue += Number(order.total || 0);
+    acc[key].revenue += Number(order.subtotal ?? order.total ?? 0);
     return acc;
   }, {});
 
@@ -1686,7 +1686,7 @@ export default function EventDetailPage() {
                 sales.orders.forEach((o: any) => {
                   const email = o.user?.email || 'unknown';
                   if (grouped[email]) {
-                    grouped[email].totalSpent += Number(o.total || 0);
+                    grouped[email].totalSpent += Number(o.subtotal ?? o.total ?? 0);
                     grouped[email].orderCount += 1;
                   }
                 });
