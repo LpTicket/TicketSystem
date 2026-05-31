@@ -229,7 +229,7 @@ export default function AdminUsersPage() {
                 key={f.key}
                 onClick={() => { setFilter(f.key); setPage(1); }}
                 className={`flex-1 sm:flex-none justify-center px-4 py-2.5 sm:py-2 text-xs font-semibold rounded-lg transition-all whitespace-nowrap active:scale-95 ${
-                  filter === f.key ? 'bg-gray-900 text-white font-bold shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  filter === f.key ? 'bg-gradient-to-b from-[#ff8a18] via-[#f46c00] to-[#c93f00] text-white font-bold border border-[rgba(255,151,45,0.62)] shadow-[0_10px_24px_rgba(255,104,0,0.24)]' : 'bg-[rgba(8,31,51,0.6)] border border-[rgba(246,198,95,0.18)] text-slate-300 hover:bg-[rgba(249,115,22,0.12)] hover:border-[rgba(249,115,22,0.4)] hover:text-white'
                 }`}
               >
                 {f.label}
