@@ -5737,11 +5737,12 @@ html body {
 .page-dark-shell .events-filter-bar .category-pill.active {
   position: relative !important;
   overflow: hidden !important;
-  min-height: auto !important;
-  height: auto !important;
-  padding-top: 0.625rem !important;
-  padding-bottom: 0.625rem !important;
-  border-radius: 10px !important;
+  width: 6.875rem !important;
+  min-width: 6.875rem !important;
+  height: 2rem !important;
+  min-height: 2rem !important;
+  padding: 0 0.75rem !important;
+  border-radius: 0.5rem !important;
   border: 1px solid rgba(255, 151, 45, 0.62) !important;
   background:
     linear-gradient(180deg, #ff8a18 0%, #f46c00 46%, #c93f00 100%) !important;
