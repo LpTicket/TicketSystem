@@ -5785,14 +5785,14 @@ html body {
 /* ===== Events page EventCard visible thin lines ===== */
 .page-dark-shell .event-signature-card {
   border-radius: 10px !important;
-  border: 0.50px solid var(--ref-border) !important;
+  border: 0.50px solid rgba(246, 198, 95, 0.16) !important;
   background:
     linear-gradient(180deg, rgba(15, 23, 34, 0.78), rgba(7, 14, 23, 0.92)) !important;
   box-shadow: none !important;
 }
 
 .page-dark-shell .event-card-footer {
-  border-top: 0.50px solid var(--ref-border) !important;
+  border-top: 0.50px solid rgba(246, 198, 95, 0.16) !important;
 }
 
 .page-dark-shell .event-signature-card:hover {
