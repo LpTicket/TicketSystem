@@ -5782,21 +5782,21 @@ html body {
   line-height: 1 !important;
 }
 
-/* ===== Events page EventCard thin lines like home ===== */
+/* ===== Events page EventCard thin visible lines like home ===== */
 .page-dark-shell .event-signature-card {
-  border-color: rgba(246, 198, 95, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.34) !important;
   box-shadow: none !important;
 }
 
 .page-dark-shell .event-card-footer {
-  border-top-color: rgba(255, 255, 255, 0.22) !important;
+  border-top-color: rgba(255, 255, 255, 0.34) !important;
 }
 
 .page-dark-shell .event-signature-card:hover {
-  border-color: rgba(255, 122, 0, 0.34) !important;
+  border-color: rgba(255, 122, 0, 0.55) !important;
   box-shadow: none !important;
 }
 
 .page-dark-shell .event-signature-card:hover .event-card-footer {
-  border-top-color: rgba(255, 122, 0, 0.34) !important;
+  border-top-color: rgba(255, 122, 0, 0.55) !important;
 }
