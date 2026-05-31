@@ -61,8 +61,8 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
       <div className="events-filter-bar relative flex flex-col lg:flex-row items-stretch lg:items-center gap-3 p-3 mb-8">
 
         {/* Search */}
-        <form onSubmit={handleSearch} className="relative flex items-center rounded-xl border border-[rgba(246,198,95,0.18)] bg-[rgba(5,17,31,0.7)] w-full lg:w-[450px] shrink-0 transition-all focus-within:border-primary-500">
-          <div className="pl-4 text-gray-400">
+        <form onSubmit={handleSearch} className="events-search-form relative flex items-center rounded-xl border border-[rgba(246,198,95,0.18)] bg-[rgba(5,17,31,0.7)] w-full lg:w-[450px] shrink-0 transition-all focus-within:border-primary-500">
+          <div className="events-search-icon text-gray-400">
             <HiOutlineSearch className="w-4 h-4 text-primary-400" />
           </div>
           <input
@@ -70,7 +70,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={lang === 'es' ? 'Buscar eventos...' : 'Search events...'}
-            className="flex-1 py-3 px-3 text-white placeholder-gray-500 focus:outline-none text-sm bg-transparent"
+            className="events-search-input flex-1 py-3 px-3 text-white placeholder-gray-500 focus:outline-none text-sm bg-transparent"
           />
         </form>
 
@@ -78,7 +78,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
         <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
           <button
             onClick={() => { setCategory(''); setPage(1); }}
-            className={`category-pill whitespace-nowrap !py-2.5 ${!category ? 'active' : ''}`}
+            className={`category-pill events-category-pill whitespace-nowrap !py-2.5 ${!category ? 'active' : ''}`}
           >
             Todos
           </button>
@@ -86,7 +86,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
             <button
               key={cat.slug}
               onClick={() => { setCategory(cat.slug); setPage(1); }}
-              className={`category-pill whitespace-nowrap !py-2.5 ${category === cat.slug ? 'active' : ''}`}
+              className={`category-pill events-category-pill whitespace-nowrap !py-2.5 ${category === cat.slug ? 'active' : ''}`}
             >
               {lang === 'en' ? cat.labelEn : cat.labelEs}
             </button>
