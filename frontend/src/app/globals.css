@@ -5891,6 +5891,15 @@ html body {
   box-shadow: 0 28px 70px rgba(10, 55, 90, 0.16) !important;
 }
 
+/* ===== Admin tables: barely-there row dividers (Usuarios / Categorías) ===== */
+.lp-management-layout [class*="divide-gray"] > :not([hidden]) ~ :not([hidden]),
+.lp-management-layout [class*="divide-slate"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 255, 255, 0.035) !important;
+}
+.lp-management-layout table thead tr[class*="border-b"] {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
 .page-dark-shell .event-signature-card:hover .event-card-footer {
   border-top-color: rgba(249, 115, 22, 0.34) !important;
 }
