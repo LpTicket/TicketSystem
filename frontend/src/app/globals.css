@@ -1292,19 +1292,44 @@ html {
 }
 
 /* Dashboard tabs dark */
+/* Dashboard tabs styled like the Events category pills: transparent container,
+   each tab an individual bordered pill, active one filled orange. */
 .page-dark-shell .dashboard-premium-tabs {
-  background: rgba(8, 31, 51, 0.82) !important;
-  border-color: rgba(246, 198, 95, 0.14) !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 
 .page-dark-shell .dashboard-premium-tab {
-  color: rgba(203, 213, 225, 0.75) !important;
+  border: 1px solid rgba(246, 198, 95, 0.18) !important;
+  border-radius: 0.6rem !important;
+  background: rgba(8, 31, 51, 0.6) !important;
+  color: rgba(226, 232, 240, 0.85) !important;
+}
+
+.page-dark-shell .dashboard-premium-tab:hover {
+  background: rgba(249, 115, 22, 0.12) !important;
+  border-color: rgba(249, 115, 22, 0.4) !important;
+  color: #ffffff !important;
 }
 
 .page-dark-shell .dashboard-premium-tab.active,
 .page-dark-shell .dashboard-premium-tab[class*="bg-[#0A375A]"],
 .page-dark-shell .dashboard-premium-tab[class*="bg-primary"] {
-  background: rgba(249, 115, 22, 0.85) !important;
+  background: rgba(249, 115, 22, 0.9) !important;
+  border-color: rgba(249, 115, 22, 0.6) !important;
+  color: #ffffff !important;
+}
+
+/* Count badge inside a tab (e.g. "2") → readable on the dark pill */
+.page-dark-shell .dashboard-premium-tab [class*="bg-gray-100"] {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: rgba(241, 245, 249, 0.92) !important;
+}
+.page-dark-shell .dashboard-premium-tab.active [class*="bg-gray-100"],
+.page-dark-shell .dashboard-premium-tab[class*="bg-primary"] [class*="bg-gray-100"] {
+  background: rgba(255, 255, 255, 0.28) !important;
   color: #ffffff !important;
 }
 
