@@ -279,9 +279,9 @@ export default function CreateEventPage() {
         <div className="flex items-center justify-between">
           <h1 className="font-bold text-2xl lg:text-3xl text-gray-900">{step === 1 ? t('orgCreateEvent') : (lang === 'es' ? 'Diseño del Escenario' : 'Stage Design')}</h1>
           <div className="flex items-center gap-2 text-sm font-medium">
-            <span className={`px-4 py-1.5 rounded-full transition-colors ${step === 1 ? 'bg-primary-500 text-white shadow-md' : 'bg-gray-100 text-gray-500'}`}>{lang === 'es' ? '1. Detalles' : '1. Details'}</span>
-            <span className="text-gray-300 font-bold">/</span>
-            <span className={`px-4 py-1.5 rounded-full transition-colors ${step === 2 ? 'bg-primary-500 text-white shadow-md' : 'bg-gray-100 text-gray-500'}`}>{lang === 'es' ? '2. Escenario' : '2. Stage'}</span>
+            <span className={`px-4 py-1.5 rounded-full border transition-all ${step === 1 ? 'bg-gradient-to-b from-[#ff8a18] via-[#f46c00] to-[#c93f00] text-white border-[rgba(255,151,45,0.62)] shadow-[0_10px_24px_rgba(255,104,0,0.24)]' : 'bg-[rgba(8,31,51,0.6)] border-[rgba(246,198,95,0.18)] text-slate-300'}`}>{lang === 'es' ? '1. Detalles' : '1. Details'}</span>
+            <span className="text-slate-500 font-bold">/</span>
+            <span className={`px-4 py-1.5 rounded-full border transition-all ${step === 2 ? 'bg-gradient-to-b from-[#ff8a18] via-[#f46c00] to-[#c93f00] text-white border-[rgba(255,151,45,0.62)] shadow-[0_10px_24px_rgba(255,104,0,0.24)]' : 'bg-[rgba(8,31,51,0.6)] border-[rgba(246,198,95,0.18)] text-slate-300'}`}>{lang === 'es' ? '2. Escenario' : '2. Stage'}</span>
           </div>
         </div>
       </div>
