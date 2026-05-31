@@ -167,7 +167,7 @@ function LoginContent() {
               type="button"
               onClick={() => handleSocialLogin('google')}
               disabled={loading}
-              className="flex items-center justify-center gap-2 px-4 py-3 border border-[rgba(10,55,90,0.12)] rounded-lg hover:bg-[rgba(10,55,90,0.05)] transition-colors focus:outline-none text-xs font-bold text-[#0A375A]"
+              className="flex h-[2.35rem] items-center justify-center gap-2 rounded-[10px] border border-[rgba(117,132,153,0.34)] bg-white/[0.035] px-4 text-xs font-medium text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(0,0,0,0.18)] transition-colors hover:border-[rgba(249,115,22,0.46)] hover:bg-[rgba(249,115,22,0.10)] hover:text-white focus:outline-none"
             >
               <FaGoogle className="w-4 h-4 text-red-500" />
               Google
@@ -176,7 +176,7 @@ function LoginContent() {
               type="button"
               onClick={() => handleSocialLogin('facebook')}
               disabled={loading}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-[#0A375A] text-white rounded-lg hover:bg-[#082d49] transition-colors focus:outline-none text-xs font-bold"
+              className="flex h-[2.35rem] items-center justify-center gap-2 rounded-[10px] border border-[rgba(117,132,153,0.34)] bg-white/[0.035] px-4 text-xs font-medium text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_24px_rgba(0,0,0,0.18)] transition-colors hover:border-[rgba(249,115,22,0.46)] hover:bg-[rgba(249,115,22,0.10)] hover:text-white focus:outline-none"
             >
               <FaFacebook className="w-4 h-4" />
               Facebook
