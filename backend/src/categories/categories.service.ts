@@ -54,6 +54,13 @@ export class CategoriesService implements OnModuleInit {
       );
     } catch { /* ignore */ }
 
+    // Ensure the optional category image column exists (idempotent).
+    try {
+      await this.dataSource.query(
+        `ALTER TABLE event_categories ADD COLUMN IF NOT EXISTS "imageData" TEXT`,
+      );
+    } catch { /* ignore */ }
+
     // Seed system categories only on a fresh install (empty table).
     const count = await this.categoryRepo.count();
     if (count === 0) {
@@ -84,7 +91,7 @@ export class CategoriesService implements OnModuleInit {
    */
   async create(dto: {
     slug: string; labelEs: string; labelEn: string;
-    icon?: string; color?: string; sortOrder?: number;
+    icon?: string; color?: string; sortOrder?: number; imageData?: string | null;
   }) {
     const existing = await this.categoryRepo.findOne({ where: { slug: dto.slug } });
     if (existing) throw new ConflictException(`Ya existe una categoría con el slug "${dto.slug}"`);
@@ -94,7 +101,7 @@ export class CategoriesService implements OnModuleInit {
 
   async update(id: string, dto: Partial<{
     slug: string; labelEs: string; labelEn: string;
-    icon: string; color: string; sortOrder: number; isActive: boolean;
+    icon: string; color: string; sortOrder: number; isActive: boolean; imageData: string | null;
   }>) {
     const cat = await this.findOne(id);
     Object.assign(cat, dto);

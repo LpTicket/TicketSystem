@@ -26,6 +26,10 @@ export class EventCategoryEntity {
   @Column({ length: 20, default: '#6366f1' })
   color: string;
 
+  /** Optional category card image (base64 data URI), editable from the admin panel */
+  @Column({ type: 'text', nullable: true })
+  imageData?: string | null;
+
   @Column({ default: 0 })
   sortOrder: number;
 

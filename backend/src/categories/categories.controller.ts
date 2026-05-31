@@ -17,6 +17,7 @@ class CreateCategoryDto {
   @IsOptional() @IsString() icon?: string;
   @IsOptional() @IsString() color?: string;
   @IsOptional() @IsNumber() @Type(() => Number) sortOrder?: number;
+  @IsOptional() @IsString() imageData?: string | null;
 }
 
 class UpdateCategoryDto {
@@ -27,6 +28,7 @@ class UpdateCategoryDto {
   @IsOptional() @IsString() color?: string;
   @IsOptional() @IsNumber() @Type(() => Number) sortOrder?: number;
   @IsOptional() @IsBoolean() isActive?: boolean;
+  @IsOptional() imageData?: string | null;
 }
 
 @Controller('categories')

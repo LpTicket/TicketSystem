@@ -18,6 +18,33 @@ interface Category {
   color: string;
   sortOrder: number;
   isActive: boolean;
+  imageData?: string | null;
+}
+
+/** Read an image file, downscale it to keep the stored base64 small, return a data URI. */
+function fileToCompressedDataUrl(file: File, maxSize = 600, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('No canvas context')); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 const PRESET_COLORS = [
@@ -38,10 +65,20 @@ export default function AdminCategoriesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const emptyForm = { slug: '', labelEs: '', labelEn: '', icon: '🎫', color: '#6366f1', sortOrder: 0 };
+  const emptyForm = { slug: '', labelEs: '', labelEn: '', icon: '🎫', color: '#6366f1', sortOrder: 0, imageData: '' as string };
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const handleImagePick = async (file?: File | null) => {
+    if (!file) return;
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file);
+      setForm((f) => ({ ...f, imageData: dataUrl }));
+    } catch {
+      toast.error('No se pudo procesar la imagen');
+    }
+  };
 
   useEffect(() => { loadCategories(); }, []);
 
@@ -86,7 +123,7 @@ export default function AdminCategoriesPage() {
 
   const startEdit = (cat: Category) => {
     setEditingId(cat.id);
-    setForm({ slug: cat.slug, labelEs: cat.labelEs, labelEn: cat.labelEn, icon: cat.icon, color: cat.color, sortOrder: cat.sortOrder });
+    setForm({ slug: cat.slug, labelEs: cat.labelEs, labelEn: cat.labelEn, icon: cat.icon, color: cat.color, sortOrder: cat.sortOrder, imageData: cat.imageData || '' });
     setShowForm(false);
   };
 
@@ -223,6 +260,26 @@ export default function AdminCategoriesPage() {
             </div>
           </div>
 
+          {/* Image upload */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-2">Imagen de la categoría (opcional):</label>
+            <div className="flex items-center gap-3">
+              {form.imageData ? (
+                <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 shrink-0">
+                  <img src={form.imageData} alt="preview" className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => setForm({ ...form, imageData: '' })}
+                    className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center text-xs hover:bg-red-500">×</button>
+                </div>
+              ) : (
+                <div className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 text-2xl shrink-0">🖼️</div>
+              )}
+              <label className="btn-secondary text-xs px-4 cursor-pointer">
+                {form.imageData ? 'Cambiar imagen' : 'Subir imagen'}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImagePick(e.target.files?.[0])} />
+              </label>
+            </div>
+          </div>
+
           {/* Preview */}
           <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
             <span className="text-xs text-gray-500">Vista previa:</span>
@@ -280,6 +337,24 @@ export default function AdminCategoriesPage() {
                             <input className="input text-sm w-16" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
                             <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })}
                               className="w-10 h-10 rounded cursor-pointer border border-gray-200" />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase">Imagen</label>
+                          <div className="flex items-center gap-2">
+                            {form.imageData ? (
+                              <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-gray-200 shrink-0">
+                                <img src={form.imageData} alt="" className="w-full h-full object-cover" />
+                                <button type="button" onClick={() => setForm({ ...form, imageData: '' })}
+                                  className="absolute inset-0 bg-black/50 text-white text-[10px] opacity-0 hover:opacity-100">Quitar</button>
+                              </div>
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 shrink-0">🖼️</div>
+                            )}
+                            <label className="btn-secondary text-[11px] px-3 py-2 cursor-pointer whitespace-nowrap">
+                              {form.imageData ? 'Cambiar' : 'Subir'}
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImagePick(e.target.files?.[0])} />
+                            </label>
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -363,6 +438,21 @@ export default function AdminCategoriesPage() {
                       <input className="input text-sm w-full" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
                       <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })}
                         className="w-12 h-10 rounded cursor-pointer border border-gray-200 shrink-0" />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {form.imageData ? (
+                        <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-gray-200 shrink-0">
+                          <img src={form.imageData} alt="" className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => setForm({ ...form, imageData: '' })}
+                            className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center text-xs">×</button>
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 text-xl shrink-0">🖼️</div>
+                      )}
+                      <label className="btn-secondary text-xs px-4 cursor-pointer">
+                        {form.imageData ? 'Cambiar imagen' : 'Subir imagen'}
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImagePick(e.target.files?.[0])} />
+                      </label>
                     </div>
                   </div>
                   <div className="flex gap-2">

@@ -13,6 +13,7 @@ export interface Category {
   color: string;
   sortOrder: number;
   isActive: boolean;
+  imageData?: string | null;
 }
 
 interface CategoryContextType {
