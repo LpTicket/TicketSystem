@@ -15,7 +15,7 @@ export default function Footer() {
             <img
               src="/logo.png"
               alt="LPTicket"
-              className="h-12 md:h-14 w-auto brightness-0 invert object-contain"
+              className="h-10 md:h-12 w-auto object-contain"
             />
           </Link>
 
