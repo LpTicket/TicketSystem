@@ -146,10 +146,10 @@ export default function OrganizerEventsPage() {
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              className={`px-4 py-2 text-xs font-medium rounded-lg transition-all whitespace-nowrap ${
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap border ${
                 filter === f.key
-                  ? 'bg-primary-500 text-white shadow-sm'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  ? 'bg-gradient-to-b from-[#ff8a18] via-[#f46c00] to-[#c93f00] text-white border-[rgba(255,151,45,0.62)] shadow-[0_10px_24px_rgba(255,104,0,0.24)]'
+                  : 'bg-[rgba(8,31,51,0.6)] border-[rgba(246,198,95,0.18)] text-slate-300 hover:bg-[rgba(249,115,22,0.12)] hover:border-[rgba(249,115,22,0.4)] hover:text-white'
               }`}
             >
               {f.label}
