@@ -1234,7 +1234,7 @@ export default function EventDetailPage() {
               </div>
               <button
                 onClick={exportAnalyticsCSV}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#F97316] px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-black/10 transition hover:bg-[#EA6C10]"
+                className="btn-primary inline-flex items-center justify-center gap-2"
               >
                 <HiOutlineDownload className="h-4 w-4" />
                 {lang === 'es' ? 'Export premium' : 'Premium export'}
