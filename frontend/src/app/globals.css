@@ -5911,9 +5911,9 @@ html body {
 .event-premium-info,
 .purchase-premium-panel,
 .purchase-premium-section {
-  background: rgba(8, 31, 51, 0.45) !important;
+  background: linear-gradient(180deg, rgba(8, 31, 51, 0.88), rgba(5, 17, 31, 0.84)) !important;
   border: 1px solid rgba(246, 198, 95, 0.16) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
 }
 .public-premium-card:hover,
 .premium-section-card:hover,
