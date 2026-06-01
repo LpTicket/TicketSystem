@@ -1374,7 +1374,7 @@ export default function EventDetailPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {sections.length > 0 ? sections.map((sec) => (
             <div key={sec.id} className="bg-white rounded-xl border border-gray-200 p-5" style={{ borderTopWidth: 4, borderTopColor: sec.color }}>
-              <h3 className="font-bold text-gray-900 mb-2">{sec.name}</h3>
+              <h3 className="font-bold text-gray-900 mb-2">{sec.sectionType === 'table' ? `${lang === 'es' ? 'Mesa' : 'Table'} ${sec.name}` : sec.name}</h3>
               <div className="space-y-1 text-sm text-gray-600">
                 <p>{t('orgSectionType')}: <span className="font-medium text-gray-800 capitalize">{sec.sectionType}</span></p>
                 <p>{t('orgCapacity')}: <span className="font-medium text-gray-800">{sec.capacity || sec.rows * sec.seatsPerRow}</span></p>
