@@ -295,10 +295,10 @@ export default function AdminMarketingPage() {
               className="h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#F97316]"
               placeholder="Preheader / texto corto bajo el asunto"
             />
-            <select className="h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#F97316]">
-              <option>Todos los usuarios</option>
-              <option>Todos los compradores</option>
-              <option>Compradores de un evento</option>
+            <select className="h-12 rounded-xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] text-slate-100 px-4 text-sm outline-none transition focus:border-[#F97316]">
+              <option className="bg-[#0b2236] text-slate-100">Todos los usuarios</option>
+              <option className="bg-[#0b2236] text-slate-100">Todos los compradores</option>
+              <option className="bg-[#0b2236] text-slate-100">Compradores de un evento</option>
             </select>
             <input
               value={campaignLink}
@@ -319,10 +319,10 @@ export default function AdminMarketingPage() {
           <button
             type="button"
             onClick={() => emailArtInputRef.current?.click()}
-            className="mt-5 flex min-h-[170px] w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/60 p-6 text-center transition hover:border-orange-200 hover:bg-orange-50/40"
+            className="mt-5 flex min-h-[170px] w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[rgba(246,198,95,0.22)] bg-[rgba(8,31,51,0.45)] p-6 text-center transition hover:border-[rgba(249,115,22,0.5)] hover:bg-[rgba(249,115,22,0.08)]"
           >
             <HiOutlineUpload className="h-10 w-10 text-[#F97316]" />
-            <span className="mt-3 text-base font-black text-gray-950">Subir arte principal del email</span>
+            <span className="mt-3 text-base font-black text-slate-100">Subir arte principal del email</span>
             <span className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
               Recomendado: 1200 px de ancho, JPG optimizado, menos de 1 MB.
             </span>
