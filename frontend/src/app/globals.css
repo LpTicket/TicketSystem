@@ -1146,21 +1146,22 @@ html {
   }
 }
 
-/* Dashboard tabs: single row scrollable on mobile instead of grid */
+/* Dashboard tabs: wrap into a 2-column grid on mobile (no horizontal scroll) */
 @media (max-width: 639px) {
   .dashboard-premium-tabs {
-    display: flex !important;
-    flex-direction: row !important;
-    overflow-x: auto !important;
-    gap: 0.25rem !important;
-    padding-bottom: 2px !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    overflow-x: visible !important;
+    gap: 0.4rem !important;
+    padding-bottom: 0 !important;
   }
 
   .dashboard-premium-tab {
-    flex-shrink: 0 !important;
+    flex-shrink: 1 !important;
     white-space: nowrap !important;
-    font-size: 0.7rem !important;
-    padding: 0.5rem 0.65rem !important;
+    justify-content: center !important;
+    font-size: 0.72rem !important;
+    padding: 0.6rem 0.5rem !important;
   }
 }
 
