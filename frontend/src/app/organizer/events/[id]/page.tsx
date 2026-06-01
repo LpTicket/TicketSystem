@@ -1880,7 +1880,7 @@ export default function EventDetailPage() {
               >
                 <option value="">{lang === 'es' ? 'Selecciona una sección...' : 'Select a section...'}</option>
                 {sections.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} (${Number(s.price).toFixed(2)})</option>
+                  <option key={s.id} value={s.id}>{s.sectionType === 'table' ? `${lang === 'es' ? 'Mesa' : 'Table'} ${s.name}` : s.name} (${Number(s.price).toFixed(2)})</option>
                 ))}
               </select>
             </div>
@@ -1922,7 +1922,7 @@ export default function EventDetailPage() {
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <span className="font-black text-sm text-gray-900 truncate">{section.name}</span>
+                        <span className="font-black text-sm text-gray-900 truncate">{section.sectionType === 'table' ? `${lang === 'es' ? 'Mesa' : 'Table'} ${section.name}` : section.name}</span>
                         <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-amber-800">
                           {blockedSeats.length}
                         </span>
