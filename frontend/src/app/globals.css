@@ -1735,6 +1735,8 @@ html {
   border-right: 1px solid rgba(246, 198, 95, 0.14) !important;
   background: linear-gradient(180deg, #081f33, #05111f) !important;
   box-shadow: 24px 0 70px rgba(0, 0, 0, 0.5) !important;
+  /* Start below the fixed header so the panel doesn't overlap the navbar */
+  padding-top: 4.25rem !important;
 }
 .lp-mobile-sidebar-panel h2 { color: #f1f5f9 !important; }
 .lp-mobile-sidebar-panel p { color: rgba(148, 163, 184, 0.9) !important; }
