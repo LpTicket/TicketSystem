@@ -113,7 +113,7 @@ export default function AdminAnalyticsPage() {
                 {summary.topEvents.length === 0 && <p className="text-sm text-gray-500">{labels.noData}</p>}
                 {summary.topEvents.map((event, index) => (
                   <div key={event.eventSlug} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/70 px-3 py-3">
-                    <div className="w-8 h-8 rounded-lg bg-[#0A375A] text-white flex items-center justify-center text-xs font-black">{index + 1}</div>
+                    <div className="public-premium-icon w-8 h-8 flex items-center justify-center text-xs font-black">{index + 1}</div>
                     <Link href={`/events/${event.eventSlug}`} className="min-w-0 flex-1 truncate text-sm font-bold text-[#0A375A] hover:text-primary-600">
                       {event.eventSlug}
                     </Link>
@@ -134,7 +134,7 @@ export default function AdminAnalyticsPage() {
                 {summary.topPages.length === 0 && <p className="text-sm text-gray-500">{labels.noData}</p>}
                 {summary.topPages.map((page, index) => (
                   <div key={page.path} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/70 px-3 py-3">
-                    <div className="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center text-xs font-black">{index + 1}</div>
+                    <div className="public-premium-icon w-8 h-8 flex items-center justify-center text-xs font-black">{index + 1}</div>
                     <span className="min-w-0 flex-1 truncate text-sm font-bold text-gray-700">{page.path}</span>
                     <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-gray-600 border border-gray-100">
                       {page.views} {labels.views} · {page.visitors} {labels.visitorsLabel}
