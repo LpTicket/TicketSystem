@@ -1017,7 +1017,6 @@ export default function EventDetailPage() {
   const remainingEventCapacity = Math.max(totalEventCapacity - totalTickets, 0);
   const averageOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   const scanRate = totalTickets > 0 ? Math.round((scannedTickets / totalTickets) * 100) : 0;
-  const estimatedNetRevenue = Math.max(totalRevenue - (totalRevenue * 0.029) - (totalOrders * 0.30), 0);
   const formatSectionAnalyticsLabel = (sectionName: string) => {
     const cleanName = String(sectionName || '').trim();
     if (/^\d+$/.test(cleanName)) return lang === 'es' ? `Mesa ${cleanName}` : `Table ${cleanName}`;
@@ -1061,8 +1060,7 @@ export default function EventDetailPage() {
   const exportAnalyticsCSV = () => {
     const rows = [
       [lang === 'es' ? 'Métrica' : 'Metric', lang === 'es' ? 'Valor' : 'Value'],
-      [lang === 'es' ? 'Ingresos brutos' : 'Gross revenue', totalRevenue.toFixed(2)],
-      [lang === 'es' ? 'Ingreso neto estimado' : 'Estimated net revenue', estimatedNetRevenue.toFixed(2)],
+      [lang === 'es' ? 'Ingresos por entradas' : 'Ticket revenue', totalRevenue.toFixed(2)],
       [lang === 'es' ? 'Órdenes' : 'Orders', String(totalOrders)],
       [lang === 'es' ? 'Tickets vendidos' : 'Tickets sold', String(totalTickets)],
       [lang === 'es' ? 'Tickets escaneados' : 'Scanned tickets', String(scannedTickets)],
@@ -1243,19 +1241,13 @@ export default function EventDetailPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 {
-                  label: lang === 'es' ? 'Ingresos brutos' : 'Gross revenue',
+                  label: lang === 'es' ? 'Ingresos por entradas' : 'Ticket revenue',
                   value: `$${totalRevenue.toFixed(2)}`,
-                  note: `${totalOrders} ${lang === 'es' ? 'órdenes' : 'orders'}`,
+                  note: `${totalOrders} ${lang === 'es' ? 'órdenes · lo que recibes' : 'orders · what you receive'}`,
                   icon: HiOutlineCurrencyDollar,
-                },
-                {
-                  label: lang === 'es' ? 'Neto estimado' : 'Estimated net',
-                  value: `$${estimatedNetRevenue.toFixed(2)}`,
-                  note: lang === 'es' ? 'después de fee estimado' : 'after estimated fees',
-                  icon: HiOutlineChartBar,
                 },
                 {
                   label: lang === 'es' ? 'Tickets vendidos' : 'Tickets sold',
