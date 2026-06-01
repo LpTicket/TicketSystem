@@ -5905,6 +5905,7 @@ html body {
 /* Doubled class names bump specificity so this wins over context-scoped rules
    like `.page-dark-shell .public-premium-card` / `.event-dark .event-premium-panel`. */
 .public-premium-card.public-premium-card,
+.public-premium-hero.public-premium-hero,
 .premium-section-card.premium-section-card,
 .premium-stat-card.premium-stat-card,
 .dashboard-premium-card.dashboard-premium-card,
