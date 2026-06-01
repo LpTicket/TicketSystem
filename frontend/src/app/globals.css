@@ -5902,24 +5902,26 @@ html body {
 /* ===== Unified translucent cards with thin borders across every page =====
    One consistent "glass" look: semi-transparent dark fill that lets the page
    background show through, with a single thin gold hairline border. */
-.public-premium-card,
-.premium-section-card,
-.premium-stat-card,
-.dashboard-premium-card,
-.dashboard-premium-ticket,
-.event-premium-panel,
-.event-premium-info,
-.purchase-premium-panel,
-.purchase-premium-section {
+/* Doubled class names bump specificity so this wins over context-scoped rules
+   like `.page-dark-shell .public-premium-card` / `.event-dark .event-premium-panel`. */
+.public-premium-card.public-premium-card,
+.premium-section-card.premium-section-card,
+.premium-stat-card.premium-stat-card,
+.dashboard-premium-card.dashboard-premium-card,
+.dashboard-premium-ticket.dashboard-premium-ticket,
+.event-premium-panel.event-premium-panel,
+.event-premium-info.event-premium-info,
+.purchase-premium-panel.purchase-premium-panel,
+.purchase-premium-section.purchase-premium-section {
   background: linear-gradient(180deg, rgba(8, 31, 51, 0.88), rgba(5, 17, 31, 0.84)) !important;
   border: 1px solid rgba(246, 198, 95, 0.16) !important;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
 }
-.public-premium-card:hover,
-.premium-section-card:hover,
-.premium-stat-card:hover,
-.dashboard-premium-card:hover,
-.event-premium-panel:hover {
+.public-premium-card.public-premium-card:hover,
+.premium-section-card.premium-section-card:hover,
+.premium-stat-card.premium-stat-card:hover,
+.dashboard-premium-card.dashboard-premium-card:hover,
+.event-premium-panel.event-premium-panel:hover {
   border-color: rgba(249, 115, 22, 0.32) !important;
 }
 
