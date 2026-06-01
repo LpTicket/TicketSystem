@@ -5901,6 +5901,15 @@ html body {
 .lp-management-layout table thead[class*="border-b"] {
   border-color: rgba(255, 255, 255, 0.035) !important;
 }
+/* Direct override on table rows so no single divider (e.g. the first one or the
+   sticky header line) stays brighter than the rest. */
+.lp-management-layout table thead tr {
+  border-bottom-color: rgba(255, 255, 255, 0.035) !important;
+}
+.lp-management-layout table tbody tr {
+  border-color: rgba(255, 255, 255, 0.035) !important;
+  border-top-color: rgba(255, 255, 255, 0.035) !important;
+}
 
 /* ===== Unified translucent cards with thin borders across every page =====
    One consistent "glass" look: semi-transparent dark fill that lets the page
