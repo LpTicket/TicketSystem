@@ -94,8 +94,8 @@ export default function AdminAnalyticsPage() {
               <div key={card.label} className="premium-stat-card p-5 bg-white/90 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-gray-500">{card.label}</span>
-                  <div className="w-10 h-10 rounded-xl bg-[rgba(10,55,90,0.08)] flex items-center justify-center">
-                    <card.icon className="w-5 h-5 text-[#0A375A]" />
+                  <div className="public-premium-icon w-10 h-10 flex items-center justify-center">
+                    <card.icon className="w-5 h-5" />
                   </div>
                 </div>
                 <p className="text-3xl font-black text-gray-950 tracking-tight">{card.value}</p>
@@ -151,7 +151,7 @@ export default function AdminAnalyticsPage() {
                 <h2 className="font-black text-gray-950">{labels.recent}</h2>
                 <p className="text-xs font-semibold text-gray-400 mt-1">{summary.recentViews.length} {labels.views}</p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-[rgba(10,55,90,0.08)] flex items-center justify-center text-[#0A375A]">
+              <div className="public-premium-icon w-10 h-10 flex items-center justify-center">
                 {recentOpen ? <HiChevronUp className="w-5 h-5" /> : <HiChevronDown className="w-5 h-5" />}
               </div>
             </button>

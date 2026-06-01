@@ -132,8 +132,8 @@ export default function OrganizerDashboard() {
           <div key={i} className="premium-stat-card p-5 transition-all">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-gray-500">{card.label}</span>
-              <div className={`w-10 h-10 rounded-lg ${card.bg} flex items-center justify-center`}>
-                <card.icon className={`w-5 h-5 ${card.iconColor}`} />
+              <div className="public-premium-icon w-10 h-10 flex items-center justify-center">
+                <card.icon className="w-5 h-5" />
               </div>
             </div>
             <p className="text-2xl font-bold text-gray-900">{card.value}</p>
