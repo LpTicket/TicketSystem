@@ -5899,6 +5899,30 @@ html body {
   border-color: rgba(255, 255, 255, 0.035) !important;
 }
 
+/* ===== Unified translucent cards with thin borders across every page =====
+   One consistent "glass" look: semi-transparent dark fill that lets the page
+   background show through, with a single thin gold hairline border. */
+.public-premium-card,
+.premium-section-card,
+.premium-stat-card,
+.dashboard-premium-card,
+.dashboard-premium-ticket,
+.event-premium-panel,
+.event-premium-info,
+.purchase-premium-panel,
+.purchase-premium-section {
+  background: rgba(8, 31, 51, 0.45) !important;
+  border: 1px solid rgba(246, 198, 95, 0.16) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22) !important;
+}
+.public-premium-card:hover,
+.premium-section-card:hover,
+.premium-stat-card:hover,
+.dashboard-premium-card:hover,
+.event-premium-panel:hover {
+  border-color: rgba(249, 115, 22, 0.32) !important;
+}
+
 .page-dark-shell .event-signature-card:hover .event-card-footer {
   border-top-color: rgba(249, 115, 22, 0.34) !important;
 }
