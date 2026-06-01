@@ -870,8 +870,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   return (
     <div className="venue-builder-dark flex flex-col h-[100vh] md:h-[800px] border border-gray-300 rounded-lg overflow-hidden bg-white relative font-sans">
       {/* ── Top Bar (Seats.io Style) ─────────────────────────────────── */}
-      <div className="h-14 bg-white border-b border-gray-300 flex items-center justify-between px-4 shrink-0 z-40 shadow-sm">
-        <div className="flex items-center gap-3">
+      <div className="min-h-14 bg-white border-b border-gray-300 flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 shrink-0 z-40 shadow-sm">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 bg-[#1a73e8] rounded flex items-center justify-center text-white font-black text-xs tracking-tighter">
             LPT
           </div>
