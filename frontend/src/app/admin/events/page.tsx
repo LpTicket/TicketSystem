@@ -522,15 +522,15 @@ export default function AdminEventsPage() {
                           </button>
                           <button
                             onClick={() => handleOpenFeesModal(ev)}
-                            className="px-3 py-1.5 rounded-lg bg-[rgba(10,55,90,0.05)] text-[#0A375A] text-xs font-bold hover:bg-[rgba(10,55,90,0.10)] transition-colors flex items-center gap-1 shrink-0 shadow-sm border border-[rgba(10,55,90,0.12)]"
+                            className="px-3 py-1.5 rounded-lg bg-[#e2e8f0] text-[#334155] text-xs font-bold hover:bg-[#cbd5e1] transition-colors flex items-center gap-1 shrink-0 shadow-sm border border-[#cbd5e1]"
                             title={lang === 'es' ? 'Configurar Fees' : 'Configure Fees'}
                           >
-                            <HiOutlineCog className="w-4 h-4 text-[#0A375A]" />
+                            <HiOutlineCog className="w-4 h-4" />
                             {lang === 'es' ? 'Fees' : 'Fees'}
                           </button>
                           <Link
                             href={`/organizer/events/${ev.id}`}
-                            className="p-1.5 rounded-lg transition-colors text-blue-500 hover:bg-blue-50"
+                            className="p-1.5 rounded-lg transition-colors bg-[#dbeafe] text-[#1d4ed8] border border-[#bfdbfe] hover:bg-[#bfdbfe] shadow-sm shrink-0"
                           >
                             <HiOutlinePencilAlt className="w-4 h-4" />
                           </Link>
