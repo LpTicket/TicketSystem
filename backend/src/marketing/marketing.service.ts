@@ -73,6 +73,21 @@ export class MarketingService {
     return { sent, failed, total: targets.length };
   }
 
+  /** Normalize a phone to E.164. Assumes US (+1) when no country code is given. */
+  private normalizePhone(raw: string): string | null {
+    if (!raw) return null;
+    const trimmed = raw.trim();
+    if (trimmed.startsWith('+')) {
+      const digits = trimmed.slice(1).replace(/\D/g, '');
+      return digits.length >= 8 ? `+${digits}` : null;
+    }
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length === 10) return `+1${digits}`;            // US 10-digit
+    if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`; // 1XXXXXXXXXX
+    if (digits.length >= 8) return `+${digits}`;               // already has country code
+    return null;
+  }
+
   /** Send a Twilio message (SMS or WhatsApp) using the REST API (no SDK). */
   private async sendTwilioMessage(to: string, body: string, channel: 'sms' | 'whatsapp') {
     const sid = this.config.get<string>('TWILIO_ACCOUNT_SID');
@@ -102,13 +117,17 @@ export class MarketingService {
     if (!sid || !token) {
       return { sent: 0, failed: 0, total: 0, error: 'Twilio no está configurado (faltan TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN).' };
     }
-    let phones: string[];
+    let rawPhones: string[];
     if (recipients && recipients.length) {
-      phones = recipients.map((p) => String(p).trim()).filter(Boolean);
+      rawPhones = recipients.map((p) => String(p));
     } else {
       const users = await this.getRecipients();
-      phones = users.filter((u) => u.phone && u.phone.trim()).map((u) => u.phone.trim());
+      rawPhones = users.filter((u) => u.phone && u.phone.trim()).map((u) => u.phone);
     }
+    // Normalize to E.164 and drop invalid ones.
+    const phones = Array.from(
+      new Set(rawPhones.map((p) => this.normalizePhone(p)).filter((p): p is string => !!p)),
+    );
     let sent = 0, failed = 0;
     for (const phone of phones) {
       try {
