@@ -389,7 +389,7 @@ export default function AdminMarketingPage() {
             </div>
             <div>
               <h2 className="text-xl font-black text-gray-950">Disenador de Email Marketing</h2>
-              <p className="text-sm text-gray-500">Modo visual. No envia correos reales todavia.</p>
+              <p className="text-sm text-gray-500">Envia correos reales a los destinatarios seleccionados.</p>
             </div>
           </div>
 
