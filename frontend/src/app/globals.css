@@ -3560,7 +3560,7 @@ html body header.site-header-future>div>div {
 
   body header .premium-logo img,
   body header img[alt="LPTicket"] {
-    height: 2.4rem !important;
+    height: 2.05rem !important;
     filter: none !important;
   }
 
@@ -3681,7 +3681,7 @@ html body header.site-header-future>div>div {
 
   body header .premium-logo img,
   body header img[alt="LPTicket"] {
-    height: 2.35rem !important;
+    height: 2.0rem !important;
     filter: none !important;
   }
 
@@ -3819,7 +3819,7 @@ html body header.site-header-future>div>div {
   }
 
   body header img[alt="LPTicket"] {
-    height: 2.2rem !important;
+    height: 1.9rem !important;
     filter: none !important;
   }
 
