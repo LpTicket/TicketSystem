@@ -379,10 +379,7 @@ export default function Header() {
             )}
 
             {/* Hamburger */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="header-hamburger-glow h-9 w-9 flex items-center justify-center rounded-xl border border-[rgba(255,122,0,0.5)] bg-[radial-gradient(circle_at_center,rgba(255,122,0,0.16),rgba(255,122,0,0.03)_70%)] shadow-[0_0_0_1px_rgba(255,122,0,0.06)_inset,0_0_18px_rgba(255,122,0,0.16)] transition-all active:scale-95 hover:bg-[rgba(255,122,0,0.22)]"
-            >
+            <button className="h-8 w-8 flex items-center justify-center text-white rounded-md border border-white/20" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <HiOutlineX className="w-5 h-5" /> : <HiOutlineMenu className="w-5 h-5" />}
             </button>
           </div>
