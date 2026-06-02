@@ -168,7 +168,7 @@ export default function AdminCategoriesPage() {
 
       {/* Create form */}
       {showForm && (
-        <form onSubmit={handleCreate} className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+        <form onSubmit={handleCreate} className="rounded-xl border border-[rgba(246,198,95,0.16)] bg-[rgba(8,31,51,0.55)] p-5 space-y-4">
           <h2 className="font-bold text-gray-800 text-sm">Nueva categoría</h2>
           {error && <div className="p-2 bg-red-50 border border-red-200 rounded text-red-600 text-xs">{error}</div>}
 
@@ -303,7 +303,7 @@ export default function AdminCategoriesPage() {
       )}
 
       {/* Categories list */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+      <div className="rounded-xl border border-[rgba(246,198,95,0.16)] bg-[rgba(8,31,51,0.45)] overflow-hidden shadow-sm">
         {/* Desktop Table View */}
         <div className="hidden sm:block overflow-x-auto">
           <table className="w-full">
