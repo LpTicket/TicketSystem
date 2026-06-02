@@ -124,10 +124,7 @@ export default function AdminMarketingPage() {
           {list.map((u) => (
             <label key={u.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5">
               <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggleSel(setSel, u.id)} className="accent-[#F97316]" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm text-slate-200">{u.name || '(sin nombre)'}</span>
-                <span className="block truncate text-[11px] text-gray-400">{field === 'email' ? u.email : u.phone}</span>
-              </span>
+              <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{u.name || (field === 'email' ? u.email : u.phone)}</span>
             </label>
           ))}
         </div>
@@ -607,8 +604,8 @@ export default function AdminMarketingPage() {
               {(() => {
                 const msg = whatsappMessage || (waLang === 'es' ? 'tu mensaje aquí' : 'your message here');
                 return waLang === 'es'
-                  ? `Hola [Nombre] 👋 Novedades de LPTicket: ${msg} 🎟️ Compra tus entradas en lpticket.com`
-                  : `Hi [Name] 👋 Exciting news from LPTicket: ${msg} 🎟️ Buy your tickets now at lpticket.com`;
+                  ? `Hola [Nombre] 👋 ${msg}`
+                  : `Hi [Name] 👋 ${msg}`;
               })()}
             </div>
             <p className="mt-1 text-[10px] text-gray-500">Referencial — el marco lo define la plantilla aprobada ({waLang.toUpperCase()}).</p>
