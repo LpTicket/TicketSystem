@@ -3560,7 +3560,7 @@ html body header.site-header-future>div>div {
 
   body header .premium-logo img,
   body header img[alt="LPTicket"] {
-    height: 2.05rem !important;
+    height: 1.8rem !important;
     filter: none !important;
   }
 
@@ -3681,7 +3681,7 @@ html body header.site-header-future>div>div {
 
   body header .premium-logo img,
   body header img[alt="LPTicket"] {
-    height: 2.0rem !important;
+    height: 1.75rem !important;
     filter: none !important;
   }
 
@@ -3819,7 +3819,7 @@ html body header.site-header-future>div>div {
   }
 
   body header img[alt="LPTicket"] {
-    height: 1.9rem !important;
+    height: 1.65rem !important;
     filter: none !important;
   }
 
@@ -6002,4 +6002,14 @@ html body main .home-signature {
 /* ===== Floating chat/cart/social buttons: rounded square (like the hamburger) ===== */
 .floating-action-pill {
   border-radius: 14px !important;
+}
+
+/* ===== Hard guard: never allow horizontal (side-to-side) scroll ===== */
+html {
+  overflow-x: hidden !important;
+}
+body {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
 }
