@@ -1743,8 +1743,8 @@ html {
 
 .lp-mobile-sidebar-toggle {
   /* Match the floating chat/social buttons exactly (same size + rounded square) */
-  width: 3.45rem !important;
-  height: 3.45rem !important;
+  width: 3.05rem !important;
+  height: 3.05rem !important;
   border-radius: 14px !important;
   background: #F97316 !important;
   color: #ffffff !important;
@@ -2718,10 +2718,10 @@ html {
 
 /* ===== Floating chat/cart smaller, aligned, spaced ===== */
 .floating-action-pill {
-  width: 3.45rem !important;
-  height: 3.45rem !important;
-  min-width: 3.45rem !important;
-  min-height: 3.45rem !important;
+  width: 3.05rem !important;
+  height: 3.05rem !important;
+  min-width: 3.05rem !important;
+  min-height: 3.05rem !important;
   border-radius: 999px !important;
   border: 1px solid rgba(139, 154, 174, 0.38) !important;
   background:
