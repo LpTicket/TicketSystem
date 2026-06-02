@@ -985,11 +985,15 @@ export default function EventDetailPage() {
 
   // Map each sold seat to its buyer name so the seat map can show it on hover.
   const seatBuyers = attendees.reduce<Record<string, string>>((map, a) => {
-    if (!a.sectionName || a.rowLabel == null || a.seatNumber == null) return map;
+    if (!a.sectionName || a.seatNumber == null) return map;
     if (a.status === 'cancelled') return map;
     const name = `${a.user?.firstName || ''} ${a.user?.lastName || ''}`.trim();
     if (!name) return map;
-    map[`${a.sectionName}|${a.rowLabel}|${a.seatNumber}`.toLowerCase()] = name;
+    const sec = String(a.sectionName).toLowerCase();
+    // Primary key (section + row + seat) and a fallback (section + seat) so it
+    // also matches tables where the row label may differ from the map.
+    if (a.rowLabel != null) map[`${sec}|${String(a.rowLabel).toLowerCase()}|${a.seatNumber}`] = name;
+    map[`${sec}|${a.seatNumber}`] = name;
     return map;
   }, {});
 

@@ -861,8 +861,11 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   // Buyer name for a given sold seat, looked up in the seatBuyers map.
   const getSeatBuyer = (sectionName: string | undefined, rowLabel: string | number, seatNumber: string | number): string | undefined => {
     if (!seatBuyers || !sectionName) return undefined;
-    const key = `${sectionName}|${rowLabel}|${seatNumber}`.toLowerCase();
-    return seatBuyers[key];
+    const sec = String(sectionName).toLowerCase();
+    return (
+      seatBuyers[`${sec}|${String(rowLabel).toLowerCase()}|${seatNumber}`] ||
+      seatBuyers[`${sec}|${seatNumber}`]
+    );
   };
 
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
