@@ -6037,6 +6037,12 @@ html body main .home-signature {
   .marketing-shell [class*="grid-cols-["] {
     grid-template-columns: 1fr !important;
   }
+  /* Grid items (the cards) default to min-width:auto and grow to fit their
+     longest unbreakable text (e.g. file names) — force them to shrink/fit. */
+  .marketing-shell [class*="grid"] > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
 }
 
 /* ===== Hard guard: never allow horizontal (side-to-side) scroll ===== */
