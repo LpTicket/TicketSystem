@@ -904,10 +904,13 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       status = es ? 'Disponible' : 'Available';
       statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
     }
+    const isTable = sec.sectionType === 'table';
+    const title = isTable ? `${es ? 'Silla' : 'Seat'} ${num}` : `${row}-${num}`;
+    const subtitle = isTable ? `${es ? 'Mesa' : 'Table'} ${sec.name || ''}`.trim() : (sec.name || '');
     setHoverInfo({
       id: `${sec.id}-${seatKey}`,
-      title: `${row}-${num}`,
-      subtitle: sec.name || '',
+      title,
+      subtitle,
       status,
       statusClass,
       price: Number((sec as any).price || 0),
