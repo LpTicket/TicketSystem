@@ -70,25 +70,80 @@ export default function AdminMarketingPage() {
   const [whatsappMessage, setWhatsappMessage] = useState('');
   const [sending, setSending] = useState<'' | 'email' | 'sms' | 'whatsapp'>('');
 
-  // Audience per channel: 'all' = todos, 'specify' = lista explícita.
+  // Audience per channel: 'all' = todos, 'specify' = elegidos de la lista.
   const [emailAudience, setEmailAudience] = useState<'all' | 'specify'>('all');
-  const [emailRecipients, setEmailRecipients] = useState('');
   const [smsAudience, setSmsAudience] = useState<'all' | 'specify'>('all');
-  const [smsRecipients, setSmsRecipients] = useState('');
   const [waAudience, setWaAudience] = useState<'all' | 'specify'>('all');
-  const [waRecipients, setWaRecipients] = useState('');
 
-  const parseRecipients = (raw: string) =>
-    raw.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
+  type Recipient = { id: string; name: string; email: string; phone: string };
+  const [recipientsList, setRecipientsList] = useState<Recipient[]>([]);
+  const [emailSel, setEmailSel] = useState<string[]>([]);
+  const [smsSel, setSmsSel] = useState<string[]>([]);
+  const [waSel, setWaSel] = useState<string[]>([]);
+  const [pickerSearch, setPickerSearch] = useState<{ email: string; sms: string; whatsapp: string }>({ email: '', sms: '', whatsapp: '' });
+
+  useEffect(() => {
+    api.get('/marketing/admin/recipients').then((r) => setRecipientsList(r.data || [])).catch(() => {});
+  }, []);
+
+  const toggleSel = (
+    setSel: React.Dispatch<React.SetStateAction<string[]>>,
+    id: string,
+  ) => setSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const renderPicker = (
+    channel: 'email' | 'sms' | 'whatsapp',
+    field: 'email' | 'phone',
+    sel: string[],
+    setSel: React.Dispatch<React.SetStateAction<string[]>>,
+  ) => {
+    const q = pickerSearch[channel].toLowerCase();
+    const list = recipientsList.filter(
+      (u) => u[field] && (u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.phone.includes(q)),
+    );
+    return (
+      <div className="mt-2 rounded-xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-3">
+        <input
+          value={pickerSearch[channel]}
+          onChange={(e) => setPickerSearch((p) => ({ ...p, [channel]: e.target.value }))}
+          placeholder="Buscar usuario…"
+          className="w-full rounded-lg border border-[rgba(246,198,95,0.18)] bg-[#071827] px-3 py-2 text-sm text-slate-100 outline-none focus:border-[#F97316]"
+        />
+        <div className="mt-2 flex items-center justify-between text-[11px] text-gray-400">
+          <span>{sel.length} seleccionado(s)</span>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setSel(list.map((u) => u.id))} className="font-bold text-[#F97316]">Todos</button>
+            <button type="button" onClick={() => setSel([])} className="font-bold text-slate-400">Ninguno</button>
+          </div>
+        </div>
+        <div className="mt-2 max-h-48 space-y-1 overflow-y-auto custom-scrollbar">
+          {list.length === 0 && (
+            <p className="py-2 text-center text-xs text-gray-500">Sin usuarios con {field === 'email' ? 'correo' : 'teléfono'}.</p>
+          )}
+          {list.map((u) => (
+            <label key={u.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5">
+              <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggleSel(setSel, u.id)} className="accent-[#F97316]" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm text-slate-200">{u.name || '(sin nombre)'}</span>
+                <span className="block truncate text-[11px] text-gray-400">{field === 'email' ? u.email : u.phone}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   const handleSendEmail = async () => {
     if (!campaignSubject.trim() && !campaignName.trim()) {
       toast.error('Agrega un asunto o nombre de campaña.');
       return;
     }
-    const recipients = emailAudience === 'specify' ? parseRecipients(emailRecipients) : undefined;
+    const recipients = emailAudience === 'specify'
+      ? recipientsList.filter((u) => emailSel.includes(u.id)).map((u) => u.email).filter(Boolean)
+      : undefined;
     if (emailAudience === 'specify' && (!recipients || recipients.length === 0)) {
-      toast.error('Agrega al menos un correo.');
+      toast.error('Selecciona al menos un destinatario.');
       return;
     }
     const who = recipients ? `${recipients.length} destinatario(s)` : 'todos los usuarios';
@@ -112,11 +167,13 @@ export default function AdminMarketingPage() {
   const handleSendMessaging = async (channel: 'sms' | 'whatsapp') => {
     const message = channel === 'sms' ? smsMessage : whatsappMessage;
     const audience = channel === 'sms' ? smsAudience : waAudience;
-    const rawRecipients = channel === 'sms' ? smsRecipients : waRecipients;
+    const sel = channel === 'sms' ? smsSel : waSel;
     if (!message.trim()) { toast.error('Escribe un mensaje.'); return; }
-    const recipients = audience === 'specify' ? parseRecipients(rawRecipients) : undefined;
+    const recipients = audience === 'specify'
+      ? recipientsList.filter((u) => sel.includes(u.id)).map((u) => u.phone).filter(Boolean)
+      : undefined;
     if (audience === 'specify' && (!recipients || recipients.length === 0)) {
-      toast.error('Agrega al menos un número.');
+      toast.error('Selecciona al menos un destinatario con teléfono.');
       return;
     }
     const who = recipients ? `${recipients.length} número(s)` : 'todos los usuarios con teléfono';
@@ -372,15 +429,7 @@ export default function AdminMarketingPage() {
               <option value="all" className="bg-[#0b2236] text-slate-100">Enviar a todos los usuarios</option>
               <option value="specify" className="bg-[#0b2236] text-slate-100">Especificar destinatarios</option>
             </select>
-            {emailAudience === 'specify' && (
-              <textarea
-                value={emailRecipients}
-                onChange={(e) => setEmailRecipients(e.target.value)}
-                rows={3}
-                placeholder="Correos separados por coma o salto de línea…"
-                className="w-full resize-none rounded-xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-3 text-sm text-slate-100 outline-none focus:border-[#F97316]"
-              />
-            )}
+            {emailAudience === 'specify' && renderPicker('email', 'email', emailSel, setEmailSel)}
             <input
               value={campaignLink}
               onChange={(event) => setCampaignLink(event.target.value)}
@@ -493,15 +542,7 @@ export default function AdminMarketingPage() {
             <option value="all" className="bg-[#0b2236] text-slate-100">Enviar a todos los usuarios</option>
             <option value="specify" className="bg-[#0b2236] text-slate-100">Especificar números</option>
           </select>
-          {smsAudience === 'specify' && (
-            <textarea
-              value={smsRecipients}
-              onChange={(e) => setSmsRecipients(e.target.value)}
-              rows={2}
-              placeholder="Números (+1...) separados por coma o salto de línea…"
-              className="mt-2 w-full resize-none rounded-xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-3 text-sm text-slate-100 outline-none focus:border-[#F97316]"
-            />
-          )}
+          {smsAudience === 'specify' && renderPicker('sms', 'phone', smsSel, setSmsSel)}
           <textarea
             value={smsMessage}
             onChange={(e) => setSmsMessage(e.target.value)}
@@ -534,15 +575,7 @@ export default function AdminMarketingPage() {
             <option value="all" className="bg-[#0b2236] text-slate-100">Enviar a todos los usuarios</option>
             <option value="specify" className="bg-[#0b2236] text-slate-100">Especificar números</option>
           </select>
-          {waAudience === 'specify' && (
-            <textarea
-              value={waRecipients}
-              onChange={(e) => setWaRecipients(e.target.value)}
-              rows={2}
-              placeholder="Números (+1...) separados por coma o salto de línea…"
-              className="mt-2 w-full resize-none rounded-xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-3 text-sm text-slate-100 outline-none focus:border-[#F97316]"
-            />
-          )}
+          {waAudience === 'specify' && renderPicker('whatsapp', 'phone', waSel, setWaSel)}
           <textarea
             value={whatsappMessage}
             onChange={(e) => setWhatsappMessage(e.target.value)}

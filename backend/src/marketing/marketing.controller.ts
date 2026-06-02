@@ -35,6 +35,13 @@ export class MarketingController {
     return this.marketingService.removeHomeMobileBanner();
   }
 
+  @Get('admin/recipients')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async getRecipientsList() {
+    return this.marketingService.getRecipientsList();
+  }
+
   @Post('admin/email-campaign')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)

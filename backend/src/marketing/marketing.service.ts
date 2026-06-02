@@ -27,6 +27,21 @@ export class MarketingService {
     });
   }
 
+  /** Public list (admin) for the recipient picker: name + email + phone. */
+  async getRecipientsList() {
+    const users = await this.userRepo.find({
+      where: { isActive: true },
+      select: ['id', 'firstName', 'lastName', 'email', 'phone'],
+      order: { firstName: 'ASC' },
+    });
+    return users.map((u) => ({
+      id: u.id,
+      name: `${u.firstName || ''} ${u.lastName || ''}`.trim(),
+      email: u.email || '',
+      phone: (u.phone || '').trim(),
+    }));
+  }
+
   /** Send an email marketing campaign — to all active users, or to an explicit
    *  list of emails when `recipients` is provided. */
   async sendEmailCampaign(dto: {
