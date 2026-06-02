@@ -588,17 +588,33 @@ export default function AdminMarketingPage() {
             <option value="specify" className="bg-[#0b2236] text-slate-100">Especificar números</option>
           </select>
           {waAudience === 'specify' && renderPicker('whatsapp', 'phone', waSel, setWaSel)}
+          <p className="mt-2 text-[11px] text-gray-400">
+            Tu texto va en <span className="font-bold text-[#F97316]">{'{{2}}'}</span>. El nombre del cliente se completa solo en <span className="font-bold text-[#F97316]">{'{{1}}'}</span>.
+          </p>
           <textarea
             value={whatsappMessage}
             onChange={(e) => setWhatsappMessage(e.target.value)}
             rows={4}
             maxLength={1000}
-            placeholder="Escribe tu mensaje de WhatsApp…"
-            className="mt-2 w-full resize-none rounded-2xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-4 text-sm text-slate-100 outline-none focus:border-[#F97316]"
+            placeholder={waLang === 'es' ? 'Escribe tu mensaje…' : 'Type your message…'}
+            className="mt-1 w-full resize-none rounded-2xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-4 text-sm text-slate-100 outline-none focus:border-[#F97316]"
           />
           <div className="mt-1 text-right text-[11px] text-gray-400">{whatsappMessage.length}/1000</div>
+          {/* WhatsApp-style preview */}
+          <div className="mt-2 rounded-2xl bg-[#0b141a] p-3">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">Vista previa</p>
+            <div className="max-w-[85%] rounded-xl rounded-tl-sm bg-[#075e54]/30 border border-[#25d36633] px-3 py-2 text-[13px] leading-snug text-slate-100 whitespace-pre-wrap">
+              {(() => {
+                const msg = whatsappMessage || (waLang === 'es' ? 'tu mensaje aquí' : 'your message here');
+                return waLang === 'es'
+                  ? `Hola [Nombre] 👋 Novedades de LPTicket: ${msg} 🎟️ Compra tus entradas en lpticket.com`
+                  : `Hi [Name] 👋 Exciting news from LPTicket: ${msg} 🎟️ Buy your tickets now at lpticket.com`;
+              })()}
+            </div>
+            <p className="mt-1 text-[10px] text-gray-500">Referencial — el marco lo define la plantilla aprobada ({waLang.toUpperCase()}).</p>
+          </div>
           <button type="button" onClick={() => handleSendMessaging('whatsapp')} disabled={sending === 'whatsapp'} className="btn-primary mt-2 w-full py-3 disabled:opacity-60">
-            {sending === 'whatsapp' ? 'Enviando…' : 'Enviar WhatsApp'}
+            {sending === 'whatsapp' ? 'Enviando…' : `Enviar WhatsApp (${waLang.toUpperCase()})`}
           </button>
         </div>
       </section>
