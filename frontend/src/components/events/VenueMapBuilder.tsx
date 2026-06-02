@@ -93,6 +93,10 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     isRectTable?: boolean;
   } | null>(null);
   const [selectedSeat, setSelectedSeat] = useState<{ secId: string; seatKey: string } | null>(null);
+  const [hoverInfo, setHoverInfo] = useState<{
+    id: string; title: string; subtitle: string; status: string;
+    statusClass: string; price: number; buyer?: string; x: number; y: number;
+  } | null>(null);
 
   const handleDuplicateSelected = useCallback((sec: Partial<VenueSection>) => {
     const pasted: Partial<VenueSection> = JSON.parse(JSON.stringify(sec));
@@ -868,6 +872,51 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     );
   };
 
+  // Build the hover info card for a seat/chair, positioned relative to the viewport.
+  const buildSeatHover = (
+    e: React.MouseEvent,
+    sec: Partial<VenueSection>,
+    seatKey: string,
+    row: string | number,
+    num: string | number,
+    sStatus: string,
+    isDisabled: boolean,
+  ) => {
+    const rect = viewportRef.current?.getBoundingClientRect();
+    const x = rect ? e.clientX - rect.left : 0;
+    const y = rect ? e.clientY - rect.top : 0;
+    const buyer = getSeatBuyer(sec.name, row as any, num as any);
+    const es = lang === 'es';
+    let status: string, statusClass: string;
+    if (isDisabled) {
+      status = es ? 'Deshabilitado' : 'Disabled';
+      statusClass = 'bg-slate-100 text-slate-500 border-slate-200';
+    } else if (sStatus === 'sold') {
+      status = es ? 'Vendido' : 'Sold';
+      statusClass = 'bg-slate-100 text-slate-600 border-slate-200';
+    } else if (sStatus === 'held') {
+      status = es ? 'Bloqueado' : 'Held';
+      statusClass = 'bg-yellow-50 text-yellow-700 border-yellow-200';
+    } else if (sStatus === 'reserved') {
+      status = es ? 'Reservado' : 'Reserved';
+      statusClass = 'bg-orange-50 text-orange-700 border-orange-200';
+    } else {
+      status = es ? 'Disponible' : 'Available';
+      statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    }
+    setHoverInfo({
+      id: `${sec.id}-${seatKey}`,
+      title: `${row}-${num}`,
+      subtitle: sec.name || '',
+      status,
+      statusClass,
+      price: Number((sec as any).price || 0),
+      buyer,
+      x,
+      y,
+    });
+  };
+
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
   return (
@@ -1616,6 +1665,25 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         onPointerCancel={onViewportPointerUp}
         onClick={() => { setSelectedId(null); setSelectedSeat(null); }}
       >
+        {hoverInfo && (
+          <div
+            className="pointer-events-none absolute z-[60] -translate-x-1/2 -translate-y-full"
+            style={{ left: hoverInfo.x, top: hoverInfo.y - 14 }}
+          >
+            <div className="rounded-xl border border-[rgba(246,198,95,0.28)] bg-[#0b2236]/95 px-3 py-2 text-left shadow-[0_12px_30px_rgba(0,0,0,0.5)] whitespace-nowrap">
+              <div className="text-[13px] font-black leading-tight text-white">
+                {hoverInfo.subtitle ? `${hoverInfo.subtitle} - ` : ''}{hoverInfo.title}
+              </div>
+              <div className="mt-1 flex items-center gap-2">
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black ${hoverInfo.statusClass}`}>{hoverInfo.status}</span>
+                {hoverInfo.price > 0 && <span className="text-[12px] font-black text-[#F97316]">${hoverInfo.price.toFixed(2)}</span>}
+              </div>
+              {hoverInfo.buyer && (
+                <div className="mt-1 text-[11px] font-bold text-slate-200">👤 {hoverInfo.buyer}</div>
+              )}
+            </div>
+          </div>
+        )}
         {/* Canvas Content */}
 
         {/* Infinite Ruler/Grid Background */}
@@ -1811,6 +1879,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                             id={`seat-dot-${sec.id}-${seatKey}`}
                             className="absolute rounded-full flex items-center justify-center pointer-events-auto cursor-grab active:cursor-grabbing group/seat"
                             onPointerDown={e => onSeatPointerDown(e, sec.id!, seatKey, finalXOffset, finalYOffset, angleDeg, false, 0, false)}
+                            onMouseEnter={e => { const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || rowLabel; const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) ?? seatNumber; buildSeatHover(e, sec, seatKey, row as any, num as any, sStatus, isDisabled); }}
+                            onMouseMove={e => { if (draggingSeatRef.current || panningRef.current) return; const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || rowLabel; const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) ?? seatNumber; buildSeatHover(e, sec, seatKey, row as any, num as any, sStatus, isDisabled); }}
+                            onMouseLeave={() => setHoverInfo(null)}
                             onClick={e => {
                               if (hasMoved) return;
                               e.stopPropagation();
@@ -1835,15 +1906,6 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                             {isSeatWheelchair && !isHeld && !isReserved && (
                               <FaWheelchair className="w-[70%] h-[70%] text-white" />
                             )}
-                            {/* Seat label on hover */}
-                            <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                              {(() => {
-                                const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || rowLabel;
-                                const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) !== undefined ? (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) : seatNumber;
-                                const buyer = getSeatBuyer(sec.name, row as any, num as any);
-                                return buyer ? `${row}-${num} · ${buyer}` : `${row}-${num}`;
-                              })()}
-                            </div>
                           </div>
                         );
                       });
@@ -1897,6 +1959,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               id={`seat-dot-${sec.id}-${seatKey}`}
                               className="absolute rounded-full pointer-events-auto cursor-grab active:cursor-grabbing group/seat"
                               onPointerDown={e => onSeatPointerDown(e, sec.id!, seatKey, finalXOffset, finalYOffset, 0, true, angle, false)}
+                              onMouseEnter={e => { const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || 'Mesa'; const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) ?? seatNumber; buildSeatHover(e, sec, seatKey, row as any, num as any, sStatus, isDisabled); }}
+                              onMouseMove={e => { if (draggingSeatRef.current || panningRef.current) return; const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || 'Mesa'; const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) ?? seatNumber; buildSeatHover(e, sec, seatKey, row as any, num as any, sStatus, isDisabled); }}
+                              onMouseLeave={() => setHoverInfo(null)}
                               onClick={e => {
                                 if (hasMoved) return;
                                 e.stopPropagation();
@@ -1918,14 +1983,6 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               {isSeatWheelchair && !isHeld && !isReserved && (
                                 <FaWheelchair className="w-[70%] h-[70%] text-white absolute inset-0 m-auto" />
                               )}
-                              <div className="absolute bottom-full mb-1 bg-gray-900 text-white text-[9px] px-1 py-0.5 rounded opacity-0 group-hover/seat:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                                {(() => {
-                                  const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || 'Mesa';
-                                  const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) !== undefined ? (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) : seatNumber;
-                                  const buyer = getSeatBuyer(sec.name, row as any, num as any);
-                                  return buyer ? `${row}-${num} · ${buyer}` : `${row}-${num}`;
-                                })()}
-                              </div>
                             </div>
                           )
                         })}
@@ -1991,6 +2048,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               id={`seat-dot-${sec.id}-${seatKey}`}
                               className="absolute rounded-full pointer-events-auto cursor-grab active:cursor-grabbing group/seat"
                               onPointerDown={e => onSeatPointerDown(e, sec.id!, seatKey, finalXOffset, finalYOffset, 0, true, 0, true)}
+                              onMouseEnter={e => { const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || 'Mesa'; const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) ?? seatNumber; buildSeatHover(e, sec, seatKey, row as any, num as any, sStatus, isDisabled); }}
+                              onMouseMove={e => { if (draggingSeatRef.current || panningRef.current) return; const row = (('rowLabel' in seatOverride) ? seatOverride.rowLabel : undefined) || 'Mesa'; const num = (('seatNumber' in seatOverride) ? seatOverride.seatNumber : undefined) ?? seatNumber; buildSeatHover(e, sec, seatKey, row as any, num as any, sStatus, isDisabled); }}
+                              onMouseLeave={() => setHoverInfo(null)}
                               onClick={e => {
                                 if (hasMoved) return;
                                 e.stopPropagation();
