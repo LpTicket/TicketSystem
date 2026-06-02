@@ -82,7 +82,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
           >
             Todos
           </button>
-          {categories.map((cat) => (
+          {categories.filter((cat) => cat.slug !== 'todos' && cat.slug !== 'todas').map((cat) => (
             <button
               key={cat.slug}
               onClick={() => { setCategory(cat.slug); setPage(1); }}

@@ -332,7 +332,7 @@ export default function CreateEventPage() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgCategory')} *</label>
                     <select value={form.category} onChange={(e) => updateForm('category', e.target.value)} className="input py-3" required>
                       <option value="" disabled>{lang === 'es' ? '-- Selecciona una categoría --' : '-- Select a category --'}</option>
-                      {categories.map((cat) => (
+                      {categories.filter((cat) => cat.slug !== 'todos' && cat.slug !== 'todas').map((cat) => (
                         <option key={cat.id} value={cat.slug}>{cat.icon} {lang === 'en' ? cat.labelEn : cat.labelEs}</option>
                       ))}
                     </select>

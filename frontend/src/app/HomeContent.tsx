@@ -252,18 +252,24 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
             <div className="flex items-start gap-1.5 relative overflow-visible group/cats lg:flex-1">
 
               <div className="home-category-rail flex-1 overflow-x-auto no-scrollbar scroll-smooth">
-                <button onClick={() => setActiveCategory('')} className={`home-category-card ${activeCategory === '' ? 'active' : ''}`} aria-pressed={activeCategory === ''}>
-                  <span className="home-category-image" style={{ backgroundImage: 'url(/demo/concert.png)' }} />
-                  <span className="home-category-shine" />
-                  <span className="home-category-content">
-                    <span className="home-category-icon">
-                      <HiOutlineTicket className="h-6 w-6" />
-                    </span>
-                    <span className="home-category-title">{t('catAll')}</span>
-                    <span className="home-category-description">{lang === 'es' ? 'Explora todo ahora.' : 'Explore everything now.'}</span>
-                  </span>
-                </button>
-                {categories.map((cat) => {
+                {(() => {
+                  const allCat = categories.find((c) => c.slug === 'todos' || c.slug === 'todas') as (typeof categories[number] & { imageData?: string }) | undefined;
+                  const allImage = allCat?.imageData || '/demo/concert.png';
+                  return (
+                    <button onClick={() => setActiveCategory('')} className={`home-category-card ${activeCategory === '' ? 'active' : ''}`} aria-pressed={activeCategory === ''}>
+                      <span className="home-category-image" style={{ backgroundImage: `url(${allImage})` }} />
+                      <span className="home-category-shine" />
+                      <span className="home-category-content">
+                        <span className="home-category-icon">
+                          <HiOutlineTicket className="h-6 w-6" />
+                        </span>
+                        <span className="home-category-title">{t('catAll')}</span>
+                        <span className="home-category-description">{lang === 'es' ? 'Explora todo ahora.' : 'Explore everything now.'}</span>
+                      </span>
+                    </button>
+                  );
+                })()}
+                {categories.filter((cat) => cat.slug !== 'todos' && cat.slug !== 'todas').map((cat) => {
                   const label = lang === 'en' ? cat.labelEn : cat.labelEs;
                   const visual = getCategoryVisual(cat.slug, label, lang);
                   const image = (cat as typeof cat & { imageData?: string }).imageData || visual.image;
