@@ -5995,3 +5995,8 @@ html body header.site-header-future > div > div {
 html body main .home-signature {
   transform: translateY(-0.60rem) !important;
 }
+
+/* ===== Floating chat/cart/social buttons: rounded square (like the hamburger) ===== */
+.floating-action-pill {
+  border-radius: 14px !important;
+}
