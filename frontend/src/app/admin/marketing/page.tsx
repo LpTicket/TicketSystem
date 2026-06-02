@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import {
   HiOutlineBadgeCheck,
@@ -36,13 +37,13 @@ const channels = [
   {
     title: 'SMS',
     description: 'Recordatorios, accesos y promociones urgentes.',
-    status: 'Proximamente',
+    status: 'Disponible',
     icon: HiOutlineDeviceMobile,
   },
   {
     title: 'WhatsApp',
     description: 'Mensajes directos para audiencias segmentadas.',
-    status: 'Proximamente',
+    status: 'Disponible',
     icon: HiOutlineChatAlt2,
   },
 ];
@@ -64,6 +65,48 @@ export default function AdminMarketingPage() {
   const [campaignLink, setCampaignLink] = useState('');
   const [emailArtPreview, setEmailArtPreview] = useState('');
   const [emailArtFileName, setEmailArtFileName] = useState('');
+
+  const [smsMessage, setSmsMessage] = useState('');
+  const [whatsappMessage, setWhatsappMessage] = useState('');
+  const [sending, setSending] = useState<'' | 'email' | 'sms' | 'whatsapp'>('');
+
+  const handleSendEmail = async () => {
+    if (!campaignSubject.trim() && !campaignName.trim()) {
+      toast.error('Agrega un asunto o nombre de campaña.');
+      return;
+    }
+    if (!confirm('¿Enviar esta campaña de email a todos los usuarios?')) return;
+    setSending('email');
+    try {
+      const { data } = await api.post('/marketing/admin/email-campaign', {
+        subject: campaignSubject || campaignName,
+        title: campaignName,
+        preheader: campaignPreheader,
+        link: campaignLink,
+        imageData: emailArtPreview || undefined,
+      });
+      toast.success(`Email enviado: ${data.sent}/${data.total} (${data.failed} fallidos)`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error al enviar el email');
+    } finally { setSending(''); }
+  };
+
+  const handleSendMessaging = async (channel: 'sms' | 'whatsapp') => {
+    const message = channel === 'sms' ? smsMessage : whatsappMessage;
+    if (!message.trim()) { toast.error('Escribe un mensaje.'); return; }
+    if (!confirm(`¿Enviar este ${channel === 'sms' ? 'SMS' : 'WhatsApp'} a todos los usuarios con teléfono?`)) return;
+    setSending(channel);
+    try {
+      const { data } = await api.post(`/marketing/admin/${channel}-campaign`, { message });
+      if (data.error) {
+        toast.error(data.error);
+      } else {
+        toast.success(`Enviado: ${data.sent}/${data.total} (${data.failed} fallidos)`);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error al enviar');
+    } finally { setSending(''); }
+  };
 
   useEffect(() => {
     const savedBanner = localStorage.getItem('lpMarketingBannerPreview');
@@ -337,11 +380,13 @@ export default function AdminMarketingPage() {
 
           <button
             type="button"
-            disabled
-            className="mt-5 w-full rounded-2xl bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.12)] px-5 py-4 text-sm font-black text-slate-400 cursor-not-allowed"
+            onClick={handleSendEmail}
+            disabled={sending === 'email'}
+            className="btn-primary mt-5 w-full py-4 disabled:opacity-60"
           >
-            Guardar borrador en fase 2
+            {sending === 'email' ? 'Enviando…' : 'Enviar campaña por email'}
           </button>
+          <p className="mt-2 text-center text-[11px] text-gray-400">Se envía a todos los usuarios registrados.</p>
         </div>
 
         <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
@@ -385,6 +430,57 @@ export default function AdminMarketingPage() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* SMS & WhatsApp campaigns */}
+      <section className="grid gap-5 sm:grid-cols-2">
+        <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-[#0A375A]">
+              <HiOutlineDeviceMobile className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-black text-gray-950">SMS</h2>
+              <p className="text-xs text-gray-500">Recordatorios, accesos y promociones urgentes.</p>
+            </div>
+          </div>
+          <textarea
+            value={smsMessage}
+            onChange={(e) => setSmsMessage(e.target.value)}
+            rows={4}
+            maxLength={320}
+            placeholder="Escribe tu mensaje SMS…"
+            className="mt-4 w-full resize-none rounded-2xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-4 text-sm text-slate-100 outline-none focus:border-[#F97316]"
+          />
+          <div className="mt-1 text-right text-[11px] text-gray-400">{smsMessage.length}/320</div>
+          <button type="button" onClick={() => handleSendMessaging('sms')} disabled={sending === 'sms'} className="btn-primary mt-2 w-full py-3 disabled:opacity-60">
+            {sending === 'sms' ? 'Enviando…' : 'Enviar SMS a todos'}
+          </button>
+        </div>
+
+        <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-green-50 text-green-600">
+              <HiOutlineChatAlt2 className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-black text-gray-950">WhatsApp</h2>
+              <p className="text-xs text-gray-500">Mensajes directos para audiencias segmentadas.</p>
+            </div>
+          </div>
+          <textarea
+            value={whatsappMessage}
+            onChange={(e) => setWhatsappMessage(e.target.value)}
+            rows={4}
+            maxLength={1000}
+            placeholder="Escribe tu mensaje de WhatsApp…"
+            className="mt-4 w-full resize-none rounded-2xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-4 text-sm text-slate-100 outline-none focus:border-[#F97316]"
+          />
+          <div className="mt-1 text-right text-[11px] text-gray-400">{whatsappMessage.length}/1000</div>
+          <button type="button" onClick={() => handleSendMessaging('whatsapp')} disabled={sending === 'whatsapp'} className="btn-primary mt-2 w-full py-3 disabled:opacity-60">
+            {sending === 'whatsapp' ? 'Enviando…' : 'Enviar WhatsApp a todos'}
+          </button>
         </div>
       </section>
 

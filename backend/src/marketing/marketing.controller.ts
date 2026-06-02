@@ -34,4 +34,27 @@ export class MarketingController {
   async removeHomeMobileBanner() {
     return this.marketingService.removeHomeMobileBanner();
   }
+
+  @Post('admin/email-campaign')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async sendEmailCampaign(
+    @Body() body: { subject?: string; title?: string; preheader?: string; imageData?: string | null; link?: string },
+  ) {
+    return this.marketingService.sendEmailCampaign(body);
+  }
+
+  @Post('admin/sms-campaign')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async sendSmsCampaign(@Body() body: { message: string }) {
+    return this.marketingService.sendSmsCampaign(body?.message);
+  }
+
+  @Post('admin/whatsapp-campaign')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async sendWhatsappCampaign(@Body() body: { message: string }) {
+    return this.marketingService.sendWhatsappCampaign(body?.message);
+  }
 }

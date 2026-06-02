@@ -485,4 +485,33 @@ export class MailService {
       console.error('Error sending contact email:', err);
     }
   }
+
+  /** Marketing campaign email (designed art + optional title/link). */
+  async sendMarketingEmail(
+    to: string,
+    opts: { subject: string; title?: string; preheader?: string; imageData?: string | null; link?: string },
+  ) {
+    const siteUrl = this.configService.get('NEXT_PUBLIC_SITE_URL') || 'https://www.lpticket.com';
+    const ctaUrl = opts.link || siteUrl;
+    const html = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background:#0b1622; border-radius: 14px; overflow:hidden;">
+        <div style="padding:22px; text-align:center; background:#0A375A;">
+          <span style="color:#ffffff; font-weight:800; font-size:20px; letter-spacing:0.5px;">LP Ticket</span>
+        </div>
+        ${opts.imageData ? `<img src="${opts.imageData}" alt="" style="width:100%; display:block;" />` : ''}
+        <div style="padding:28px; text-align:center; color:#e2e8f0;">
+          ${opts.title ? `<h1 style="color:#ffffff; margin:0 0 10px; font-size:22px;">${opts.title}</h1>` : ''}
+          ${opts.preheader ? `<p style="color:#94a3b8; margin:0 0 22px; font-size:14px;">${opts.preheader}</p>` : ''}
+          <a href="${ctaUrl}" style="display:inline-block; background:#F97316; color:#ffffff; text-decoration:none; font-weight:800; padding:12px 30px; border-radius:10px;">Ver más</a>
+        </div>
+        <div style="padding:16px; text-align:center; color:#64748b; font-size:11px;">© LP Ticket</div>
+      </div>`;
+
+    await this.transporter.sendMail({
+      from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
+      to,
+      subject: opts.subject || 'LP Ticket',
+      html,
+    });
+  }
 }
