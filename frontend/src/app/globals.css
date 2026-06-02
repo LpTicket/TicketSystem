@@ -6021,6 +6021,24 @@ html body main .home-signature {
   border-radius: 14px !important;
 }
 
+/* ===== Marketing admin: keep cards within the viewport on mobile ===== */
+@media (max-width: 1023px) {
+  .marketing-shell {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+  }
+  .marketing-shell section,
+  .marketing-shell > div,
+  .marketing-shell [class*="grid"] {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  /* The grids inside marketing are single-column on mobile */
+  .marketing-shell [class*="grid-cols-["] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 /* ===== Hard guard: never allow horizontal (side-to-side) scroll ===== */
 html {
   overflow-x: hidden !important;

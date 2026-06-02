@@ -211,7 +211,7 @@ export default function AdminMarketingPage() {
   ];
 
   return (
-    <div className="premium-shell p-6 lg:p-8 space-y-8">
+    <div className="marketing-shell premium-shell p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
       <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
