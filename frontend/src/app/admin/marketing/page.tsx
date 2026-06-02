@@ -125,6 +125,9 @@ export default function AdminMarketingPage() {
             <label key={u.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5">
               <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggleSel(setSel, u.id)} className="accent-[#F97316]" />
               <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{u.name || (field === 'email' ? u.email : u.phone)}</span>
+              {(field === 'email' ? u.email : u.phone) && (
+                <span className="shrink-0 text-[11px] text-gray-400">{field === 'email' ? u.email : u.phone}</span>
+              )}
             </label>
           ))}
         </div>
@@ -603,9 +606,13 @@ export default function AdminMarketingPage() {
             <div className="max-w-[85%] rounded-xl rounded-tl-sm bg-[#075e54]/30 border border-[#25d36633] px-3 py-2 text-[13px] leading-snug text-slate-100 whitespace-pre-wrap">
               {(() => {
                 const msg = whatsappMessage || (waLang === 'es' ? 'tu mensaje aquí' : 'your message here');
+                const selNames = waAudience === 'specify'
+                  ? recipientsList.filter((u) => waSel.includes(u.id)).map((u) => (u.name || '').split(' ')[0]).filter(Boolean)
+                  : [];
+                const nameToken = selNames.length === 1 ? selNames[0] : (waLang === 'es' ? '[Nombre]' : '[Name]');
                 return waLang === 'es'
-                  ? `Hola [Nombre] 👋 ${msg}`
-                  : `Hi [Name] 👋 ${msg}`;
+                  ? `Hola ${nameToken} 👋 ${msg}`
+                  : `Hi ${nameToken} 👋 ${msg}`;
               })()}
             </div>
             <p className="mt-1 text-[10px] text-gray-500">Referencial — el marco lo define la plantilla aprobada ({waLang.toUpperCase()}).</p>
