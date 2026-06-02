@@ -77,17 +77,6 @@ export default function OrganizerLayout({ children }: { children: React.ReactNod
             </Link>
           ))}
         </nav>
-        <div className="p-4 border-t border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-primary-500 flex items-center justify-center text-sm font-bold text-white">
-              {user.firstName[0]}{user.lastName[0]}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{user.firstName}</p>
-              <p className="text-xs text-gray-500 truncate">{user.email}</p>
-            </div>
-          </div>
-        </div>
       </aside>
 
       {/* Mobile sidebar toggle */}
