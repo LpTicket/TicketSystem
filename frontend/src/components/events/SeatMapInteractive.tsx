@@ -286,6 +286,14 @@ export default function SeatMapInteractive({
     };
   };
 
+  /** "Mesa 6" / "Table 6" — always prefixes the word like the venue editor does. */
+  const tableLabel = (name?: string | null) => {
+    const tableWord = lang === 'en' ? 'Table' : 'Mesa';
+    const raw = String(name || '').trim();
+    if (!raw) return tableWord;
+    return /^(mesa|table)\b/i.test(raw) ? raw : `${tableWord} ${raw}`;
+  };
+
   const buildSeatInfo = (
     e: React.MouseEvent,
     section: VenueSection,
@@ -295,12 +303,16 @@ export default function SeatMapInteractive({
   ): SeatInfoCard => {
     const pos = getPointerPosition(e);
     const status = getSeatStatusMeta(seat, seatOverride, selected);
-    const seatName = formatSeatLabel(seat as any, section as any, lang);
+    const isTable = section.sectionType === 'table';
+    // For tables mirror the editor exactly: "Mesa 6 - Silla 3".
+    const title = isTable
+      ? `${tableLabel(section.name)} - ${lang === 'en' ? 'Seat' : 'Silla'} ${seat.seatNumber}`
+      : formatSeatLabel(seat as any, section as any, lang);
 
     return {
       id: seat.id,
-      title: seatName,
-      subtitle: section.name,
+      title,
+      subtitle: isTable ? '' : section.name,
       price: getSeatPrice(seat, section),
       status: status.label,
       statusClass: status.className,
@@ -314,7 +326,7 @@ export default function SeatMapInteractive({
     const availableSeats = (section.seats || []).filter((seat) => seat.status === SeatStatus.AVAILABLE).length;
     return {
       id: `table-${section.id}`,
-      title: section.name,
+      title: tableLabel(section.name),
       subtitle: lang === 'es' ? `${availableSeats} sillas disponibles` : `${availableSeats} chairs available`,
       price: Number(section.price || 0),
       status: selected
