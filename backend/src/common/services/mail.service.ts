@@ -625,15 +625,21 @@ export class MailService {
                     <table role="presentation" cellpadding="0" cellspacing="0">
                       <tr>
                         <td align="center" width="44" height="44" bgcolor="#0A375A" style="width:44px;height:44px;background:#0A375A;border-radius:12px;">
-                          <a href="${facebookUrl}" target="_blank" style="display:block;width:44px;height:44px;line-height:44px;color:#ffffff;text-decoration:none;font-size:21px;font-weight:900;font-family:Arial,Helvetica,sans-serif;">f</a>
+                          <a href="${facebookUrl}" target="_blank" style="display:block;width:44px;height:44px;line-height:44px;text-decoration:none;">
+                            <img src="${safeAppUrl}/email-icons/email-facebook.svg" alt="Facebook" width="20" height="20" style="display:block;width:20px;height:20px;border:0;margin:12px auto;">
+                          </a>
                         </td>
                         <td width="10" style="font-size:0;line-height:0;">&nbsp;</td>
                         <td align="center" width="44" height="44" bgcolor="#0A375A" style="width:44px;height:44px;background:#0A375A;border-radius:12px;">
-                          <a href="${instagramUrl}" target="_blank" style="display:block;width:44px;height:44px;line-height:44px;color:#ffffff;text-decoration:none;font-size:20px;font-weight:900;font-family:Arial,Helvetica,sans-serif;">◎</a>
+                          <a href="${instagramUrl}" target="_blank" style="display:block;width:44px;height:44px;line-height:44px;text-decoration:none;">
+                            <img src="${safeAppUrl}/email-icons/email-instagram.svg" alt="Instagram" width="20" height="20" style="display:block;width:20px;height:20px;border:0;margin:12px auto;">
+                          </a>
                         </td>
                         <td width="10" style="font-size:0;line-height:0;">&nbsp;</td>
                         <td align="center" width="44" height="44" bgcolor="#0A375A" style="width:44px;height:44px;background:#0A375A;border-radius:12px;">
-                          <a href="${whatsappUrl}" target="_blank" style="display:block;width:44px;height:44px;line-height:44px;color:#ffffff;text-decoration:none;font-size:19px;font-weight:900;font-family:Arial,Helvetica,sans-serif;">☎</a>
+                          <a href="${whatsappUrl}" target="_blank" style="display:block;width:44px;height:44px;line-height:44px;text-decoration:none;">
+                            <img src="${safeAppUrl}/email-icons/email-whatsapp.svg" alt="WhatsApp" width="20" height="20" style="display:block;width:20px;height:20px;border:0;margin:12px auto;">
+                          </a>
                         </td>
                       </tr>
                     </table>
