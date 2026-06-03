@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 
 @Injectable()
 export class MailService {
@@ -509,6 +511,18 @@ export class MailService {
       return `https://${raw}`;
     };
 
+    const attachIcon = (filename: string, cid: string) => {
+      const filePath = join(process.cwd(), 'assets', 'email-icons', filename);
+      if (!existsSync(filePath)) return null;
+      return {
+        filename,
+        content: readFileSync(filePath),
+        cid,
+        contentType: 'image/png',
+        contentDisposition: 'inline' as const,
+      };
+    };
+
     const ctaUrl = normalizeUrl(opts.link, appUrl);
     const safeTitle = escapeHtml(opts.title || '');
     const safePreheader = escapeHtml(opts.preheader || '');
@@ -522,6 +536,12 @@ export class MailService {
     const websiteUrl = 'https://www.lpticket.com';
 
     const attachments: nodemailer.SendMailOptions['attachments'] = [];
+    const iconAttachments = [
+      attachIcon('email-facebook.png', 'email-facebook'),
+      attachIcon('email-instagram.png', 'email-instagram'),
+      attachIcon('email-whatsapp.png', 'email-whatsapp'),
+    ].filter(Boolean) as NonNullable<nodemailer.SendMailOptions['attachments']>;
+
     let artTag = '';
     if (opts.imageData) {
       const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s.exec(opts.imageData.trim());
@@ -550,21 +570,20 @@ export class MailService {
   <meta name="color-scheme" content="light">
   <meta name="supported-color-schemes" content="light">
 </head>
-<body bgcolor="#ffffff" style="margin:0;padding:0;background:#ffffff!important;background-color:#ffffff!important;color:#0f172a!important;">
+<body bgcolor="#ffffff" style="margin:0;padding:0;background:#ffffff!important;color:#0f172a!important;">
   <span style="display:none;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">${preheaderText}</span>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%;background:#ffffff!important;background-color:#ffffff!important;padding:30px 12px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%;background:#ffffff!important;padding:30px 12px;">
     <tr>
       <td align="center">
-
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%;max-width:600px;background:#ffffff!important;background-color:#ffffff!important;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.03);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%;max-width:600px;background:#ffffff!important;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.03);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
 
           <tr>
-            <td bgcolor="#ffffff" style="background:#ffffff!important;background-color:#ffffff!important;border-bottom:2px solid #f1f5f9;padding:24px 24px 18px;">
+            <td bgcolor="#ffffff" style="background:#ffffff!important;border-bottom:2px solid #f1f5f9;padding:24px 24px 18px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="left" style="vertical-align:middle;">
-                    <img src="${safeAppUrl}/logo-email-orange.png" alt="LPTicket" width="220" style="display:block;width:220px;max-width:72%;height:auto;border:0;outline:none;text-decoration:none;">
+                    <img src="${safeAppUrl}/logo-email-orange.png" alt="LPTicket" width="220" style="display:block;width:220px;max-width:72%;height:auto;border:0;">
                   </td>
                   <td align="right" style="vertical-align:middle;color:#94a3b8;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;">
                     Marketing
@@ -576,8 +595,8 @@ export class MailService {
 
           ${artTag ? `
           <tr>
-            <td bgcolor="#ffffff" style="background:#ffffff!important;background-color:#ffffff!important;padding:24px 20px 8px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;">
+            <td bgcolor="#ffffff" style="background:#ffffff!important;padding:24px 20px 8px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="font-size:0;line-height:0;border-radius:16px;overflow:hidden;background:#f8fafc;border:1px solid #e2e8f0;">
                     ${artTag}
@@ -588,20 +607,18 @@ export class MailService {
           </tr>` : ''}
 
           <tr>
-            <td bgcolor="#ffffff" style="background:#ffffff!important;background-color:#ffffff!important;padding:24px 24px 8px;text-align:center;">
+            <td bgcolor="#ffffff" style="background:#ffffff!important;padding:24px 24px 8px;text-align:center;">
               ${safeTitle ? `<h1 style="margin:0 0 10px;color:#0A375A;font-size:24px;font-weight:850;line-height:1.22;letter-spacing:-0.5px;text-transform:uppercase;">${safeTitle}</h1>` : ''}
               ${safePreheader ? `<p style="margin:0 auto;color:#475569;font-size:14px;line-height:1.6;max-width:460px;">${safePreheader}</p>` : ''}
             </td>
           </tr>
 
           <tr>
-            <td bgcolor="#ffffff" align="center" style="background:#ffffff!important;background-color:#ffffff!important;padding:18px 24px 28px;">
+            <td bgcolor="#ffffff" align="center" style="background:#ffffff!important;padding:18px 24px 28px;">
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" bgcolor="#F97316" style="background:#F97316;border-radius:14px;">
-                    <a href="${safeCtaUrl}" target="_blank" style="display:inline-block;color:#ffffff;text-decoration:none;border-radius:14px;padding:13px 28px;font-size:12px;font-weight:900;letter-spacing:0.8px;text-transform:uppercase;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-                      Ver detalles
-                    </a>
+                    <a href="${safeCtaUrl}" target="_blank" style="display:inline-block;color:#ffffff;text-decoration:none;border-radius:14px;padding:13px 28px;font-size:12px;font-weight:900;letter-spacing:0.8px;text-transform:uppercase;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Ver detalles</a>
                   </td>
                 </tr>
               </table>
@@ -609,48 +626,42 @@ export class MailService {
           </tr>
 
           <tr>
-            <td bgcolor="#ffffff" style="background:#ffffff!important;background-color:#ffffff!important;padding:0 20px 24px;">
+            <td bgcolor="#ffffff" style="background:#ffffff!important;padding:0 20px 24px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;">
                 <tr>
                   <td align="center" style="padding:18px 16px 10px;">
-                    <p style="margin:0;color:#0A375A;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.7px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-                      Sigue a LPTicket
-                    </p>
+                    <p style="margin:0;color:#0A375A;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.7px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Sigue a LPTicket</p>
                     <div style="width:54px;height:3px;background:#F97316;margin:10px auto 0;border-radius:3px;"></div>
                   </td>
                 </tr>
-
                 <tr>
                   <td align="center" style="padding:10px 16px 16px;">
                     <table role="presentation" cellpadding="0" cellspacing="0">
                       <tr>
                         <td align="center" width="44" height="44" bgcolor="#0A375A" style="width:44px;height:44px;background:#0A375A;border-radius:12px;">
-                          <a href="${facebookUrl}" target="_blank" style="display:block;width:44px;height:44px;line-height:44px;text-decoration:none;">
-                            <img src="${safeAppUrl}/email-icons/email-facebook.svg" alt="Facebook" width="20" height="20" style="display:block;width:20px;height:20px;border:0;margin:12px auto;">
+                          <a href="${facebookUrl}" target="_blank" style="display:block;width:44px;height:44px;text-decoration:none;">
+                            <img src="cid:email-facebook" alt="Facebook" width="20" height="20" style="display:block;width:20px;height:20px;border:0;margin:12px auto;">
                           </a>
                         </td>
-                        <td width="10" style="font-size:0;line-height:0;">&nbsp;</td>
+                        <td width="10">&nbsp;</td>
                         <td align="center" width="44" height="44" bgcolor="#0A375A" style="width:44px;height:44px;background:#0A375A;border-radius:12px;">
-                          <a href="${instagramUrl}" target="_blank" style="display:block;width:44px;height:44px;line-height:44px;text-decoration:none;">
-                            <img src="${safeAppUrl}/email-icons/email-instagram.svg" alt="Instagram" width="20" height="20" style="display:block;width:20px;height:20px;border:0;margin:12px auto;">
+                          <a href="${instagramUrl}" target="_blank" style="display:block;width:44px;height:44px;text-decoration:none;">
+                            <img src="cid:email-instagram" alt="Instagram" width="20" height="20" style="display:block;width:20px;height:20px;border:0;margin:12px auto;">
                           </a>
                         </td>
-                        <td width="10" style="font-size:0;line-height:0;">&nbsp;</td>
+                        <td width="10">&nbsp;</td>
                         <td align="center" width="44" height="44" bgcolor="#0A375A" style="width:44px;height:44px;background:#0A375A;border-radius:12px;">
-                          <a href="${whatsappUrl}" target="_blank" style="display:block;width:44px;height:44px;line-height:44px;text-decoration:none;">
-                            <img src="${safeAppUrl}/email-icons/email-whatsapp.svg" alt="WhatsApp" width="20" height="20" style="display:block;width:20px;height:20px;border:0;margin:12px auto;">
+                          <a href="${whatsappUrl}" target="_blank" style="display:block;width:44px;height:44px;text-decoration:none;">
+                            <img src="cid:email-whatsapp" alt="WhatsApp" width="20" height="20" style="display:block;width:20px;height:20px;border:0;margin:12px auto;">
                           </a>
                         </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
-
                 <tr>
                   <td align="center" style="padding:0 16px 20px;">
-                    <a href="${websiteUrl}" target="_blank" style="color:#F97316;text-decoration:none;font-size:13px;font-weight:900;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:0.2px;">
-                      www.lpticket.com
-                    </a>
+                    <a href="${websiteUrl}" target="_blank" style="color:#F97316;text-decoration:none;font-size:13px;font-weight:900;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:0.2px;">www.lpticket.com</a>
                   </td>
                 </tr>
               </table>
@@ -658,14 +669,13 @@ export class MailService {
           </tr>
 
           <tr>
-            <td bgcolor="#ffffff" align="center" style="background:#ffffff!important;background-color:#ffffff!important;border-top:1px solid #e2e8f0;padding:20px 24px;">
+            <td bgcolor="#ffffff" align="center" style="background:#ffffff!important;border-top:1px solid #e2e8f0;padding:20px 24px;">
               <p style="margin:0 0 5px;color:#F97316;font-size:12px;font-weight:900;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">lpticket.com</p>
               <p style="margin:0;color:#64748b;font-size:11px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">© ${year} LPTicket · Recibiste este correo porque tienes una cuenta en LPTicket.</p>
             </td>
           </tr>
 
         </table>
-
       </td>
     </tr>
   </table>
@@ -677,7 +687,7 @@ export class MailService {
       to,
       subject: opts.subject || 'LP Ticket',
       html,
-      attachments,
+      attachments: [...attachments, ...iconAttachments],
     });
   }
 
