@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
 
 @Injectable()
 export class MailService {
@@ -511,18 +509,6 @@ export class MailService {
       return `https://${raw}`;
     };
 
-    const attachIcon = (filename: string, cid: string) => {
-      const filePath = join(process.cwd(), 'assets', 'email-icons', filename);
-      if (!existsSync(filePath)) return null;
-      return {
-        filename,
-        content: readFileSync(filePath),
-        cid,
-        contentType: 'image/png',
-        contentDisposition: 'inline' as const,
-      };
-    };
-
     const ctaUrl = normalizeUrl(opts.link, appUrl);
     const safeTitle = escapeHtml(opts.title || '');
     const safePreheader = escapeHtml(opts.preheader || '');
@@ -535,12 +521,33 @@ export class MailService {
     const whatsappUrl = 'https://wa.me/18323790809';
     const websiteUrl = 'https://www.lpticket.com';
 
-    const attachments: nodemailer.SendMailOptions['attachments'] = [];
-    const iconAttachments = [
-      attachIcon('email-facebook.png', 'email-facebook'),
-      attachIcon('email-instagram.png', 'email-instagram'),
-      attachIcon('email-whatsapp.png', 'email-whatsapp'),
-    ].filter(Boolean) as NonNullable<nodemailer.SendMailOptions['attachments']>;
+    const facebookIcon = 'iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAAnUlEQVR42u3YwQ0AIAgEQaqwUav3JV0YhNnEBm4SHkZIkiRJkiRJkiRJKtLZ675+VgcAQAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgXAB/ArgrAAAIAAAAAAAAAAAAAAAAAAAAAACgN5I1AQAQAAACAEAAAAjArK8IiwMAIAAABACAAAAAAAAAAAAAAACQJEmSJEmSJEmSGpXOSCHiU0pl4QAAAABJRU5ErkJggg==';
+    const instagramIcon = 'iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAABVklEQVR42u3dSw7CMBAE0ZyCi3J6VnAEEPGnx/NKyg7BuEuJ8DhxrgsAAAAAAOAcXs/Hu/ohbFKEHyuhY/AxIoS/UYLQN0sQ+EYBwt4oQcibJQiYAAIcBwg4uZUSW2CnJmJcURUCjx/vaeH/UnN5AZUvMXHjJoAAArqEf1cCAQPPAAIIyBXw7+8QsOjafXceQMCiGem3z7YUkNShbCcgrU3cSkBir76NgNQFEwIG/bshYFFwq2s7XsCsfj8Bk8If/b1tBcysmwACCCCAgP1FzB7I7BqdAc4AAggggAAzYTNhvSDdUN1Q6wFWxAiwJlxawCwJVcYeU4T7gkKKSHhWy72h1/h7QwkYVNOq3yFgIwQQQICnJIuETwABBMQUUl2C3VIKhh8pwH5BIYXZMSuoQ2nPOAIIIIAA2xcLnwTb1xNAgteYCJ8Ir7ISPilHL60CAAAAALCXDxpaqeGUiypyAAAAAElFTkSuQmCC';
+    const whatsappIcon = 'iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAABd0lEQVR42u3bS3KDMBBFUa0iG83qM0o2EMeOQerfuVWeGvW7CFoC1gIAAAAAAAAAAAD+4uvz41sKB0J+9ye9gNDJSBY8EUmCJyJR+CQEBz9exImASLgYTPVjlg2/8/FHhz9aQraix0nIWugIAa8WGVV0awkVevPWl6IqC6SWAp4VVenG3EpA5k6kjYA7zn6zYPOZlLUXJ4CAc31/pftAGQn/GbxZkGjwuiECZgvIJIEAAuIGn3lvqE0LWlVAaQlmQKHBZ31uTAAB5wYfKYGAFfuokIDgvaKWAnbMgh3htHgoE/mS7dWgxjyQ2Slgx/FaCLhSyAkRrd6M2FXIXSJ+G8uI11LuKsgXNEmmtPCTLKYISHRjE36S7kL4wVsKUYs5EpJsa5DwhoDVHd8JF5LgS/nELaJev4GANQ3hJ1+QCb5x+GsyLjMNBDz6X+namewtQIJB4UsvSIDUCu334KIAKQWFL6FACZIJFCCVIBFSAAAAAAAAwHR+AAVk5tEaEXs/AAAAAElFTkSuQmCC';
+
+    const attachments: nodemailer.SendMailOptions['attachments'] = [
+      {
+        filename: 'email-facebook.png',
+        content: Buffer.from(facebookIcon, 'base64'),
+        cid: 'email-facebook',
+        contentType: 'image/png',
+        contentDisposition: 'inline' as const,
+      },
+      {
+        filename: 'email-instagram.png',
+        content: Buffer.from(instagramIcon, 'base64'),
+        cid: 'email-instagram',
+        contentType: 'image/png',
+        contentDisposition: 'inline' as const,
+      },
+      {
+        filename: 'email-whatsapp.png',
+        content: Buffer.from(whatsappIcon, 'base64'),
+        cid: 'email-whatsapp',
+        contentType: 'image/png',
+        contentDisposition: 'inline' as const,
+      },
+    ];
 
     let artTag = '';
     if (opts.imageData) {
@@ -572,12 +579,10 @@ export class MailService {
 </head>
 <body bgcolor="#ffffff" style="margin:0;padding:0;background:#ffffff!important;color:#0f172a!important;">
   <span style="display:none;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">${preheaderText}</span>
-
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%;background:#ffffff!important;padding:30px 12px;">
     <tr>
       <td align="center">
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%;max-width:600px;background:#ffffff!important;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.03);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-
           <tr>
             <td bgcolor="#ffffff" style="background:#ffffff!important;border-bottom:2px solid #f1f5f9;padding:24px 24px 18px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -585,34 +590,27 @@ export class MailService {
                   <td align="left" style="vertical-align:middle;">
                     <img src="${safeAppUrl}/logo-email-orange.png" alt="LPTicket" width="220" style="display:block;width:220px;max-width:72%;height:auto;border:0;">
                   </td>
-                  <td align="right" style="vertical-align:middle;color:#94a3b8;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;">
-                    Marketing
-                  </td>
+                  <td align="right" style="vertical-align:middle;color:#94a3b8;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;">Marketing</td>
                 </tr>
               </table>
             </td>
           </tr>
-
           ${artTag ? `
           <tr>
             <td bgcolor="#ffffff" style="background:#ffffff!important;padding:24px 20px 8px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td align="center" style="font-size:0;line-height:0;border-radius:16px;overflow:hidden;background:#f8fafc;border:1px solid #e2e8f0;">
-                    ${artTag}
-                  </td>
+                  <td align="center" style="font-size:0;line-height:0;border-radius:16px;overflow:hidden;background:#f8fafc;border:1px solid #e2e8f0;">${artTag}</td>
                 </tr>
               </table>
             </td>
           </tr>` : ''}
-
           <tr>
             <td bgcolor="#ffffff" style="background:#ffffff!important;padding:24px 24px 8px;text-align:center;">
               ${safeTitle ? `<h1 style="margin:0 0 10px;color:#0A375A;font-size:24px;font-weight:850;line-height:1.22;letter-spacing:-0.5px;text-transform:uppercase;">${safeTitle}</h1>` : ''}
               ${safePreheader ? `<p style="margin:0 auto;color:#475569;font-size:14px;line-height:1.6;max-width:460px;">${safePreheader}</p>` : ''}
             </td>
           </tr>
-
           <tr>
             <td bgcolor="#ffffff" align="center" style="background:#ffffff!important;padding:18px 24px 28px;">
               <table role="presentation" cellpadding="0" cellspacing="0">
@@ -624,7 +622,6 @@ export class MailService {
               </table>
             </td>
           </tr>
-
           <tr>
             <td bgcolor="#ffffff" style="background:#ffffff!important;padding:0 20px 24px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;">
@@ -639,21 +636,15 @@ export class MailService {
                     <table role="presentation" cellpadding="0" cellspacing="0">
                       <tr>
                         <td align="center" width="44" height="44" style="width:44px;height:44px;">
-                          <a href="${facebookUrl}" target="_blank" style="display:block;width:44px;height:44px;text-decoration:none;">
-                            <img src="cid:email-facebook" alt="Facebook" width="30" height="30" style="display:block;width:30px;height:30px;border:0;margin:7px auto;">
-                          </a>
+                          <a href="${facebookUrl}" target="_blank" style="display:block;width:44px;height:44px;text-decoration:none;"><img src="cid:email-facebook" alt="Facebook" width="30" height="30" style="display:block;width:30px;height:30px;border:0;margin:7px auto;"></a>
                         </td>
-                        <td width="10">&nbsp;</td>
+                        <td width="14">&nbsp;</td>
                         <td align="center" width="44" height="44" style="width:44px;height:44px;">
-                          <a href="${instagramUrl}" target="_blank" style="display:block;width:44px;height:44px;text-decoration:none;">
-                            <img src="cid:email-instagram" alt="Instagram" width="30" height="30" style="display:block;width:30px;height:30px;border:0;margin:7px auto;">
-                          </a>
+                          <a href="${instagramUrl}" target="_blank" style="display:block;width:44px;height:44px;text-decoration:none;"><img src="cid:email-instagram" alt="Instagram" width="30" height="30" style="display:block;width:30px;height:30px;border:0;margin:7px auto;"></a>
                         </td>
-                        <td width="10">&nbsp;</td>
+                        <td width="14">&nbsp;</td>
                         <td align="center" width="44" height="44" style="width:44px;height:44px;">
-                          <a href="${whatsappUrl}" target="_blank" style="display:block;width:44px;height:44px;text-decoration:none;">
-                            <img src="cid:email-whatsapp" alt="WhatsApp" width="30" height="30" style="display:block;width:30px;height:30px;border:0;margin:7px auto;">
-                          </a>
+                          <a href="${whatsappUrl}" target="_blank" style="display:block;width:44px;height:44px;text-decoration:none;"><img src="cid:email-whatsapp" alt="WhatsApp" width="30" height="30" style="display:block;width:30px;height:30px;border:0;margin:7px auto;"></a>
                         </td>
                       </tr>
                     </table>
@@ -667,14 +658,12 @@ export class MailService {
               </table>
             </td>
           </tr>
-
           <tr>
             <td bgcolor="#ffffff" align="center" style="background:#ffffff!important;border-top:1px solid #e2e8f0;padding:20px 24px;">
               <p style="margin:0 0 5px;color:#F97316;font-size:12px;font-weight:900;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">lpticket.com</p>
               <p style="margin:0;color:#64748b;font-size:11px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">© ${year} LPTicket · Recibiste este correo porque tienes una cuenta en LPTicket.</p>
             </td>
           </tr>
-
         </table>
       </td>
     </tr>
@@ -687,7 +676,7 @@ export class MailService {
       to,
       subject: opts.subject || 'LP Ticket',
       html,
-      attachments: [...attachments, ...iconAttachments],
+      attachments,
     });
   }
 
