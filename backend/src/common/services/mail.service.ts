@@ -491,27 +491,95 @@ export class MailService {
     to: string,
     opts: { subject: string; title?: string; preheader?: string; imageData?: string | null; link?: string },
   ) {
-    const siteUrl = this.configService.get('NEXT_PUBLIC_SITE_URL') || 'https://www.lpticket.com';
-    const ctaUrl = opts.link || siteUrl;
+    const appUrl = this.getAppUrl();
+    const ctaUrl = opts.link || appUrl;
+    const year = new Date().getFullYear();
+
+    // Inline the uploaded art as a CID attachment — base64 data-URIs in <img src>
+    // are blocked by Gmail/iOS Mail, so we embed it like the ticket QR codes.
+    const attachments: nodemailer.SendMailOptions['attachments'] = [];
+    let artTag = '';
+    if (opts.imageData) {
+      const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s.exec(opts.imageData.trim());
+      if (match) {
+        const contentType = match[1];
+        const ext = (contentType.split('/')[1] || 'png').replace('+xml', '');
+        const cid = 'marketing-art';
+        attachments.push({
+          filename: `art.${ext}`,
+          content: Buffer.from(match[2], 'base64'),
+          contentType,
+          cid,
+        });
+        artTag = `<img src="cid:${cid}" alt="" width="600" style="display:block; width:100%; max-width:600px; height:auto; border:0; outline:none; text-decoration:none;" />`;
+      } else {
+        // Already a hosted URL — reference it directly.
+        artTag = `<img src="${opts.imageData}" alt="" width="600" style="display:block; width:100%; max-width:600px; height:auto; border:0; outline:none; text-decoration:none;" />`;
+      }
+    }
+
+    const preheaderText = (opts.preheader || opts.title || 'Novedades de LPTicket').replace(/<[^>]+>/g, '');
+
     const html = `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background:#0b1622; border-radius: 14px; overflow:hidden;">
-        <div style="padding:22px; text-align:center; background:#0A375A;">
-          <span style="color:#ffffff; font-weight:800; font-size:20px; letter-spacing:0.5px;">LP Ticket</span>
-        </div>
-        ${opts.imageData ? `<img src="${opts.imageData}" alt="" style="width:100%; display:block;" />` : ''}
-        <div style="padding:28px; text-align:center; color:#e2e8f0;">
-          ${opts.title ? `<h1 style="color:#ffffff; margin:0 0 10px; font-size:22px;">${opts.title}</h1>` : ''}
-          ${opts.preheader ? `<p style="color:#94a3b8; margin:0 0 22px; font-size:14px;">${opts.preheader}</p>` : ''}
-          <a href="${ctaUrl}" style="display:inline-block; background:#F97316; color:#ffffff; text-decoration:none; font-weight:800; padding:12px 30px; border-radius:10px;">Ver más</a>
-        </div>
-        <div style="padding:16px; text-align:center; color:#64748b; font-size:11px;">© LP Ticket</div>
-      </div>`;
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark light" />
+</head>
+<body style="margin:0; padding:0; background:#0a1420; -webkit-font-smoothing:antialiased;">
+  <span style="display:none; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden;">${preheaderText}</span>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a1420; padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px; max-width:600px; background:#0b1622; border-radius:16px; overflow:hidden; border:1px solid rgba(246,198,95,0.16);">
+          <!-- Logo header -->
+          <tr>
+            <td align="center" style="background:#0A375A; padding:24px;">
+              <img src="${appUrl}/logo-email-orange.png" alt="LPTicket" width="190" style="display:block; width:190px; max-width:190px; height:auto; border:0; outline:none; text-decoration:none;" />
+            </td>
+          </tr>
+          ${artTag ? `<tr><td style="font-size:0; line-height:0;">${artTag}</td></tr>` : ''}
+          <!-- Body -->
+          <tr>
+            <td align="center" style="padding:32px 28px 8px;">
+              ${opts.title ? `<h1 style="color:#ffffff; margin:0 0 12px; font-size:24px; font-weight:800; font-family:'Helvetica Neue',Arial,sans-serif; line-height:1.25;">${opts.title}</h1>` : ''}
+              ${opts.preheader ? `<p style="color:#9fb2c6; margin:0 auto 26px; font-size:15px; line-height:1.6; max-width:460px; font-family:'Helvetica Neue',Arial,sans-serif;">${opts.preheader}</p>` : '<div style="height:18px;"></div>'}
+            </td>
+          </tr>
+          <!-- CTA button (bulletproof) -->
+          <tr>
+            <td align="center" style="padding:0 28px 34px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="border-radius:12px; background:linear-gradient(180deg,#ff8a18,#f46c00); box-shadow:0 8px 22px rgba(249,115,22,0.35);">
+                    <a href="${ctaUrl}" target="_blank" style="display:inline-block; padding:14px 38px; color:#ffffff; font-size:16px; font-weight:800; text-decoration:none; font-family:'Helvetica Neue',Arial,sans-serif; letter-spacing:0.3px;">Ver más</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="background:#08111c; padding:20px 28px; border-top:1px solid rgba(255,255,255,0.05);">
+              <p style="color:#64748b; margin:0 0 4px; font-size:12px; font-family:'Helvetica Neue',Arial,sans-serif;">© ${year} LPTicket · <a href="${appUrl}" style="color:#9fb2c6; text-decoration:none;">lpticket.com</a></p>
+              <p style="color:#475569; margin:0; font-size:11px; font-family:'Helvetica Neue',Arial,sans-serif;">Recibiste este correo porque tienes una cuenta en LPTicket.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 
     await this.transporter.sendMail({
       from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
       to,
       subject: opts.subject || 'LP Ticket',
       html,
+      attachments,
     });
   }
 }
