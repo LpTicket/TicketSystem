@@ -489,7 +489,7 @@ export default function AdminMarketingPage() {
               <h2 className="text-xl font-black text-gray-950">Preview premium</h2>
               <p className="text-sm text-gray-500">Vista tipo email para aprobar el arte antes de activar pruebas.</p>
             </div>
-            <span className="w-fit rounded-full bg-green-50 px-4 py-2 text-sm font-black text-green-600">Mail</span>
+            <span className="w-fit rounded-full bg-orange-50 px-4 py-2 text-sm font-black text-orange-600">Mail</span>
           </div>
 
           <div className="mt-6 rounded-[2rem] bg-slate-100 p-4 sm:p-6">
