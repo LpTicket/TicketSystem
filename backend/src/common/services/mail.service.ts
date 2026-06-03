@@ -486,7 +486,7 @@ export class MailService {
     }
   }
 
-  /** Marketing campaign email (image-first design + social footer). */
+  /** Marketing campaign email styled like LPTicket ticket emails. */
   async sendMarketingEmail(
     to: string,
     opts: { subject: string; title?: string; preheader?: string; imageData?: string | null; link?: string },
@@ -535,49 +535,73 @@ export class MailService {
           contentType,
           cid,
         });
-        artTag = `<img src="cid:${cid}" alt="" width="600" style="display:block; width:100%; max-width:600px; height:auto; border:0; outline:none; text-decoration:none;" />`;
+        artTag = `<img src="cid:${cid}" alt="" width="560" style="display:block;width:100%;max-width:560px;height:auto;border:0;outline:none;text-decoration:none;border-radius:16px;" />`;
       } else {
-        artTag = `<img src="${escapeHtml(opts.imageData)}" alt="" width="600" style="display:block; width:100%; max-width:600px; height:auto; border:0; outline:none; text-decoration:none;" />`;
+        artTag = `<img src="${escapeHtml(opts.imageData)}" alt="" width="560" style="display:block;width:100%;max-width:560px;height:auto;border:0;outline:none;text-decoration:none;border-radius:16px;" />`;
       }
     }
 
     const html = `
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
 </head>
-<body style="margin:0; padding:0; background:#07131f; -webkit-font-smoothing:antialiased;">
-  <span style="display:none; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden;">${preheaderText}</span>
+<body bgcolor="#ffffff" style="margin:0;padding:0;background:#ffffff!important;background-color:#ffffff!important;color:#0f172a!important;">
+  <span style="display:none;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">${preheaderText}</span>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#07131f; padding:24px 10px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%;background:#ffffff!important;background-color:#ffffff!important;padding:30px 12px;">
     <tr>
       <td align="center">
 
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%; max-width:600px; background:#0b1622; border-radius:18px; overflow:hidden; border:1px solid rgba(246,198,95,0.16);">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%;max-width:600px;background:#ffffff!important;background-color:#ffffff!important;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.03);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
 
           <tr>
-            <td align="center" style="background:#0A375A; padding:24px 18px;">
-              <img src="${safeAppUrl}/logo-email-orange.png" alt="LPTicket" width="190" style="display:block; width:190px; max-width:80%; height:auto; border:0; outline:none; text-decoration:none;" />
+            <td bgcolor="#ffffff" style="background:#ffffff!important;background-color:#ffffff!important;border-bottom:2px solid #f1f5f9;padding:24px 24px 18px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="left" style="vertical-align:middle;">
+                    <img src="${safeAppUrl}/logo-email-orange.png" alt="LPTicket" width="220" style="display:block;width:220px;max-width:72%;height:auto;border:0;outline:none;text-decoration:none;">
+                  </td>
+                  <td align="right" style="vertical-align:middle;color:#94a3b8;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;">
+                    Marketing
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
-          ${artTag ? `<tr><td style="font-size:0; line-height:0; background:#081827;">${artTag}</td></tr>` : ''}
+          ${artTag ? `
+          <tr>
+            <td bgcolor="#ffffff" style="background:#ffffff!important;background-color:#ffffff!important;padding:24px 20px 8px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;">
+                <tr>
+                  <td align="center" style="font-size:0;line-height:0;border-radius:16px;overflow:hidden;background:#f8fafc;border:1px solid #e2e8f0;">
+                    ${artTag}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>` : ''}
 
           <tr>
-            <td align="center" style="padding:30px 24px 10px;">
-              ${safeTitle ? `<h1 style="color:#ffffff; margin:0 0 12px; font-size:24px; font-weight:800; font-family:Arial,Helvetica,sans-serif; line-height:1.25; letter-spacing:0;">${safeTitle}</h1>` : ''}
-              ${safePreheader ? `<p style="color:#9fb2c6; margin:0 auto 24px; font-size:15px; line-height:1.6; max-width:460px; font-family:Arial,Helvetica,sans-serif;">${safePreheader}</p>` : '<div style="height:14px;"></div>'}
+            <td bgcolor="#ffffff" style="background:#ffffff!important;background-color:#ffffff!important;padding:24px 24px 8px;text-align:center;">
+              ${safeTitle ? `<h1 style="margin:0 0 10px;color:#0A375A;font-size:24px;font-weight:850;line-height:1.22;letter-spacing:-0.5px;text-transform:uppercase;">${safeTitle}</h1>` : ''}
+              ${safePreheader ? `<p style="margin:0 auto;color:#475569;font-size:14px;line-height:1.6;max-width:460px;">${safePreheader}</p>` : ''}
             </td>
           </tr>
 
           <tr>
-            <td align="center" style="padding:0 24px 30px;">
+            <td bgcolor="#ffffff" align="center" style="background:#ffffff!important;background-color:#ffffff!important;padding:18px 24px 28px;">
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td align="center" style="border-radius:14px; background:#f97316;">
-                    <a href="${safeCtaUrl}" target="_blank" style="display:inline-block; padding:15px 38px; color:#ffffff; font-size:14px; font-weight:900; text-decoration:none; font-family:Arial,Helvetica,sans-serif; letter-spacing:1px; text-transform:uppercase;">Ver detalles</a>
+                  <td align="center" bgcolor="#F97316" style="background:#F97316;border-radius:14px;">
+                    <a href="${safeCtaUrl}" target="_blank" style="display:inline-block;color:#ffffff;text-decoration:none;border-radius:14px;padding:13px 28px;font-size:12px;font-weight:900;letter-spacing:0.8px;text-transform:uppercase;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      Ver detalles
+                    </a>
                   </td>
                 </tr>
               </table>
@@ -585,29 +609,31 @@ export class MailService {
           </tr>
 
           <tr>
-            <td style="padding:0 18px 22px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#081827; border:1px solid #17344f; border-radius:18px;">
+            <td bgcolor="#ffffff" style="background:#ffffff!important;background-color:#ffffff!important;padding:0 20px 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;">
                 <tr>
-                  <td align="center" style="padding:22px 14px 8px;">
-                    <p style="margin:0; color:#f97316; font-size:10px; font-family:Arial,Helvetica,sans-serif; font-weight:900; letter-spacing:2px; text-transform:uppercase;">Síguenos</p>
-                    <p style="margin:8px 0 0; color:#ffffff; font-size:16px; font-family:Arial,Helvetica,sans-serif; font-weight:900;">Conecta con LPTicket</p>
+                  <td align="center" style="padding:18px 16px 10px;">
+                    <p style="margin:0;color:#0A375A;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.7px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      Sigue a LPTicket
+                    </p>
+                    <div style="width:54px;height:3px;background:#F97316;margin:10px auto 0;border-radius:3px;"></div>
                   </td>
                 </tr>
 
                 <tr>
-                  <td align="center" style="padding:12px 14px 18px;">
+                  <td align="center" style="padding:10px 16px 16px;">
                     <table role="presentation" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td align="center" width="46" height="46" style="width:46px; height:46px; border-radius:46px; background:#0A375A; border:1px solid rgba(255,255,255,0.16);">
-                          <a href="${facebookUrl}" target="_blank" style="display:block; color:#ffffff; font-size:22px; font-weight:900; line-height:46px; text-decoration:none; font-family:Arial,Helvetica,sans-serif;">f</a>
+                        <td align="center" width="44" height="44" bgcolor="#0A375A" style="width:44px;height:44px;background:#0A375A;border-radius:12px;">
+                          <a href="${facebookUrl}" target="_blank" style="display:block;width:44px;height:44px;line-height:44px;color:#ffffff;text-decoration:none;font-size:21px;font-weight:900;font-family:Arial,Helvetica,sans-serif;">f</a>
                         </td>
-                        <td width="12" style="font-size:0; line-height:0;">&nbsp;</td>
-                        <td align="center" width="46" height="46" style="width:46px; height:46px; border-radius:46px; background:#0A375A; border:1px solid rgba(255,255,255,0.16);">
-                          <a href="${instagramUrl}" target="_blank" style="display:block; color:#ffffff; font-size:21px; font-weight:900; line-height:46px; text-decoration:none; font-family:Arial,Helvetica,sans-serif;">◎</a>
+                        <td width="10" style="font-size:0;line-height:0;">&nbsp;</td>
+                        <td align="center" width="44" height="44" bgcolor="#0A375A" style="width:44px;height:44px;background:#0A375A;border-radius:12px;">
+                          <a href="${instagramUrl}" target="_blank" style="display:block;width:44px;height:44px;line-height:44px;color:#ffffff;text-decoration:none;font-size:20px;font-weight:900;font-family:Arial,Helvetica,sans-serif;">◎</a>
                         </td>
-                        <td width="12" style="font-size:0; line-height:0;">&nbsp;</td>
-                        <td align="center" width="46" height="46" style="width:46px; height:46px; border-radius:46px; background:#0A375A; border:1px solid rgba(255,255,255,0.16);">
-                          <a href="${whatsappUrl}" target="_blank" style="display:block; color:#ffffff; font-size:20px; font-weight:900; line-height:46px; text-decoration:none; font-family:Arial,Helvetica,sans-serif;">☎</a>
+                        <td width="10" style="font-size:0;line-height:0;">&nbsp;</td>
+                        <td align="center" width="44" height="44" bgcolor="#0A375A" style="width:44px;height:44px;background:#0A375A;border-radius:12px;">
+                          <a href="${whatsappUrl}" target="_blank" style="display:block;width:44px;height:44px;line-height:44px;color:#ffffff;text-decoration:none;font-size:19px;font-weight:900;font-family:Arial,Helvetica,sans-serif;">☎</a>
                         </td>
                       </tr>
                     </table>
@@ -615,8 +641,10 @@ export class MailService {
                 </tr>
 
                 <tr>
-                  <td align="center" style="padding:0 14px 22px;">
-                    <a href="${websiteUrl}" target="_blank" style="display:inline-block; color:#f97316; font-size:14px; font-family:Arial,Helvetica,sans-serif; font-weight:900; text-decoration:none; letter-spacing:0.3px;">www.lpticket.com</a>
+                  <td align="center" style="padding:0 16px 20px;">
+                    <a href="${websiteUrl}" target="_blank" style="color:#F97316;text-decoration:none;font-size:13px;font-weight:900;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:0.2px;">
+                      www.lpticket.com
+                    </a>
                   </td>
                 </tr>
               </table>
@@ -624,13 +652,14 @@ export class MailService {
           </tr>
 
           <tr>
-            <td align="center" style="background:#08111c; padding:20px 22px; border-top:1px solid rgba(255,255,255,0.06);">
-              <p style="color:#64748b; margin:0 0 4px; font-size:12px; font-family:Arial,Helvetica,sans-serif;">© ${year} LPTicket</p>
-              <p style="color:#475569; margin:0; font-size:11px; line-height:1.5; font-family:Arial,Helvetica,sans-serif;">Recibiste este correo porque tienes una cuenta en LPTicket.</p>
+            <td bgcolor="#ffffff" align="center" style="background:#ffffff!important;background-color:#ffffff!important;border-top:1px solid #e2e8f0;padding:20px 24px;">
+              <p style="margin:0 0 5px;color:#F97316;font-size:12px;font-weight:900;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">lpticket.com</p>
+              <p style="margin:0;color:#64748b;font-size:11px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">© ${year} LPTicket · Recibiste este correo porque tienes una cuenta en LPTicket.</p>
             </td>
           </tr>
 
         </table>
+
       </td>
     </tr>
   </table>
