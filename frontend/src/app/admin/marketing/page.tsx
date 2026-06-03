@@ -492,70 +492,35 @@ export default function AdminMarketingPage() {
             <span className="w-fit rounded-full bg-green-50 px-4 py-2 text-sm font-black text-green-600">Sin envio real</span>
           </div>
 
-          <div className="mt-6 rounded-[2rem] bg-[#030b16] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.42)] sm:p-7">
-            <div className="overflow-hidden rounded-[1.75rem] border border-orange-500/40 bg-[#071421] shadow-2xl">
-              <div className="border-b border-orange-500/25 bg-[#071421] p-8 text-center">
+          <div className="mt-6 rounded-[2rem] bg-slate-100 p-4 sm:p-6">
+            <div className="overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-sm">
+              <div className="p-6 text-center">
                 <img
                   src="/logo.png"
                   alt="LP Ticket"
-                  className="mx-auto h-[4.1rem] w-auto object-contain"
+                  className="mx-auto h-14 w-auto object-contain"
                 />
-                <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.26em] text-slate-400">Vive experiencias únicas</p>
               </div>
 
               {emailArtPreview ? (
-                <div className="border-b border-orange-500/30 bg-[#08111c]">
-                  <img src={emailArtPreview} alt="Arte del email" className="w-full object-contain" />
-                </div>
+                <img src={emailArtPreview} alt="Arte del email" className="w-full object-contain" />
               ) : (
-                <div className="mx-8 mt-8 flex min-h-[360px] flex-col items-center justify-center rounded-[1.35rem] border-2 border-dashed border-orange-400/20 bg-white/[0.025] text-center">
-                  <HiOutlinePhotograph className="h-14 w-14 text-orange-300/50" />
-                  <p className="mt-4 text-sm font-black text-slate-400">Tu arte de Photoshop aparecera aqui</p>
+                <div className="mx-6 flex min-h-[320px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 text-center">
+                  <HiOutlinePhotograph className="h-12 w-12 text-gray-300" />
+                  <p className="mt-4 text-sm font-black text-gray-400">Tu arte de Photoshop aparecera aqui</p>
                 </div>
               )}
 
-              <div className="bg-[#071421] px-8 py-8 text-center">
-                <p className="mb-4 text-[11px] font-black uppercase tracking-[0.28em] text-[#F97316]">• Evento exclusivo •</p>
-
-                <div className="rounded-[1.15rem] border border-amber-200/15 bg-white/[0.035] px-6 py-7 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                  <h3 className="mx-auto max-w-lg font-serif text-[2.15rem] font-black leading-tight text-white">
-                    {campaignName || 'Titulo opcional de campana'}
-                  </h3>
-                </div>
-
-                <div className="mx-auto mt-4 max-w-md rounded-[1rem] border border-slate-400/15 bg-white/[0.025] px-5 py-4">
-                  <p className="text-sm leading-7 text-slate-400">
-                    {campaignPreheader || 'Texto breve opcional para acompanar la imagen principal del email.'}
-                  </p>
-                </div>
-
-                <div className="mx-auto mt-7 flex h-14 max-w-[22rem] items-center justify-center rounded-2xl border border-orange-300/50 bg-[#F97316] px-8 text-sm font-black uppercase tracking-[0.2em] text-white shadow-[0_16px_34px_rgba(249,115,22,0.32)]">
+              <div className="px-6 py-8 text-center">
+                <h3 className="text-2xl font-black text-[#0A375A]">
+                  {campaignName || 'Titulo opcional de campana'}
+                </h3>
+                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
+                  {campaignPreheader || 'Texto breve opcional para acompanar la imagen principal del email.'}
+                </p>
+                <div className="btn-primary mt-6 px-7">
                   {campaignLink ? 'VER DETALLES' : 'VER EVENTO'}
                 </div>
-
-                <div className="mx-auto mt-7 grid max-w-lg grid-cols-2 rounded-[1.15rem] border border-slate-400/20 bg-white/[0.026]">
-                  <div className="border-r border-orange-400/25 px-5 py-5">
-                    <div className="text-2xl text-[#F97316]">▣</div>
-                    <p className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Evento</p>
-                    <p className="mt-1 text-sm font-black text-white">Exclusivo</p>
-                  </div>
-                  <div className="px-5 py-5">
-                    <div className="text-2xl text-[#F97316]">⌾</div>
-                    <p className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Acceso</p>
-                    <p className="mt-1 text-sm font-black text-white">Compra segura</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-white/10 bg-[#06111f] px-6 py-6 text-center">
-                <p className="text-base font-black text-[#F97316]">LPTicket</p>
-                <div className="mt-4 flex items-center justify-center gap-4">
-                  {['f', 'ig', 'yt', 'tt'].map((item) => (
-                    <span key={item} className="flex h-9 w-9 items-center justify-center rounded-full border border-orange-400/45 text-[11px] font-black text-[#F97316]">{item}</span>
-                  ))}
-                </div>
-                <p className="mt-4 text-[11px] text-slate-600">Recibiste este correo porque tienes una cuenta en LPTicket.</p>
-                <p className="mt-1 text-[11px] text-slate-600">LPTicket · lpticket.com</p>
               </div>
             </div>
           </div>

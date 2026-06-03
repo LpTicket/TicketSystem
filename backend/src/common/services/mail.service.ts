@@ -25,23 +25,6 @@ export class MailService {
       : `https://${rawAppUrl.replace(/\/$/, '')}`;
   }
 
-  private escapeHtml(value?: string | null) {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  private normalizeMarketingUrl(value: string | undefined, fallback: string) {
-    const raw = String(value || '').trim();
-    if (!raw) return fallback;
-    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-    if (raw.startsWith('/')) return `${fallback}${raw}`;
-    return `https://${raw}`;
-  }
-
   async sendTicketEmail(
     to: string,
     userName: string,
@@ -503,27 +486,17 @@ export class MailService {
     }
   }
 
-  /** Marketing campaign email (approved preview design). */
+  /** Marketing campaign email (designed art + optional title/link). */
   async sendMarketingEmail(
     to: string,
     opts: { subject: string; title?: string; preheader?: string; imageData?: string | null; link?: string },
   ) {
     const appUrl = this.getAppUrl();
-    const ctaUrl = this.normalizeMarketingUrl(opts.link, appUrl);
+    const ctaUrl = opts.link || appUrl;
     const year = new Date().getFullYear();
-    const safeTitle = this.escapeHtml(opts.title || 'Vive tu próxima experiencia con LPTicket');
-    const safePreheader = this.escapeHtml(opts.preheader || 'Eventos, experiencias y entradas seguras en un solo lugar.');
-    const safeCtaUrl = this.escapeHtml(ctaUrl);
-    const safeAppUrl = this.escapeHtml(appUrl);
-    const supportPhone = '832.379.0809';
-    const supportPhoneHref = '+18323790809';
-    const supportAddress = '1325 Main St Suite 203, Katy, TX 77494';
-    const websiteLabel = 'lpticket.com';
-    const websiteUrl = this.escapeHtml('https://www.lpticket.com');
-    const instagramUrl = this.escapeHtml('https://www.instagram.com/lpticket');
-    const facebookUrl = this.escapeHtml('https://www.facebook.com/profile.php?id=61590380706527');
-    const whatsappUrl = this.escapeHtml('https://wa.me/18323790809');
 
+    // Inline the uploaded art as a CID attachment — base64 data-URIs in <img src>
+    // are blocked by Gmail/iOS Mail, so we embed it like the ticket QR codes.
     const attachments: nodemailer.SendMailOptions['attachments'] = [];
     let artTag = '';
     if (opts.imageData) {
@@ -538,13 +511,14 @@ export class MailService {
           contentType,
           cid,
         });
-        artTag = `<img src="cid:${cid}" alt="" width="560" style="display:block; width:100%; max-width:560px; height:auto; border:0; outline:none; text-decoration:none;" />`;
+        artTag = `<img src="cid:${cid}" alt="" width="600" style="display:block; width:100%; max-width:600px; height:auto; border:0; outline:none; text-decoration:none;" />`;
       } else {
-        artTag = `<img src="${this.escapeHtml(opts.imageData)}" alt="" width="560" style="display:block; width:100%; max-width:560px; height:auto; border:0; outline:none; text-decoration:none;" />`;
+        // Already a hosted URL — reference it directly.
+        artTag = `<img src="${opts.imageData}" alt="" width="600" style="display:block; width:100%; max-width:600px; height:auto; border:0; outline:none; text-decoration:none;" />`;
       }
     }
 
-    const preheaderText = this.escapeHtml((opts.preheader || opts.title || 'Novedades de LPTicket').replace(/<[^>]+>/g, ''));
+    const preheaderText = (opts.preheader || opts.title || 'Novedades de LPTicket').replace(/<[^>]+>/g, '');
 
     const html = `
 <!DOCTYPE html>
@@ -552,120 +526,45 @@ export class MailService {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark light" />
 </head>
-<body style="margin:0; padding:0; background:#07131f; -webkit-font-smoothing:antialiased;">
+<body style="margin:0; padding:0; background:#0a1420; -webkit-font-smoothing:antialiased;">
   <span style="display:none; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden;">${preheaderText}</span>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#07131f; padding:32px 14px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a1420; padding:24px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="680" cellpadding="0" cellspacing="0" style="width:100%; max-width:680px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:30px; padding:16px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px; max-width:600px; background:#0b1622; border-radius:16px; overflow:hidden; border:1px solid rgba(246,198,95,0.16);">
+          <!-- Logo header -->
           <tr>
-            <td>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0b1b2b; border:1px solid #17344f; border-radius:24px; overflow:hidden;">
+            <td align="center" style="background:#0A375A; padding:24px;">
+              <img src="${appUrl}/logo-email-orange.png" alt="LPTicket" width="190" style="display:block; width:190px; max-width:190px; height:auto; border:0; outline:none; text-decoration:none;" />
+            </td>
+          </tr>
+          ${artTag ? `<tr><td style="font-size:0; line-height:0;">${artTag}</td></tr>` : ''}
+          <!-- Body -->
+          <tr>
+            <td align="center" style="padding:32px 28px 8px;">
+              ${opts.title ? `<h1 style="color:#ffffff; margin:0 0 12px; font-size:24px; font-weight:800; font-family:'Helvetica Neue',Arial,sans-serif; line-height:1.25;">${opts.title}</h1>` : ''}
+              ${opts.preheader ? `<p style="color:#9fb2c6; margin:0 auto 26px; font-size:15px; line-height:1.6; max-width:460px; font-family:'Helvetica Neue',Arial,sans-serif;">${opts.preheader}</p>` : '<div style="height:18px;"></div>'}
+            </td>
+          </tr>
+          <!-- CTA button (bulletproof) -->
+          <tr>
+            <td align="center" style="padding:0 28px 34px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="background:#06111d; padding:24px; border-bottom:1px solid #17344f;">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td align="left" style="vertical-align:middle;">
-                          <img src="${safeAppUrl}/logo-email-orange.png" alt="LPTicket" width="176" style="display:block; width:176px; max-width:176px; height:auto; border:0;" />
-                        </td>
-                        <td align="right" style="vertical-align:middle; font-family:Arial,Helvetica,sans-serif; color:#f97316; font-size:10px; font-weight:900; letter-spacing:2px; text-transform:uppercase;">
-                          Eventos selectos
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td align="center" style="padding:54px 24px 44px; background:#0a375a; background-image:linear-gradient(135deg, rgba(10,55,90,0.82), rgba(7,19,31,0.9)); border-bottom:1px solid #17344f;">
-                    <p style="margin:0 0 14px; color:#f97316; font-family:Arial,Helvetica,sans-serif; font-size:11px; font-weight:900; letter-spacing:2.4px; text-transform:uppercase;">LPTicket presenta</p>
-                    <h1 style="max-width:520px; margin:0 auto; color:#ffffff; font-family:Arial,Helvetica,sans-serif; font-size:42px; line-height:1.05; font-weight:900; letter-spacing:0;">${safeTitle}</h1>
-                    <p style="max-width:460px; margin:18px auto 0; color:#a9b8ca; font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:1.65;">${safePreheader}</p>
-                    ${artTag ? `
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; margin:28px auto 0; border-radius:18px; overflow:hidden; border:1px solid rgba(255,255,255,0.12);">
-                      <tr>
-                        <td style="font-size:0; line-height:0; background:#081827;">${artTag}</td>
-                      </tr>
-                    </table>` : ''}
-                    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:28px;">
-                      <tr>
-                        <td align="center" style="border-radius:14px; background:#f97316;">
-                          <a href="${safeCtaUrl}" target="_blank" style="display:inline-block; padding:16px 40px; color:#ffffff; font-size:13px; font-weight:900; text-decoration:none; font-family:Arial,Helvetica,sans-serif; letter-spacing:1.8px; text-transform:uppercase;">Ver detalles</a>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:22px;">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#071827; border:1px solid #17344f; border-radius:18px;">
-                      <tr>
-                        <td align="center" width="33.33%" style="padding:17px 10px; font-family:Arial,Helvetica,sans-serif; border-right:1px solid #17344f;">
-                          <p style="margin:0; color:#ffffff; font-size:13px; font-weight:900;">Pago seguro</p>
-                          <p style="margin:5px 0 0; color:#7f93aa; font-size:11px;">Protegido por Stripe</p>
-                        </td>
-                        <td align="center" width="33.33%" style="padding:17px 10px; font-family:Arial,Helvetica,sans-serif; border-right:1px solid #17344f;">
-                          <p style="margin:0; color:#ffffff; font-size:13px; font-weight:900;">Tickets al instante</p>
-                          <p style="margin:5px 0 0; color:#7f93aa; font-size:11px;">QR listo para entrar</p>
-                        </td>
-                        <td align="center" width="33.33%" style="padding:17px 10px; font-family:Arial,Helvetica,sans-serif;">
-                          <p style="margin:0; color:#ffffff; font-size:13px; font-weight:900;">Soporte dedicado</p>
-                          <p style="margin:5px 0 0; color:#7f93aa; font-size:11px;">Estamos para ayudarte</p>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:0 22px 22px;">
-                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0b2236; background-image:linear-gradient(135deg, rgba(255,255,255,0.11), rgba(255,255,255,0.035)); border:1px solid rgba(255,255,255,0.10); border-radius:22px;">
-                      <tr>
-                        <td style="padding:14px;">
-                          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                            <tr>
-                              <td width="50%" valign="top" style="padding:18px; background:#0a375a; background-image:linear-gradient(145deg, rgba(10,55,90,0.78), rgba(7,19,31,0.86)); border:1px solid rgba(255,255,255,0.10); border-radius:18px; font-family:Arial,Helvetica,sans-serif;">
-                                <p style="margin:0; color:#f97316; font-size:10px; font-weight:900; letter-spacing:1.8px; text-transform:uppercase;">Atención al cliente</p>
-                                <p style="margin:10px 0 0; font-size:22px; font-weight:900; line-height:1.2;">
-                                  <a href="tel:${supportPhoneHref}" style="color:#ffffff; text-decoration:none;">${supportPhone}</a>
-                                </p>
-                                <p style="margin:10px 0 0; color:#a9b8ca; font-size:12px; line-height:1.55;">${supportAddress}</p>
-                              </td>
-                              <td width="12" style="font-size:0; line-height:0;">&nbsp;</td>
-                              <td width="50%" valign="top" style="padding:18px; background:#10263a; background-image:linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025)); border:1px solid rgba(255,255,255,0.10); border-radius:18px; font-family:Arial,Helvetica,sans-serif;">
-                                <p style="margin:0; color:#f97316; font-size:10px; font-weight:900; letter-spacing:1.8px; text-transform:uppercase;">Conecta con LPTicket</p>
-                                <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:13px;">
-                                  <tr>
-                                    <td align="center" width="42" height="42" style="border-radius:42px; border:1px solid rgba(255,255,255,0.14);">
-                                      <a href="${facebookUrl}" target="_blank" style="display:block; color:#ffffff; font-size:20px; font-weight:900; line-height:42px; text-decoration:none; font-family:Arial,Helvetica,sans-serif;">f</a>
-                                    </td>
-                                    <td width="10">&nbsp;</td>
-                                    <td align="center" width="42" height="42" style="border-radius:42px; border:1px solid rgba(255,255,255,0.14);">
-                                      <a href="${instagramUrl}" target="_blank" style="display:block; color:#ffffff; font-size:18px; font-weight:900; line-height:42px; text-decoration:none; font-family:Arial,Helvetica,sans-serif;">◎</a>
-                                    </td>
-                                    <td width="10">&nbsp;</td>
-                                    <td align="center" width="42" height="42" style="border-radius:42px; border:1px solid rgba(255,255,255,0.14);">
-                                      <a href="${whatsappUrl}" target="_blank" style="display:block; color:#ffffff; font-size:18px; font-weight:900; line-height:42px; text-decoration:none; font-family:Arial,Helvetica,sans-serif;">☎</a>
-                                    </td>
-                                  </tr>
-                                </table>
-                                <p style="margin:16px 0 0; font-size:14px; font-weight:900;">
-                                  <a href="${websiteUrl}" target="_blank" style="color:#ffffff; text-decoration:none;">${websiteLabel}</a>
-                                </p>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td align="center" style="padding:22px; background:#06111d; border-top:1px solid #17344f; font-family:Arial,Helvetica,sans-serif;">
-                    <p style="margin:0 0 6px; color:#7f93aa; font-size:12px;">© ${year} LPTicket · <a href="${safeAppUrl}" style="color:#f97316; text-decoration:none; font-weight:900;">${websiteLabel}</a></p>
-                    <p style="margin:0; color:#52667d; font-size:11px; line-height:1.5;">Recibiste este correo porque tienes una cuenta en LPTicket.</p>
+                  <td align="center" style="border-radius:12px; background:linear-gradient(180deg,#ff8a18,#f46c00); box-shadow:0 8px 22px rgba(249,115,22,0.35);">
+                    <a href="${ctaUrl}" target="_blank" style="display:inline-block; padding:14px 38px; color:#ffffff; font-size:16px; font-weight:800; text-decoration:none; font-family:'Helvetica Neue',Arial,sans-serif; letter-spacing:0.3px;">Ver más</a>
                   </td>
                 </tr>
               </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="background:#08111c; padding:20px 28px; border-top:1px solid rgba(255,255,255,0.05);">
+              <p style="color:#64748b; margin:0 0 4px; font-size:12px; font-family:'Helvetica Neue',Arial,sans-serif;">© ${year} LPTicket · <a href="${appUrl}" style="color:#9fb2c6; text-decoration:none;">lpticket.com</a></p>
+              <p style="color:#475569; margin:0; font-size:11px; font-family:'Helvetica Neue',Arial,sans-serif;">Recibiste este correo porque tienes una cuenta en LPTicket.</p>
             </td>
           </tr>
         </table>
@@ -683,5 +582,4 @@ export class MailService {
       attachments,
     });
   }
-
 }
