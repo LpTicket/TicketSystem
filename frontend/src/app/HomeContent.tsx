@@ -55,7 +55,7 @@ interface HomeContentProps {
 
 export default function HomeContent({ initialEvents, initialBanner }: HomeContentProps) {
   const { t, lang } = useLang();
-  const { categories } = useCategories();
+  const { categories, loading: categoriesLoading } = useCategories();
   const [activeCategory, setActiveCategory] = useState('');
   const [currentBannerIdx, setCurrentBannerIdx] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -286,6 +286,10 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
                     </button>
                   );
                 })}
+                {categoriesLoading && categories.filter((cat) => cat.slug !== 'todos' && cat.slug !== 'todas').length === 0 &&
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <span key={`cat-skeleton-${i}`} className="home-category-card home-category-card--skeleton" aria-hidden="true" />
+                  ))}
               </div>
             </div>
 

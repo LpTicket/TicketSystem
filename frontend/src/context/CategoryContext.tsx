@@ -30,6 +30,8 @@ const CategoryContext = createContext<CategoryContextType>({
   refreshCategories: async () => {},
 });
 
+const CATEGORY_CACHE_KEY = 'lp_categories_v1';
+
 export function CategoryProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,13 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
   const fetchCategories = async () => {
     try {
       const res = await api.get('/categories');
-      setCategories((res.data || []).map(normalizeCategoryForDisplay));
+      const mapped = (res.data || []).map(normalizeCategoryForDisplay);
+      setCategories(mapped);
+      try {
+        window.localStorage.setItem(CATEGORY_CACHE_KEY, JSON.stringify(mapped));
+      } catch {
+        /* storage unavailable — ignore */
+      }
     } catch (err) {
       console.error('Failed to load categories', err);
     } finally {
@@ -46,6 +54,19 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Paint instantly from cache on reload, then refresh in the background.
+    try {
+      const cached = window.localStorage.getItem(CATEGORY_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length) {
+          setCategories(parsed);
+          setLoading(false);
+        }
+      }
+    } catch {
+      /* ignore corrupt cache */
+    }
     fetchCategories();
   }, []);
 
