@@ -197,6 +197,26 @@ export class MarketingService {
     return this.sendMessagingCampaign(message, 'whatsapp', recipients, lang);
   }
 
+  /** Fire-and-forget welcome WhatsApp (Utility template) sent right after a user
+   *  registers. Uses TWILIO_WHATSAPP_WELCOME_SID. Never throws — registration must
+   *  not fail because messaging is down or unconfigured. */
+  async sendWelcomeWhatsapp(rawPhone: string, firstName?: string): Promise<void> {
+    const sid = this.config.get<string>('TWILIO_ACCOUNT_SID');
+    const token = this.config.get<string>('TWILIO_AUTH_TOKEN');
+    const contentSid = this.config.get<string>('TWILIO_WHATSAPP_WELCOME_SID');
+    if (!sid || !token || !contentSid) return; // not configured — skip silently
+    const phone = this.normalizePhone(rawPhone || '');
+    if (!phone) return;
+    try {
+      await this.sendTwilioMessage(phone, 'whatsapp', {
+        contentSid,
+        contentVariables: { '1': firstName || 'there' },
+      });
+    } catch (e: any) {
+      console.error('Welcome WhatsApp failed:', e?.message || e);
+    }
+  }
+
   async getActiveHomeBanner() {
     const desktop = await this.bannerRepo.findOne({
       where: { placement: 'home', isActive: true },

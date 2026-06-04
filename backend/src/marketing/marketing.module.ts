@@ -9,5 +9,6 @@ import { User } from '../database/entities/user.entity';
   imports: [TypeOrmModule.forFeature([MarketingBanner, User])],
   controllers: [MarketingController],
   providers: [MarketingService],
+  exports: [MarketingService],
 })
 export class MarketingModule {}

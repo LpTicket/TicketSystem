@@ -10,10 +10,12 @@ import { User } from '../database/entities';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { GoogleStrategy } from './google.strategy';
 import { FacebookStrategy } from './facebook.strategy';
+import { MarketingModule } from '../marketing/marketing.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),
+    MarketingModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

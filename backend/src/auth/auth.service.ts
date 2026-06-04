@@ -6,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { User, UserRole } from '../database/entities';
 import { RegisterDto, LoginDto, UpdateProfileDto } from './dto/auth.dto';
 import { ConfigService } from '@nestjs/config';
+import { MarketingService } from '../marketing/marketing.service';
 
 @Injectable()
 export class AuthService {
@@ -14,6 +15,7 @@ export class AuthService {
     private readonly userRepo: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly marketingService: MarketingService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -38,6 +40,12 @@ export class AuthService {
     });
 
     const saved = await this.userRepo.save(user);
+
+    // Fire-and-forget welcome WhatsApp (Utility template). Never blocks registration.
+    if (saved.phone) {
+      this.marketingService.sendWelcomeWhatsapp(saved.phone, saved.firstName).catch(() => {});
+    }
+
     return this.generateTokens(saved);
   }
 
