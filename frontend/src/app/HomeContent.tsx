@@ -334,9 +334,12 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
             {sortedEvents.map((event, idx) => <EventCard key={event.id} event={event} priority={idx < 8} />)}
           </div>
         ) : (
-          <div className="text-center py-20 border border-gray-200 rounded-lg bg-white/80">
-            <HiOutlineTicket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="font-bold text-xl text-gray-600 mb-2">{t('noEventsCategory')}</h3>
+          <div className="text-center py-20 rounded-3xl border border-[rgba(246,198,95,0.16)] bg-[linear-gradient(180deg,rgba(8,31,51,0.88),rgba(5,17,31,0.84))] shadow-[0_24px_60px_rgba(0,0,0,0.32)]">
+            <div className="public-premium-icon w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <HiOutlineTicket className="w-8 h-8" />
+            </div>
+            <h3 className="font-bold text-xl text-slate-200 mb-2">{t('noEventsCategory')}</h3>
+            <p className="text-sm text-slate-400">{lang === 'es' ? 'Probá con otra categoría o volvé pronto.' : 'Try another category or check back soon.'}</p>
           </div>
         )}
       </section>
