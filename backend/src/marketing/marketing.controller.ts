@@ -61,7 +61,7 @@ export class MarketingController {
   @Post('admin/whatsapp-campaign')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
-  async sendWhatsappCampaign(@Body() body: { message: string; recipients?: string[]; lang?: 'es' | 'en'; link?: string }) {
-    return this.marketingService.sendWhatsappCampaign(body?.message, body?.recipients, body?.lang, body?.link);
+  async sendWhatsappCampaign(@Body() body: { message: string; recipients?: string[]; lang?: 'es' | 'en' }) {
+    return this.marketingService.sendWhatsappCampaign(body?.message, body?.recipients, body?.lang);
   }
 }

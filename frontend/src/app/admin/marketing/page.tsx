@@ -75,7 +75,6 @@ export default function AdminMarketingPage() {
   const [smsAudience, setSmsAudience] = useState<'all' | 'specify'>('all');
   const [waAudience, setWaAudience] = useState<'all' | 'specify'>('all');
   const [waLang, setWaLang] = useState<'es' | 'en'>('es');
-  const [waLink, setWaLink] = useState('');
 
   type Recipient = { id: string; name: string; email: string; phone: string };
   const [recipientsList, setRecipientsList] = useState<Recipient[]>([]);
@@ -185,7 +184,7 @@ export default function AdminMarketingPage() {
       const { data } = await api.post(`/marketing/admin/${channel}-campaign`, {
         message,
         recipients,
-        ...(channel === 'whatsapp' ? { lang: waLang, link: waLink } : {}),
+        ...(channel === 'whatsapp' ? { lang: waLang } : {}),
       });
       if (data.error) {
         toast.error(data.error);
@@ -590,40 +589,30 @@ export default function AdminMarketingPage() {
           </select>
           {waAudience === 'specify' && renderPicker('whatsapp', 'phone', waSel, setWaSel)}
           <p className="mt-2 text-[11px] text-gray-400">
-            El nombre se completa solo en <span className="font-bold text-[#F97316]">{'{{1}}'}</span>. La info del evento va en <span className="font-bold text-[#F97316]">{'{{2}}'}</span> y el link en <span className="font-bold text-[#F97316]">{'{{3}}'}</span>.
+            Tu texto va en <span className="font-bold text-[#F97316]">{'{{2}}'}</span>. El nombre del cliente se completa solo en <span className="font-bold text-[#F97316]">{'{{1}}'}</span>. Si querés un link, escribilo dentro del mensaje.
           </p>
-          <label className="mt-2 block text-[11px] font-bold uppercase tracking-wider text-gray-400">Información del evento {'{{2}}'}</label>
           <textarea
             value={whatsappMessage}
             onChange={(e) => setWhatsappMessage(e.target.value)}
             rows={4}
             maxLength={1000}
-            placeholder={waLang === 'es' ? 'Ej: Noche de Salsa — Sáb 12 jul, 9:00 PM, Houston' : 'E.g.: Salsa Night — Sat Jul 12, 9:00 PM, Houston'}
+            placeholder={waLang === 'es' ? 'Escribe tu mensaje…' : 'Type your message…'}
             className="mt-1 w-full resize-none rounded-2xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-4 text-sm text-slate-100 outline-none focus:border-[#F97316]"
           />
           <div className="mt-1 text-right text-[11px] text-gray-400">{whatsappMessage.length}/1000</div>
-          <label className="mt-1 block text-[11px] font-bold uppercase tracking-wider text-gray-400">Link {'{{3}}'}</label>
-          <input
-            value={waLink}
-            onChange={(e) => setWaLink(e.target.value)}
-            placeholder="https://lpticket.com/events/..."
-            className="mt-1 w-full rounded-2xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] px-4 py-3 text-sm text-slate-100 outline-none focus:border-[#F97316]"
-          />
-          <p className="mt-1 text-[10px] text-gray-500">Si lo dejas vacío, se usa lpticket.com.</p>
           {/* WhatsApp-style preview */}
           <div className="mt-2 rounded-2xl bg-[#0b141a] p-3">
             <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">Vista previa</p>
             <div className="max-w-[85%] rounded-xl rounded-tl-sm bg-[#075e54]/30 border border-[#25d36633] px-3 py-2 text-[13px] leading-snug text-slate-100 whitespace-pre-wrap">
               {(() => {
-                const msg = whatsappMessage || (waLang === 'es' ? 'info del evento aquí' : 'event info here');
-                const url = waLink || 'lpticket.com';
+                const msg = whatsappMessage || (waLang === 'es' ? 'tu mensaje aquí' : 'your message here');
                 const selNames = waAudience === 'specify'
                   ? recipientsList.filter((u) => waSel.includes(u.id)).map((u) => (u.name || '').split(' ')[0]).filter(Boolean)
                   : [];
                 const nameToken = selNames.length === 1 ? selNames[0] : (waLang === 'es' ? '[Nombre]' : '[Name]');
                 return waLang === 'es'
-                  ? `Hola ${nameToken} 👋\n\nLP Ticket tiene una nueva actualización de eventos para ti.\n\nInformación del evento:\n${msg}\n\nVer detalles y entradas aquí:\n${url}`
-                  : `Hi ${nameToken} 👋\n\nLP Ticket has a new event update for you.\n\nEvent information:\n${msg}\n\nSee details and tickets here:\n${url}`;
+                  ? `Hola ${nameToken} 👋 ${msg}`
+                  : `Hi ${nameToken} 👋 ${msg}`;
               })()}
             </div>
             <p className="mt-1 text-[10px] text-gray-500">Referencial — el marco lo define la plantilla aprobada ({waLang.toUpperCase()}).</p>

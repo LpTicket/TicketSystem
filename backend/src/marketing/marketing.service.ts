@@ -126,11 +126,8 @@ export class MarketingService {
     channel: 'sms' | 'whatsapp',
     recipients?: string[],
     lang?: 'es' | 'en',
-    link?: string,
   ): Promise<CampaignResult> {
     if (!message?.trim()) throw new BadRequestException('El mensaje es obligatorio');
-    // {{3}} (link) can't be empty on the approved template — fall back to the site.
-    const linkValue = (link && link.trim()) || 'https://lpticket.com';
     const sid = this.config.get<string>('TWILIO_ACCOUNT_SID');
     const token = this.config.get<string>('TWILIO_AUTH_TOKEN');
     if (!sid || !token) {
@@ -166,16 +163,10 @@ export class MarketingService {
         if (channel === 'whatsapp' && contentSid) {
           await this.sendTwilioMessage(phone, channel, {
             contentSid,
-            contentVariables: {
-              '1': nameByPhone.get(phone) || (lang === 'en' ? 'there' : 'hola'),
-              '2': message,
-              '3': linkValue,
-            },
+            contentVariables: { '1': nameByPhone.get(phone) || (lang === 'en' ? 'there' : 'hola'), '2': message },
           });
         } else {
-          // SMS / sandbox: no template, so append the link to the body.
-          const body = link && link.trim() ? `${message}\n${linkValue}` : message;
-          await this.sendTwilioMessage(phone, channel, { body });
+          await this.sendTwilioMessage(phone, channel, { body: message });
         }
         sent++;
       } catch {
@@ -189,8 +180,8 @@ export class MarketingService {
     return this.sendMessagingCampaign(message, 'sms', recipients);
   }
 
-  sendWhatsappCampaign(message: string, recipients?: string[], lang?: 'es' | 'en', link?: string) {
-    return this.sendMessagingCampaign(message, 'whatsapp', recipients, lang, link);
+  sendWhatsappCampaign(message: string, recipients?: string[], lang?: 'es' | 'en') {
+    return this.sendMessagingCampaign(message, 'whatsapp', recipients, lang);
   }
 
   async getActiveHomeBanner() {
