@@ -9,6 +9,7 @@ import { formatSeatLabel } from '@/lib/seatLabel';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { parseSafeDate, formatDateInTimezone, getTimezoneAbbr } from '@/lib/dateUtils';
+import PhoneField from '@/components/ui/PhoneField';
 import { Ticket, Order } from '@/types';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
@@ -477,7 +478,13 @@ function DashboardPageBody() {
                   </div>
                   <div className="space-y-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('phone')}</label>
-                    <input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" />
+                    <PhoneField
+                      value={profileForm.phone}
+                      onChange={(v) => setProfileForm({ ...profileForm, phone: v })}
+                      inputClassName="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold"
+                      placeholder={lang === 'es' ? 'Número sin código de país' : 'Number without country code'}
+                    />
+                    <p className="text-[11px] text-gray-400">{lang === 'es' ? 'Elegí tu país para que WhatsApp/SMS lleguen bien.' : 'Pick your country so WhatsApp/SMS arrive correctly.'}</p>
                   </div>
 
                   <div className="sm:col-span-2 space-y-2">

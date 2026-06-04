@@ -8,13 +8,14 @@ import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 import VisualCaptcha, { VisualCaptchaHandle } from '@/components/auth/VisualCaptcha';
+import PhoneField from '@/components/ui/PhoneField';
 
 export default function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect');
   const { register } = useAuthStore();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const captchaRef = useRef<VisualCaptchaHandle>(null);
 
   const [form, setForm] = useState({
@@ -106,7 +107,14 @@ export default function RegisterContent() {
           {/* Phone */}
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">{t('phone')}</label>
-            <input type="tel" value={form.phone} onChange={update('phone')} className="input public-premium-input" placeholder={t('phonePlaceholder' as any)} required />
+            <PhoneField
+              value={form.phone}
+              onChange={(v) => setForm((prev) => ({ ...prev, phone: v }))}
+              inputClassName="input public-premium-input"
+              placeholder={t('phonePlaceholder' as any)}
+              required
+            />
+            <p className="mt-1.5 text-[11px] text-gray-400">{lang === 'es' ? 'Elegí tu país y escribí el número sin el código.' : 'Pick your country and enter the number without the code.'}</p>
           </div>
 
           {/* Email */}
