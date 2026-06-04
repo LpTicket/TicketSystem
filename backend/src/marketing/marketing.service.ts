@@ -157,7 +157,12 @@ export class MarketingService {
       new Set(rawPhones.map((p) => this.normalizePhone(p)).filter((p): p is string => !!p)),
     );
 
+    if (channel === 'whatsapp' && !contentSid) {
+      return { sent: 0, failed: 0, total: phones.length, error: `Falta el ContentSid de WhatsApp (TWILIO_WHATSAPP_CONTENT_SID_${lang === 'en' ? 'EN' : 'ES'}).` };
+    }
+
     let sent = 0, failed = 0;
+    let lastError = '';
     for (const phone of phones) {
       try {
         if (channel === 'whatsapp' && contentSid) {
@@ -169,11 +174,19 @@ export class MarketingService {
           await this.sendTwilioMessage(phone, channel, { body: message });
         }
         sent++;
-      } catch {
+      } catch (e: any) {
         failed++;
+        // Surface Twilio's reason — extract the readable message from its JSON error.
+        const raw = e?.message || String(e);
+        try {
+          const parsed = JSON.parse(raw);
+          lastError = `${parsed.message || raw}${parsed.code ? ` (code ${parsed.code})` : ''}`;
+        } catch {
+          lastError = raw;
+        }
       }
     }
-    return { sent, failed, total: phones.length };
+    return { sent, failed, total: phones.length, error: failed > 0 && sent === 0 ? lastError.slice(0, 300) : undefined };
   }
 
   sendSmsCampaign(message: string, recipients?: string[]) {
