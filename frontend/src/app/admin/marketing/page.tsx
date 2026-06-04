@@ -375,7 +375,7 @@ export default function AdminMarketingPage() {
               <div key={card.label} className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-bold text-gray-500">{card.label}</p>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#0A375A] shadow-sm">
+                  <div className="public-premium-icon flex h-10 w-10 shrink-0 items-center justify-center">
                     <Icon className="h-5 w-5" />
                   </div>
                 </div>
