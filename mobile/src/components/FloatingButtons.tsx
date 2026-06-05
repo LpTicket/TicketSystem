@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     borderColor: '#AFC7DA',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0F172A',
+    shadowColor: '#111827',
     shadowOpacity: 0.16,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },

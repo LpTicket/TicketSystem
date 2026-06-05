@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
+import { useLanguage } from '../i18n/LanguageContext';
 import { mockUser } from '../data/mockUser';
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export function OrderSummaryScreen({ event, onBack, onPay }: Props) {
+  const { t } = useLanguage();
   const [quantity, setQuantity] = useState(1);
 
   const ticketPrice = Number(event?.price || 20);
@@ -28,15 +30,15 @@ export function OrderSummaryScreen({ event, onBack, onPay }: Props) {
         </TouchableOpacity>
 
         <View style={styles.headerTextWrap}>
-          <Text style={styles.eyebrow}>ORDER</Text>
-          <Text style={styles.title}>Review summary</Text>
+          <Text style={styles.eyebrow}>{t('ORDEN', 'ORDER')}</Text>
+          <Text style={styles.title}>{t('Revisar resumen', 'Review summary')}</Text>
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.eventCard}>
           <View style={styles.eventBadge}>
-            <Text style={styles.eventBadgeText}>PRIVATE EVENT</Text>
+            <Text style={styles.eventBadgeText}>{t('EVENTO PRIVADO', 'PRIVATE EVENT')}</Text>
           </View>
 
           <Text style={styles.eventTitle}>{event?.title || 'Event'}</Text>
@@ -44,11 +46,11 @@ export function OrderSummaryScreen({ event, onBack, onPay }: Props) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>TICKETS</Text>
+          <Text style={styles.cardLabel}>{t('TICKETS', 'TICKETS')}</Text>
 
           <View style={styles.ticketRow}>
             <View>
-              <Text style={styles.ticketName}>General admission</Text>
+              <Text style={styles.ticketName}>{t('Entrada general', 'General admission')}</Text>
               <Text style={styles.ticketPrice}>$ {ticketPrice.toFixed(2)} USD each</Text>
             </View>
 
@@ -65,29 +67,29 @@ export function OrderSummaryScreen({ event, onBack, onPay }: Props) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>BUYER</Text>
+          <Text style={styles.cardLabel}>{t('COMPRADOR', 'BUYER')}</Text>
           <Text style={styles.buyerName}>{mockUser.firstName} {mockUser.lastName}</Text>
           <Text style={styles.buyerMeta}>{mockUser.email}</Text>
           <Text style={styles.buyerMeta}>{mockUser.phone}</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>PAYMENT DETAILS</Text>
+          <Text style={styles.cardLabel}>{t('DETALLES DE PAGO', 'PAYMENT DETAILS')}</Text>
 
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>Subtotal</Text>
+            <Text style={styles.rowLabel}>{t('Subtotal', 'Subtotal')}</Text>
             <Text style={styles.rowValue}>$ {subtotal.toFixed(2)}</Text>
           </View>
 
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>Service fee</Text>
+            <Text style={styles.rowLabel}>{t('Cargo de servicio', 'Service fee')}</Text>
             <Text style={styles.rowValue}>$ {serviceFee.toFixed(2)}</Text>
           </View>
 
           <View style={styles.divider} />
 
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>{t('Total', 'Total')}</Text>
             <Text style={styles.totalValue}>$ {total.toFixed(2)} USD</Text>
           </View>
         </View>
@@ -97,13 +99,13 @@ export function OrderSummaryScreen({ event, onBack, onPay }: Props) {
             <Text style={styles.noticeIconText}>✓</Text>
           </View>
           <View style={styles.noticeCopy}>
-            <Text style={styles.noticeTitle}>Secure payment</Text>
-            <Text style={styles.noticeText}>Stripe checkout will process the final payment using the same secure system as the website.</Text>
+            <Text style={styles.noticeTitle}>{t('Pago seguro', 'Secure payment')}</Text>
+            <Text style={styles.noticeText}>{t('Stripe procesará el pago final usando el mismo sistema seguro de la página web.', 'Stripe checkout will process the final payment using the same secure system as the website.')}</Text>
           </View>
         </View>
 
         <TouchableOpacity style={styles.payButton} onPress={onPay}>
-          <Text style={styles.payText}>PAY SECURELY</Text>
+          <Text style={styles.payText}>{t('PAGAR SEGURO', 'PAY SECURELY')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -111,9 +113,9 @@ export function OrderSummaryScreen({ event, onBack, onPay }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f5f7fa' },
+  root: { flex: 1, backgroundColor: '#F8FAFC' },
   header: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     paddingTop: 18,
     paddingHorizontal: 20,
     paddingBottom: 16,
@@ -127,7 +129,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: '#eef4f8',
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -138,13 +140,13 @@ const styles = StyleSheet.create({
   content: { padding: 18, paddingBottom: 34 },
   eventCard: {
     backgroundColor: colors.navy,
-    borderRadius: 22,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 14,
   },
   eventBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -156,18 +158,18 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     fontWeight: '800',
   },
-  eventTitle: { color: '#ffffff', fontSize: 24, fontWeight: '700', marginBottom: 8 },
+  eventTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: '700', marginBottom: 8 },
   eventMeta: { color: '#cbd5e1', fontSize: 15, fontWeight: '600', lineHeight: 21 },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#E5E7EB',
     padding: 18,
     marginBottom: 14,
   },
   cardLabel: {
-    color: '#64748b',
+    color: '#6B7280',
     fontSize: 12,
     letterSpacing: 2.5,
     fontWeight: '800',
@@ -180,7 +182,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   ticketName: { color: colors.navy, fontSize: 18, fontWeight: '800', marginBottom: 5 },
-  ticketPrice: { color: '#64748b', fontSize: 14, fontWeight: '600' },
+  ticketPrice: { color: '#6B7280', fontSize: 14, fontWeight: '600' },
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -193,27 +195,27 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepText: { color: colors.navy, fontSize: 22, fontWeight: '600', lineHeight: 24 },
   quantity: { minWidth: 18, textAlign: 'center', color: colors.navy, fontSize: 17, fontWeight: '800' },
   buyerName: { color: colors.navy, fontSize: 20, fontWeight: '700', marginBottom: 6 },
-  buyerMeta: { color: '#64748b', fontSize: 15, fontWeight: '600', marginTop: 2 },
+  buyerMeta: { color: '#6B7280', fontSize: 15, fontWeight: '600', marginTop: 2 },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, paddingVertical: 9 },
-  rowLabel: { color: '#64748b', fontSize: 15, fontWeight: '600' },
+  rowLabel: { color: '#6B7280', fontSize: 15, fontWeight: '600' },
   rowValue: { color: colors.navy, fontSize: 15, fontWeight: '700' },
-  divider: { height: 1, backgroundColor: '#e2e8f0', marginVertical: 10 },
+  divider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 10 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, alignItems: 'center' },
   totalLabel: { color: colors.navy, fontSize: 18, fontWeight: '800' },
   totalValue: { color: colors.orange, fontSize: 20, fontWeight: '800' },
   notice: {
     backgroundColor: '#fff7ed',
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#fed7aa',
+    borderColor: '#FED7AA',
     marginBottom: 16,
     flexDirection: 'row',
     gap: 12,
@@ -222,14 +224,14 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   noticeIconText: { color: colors.orange, fontSize: 18, fontWeight: '900' },
   noticeCopy: { flex: 1 },
   noticeTitle: { color: colors.navy, fontSize: 16, fontWeight: '800', marginBottom: 5 },
-  noticeText: { color: '#64748b', fontSize: 14, lineHeight: 21, fontWeight: '600' },
+  noticeText: { color: '#6B7280', fontSize: 14, lineHeight: 21, fontWeight: '600' },
   payButton: {
     height: 58,
     borderRadius: 15,
@@ -237,5 +239,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  payText: { color: '#ffffff', fontSize: 14, letterSpacing: 2, fontWeight: '800' },
+  payText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 2, fontWeight: '800' },
 });

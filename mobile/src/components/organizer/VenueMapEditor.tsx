@@ -1,6 +1,7 @@
 import { GestureResponderEvent, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useMemo, useState } from 'react';
 import { colors } from '../../theme/colors';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 type ItemType = 'table' | 'seat' | 'area' | 'bar' | 'stage';
 type TableShape = 'rectangle' | 'round' | 'soft';
@@ -38,6 +39,7 @@ const initialItems: VenueItem[] = [
 ];
 
 export function VenueMapEditor() {
+  const { t } = useLanguage();
   const [items, setItems] = useState<VenueItem[]>(initialItems);
   const [selectedId, setSelectedId] = useState(initialItems[2].id);
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
@@ -50,6 +52,8 @@ export function VenueMapEditor() {
 
   const selected = useMemo(() => items.find((item) => item.id === selectedId) || null, [items, selectedId]);
   const capacity = items.reduce((sum, item) => sum + getCapacity(item), 0);
+  const soldSeats = Math.min(8, capacity);
+  const availableSeats = Math.max(capacity - soldSeats, 0);
 
   const canvasTransformStyle = {
     transform: [
@@ -145,10 +149,23 @@ export function VenueMapEditor() {
           </View>
           <View>
             <Text style={styles.brandEyebrow}>CHART</Text>
-            <Text style={styles.brandTitle}>Disenador de Asientos</Text>
+            <Text style={styles.brandTitle}>{t('Diseñador de Asientos', 'Seat Designer')}</Text>
           </View>
           <View style={styles.capacityPill}>
-            <Text style={styles.capacityText}>Capacidad: {capacity}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mapStatsScroller} contentContainerStyle={styles.mapStatsRow}>
+              <View style={styles.mapStatPill}>
+                <Text style={styles.mapStatLabel}>{t('Capacidad', 'Capacity')}</Text>
+                <Text style={styles.mapStatValue}>{capacity}</Text>
+              </View>
+              <View style={styles.mapStatPill}>
+                <Text style={styles.mapStatLabel}>{t('Vendidas', 'Sold')}</Text>
+                <Text style={styles.mapStatValue}>{soldSeats}</Text>
+              </View>
+              <View style={[styles.mapStatPill, styles.mapStatAvailable]}>
+                <Text style={styles.mapStatLabel}>{t('Disponibles', 'Available')}</Text>
+                <Text style={styles.mapStatValue}>{availableSeats}</Text>
+              </View>
+            </ScrollView>
           </View>
         </View>
 
@@ -160,11 +177,11 @@ export function VenueMapEditor() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.workbench}>
           <View style={styles.leftRail}>
-          <Tool icon="▦" label="Mesa" onPress={() => addItem('table')} />
-          <Tool icon="□" label="Area" onPress={() => addItem('area')} />
-          <Tool icon="▬" label="Barra" onPress={() => addItem('bar')} />
-          <Tool icon="▰" label="Stage" onPress={() => addItem('stage')} />
-          <Tool icon="●" label="Asiento" onPress={() => addItem('seat')} />
+          <Tool icon="▦" label={t('Mesa', 'Table')} onPress={() => addItem('table')} />
+          <Tool icon="□" label={t('Área', 'Area')} onPress={() => addItem('area')} />
+          <Tool icon="▬" label={t('Barra', 'Bar')} onPress={() => addItem('bar')} />
+          <Tool icon="▰" label={t('Escenario', 'Stage')} onPress={() => addItem('stage')} />
+          <Tool icon="●" label={t('Asiento', 'Seat')} onPress={() => addItem('seat')} />
 
           <View style={styles.railZoom}>
             <TouchableOpacity onPress={() => setZoom((current) => Math.max(0.4, Number((current - 0.15).toFixed(2))))} style={styles.railZoomButton}>
@@ -224,7 +241,7 @@ export function VenueMapEditor() {
                         width: item.width,
                         height: item.height,
                         borderColor: isSelected ? '#2563eb' : '#dbe3ef',
-                        backgroundColor: item.type === 'table' || item.type === 'seat' ? '#ffffff' : item.color,
+                        backgroundColor: item.type === 'table' || item.type === 'seat' ? '#FFFFFF' : item.color,
                       },
                       item.locked && styles.lockedItem,
                     ]}
@@ -233,7 +250,7 @@ export function VenueMapEditor() {
                       <SeatDots item={item} selectedSeat={selectedSeat} onSeatPress={toggleSeat} />
                     )}
 
-                    <Text style={[styles.itemLabel, { fontSize: item.fontSize, color: item.type === 'table' || item.type === 'seat' ? colors.navy : '#ffffff' }]}>
+                    <Text style={[styles.itemLabel, { fontSize: item.fontSize, color: item.type === 'table' || item.type === 'seat' ? colors.navy : '#FFFFFF' }]}>
                       {item.name}
                     </Text>
                   </View>
@@ -244,25 +261,25 @@ export function VenueMapEditor() {
 
           <View style={styles.inspector}>
             <View style={styles.inspectorHeader}>
-              <Text style={styles.inspectorTitle}>INSPECTOR DE OBJETO</Text>
-              <TouchableOpacity onPress={duplicateSelected}><Text style={styles.iconButton}>COPY</Text></TouchableOpacity>
-              <TouchableOpacity onPress={deleteSelected}><Text style={styles.deleteText}>DEL</Text></TouchableOpacity>
+              <Text style={styles.inspectorTitle}>{t('INSPECTOR DE OBJETO', 'OBJECT INSPECTOR')}</Text>
+              <TouchableOpacity onPress={duplicateSelected}><Text style={styles.iconButton}>{t('COPIAR', 'COPY')}</Text></TouchableOpacity>
+              <TouchableOpacity onPress={deleteSelected}><Text style={styles.deleteText}>{t('BORRAR', 'DEL')}</Text></TouchableOpacity>
             </View>
 
             {selected && (
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.inspectorContent}>
-                <Text style={styles.sectionLabel}>TAMANO DEL TEXTO</Text>
+                <Text style={styles.sectionLabel}>{t('TAMAÑO DEL TEXTO', 'TEXT SIZE')}</Text>
                 <View style={styles.sliderCard}>
-                  <Text style={styles.sliderCopy}>Nombre visible en el mapa</Text>
+                  <Text style={styles.sliderCopy}>{t('Nombre visible en el mapa', 'Name visible on the map')}</Text>
                   <NumericMini value={selected.fontSize} min={8} max={28} step={1} onChange={(value) => updateSelected({ fontSize: value })} />
                 </View>
 
-                <Text style={styles.inputLabel}>Nombre</Text>
+                <Text style={styles.inputLabel}>{t('Nombre', 'Name')}</Text>
                 <TextInput value={selected.name} onChangeText={(name) => updateSelected({ name })} style={styles.input} />
 
                 <View style={styles.row2}>
-                  <Field label="Precio/Silla" value={selected.price} step={5} min={0} onChange={(value) => updateSelected({ price: value })} />
-                  <Field label="Total Mesa" value={selected.price * Math.max(1, getCapacity(selected))} step={5} min={0} onChange={() => undefined} readonly />
+                  <Field label={t('Precio/Silla', 'Price/Seat')} value={selected.price} step={5} min={0} onChange={(value) => updateSelected({ price: value })} />
+                  <Field label={t('Total Mesa', 'Table Total')} value={selected.price * Math.max(1, getCapacity(selected))} step={5} min={0} onChange={() => undefined} readonly />
                 </View>
 
                 <TouchableOpacity onPress={() => updateSelected({ locked: !selected.locked })} style={styles.blockButton}>
@@ -271,34 +288,34 @@ export function VenueMapEditor() {
 
                 {(selected.type === 'table' || selected.type === 'seat') && (
                   <>
-                    <Text style={styles.sectionLabel}>DISENO (LAYOUT)</Text>
+                    <Text style={styles.sectionLabel}>{t('DISEÑO (LAYOUT)', 'DESIGN (LAYOUT)')}</Text>
                     <View style={styles.row2}>
-                      <Field label="Numero de Filas" value={selected.rows} step={1} min={1} max={8} onChange={(rows) => updateSelected({ rows })} />
-                      <Field label="Asientos por Mesa" value={selected.seatsPerRow} step={1} min={1} max={16} onChange={(seatsPerRow) => updateSelected({ seatsPerRow })} />
+                      <Field label={t('Número de Filas', 'Number of Rows')} value={selected.rows} step={1} min={1} max={8} onChange={(rows) => updateSelected({ rows })} />
+                      <Field label={t('Asientos por Mesa', 'Seats per Table')} value={selected.seatsPerRow} step={1} min={1} max={16} onChange={(seatsPerRow) => updateSelected({ seatsPerRow })} />
                     </View>
 
-                    <Text style={styles.inputLabel}>Forma de la Mesa</Text>
+                    <Text style={styles.inputLabel}>{t('Forma de la Mesa', 'Table Shape')}</Text>
                     <View style={styles.segmentRow}>
-                      <Segment label="Rectangular" active={selected.shape === 'rectangle'} onPress={() => updateSelected({ shape: 'rectangle' })} />
-                      <Segment label="Redonda" active={selected.shape === 'round'} onPress={() => updateSelected({ shape: 'round' })} />
-                      <Segment label="Suave" active={selected.shape === 'soft'} onPress={() => updateSelected({ shape: 'soft' })} />
+                      <Segment label={t('Rectangular', 'Rectangle')} active={selected.shape === 'rectangle'} onPress={() => updateSelected({ shape: 'rectangle' })} />
+                      <Segment label={t('Redonda', 'Round')} active={selected.shape === 'round'} onPress={() => updateSelected({ shape: 'round' })} />
+                      <Segment label={t('Suave', 'Soft')} active={selected.shape === 'soft'} onPress={() => updateSelected({ shape: 'soft' })} />
                     </View>
 
-                    <Text style={styles.inputLabel}>Modo de Venta</Text>
+                    <Text style={styles.inputLabel}>{t('Modo de Venta', 'Sale Mode')}</Text>
                     <View style={styles.segmentRow}>
-                      <Segment label="Mesa Completa" active={selected.saleMode === 'whole'} onPress={() => updateSelected({ saleMode: 'whole' })} />
-                      <Segment label="Por Silla" active={selected.saleMode === 'seat'} onPress={() => updateSelected({ saleMode: 'seat' })} />
+                      <Segment label={t('Mesa Completa', 'Whole Table')} active={selected.saleMode === 'whole'} onPress={() => updateSelected({ saleMode: 'whole' })} />
+                      <Segment label={t('Por Silla', 'Per Seat')} active={selected.saleMode === 'seat'} onPress={() => updateSelected({ saleMode: 'seat' })} />
                     </View>
                   </>
                 )}
 
-                <Text style={styles.sectionLabel}>TAMANO</Text>
+                <Text style={styles.sectionLabel}>{t('TAMAÑO', 'SIZE')}</Text>
                 <View style={styles.row2}>
                   <Field label="W (px)" value={selected.width} step={10} min={34} max={420} onChange={(width) => resizeSelected(width, selected.height)} />
                   <Field label="H (px)" value={selected.height} step={10} min={34} max={260} onChange={(height) => resizeSelected(selected.width, height)} />
                 </View>
 
-                <Text style={styles.inputLabel}>Color</Text>
+                <Text style={styles.inputLabel}>{t('Color', 'Color')}</Text>
                 <View style={styles.palette}>
                   {palette.map((color) => (
                     <TouchableOpacity key={color} onPress={() => updateSelected({ color })} style={[styles.swatch, { backgroundColor: color }]} />
@@ -321,7 +338,7 @@ function getCapacity(item: VenueItem) {
 
 function shapeStyle(item: VenueItem) {
   if (item.shape === 'round') return { borderRadius: Math.min(item.width, item.height) / 2 };
-  if (item.shape === 'soft') return { borderRadius: 18 };
+  if (item.shape === 'soft') return { borderRadius: 16 };
   return { borderRadius: 4 };
 }
 
@@ -346,7 +363,7 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
           onPress={() => onSeatPress(seatId)}
           style={[
             styles.seatDot,
-            { left, top, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: blocked ? '#94a3b8' : item.color },
+            { left, top, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: blocked ? '#9CA3AF' : item.color },
             selectedSeat === seatId && styles.seatSelected,
           ]}
         />
@@ -433,68 +450,74 @@ function Segment({ label, active, onPress }: { label: string; active: boolean; o
 
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: '#ffffff', borderRadius: 14, borderWidth: 1, borderColor: '#d7dee8', overflow: 'hidden' },
-  topBar: { height: 56, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#d7dee8', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  mapStatsScroller: { flex: 1, minWidth: 0, marginRight: 2 },
+  mapStatsRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingLeft: 0, paddingRight: 10 },
+  mapStatPill: { minHeight: 24, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  mapStatAvailable: {},
+  mapStatLabel: { color: '#6B7280', fontSize: 9, fontWeight: '900' },
+  mapStatValue: { color: colors.navy, fontSize: 11, fontWeight: '900' },
+  root: { backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#d7dee8', overflow: 'hidden' },
+  topBar: { height: 56, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#d7dee8', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   brandMark: { width: 34, height: 34, borderRadius: 5, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' },
-  brandText: { color: '#ffffff', fontWeight: '900', fontSize: 11 },
-  brandEyebrow: { color: '#94a3b8', fontSize: 9, fontWeight: '900' },
+  brandText: { color: '#FFFFFF', fontWeight: '900', fontSize: 11 },
+  brandEyebrow: { color: '#9CA3AF', fontSize: 9, fontWeight: '900' },
   brandTitle: { color: '#1f2937', fontSize: 13, fontWeight: '900' },
   capacityPill: { backgroundColor: '#eaf2ff', borderRadius: 10, paddingHorizontal: 9, height: 22, justifyContent: 'center' },
   capacityText: { color: '#2563eb', fontSize: 10, fontWeight: '900' },
   saveButton: { height: 34, borderRadius: 6, paddingHorizontal: 14, backgroundColor: '#2563eb', justifyContent: 'center' },
-  saveText: { color: '#ffffff', fontSize: 11, fontWeight: '900' },
+  saveText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
   workbench: { width: 1030, height: 560, flexDirection: 'row', backgroundColor: '#f5f7fb' },
-  leftRail: { width: 54, backgroundColor: '#ffffff', borderRightWidth: 1, borderRightColor: '#d7dee8', alignItems: 'center', paddingTop: 16, gap: 14 },
+  leftRail: { width: 54, backgroundColor: '#FFFFFF', borderRightWidth: 1, borderRightColor: '#d7dee8', alignItems: 'center', paddingTop: 16, gap: 14 },
   tool: { alignItems: 'center', gap: 5 },
   toolIcon: { width: 22, height: 16, borderRadius: 4, backgroundColor: '#e9eef5', borderWidth: 1, borderColor: '#cbd5e1' },
   iconTable: { width: 28, height: 24, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  iconSeatTop: { width: 22, height: 5, borderRadius: 4, backgroundColor: '#94a3b8' },
-  iconTableBody: { width: 18, height: 10, borderRadius: 3, borderWidth: 2, borderColor: colors.navy, backgroundColor: '#ffffff' },
-  iconSeatBottom: { width: 22, height: 5, borderRadius: 4, backgroundColor: '#94a3b8' },
-  iconArea: { width: 25, height: 20, borderRadius: 5, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.navy, backgroundColor: '#ffffff' },
+  iconSeatTop: { width: 22, height: 5, borderRadius: 4, backgroundColor: '#9CA3AF' },
+  iconTableBody: { width: 18, height: 10, borderRadius: 3, borderWidth: 2, borderColor: colors.navy, backgroundColor: '#FFFFFF' },
+  iconSeatBottom: { width: 22, height: 5, borderRadius: 4, backgroundColor: '#9CA3AF' },
+  iconArea: { width: 25, height: 20, borderRadius: 5, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.navy, backgroundColor: '#FFFFFF' },
   iconBar: { width: 29, height: 13, borderRadius: 3, backgroundColor: colors.navy },
   iconStage: { width: 29, height: 20, borderRadius: 4, backgroundColor: '#334155' },
-  iconSeat: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: colors.navy, backgroundColor: '#ffffff' },
+  iconSeat: { width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: colors.navy, backgroundColor: '#FFFFFF' },
   railZoom: { marginTop: 8, alignItems: 'center', gap: 5 },
   railZoomButton: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
-  railZoomText: { color: '#ffffff', fontSize: 18, fontWeight: '900' },
-  railZoomValue: { color: '#64748b', fontSize: 9, fontWeight: '900' },
-  toolText: { color: '#64748b', fontSize: 9, fontWeight: '800' },
+  railZoomText: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
+  railZoomValue: { color: '#6B7280', fontSize: 9, fontWeight: '900' },
+  toolText: { color: '#6B7280', fontSize: 9, fontWeight: '800' },
   canvasViewport: { width: 704, height: 560, overflow: 'hidden', position: 'relative', backgroundColor: '#f4f6fa' },
-  zoomControls: { position: 'absolute', right: 14, top: 14, height: 34, borderRadius: 17, backgroundColor: '#111827', flexDirection: 'row', alignItems: 'center', overflow: 'hidden', zIndex: 20 },
+  zoomControls: { position: 'absolute', right: 14, top: 14, height: 34, borderRadius: 17, backgroundColor: '#0A375A', flexDirection: 'row', alignItems: 'center', overflow: 'hidden', zIndex: 20 },
   zoomButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1f2937' },
-  zoomButtonText: { color: '#ffffff', fontSize: 18, fontWeight: '900' },
+  zoomButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
   zoomValue: { width: 52, alignItems: 'center', justifyContent: 'center' },
-  zoomText: { color: '#ffffff', fontSize: 11, fontWeight: '900' },
+  zoomText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
   canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, position: 'relative', backgroundColor: '#f4f6fa' },
   canvasTips: { position: 'absolute', left: 16, bottom: 14, gap: 6 },
   tipText: { color: '#cbd5e1', backgroundColor: '#334155', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 4, fontSize: 10, fontWeight: '700' },
   tipTextOrange: { color: '#fbbf24', backgroundColor: '#8b6b4a', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 4, fontSize: 10, fontWeight: '800' },
-  mapItem: { position: 'absolute', borderWidth: 2, alignItems: 'center', justifyContent: 'center', shadowColor: '#0f172a', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, overflow: 'visible' },
+  mapItem: { position: 'absolute', borderWidth: 2, alignItems: 'center', justifyContent: 'center', shadowColor: '#111827', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, overflow: 'visible' },
   itemLabel: { fontWeight: '900', zIndex: 5 },
   lockedItem: { opacity: 0.62 },
   seatsLayer: { ...StyleSheet.absoluteFill, overflow: 'visible', zIndex: 4 },
-  seatDot: { position: 'absolute', borderWidth: 2, borderColor: '#ffffff' },
-  seatSelected: { borderColor: '#111827', borderWidth: 3 },
-  corner: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#2563eb', zIndex: 8 },
+  seatDot: { position: 'absolute', borderWidth: 2, borderColor: '#FFFFFF' },
+  seatSelected: { borderColor: '#0A375A', borderWidth: 3 },
+  corner: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#2563eb', zIndex: 8 },
   cornerTL: { left: -7, top: -7 },
   cornerTR: { right: -7, top: -7 },
   cornerBL: { left: -7, bottom: -7 },
   cornerBR: { right: -7, bottom: -7 },
-  inspector: { width: 272, backgroundColor: '#ffffff', borderLeftWidth: 1, borderLeftColor: '#d7dee8' },
+  inspector: { width: 272, backgroundColor: '#FFFFFF', borderLeftWidth: 1, borderLeftColor: '#d7dee8' },
   inspectorHeader: { height: 58, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 10 },
   inspectorTitle: { flex: 1, color: '#1f2937', fontSize: 12, fontWeight: '900' },
   iconButton: { color: colors.navy, fontSize: 10, fontWeight: '900' },
   deleteText: { color: '#ef4444', fontSize: 10, fontWeight: '900' },
   inspectorContent: { padding: 14, paddingBottom: 28 },
   sectionLabel: { color: '#4b5563', fontSize: 11, fontWeight: '900', letterSpacing: 1.4, marginTop: 10, marginBottom: 10 },
-  sliderCard: { backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', padding: 12, shadowColor: '#0f172a', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
-  sliderCopy: { color: '#64748b', fontSize: 10, fontWeight: '700', marginBottom: 8 },
+  sliderCard: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#e5e7eb', padding: 12, shadowColor: '#111827', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
+  sliderCopy: { color: '#6B7280', fontSize: 10, fontWeight: '700', marginBottom: 8 },
   miniRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   miniButton: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#ff6b16', alignItems: 'center', justifyContent: 'center' },
-  miniText: { color: '#ffffff', fontWeight: '900' },
-  fakeSlider: { flex: 1, height: 5, borderRadius: 3, backgroundColor: '#111827', overflow: 'hidden' },
+  miniText: { color: '#FFFFFF', fontWeight: '900' },
+  fakeSlider: { flex: 1, height: 5, borderRadius: 3, backgroundColor: '#0A375A', overflow: 'hidden' },
   fakeFill: { height: 5, backgroundColor: '#ff6b16' },
   miniValue: { width: 54, height: 30, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center' },
   miniValueText: { color: '#ff6b16', fontSize: 11, fontWeight: '900' },
@@ -502,17 +525,17 @@ const styles = StyleSheet.create({
   input: { height: 36, borderRadius: 5, borderWidth: 1, borderColor: '#dbe3ef', paddingHorizontal: 10, color: '#1f2937', fontSize: 12, fontWeight: '700' },
   row2: { flexDirection: 'row', gap: 10 },
   field: { flex: 1 },
-  numberBox: { height: 36, borderRadius: 5, borderWidth: 1, borderColor: '#dbe3ef', flexDirection: 'row', alignItems: 'center', overflow: 'hidden', backgroundColor: '#ffffff' },
+  numberBox: { height: 36, borderRadius: 5, borderWidth: 1, borderColor: '#dbe3ef', flexDirection: 'row', alignItems: 'center', overflow: 'hidden', backgroundColor: '#FFFFFF' },
   smallStepper: { width: 26, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9' },
   smallStepperText: { color: colors.navy, fontWeight: '900' },
   numberInput: { flex: 1, textAlign: 'center', color: '#1f2937', fontSize: 12, fontWeight: '800' },
-  blockButton: { height: 38, borderRadius: 5, borderWidth: 1, borderColor: '#fed7aa', backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  blockButton: { height: 38, borderRadius: 5, borderWidth: 1, borderColor: '#FED7AA', backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center', marginTop: 12 },
   blockText: { color: '#f97316', fontSize: 11, fontWeight: '900' },
   segmentRow: { gap: 8 },
   segment: { minHeight: 34, borderRadius: 5, borderWidth: 1, borderColor: '#dbe3ef', justifyContent: 'center', paddingHorizontal: 10, marginBottom: 6 },
   segmentActive: { backgroundColor: colors.navy, borderColor: colors.navy },
   segmentText: { color: '#4b5563', fontSize: 12, fontWeight: '700' },
-  segmentTextActive: { color: '#ffffff' },
+  segmentTextActive: { color: '#FFFFFF' },
   palette: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
-  swatch: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: '#ffffff' },
+  swatch: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: '#FFFFFF' },
 });

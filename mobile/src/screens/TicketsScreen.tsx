@@ -1,21 +1,23 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
+import { useLanguage } from '../i18n/LanguageContext';
 import { mockEvents } from '../data/mockEvents';
 import { mockUser } from '../data/mockUser';
 
 export function TicketsScreen() {
+  const { t } = useLanguage();
   const event = mockEvents[0];
 
   return (
     <ScrollView style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-      <Text style={styles.eyebrow}>MY TICKETS</Text>
-      <Text style={styles.title}>Ready for entry</Text>
-      <Text style={styles.subtitle}>Your active tickets and QR passes will appear here after purchase.</Text>
+      <Text style={styles.eyebrow}>{t('MIS TICKETS', 'MY TICKETS')}</Text>
+      <Text style={styles.title}>{t('Listo para entrar', 'Ready for entry')}</Text>
+      <Text style={styles.subtitle}>{t('Tus tickets activos y pases QR aparecerán aquí después de la compra.', 'Your active tickets and QR passes will appear here after purchase.')}</Text>
 
       <View style={styles.ticketCard}>
         <View style={styles.ticketTop}>
           <View>
-            <Text style={styles.ticketStatus}>ACTIVE TICKET</Text>
+            <Text style={styles.ticketStatus}>{t('TICKET ACTIVO', 'ACTIVE TICKET')}</Text>
             <Text style={styles.eventTitle}>{event.title}</Text>
           </View>
           <View style={styles.badge}>
@@ -33,25 +35,25 @@ export function TicketsScreen() {
 
         <View style={styles.infoBlock}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Name</Text>
+            <Text style={styles.infoLabel}>{t('Nombre', 'Name')}</Text>
             <Text style={styles.infoValue}>{mockUser.firstName} {mockUser.lastName}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Date</Text>
+            <Text style={styles.infoLabel}>{t('Fecha', 'Date')}</Text>
             <Text style={styles.infoValue}>{event.date}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Venue</Text>
+            <Text style={styles.infoLabel}>{t('Lugar', 'Venue')}</Text>
             <Text style={styles.infoValue}>{event.venue}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Ticket</Text>
-            <Text style={styles.infoValue}>General admission</Text>
+            <Text style={styles.infoLabel}>{t('Ticket', 'Ticket')}</Text>
+            <Text style={styles.infoValue}>{t('Entrada general', 'General admission')}</Text>
           </View>
         </View>
 
         <TouchableOpacity style={styles.walletButton}>
-          <Text style={styles.walletText}>ADD TO WALLET</Text>
+          <Text style={styles.walletText}>{t('AGREGAR A WALLET', 'ADD TO WALLET')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -59,7 +61,7 @@ export function TicketsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f5f7fa' },
+  root: { flex: 1, backgroundColor: '#030B14' },
   content: { padding: 18, paddingBottom: 120 },
   eyebrow: {
     color: colors.orange,
@@ -70,25 +72,25 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   title: {
-    color: colors.navy,
+    color: '#FFFFFF',
     fontSize: 34,
     fontWeight: '800',
     marginBottom: 8,
   },
   subtitle: {
-    color: '#64748b',
+    color: 'rgba(226,232,240,0.64)',
     fontSize: 16,
     lineHeight: 23,
     fontWeight: '600',
     marginBottom: 22,
   },
   ticketCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.018)',
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: 'rgba(255,255,255,0.14)',
     padding: 20,
-    shadowColor: '#0f172a',
+    shadowColor: '#111827',
     shadowOpacity: 0.08,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 14 },
@@ -107,7 +109,7 @@ const styles = StyleSheet.create({
     marginBottom: 7,
   },
   eventTitle: {
-    color: colors.navy,
+    color: '#F8FAFC',
     fontSize: 22,
     fontWeight: '800',
     lineHeight: 28,
@@ -115,22 +117,22 @@ const styles = StyleSheet.create({
   badge: {
     width: 56,
     height: 56,
-    borderRadius: 18,
+    borderRadius: 16,
     backgroundColor: colors.navy,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 17,
     letterSpacing: 1,
     fontWeight: '900',
   },
   qrBox: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'rgba(255,255,255,0.012)',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: 'rgba(255,255,255,0.14)',
     padding: 20,
     alignItems: 'center',
     marginBottom: 18,
@@ -144,16 +146,16 @@ const styles = StyleSheet.create({
   qrCell: {
     width: 190 / 7,
     height: 190 / 7,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgba(255,255,255,0.90)',
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   qrCellDark: {
     backgroundColor: colors.navy,
   },
   infoBlock: {
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: 'rgba(255,255,255,0.14)',
     paddingTop: 14,
     gap: 12,
   },
@@ -163,12 +165,12 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   infoLabel: {
-    color: '#64748b',
+    color: 'rgba(226,232,240,0.64)',
     fontSize: 14,
     fontWeight: '700',
   },
   infoValue: {
-    color: colors.navy,
+    color: '#F8FAFC',
     fontSize: 14,
     fontWeight: '800',
     textAlign: 'right',
@@ -183,7 +185,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   walletText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 14,
     letterSpacing: 2,
     fontWeight: '900',

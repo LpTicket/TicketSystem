@@ -1,19 +1,21 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
+import { useLanguage } from '../i18n/LanguageContext';
 
 type Props = {
   onBack: () => void;
 };
 
 export function ScanScreen({ onBack }: Props) {
+  const { t } = useLanguage();
   return (
     <View style={styles.screen}>
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
         <Text style={styles.backText}>‹ Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.eyebrow}>LPTICKET SCAN</Text>
-      <Text style={styles.title}>Verify tickets at the door</Text>
+      <Text style={styles.eyebrow}>{t('LPTICKET SCAN', 'LPTICKET SCAN')}</Text>
+      <Text style={styles.title}>{t('Verifica tickets en puerta', 'Verify tickets at the door')}</Text>
       <Text style={styles.subtitle}>
         Camera scanning will validate QR codes and show ticket status in real time.
       </Text>
@@ -30,13 +32,13 @@ export function ScanScreen({ onBack }: Props) {
       </View>
 
       <View style={styles.resultCard}>
-        <Text style={styles.resultLabel}>READY</Text>
-        <Text style={styles.resultTitle}>Point camera at ticket QR</Text>
-        <Text style={styles.resultText}>Valid, used, refunded or invalid tickets will appear here.</Text>
+        <Text style={styles.resultLabel}>{t('LISTO', 'READY')}</Text>
+        <Text style={styles.resultTitle}>{t('Apunta la cámara al QR del ticket', 'Point camera at ticket QR')}</Text>
+        <Text style={styles.resultText}>{t('Tickets válidos, usados, reembolsados o inválidos aparecerán aquí.', 'Valid, used, refunded or invalid tickets will appear here.')}</Text>
       </View>
 
       <TouchableOpacity style={styles.manualButton}>
-        <Text style={styles.manualText}>ENTER CODE MANUALLY</Text>
+        <Text style={styles.manualText}>{t('INGRESAR CÓDIGO MANUALMENTE', 'ENTER CODE MANUALLY')}</Text>
       </TouchableOpacity>
     </View>
   );

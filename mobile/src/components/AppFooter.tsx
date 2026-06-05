@@ -1,114 +1,155 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme/colors';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const logo = require('../../assets/lpticket-logo.png');
 
 export function AppFooter() {
+  const { t } = useLanguage();
+
   return (
     <View style={styles.footer}>
-      <Image source={logo} style={styles.footerLogo} resizeMode="contain" />
-
-      <View style={styles.socialRow}>
-        <View style={styles.socialCircle}><Text style={styles.socialText}>☎</Text></View>
-        <View style={styles.socialCircle}><Text style={styles.socialText}>◎</Text></View>
+      <View style={styles.footerTop}>
+        <Image source={logo} style={styles.footerLogo} resizeMode="contain" />
+        <View style={styles.socialRow}>
+          <View style={styles.socialCircle}><Text style={styles.socialText}>◉</Text></View>
+          <View style={styles.socialCircle}><Text style={styles.socialText}>◎</Text></View>
+        </View>
       </View>
 
       <View style={styles.footerLine} />
 
-      <Text style={styles.footerHead}>LPTICKET</Text>
-      <Text style={styles.footerLink}>About Us</Text>
+      <View style={styles.columns}>
+        <View style={styles.column}>
+          <Text style={styles.footerHead}>LPTICKET</Text>
+          <Text style={styles.footerLink}>{t('Sobre nosotros', 'About Us')}</Text>
+        </View>
 
-      <Text style={styles.footerHead}>YOUR EVENT</Text>
-      <Text style={styles.footerLink}>Events</Text>
-      <Text style={styles.footerLink}>Refunds</Text>
-      <Text style={styles.footerLink}>My Tickets</Text>
+        <View style={styles.column}>
+          <Text style={styles.footerHead}>{t('TU EVENTO', 'YOUR EVENT')}</Text>
+          <Text style={styles.footerLink}>{t('Eventos', 'Events')}</Text>
+          <Text style={styles.footerLink}>{t('Reembolsos', 'Refunds')}</Text>
+          <Text style={styles.footerLink}>{t('Mis Tickets', 'My Tickets')}</Text>
+        </View>
 
-      <Text style={styles.footerHead}>LEGAL</Text>
-      <Text style={styles.footerLink}>Legal Terms</Text>
-      <Text style={styles.footerLink}>Privacy</Text>
-      <Text style={styles.footerLink}>Support</Text>
-      <Text style={styles.footerLink}>Organizer Agreement</Text>
+        <View style={styles.column}>
+          <Text style={styles.footerHead}>LEGAL</Text>
+          <Text style={styles.footerLink}>{t('Términos legales', 'Legal Terms')}</Text>
+          <Text style={styles.footerLink}>{t('Privacidad', 'Privacy')}</Text>
+          <Text style={styles.footerLink}>{t('Soporte', 'Support')}</Text>
+          <Text style={styles.footerLink}>{t('Acuerdo de Organizador', 'Organizer Agreement')}</Text>
+        </View>
 
-      <Text style={styles.footerHead}>CONTACT</Text>
-      <Text style={styles.footerSmall}>ADDRESS</Text>
-      <Text style={styles.footerLink}>1325 Main St Suite 203, Katy, TX 77494</Text>
-      <Text style={styles.footerSmall}>PHONE</Text>
-      <Text style={styles.footerLink}>832.379.0809</Text>
-      <Text style={styles.footerSmall}>EMAIL</Text>
-      <Text style={styles.footerLink}>info@lpticket.com</Text>
+        <View style={styles.column}>
+          <Text style={styles.footerHead}>{t('CONTACTO', 'CONTACT')}</Text>
+          <Text style={styles.footerSmall}>{t('DIRECCIÓN', 'ADDRESS')}</Text>
+          <Text style={styles.footerLink}>1325 Main St Suite 203, Katy, TX 77494</Text>
+          <Text style={styles.footerSmall}>{t('TELÉFONO', 'PHONE')}</Text>
+          <Text style={styles.footerLink}>832.379.0809</Text>
+          <Text style={styles.footerSmall}>EMAIL</Text>
+          <Text style={styles.footerLink}>info@lpticket.com</Text>
+        </View>
+      </View>
 
       <View style={styles.footerLine} />
+
       <Text style={styles.disclaimer}>
-        Important: LP Ticket is not responsible for the quality, organization, changes, cancellation, or satisfaction of published events. LP Ticket is a platform that provides online ticket sales and event access management services.
+        {t(
+          'Importante: LP Ticket no se hace responsable por la calidad, organización, cambios, cancelaciones o satisfacción de los eventos publicados. LP Ticket es una plataforma que brinda servicios de venta de entradas en línea y gestión de acceso a eventos.',
+          'Important: LP Ticket is not responsible for the quality, organization, changes, cancellation, or satisfaction of the published events. LP Ticket is a platform that provides online ticket sales and event access management services.'
+        )}
       </Text>
-      <Text style={styles.copy}>COPYRIGHT © 2026 LP TICKET · ALL RIGHTS RESERVED</Text>
+
+      <Text style={styles.copy}>
+        {t('COPYRIGHT © 2026 LP TICKET · TODOS LOS DERECHOS RESERVADOS', 'COPYRIGHT © 2026 LP TICKET · ALL RIGHTS RESERVED')}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   footer: {
-    backgroundColor: colors.navy,
-    paddingHorizontal: 26,
-    paddingTop: 58,
-    paddingBottom: 110,
-    alignItems: 'flex-start',
+    backgroundColor: '#05111F',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(249,115,22,0.34)',
+    paddingHorizontal: 22,
+    paddingTop: 42,
+    paddingBottom: 112,
   },
-  footerLogo: { alignSelf: 'center', width: 170, height: 54, tintColor: colors.white },
-  socialRow: { alignSelf: 'center', flexDirection: 'row', gap: 22, marginTop: 28 },
+  footerTop: {
+    alignItems: 'center',
+    gap: 24,
+  },
+  footerLogo: {
+    width: 150,
+    height: 46,
+    tintColor: '#FFFFFF',
+  },
+  socialRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
   socialCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(249,115,22,0.30)',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(8,31,51,0.58)',
   },
-  socialText: { color: colors.white, fontSize: 22, fontWeight: '800' },
+  socialText: {
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 17,
+    fontWeight: '800',
+  },
   footerLine: {
     height: 1,
     alignSelf: 'stretch',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginVertical: 42,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginVertical: 34,
+  },
+  columns: {
+    gap: 28,
+  },
+  column: {
+    gap: 10,
   },
   footerHead: {
-    color: colors.white,
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: 2,
-    marginBottom: 24,
-    marginTop: 10,
+    color: 'rgba(255,255,255,0.90)',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    marginBottom: 6,
   },
   footerLink: {
-    color: 'rgba(255,255,255,0.62)',
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 20,
+    color: 'rgba(255,255,255,0.58)',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 20,
   },
   footerSmall: {
     color: 'rgba(255,255,255,0.28)',
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 2,
-    marginBottom: 10,
-    marginTop: 10,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.6,
+    marginTop: 8,
   },
   disclaimer: {
-    color: 'rgba(255,255,255,0.30)',
-    fontSize: 15,
-    lineHeight: 24,
+    color: 'rgba(255,255,255,0.28)',
+    fontSize: 11,
+    lineHeight: 18,
     textAlign: 'center',
     fontStyle: 'italic',
+    fontWeight: '600',
   },
   copy: {
-    color: 'rgba(255,255,255,0.22)',
-    fontSize: 12,
-    lineHeight: 20,
-    letterSpacing: 4,
-    fontWeight: '800',
+    color: 'rgba(255,255,255,0.18)',
+    fontSize: 10,
+    lineHeight: 18,
+    letterSpacing: 3,
+    fontWeight: '900',
     textAlign: 'center',
-    marginTop: 42,
-    alignSelf: 'center',
+    marginTop: 34,
   },
 });

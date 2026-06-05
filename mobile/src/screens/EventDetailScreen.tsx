@@ -1,5 +1,6 @@
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
+import { useLanguage } from '../i18n/LanguageContext';
 import { MobileEvent } from '../types/event';
 
 const banner = require('../../assets/home-banner.webp');
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export function EventDetailScreen({ event, onBack, onBuy }: Props) {
+  const { t } = useLanguage();
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -33,12 +35,12 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.shareButton}><Text style={styles.shareText}>⌯</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.buyButton} onPress={onBuy}><Text style={styles.buyText}>BUY TICKETS</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.buyButton} onPress={onBuy}><Text style={styles.buyText}>{t('COMPRAR TICKETS', 'BUY TICKETS')}</Text></TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.infoBlock}>
-        <Text style={styles.infoTitle}>About this event</Text>
+        <Text style={styles.infoTitle}>{t('Sobre este evento', 'About this event')}</Text>
         <Text style={styles.infoText}>
           Enjoy a premium LPTicket event experience with secure checkout, instant digital tickets and QR access.
         </Text>
@@ -61,7 +63,7 @@ const styles = StyleSheet.create({
   title: { color: colors.navy, fontSize: 25, fontWeight: '800', lineHeight: 30 },
   meta: { color: colors.navy, fontSize: 16, fontWeight: '700', marginTop: 16 },
   address: { color: '#9CA3AF', fontSize: 15, fontWeight: '700', marginTop: 4, paddingLeft: 22 },
-  divider: { height: 1, backgroundColor: '#E5EAF0', marginVertical: 20 },
+  divider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 20 },
   price: { color: colors.navy, fontSize: 21, fontWeight: '800' },
   actions: { flexDirection: 'row', gap: 14, marginTop: 22 },
   shareButton: { width: 56, height: 56, borderRadius: 12, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },

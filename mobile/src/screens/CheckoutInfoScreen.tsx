@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
+import { useLanguage } from '../i18n/LanguageContext';
 import { mockUser } from '../data/mockUser';
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export function CheckoutInfoScreen({ event, onBack, onContinue }: Props) {
+  const { t } = useLanguage();
   const [buyer, setBuyer] = useState({
     firstName: mockUser.firstName,
     lastName: mockUser.lastName,
@@ -29,14 +31,14 @@ export function CheckoutInfoScreen({ event, onBack, onContinue }: Props) {
         </TouchableOpacity>
 
         <View style={styles.headerTextWrap}>
-          <Text style={styles.eyebrow}>CHECKOUT</Text>
-          <Text style={styles.title}>Confirm your information</Text>
+          <Text style={styles.eyebrow}>{t('CHECKOUT', 'CHECKOUT')}</Text>
+          <Text style={styles.title}>{t('Confirma tu información', 'Confirm your information')}</Text>
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.eventCard}>
-          <Text style={styles.eventLabel}>Selected event</Text>
+          <Text style={styles.eventLabel}>{t('Evento seleccionado', 'Selected event')}</Text>
           <Text style={styles.eventTitle}>{event?.title || 'Event'}</Text>
 
           <View style={styles.eventMetaRow}>
@@ -47,32 +49,32 @@ export function CheckoutInfoScreen({ event, onBack, onContinue }: Props) {
         </View>
 
         <View style={styles.formCard}>
-          <Text style={styles.sectionLabel}>ACCOUNT DETAILS</Text>
+          <Text style={styles.sectionLabel}>{t('DATOS DE CUENTA', 'ACCOUNT DETAILS')}</Text>
 
           <View style={styles.field}>
-            <Text style={styles.inputLabel}>First name</Text>
+            <Text style={styles.inputLabel}>{t('Nombre', 'First name')}</Text>
             <TextInput
               value={buyer.firstName}
               onChangeText={(value) => updateBuyer('firstName', value)}
-              placeholder="Your first name"
+              placeholder={t('Tu nombre', 'Your first name')}
               placeholderTextColor={colors.muted}
               style={styles.input}
             />
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.inputLabel}>Last name</Text>
+            <Text style={styles.inputLabel}>{t('Apellido', 'Last name')}</Text>
             <TextInput
               value={buyer.lastName}
               onChangeText={(value) => updateBuyer('lastName', value)}
-              placeholder="Your last name"
+              placeholder={t('Tu apellido', 'Your last name')}
               placeholderTextColor={colors.muted}
               style={styles.input}
             />
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.inputLabel}>Email</Text>
+            <Text style={styles.inputLabel}>{t('Email', 'Email')}</Text>
             <TextInput
               value={buyer.email}
               onChangeText={(value) => updateBuyer('email', value)}
@@ -85,11 +87,11 @@ export function CheckoutInfoScreen({ event, onBack, onContinue }: Props) {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.inputLabel}>Phone</Text>
+            <Text style={styles.inputLabel}>{t('Teléfono', 'Phone')}</Text>
             <TextInput
               value={buyer.phone}
               onChangeText={(value) => updateBuyer('phone', value)}
-              placeholder="Phone number"
+              placeholder={t('Número de teléfono', 'Phone number')}
               placeholderTextColor={colors.muted}
               keyboardType="phone-pad"
               style={styles.input}
@@ -98,14 +100,14 @@ export function CheckoutInfoScreen({ event, onBack, onContinue }: Props) {
         </View>
 
         <View style={styles.notice}>
-          <Text style={styles.noticeTitle}>Secure checkout</Text>
+          <Text style={styles.noticeTitle}>{t('Checkout seguro', 'Secure checkout')}</Text>
           <Text style={styles.noticeText}>
             We filled this with your account information. Your tickets will be sent to this email after payment confirmation.
           </Text>
         </View>
 
         <TouchableOpacity style={styles.continueButton} onPress={onContinue}>
-          <Text style={styles.continueText}>CONTINUE TO PAYMENT</Text>
+          <Text style={styles.continueText}>{t('CONTINUAR AL PAGO', 'CONTINUE TO PAYMENT')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -115,10 +117,10 @@ export function CheckoutInfoScreen({ event, onBack, onContinue }: Props) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
+    backgroundColor: '#F8FAFC',
   },
   header: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     paddingTop: 18,
     paddingHorizontal: 20,
     paddingBottom: 16,
@@ -132,7 +134,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: '#eef4f8',
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -162,10 +164,10 @@ const styles = StyleSheet.create({
     paddingBottom: 34,
   },
   eventCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#E5E7EB',
     padding: 18,
     marginBottom: 16,
   },
@@ -190,7 +192,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   eventMeta: {
-    color: '#64748b',
+    color: '#6B7280',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -200,10 +202,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   formCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#E5E7EB',
     padding: 18,
     gap: 14,
   },
@@ -218,7 +220,7 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   inputLabel: {
-    color: '#64748b',
+    color: '#6B7280',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -226,8 +228,8 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#dbe3ec',
-    backgroundColor: '#fbfdff',
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     color: colors.navy,
     fontSize: 16,
@@ -236,10 +238,10 @@ const styles = StyleSheet.create({
   notice: {
     marginTop: 16,
     backgroundColor: '#fff7ed',
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#fed7aa',
+    borderColor: '#FED7AA',
   },
   noticeTitle: {
     color: colors.navy,
@@ -248,7 +250,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   noticeText: {
-    color: '#64748b',
+    color: '#6B7280',
     fontSize: 14,
     lineHeight: 21,
     fontWeight: '600',
@@ -262,7 +264,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   continueText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 14,
     letterSpacing: 2,
     fontWeight: '800',

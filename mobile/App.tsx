@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { AppHeader } from './src/components/AppHeader';
-import { FloatingButtons } from './src/components/FloatingButtons';
 import { MenuDrawer } from './src/components/MenuDrawer';
 import { mockEvents } from './src/data/mockEvents';
 import { mockUser } from './src/data/mockUser';
@@ -18,12 +17,14 @@ import { PurchaseScreen } from './src/screens/PurchaseScreen';
 import { CheckoutInfoScreen } from './src/screens/CheckoutInfoScreen';
 import { OrderSummaryScreen } from './src/screens/OrderSummaryScreen';
 import { PaymentSuccessScreen } from './src/screens/PaymentSuccessScreen';
+import { LanguageProvider, useLanguage } from './src/i18n/LanguageContext';
 import { colors } from './src/theme/colors';
 import { MobileEvent } from './src/types/event';
 
 type Tab = 'events' | 'tickets' | 'profile' | 'organizer' | 'admin';
 
-export default function App() {
+function AppContent() {
+  const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>('events');
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -53,17 +54,17 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <View style={styles.app}>
         {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} />}
 
         {!scanOpen && isLoggedIn && mockUser.canOrganize && !selectedEvent && (
           <View style={styles.modeSwitch}>
             <TouchableOpacity onPress={() => { setViewMode('client'); goToTab('events'); }} style={[styles.modeButton, viewMode === 'client' && styles.modeButtonActive]}>
-              <Text style={[styles.modeText, viewMode === 'client' && styles.modeTextActive]}>Client</Text>
+              <Text style={[styles.modeText, viewMode === 'client' && styles.modeTextActive]}>{t('Cliente', 'Client')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { setViewMode('organizer'); goToTab('organizer'); }} style={[styles.modeButton, viewMode === 'organizer' && styles.modeButtonActive]}>
-              <Text style={[styles.modeText, viewMode === 'organizer' && styles.modeTextActive]}>Organizer</Text>
+              <Text style={[styles.modeText, viewMode === 'organizer' && styles.modeTextActive]}>{t('Organizador', 'Organizer')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -97,37 +98,58 @@ export default function App() {
         {!selectedEvent && !scanOpen && !purchaseOpen && (
           <View style={styles.bottomNav}>
             <TouchableOpacity onPress={() => goToTab('events')} style={[styles.navItem, tab === 'events' && styles.navActive]}>
-              <Text style={[styles.navText, tab === 'events' && styles.navActiveText]}>Events</Text>
+              <Text style={[styles.navText, tab === 'events' && styles.navActiveText]}>{t('Eventos', 'Events')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => goToTab('tickets')} style={[styles.navItem, tab === 'tickets' && styles.navActive]}>
-              <Text style={[styles.navText, tab === 'tickets' && styles.navActiveText]}>Tickets</Text>
+              <Text style={[styles.navText, tab === 'tickets' && styles.navActiveText]}>{t('Tickets', 'Tickets')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => goToTab('profile')} style={[styles.navItem, tab === 'profile' && styles.navActive]}>
-              <Text style={[styles.navText, tab === 'profile' && styles.navActiveText]}>Profile</Text>
+              <Text style={[styles.navText, tab === 'profile' && styles.navActiveText]}>{t('Perfil', 'Profile')}</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        <MenuDrawer visible={menuOpen} onClose={() => setMenuOpen(false)} onGoEvents={() => goToTab('events')} onGoTickets={() => goToTab('tickets')} onGoProfile={() => goToTab('profile')} onGoOrganizer={() => { setViewMode('organizer'); goToTab('organizer'); }} onGoAdmin={() => goToTab('admin')} onGoScan={() => { clearFlow(); setScanOpen(true); }} canOrganize={isLoggedIn && mockUser.canOrganize} canAdmin={isLoggedIn && mockUser.canAdmin} />
-        {!scanOpen && <FloatingButtons />}
+        <MenuDrawer
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          onGoEvents={() => goToTab('events')}
+          onGoTickets={() => goToTab('tickets')}
+          onGoProfile={() => goToTab('profile')}
+          onGoOrganizer={() => { setViewMode('organizer'); goToTab('organizer'); }}
+          onGoAdmin={() => goToTab('admin')}
+          onGoScan={() => { clearFlow(); setScanOpen(true); }}
+          onGoAiChat={() => goToTab('profile')}
+          onGoSocialMatch={() => goToTab('profile')}
+          onGoCart={() => goToTab('tickets')}
+          canOrganize={isLoggedIn && mockUser.canOrganize}
+          canAdmin={isLoggedIn && mockUser.canAdmin}
+        />
       </View>
     </SafeAreaView>
   );
 }
 
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
+  );
+}
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.white },
-  app: { flex: 1, backgroundColor: colors.bg, position: 'relative' },
+  safe: { flex: 1, backgroundColor: '#030B14' },
+  app: { flex: 1, backgroundColor: '#030B14', position: 'relative' },
   modeSwitch: {
     marginHorizontal: 16,
     marginTop: 10,
     marginBottom: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'transparent',
     borderRadius: 18,
     padding: 5,
     flexDirection: 'row',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   modeButton: {
     flex: 1,
@@ -137,35 +159,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modeButtonActive: {
-    backgroundColor: colors.navy,
+    backgroundColor: colors.orange,
   },
   modeText: {
-    color: '#64748b',
+    color: '#6B7280',
     fontSize: 13,
     fontWeight: '900',
   },
   modeTextActive: {
-    color: '#ffffff',
+    color: '#FFFFFF',
   },
   bottomNav: {
     position: 'absolute',
     left: 16,
     right: 16,
     bottom: 18,
-    backgroundColor: colors.white,
+    backgroundColor: 'transparent',
     borderRadius: 22,
     padding: 7,
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.12,
+    borderColor: 'rgba(255,255,255,0.14)',
+    shadowColor: '#111827',
+    shadowOpacity: 0.10,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
   },
   navItem: { flex: 1, paddingVertical: 11, borderRadius: 16, alignItems: 'center' },
-  navActive: { backgroundColor: colors.navy },
-  navText: { color: '#94A3B8', fontWeight: '800', fontSize: 13 },
+  navActive: { backgroundColor: colors.orange },
+  navText: { color: '#9CA3AF', fontWeight: '800', fontSize: 13 },
   navActiveText: { color: colors.white },
 });

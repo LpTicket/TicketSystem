@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
+import { useLanguage } from '../i18n/LanguageContext';
 import { mockUser } from '../data/mockUser';
 
 type Props = {
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export function PaymentSuccessScreen({ event, onViewTickets, onHome }: Props) {
+  const { t } = useLanguage();
   return (
     <View style={styles.root}>
       <View style={styles.card}>
@@ -16,8 +18,8 @@ export function PaymentSuccessScreen({ event, onViewTickets, onHome }: Props) {
           <Text style={styles.check}>✓</Text>
         </View>
 
-        <Text style={styles.eyebrow}>CONFIRMED</Text>
-        <Text style={styles.title}>Your ticket is ready</Text>
+        <Text style={styles.eyebrow}>{t('CONFIRMADO', 'CONFIRMED')}</Text>
+        <Text style={styles.title}>{t('Tu ticket está listo', 'Your ticket is ready')}</Text>
         <Text style={styles.copy}>
           We sent the confirmation to {mockUser.email}. Your QR ticket is now available in My Tickets.
         </Text>
@@ -28,7 +30,7 @@ export function PaymentSuccessScreen({ event, onViewTickets, onHome }: Props) {
           </View>
 
           <View style={styles.ticketInfo}>
-            <Text style={styles.ticketLabel}>EVENT</Text>
+            <Text style={styles.ticketLabel}>{t('EVENTO', 'EVENT')}</Text>
             <Text style={styles.eventTitle}>{event?.title || 'Event'}</Text>
             <Text style={styles.eventMeta}>{event?.date || '06/25 at 07:00 PM'}</Text>
             <Text style={styles.eventMeta}>{event?.venue || 'Ambriza'}</Text>
@@ -36,11 +38,11 @@ export function PaymentSuccessScreen({ event, onViewTickets, onHome }: Props) {
         </View>
 
         <TouchableOpacity style={styles.primaryButton} onPress={onViewTickets}>
-          <Text style={styles.primaryText}>VIEW MY TICKETS</Text>
+          <Text style={styles.primaryText}>{t('VER MIS TICKETS', 'VIEW MY TICKETS')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={onHome}>
-          <Text style={styles.secondaryText}>BACK TO EVENTS</Text>
+          <Text style={styles.secondaryText}>{t('VOLVER A EVENTOS', 'BACK TO EVENTS')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -50,15 +52,15 @@ export function PaymentSuccessScreen({ event, onViewTickets, onHome }: Props) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
+    backgroundColor: '#F8FAFC',
     padding: 18,
     justifyContent: 'center',
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#E5E7EB',
     padding: 24,
     alignItems: 'center',
   },
@@ -91,7 +93,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   copy: {
-    color: '#64748b',
+    color: '#6B7280',
     fontSize: 15,
     lineHeight: 22,
     fontWeight: '600',
@@ -100,10 +102,10 @@ const styles = StyleSheet.create({
   },
   ticket: {
     width: '100%',
-    backgroundColor: '#f8fafc',
-    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#E5E7EB',
     padding: 16,
     flexDirection: 'row',
     gap: 14,
@@ -112,13 +114,13 @@ const styles = StyleSheet.create({
   qr: {
     width: 92,
     height: 92,
-    borderRadius: 18,
+    borderRadius: 16,
     backgroundColor: colors.navy,
     alignItems: 'center',
     justifyContent: 'center',
   },
   qrText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 24,
     letterSpacing: 2,
     fontWeight: '900',
@@ -128,7 +130,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ticketLabel: {
-    color: '#64748b',
+    color: '#6B7280',
     fontSize: 11,
     letterSpacing: 2,
     fontWeight: '800',
@@ -141,7 +143,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   eventMeta: {
-    color: '#64748b',
+    color: '#6B7280',
     fontSize: 13,
     fontWeight: '600',
     marginTop: 2,
@@ -156,7 +158,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   primaryText: {
-    color: '#ffffff',
+    color: '#FFFFFF',
     fontSize: 14,
     letterSpacing: 2,
     fontWeight: '900',
@@ -165,7 +167,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 54,
     borderRadius: 16,
-    backgroundColor: '#eef4f8',
+    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
   },
