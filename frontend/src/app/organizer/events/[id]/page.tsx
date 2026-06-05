@@ -1693,7 +1693,7 @@ export default function EventDetailPage() {
 
               return (
                 <>
-                  <div className="divide-y divide-gray-100">
+                  <div className="divide-y divide-white/[0.05]">
                     {groupedEntries.map((group) => {
                       const usedCount = group.tickets.filter(t => t.status === 'used').length;
                       const activeCount = group.tickets.filter(t => t.status === 'active').length;
