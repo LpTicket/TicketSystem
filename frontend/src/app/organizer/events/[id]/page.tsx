@@ -1893,12 +1893,12 @@ export default function EventDetailPage() {
             if (blockedSections.length === 0) return null;
 
             return (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 space-y-3">
+              <div className="rounded-2xl border border-[rgba(246,198,95,0.18)] bg-[linear-gradient(180deg,rgba(8,31,51,0.88),rgba(5,17,31,0.84))] p-4 space-y-3 shadow-[0_24px_60px_rgba(0,0,0,0.32)]">
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-[0.22em] text-amber-800">
+                  <h3 className="text-xs font-black uppercase tracking-[0.22em] text-[#F97316]">
                     {lang === 'es' ? 'Mesas bloqueadas' : 'Blocked tables'}
                   </h3>
-                  <p className="mt-1 text-xs text-amber-700">
+                  <p className="mt-1 text-xs text-slate-400">
                     {lang === 'es' ? 'Selecciona una mesa para verla y administrarla sin buscar en el selector.' : 'Select a table to open and manage it without searching the selector.'}
                   </p>
                 </div>
@@ -1913,17 +1913,17 @@ export default function EventDetailPage() {
                       }}
                       className={`text-left rounded-xl border px-4 py-3 transition-all ${
                         selectedBlockSection === section.id
-                          ? 'border-amber-500 bg-white shadow-sm'
-                          : 'border-amber-200 bg-white/80 hover:border-amber-400 hover:bg-white'
+                          ? 'border-[#F97316] bg-[rgba(249,115,22,0.12)] shadow-[0_0_0_1px_rgba(249,115,22,0.4)]'
+                          : 'border-[rgba(246,198,95,0.16)] bg-[rgba(13,34,54,0.6)] hover:border-[#F97316]/60 hover:bg-[rgba(13,34,54,0.9)]'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <span className="font-black text-sm text-gray-900 truncate">{section.sectionType === 'table' ? `${lang === 'es' ? 'Mesa' : 'Table'} ${section.name}` : section.name}</span>
-                        <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-amber-800">
+                        <span className="font-black text-sm text-slate-100 truncate">{section.sectionType === 'table' ? `${lang === 'es' ? 'Mesa' : 'Table'} ${section.name}` : section.name}</span>
+                        <span className="rounded-full bg-[rgba(249,115,22,0.18)] px-2 py-1 text-[10px] font-black uppercase tracking-wider text-[#F97316]">
                           {blockedSeats.length}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs font-semibold text-gray-500">
+                      <p className="mt-1 text-xs font-semibold text-slate-400">
                         {blockedSeats.length} {lang === 'es' ? 'asientos bloqueados' : 'blocked seats'}
                       </p>
                     </button>
