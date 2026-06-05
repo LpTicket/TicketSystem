@@ -67,6 +67,7 @@ export default function RegisterContent() {
         phone: form.phone,
         address: form.address as any,
         role: 'client' as any,
+        lang,
       } as any);
       router.push(redirect || '/');
     } catch (err: any) {

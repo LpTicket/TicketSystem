@@ -43,7 +43,7 @@ export class AuthService {
 
     // Fire-and-forget welcome WhatsApp (Utility template). Never blocks registration.
     if (saved.phone) {
-      this.marketingService.sendWelcomeWhatsapp(saved.phone, saved.firstName).catch(() => {});
+      this.marketingService.sendWelcomeWhatsapp(saved.phone, saved.firstName, dto.lang).catch(() => {});
     }
 
     return this.generateTokens(saved);

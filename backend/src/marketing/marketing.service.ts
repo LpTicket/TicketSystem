@@ -200,17 +200,21 @@ export class MarketingService {
   /** Fire-and-forget welcome WhatsApp (Utility template) sent right after a user
    *  registers. Uses TWILIO_WHATSAPP_WELCOME_SID. Never throws — registration must
    *  not fail because messaging is down or unconfigured. */
-  async sendWelcomeWhatsapp(rawPhone: string, firstName?: string): Promise<void> {
+  async sendWelcomeWhatsapp(rawPhone: string, firstName?: string, lang?: 'es' | 'en'): Promise<void> {
     const sid = this.config.get<string>('TWILIO_ACCOUNT_SID');
     const token = this.config.get<string>('TWILIO_AUTH_TOKEN');
-    const contentSid = this.config.get<string>('TWILIO_WHATSAPP_WELCOME_SID');
+    // Pick the language-specific welcome template, falling back to the single SID.
+    const langSid = this.config.get<string>(
+      lang === 'en' ? 'TWILIO_WHATSAPP_WELCOME_SID_EN' : 'TWILIO_WHATSAPP_WELCOME_SID_ES',
+    );
+    const contentSid = langSid || this.config.get<string>('TWILIO_WHATSAPP_WELCOME_SID');
     if (!sid || !token || !contentSid) return; // not configured — skip silently
     const phone = this.normalizePhone(rawPhone || '');
     if (!phone) return;
     try {
       await this.sendTwilioMessage(phone, 'whatsapp', {
         contentSid,
-        contentVariables: { '1': firstName || 'there' },
+        contentVariables: { '1': firstName || (lang === 'en' ? 'there' : 'hola') },
       });
     } catch (e: any) {
       console.error('Welcome WhatsApp failed:', e?.message || e);
