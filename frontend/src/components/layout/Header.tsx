@@ -464,7 +464,7 @@ export default function Header() {
         This component stays visible across standard pages but hides in management panels.
     */}
     {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && !pathname.includes('/login') && !pathname.includes('/register') && (
-      <div ref={cartShellRef} className="fixed bottom-4 right-0 px-5 z-[100] flex flex-col items-end gap-3 print:hidden pointer-events-none">
+      <div ref={cartShellRef} className="fixed bottom-4 right-0 px-5 sm:p-6 z-[100] flex flex-col items-end gap-3 print:hidden pointer-events-none">
         
         {/* Cart Dropdown Content */}
         {cartDropdown && (
