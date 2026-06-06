@@ -1818,7 +1818,10 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           }} />
         </div>
         {/* Undo / Redo — top-left so it doesn't collide with the hint pills */}
-        <div className="absolute left-3 top-3 z-20 flex bg-white rounded shadow border border-gray-200 overflow-hidden">
+        <div
+          className="absolute left-3 top-3 z-20 flex bg-white rounded shadow border border-gray-200 overflow-hidden"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <button
             onClick={undoMap}
             disabled={!canUndo}
@@ -1841,6 +1844,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         <div
           className="absolute right-3 z-20 flex bg-white rounded shadow border border-gray-200 overflow-hidden"
           style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <button onClick={zoomOut} className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 text-gray-600 transition-colors" title="Zoom Out">
             <HiOutlineZoomOut className="w-5 h-5" />
