@@ -2007,12 +2007,12 @@ html {
 .home-category-card--skeleton {
   cursor: default;
   pointer-events: none;
-  border-color: rgba(246, 198, 95, 0.12) !important;
+  border-color: rgba(246, 198, 95, 0.14) !important;
   background:
-    linear-gradient(100deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.07) 50%, rgba(255, 255, 255, 0) 70%),
-    #0a1726 !important;
+    linear-gradient(100deg, rgba(255, 255, 255, 0) 25%, rgba(255, 255, 255, 0.16) 50%, rgba(255, 255, 255, 0) 75%),
+    #13243a !important;
   background-size: 220% 100%, auto;
-  animation: home-category-shimmer 1.25s ease-in-out infinite;
+  animation: home-category-shimmer 1.15s ease-in-out infinite;
 }
 
 @keyframes home-category-shimmer {

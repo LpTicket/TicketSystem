@@ -206,7 +206,7 @@ export default function SocialMatchWidget() {
   }
 
   return (
-    <div ref={socialShellRef} className="fixed bottom-20 right-0 px-5 z-[300] flex flex-col items-end gap-3 pointer-events-none print:hidden">
+    <div ref={socialShellRef} className="fixed bottom-24 right-0 px-5 sm:bottom-28 sm:p-6 z-[300] flex flex-col items-end gap-3 pointer-events-none print:hidden">
       {/* Popup panel */}
       {isOpen && (
         <div className="lp-floating-dark w-80 rounded-3xl shadow-elevated border overflow-hidden flex flex-col pointer-events-auto animate-fade-in-up">
