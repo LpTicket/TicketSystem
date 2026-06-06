@@ -13,6 +13,7 @@ import {
   HiOutlineEye,
   HiOutlineX,
   HiOutlineArrowLeft,
+  HiOutlineArrowRight,
   HiOutlineCamera,
   HiOutlineDuplicate,
 } from 'react-icons/hi';
@@ -56,6 +57,14 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [showStage, setShowStage] = useState(event?.showStage ?? false);
   const [copiedSection, setCopiedSection] = useState<Partial<VenueSection> | null>(null);
   const templatesRef = useRef<HTMLDivElement>(null);
+
+  // ── Undo / redo history of the sections map ──────────────────────────────
+  const historyPast = useRef<Partial<VenueSection>[][]>([]);
+  const historyFuture = useRef<Partial<VenueSection>[][]>([]);
+  const historyPrev = useRef<Partial<VenueSection>[]>([]);
+  const historySkip = useRef(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -274,10 +283,70 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         return changed ? { ...s, seatsConfig: JSON.stringify(config) } : s;
       });
 
+      historySkip.current = true; // don't record the initial load as an undoable action
       setSections(JSON.parse(JSON.stringify(syncedSections)));
       initializedRef.current = true;
     }
   }, [initialSections]);
+
+  // Record a history snapshot whenever the map changes from a user action.
+  useEffect(() => {
+    if (historySkip.current) {
+      historySkip.current = false;
+      historyPrev.current = sections;
+      return;
+    }
+    if (historyPrev.current !== sections) {
+      historyPast.current.push(historyPrev.current);
+      if (historyPast.current.length > 60) historyPast.current.shift();
+      historyFuture.current = [];
+      historyPrev.current = sections;
+      setCanUndo(true);
+      setCanRedo(false);
+    }
+  }, [sections]);
+
+  const undoMap = useCallback(() => {
+    if (historyPast.current.length === 0) return;
+    const target = historyPast.current.pop()!;
+    historyFuture.current.push(historyPrev.current);
+    historySkip.current = true;
+    historyPrev.current = target;
+    setSections(target);
+    setSelectedSeat(null);
+    setSelectedId((id) => (target.some((s) => s.id === id) ? id : null));
+    setCanUndo(historyPast.current.length > 0);
+    setCanRedo(true);
+  }, []);
+
+  const redoMap = useCallback(() => {
+    if (historyFuture.current.length === 0) return;
+    const target = historyFuture.current.pop()!;
+    historyPast.current.push(historyPrev.current);
+    historySkip.current = true;
+    historyPrev.current = target;
+    setSections(target);
+    setSelectedSeat(null);
+    setSelectedId((id) => (target.some((s) => s.id === id) ? id : null));
+    setCanRedo(historyFuture.current.length > 0);
+    setCanUndo(true);
+  }, []);
+
+  // Keyboard shortcuts: Ctrl/Cmd+Z = undo, Ctrl/Cmd+Shift+Z or Ctrl+Y = redo.
+  // Ignored while typing in a field so native text-undo still works.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) { e.preventDefault(); undoMap(); }
+      else if ((key === 'z' && e.shiftKey) || key === 'y') { e.preventDefault(); redoMap(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undoMap, redoMap]);
 
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -1714,6 +1783,29 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             backgroundSize: '20px 20px',
             backgroundPosition: 'center center'
           }} />
+        </div>
+        {/* Undo / Redo — bottom-left, mirrors the zoom controls */}
+        <div
+          className="absolute left-3 z-20 flex bg-white rounded shadow border border-gray-200 overflow-hidden"
+          style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        >
+          <button
+            onClick={undoMap}
+            disabled={!canUndo}
+            className="w-10 h-10 flex items-center justify-center text-gray-600 transition-colors enabled:hover:bg-gray-50 disabled:opacity-35 disabled:cursor-not-allowed"
+            title={lang === 'es' ? 'Deshacer (Ctrl+Z)' : 'Undo (Ctrl+Z)'}
+          >
+            <HiOutlineArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="w-px bg-gray-200" />
+          <button
+            onClick={redoMap}
+            disabled={!canRedo}
+            className="w-10 h-10 flex items-center justify-center text-gray-600 transition-colors enabled:hover:bg-gray-50 disabled:opacity-35 disabled:cursor-not-allowed"
+            title={lang === 'es' ? 'Rehacer (Ctrl+Shift+Z)' : 'Redo (Ctrl+Shift+Z)'}
+          >
+            <HiOutlineArrowRight className="w-5 h-5" />
+          </button>
         </div>
         {/* Zoom Controls — safe-area aware so they don't overlap mobile browser chrome */}
         <div
