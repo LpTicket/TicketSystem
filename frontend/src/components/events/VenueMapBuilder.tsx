@@ -1811,11 +1811,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             backgroundPosition: 'center center'
           }} />
         </div>
-        {/* Undo / Redo — bottom-left, mirrors the zoom controls */}
-        <div
-          className="absolute left-3 z-20 flex bg-white rounded shadow border border-gray-200 overflow-hidden"
-          style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
-        >
+        {/* Undo / Redo — top-left so it doesn't collide with the hint pills */}
+        <div className="absolute left-3 top-3 z-20 flex bg-white rounded shadow border border-gray-200 overflow-hidden">
           <button
             onClick={undoMap}
             disabled={!canUndo}
