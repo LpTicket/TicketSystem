@@ -443,15 +443,19 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     if (draggingSeatRef.current) {
       const { secId, seatKey, startMx, startMy, origXOffset, origYOffset, angleDeg, isTableSeat, tableAngle, isRectTable } = draggingSeatRef.current as any;
       const scale = viewRef.current.scale;
-      const dx = (e.clientX - startMx) / scale;
-      const dy = (e.clientY - startMy) / scale;
+
+      // Drag threshold: ignore tiny movements so a tap selects/edits the seat
+      // without dragging it out of place. Only start moving past ~6px.
+      const movedX = Math.abs(e.clientX - startMx);
+      const movedY = Math.abs(e.clientY - startMy);
+      if (!(draggingSeatRef.current as any)._started && movedX <= 6 && movedY <= 6) {
+        return;
+      }
+      (draggingSeatRef.current as any)._started = true;
+      setHasMoved(true);
 
       const el = document.getElementById(`seat-dot-${secId}-${seatKey}`);
       if (el) {
-        const dx = Math.abs(e.clientX - startMx);
-        const dy = Math.abs(e.clientY - startMy);
-        if (dx > 5 || dy > 5) setHasMoved(true);
-
         const newX = origXOffset + (e.clientX - startMx) / scale;
         const newY = origYOffset + (e.clientY - startMy) / scale;
         
@@ -473,15 +477,21 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     if (draggingRef.current) {
       const { id, type, startMx, startMy, origX, origY, origW, origH } = draggingRef.current;
       const scale = viewRef.current.scale;
+
+      // Drag threshold: a tap selects/edits the section without nudging it.
+      const movedX = Math.abs(e.clientX - startMx);
+      const movedY = Math.abs(e.clientY - startMy);
+      if (!(draggingRef.current as any)._started && movedX <= 6 && movedY <= 6) {
+        return;
+      }
+      (draggingRef.current as any)._started = true;
+      setHasMoved(true);
+
       const dx = (e.clientX - startMx) / scale;
       const dy = (e.clientY - startMy) / scale;
 
       const el = document.getElementById(`sec-${id}`);
       if (el) {
-        const dx_abs = Math.abs(e.clientX - startMx);
-        const dy_abs = Math.abs(e.clientY - startMy);
-        if (dx_abs > 5 || dy_abs > 5) setHasMoved(true);
-
         if (type === 'move') {
           const newX = Math.max(0, origX + dx);
           const newY = Math.max(STAGE_Y + STAGE_H + 10, origY + dy);
