@@ -289,7 +289,7 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
                   );
                 })}
                 {categoriesLoading && categories.filter((cat) => cat.slug !== 'todos' && cat.slug !== 'todas').length === 0 &&
-                  Array.from({ length: 6 }).map((_, i) => (
+                  Array.from({ length: 8 }).map((_, i) => (
                     <span key={`cat-skeleton-${i}`} className="home-category-card home-category-card--skeleton" aria-hidden="true" />
                   ))}
               </div>
