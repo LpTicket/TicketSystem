@@ -84,9 +84,19 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, index) => <div key={index} className="h-28 skeleton rounded-xl" />)}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, index) => <div key={index} className="h-28 skeleton rounded-xl" />)}
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="premium-section-card p-5 space-y-3">
+                <div className="h-5 skeleton rounded w-1/3 mb-2" />
+                {[...Array(5)].map((_, j) => <div key={j} className="h-12 skeleton rounded-xl" />)}
+              </div>
+            ))}
+          </div>
+        </>
       ) : summary ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
