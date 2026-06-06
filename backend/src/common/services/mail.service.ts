@@ -655,4 +655,96 @@ export class MailService {
     });
   }
 
+  /** Branded welcome email sent right after a user registers. Never throws. */
+  async sendWelcomeEmail(to: string, firstName?: string, lang: 'es' | 'en' = 'es') {
+    if (!to) return;
+    const appUrl = this.getAppUrl();
+    const year = new Date().getFullYear();
+    const es = lang !== 'en';
+    const name = String(firstName || '').trim();
+
+    const t = es
+      ? {
+          subject: '¡Bienvenido a LPTicket! 🎟️',
+          preheader: 'Tu cuenta fue creada con éxito.',
+          hi: name ? `¡Hola ${name}! 👋` : '¡Hola! 👋',
+          title: 'Bienvenido a LPTicket',
+          body: 'Tu cuenta fue creada con éxito. Ya puedes descubrir eventos, comprar entradas y recibir tus tickets digitales directo en tu correo y celular.',
+          cta: 'Descubrir eventos',
+          help: '¿Necesitas ayuda? Escríbenos a',
+          footer: 'Recibiste este correo porque creaste una cuenta en LPTicket.',
+        }
+      : {
+          subject: 'Welcome to LPTicket! 🎟️',
+          preheader: 'Your account was created successfully.',
+          hi: name ? `Hi ${name}! 👋` : 'Hi there! 👋',
+          title: 'Welcome to LPTicket',
+          body: 'Your account was created successfully. You can now discover events, buy tickets and get your digital tickets right in your inbox and on your phone.',
+          cta: 'Discover events',
+          help: 'Need help? Reach us at',
+          footer: 'You received this email because you created an account on LPTicket.',
+        };
+
+    const html = `
+<!DOCTYPE html>
+<html lang="${es ? 'es' : 'en'}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark light" />
+</head>
+<body style="margin:0;padding:0;background:#0a1420;">
+  <span style="display:none;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">${t.preheader}</span>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a1420;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#0b1622;border-radius:16px;overflow:hidden;border:1px solid rgba(246,198,95,0.16);">
+          <tr>
+            <td align="center" style="background:#0A375A;padding:24px;">
+              <img src="${appUrl}/logo-email-orange.png" alt="LPTicket" width="190" style="display:block;width:190px;max-width:190px;height:auto;border:0;outline:none;text-decoration:none;" />
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:34px 28px 6px;">
+              <p style="margin:0 0 6px;color:#9fb2c6;font-size:15px;font-family:'Helvetica Neue',Arial,sans-serif;">${t.hi}</p>
+              <h1 style="margin:0 0 14px;color:#ffffff;font-size:24px;font-weight:800;font-family:'Helvetica Neue',Arial,sans-serif;">${t.title}</h1>
+              <p style="margin:0 auto 26px;color:#9fb2c6;font-size:15px;line-height:1.6;max-width:460px;font-family:'Helvetica Neue',Arial,sans-serif;">${t.body}</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:0 28px 34px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="border-radius:12px;background:linear-gradient(180deg,#ff8a18,#f46c00);box-shadow:0 8px 22px rgba(249,115,22,0.35);">
+                    <a href="${appUrl}/events" target="_blank" style="display:inline-block;padding:14px 38px;color:#ffffff;font-size:16px;font-weight:800;text-decoration:none;font-family:'Helvetica Neue',Arial,sans-serif;letter-spacing:0.3px;">${t.cta}</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="background:#08111c;padding:20px 28px;border-top:1px solid rgba(255,255,255,0.05);">
+              <p style="margin:0 0 4px;color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">${t.help} <a href="mailto:info@lpticket.com" style="color:#9fb2c6;text-decoration:none;">info@lpticket.com</a></p>
+              <p style="margin:0;color:#475569;font-size:11px;font-family:'Helvetica Neue',Arial,sans-serif;">© ${year} LPTicket · ${t.footer}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+    try {
+      await this.transporter.sendMail({
+        from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
+        to,
+        subject: t.subject,
+        html,
+      });
+    } catch (e: any) {
+      console.error('Welcome email failed:', e?.message || e);
+    }
+  }
+
 }
