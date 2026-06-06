@@ -257,6 +257,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const initializedRef = useRef(false);
   const centeredRef = useRef(false);
   const appliedSavedViewRef = useRef(false);
+  const historyReadyRef = useRef(false);
 
   useEffect(() => {
     if (!initializedRef.current && initialSections.length > 0) {
@@ -285,7 +286,6 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         return changed ? { ...s, seatsConfig: JSON.stringify(config) } : s;
       });
 
-      historySkip.current = true; // don't record the initial load as an undoable action
       setSections(JSON.parse(JSON.stringify(syncedSections)));
       initializedRef.current = true;
     }
@@ -293,6 +293,16 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
   // Record a history snapshot whenever the map changes from a user action.
   useEffect(() => {
+    // Capture the loaded map as the baseline (the floor) so undo can never wipe
+    // it back to the pre-load empty state. For a brand-new event the baseline is
+    // simply the current (empty) state.
+    if (!historyReadyRef.current) {
+      const stillPreLoad = initialSections.length > 0 && (sections.length === 0 || !initializedRef.current);
+      if (stillPreLoad) return;
+      historyPrev.current = sections;
+      historyReadyRef.current = true;
+      return;
+    }
     if (historySkip.current) {
       historySkip.current = false;
       historyPrev.current = sections;
@@ -306,7 +316,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       setCanUndo(true);
       setCanRedo(false);
     }
-  }, [sections]);
+  }, [sections, initialSections]);
 
   const undoMap = useCallback(() => {
     if (historyPast.current.length === 0) return;

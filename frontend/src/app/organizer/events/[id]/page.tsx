@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -625,6 +625,28 @@ export default function EventDetailPage() {
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders' | 'commission'>('analytics');
+  const tabRestoredRef = useRef(false);
+
+  // Restore the last-open tab on reload, then keep it in sync (per event).
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(`lp_org_tab_${id}`);
+      const valid = ['analytics', 'details', 'overview', 'attendees', 'map', 'blocks', 'reminders', 'commission'];
+      if (saved && valid.includes(saved)) setActiveTab(saved as any);
+    } catch {
+      /* storage unavailable */
+    }
+    tabRestoredRef.current = true;
+  }, [id]);
+
+  useEffect(() => {
+    if (!tabRestoredRef.current) return; // don't overwrite the saved tab before restoring it
+    try {
+      window.localStorage.setItem(`lp_org_tab_${id}`, activeTab);
+    } catch {
+      /* ignore */
+    }
+  }, [id, activeTab]);
   const [selectedBlockSection, setSelectedBlockSection] = useState('');
   const [selectedBlockSeats, setSelectedBlockSeats] = useState<string[]>([]);
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
