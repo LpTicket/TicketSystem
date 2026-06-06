@@ -14,6 +14,7 @@ import {
   HiOutlineX,
   HiOutlineArrowLeft,
   HiOutlineArrowRight,
+  HiOutlinePencil,
   HiOutlineCamera,
   HiOutlineDuplicate,
 } from 'react-icons/hi';
@@ -57,6 +58,18 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [showStage, setShowStage] = useState(event?.showStage ?? false);
   const [copiedSection, setCopiedSection] = useState<Partial<VenueSection> | null>(null);
   const templatesRef = useRef<HTMLDivElement>(null);
+
+  // Edit mode: when OFF the map is view-only (pan + zoom, nothing moves).
+  // When ON, dragging is enabled and the editing toolbar/inspector show.
+  const [editMode, setEditMode] = useState(false);
+  const editModeRef = useRef(false);
+  editModeRef.current = editMode;
+  const toggleEditMode = () => {
+    setEditMode((m) => {
+      if (m) { setSelectedId(null); setSelectedSeat(null); }
+      return !m;
+    });
+  };
 
   // ── Undo / redo history of the sections map ──────────────────────────────
   const historyPast = useRef<Partial<VenueSection>[][]>([]);
@@ -484,7 +497,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     // Only pan when clicking the viewport background, not a section or welcome screen
-    if ((e.target as HTMLElement).closest('[data-section]')) return;
+    // In edit mode, don't pan when grabbing a section (it gets dragged instead).
+    // In view mode, allow panning from anywhere — even over sections.
+    if (editModeRef.current && (e.target as HTMLElement).closest('[data-section]')) return;
     if ((e.target as HTMLElement).closest('[data-welcome]')) return;
 
     if (activePointersRef.current.size === 1) {
@@ -748,6 +763,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     tableAngle = 0,
     isRectTable = false
   ) => {
+    // View mode: let the gesture bubble to the viewport (pan) instead of moving seats.
+    if (!editModeRef.current) return;
     e.stopPropagation();
     // Don't select immediately, wait for pointer up to see if it was a drag or tap
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -777,6 +794,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
   // ── Section pointer events ───────────────────────────────────────────────
   const onSectionPointerDown = useCallback((e: React.PointerEvent, sec: Partial<VenueSection>, type: 'move' | 'resize' = 'move') => {
+    // View mode: let the gesture bubble to the viewport (pan) instead of moving sections.
+    if (!editModeRef.current) return;
     e.stopPropagation();
     setSelectedId(sec.id!);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -1127,6 +1146,15 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             </div>
           </div>
 
+          <button
+            onClick={toggleEditMode}
+            className={`text-xs sm:text-sm font-bold py-1.5 px-3 sm:px-5 rounded shadow-sm transition-colors flex items-center gap-2 ${editMode ? 'bg-[#F97316] hover:bg-[#ea6c10] text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+            title={editMode ? (lang === 'es' ? 'Salir del modo edición' : 'Exit edit mode') : (lang === 'es' ? 'Editar el mapa' : 'Edit the map')}
+          >
+            <HiOutlinePencil className="w-4 h-4" />
+            <span className="hidden xs:inline">{editMode ? (lang === 'es' ? 'Editando' : 'Editing') : (lang === 'es' ? 'Editar' : 'Edit')}</span>
+          </button>
+
           <button onClick={handleSave} disabled={saving} className="bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs sm:text-sm font-medium py-1.5 px-3 sm:px-5 rounded shadow-sm transition-colors flex items-center gap-2">
             {saving ? (
               <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -1136,12 +1164,14 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             <span className="hidden xs:inline">{lang === 'es' ? 'Guardar' : 'Save'}</span>
           </button>
 
-          <button 
+          {editMode && (
+          <button
             onClick={() => setMobileToolsOpen(!mobileToolsOpen)}
             className="lg:hidden p-2 text-gray-500 hover:text-gray-900 bg-gray-50 rounded-lg"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
+          )}
         </div>
       </div>
 
@@ -1156,8 +1186,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           }}
         />
 
-      {/* ── Left Sidebar (Tools - Seats.io Style) ─────────────────────────────────────────────────── */}
-      <div className={`${mobileToolsOpen ? 'flex absolute inset-y-0 left-0 shadow-2xl animate-slide-in-left' : 'hidden'} lg:flex w-[55px] bg-[#f9fafb] border-r border-[#e5e7eb] flex-col shrink-0 z-50 lg:z-30 py-4 items-center`}>
+      {/* ── Left Sidebar (Tools - Seats.io Style) — only in edit mode ──────────────────────────────── */}
+      <div className={`${editMode ? `${mobileToolsOpen ? 'flex absolute inset-y-0 left-0 shadow-2xl animate-slide-in-left' : 'hidden'} lg:flex` : 'hidden'} w-[55px] bg-[#f9fafb] border-r border-[#e5e7eb] flex-col shrink-0 z-50 lg:z-30 py-4 items-center`}>
         {/* Mobile Close Sidebar Button */}
         <button 
           onClick={() => setMobileToolsOpen(false)}
@@ -1283,8 +1313,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         </div>
       </div>
 
-        {/* ── Right Properties Panel (Seats.io Style Inspector) ─────────────────────────────────── */}
-        {selectedSection ? (
+        {/* ── Right Properties Panel (Seats.io Style Inspector) — only in edit mode ─────────────── */}
+        {!editMode ? null : selectedSection ? (
           <div className="absolute inset-y-0 right-0 w-[280px] md:w-[320px] bg-[#ffffff] border-l border-[#e5e7eb] z-[60] md:z-40 overflow-y-auto flex flex-col shadow-2xl md:shadow-none animate-slide-in-right">
             <div className="p-4 border-b border-[#e5e7eb] bg-white flex items-center justify-between sticky top-0 z-10">
               <div className="flex items-center gap-3">
@@ -1827,7 +1857,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             backgroundPosition: 'center center'
           }} />
         </div>
-        {/* Undo / Redo — top-left so it doesn't collide with the hint pills */}
+        {/* Undo / Redo — top-left (edit mode only) so it doesn't collide with the hint pills */}
+        {editMode && (
         <div
           className="absolute left-3 top-3 z-20 flex bg-white rounded shadow border border-gray-200 overflow-hidden"
           onPointerDown={(e) => e.stopPropagation()}
@@ -1850,6 +1881,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             <HiOutlineArrowRight className="w-5 h-5" />
           </button>
         </div>
+        )}
         {/* Zoom Controls — safe-area aware so they don't overlap mobile browser chrome */}
         <div
           className="absolute right-3 z-20 flex bg-white rounded shadow border border-gray-200 overflow-hidden"
