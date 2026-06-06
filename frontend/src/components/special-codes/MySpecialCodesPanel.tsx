@@ -236,7 +236,7 @@ export default function MySpecialCodesPanel({ lang }: Props) {
             <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">{copy.emptyText}</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-white/[0.05]">
             {codes.map((item) => (
               <div key={item.id} className="p-4 md:p-5 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center gap-3">
                 <div className="min-w-0">
@@ -304,7 +304,7 @@ export default function MySpecialCodesPanel({ lang }: Props) {
               <p className="text-sm text-gray-400 mt-3 font-medium">{copy.payoutsEmpty}</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-white/[0.05]">
               {payouts.map((item) => (
                 <div key={`${item.eventId}-${item.codes.map((code) => code.code).join('-')}`} className="p-5 md:p-6 space-y-4">
                   <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center gap-4">
@@ -407,7 +407,7 @@ export default function MySpecialCodesPanel({ lang }: Props) {
                     <th className="text-right px-5 py-3 text-xs font-black uppercase tracking-wider text-gray-400">{copy.salesTotal}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-white/[0.05]">
                   {sales.map((sale) => (
                     <tr key={sale.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-3.5">

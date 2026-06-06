@@ -357,7 +357,7 @@ function DashboardPageBody() {
         orders.length > 0 ? (
           <div className="space-y-4">
             <div className="dashboard-premium-card overflow-hidden">
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-white/[0.05]">
                 {orders.map((order) => {
                   const badge = getOrderStatus(order.status);
                   return (
