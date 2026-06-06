@@ -255,6 +255,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
   const initializedRef = useRef(false);
   const centeredRef = useRef(false);
+  const appliedSavedViewRef = useRef(false);
 
   useEffect(() => {
     if (!initializedRef.current && initialSections.length > 0) {
@@ -415,13 +416,21 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   };
 
   useEffect(() => {
-    if (centeredRef.current) return;
     if (!viewportRef.current) return;
     const vw = viewportRef.current.clientWidth;
     const vh = viewportRef.current.clientHeight;
     if (vw === 0 || vh === 0) return; // Wait until layout is fully ready
-    
-    if (event && typeof event.defaultViewX === 'number' && typeof event.defaultViewY === 'number' && typeof event.defaultViewZoom === 'number') {
+
+    const hasSavedView =
+      event &&
+      typeof event.defaultViewX === 'number' &&
+      typeof event.defaultViewY === 'number' &&
+      typeof event.defaultViewZoom === 'number';
+
+    // Always prefer the saved view ("FIJAR VISTA"). Apply it even if the event
+    // prop arrives a tick after we already did the default centering — otherwise
+    // the editor re-opens at the wrong position and has to be re-arranged.
+    if (hasSavedView && !appliedSavedViewRef.current) {
       viewRef.current = {
         x: event.defaultViewX,
         y: event.defaultViewY,
@@ -430,19 +439,26 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       setCustomViewport({
         x: event.defaultViewX,
         y: event.defaultViewY,
-        scale: event.defaultViewZoom
+        scale: event.defaultViewZoom,
       });
-    } else {
+      applyTransform();
+      appliedSavedViewRef.current = true;
+      centeredRef.current = true;
+      return;
+    }
+
+    // No saved view yet — center on the stage once (don't lock out a saved view
+    // that might still load).
+    if (!centeredRef.current && !hasSavedView) {
       const scale = 1.0;
-      // Center so stage top-center is visible
       viewRef.current = {
         scale,
         x: vw / 2 - (STAGE_X + STAGE_W / 2) * scale,
         y: vh / 4 - STAGE_Y * scale,
       };
+      applyTransform();
+      centeredRef.current = true;
     }
-    applyTransform();
-    centeredRef.current = true;
   }, [applyTransform, event]);
 
   // ── Viewport pointer events (pan + zoom) ─────────────────────────────────
