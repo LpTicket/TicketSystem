@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     bottom: 18,
-    backgroundColor: 'transparent',
+    backgroundColor: '#030B14',
     borderRadius: 22,
     padding: 7,
     flexDirection: 'row',
