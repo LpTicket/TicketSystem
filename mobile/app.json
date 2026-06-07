@@ -7,7 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
-      "bundleIdentifier": "com.lpticketsystem.app",
+      "bundleIdentifier": "com.inhoustontexas.lpticket",
       "buildNumber": "1",
       "supportsTablet": true
     },
