@@ -3,6 +3,7 @@ import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-na
 import { StatusBar } from 'expo-status-bar';
 import { AppHeader } from './src/components/AppHeader';
 import { MenuDrawer } from './src/components/MenuDrawer';
+import { mockEvents } from './src/data/mockEvents';
 import { mockUser } from './src/data/mockUser';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { EventDetailScreen } from './src/screens/EventDetailScreen';
@@ -21,63 +22,6 @@ import { colors } from './src/theme/colors';
 import { MobileEvent } from './src/types/event';
 
 type Tab = 'events' | 'tickets' | 'profile' | 'organizer' | 'admin';
-type PrimaryTab = 'events' | 'tickets' | 'profile';
-type NavIconName = 'calendar' | 'ticket' | 'profile';
-
-type NavTabButtonProps = {
-  active: boolean;
-  icon: NavIconName;
-  label: string;
-  onPress: () => void;
-};
-
-function NavIcon({ name, active }: { name: NavIconName; active: boolean }) {
-  if (name === 'calendar') {
-    return (
-      <View style={[styles.iconCalendar, active && styles.iconCalendarActive]}>
-        <View style={styles.iconCalendarTop} />
-        <View style={[styles.iconCalendarDot, styles.iconCalendarDotLeft, active && styles.iconDotActive]} />
-        <View style={[styles.iconCalendarDot, styles.iconCalendarDotRight, active && styles.iconDotActive]} />
-        <View style={[styles.iconCalendarLine, active && styles.iconLineActive]} />
-      </View>
-    );
-  }
-
-  if (name === 'ticket') {
-    return (
-      <View style={[styles.iconTicket, active && styles.iconTicketActive]}>
-        <View style={[styles.iconTicketNotch, styles.iconTicketNotchLeft]} />
-        <View style={[styles.iconTicketNotch, styles.iconTicketNotchRight]} />
-        <View style={[styles.iconTicketLine, active && styles.iconLineActive]} />
-      </View>
-    );
-  }
-
-  return (
-    <View style={[styles.iconProfile, active && styles.iconProfileActive]}>
-      <View style={[styles.iconProfileHead, active && styles.iconDotActive]} />
-      <View style={[styles.iconProfileBody, active && styles.iconLineActive]} />
-    </View>
-  );
-}
-
-function NavTabButton({ active, icon, label, onPress }: NavTabButtonProps) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.navItem, active && styles.navActive]}
-      activeOpacity={0.86}
-    >
-      <View style={[styles.navIconWrap, active && styles.navIconWrapActive]}>
-        <NavIcon name={icon} active={active} />
-      </View>
-      <Text style={[styles.navText, active && styles.navActiveText]} numberOfLines={1}>
-        {label}
-      </Text>
-      <View style={[styles.navIndicator, active && styles.navIndicatorActive]} />
-    </TouchableOpacity>
-  );
-}
 
 function AppContent() {
   const { t } = useLanguage();
@@ -107,12 +51,6 @@ function AppContent() {
     clearFlow();
     setTab(nextTab);
   };
-
-  const navTabs: Array<{ id: PrimaryTab; icon: NavIconName; label: string }> = [
-    { id: 'events', icon: 'calendar', label: t('Eventos', 'Events') },
-    { id: 'tickets', icon: 'ticket', label: t('Tickets', 'Tickets') },
-    { id: 'profile', icon: 'profile', label: t('Perfil', 'Profile') },
-  ];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -159,16 +97,15 @@ function AppContent() {
 
         {!selectedEvent && !scanOpen && !purchaseOpen && (
           <View style={styles.bottomNav}>
-            <View pointerEvents="none" style={styles.bottomNavGlow} />
-            {navTabs.map((item) => (
-              <NavTabButton
-                key={item.id}
-                active={tab === item.id}
-                icon={item.icon}
-                label={item.label}
-                onPress={() => goToTab(item.id)}
-              />
-            ))}
+            <TouchableOpacity onPress={() => goToTab('events')} style={[styles.navItem, tab === 'events' && styles.navActive]}>
+              <Text style={[styles.navText, tab === 'events' && styles.navActiveText]}>{t('Eventos', 'Events')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => goToTab('tickets')} style={[styles.navItem, tab === 'tickets' && styles.navActive]}>
+              <Text style={[styles.navText, tab === 'tickets' && styles.navActiveText]}>{t('Tickets', 'Tickets')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => goToTab('profile')} style={[styles.navItem, tab === 'profile' && styles.navActive]}>
+              <Text style={[styles.navText, tab === 'profile' && styles.navActiveText]}>{t('Perfil', 'Profile')}</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -237,174 +174,20 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     bottom: 18,
-    height: 78,
-    borderRadius: 30,
-    paddingHorizontal: 8,
-    paddingVertical: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(6, 19, 34, 0.94)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    shadowColor: '#000000',
-    shadowOpacity: 0.28,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 16 },
-    elevation: 18,
-  },
-  bottomNavGlow: {
-    position: 'absolute',
-    left: 18,
-    right: 18,
-    top: -36,
-    height: 56,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255, 124, 51, 0.22)',
-  },
-  navItem: {
-    flex: 1,
-    height: 64,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    position: 'relative',
-  },
-  navActive: {
-    backgroundColor: 'rgba(255, 124, 51, 0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 124, 51, 0.42)',
-  },
-  navIconWrap: {
-    width: 30,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-  },
-  navIconWrapActive: {
-    backgroundColor: colors.orange,
-  },
-  navText: {
-    maxWidth: 82,
-    color: '#8EA0B7',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0,
-  },
-  navActiveText: {
-    color: colors.white,
-  },
-  navIndicator: {
-    position: 'absolute',
-    bottom: 5,
-    width: 5,
-    height: 5,
-    borderRadius: 999,
     backgroundColor: 'transparent',
+    borderRadius: 22,
+    padding: 7,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    shadowColor: '#111827',
+    shadowOpacity: 0.10,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
   },
-  navIndicatorActive: {
-    backgroundColor: colors.orange,
-  },
-  iconCalendar: {
-    width: 18,
-    height: 18,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: '#8EA0B7',
-    position: 'relative',
-  },
-  iconCalendarActive: {
-    borderColor: colors.white,
-  },
-  iconCalendarTop: {
-    position: 'absolute',
-    left: -2,
-    right: -2,
-    top: 3,
-    height: 2,
-    backgroundColor: 'rgba(255,255,255,0.42)',
-  },
-  iconCalendarDot: {
-    position: 'absolute',
-    top: -4,
-    width: 3,
-    height: 6,
-    borderRadius: 2,
-    backgroundColor: '#8EA0B7',
-  },
-  iconCalendarDotLeft: { left: 3 },
-  iconCalendarDotRight: { right: 3 },
-  iconCalendarLine: {
-    position: 'absolute',
-    left: 4,
-    right: 4,
-    bottom: 4,
-    height: 2,
-    borderRadius: 2,
-    backgroundColor: '#8EA0B7',
-  },
-  iconTicket: {
-    width: 20,
-    height: 15,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: '#8EA0B7',
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  iconTicketActive: {
-    borderColor: colors.white,
-  },
-  iconTicketNotch: {
-    position: 'absolute',
-    top: 4,
-    width: 5,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: colors.orange,
-  },
-  iconTicketNotchLeft: { left: -4 },
-  iconTicketNotchRight: { right: -4 },
-  iconTicketLine: {
-    alignSelf: 'center',
-    width: 7,
-    height: 2,
-    borderRadius: 2,
-    backgroundColor: '#8EA0B7',
-  },
-  iconProfile: {
-    width: 20,
-    height: 20,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: '#8EA0B7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  iconProfileActive: {
-    borderColor: colors.white,
-  },
-  iconProfileHead: {
-    width: 5,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: '#8EA0B7',
-  },
-  iconProfileBody: {
-    width: 10,
-    height: 4,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-    backgroundColor: '#8EA0B7',
-  },
-  iconDotActive: {
-    backgroundColor: colors.white,
-  },
-  iconLineActive: {
-    backgroundColor: colors.white,
-  },
+  navItem: { flex: 1, paddingVertical: 11, borderRadius: 16, alignItems: 'center' },
+  navActive: { backgroundColor: colors.orange },
+  navText: { color: '#9CA3AF', fontWeight: '800', fontSize: 13 },
+  navActiveText: { color: colors.white },
 });
