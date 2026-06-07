@@ -1,12 +1,13 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const logo = require('../../assets/lpticket-logo.png');
 
-type Props = { onOpenMenu: () => void; onOpenScan: () => void };
+type Props = { onOpenMenu: () => void; onOpenScan: () => void; onOpenCart: () => void };
 
-export function AppHeader({ onOpenMenu, onOpenScan }: Props) {
+export function AppHeader({ onOpenMenu, onOpenScan, onOpenCart }: Props) {
   const { lang, setLang } = useLanguage();
 
   return (
@@ -30,8 +31,8 @@ export function AppHeader({ onOpenMenu, onOpenScan }: Props) {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.scanButton} onPress={onOpenScan}>
-          <Text style={styles.scanText}># SCAN</Text>
+        <TouchableOpacity style={styles.cartButton} onPress={onOpenCart}>
+          <Ionicons name="cart-outline" size={21} color={colors.white} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuButton} onPress={onOpenMenu}>
@@ -46,34 +47,34 @@ export function AppHeader({ onOpenMenu, onOpenScan }: Props) {
 
 const styles = StyleSheet.create({
   header: {
-    height: 96,
+    height: 71,
     backgroundColor: '#030B14',
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 12,
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 6,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     borderBottomWidth: 0,
     borderBottomColor: 'transparent',
     shadowOpacity: 0,
     elevation: 0,
     zIndex: 10,
   },
-  logo: { width: 176, height: 52, tintColor: '#FFFFFF' },
-  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexShrink: 0 },
+  logo: { width: 176, height: 52, tintColor: '#FFFFFF', transform: [{ translateX: -20 }, { translateY: -17 }] },
+  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, flexShrink: 0, transform: [{ translateX: -4 }] },
   langSwitch: {
     flexDirection: 'row',
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
-    height: 36,
+    height: 34,
     backgroundColor: '#030B14',
-    transform: [{ translateY: -7 }],
+    transform: [{ translateY: -25 }],
   },
   langButton: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 9,
     backgroundColor: 'transparent',
     alignItems: 'center',
@@ -91,20 +92,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   scanButton: {
-    height: 36,
-    minWidth: 92,
+    height: 34,
+    minWidth: 68,
     borderRadius: 13,
     backgroundColor: '#F97316',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    transform: [{ translateY: -7 }],
+    transform: [{ translateY: -25 }],
   },
-  scanText: { color: '#FFFFFF', fontSize: 12, lineHeight: 14, fontWeight: '900', letterSpacing: 1.2 },
-  menuButton: {
-    width: 46,
-    height: 36,
+  scanText: { color: '#FFFFFF', fontSize: 12, lineHeight: 14, fontWeight: '900', letterSpacing: 0.8 },
+  cartButton: {
+    width: 38,
+    height: 34,
     borderRadius: 13,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
@@ -112,7 +113,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    transform: [{ translateY: -7 }],
+    transform: [{ translateY: -25 }],
   },
-  hamburgerLine: { width: 27, height: 3, borderRadius: 999, backgroundColor: colors.white, marginVertical: 2 },
+  menuButton: {
+    width: 38,
+    height: 34,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    transform: [{ translateY: -25 }],
+  },
+  hamburgerLine: { width: 21, height: 2, borderRadius: 999, backgroundColor: colors.white, marginVertical: 2 },
 });

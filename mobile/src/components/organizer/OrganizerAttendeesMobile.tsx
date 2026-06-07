@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 3, fontWeight: '900', marginBottom: 8 },
   title: { color: colors.navy, fontSize: 26, fontWeight: '900', marginBottom: 8 },
-  copy: { color: '#6B7280', fontSize: 14, lineHeight: 21, fontWeight: '700', marginBottom: 16 },
+  copy: { color: '#6B7280', fontSize: 14, lineHeight: 21, fontWeight: '400', marginBottom: 16 },
   searchBox: {
     height: 54,
     borderRadius: 17,
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   avatarText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   attendeeMain: { flex: 1 },
   name: { color: colors.navy, fontSize: 17, fontWeight: '900', marginBottom: 3 },
-  email: { color: '#6B7280', fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  email: { color: '#6B7280', fontSize: 12, fontWeight: '400', marginBottom: 4 },
   ticket: { color: '#111827', fontSize: 13, fontWeight: '800' },
   status: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 7 },
   statusGreen: { backgroundColor: '#DCFCE7' },

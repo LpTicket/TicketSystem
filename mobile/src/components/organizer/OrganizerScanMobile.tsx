@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 3, fontWeight: '900', marginBottom: 8 },
   title: { color: colors.navy, fontSize: 26, fontWeight: '900', marginBottom: 8 },
-  copy: { color: '#6B7280', fontSize: 14, lineHeight: 21, fontWeight: '700', marginBottom: 16 },
+  copy: { color: '#6B7280', fontSize: 14, lineHeight: 21, fontWeight: '400', marginBottom: 16 },
   scanFrame: {
     minHeight: 260,
     borderRadius: 26,

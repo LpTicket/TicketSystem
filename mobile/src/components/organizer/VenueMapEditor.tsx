@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   fakeFill: { height: 5, backgroundColor: '#ff6b16' },
   miniValue: { width: 54, height: 30, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center' },
   miniValueText: { color: '#ff6b16', fontSize: 11, fontWeight: '900' },
-  inputLabel: { color: '#4b5563', fontSize: 11, fontWeight: '700', marginBottom: 6, marginTop: 8 },
+  inputLabel: { color: '#4b5563', fontSize: 11, fontWeight: '400', marginBottom: 6, marginTop: 8 },
   input: { height: 36, borderRadius: 5, borderWidth: 1, borderColor: '#dbe3ef', paddingHorizontal: 10, color: '#1f2937', fontSize: 12, fontWeight: '700' },
   row2: { flexDirection: 'row', gap: 10 },
   field: { flex: 1 },

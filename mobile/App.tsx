@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, SafeAreaView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from './src/components/AppHeader';
 import { MenuDrawer } from './src/components/MenuDrawer';
 import { mockEvents } from './src/data/mockEvents';
@@ -21,10 +22,12 @@ import { LanguageProvider, useLanguage } from './src/i18n/LanguageContext';
 import { colors } from './src/theme/colors';
 import { MobileEvent } from './src/types/event';
 
-type Tab = 'events' | 'tickets' | 'profile' | 'organizer' | 'admin';
+type Tab = 'events' | 'tickets' | 'scan' | 'social' | 'profile' | 'organizer' | 'admin';
 
 function AppContent() {
   const { t } = useLanguage();
+  const { width } = useWindowDimensions();
+  const navIndicatorX = useRef(new Animated.Value(0)).current;
   const [tab, setTab] = useState<Tab>('events');
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -52,11 +55,26 @@ function AppContent() {
     setTab(nextTab);
   };
 
+  const bottomTabs: Tab[] = ['events', 'tickets', 'scan', 'social', 'profile'];
+  const activeBottomIndex = Math.max(0, bottomTabs.indexOf(tab));
+  const navPadding = 8;
+  const navItemWidth = (width - navPadding * 2) / bottomTabs.length;
+
+  useEffect(() => {
+    Animated.spring(navIndicatorX, {
+      toValue: navPadding + navItemWidth * activeBottomIndex + navItemWidth / 2 - 9,
+      useNativeDriver: true,
+      damping: 18,
+      stiffness: 180,
+      mass: 0.7,
+    }).start();
+  }, [activeBottomIndex, navIndicatorX, navItemWidth]);
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
       <View style={styles.app}>
-        {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} />}
+        {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} onOpenCart={() => goToTab('tickets')} />}
 
         {!scanOpen && isLoggedIn && mockUser.canOrganize && !selectedEvent && (
           <View style={styles.modeSwitch}>
@@ -87,8 +105,12 @@ function AppContent() {
           <HomeScreen onOpenEvent={setSelectedEvent} />
         ) : tab === 'tickets' ? (
           isLoggedIn ? <TicketsScreen /> : <LoginScreen onSignIn={() => setIsLoggedIn(true)} />
+        ) : tab === 'scan' ? (
+          <ScanScreen onBack={() => goToTab('events')} />
+        ) : tab === 'social' ? (
+          isLoggedIn ? <ProfileScreen key="social" initialTab="social" /> : <LoginScreen onSignIn={() => setIsLoggedIn(true)} />
         ) : tab === 'profile' ? (
-          isLoggedIn ? <ProfileScreen /> : <LoginScreen onSignIn={() => setIsLoggedIn(true)} />
+          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" /> : <LoginScreen onSignIn={() => setIsLoggedIn(true)} />
         ) : tab === 'organizer' ? (
           isLoggedIn ? <OrganizerPanelScreen /> : <LoginScreen onSignIn={() => setIsLoggedIn(true)} />
         ) : tab === 'admin' ? (
@@ -97,13 +119,29 @@ function AppContent() {
 
         {!selectedEvent && !scanOpen && !purchaseOpen && (
           <View style={styles.bottomNav}>
-            <TouchableOpacity onPress={() => goToTab('events')} style={[styles.navItem, tab === 'events' && styles.navActive]}>
+            <Animated.View style={[styles.navSlidingLine, { transform: [{ translateX: navIndicatorX }] }]} />
+            <TouchableOpacity onPress={() => goToTab('events')} style={styles.navItem}>
+              <Ionicons name={tab === 'events' ? 'home' : 'home-outline'} size={18} color={tab === 'events' ? colors.orange : 'rgba(226,232,240,0.50)'} />
               <Text style={[styles.navText, tab === 'events' && styles.navActiveText]}>{t('Eventos', 'Events')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => goToTab('tickets')} style={[styles.navItem, tab === 'tickets' && styles.navActive]}>
+
+            <TouchableOpacity onPress={() => goToTab('tickets')} style={styles.navItem}>
+              <Ionicons name={tab === 'tickets' ? 'ticket' : 'ticket-outline'} size={17} color={tab === 'tickets' ? colors.orange : 'rgba(226,232,240,0.50)'} />
               <Text style={[styles.navText, tab === 'tickets' && styles.navActiveText]}>{t('Tickets', 'Tickets')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => goToTab('profile')} style={[styles.navItem, tab === 'profile' && styles.navActive]}>
+
+            <TouchableOpacity onPress={() => goToTab('scan')} style={styles.navItem}>
+              <Ionicons name={tab === 'scan' ? 'scan' : 'scan-outline'} size={17} color={tab === 'scan' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+              <Text style={[styles.navText, tab === 'scan' && styles.navActiveText]}>Scan</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => goToTab('social')} style={styles.navItem}>
+              <Ionicons name={tab === 'social' ? 'people' : 'people-outline'} size={17} color={tab === 'social' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+              <Text style={[styles.navText, tab === 'social' && styles.navActiveText]}>Social</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => goToTab('profile')} style={styles.navItem}>
+              <Ionicons name={tab === 'profile' ? 'person-circle' : 'person-circle-outline'} size={17} color={tab === 'profile' ? colors.orange : 'rgba(226,232,240,0.50)'} />
               <Text style={[styles.navText, tab === 'profile' && styles.navActiveText]}>{t('Perfil', 'Profile')}</Text>
             </TouchableOpacity>
           </View>
@@ -139,13 +177,47 @@ export default function App() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#030B14' },
-  app: { flex: 1, backgroundColor: '#030B14', position: 'relative' },
+  app: {
+    flex: 1,
+    backgroundColor: '#030B14',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  appGridVertical: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: '24%',
+    width: 1,
+    backgroundColor: 'rgba(125,211,252,0.035)',
+  },
+  appGridHorizontal: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: '34%',
+    height: 1,
+    backgroundColor: 'rgba(125,211,252,0.030)',
+  },
+  appBlueGlow: {
+    position: 'absolute',
+    left: -80,
+    right: -80,
+    top: 80,
+    height: 360,
+    backgroundColor: 'rgba(14,116,144,0.10)',
+    transform: [{ rotate: '-16deg' }],
+  },
   modeSwitch: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 4,
-    backgroundColor: 'transparent',
+    position: 'absolute',
+    top: 63,
+    left: 10,
+    right: 10,
+    zIndex: 30,
+    elevation: 30,
+    backgroundColor: 'rgba(3,11,20,0.96)',
     borderRadius: 18,
+    overflow: 'hidden',
     padding: 5,
     flexDirection: 'row',
     borderWidth: 1,
@@ -162,32 +234,60 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
   },
   modeText: {
-    color: '#6B7280',
+    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '900',
   },
-  modeTextActive: {
-    color: '#FFFFFF',
-  },
   bottomNav: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 18,
-    backgroundColor: '#030B14',
-    borderRadius: 22,
-    padding: 7,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 54,
+    paddingTop: 0,
+    paddingBottom: 2,
+    paddingHorizontal: 8,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    shadowColor: '#111827',
-    shadowOpacity: 0.10,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: 'rgba(2,8,15,0.98)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(125,211,252,0.12)',
+    shadowColor: '#000000',
+    shadowOpacity: 0.34,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: -6 },
+    elevation: 18,
   },
-  navItem: { flex: 1, paddingVertical: 11, borderRadius: 16, alignItems: 'center' },
-  navActive: { backgroundColor: colors.orange },
-  navText: { color: '#9CA3AF', fontWeight: '800', fontSize: 13 },
+  navItem: {
+    flex: 1,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    position: 'relative',
+    transform: [{ translateY: 12 }],
+  },
+  navSlidingLine: {
+    position: 'absolute',
+    top: 17,
+    left: 0,
+    width: 18,
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: colors.orange,
+    shadowColor: colors.orange,
+    shadowOpacity: 0.65,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  navText: {
+    color: 'rgba(226,232,240,0.48)',
+    fontWeight: '800',
+    fontSize: 10,
+    lineHeight: 12,
+  },
+  navActiveText: { color: colors.orange },
+  navText: { color: '#9CA3AF', fontWeight: '600', fontSize: 12 },
   navActiveText: { color: colors.white },
 });

@@ -18,5 +18,5 @@ export function PlaceholderScreen({ title, subtitle }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
   title: { color: colors.navy, fontSize: 26, fontWeight: '800', marginBottom: 8 },
-  subtitle: { color: colors.muted, fontSize: 15, fontWeight: '600', textAlign: 'center', lineHeight: 22 },
+  subtitle: { color: colors.muted, fontSize: 15, fontWeight: '400', textAlign: 'center', lineHeight: 22 },
 });

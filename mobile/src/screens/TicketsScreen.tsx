@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     color: 'rgba(226,232,240,0.64)',
     fontSize: 16,
     lineHeight: 23,
-    fontWeight: '600',
+    fontWeight: '400',
     marginBottom: 22,
   },
   ticketCard: {

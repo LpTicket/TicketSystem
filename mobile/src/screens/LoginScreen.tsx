@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 15,
     lineHeight: 22,
-    fontWeight: '600',
+    fontWeight: '400',
     marginBottom: 22,
   },
   field: {

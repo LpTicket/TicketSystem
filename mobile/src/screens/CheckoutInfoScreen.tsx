@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   eventMeta: {
     color: '#6B7280',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '400',
   },
   dot: {
     color: colors.orange,
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     color: '#6B7280',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   input: {
     height: 56,
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 14,
     lineHeight: 21,
-    fontWeight: '600',
+    fontWeight: '400',
   },
   continueButton: {
     height: 58,

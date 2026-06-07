@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   },
   cameraText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
   name: { color: '#FFFFFF', fontSize: 26, fontWeight: '900', marginBottom: 5 },
-  role: { color: '#cbd5e1', fontSize: 12, letterSpacing: 2.4, fontWeight: '900', marginBottom: 18 },
+  role: { color: '#cbd5e1', fontSize: 12, letterSpacing: 2.4, fontWeight: '400', marginBottom: 18 },
   heroStats: { flexDirection: 'row', gap: 12, width: '100%' },
   heroStat: {
     flex: 1,
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.14)',
   },
   heroStatValue: { color: '#FFFFFF', fontSize: 17, fontWeight: '900', textAlign: 'center' },
-  heroStatLabel: { color: '#cbd5e1', fontSize: 12, fontWeight: '800', textAlign: 'center', marginTop: 3 },
+  heroStatLabel: { color: '#cbd5e1', fontSize: 12, fontWeight: '400', textAlign: 'center', marginTop: 3 },
   card: {
     backgroundColor: 'rgba(255,255,255,0.018)',
     borderRadius: 24,
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
   infoLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 12, letterSpacing: 1.5, fontWeight: '900', textTransform: 'uppercase', marginBottom: 5 },
   infoValue: { color: '#F8FAFC', fontSize: 16, fontWeight: '800', lineHeight: 22 },
   field: { gap: 7, marginBottom: 14 },
-  inputLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '900' },
+  inputLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '400' },
   input: {
     minHeight: 56,
     borderRadius: 17,
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   securityTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '900', marginBottom: 3 },
-  securityCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '700', lineHeight: 19, maxWidth: 220 },
+  securityCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '400', lineHeight: 19, maxWidth: 220 },
   statusPill: { backgroundColor: '#DCFCE7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
   statusText: { color: '#15803d', fontSize: 11, letterSpacing: 1.4, fontWeight: '900' },
   softPill: { backgroundColor: '#030B14', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },

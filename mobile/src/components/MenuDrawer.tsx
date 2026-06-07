@@ -48,21 +48,9 @@ export function MenuDrawer({ visible, onClose, onGoEvents, onGoTickets, onGoProf
             <TouchableOpacity style={styles.link} onPress={() => go(onGoProfile)}>
               <Text style={styles.linkText}>{t('Perfil', 'Profile')}</Text>
             </TouchableOpacity>
-
-            {canOrganize && (
-              <TouchableOpacity style={styles.link} onPress={() => go(onGoScan)}>
-                <Text style={styles.linkText}>{t('Escanear Tickets', 'Scan Tickets')}</Text>
-              </TouchableOpacity>
-            )}
-
             <TouchableOpacity style={styles.link} onPress={() => go(onGoAiChat)}>
               <Text style={styles.linkText}>{t('Chat IA', 'AI Assistant')}</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.link} onPress={() => go(onGoSocialMatch)}>
-              <Text style={styles.linkText}>Social Match</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity style={styles.link} onPress={() => go(onGoCart)}>
               <Text style={styles.linkText}>{t('Carrito', 'Cart')}</Text>
             </TouchableOpacity>

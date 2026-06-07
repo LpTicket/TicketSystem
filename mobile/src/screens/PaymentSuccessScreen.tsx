@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 15,
     lineHeight: 22,
-    fontWeight: '600',
+    fontWeight: '400',
     textAlign: 'center',
     marginBottom: 22,
   },
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   eventMeta: {
     color: '#6B7280',
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '400',
     marginTop: 2,
   },
   primaryButton: {

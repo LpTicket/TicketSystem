@@ -23,10 +23,10 @@ const socialMatches = [
   { id: '2', name: 'Maria Lopez', detail: 'Theater, networking', match: '86%' },
 ];
 
-export function ProfileScreen() {
+export function ProfileScreen({ initialTab = 'account' }: { initialTab?: ProfileTab }) {
   const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState<ProfileTab>('account');
+  const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
   const [profile, setProfile] = useState({
     firstName: mockUser.firstName,
     lastName: mockUser.lastName,
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   heroCopy: { flex: 1 },
   eyebrowLight: { color: '#f8b37b', fontSize: 10, letterSpacing: 2.4, fontWeight: '900', marginBottom: 5 },
   name: { color: '#FFFFFF', fontSize: 24, fontWeight: '900', marginBottom: 4 },
-  email: { color: '#cbd5e1', fontSize: 14, fontWeight: '700' },
+  email: { color: '#cbd5e1', fontSize: 14, fontWeight: '400' },
   heroStats: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   miniStat: {
     flex: 1,
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 3, fontWeight: '900', marginBottom: 8 },
   editTitle: { color: '#F8FAFC', fontSize: 30, fontWeight: '900', marginBottom: 8 },
-  editCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 15, lineHeight: 22, fontWeight: '600' },
+  editCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 15, lineHeight: 22, fontWeight: '400' },
   card: {
     backgroundColor: 'rgba(255,255,255,0.018)',
     borderRadius: 24,
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 },
   cardLabel: { color: colors.orange, fontSize: 11, letterSpacing: 2.8, fontWeight: '900', marginBottom: 8 },
   cardTitle: { color: '#F8FAFC', fontSize: 24, fontWeight: '900', marginBottom: 6 },
-  cardCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 14, lineHeight: 21, fontWeight: '700' },
+  cardCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 14, lineHeight: 21, fontWeight: '400' },
   statusPill: { backgroundColor: '#DCFCE7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
   statusPillText: { color: '#15803d', fontSize: 10, letterSpacing: 1.4, fontWeight: '900' },
   row: {
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 18,
   },
-  rowLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 15, fontWeight: '700' },
+  rowLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 15, fontWeight: '400' },
   rowValue: { color: '#F8FAFC', fontSize: 15, fontWeight: '900', textAlign: 'right', flex: 1 },
   actionRow: {
     minHeight: 74,
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   actionBadgeText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   actionCopy: { flex: 1 },
   actionTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '900', marginBottom: 3 },
-  actionSubtitle: { color: 'rgba(226,232,240,0.64)', fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  actionSubtitle: { color: 'rgba(226,232,240,0.64)', fontSize: 12, lineHeight: 17, fontWeight: '400' },
   actionText: { color: colors.orange, fontSize: 11, letterSpacing: 1.2, fontWeight: '900' },
   socialHeader: { flexDirection: 'row', gap: 14, alignItems: 'flex-start', marginBottom: 16 },
   socialBadge: {
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   matchAvatarText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
   matchCopy: { flex: 1 },
   matchName: { color: '#F8FAFC', fontSize: 17, fontWeight: '900', marginBottom: 3 },
-  matchDetail: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '700' },
+  matchDetail: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '400' },
   matchScore: { backgroundColor: '#fff7ed', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 8 },
   matchScoreText: { color: colors.orange, fontSize: 13, fontWeight: '900' },
   receiptRow: {
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   receiptEvent: { color: '#F8FAFC', fontSize: 15, fontWeight: '900', marginBottom: 4 },
-  receiptMeta: { color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '700' },
+  receiptMeta: { color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '400' },
   receiptRight: { alignItems: 'flex-end' },
   receiptTotal: { color: '#F8FAFC', fontSize: 15, fontWeight: '900', marginBottom: 4 },
   receiptStatus: { color: '#15803d', fontSize: 11, letterSpacing: 1.2, fontWeight: '900' },
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   paymentIconText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
   paymentCopy: { flex: 1 },
   paymentTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '900', marginBottom: 3 },
-  paymentSub: { color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '700' },
+  paymentSub: { color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '400' },
   paymentAction: { color: colors.orange, fontSize: 11, letterSpacing: 1.2, fontWeight: '900' },
   logoutButton: {
     height: 54,
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   },
   logoutText: { color: '#F8FAFC', fontSize: 13, letterSpacing: 1.8, fontWeight: '900' },
   field: { gap: 7, marginBottom: 14 },
-  inputLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '800' },
+  inputLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '400' },
   input: {
     height: 56,
     borderRadius: 16,

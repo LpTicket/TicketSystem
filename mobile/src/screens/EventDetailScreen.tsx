@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   panel: { marginTop: -18, backgroundColor: colors.white, borderRadius: 22, padding: 18, borderWidth: 1, borderColor: colors.border },
   title: { color: colors.navy, fontSize: 25, fontWeight: '800', lineHeight: 30 },
   meta: { color: colors.navy, fontSize: 16, fontWeight: '700', marginTop: 16 },
-  address: { color: '#9CA3AF', fontSize: 15, fontWeight: '700', marginTop: 4, paddingLeft: 22 },
+  address: { color: '#9CA3AF', fontSize: 15, fontWeight: '400', marginTop: 4, paddingLeft: 22 },
   divider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 20 },
   price: { color: colors.navy, fontSize: 21, fontWeight: '800' },
   actions: { flexDirection: 'row', gap: 14, marginTop: 22 },
@@ -72,5 +72,5 @@ const styles = StyleSheet.create({
   buyText: { color: colors.white, fontSize: 14, fontWeight: '800', letterSpacing: 2.6 },
   infoBlock: { marginTop: 16, backgroundColor: colors.white, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: colors.border },
   infoTitle: { color: colors.navy, fontSize: 18, fontWeight: '800' },
-  infoText: { color: colors.muted, fontSize: 15, fontWeight: '600', lineHeight: 23, marginTop: 8 },
+  infoText: { color: colors.muted, fontSize: 15, fontWeight: '400', lineHeight: 23, marginTop: 8 },
 });
