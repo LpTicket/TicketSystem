@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { mockUser } from '../../data/mockUser';
+import { AuthUser } from '../../services/api';
+import { updateProfile as updateProfileRequest } from '../../services/auth';
 
 type AccountForm = {
   firstName: string;
@@ -14,16 +15,22 @@ type AccountForm = {
   password: string;
 };
 
-export function AccountMobile() {
+type Props = {
+  user: AuthUser;
+  onUserUpdated?: (user: AuthUser) => void;
+};
+
+export function AccountMobile({ user, onUserUpdated }: Props) {
   const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [account, setAccount] = useState<AccountForm>({
-    firstName: mockUser.firstName,
-    lastName: mockUser.lastName,
-    username: 'sundingalue',
-    email: mockUser.email,
-    phone: mockUser.phone,
-    address: '1325 Main St Suite 203, Katy, TX 77494',
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
+    username: user.username || '',
+    email: user.email || '',
+    phone: user.phone || '',
+    address: '',
     password: '',
   });
 
@@ -31,6 +38,28 @@ export function AccountMobile() {
 
   const update = (key: keyof AccountForm, value: string) => {
     setAccount((current) => ({ ...current, [key]: value }));
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const updated = await updateProfileRequest({
+        firstName: account.firstName,
+        lastName: account.lastName,
+        username: account.username || undefined,
+        email: account.email,
+        phone: account.phone,
+        ...(account.address ? { address: account.address } : {}),
+        ...(account.password ? { password: account.password } : {}),
+      });
+      onUserUpdated?.(updated);
+      setAccount((c) => ({ ...c, password: '' }));
+      setEditing(false);
+    } catch {
+      /* keep editing on error */
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -82,8 +111,8 @@ export function AccountMobile() {
             <Field label={t('Dirección', 'Address')} value={account.address} onChangeText={(value: string) => update('address', value)} multiline />
             <Field label={t('Nueva contraseña opcional', 'New password optional')} value={account.password} onChangeText={(value: string) => update('password', value)} secureTextEntry placeholder="******" />
 
-            <TouchableOpacity style={styles.saveButton} onPress={() => setEditing(false)}>
-              <Text style={styles.saveText}>{t('GUARDAR CAMBIOS', 'SAVE CHANGES')}</Text>
+            <TouchableOpacity style={[styles.saveButton, saving && { opacity: 0.6 }]} onPress={save} disabled={saving}>
+              <Text style={styles.saveText}>{saving ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR CAMBIOS', 'SAVE CHANGES')}</Text>
             </TouchableOpacity>
           </View>
         ) : (

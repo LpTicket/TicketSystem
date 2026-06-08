@@ -2,37 +2,59 @@ import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
-import { mockUser } from '../data/mockUser';
+import { AuthUser } from '../services/api';
+import { updateProfile as updateProfileRequest } from '../services/auth';
 import { AccountMobile } from '../components/profile/AccountMobile';
 
 type ProfileTab = 'account' | 'payments';
 
-const receipts = [
-  { id: 'LP-2026-001', event: 'Noche de (des)amor', date: 'Jun 25, 2026', total: '$20.00', status: 'Paid' },
-  { id: 'LP-2026-002', event: 'Sunset Lounge Experience', date: 'Jul 12, 2026', total: '$35.00', status: 'Paid' },
-];
+type Props = {
+  initialTab?: ProfileTab;
+  user: AuthUser;
+  onUserUpdated?: (user: AuthUser) => void;
+  onLogout?: () => void;
+};
 
 const paymentMethods = [
   { id: '1', brand: 'Visa', last4: '4242', label: 'Primary card' },
   { id: '2', brand: 'Apple Pay', last4: 'Ready', label: 'Fast checkout' },
 ];
 
-export function ProfileScreen({ initialTab = 'account' }: { initialTab?: ProfileTab }) {
+export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onLogout }: Props) {
   const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
   const [profile, setProfile] = useState({
-    firstName: mockUser.firstName,
-    lastName: mockUser.lastName,
-    email: mockUser.email,
-    phone: mockUser.phone,
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
+    email: user.email || '',
+    phone: user.phone || '',
   });
 
   const initials = useMemo(() => `${profile.firstName[0] || ''}${profile.lastName[0] || ''}`.toUpperCase(), [profile]);
-  const fullName = `${profile.firstName} ${profile.lastName}`;
+  const fullName = `${profile.firstName} ${profile.lastName}`.trim() || (user.email || '');
 
   const updateProfile = (key: keyof typeof profile, value: string) => {
     setProfile((current) => ({ ...current, [key]: value }));
+  };
+
+  const saveProfile = async () => {
+    setSaving(true);
+    try {
+      const updated = await updateProfileRequest({
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        email: profile.email,
+        phone: profile.phone,
+      });
+      onUserUpdated?.(updated);
+      setEditing(false);
+    } catch {
+      /* keep editing on error */
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (editing) {
@@ -53,8 +75,8 @@ export function ProfileScreen({ initialTab = 'account' }: { initialTab?: Profile
           <ProfileField label={t('Teléfono', 'Phone')} value={profile.phone} onChangeText={(value) => updateProfile('phone', value)} keyboardType="phone-pad" />
         </View>
 
-        <TouchableOpacity style={styles.saveButton} onPress={() => setEditing(false)}>
-          <Text style={styles.saveText}>{t('GUARDAR CAMBIOS', 'SAVE CHANGES')}</Text>
+        <TouchableOpacity style={[styles.saveButton, saving && { opacity: 0.6 }]} onPress={saveProfile} disabled={saving}>
+          <Text style={styles.saveText}>{saving ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR CAMBIOS', 'SAVE CHANGES')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.cancelButton} onPress={() => setEditing(false)}>
@@ -95,26 +117,10 @@ export function ProfileScreen({ initialTab = 'account' }: { initialTab?: Profile
         <ProfileTabButton label={t('Pagos', 'Payments')} active={activeTab === 'payments'} onPress={() => setActiveTab('payments')} />
       </View>
 
-            {activeTab === 'account' && <AccountMobile />}
+            {activeTab === 'account' && <AccountMobile user={user} onUserUpdated={onUserUpdated} />}
 
       {activeTab === 'payments' && (
         <>
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>{t('RECIBOS', 'RECEIPTS')}</Text>
-            {receipts.map((receipt) => (
-              <View key={receipt.id} style={styles.receiptRow}>
-                <View>
-                  <Text style={styles.receiptEvent}>{receipt.event}</Text>
-                  <Text style={styles.receiptMeta}>{receipt.id} - {receipt.date}</Text>
-                </View>
-                <View style={styles.receiptRight}>
-                  <Text style={styles.receiptTotal}>{receipt.total}</Text>
-                  <Text style={styles.receiptStatus}>{receipt.status}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-
           <View style={styles.card}>
             <Text style={styles.cardLabel}>{t('MÉTODOS DE PAGO', 'PAYMENT METHODS')}</Text>
             {paymentMethods.map((method) => (
@@ -139,7 +145,7 @@ export function ProfileScreen({ initialTab = 'account' }: { initialTab?: Profile
         </>
       )}
 
-      <TouchableOpacity style={styles.logoutButton}>
+      <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
         <Text style={styles.logoutText}>{t('CERRAR SESIÓN', 'LOG OUT')}</Text>
       </TouchableOpacity>
     </ScrollView>

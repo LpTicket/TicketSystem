@@ -21,7 +21,8 @@ import { PaymentSuccessScreen } from './src/screens/PaymentSuccessScreen';
 import { LanguageProvider, useLanguage } from './src/i18n/LanguageContext';
 import { colors } from './src/theme/colors';
 import { MobileEvent } from './src/types/event';
-import { AuthUser, clearAuthTokens } from './src/services/api';
+import { AuthUser } from './src/services/api';
+import { logout as logoutRequest, restoreSession } from './src/services/auth';
 
 type Tab = 'events' | 'tickets' | 'scan' | 'social' | 'profile' | 'organizer' | 'admin';
 
@@ -40,6 +41,21 @@ function AppContent() {
   const [loginAfterPurchase, setLoginAfterPurchase] = useState(false);
   const [viewMode, setViewMode] = useState<'client' | 'organizer'>('client');
   const [paymentSuccessOpen, setPaymentSuccessOpen] = useState(false);
+
+  // Restore a saved session on launch so the user stays logged in.
+  useEffect(() => {
+    restoreSession().then((user) => {
+      if (user) setCurrentUser(user);
+    });
+  }, []);
+
+  const handleLogout = () => {
+    clearFlow();
+    logoutRequest();
+    setCurrentUser(null);
+    setViewMode('client');
+    setTab('events');
+  };
 
   const clearFlow = () => {
     setSelectedEvent(null);
@@ -115,7 +131,7 @@ function AppContent() {
         ) : tab === 'social' ? (
           isLoggedIn ? <SocialScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'profile' ? (
-          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" /> : <LoginScreen onSignIn={setCurrentUser} />
+          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'organizer' ? (
           isLoggedIn ? <OrganizerPanelScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'admin' ? (
@@ -164,13 +180,7 @@ function AppContent() {
           onGoAiChat={() => goToTab('profile')}
           onGoSocialMatch={() => goToTab('social')}
           onGoCart={() => goToTab('tickets')}
-          onLogout={() => {
-            clearFlow();
-            clearAuthTokens();
-            setCurrentUser(null);
-            setViewMode('client');
-            setTab('events');
-          }}
+          onLogout={handleLogout}
           canOrganize={canOrganize}
           canAdmin={canAdmin}
         />

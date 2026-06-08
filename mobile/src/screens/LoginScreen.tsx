@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
-import { apiPost, AuthResponse, AuthUser, setAuthTokens } from '../services/api';
+import { AuthUser } from '../services/api';
+import { login as loginRequest } from '../services/auth';
 
 type Props = {
   onSignIn: (user: AuthUser) => void;
@@ -25,13 +26,8 @@ export function LoginScreen({ onSignIn }: Props) {
     setError('');
 
     try {
-      const data = await apiPost<AuthResponse>('/auth/login', {
-        email: email.trim(),
-        password,
-      });
-
-      setAuthTokens(data.accessToken, data.refreshToken);
-      onSignIn(data.user);
+      const user = await loginRequest(email, password);
+      onSignIn(user);
     } catch (err: any) {
       setError(err?.message || t('No pudimos iniciar sesión.', 'We could not sign in.'));
     } finally {
