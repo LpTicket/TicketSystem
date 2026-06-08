@@ -231,6 +231,24 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         if (foundSeat.status === 'sold') return 'sold';
         // Temporary checkout hold: show as yellow, not sold gray
         if (foundSeat.status === 'locked' && foundSeat.lockExpiresAt) return 'held';
+      }
+    }
+
+    if ('reserved' in seatOverride) {
+      return seatOverride.reserved ? 'reserved' : 'available';
+    }
+
+    if (section.seats) {
+      let foundSeat;
+      if (section.sectionType === 'table') {
+        const num = parseInt(seatKey.replace('seat-', ''), 10);
+        foundSeat = section.seats.find(s => s.seatNumber === num);
+      } else {
+        const [row, num] = seatKey.split('-');
+        foundSeat = section.seats.find(s => s.rowLabel === row && s.seatNumber === parseInt(num, 10));
+      }
+
+      if (foundSeat) {
         // Permanent block if locked and no expiry
         if (foundSeat.status === 'locked' && !foundSeat.lockExpiresAt) return 'reserved';
       }
@@ -1692,7 +1710,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                       const rowLabel: string = selectedSection?.sectionType === 'table' ? 'Mesa' : String.fromCharCode(64 + r);
                       for(let s=1; s<=seatsPerRow; s++) {
                         const key = selectedSection?.sectionType === 'table' ? `seat-${s}` : `${rowLabel}-${s}`;
-                        if (!config[key]?.reserved) anyUnreserved = true;
+                        if (getSeatStatus(selectedSection, key) === 'available') anyUnreserved = true;
                       }
                     }
 
