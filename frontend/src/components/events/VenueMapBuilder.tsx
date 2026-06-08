@@ -1840,7 +1840,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         onPointerUp={onViewportPointerUp}
         onPointerLeave={onViewportPointerUp}
         onPointerCancel={onViewportPointerUp}
-        onClick={() => { setSelectedId(null); setSelectedSeat(null); }}
+        onClick={() => { setSelectedId(null); setSelectedSeat(null); setHoverInfo(null); }}
       >
         {hoverInfo && (
           <div
@@ -1998,6 +1998,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   if (hasMoved) return;
                   e.stopPropagation();
                   setSelectedId(sec.id!);
+                  // Touch devices have no hover — tapping a general area shows its count.
+                  if (isStanding) buildAreaHover(e, sec);
                 }}
                 onMouseEnter={e => { if (isStanding) buildAreaHover(e, sec); }}
                 onMouseMove={e => { if (isStanding && !draggingRef.current) buildAreaHover(e, sec); }}
