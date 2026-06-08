@@ -5,11 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from './src/components/AppHeader';
 import { MenuDrawer } from './src/components/MenuDrawer';
 import { mockEvents } from './src/data/mockEvents';
-import { mockUser } from './src/data/mockUser';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { EventDetailScreen } from './src/screens/EventDetailScreen';
 import { TicketsScreen } from './src/screens/TicketsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
+import { SocialScreen } from './src/screens/SocialScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { OrganizerPanelScreen } from './src/screens/OrganizerPanelScreen';
 import { AdminPanelScreen } from './src/screens/AdminPanelScreen';
@@ -21,6 +21,7 @@ import { PaymentSuccessScreen } from './src/screens/PaymentSuccessScreen';
 import { LanguageProvider, useLanguage } from './src/i18n/LanguageContext';
 import { colors } from './src/theme/colors';
 import { MobileEvent } from './src/types/event';
+import { AuthUser, clearAuthTokens } from './src/services/api';
 
 type Tab = 'events' | 'tickets' | 'scan' | 'social' | 'profile' | 'organizer' | 'admin';
 
@@ -35,7 +36,7 @@ function AppContent() {
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [checkoutInfoOpen, setCheckoutInfoOpen] = useState(false);
   const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loginAfterPurchase, setLoginAfterPurchase] = useState(false);
   const [viewMode, setViewMode] = useState<'client' | 'organizer'>('client');
   const [paymentSuccessOpen, setPaymentSuccessOpen] = useState(false);
@@ -57,6 +58,10 @@ function AppContent() {
 
   const bottomTabs: Tab[] = ['events', 'tickets', 'scan', 'social', 'profile'];
   const activeBottomIndex = Math.max(0, bottomTabs.indexOf(tab));
+  const isLoggedIn = !!currentUser;
+  const userRole = currentUser?.role;
+  const canAdmin = userRole === 'admin';
+  const canOrganize = isLoggedIn;
   const navPadding = 8;
   const navItemWidth = (width - navPadding * 2) / bottomTabs.length;
 
@@ -76,7 +81,7 @@ function AppContent() {
       <View style={styles.app}>
         {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} onOpenCart={() => goToTab('tickets')} />}
 
-        {!scanOpen && isLoggedIn && mockUser.canOrganize && !selectedEvent && (
+        {!scanOpen && canOrganize && !selectedEvent && (
           <View style={styles.modeSwitch}>
             <TouchableOpacity onPress={() => { setViewMode('client'); goToTab('events'); }} style={[styles.modeButton, viewMode === 'client' && styles.modeButtonActive]}>
               <Text style={[styles.modeText, viewMode === 'client' && styles.modeTextActive]}>{t('Cliente', 'Client')}</Text>
@@ -96,7 +101,7 @@ function AppContent() {
         ) : selectedEvent && checkoutInfoOpen ? (
           <CheckoutInfoScreen event={selectedEvent} onBack={() => setCheckoutInfoOpen(false)} onContinue={() => { setCheckoutInfoOpen(false); setOrderSummaryOpen(true); }} />
         ) : selectedEvent && loginAfterPurchase ? (
-          <LoginScreen onSignIn={() => { setIsLoggedIn(true); setLoginAfterPurchase(false); setPurchaseOpen(true); }} />
+          <LoginScreen onSignIn={(user) => { setCurrentUser(user); setLoginAfterPurchase(false); setPurchaseOpen(true); }} />
         ) : selectedEvent && purchaseOpen ? (
           <PurchaseScreen event={selectedEvent} onBack={() => setPurchaseOpen(false)} onContinue={() => { setPurchaseOpen(false); setCheckoutInfoOpen(true); }} />
         ) : selectedEvent ? (
@@ -104,20 +109,20 @@ function AppContent() {
         ) : tab === 'events' ? (
           <HomeScreen onOpenEvent={setSelectedEvent} />
         ) : tab === 'tickets' ? (
-          isLoggedIn ? <TicketsScreen /> : <LoginScreen onSignIn={() => setIsLoggedIn(true)} />
+          isLoggedIn ? <TicketsScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'scan' ? (
           <ScanScreen onBack={() => goToTab('events')} />
         ) : tab === 'social' ? (
-          isLoggedIn ? <ProfileScreen key="social" initialTab="social" /> : <LoginScreen onSignIn={() => setIsLoggedIn(true)} />
+          isLoggedIn ? <SocialScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'profile' ? (
-          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" /> : <LoginScreen onSignIn={() => setIsLoggedIn(true)} />
+          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'organizer' ? (
-          isLoggedIn ? <OrganizerPanelScreen /> : <LoginScreen onSignIn={() => setIsLoggedIn(true)} />
+          isLoggedIn ? <OrganizerPanelScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'admin' ? (
-          isLoggedIn && mockUser.canAdmin ? <AdminPanelScreen /> : <LoginScreen onSignIn={() => setIsLoggedIn(true)} />
+          canAdmin ? <AdminPanelScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : null}
 
-        {!selectedEvent && !scanOpen && !purchaseOpen && (
+        {!scanOpen && !purchaseOpen && !checkoutInfoOpen && !orderSummaryOpen && !paymentSuccessOpen && !loginAfterPurchase && (
           <View style={styles.bottomNav}>
             <Animated.View style={[styles.navSlidingLine, { transform: [{ translateX: navIndicatorX }] }]} />
             <TouchableOpacity onPress={() => goToTab('events')} style={styles.navItem}>
@@ -157,10 +162,17 @@ function AppContent() {
           onGoAdmin={() => goToTab('admin')}
           onGoScan={() => { clearFlow(); setScanOpen(true); }}
           onGoAiChat={() => goToTab('profile')}
-          onGoSocialMatch={() => goToTab('profile')}
+          onGoSocialMatch={() => goToTab('social')}
           onGoCart={() => goToTab('tickets')}
-          canOrganize={isLoggedIn && mockUser.canOrganize}
-          canAdmin={isLoggedIn && mockUser.canAdmin}
+          onLogout={() => {
+            clearFlow();
+            clearAuthTokens();
+            setCurrentUser(null);
+            setViewMode('client');
+            setTab('events');
+          }}
+          canOrganize={canOrganize}
+          canAdmin={canAdmin}
         />
       </View>
     </SafeAreaView>
@@ -211,8 +223,8 @@ const styles = StyleSheet.create({
   modeSwitch: {
     position: 'absolute',
     top: 63,
-    left: 10,
-    right: 10,
+    left: 0,
+    right: 0,
     zIndex: 30,
     elevation: 30,
     backgroundColor: 'rgba(3,11,20,0.96)',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { mockEvents } from '../data/mockEvents';
@@ -9,9 +9,70 @@ import { OrganizerEventsMobile } from '../components/organizer/OrganizerEventsMo
 import { OrganizerAttendeesMobile } from '../components/organizer/OrganizerAttendeesMobile';
 import { OrganizerAccessMobile } from '../components/organizer/OrganizerAccessMobile';
 import { OrganizerRewardsMobile } from '../components/organizer/OrganizerRewardsMobile';
-import { OrganizerScanMobile } from '../components/organizer/OrganizerScanMobile';
+import { apiGet } from '../services/api';
 
-type Section = 'dashboard' | 'events' | 'create' | 'details' | 'map' | 'attendees' | 'blocks' | 'rewards' | 'scan';
+type Section = 'dashboard' | 'events' | 'create' | 'details' | 'map' | 'attendees' | 'blocks' | 'rewards';
+
+
+type OrganizerApiEvent = {
+  id?: string;
+  title?: string;
+  venueName?: string;
+  venueAddress?: string;
+  eventDate?: string;
+  category?: string;
+  categoryName?: string;
+  status?: string;
+  capacity?: number;
+  totalCapacity?: number;
+  soldTickets?: number;
+  ticketsSold?: number;
+  totalRevenue?: number;
+  revenue?: number;
+};
+
+type OrganizerStats = {
+  totalRevenue?: number;
+  totalTickets?: number;
+  activeEvents?: number;
+  totalOrders?: number;
+};
+
+function listFrom(payload: any) {
+  if (Array.isArray(payload)) return payload;
+  return payload?.data || payload?.events || payload?.items || [];
+}
+
+function money(value: any) {
+  const amount = Number(value || 0);
+  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatEventDate(value?: string) {
+  if (!value) return 'Date coming soon';
+  try {
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+function toOrganizerEvent(event: OrganizerApiEvent, index: number) {
+  const capacity = Number(event.capacity || event.totalCapacity || 0);
+  const sold = Number(event.soldTickets || event.ticketsSold || 0);
+  return {
+    id: String(event.id || index),
+    title: event.title || 'Evento',
+    venue: event.venueName || event.venueAddress || 'Venue',
+    date: formatEventDate(event.eventDate),
+    time: '',
+    category: event.categoryName || event.category || 'Event',
+    capacity,
+    sold,
+    revenue: money(event.totalRevenue || event.revenue || 0),
+    status: event.status === 'published' ? 'published' as const : 'draft' as const,
+  };
+}
 
 const sections: Section[] = [
   'dashboard',
@@ -22,7 +83,6 @@ const sections: Section[] = [
   'attendees',
   'blocks',
   'rewards',
-  'scan',
 ];
 
 export function OrganizerPanelScreen() {
@@ -36,6 +96,38 @@ export function OrganizerPanelScreen() {
     { id: '2', title: 'VIP Familia', type: 'Invitacion', status: 'ACTIVE' },
     { id: '3', title: 'PRIVATE-21', type: 'Codigo privado', status: 'PAUSED' },
   ]);
+  const [organizerEvents, setOrganizerEvents] = useState<ReturnType<typeof toOrganizerEvent>[]>([]);
+  const [organizerStats, setOrganizerStats] = useState<OrganizerStats>({});
+
+  useEffect(() => {
+    let mounted = true;
+
+    apiGet<any>('/events/mine/list')
+      .then((data) => {
+        if (!mounted) return;
+        const items = listFrom(data).map(toOrganizerEvent);
+        setOrganizerEvents(items);
+
+        const first = items[0];
+        if (first) {
+          setEventTitle(first.title);
+          setEventVenue(first.venue);
+          setEventStatus(first.status);
+        }
+      })
+      .catch(() => {});
+
+    apiGet<OrganizerStats>('/orders/organizer/stats')
+      .then((data) => {
+        if (mounted) setOrganizerStats(data || {});
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const [attendees, setAttendees] = useState([
     { id: '1', name: 'Sundin Galue', email: 'sundin@example.com', ticket: 'General admission', code: 'LP-8A21-GEN', status: 'PAID', total: '$20.00' },
     { id: '2', name: 'Fidel Genre', email: 'fidel@example.com', ticket: 'Mesa 8', code: 'LP-MESA8-02', status: 'SCANNED', total: '$100.00' },
@@ -83,6 +175,7 @@ export function OrganizerPanelScreen() {
             eventTitle={eventTitle}
             eventVenue={eventVenue}
             eventStatus={eventStatus}
+            events={organizerEvents}
             setEventStatus={setEventStatus}
             goTo={setActive}
           />
@@ -132,10 +225,6 @@ export function OrganizerPanelScreen() {
 
         {active === 'rewards' && (
           <OrganizerRewardsMobile goTo={setActive} />
-        )}
-
-        {active === 'scan' && (
-          <OrganizerScanMobile goTo={setActive} />
         )}
 
       </ScrollView>
@@ -249,7 +338,6 @@ function sectionLabel(section: Section, t: (es: string, en: string) => string) {
     attendees: t('Asistentes', 'Attendees'),
     blocks: t('Bloqueos', 'Access'),
     rewards: t('Recompensas', 'Rewards'),
-    scan: t('Scan', 'Scan'),
   };
   return names[section];
 }
@@ -264,7 +352,6 @@ function titleFor(section: Section, t: (es: string, en: string) => string) {
     attendees: t('Asistentes y ventas', 'Attendees and sales'),
     blocks: t('Bloqueos e invitaciones', 'Access and invitations'),
     rewards: t('Recompensas', 'Rewards'),
-    scan: t('Scan', 'Scan'),
   };
   return names[section];
 }
@@ -279,16 +366,15 @@ function subtitleFor(section: Section, t: (es: string, en: string) => string) {
     attendees: t('Compradores, tickets y acceso.', 'Buyers, tickets and access.'),
     blocks: t('Reservas, invitaciones y lista VIP.', 'Reservations, invitations and VIP list.'),
     rewards: t('Comisiones, codigos y pagos.', 'Commissions, codes and payouts.'),
-    scan: t('Validacion de QR en puerta.', 'QR validation at the door.'),
   };
   return copy[section];
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.darkBg },
-  tabsShell: { height: 86, backgroundColor: colors.darkBg, justifyContent: 'center', overflow: 'hidden' },
-  tabsScroller: { height: 86, flexGrow: 0, flexShrink: 0, backgroundColor: colors.darkBg },
-  tabs: { height: 86, paddingHorizontal: 16, gap: 8, alignItems: 'center' },
+  tabsShell: { height: 82, marginTop: 44, backgroundColor: colors.darkBg, justifyContent: 'center', overflow: 'hidden' },
+  tabsScroller: { height: 82, flexGrow: 0, flexShrink: 0, backgroundColor: colors.darkBg },
+  tabs: { height: 82, paddingHorizontal: 16, gap: 8, alignItems: 'center' },
   tab: { height: 40, paddingHorizontal: 14, borderRadius: 8, backgroundColor: 'rgba(8,31,51,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', justifyContent: 'center' },
   tabActive: { backgroundColor: colors.orange, borderColor: colors.orange },
   tabText: { color: '#CBD5E1', fontSize: 13, fontWeight: '800' },

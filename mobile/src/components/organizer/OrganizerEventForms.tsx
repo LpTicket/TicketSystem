@@ -27,8 +27,10 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
       </View>
 
       <View style={styles.heroPanel}>
+        <View pointerEvents="none" style={styles.heroPanelGlass} />
+        <View pointerEvents="none" style={styles.heroGlassLayer} />
         <View style={styles.heroTop}>
-          <View>
+          <View style={styles.heroTitleBlock}>
             <Text style={styles.eyebrow}>{t('EVENTO ACTIVO', 'LIVE EVENT')}</Text>
             <Text style={styles.heroTitle}>{eventTitle}</Text>
             <Text style={styles.heroSub}>25 Jun 2026, 19:00 · {eventVenue}</Text>
@@ -256,27 +258,29 @@ const styles = StyleSheet.create({
   metricGreen: { color: '#16a34a' },
   metricSlate: { color: '#6B7280' },
   metricLabel: { color: '#6B7280', fontSize: 12, fontWeight: '900', lineHeight: 17 },
-  heroPanel: { backgroundColor: colors.navy, borderRadius: 28, padding: 20, marginBottom: 16, shadowColor: '#111827', shadowOpacity: 0.14, shadowRadius: 20, shadowOffset: { width: 0, height: 12 } },
-  heroTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start', marginBottom: 18 },
+  heroPanel: { backgroundColor: 'rgba(3,11,20,0.62)', borderRadius: 28, borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', padding: 20, marginBottom: 16, overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.30, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
+  heroPanelGlass: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.035)' },
+  heroTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 18, position: 'relative' },
+  heroTitleBlock: { flex: 1, paddingRight: 128 },
   eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 3, fontWeight: '900', marginBottom: 8 },
   heroTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: '900', lineHeight: 29 },
   heroSub: { color: '#cbd5e1', fontSize: 13, fontWeight: '700', marginTop: 5 },
-  statusBadge: { borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
+  statusBadge: { position: 'absolute', top: 0, right: 4, minWidth: 118, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center', justifyContent: 'center' },
   statusActive: { backgroundColor: '#DCFCE7' },
   statusDraft: { backgroundColor: '#F3F4F6' },
-  statusBadgeText: { fontSize: 10, letterSpacing: 1.3, fontWeight: '900' },
+  statusBadgeText: { fontSize: 9, letterSpacing: 1.4, fontWeight: '900' },
   statusActiveText: { color: '#15803d' },
   statusDraftText: { color: '#6B7280' },
   progressTrack: { height: 10, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.14)', overflow: 'hidden', marginBottom: 16 },
   progressFill: { width: '24%', height: '100%', backgroundColor: colors.orange },
   summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  summary: { flex: 1, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 16, padding: 12 },
+  summary: { flex: 1, backgroundColor: 'rgba(255,255,255,0.085)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 12 },
   summaryValue: { color: '#FFFFFF', fontSize: 18, fontWeight: '900', textAlign: 'center' },
   summaryLabel: { color: '#cbd5e1', fontSize: 11, fontWeight: '800', textAlign: 'center', marginTop: 3 },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 6, marginBottom: 14 },
-  button: { minHeight: 48, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, flexGrow: 1 },
+  button: { width: '48%', height: 52, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
   buttonMuted: { backgroundColor: '#F9FAFB' },
-  buttonText: { color: '#FFFFFF', fontSize: 12, letterSpacing: 1.4, fontWeight: '900' },
+  buttonText: { color: '#FFFFFF', fontSize: 12, letterSpacing: 2.4, fontWeight: '900', textAlign: 'center' },
   buttonTextMuted: { color: colors.navy },
   card: { backgroundColor: '#FFFFFF', borderRadius: 26, borderWidth: 1, borderColor: '#E5E7EB', padding: 18, marginBottom: 16 },
   stepCard: { backgroundColor: '#FFFFFF', borderRadius: 28, borderWidth: 1, borderColor: '#E5E7EB', padding: 20, marginBottom: 16, shadowColor: '#111827', shadowOpacity: 0.07, shadowRadius: 18, shadowOffset: { width: 0, height: 10 } },

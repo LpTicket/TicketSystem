@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { mockEvents } from '../data/mockEvents';
 import { getPublicEvents } from '../services/events';
 import { colors } from '../theme/colors';
@@ -34,12 +34,9 @@ export function HomeScreen({ onOpenEvent }: Props) {
   const { t } = useLanguage();
   const [events, setEvents] = useState<MobileEvent[]>(mockEvents);
   const [heroIndex, setHeroIndex] = useState(0);
-  const [nextHeroIndex, setNextHeroIndex] = useState(0);
   const heroEvents = useMemo(() => events.filter((event) => event.bannerImageUrl || event.imageUrl), [events]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
   const safeHeroLength = Math.max(heroEvents.length, 1);
   const heroEvent = heroEvents[heroIndex % safeHeroLength] || events[0];
-  const nextHeroEvent = heroEvents[nextHeroIndex % safeHeroLength] || heroEvent;
 
   useEffect(() => {
     let mounted = true;
@@ -73,17 +70,10 @@ export function HomeScreen({ onOpenEvent }: Props) {
   };
 
   const changeHero = (nextIndex: number) => {
-    setNextHeroIndex(nextIndex);
-    fadeAnim.setValue(0);
+    if (heroEvents.length <= 1) return;
 
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 720,
-      useNativeDriver: true,
-    }).start(() => {
-      setHeroIndex(nextIndex);
-      fadeAnim.setValue(0);
-    });
+    const normalizedIndex = ((nextIndex % heroEvents.length) + heroEvents.length) % heroEvents.length;
+    if (normalizedIndex !== heroIndex) setHeroIndex(normalizedIndex);
   };
 
   const goNextHero = () => {
@@ -99,10 +89,7 @@ export function HomeScreen({ onOpenEvent }: Props) {
       <View pointerEvents="none" style={styles.bgGridA} />
       <View pointerEvents="none" style={styles.bgGridB} />
       <View style={styles.heroWrap}>
-        <Image source={getHeroImageSource(heroEvent)} style={styles.heroImage} resizeMode="contain" />
-
-        <Animated.Image source={getHeroImageSource(nextHeroEvent)} style={[styles.heroImage, styles.heroImageOverlay, { opacity: fadeAnim }]} resizeMode="contain" />
-        <View style={styles.heroOverlay} />
+        <Image source={getHeroImageSource(heroEvent)} style={styles.heroImage} resizeMode="cover" />
         <TouchableOpacity style={[styles.heroArrow, styles.heroLeft]} onPress={goPrevHero}><Text style={styles.heroArrowText}>‹</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.heroArrow, styles.heroRight]} onPress={goNextHero}><Text style={styles.heroArrowText}>›</Text></TouchableOpacity>
         <View style={styles.heroDots}>
@@ -170,7 +157,7 @@ export function HomeScreen({ onOpenEvent }: Props) {
       {events.map((event) => (
         <TouchableOpacity key={event.id} style={styles.eventCard} onPress={() => onOpenEvent(event)}>
           <View style={styles.eventPoster}>
-            <Image source={getPosterImageSource(event)} style={styles.eventPosterImage} resizeMode="contain" />
+            <Image source={getPosterImageSource(event)} style={styles.eventPosterImage} resizeMode="cover" />
             <View style={styles.posterShade} />
             <View style={styles.privateBadge}><Text style={styles.privateBadgeText}>● {event.tag}</Text></View>
             <View style={styles.featuredBadge}><Text style={styles.featuredText}>{t('DESTACADO', 'FEATURED')}</Text></View>
@@ -215,8 +202,6 @@ const styles = StyleSheet.create({
   content: { paddingTop: 72, paddingBottom: 46, backgroundColor: '#030B14' },
   heroWrap: { marginHorizontal: 16, marginTop: 12, marginBottom: 0, height: 205, overflow: 'hidden', backgroundColor: '#081F33', borderWidth: 1, borderColor: 'rgba(246,198,95,0.14)', borderRadius: 14, shadowColor: '#000000', shadowOpacity: 0.24, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 5 },
   heroImage: { width: '100%', height: '100%', backgroundColor: '#081F33' },
-  heroImageOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  heroOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(5,24,44,0.42)' },
   heroArrow: { position: 'absolute', top: '50%', transform: [{ translateY: -22 }], width: 44, height: 44, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.025)', alignItems: 'center', justifyContent: 'center' },
   heroLeft: { left: 14 },
   heroRight: { right: 14 },

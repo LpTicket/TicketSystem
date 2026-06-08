@@ -20,6 +20,8 @@ type ApiEvent = {
   imageData?: string;
   tag?: string;
   ageRestriction?: string;
+  description?: string;
+  isFeatured?: boolean;
 };
 
 function formatEventDate(value?: string) {
@@ -54,14 +56,22 @@ export async function getPublicEvents(): Promise<MobileEvent[]> {
 
     return {
       id: event.id,
+      slug: event.slug,
       title: event.title,
       date: formatEventDate(event.eventDate),
       venue: event.venueName || 'Venue coming soon',
       address: event.venueAddress || '',
       price: `${price.toFixed(2)} ${currency}`,
       tag: event.tag || event.categoryName || event.category || 'EVENT',
-      featured: true,
+      featured: event.isFeatured ?? true,
       age: event.ageRestriction || '+21',
+      description: event.description || '',
+      currency,
+      minPrice: price,
+      eventDate: event.eventDate,
+      eventTimezone: event.eventTimezone,
+      venueName: event.venueName,
+      venueAddress: event.venueAddress,
       imageUrl: getImageUrl(pickImage(event.imageUrl, event.imageData)),
       bannerImageUrl: getImageUrl(pickImage(event.bannerImageUrl, event.mobileImageData, event.imageUrl, event.imageData)),
     };

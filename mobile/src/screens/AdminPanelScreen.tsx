@@ -1,12 +1,57 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { mockEvents } from '../data/mockEvents';
 import { useLanguage } from '../i18n/LanguageContext';
+import { apiGet } from '../services/api';
 
 type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
 type AdminUser = { id: string; name: string; email: string; role: 'client' | 'organizer' | 'admin'; suspended: boolean };
 type Category = { id: string; name: string; active: boolean; featured: boolean };
+
+
+type AdminStats = {
+  totalUsers?: number;
+  totalEvents?: number;
+  publishedEvents?: number;
+  totalOrders?: number;
+  totalRevenue?: number;
+  totalTickets?: number;
+  pendingPayouts?: number;
+};
+
+function listFrom(payload: any) {
+  if (Array.isArray(payload)) return payload;
+  return payload?.data || payload?.events || payload?.users || payload?.categories || payload?.items || [];
+}
+
+function money(value: any) {
+  const amount = Number(value || 0);
+  return `$${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+}
+
+function fullName(user: any) {
+  const name = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
+  return name || user?.name || user?.username || user?.email || 'Usuario';
+}
+
+function adminEventTitle(event: any) {
+  return event?.title || 'Evento';
+}
+
+function adminEventVenue(event: any) {
+  return event?.venueName || event?.venue || event?.venueAddress || 'Venue';
+}
+
+function adminEventDate(event: any) {
+  const value = event?.eventDate || event?.date;
+  if (!value) return '';
+  try {
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
+  } catch {
+    return String(value);
+  }
+}
 
 const sections: { id: Section; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -35,6 +80,53 @@ export function AdminPanelScreen() {
     { id: '3', code: 'PRIVATE5', owner: 'Maria Lopez', commission: 5, active: false, generated: 120 },
   ]);
 
+  const [adminStats, setAdminStats] = useState<AdminStats>({});
+  const [adminEvents, setAdminEvents] = useState<any[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    Promise.allSettled([
+      apiGet<AdminStats>('/admin/stats'),
+      apiGet<any>('/admin/events?page=1&limit=50'),
+      apiGet<any>('/admin/users?page=1&limit=50'),
+      apiGet<any>('/categories?all=true'),
+    ]).then(([statsRes, eventsRes, usersRes, categoriesRes]) => {
+      if (!mounted) return;
+
+      if (statsRes.status === 'fulfilled') setAdminStats(statsRes.value || {});
+
+      if (eventsRes.status === 'fulfilled') {
+        setAdminEvents(listFrom(eventsRes.value));
+      }
+
+      if (usersRes.status === 'fulfilled') {
+        const liveUsers = listFrom(usersRes.value).map((user: any) => ({
+          id: String(user.id || user._id || user.email),
+          name: fullName(user),
+          email: user.email || '',
+          role: user.role === 'admin' ? 'admin' : user.role === 'organizer' ? 'organizer' : 'client',
+          suspended: user.isActive === false || user.suspended === true,
+        }));
+        if (liveUsers.length) setUsers(liveUsers);
+      }
+
+      if (categoriesRes.status === 'fulfilled') {
+        const liveCategories = listFrom(categoriesRes.value).map((category: any) => ({
+          id: String(category.id || category._id || category.name),
+          name: category.name || category.label || 'Category',
+          active: category.isActive !== false && category.active !== false,
+          featured: Boolean(category.featured || category.isFeatured),
+        }));
+        if (liveCategories.length) setCategories(liveCategories);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const [users, setUsers] = useState<AdminUser[]>([
     { id: '1', name: 'Sundin Galue', email: 'sundin@example.com', role: 'admin', suspended: false },
     { id: '2', name: 'Fidel Genre', email: 'fidel@example.com', role: 'organizer', suspended: false },
@@ -48,7 +140,7 @@ export function AdminPanelScreen() {
     { id: '4', name: 'Workshop', active: false, featured: false },
   ]);
 
-  const event = mockEvents[0];
+  const event = adminEvents[0] || mockEvents[0];
 
   const updateUser = (id: string, key: keyof AdminUser, value: string | boolean) => {
     setUsers((current) => current.map((user) => user.id === id ? { ...user, [key]: value } : user));
@@ -96,10 +188,10 @@ export function AdminPanelScreen() {
         {active === 'dashboard' && (
           <>
             <View style={styles.metricsGrid}>
-              <Metric label={t('Ventas plataforma', 'Platform sales')} value="$4,860" />
-              <Metric label={t('Eventos activos', 'Active events')} value="12" />
-              <Metric label={t('Usuarios', 'Users')} value="438" />
-              <Metric label={t('Pagos pendientes', 'Pending payouts')} value="$920" />
+              <Metric label={t('Ventas plataforma', 'Platform sales')} value={money(adminStats.totalRevenue ?? 4860)} />
+              <Metric label={t('Eventos activos', 'Active events')} value={String(adminStats.publishedEvents ?? adminStats.totalEvents ?? 12)} />
+              <Metric label={t('Usuarios', 'Users')} value={String(adminStats.totalUsers ?? 438)} />
+              <Metric label={t('Pagos pendientes', 'Pending payouts')} value={money(adminStats.pendingPayouts ?? 920)} />
             </View>
 
             <PanelCard title={t('Actividad reciente', 'Recent activity')}>
@@ -111,20 +203,24 @@ export function AdminPanelScreen() {
         )}
 
         {active === 'events' && (
-          <PanelCard title={t('Eventos publicados', 'Published events')}>
-            <Text style={styles.eventName}>{event.title}</Text>
-            <Text style={styles.copy}>{event.date} · {event.venue}</Text>
-            <View style={styles.statusRow}>
-              <StatusPill label={t('PUBLICADO', 'PUBLISHED')} tone="green" />
-              <StatusPill label={t('DESTACADO', 'FEATURED')} tone="orange" />
-            </View>
-            <View style={styles.actionGrid}>
-              <ActionButton label={t('Ver evento', 'View event')} />
-              <ActionButton label={t('Editar', 'Edit')} />
-              <ActionButton label={t('Destacar', 'Feature')} />
-              <ActionButton label={t('Ocultar', 'Hide')} muted />
-            </View>
-          </PanelCard>
+          <>
+            <PanelCard title={t('Eventos publicados', 'Published events')} eyebrow={t('EVENTOS REALES', 'LIVE EVENTS')} copy={t('Eventos cargados directamente desde el backend.', 'Events loaded directly from the backend.')} />
+            {(adminEvents.length ? adminEvents : [event]).map((item: any) => (
+              <PanelCard key={String(item.id || item.slug || adminEventTitle(item))} title={adminEventTitle(item)} eyebrow={(item.status || 'EVENT').toUpperCase()}>
+                <Text style={styles.copy}>{adminEventDate(item)} · {adminEventVenue(item)}</Text>
+                <View style={styles.statusRow}>
+                  <StatusPill label={(item.status || 'PUBLICADO').toUpperCase()} tone={item.status === 'draft' ? 'gray' : 'green'} />
+                  {item.featured || item.isFeatured ? <StatusPill label={t('DESTACADO', 'FEATURED')} tone="orange" /> : null}
+                </View>
+                <View style={styles.actionGrid}>
+                  <ActionButton label={t('Ver evento', 'View event')} />
+                  <ActionButton label={t('Editar', 'Edit')} />
+                  <ActionButton label={t('Destacar', 'Feature')} />
+                  <ActionButton label={t('Ocultar', 'Hide')} muted />
+                </View>
+              </PanelCard>
+            ))}
+          </>
         )}
 
         {active === 'users' && (
@@ -680,7 +776,7 @@ const styles = StyleSheet.create({
   listRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.orange },
   listText: { color: colors.navy, fontSize: 15, fontWeight: '700' },
-tabsShell: { height: 86, backgroundColor: colors.darkBg, justifyContent: 'center', overflow: 'hidden' },
+tabsShell: { height: 86, marginTop: 58, backgroundColor: colors.darkBg, justifyContent: 'center', overflow: 'hidden' },
   tabsScroller: { height: 86, flexGrow: 0, flexShrink: 0, backgroundColor: colors.darkBg },
 
   bannerPreviewCard: { backgroundColor: colors.navy, borderRadius: 20, padding: 20, marginTop: 4 },

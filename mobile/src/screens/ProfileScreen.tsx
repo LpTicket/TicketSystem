@@ -4,9 +4,8 @@ import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { mockUser } from '../data/mockUser';
 import { AccountMobile } from '../components/profile/AccountMobile';
-import { SocialMatchMobile } from '../components/profile/SocialMatchMobile';
 
-type ProfileTab = 'account' | 'social' | 'payments';
+type ProfileTab = 'account' | 'payments';
 
 const receipts = [
   { id: 'LP-2026-001', event: 'Noche de (des)amor', date: 'Jun 25, 2026', total: '$20.00', status: 'Paid' },
@@ -16,11 +15,6 @@ const receipts = [
 const paymentMethods = [
   { id: '1', brand: 'Visa', last4: '4242', label: 'Primary card' },
   { id: '2', brand: 'Apple Pay', last4: 'Ready', label: 'Fast checkout' },
-];
-
-const socialMatches = [
-  { id: '1', name: 'Fidel Genre', detail: 'Concerts, private events', match: '92%' },
-  { id: '2', name: 'Maria Lopez', detail: 'Theater, networking', match: '86%' },
 ];
 
 export function ProfileScreen({ initialTab = 'account' }: { initialTab?: ProfileTab }) {
@@ -98,17 +92,10 @@ export function ProfileScreen({ initialTab = 'account' }: { initialTab?: Profile
 
       <View style={styles.tabShell}>
         <ProfileTabButton label={t('Cuenta', 'Account')} active={activeTab === 'account'} onPress={() => setActiveTab('account')} />
-        <ProfileTabButton label={t('Social', 'Social')} active={activeTab === 'social'} onPress={() => setActiveTab('social')} />
         <ProfileTabButton label={t('Pagos', 'Payments')} active={activeTab === 'payments'} onPress={() => setActiveTab('payments')} />
       </View>
 
             {activeTab === 'account' && <AccountMobile />}
-
-      {activeTab === 'social' && (
-        <>
-          <SocialMatchMobile />
-        </>
-      )}
 
       {activeTab === 'payments' && (
         <>
@@ -223,7 +210,7 @@ function ActionRow({ badge, title, subtitle, action }: { badge: string; title: s
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#030B14' },
-  content: { padding: 18, paddingBottom: 132 },
+  content: { paddingHorizontal: 18, paddingTop: 78, paddingBottom: 132 },
   hero: {
     backgroundColor: 'rgba(255,255,255,0.025)',
     borderRadius: 24,

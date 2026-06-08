@@ -8,6 +8,7 @@ type Props = {
   eventTitle: string;
   eventVenue: string;
   eventStatus: EventStatus;
+  events?: OrganizerEventItem[];
   setEventStatus: (value: EventStatus) => void;
   goTo: (section: 'dashboard' | 'create' | 'details' | 'map' | 'attendees' | 'blocks') => void;
 };
@@ -25,7 +26,7 @@ type OrganizerEventItem = {
   status: EventStatus;
 };
 
-const events: OrganizerEventItem[] = [
+const demoEvents: OrganizerEventItem[] = [
   {
     id: '1',
     title: 'Noche de (des)amor',
@@ -52,9 +53,10 @@ const events: OrganizerEventItem[] = [
   },
 ];
 
-export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, setEventStatus, goTo }: Props) {
+export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, events, setEventStatus, goTo }: Props) {
   const { t } = useLanguage();
-  const visibleEvents = events.map((item) =>
+  const sourceEvents = events?.length ? events : demoEvents;
+  const visibleEvents = sourceEvents.map((item) =>
     item.id === '1'
       ? { ...item, title: eventTitle, venue: eventVenue, status: eventStatus }
       : item
