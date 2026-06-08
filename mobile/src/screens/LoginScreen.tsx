@@ -1,48 +1,107 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser } from '../services/api';
-import { login as loginRequest } from '../services/auth';
+import { login as loginRequest, register as registerRequest } from '../services/auth';
 
 type Props = {
   onSignIn: (user: AuthUser) => void;
 };
 
+type Mode = 'login' | 'register';
+
 export function LoginScreen({ onSignIn }: Props) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const login = async () => {
+  const isRegister = mode === 'register';
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setError('');
+  };
+
+  const submit = async () => {
+    setError('');
     if (!email.trim() || !password.trim()) {
       setError(t('Ingresa tu email y contraseña.', 'Enter your email and password.'));
       return;
     }
 
-    setLoading(true);
-    setError('');
+    if (isRegister) {
+      if (!firstName.trim() || !lastName.trim()) {
+        setError(t('Ingresa tu nombre y apellido.', 'Enter your first and last name.'));
+        return;
+      }
+      if (password.length < 6) {
+        setError(t('La contraseña debe tener al menos 6 caracteres.', 'Password must be at least 6 characters.'));
+        return;
+      }
+      if (password !== confirm) {
+        setError(t('Las contraseñas no coinciden.', 'Passwords do not match.'));
+        return;
+      }
+    }
 
+    setLoading(true);
     try {
-      const user = await loginRequest(email, password);
+      const user = isRegister
+        ? await registerRequest({
+            email,
+            password,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            phone: phone.trim() || undefined,
+            lang: lang === 'en' ? 'en' : 'es',
+          })
+        : await loginRequest(email, password);
       onSignIn(user);
     } catch (err: any) {
-      setError(err?.message || t('No pudimos iniciar sesión.', 'We could not sign in.'));
+      setError(
+        err?.message ||
+          (isRegister
+            ? t('No pudimos crear la cuenta.', 'We could not create the account.')
+            : t('No pudimos iniciar sesión.', 'We could not sign in.')),
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.root}>
+    <ScrollView style={styles.root} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
       <View style={styles.card}>
         <Text style={styles.eyebrow}>{t('CUENTA', 'ACCOUNT')}</Text>
-        <Text style={styles.title}>{t('Iniciar sesión', 'Sign in')}</Text>
-        <Text style={styles.copy}>{t('Accede con la misma cuenta real de la página web.', 'Use the same real account from the website.')}</Text>
+        <Text style={styles.title}>{isRegister ? t('Crear cuenta', 'Create account') : t('Iniciar sesión', 'Sign in')}</Text>
+        <Text style={styles.copy}>
+          {isRegister
+            ? t('Crea tu cuenta real de LP Ticket para comprar entradas.', 'Create your real LP Ticket account to buy tickets.')
+            : t('Accede con la misma cuenta real de la página web.', 'Use the same real account from the website.')}
+        </Text>
 
         {!!error && <Text style={styles.error}>{error}</Text>}
+
+        {isRegister && (
+          <View style={styles.row}>
+            <View style={[styles.field, styles.rowItem]}>
+              <Text style={styles.label}>{t('Nombre', 'First name')}</Text>
+              <TextInput value={firstName} onChangeText={setFirstName} placeholder={t('Nombre', 'First name')} placeholderTextColor="#9CA3AF" style={styles.input} />
+            </View>
+            <View style={[styles.field, styles.rowItem]}>
+              <Text style={styles.label}>{t('Apellido', 'Last name')}</Text>
+              <TextInput value={lastName} onChangeText={setLastName} placeholder={t('Apellido', 'Last name')} placeholderTextColor="#9CA3AF" style={styles.input} />
+            </View>
+          </View>
+        )}
 
         <View style={styles.field}>
           <Text style={styles.label}>{t('Email', 'Email')}</Text>
@@ -57,6 +116,20 @@ export function LoginScreen({ onSignIn }: Props) {
           />
         </View>
 
+        {isRegister && (
+          <View style={styles.field}>
+            <Text style={styles.label}>{t('Teléfono (con código de país)', 'Phone (with country code)')}</Text>
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              placeholder="+1 305 555 1234"
+              placeholderTextColor="#9CA3AF"
+              style={styles.input}
+            />
+          </View>
+        )}
+
         <View style={styles.field}>
           <Text style={styles.label}>{t('Contraseña', 'Password')}</Text>
           <TextInput
@@ -69,15 +142,39 @@ export function LoginScreen({ onSignIn }: Props) {
           />
         </View>
 
-        <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={login} disabled={loading}>
-          <Text style={styles.buttonText}>{loading ? t('ENTRANDO...', 'SIGNING IN...') : t('INICIAR SESIÓN', 'SIGN IN')}</Text>
+        {isRegister && (
+          <View style={styles.field}>
+            <Text style={styles.label}>{t('Confirmar contraseña', 'Confirm password')}</Text>
+            <TextInput
+              value={confirm}
+              onChangeText={setConfirm}
+              secureTextEntry
+              placeholder={t('Confirmar contraseña', 'Confirm password')}
+              placeholderTextColor="#9CA3AF"
+              style={styles.input}
+            />
+          </View>
+        )}
+
+        <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={submit} disabled={loading}>
+          <Text style={styles.buttonText}>
+            {loading
+              ? isRegister
+                ? t('CREANDO...', 'CREATING...')
+                : t('ENTRANDO...', 'SIGNING IN...')
+              : isRegister
+                ? t('CREAR CUENTA', 'CREATE ACCOUNT')
+                : t('INICIAR SESIÓN', 'SIGN IN')}
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondaryButton}>
-          <Text style={styles.secondaryText}>{t('CREAR CUENTA', 'CREATE ACCOUNT')}</Text>
+        <TouchableOpacity style={styles.secondaryButton} onPress={() => switchMode(isRegister ? 'login' : 'register')}>
+          <Text style={styles.secondaryText}>
+            {isRegister ? t('YA TENGO CUENTA', 'I ALREADY HAVE AN ACCOUNT') : t('CREAR CUENTA', 'CREATE ACCOUNT')}
+          </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -85,8 +182,20 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#030B14',
+  },
+  scroll: {
+    flexGrow: 1,
     padding: 18,
+    paddingTop: 90,
+    paddingBottom: 40,
     justifyContent: 'center',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  rowItem: {
+    flex: 1,
   },
   card: {
     backgroundColor: 'rgba(8,31,51,0.82)',

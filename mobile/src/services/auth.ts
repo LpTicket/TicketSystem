@@ -42,6 +42,7 @@ export async function register(payload: {
   firstName: string;
   lastName: string;
   phone?: string;
+  lang?: 'es' | 'en';
 }): Promise<AuthUser> {
   const username = `${payload.email.split('@')[0]}${Math.floor(Math.random() * 1000)}`;
   const data = await apiPost<AuthResponse>('/auth/register', {
