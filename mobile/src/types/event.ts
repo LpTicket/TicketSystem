@@ -1,0 +1,21 @@
+export type MobileEvent = {
+  id: string;
+  slug?: string;
+  title: string;
+  date: string;
+  venue: string;
+  address: string;
+  price: string;
+  tag: string;
+  featured: boolean;
+  age: string;
+  description?: string;
+  currency?: string;
+  minPrice?: number;
+  eventDate?: string;
+  eventTimezone?: string;
+  venueName?: string;
+  venueAddress?: string;
+  imageUrl?: string;
+  bannerImageUrl?: string;
+};
