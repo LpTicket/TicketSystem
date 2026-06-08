@@ -604,6 +604,7 @@ export class EventsService {
                   if (seat.status === SeatStatus.AVAILABLE || (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt)) {
                     const newStatus = isReservedInConfig ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
                     seat.status = newStatus;
+                    seat.lockedBy = isReservedInConfig ? userId : null as any;
                     seat.lockExpiresAt = null;
                   }
                   await this.seatRepo.save(seat);
@@ -627,6 +628,7 @@ export class EventsService {
                     if (seat.status === SeatStatus.AVAILABLE || (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt)) {
                       const newStatus = isReservedInConfig ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
                       seat.status = newStatus;
+                      seat.lockedBy = isReservedInConfig ? userId : null as any;
                       seat.lockExpiresAt = null;
                     }
                     await this.seatRepo.save(seat);

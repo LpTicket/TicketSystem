@@ -215,10 +215,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     const overrides = getSeatsConfig(section);
     const seatOverride = overrides[seatKey] || {};
     
-    // 1. Check if it's explicitly reserved in the design config
-    if (seatOverride.reserved) return 'reserved';
-    
-    // 2. Otherwise, check the actual seat status from the database if available
+    // 1. Check hard database states first. Sold seats and temporary checkout locks
+    // should not be visually released by the map designer.
     if (section.seats) {
       let foundSeat;
       if (section.sectionType === 'table') {
