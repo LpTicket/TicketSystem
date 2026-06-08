@@ -52,6 +52,12 @@ export type MobileSection = {
   capacity: number;
 };
 
+/** Raw seat map (sections + seats + layout) for the interactive venue map. */
+export async function getEventSeatMap(eventId: string): Promise<any[]> {
+  const data = await apiGet<any>(`/events/${eventId}/seatmap`);
+  return Array.isArray(data) ? data : data?.sections || [];
+}
+
 /** Sections of an event with live availability, used by the purchase screen. */
 export async function getEventSections(eventId: string): Promise<MobileSection[]> {
   const data = await apiGet<any>(`/events/${eventId}/seatmap`);
