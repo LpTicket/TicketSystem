@@ -2,15 +2,16 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
-import { mockUser } from '../data/mockUser';
+import { AuthUser } from '../services/api';
 
 type Props = {
   event: any;
+  user?: AuthUser | null;
   onBack: () => void;
   onPay: () => void;
 };
 
-export function OrderSummaryScreen({ event, onBack, onPay }: Props) {
+export function OrderSummaryScreen({ event, user, onBack, onPay }: Props) {
   const { t } = useLanguage();
   const [quantity, setQuantity] = useState(1);
 
@@ -68,9 +69,9 @@ export function OrderSummaryScreen({ event, onBack, onPay }: Props) {
 
         <View style={styles.card}>
           <Text style={styles.cardLabel}>{t('COMPRADOR', 'BUYER')}</Text>
-          <Text style={styles.buyerName}>{mockUser.firstName} {mockUser.lastName}</Text>
-          <Text style={styles.buyerMeta}>{mockUser.email}</Text>
-          <Text style={styles.buyerMeta}>{mockUser.phone}</Text>
+          <Text style={styles.buyerName}>{`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || (user?.email || '')}</Text>
+          <Text style={styles.buyerMeta}>{user?.email || ''}</Text>
+          <Text style={styles.buyerMeta}>{user?.phone || ''}</Text>
         </View>
 
         <View style={styles.card}>

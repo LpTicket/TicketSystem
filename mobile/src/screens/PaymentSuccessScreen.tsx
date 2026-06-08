@@ -1,15 +1,16 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
-import { mockUser } from '../data/mockUser';
+import { AuthUser } from '../services/api';
 
 type Props = {
   event: any;
+  user?: AuthUser | null;
   onViewTickets: () => void;
   onHome: () => void;
 };
 
-export function PaymentSuccessScreen({ event, onViewTickets, onHome }: Props) {
+export function PaymentSuccessScreen({ event, user, onViewTickets, onHome }: Props) {
   const { t } = useLanguage();
   return (
     <View style={styles.root}>
@@ -21,7 +22,7 @@ export function PaymentSuccessScreen({ event, onViewTickets, onHome }: Props) {
         <Text style={styles.eyebrow}>{t('CONFIRMADO', 'CONFIRMED')}</Text>
         <Text style={styles.title}>{t('Tu ticket está listo', 'Your ticket is ready')}</Text>
         <Text style={styles.copy}>
-          We sent the confirmation to {mockUser.email}. Your QR ticket is now available in My Tickets.
+          We sent the confirmation to {user?.email || 'your email'}. Your QR ticket is now available in My Tickets.
         </Text>
 
         <View style={styles.ticket}>

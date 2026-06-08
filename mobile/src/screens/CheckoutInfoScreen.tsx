@@ -2,21 +2,22 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
-import { mockUser } from '../data/mockUser';
+import { AuthUser } from '../services/api';
 
 type Props = {
   event: any;
+  user?: AuthUser | null;
   onBack: () => void;
   onContinue: () => void;
 };
 
-export function CheckoutInfoScreen({ event, onBack, onContinue }: Props) {
+export function CheckoutInfoScreen({ event, user, onBack, onContinue }: Props) {
   const { t } = useLanguage();
   const [buyer, setBuyer] = useState({
-    firstName: mockUser.firstName,
-    lastName: mockUser.lastName,
-    email: mockUser.email,
-    phone: mockUser.phone,
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
   });
 
   const updateBuyer = (key: keyof typeof buyer, value: string) => {

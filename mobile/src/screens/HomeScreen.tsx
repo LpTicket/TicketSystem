@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { mockEvents } from '../data/mockEvents';
 import { getPublicEvents } from '../services/events';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -32,7 +31,7 @@ const trustItems = [
 
 export function HomeScreen({ onOpenEvent }: Props) {
   const { t } = useLanguage();
-  const [events, setEvents] = useState<MobileEvent[]>(mockEvents);
+  const [events, setEvents] = useState<MobileEvent[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
   const heroEvents = useMemo(() => events.filter((event) => event.bannerImageUrl || event.imageUrl), [events]);
   const safeHeroLength = Math.max(heroEvents.length, 1);
@@ -43,10 +42,10 @@ export function HomeScreen({ onOpenEvent }: Props) {
 
     getPublicEvents()
       .then((items) => {
-        if (mounted && items.length > 0) setEvents(items);
+        if (mounted) setEvents(items);
       })
       .catch(() => {
-        if (mounted) setEvents(mockEvents);
+        if (mounted) setEvents([]);
       });
 
     return () => {

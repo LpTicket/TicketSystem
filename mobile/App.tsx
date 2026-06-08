@@ -111,11 +111,11 @@ function AppContent() {
         {scanOpen ? (
           <ScanScreen onBack={() => setScanOpen(false)} />
         ) : selectedEvent && paymentSuccessOpen ? (
-          <PaymentSuccessScreen event={selectedEvent} onViewTickets={() => { clearFlow(); setTab('tickets'); }} onHome={() => { clearFlow(); setTab('events'); }} />
+          <PaymentSuccessScreen event={selectedEvent} user={currentUser} onViewTickets={() => { clearFlow(); setTab('tickets'); }} onHome={() => { clearFlow(); setTab('events'); }} />
         ) : selectedEvent && orderSummaryOpen ? (
-          <OrderSummaryScreen event={selectedEvent} onBack={() => { setOrderSummaryOpen(false); setCheckoutInfoOpen(true); }} onPay={() => { setOrderSummaryOpen(false); setPaymentSuccessOpen(true); }} />
+          <OrderSummaryScreen event={selectedEvent} user={currentUser} onBack={() => { setOrderSummaryOpen(false); setCheckoutInfoOpen(true); }} onPay={() => { setOrderSummaryOpen(false); setPaymentSuccessOpen(true); }} />
         ) : selectedEvent && checkoutInfoOpen ? (
-          <CheckoutInfoScreen event={selectedEvent} onBack={() => setCheckoutInfoOpen(false)} onContinue={() => { setCheckoutInfoOpen(false); setOrderSummaryOpen(true); }} />
+          <CheckoutInfoScreen event={selectedEvent} user={currentUser} onBack={() => setCheckoutInfoOpen(false)} onContinue={() => { setCheckoutInfoOpen(false); setOrderSummaryOpen(true); }} />
         ) : selectedEvent && loginAfterPurchase ? (
           <LoginScreen onSignIn={(user) => { setCurrentUser(user); setLoginAfterPurchase(false); setPurchaseOpen(true); }} />
         ) : selectedEvent && purchaseOpen ? (
