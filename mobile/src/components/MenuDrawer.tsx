@@ -14,12 +14,15 @@ type Props = {
   onGoCart?: () => void;
   onGoOrganizer?: () => void;
   onGoAdmin?: () => void;
+  onGoContact?: () => void;
+  onGoAbout?: () => void;
+  onGoSupport?: () => void;
   onLogout?: () => void;
   canOrganize?: boolean;
   canAdmin?: boolean;
 };
 
-export function MenuDrawer({ visible, onClose, onGoEvents, onGoTickets, onGoProfile, onGoScan, onGoAiChat, onGoSocialMatch, onGoCart, onGoOrganizer, onGoAdmin, onLogout, canOrganize, canAdmin }: Props) {
+export function MenuDrawer({ visible, onClose, onGoEvents, onGoTickets, onGoProfile, onGoScan, onGoAiChat, onGoSocialMatch, onGoCart, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onLogout, canOrganize, canAdmin }: Props) {
   const { t } = useLanguage();
   const go = (action?: () => void) => {
     onClose();
@@ -61,11 +64,15 @@ export function MenuDrawer({ visible, onClose, onGoEvents, onGoTickets, onGoProf
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity style={styles.link}>
+            <TouchableOpacity style={styles.link} onPress={() => go(onGoAbout)}>
+              <Text style={styles.linkText}>{t('Quiénes Somos', 'About Us')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.link} onPress={() => go(onGoContact)}>
               <Text style={styles.linkText}>{t('Contacto', 'Contact')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.link}>
+            <TouchableOpacity style={styles.link} onPress={() => go(onGoSupport)}>
               <Text style={styles.linkText}>{t('Soporte', 'Support')}</Text>
             </TouchableOpacity>
 

@@ -18,13 +18,16 @@ import { PurchaseScreen } from './src/screens/PurchaseScreen';
 import { CheckoutInfoScreen } from './src/screens/CheckoutInfoScreen';
 import { OrderSummaryScreen } from './src/screens/OrderSummaryScreen';
 import { PaymentSuccessScreen } from './src/screens/PaymentSuccessScreen';
+import { ContactScreen } from './src/screens/ContactScreen';
+import { AboutScreen } from './src/screens/AboutScreen';
+import { SupportScreen } from './src/screens/SupportScreen';
 import { LanguageProvider, useLanguage } from './src/i18n/LanguageContext';
 import { colors } from './src/theme/colors';
 import { MobileEvent } from './src/types/event';
 import { AuthUser } from './src/services/api';
 import { logout as logoutRequest, restoreSession } from './src/services/auth';
 
-type Tab = 'events' | 'tickets' | 'scan' | 'social' | 'profile' | 'organizer' | 'admin';
+type Tab = 'events' | 'tickets' | 'scan' | 'social' | 'profile' | 'organizer' | 'admin' | 'contact' | 'about' | 'support';
 
 function AppContent() {
   const { t } = useLanguage();
@@ -136,6 +139,12 @@ function AppContent() {
           isLoggedIn ? <OrganizerPanelScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'admin' ? (
           canAdmin ? <AdminPanelScreen /> : <LoginScreen onSignIn={setCurrentUser} />
+        ) : tab === 'contact' ? (
+          <ContactScreen user={currentUser} onBack={() => goToTab('events')} />
+        ) : tab === 'about' ? (
+          <AboutScreen onBack={() => goToTab('events')} />
+        ) : tab === 'support' ? (
+          <SupportScreen onContact={() => goToTab('contact')} onBack={() => goToTab('events')} />
         ) : null}
 
         {!scanOpen && !purchaseOpen && !checkoutInfoOpen && !orderSummaryOpen && !paymentSuccessOpen && !loginAfterPurchase && (
@@ -177,9 +186,12 @@ function AppContent() {
           onGoOrganizer={() => { setViewMode('organizer'); goToTab('organizer'); }}
           onGoAdmin={() => goToTab('admin')}
           onGoScan={() => { clearFlow(); setScanOpen(true); }}
-          onGoAiChat={() => goToTab('profile')}
+          onGoAiChat={() => goToTab('support')}
           onGoSocialMatch={() => goToTab('social')}
           onGoCart={() => goToTab('tickets')}
+          onGoContact={() => goToTab('contact')}
+          onGoAbout={() => goToTab('about')}
+          onGoSupport={() => goToTab('support')}
           onLogout={handleLogout}
           canOrganize={canOrganize}
           canAdmin={canAdmin}
