@@ -256,9 +256,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
   },
   modeText: {
-    color: '#FFFFFF',
+    color: 'rgba(226,232,240,0.62)',
     fontSize: 13,
     fontWeight: '900',
+  },
+  modeTextActive: {
+    color: '#FFFFFF',
   },
   bottomNav: {
     position: 'absolute',
@@ -310,6 +313,4 @@ const styles = StyleSheet.create({
     lineHeight: 12,
   },
   navActiveText: { color: colors.orange },
-  navText: { color: '#9CA3AF', fontWeight: '600', fontSize: 12 },
-  navActiveText: { color: colors.white },
 });

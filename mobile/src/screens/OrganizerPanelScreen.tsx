@@ -11,7 +11,7 @@ import { OrganizerAccessMobile } from '../components/organizer/OrganizerAccessMo
 import { OrganizerRewardsMobile } from '../components/organizer/OrganizerRewardsMobile';
 import { apiGet } from '../services/api';
 
-type Section = 'dashboard' | 'events' | 'create' | 'details' | 'map' | 'attendees' | 'blocks' | 'rewards';
+type Section = 'dashboard' | 'events' | 'create' | 'details' | 'map' | 'attendees' | 'blocks' | 'rewards' | 'scan';
 
 
 type OrganizerApiEvent = {
@@ -338,6 +338,7 @@ function sectionLabel(section: Section, t: (es: string, en: string) => string) {
     attendees: t('Asistentes', 'Attendees'),
     blocks: t('Bloqueos', 'Access'),
     rewards: t('Recompensas', 'Rewards'),
+    scan: t('Escanear', 'Scan'),
   };
   return names[section];
 }
@@ -352,6 +353,7 @@ function titleFor(section: Section, t: (es: string, en: string) => string) {
     attendees: t('Asistentes y ventas', 'Attendees and sales'),
     blocks: t('Bloqueos e invitaciones', 'Access and invitations'),
     rewards: t('Recompensas', 'Rewards'),
+    scan: t('Escanear tickets', 'Scan tickets'),
   };
   return names[section];
 }
@@ -366,6 +368,7 @@ function subtitleFor(section: Section, t: (es: string, en: string) => string) {
     attendees: t('Compradores, tickets y acceso.', 'Buyers, tickets and access.'),
     blocks: t('Reservas, invitaciones y lista VIP.', 'Reservations, invitations and VIP list.'),
     rewards: t('Comisiones, codigos y pagos.', 'Commissions, codes and payouts.'),
+    scan: t('Valida tickets en la puerta.', 'Validate tickets at the door.'),
   };
   return copy[section];
 }

@@ -28,7 +28,6 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
 
       <View style={styles.heroPanel}>
         <View pointerEvents="none" style={styles.heroPanelGlass} />
-        <View pointerEvents="none" style={styles.heroGlassLayer} />
         <View style={styles.heroTop}>
           <View style={styles.heroTitleBlock}>
             <Text style={styles.eyebrow}>{t('EVENTO ACTIVO', 'LIVE EVENT')}</Text>
@@ -259,7 +258,7 @@ const styles = StyleSheet.create({
   metricSlate: { color: '#6B7280' },
   metricLabel: { color: '#6B7280', fontSize: 12, fontWeight: '900', lineHeight: 17 },
   heroPanel: { backgroundColor: 'rgba(3,11,20,0.62)', borderRadius: 28, borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', padding: 20, marginBottom: 16, overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.30, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
-  heroPanelGlass: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.035)' },
+  heroPanelGlass: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.035)' },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 18, position: 'relative' },
   heroTitleBlock: { flex: 1, paddingRight: 128 },
   eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 3, fontWeight: '900', marginBottom: 8 },

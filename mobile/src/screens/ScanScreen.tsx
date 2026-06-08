@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   cameraIcon: { width: 64, height: 64, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.12)', marginBottom: 20 },
   cameraIconText: { color: '#F97316', fontSize: 28, fontWeight: '900' },
   cameraFrame: { height: 300, backgroundColor: '#020617', overflow: 'hidden' },
-  cameraNoise: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.35)' },
+  cameraNoise: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15,23,42,0.35)' },
   scanBox: { position: 'absolute', left: 28, right: 28, top: 28, bottom: 44, borderRadius: 8, borderWidth: 2, borderColor: 'rgba(249,115,22,0.82)', shadowColor: '#F97316', shadowOpacity: 0.42, shadowRadius: 24, shadowOffset: { width: 0, height: 0 } },
   scanLine: { position: 'absolute', left: 36, right: 36, top: 0, height: 2, backgroundColor: '#F97316', shadowColor: '#F97316', shadowOpacity: 1, shadowRadius: 18, shadowOffset: { width: 0, height: 0 } },
   stopButton: { position: 'absolute', bottom: 14, alignSelf: 'center', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(8,31,51,0.82)', paddingHorizontal: 18, paddingVertical: 10 },
