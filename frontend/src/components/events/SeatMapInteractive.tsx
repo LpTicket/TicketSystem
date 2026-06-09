@@ -75,6 +75,7 @@ export default function SeatMapInteractive({
   
   // Interaction state
   const isDragging = useRef(false);
+  const dragMoved = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -489,21 +490,33 @@ export default function SeatMapInteractive({
   // --- Drag Panning Events ---
   const onMouseDown = (e: React.MouseEvent) => {
     isDragging.current = true;
+    dragMoved.current = false;
     dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
   };
 
   const onMouseMove = (e: React.MouseEvent) => {
     if (!isDragging.current) return;
+    if (Math.abs(e.clientX - dragStart.current.x) > 4 || Math.abs(e.clientY - dragStart.current.y) > 4) {
+      dragMoved.current = true;
+    }
     const newX = dragStart.current.panX + (e.clientX - dragStart.current.x);
     const newY = dragStart.current.panY + (e.clientY - dragStart.current.y);
 
     const cw = containerRef.current?.clientWidth || 800;
     const ch = containerRef.current?.clientHeight || 500;
-    
+
     setPan(clampPan({ x: newX, y: newY }, zoom));
   };
 
   const onMouseUp = () => { isDragging.current = false; };
+
+  // Tapping the empty canvas (not a seat — seats stop propagation) closes the
+  // pinned seat info card. A pan/drag does not count as a tap.
+  const onCanvasClick = () => {
+    if (dragMoved.current) return;
+    setPinnedSeatInfo(null);
+    setHoveredSeatInfo(null);
+  };
 
   // --- Touch Support (Pan & Pinch Zoom) ---
   const touchStart = useRef({ 
@@ -612,6 +625,7 @@ export default function SeatMapInteractive({
         onMouseLeave={onMouseUp}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
+        onClick={onCanvasClick}
       >
         {/* Visual Grid Layer */}
         <div 
@@ -684,7 +698,7 @@ export default function SeatMapInteractive({
                   boxShadow: isStage ? '0 0 20px rgba(59, 130, 246, 0.4)' : (isStanding ? `0 4px 15px ${section.color || '#8b5cf6'}44` : 'none'),
                   border: isDecor ? '1px solid #cbd5e1' : (isStage ? '2.5px solid #3b82f6' : (isStanding ? `2px solid ${section.color || '#8b5cf6'}` : 'none')),
                 }}
-                onClick={() => !isStage && !isDecor && handleSectionClick(section as VenueSection)}
+                onClick={(e) => { if (!isStage && !isDecor) { e.stopPropagation(); handleSectionClick(section as VenueSection); } }}
               >
                 {/* --- Decor/Text-only sections --- */}
                 {isDecor && (
