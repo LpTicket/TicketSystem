@@ -596,11 +596,15 @@ export default function VerifyTicketPage() {
             <button
               onClick={() => router.back()}
               aria-label="Volver"
-              className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors shrink-0"
             >
               <HiOutlineArrowLeft className="w-4 h-4" />
             </button>
-            <img src="/logo.png" alt="LPTicket" className="h-6 w-auto object-contain" />
+            {/* Icon (cropped from the logo) + dark "LPTicket" wordmark for white bg */}
+            <span className="inline-block h-7 overflow-hidden shrink-0" style={{ width: 44 }}>
+              <img src="/logo.png" alt="LPTicket" className="h-7 max-w-none" style={{ objectFit: 'cover', objectPosition: 'left center' }} />
+            </span>
+            <span className="text-lg font-black tracking-tight text-[#0A375A] leading-none">LPTicket</span>
           </div>
 
           <div className="flex items-center gap-2">
