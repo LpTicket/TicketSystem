@@ -596,7 +596,7 @@ export default function VerifyTicketPage() {
             onClick={() => router.back()}
             className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors font-medium shrink-0"
           >
-            <HiOutlineArrowLeft className="w-4 h-4" /> {lang === 'es' ? 'Volver' : 'Back'}
+            <HiOutlineArrowLeft className="w-4 h-4" /> Volver
           </button>
 
           <div className="flex items-center gap-2 shrink-0">
