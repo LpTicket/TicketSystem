@@ -129,6 +129,10 @@ export class MailService {
       const qrCid = `qr-${t.ticketCode}`;
       const ticketUrl = `${appUrl}/verify/${t.ticketCode}`;
       const whatsappShareUrl = `https://wa.me/?text=${encodeURIComponent(`Mi entrada para ${eventTitle}: ${ticketUrl}`)}`;
+      // Apple Wallet pass (public endpoint). Works on iPhone once Apple Pass
+      // certificates are configured on the server.
+      const apiBase = (this.configService.get<string>('API_URL') || appUrl).replace(/\/$/, '').replace(/\/api$/, '');
+      const appleWalletUrl = `${apiBase}/api/orders/ticket/${t.ticketCode}/apple-wallet`;
       const ticketSubtotal = Number(t.price || 0);
       const orderSubtotal = Number(eventInfo?.subtotal || 0);
       const ticketShare = orderSubtotal > 0 ? ticketSubtotal / orderSubtotal : 1 / Math.max(tickets.length, 1);
@@ -197,8 +201,11 @@ export class MailService {
         </div>
 
                 <div style="text-align: center; margin: 18px 0 6px 0;">
-          <a href="${ticketUrl}" target="_blank" style="display: inline-block; background: #F97316; color: #ffffff; text-decoration: none; border-radius: 14px; padding: 12px 18px; font-size: 12px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;">
+          <a href="${ticketUrl}" target="_blank" style="display: inline-block; vertical-align: middle; margin: 4px; background: #F97316; color: #ffffff; text-decoration: none; border-radius: 14px; padding: 12px 18px; font-size: 12px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;">
             Compartir
+          </a>
+          <a href="${appleWalletUrl}" target="_blank" style="display: inline-block; vertical-align: middle; margin: 4px; background: #000000; color: #ffffff; text-decoration: none; border-radius: 14px; padding: 12px 18px; font-size: 12px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;">
+            &#63743;&nbsp; Apple Wallet
           </a>
         </div>
 
