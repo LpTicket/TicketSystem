@@ -615,7 +615,9 @@ export default function VerifyTicketPage() {
               aria-label="Apple Wallet"
               className="flex items-center gap-2 bg-black hover:bg-gray-900 text-white text-xs font-semibold px-3 sm:px-4 py-2 rounded-xl transition-all shadow-sm"
             >
-              <span className="text-base leading-none"></span> <span className="hidden sm:inline">Apple Wallet</span>
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M17.05 20.28c-.96.95-2.04 1.9-3.4 1.9-1.33 0-1.77-.82-3.32-.82-1.58 0-2.05.8-3.32.85-1.3.05-2.52-1.03-3.48-2.43-1.98-2.85-2.28-7.14-.8-9.15 1.05-1.4 2.5-2.3 4.1-2.3 1.25 0 2.22.8 3.03.8.78 0 2.05-.95 3.52-.8 1 .05 2.18.45 2.92 1.3-1.85 1.1-1.55 3.65.3 4.6-.9 1.35-2.05 2.7-3.05 3.75zm-3.08-15.65c.65-.8 1.1-1.9.98-3-.95.05-2.1.65-2.78 1.45-.62.7-1.12 1.85-.95 2.92 1.05.08 2.1-.58 2.75-1.37z"/>
+              </svg> <span className="hidden sm:inline">Apple Wallet</span>
             </a>
 
             <button
