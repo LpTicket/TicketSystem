@@ -202,6 +202,9 @@ export class MailService {
 
                 <div style="text-align: center; margin: 18px 0 6px 0;">
           <a href="${ticketUrl}" target="_blank" style="display: inline-block; vertical-align: middle; margin: 4px; background: #F97316; color: #ffffff; text-decoration: none; border-radius: 14px; padding: 12px 18px; font-size: 12px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;">
+            Ver entrada
+          </a>
+          <a href="${whatsappShareUrl}" target="_blank" style="display: inline-block; vertical-align: middle; margin: 4px; background: #ffffff; color: #F97316; text-decoration: none; border: 2px solid #F97316; border-radius: 14px; padding: 10px 18px; font-size: 12px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;">
             Compartir
           </a>
           <a href="${appleWalletUrl}" target="_blank" style="display: inline-block; vertical-align: middle; margin: 4px; background: #000000; color: #ffffff; text-decoration: none; border-radius: 14px; padding: 12px 18px; font-size: 12px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase;">
