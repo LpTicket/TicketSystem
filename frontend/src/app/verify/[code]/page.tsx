@@ -632,13 +632,12 @@ export default function VerifyTicketPage() {
               <div className="flex items-start justify-between gap-6">
                 {/* Left: Branding + Event info */}
                 <div className="flex-1 min-w-0">
-                  <div className="mb-5 flex items-center gap-2.5">
+                  <div className="mb-5">
                     <img
-                      src="/image.png"
+                      src="/lp-logo.png"
                       alt="LPTicket"
-                      className="brand-logo w-11 h-11 object-contain shrink-0"
+                      className="brand-logo h-10 w-auto object-contain"
                     />
-                    <span className="text-2xl font-black tracking-tight text-[#0f172a] leading-none">LPTicket</span>
                   </div>
 
                   <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 border border-orange-100 px-3 py-1 mb-3">
