@@ -592,20 +592,12 @@ export default function VerifyTicketPage() {
       {/* Screen-only action bar */}
       <div className="no-print w-full bg-white border-b border-gray-100 shadow-sm sticky top-0 z-10 px-4">
         <div className="max-w-2xl mx-auto py-3 flex justify-between items-center gap-3">
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => router.back()}
-              aria-label="Volver"
-              className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors shrink-0"
-            >
-              <HiOutlineArrowLeft className="w-4 h-4" />
-            </button>
-            {/* Icon (cropped from the logo) + dark "LPTicket" wordmark for white bg */}
-            <span className="inline-block h-7 overflow-hidden shrink-0" style={{ width: 44 }}>
-              <img src="/logo.png" alt="LPTicket" className="h-7 max-w-none" style={{ objectFit: 'cover', objectPosition: 'left center' }} />
-            </span>
-            <span className="text-lg font-black tracking-tight text-[#0f172a] leading-none whitespace-nowrap">LPTicket</span>
-          </div>
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors font-medium shrink-0"
+          >
+            <HiOutlineArrowLeft className="w-4 h-4" /> {lang === 'es' ? 'Volver' : 'Back'}
+          </button>
 
           <div className="flex items-center gap-2 shrink-0">
             <button
@@ -642,9 +634,9 @@ export default function VerifyTicketPage() {
                 <div className="flex-1 min-w-0">
                   <div className="mb-5">
                     <img
-                      src="/logo.png"
+                      src="/image.png"
                       alt="LPTicket"
-                      className="brand-logo w-52 h-auto object-contain"
+                      className="brand-logo w-24 h-auto object-contain"
                     />
                   </div>
 
