@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
-import { apiGet } from '../services/api';
+import { apiGet, apiPatch } from '../services/api';
 
 type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
 type AdminUser = { id: string; name: string; email: string; role: 'client' | 'organizer' | 'admin'; suspended: boolean };
 type Category = { id: string; name: string; active: boolean; featured: boolean };
+type SpecialCode = { id: string; code: string; owner: string; commission: number; active: boolean; generated: number };
 
 
 type AdminStats = {
@@ -81,12 +82,8 @@ export function AdminPanelScreen() {
   const [marketingBannerEnabled, setMarketingBannerEnabled] = useState(true);
   const [marketingFeaturedEnabled, setMarketingFeaturedEnabled] = useState(true);
   const [marketingPromoEnabled, setMarketingPromoEnabled] = useState(false);
-  const [specialCodeDraft, setSpecialCodeDraft] = useState('LPVIP');
-  const [specialCodes, setSpecialCodes] = useState([
-    { id: '1', code: 'LPVIP', owner: 'Fidel Genre', commission: 10, active: true, generated: 420 },
-    { id: '2', code: 'AMBRIZA21', owner: 'Sundin Galue', commission: 15, active: true, generated: 860 },
-    { id: '3', code: 'PRIVATE5', owner: 'Maria Lopez', commission: 5, active: false, generated: 120 },
-  ]);
+  const [specialCodes, setSpecialCodes] = useState<SpecialCode[]>([]);
+  const [codeTotals, setCodeTotals] = useState({ generated: 0, commissions: 0 });
 
   const [adminStats, setAdminStats] = useState<AdminStats>({});
   const [adminEvents, setAdminEvents] = useState<any[]>([]);
@@ -101,10 +98,42 @@ export function AdminPanelScreen() {
       apiGet<any>('/admin/users?page=1&limit=50'),
       apiGet<any>('/categories?all=true'),
       apiGet<any>('/admin/events/financials'),
-    ]).then(([statsRes, eventsRes, usersRes, categoriesRes, financialsRes]) => {
+      apiGet<any>('/special-codes'),
+      apiGet<any>('/special-codes/admin-sales'),
+    ]).then(([statsRes, eventsRes, usersRes, categoriesRes, financialsRes, codesRes, codeSalesRes]) => {
       if (!mounted) return;
 
       if (statsRes.status === 'fulfilled') setAdminStats(statsRes.value || {});
+
+      if (codesRes.status === 'fulfilled') {
+        const sales = codeSalesRes.status === 'fulfilled' ? listFrom(codeSalesRes.value) : [];
+        const salesByCode = new Map<string, number>();
+        const ticketsByCode = new Map<string, number>();
+        for (const order of sales) {
+          const code = String(order.specialCode || '').toUpperCase();
+          if (!code) continue;
+          salesByCode.set(code, (salesByCode.get(code) || 0) + Number(order.total || 0));
+          ticketsByCode.set(code, (ticketsByCode.get(code) || 0) + Number(order.ticketCount || 1));
+        }
+        const codes: SpecialCode[] = listFrom(codesRes.value).map((raw: any) => {
+          const code = String(raw.code || '').toUpperCase();
+          const owner = raw.owner
+            ? [raw.owner.firstName, raw.owner.lastName].filter(Boolean).join(' ') || raw.owner.email || '—'
+            : '—';
+          return {
+            id: String(raw.id),
+            code,
+            owner,
+            commission: Number(raw.commissionFixed || 0),
+            active: raw.isActive !== false,
+            generated: Math.round(salesByCode.get(code) || 0),
+          };
+        });
+        setSpecialCodes(codes);
+        const generated = Array.from(salesByCode.values()).reduce((sum, value) => sum + value, 0);
+        const commissions = codes.reduce((sum, c) => sum + c.commission * (ticketsByCode.get(c.code) || 0), 0);
+        setCodeTotals({ generated: Math.round(generated), commissions: Math.round(commissions) });
+      }
 
       if (financialsRes.status === 'fulfilled') {
         setFinancials(financialsRes.value?.events || listFrom(financialsRes.value));
@@ -169,15 +198,16 @@ export function AdminPanelScreen() {
     setCategories((current) => current.map((category) => category.id === id ? { ...category, [key]: value } : category));
   };
 
-  const addSpecialCode = () => {
-    const code = specialCodeDraft.trim().toUpperCase();
-    if (!code) return;
-    setSpecialCodes((current) => [...current, { id: String(Date.now()), code, owner: 'Nuevo creador', commission: 10, active: true, generated: 0 }]);
-    setSpecialCodeDraft('');
-  };
-
-  const toggleSpecialCode = (id: string) => {
-    setSpecialCodes((current) => current.map((item) => item.id === id ? { ...item, active: !item.active } : item));
+  const toggleSpecialCode = async (id: string) => {
+    const current = specialCodes.find((item) => item.id === id);
+    if (!current) return;
+    const next = !current.active;
+    setSpecialCodes((list) => list.map((item) => item.id === id ? { ...item, active: next } : item));
+    try {
+      await apiPatch(`/special-codes/${id}`, { isActive: next });
+    } catch {
+      setSpecialCodes((list) => list.map((item) => item.id === id ? { ...item, active: current.active } : item));
+    }
   };
 
   const addCategory = () => {
@@ -466,21 +496,18 @@ export function AdminPanelScreen() {
         )}
         {active === 'codes' && (
           <>
-            <PanelCard title={t('Codigos especiales', 'Special codes')} eyebrow={t('CODIGOS ESPECIALES', 'SPECIAL CODES')} copy={t('Crea codigos, asigna comisiones y monitorea ventas generadas.', 'Create codes, assign commissions and monitor generated sales.')}>
-              <View style={styles.createRow}>
-                <TextInput value={specialCodeDraft} onChangeText={setSpecialCodeDraft} placeholder={t('Codigo', 'Code')} placeholderTextColor="#9CA3AF" autoCapitalize="characters" style={styles.createInput} />
-                <TouchableOpacity onPress={addSpecialCode} style={styles.createButton}>
-                  <Text style={styles.createButtonText}>{t('AGREGAR', 'ADD')}</Text>
-                </TouchableOpacity>
-              </View>
-            </PanelCard>
+            <PanelCard title={t('Codigos especiales', 'Special codes')} eyebrow={t('CODIGOS ESPECIALES', 'SPECIAL CODES')} copy={t('Comisiones y ventas generadas por cada código. Crea o asigna dueños desde el panel web.', 'Commissions and sales generated per code. Create or assign owners from the web panel.')} />
 
             <View style={styles.metricsGrid}>
-              <Metric label={t('Generado', 'Generated')} value="$1.4k" />
-              <Metric label={t('Comisiones', 'Commissions')} value="$184" />
+              <Metric label={t('Generado', 'Generated')} value={money(codeTotals.generated)} />
+              <Metric label={t('Comisiones', 'Commissions')} value={money(codeTotals.commissions)} />
               <Metric label={t('Codigos', 'Codes')} value={String(specialCodes.length)} />
               <Metric label={t('Activos', 'Active')} value={String(specialCodes.filter((code) => code.active).length)} />
             </View>
+
+            {specialCodes.length === 0 && (
+              <PanelCard title={t('Sin códigos todavía', 'No codes yet')} copy={t('Cuando se creen códigos especiales aparecerán aquí.', 'Special codes will appear here once created.')} />
+            )}
 
             {specialCodes.map((item) => (
               <View key={item.id} style={styles.userCard}>
