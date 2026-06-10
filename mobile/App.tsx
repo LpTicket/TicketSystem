@@ -4,7 +4,6 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from './src/components/AppHeader';
 import { MenuDrawer } from './src/components/MenuDrawer';
-import { mockEvents } from './src/data/mockEvents';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { EventDetailScreen } from './src/screens/EventDetailScreen';
 import { TicketsScreen } from './src/screens/TicketsScreen';

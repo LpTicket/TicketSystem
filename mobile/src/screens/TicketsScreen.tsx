@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useLanguage } from '../i18n/LanguageContext';
-import { mockEvents } from '../data/mockEvents';
 import { API_URL, apiGet, apiPost } from '../services/api';
 
 type TicketStatus = 'active' | 'used' | 'cancelled' | string;
@@ -29,8 +28,6 @@ type TicketsResponse = {
   data?: MobileTicket[];
   tickets?: MobileTicket[];
 };
-
-const demoEvent = mockEvents[0];
 
 function statusMeta(status: TicketStatus, t: (es: string, en: string) => string) {
   if (status === 'active') return { label: t('Activo', 'Active'), bg: 'rgba(34,197,94,0.14)', color: '#86EFAC' };
@@ -77,20 +74,7 @@ export function TicketsScreen() {
   const { t, lang } = useLanguage();
   const [tickets, setTickets] = useState<MobileTicket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usingDemo, setUsingDemo] = useState(false);
-
-  const demoTicket = useMemo<MobileTicket>(() => ({
-    id: 'demo-ticket',
-    ticketCode: 'LP-DEMO-2026',
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    sectionName: 'General',
-    event: {
-      title: demoEvent.title,
-      eventDate: demoEvent.date,
-      venueName: demoEvent.venue,
-    },
-  }), []);
+  const [resending, setResending] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -98,14 +82,10 @@ export function TicketsScreen() {
     apiGet<TicketsResponse>('/orders/my-tickets?page=1&limit=12')
       .then((response) => {
         if (!mounted) return;
-        const items = response.data || response.tickets || [];
-        setTickets(items);
-        setUsingDemo(false);
+        setTickets(response.data || response.tickets || []);
       })
       .catch(() => {
-        if (!mounted) return;
-        setTickets([demoTicket]);
-        setUsingDemo(true);
+        if (mounted) setTickets([]);
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -114,11 +94,9 @@ export function TicketsScreen() {
     return () => {
       mounted = false;
     };
-  }, [demoTicket]);
+  }, []);
 
-  const visibleTickets = tickets.length ? tickets : [];
-
-  const [resending, setResending] = useState<string | null>(null);
+  const visibleTickets = tickets;
 
   const openGoogleWallet = async (code: string) => {
     try {
@@ -157,14 +135,6 @@ export function TicketsScreen() {
           {t('Tus entradas, códigos QR y acceso a Wallet en un solo lugar.', 'Your tickets, QR codes, and Wallet access in one place.')}
         </Text>
       </View>
-
-      {usingDemo && (
-        <View style={styles.notice}>
-          <Text style={styles.noticeText}>
-            {t('Vista de diseño. Cuando inicies sesión con una cuenta real, se mostrarán los tickets del backend.', 'Design preview. Real backend tickets appear after signing in with a real account.')}
-          </Text>
-        </View>
-      )}
 
       {loading ? (
         <View style={styles.emptyCard}>
@@ -253,8 +223,6 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#F97316', fontSize: 12, fontWeight: '900', letterSpacing: 5 },
   title: { color: '#FFFFFF', fontSize: 34, lineHeight: 38, fontWeight: '900', marginTop: 10 },
   subtitle: { color: 'rgba(226,232,240,0.70)', fontSize: 16, lineHeight: 23, marginTop: 10 },
-  notice: { borderWidth: 1, borderColor: 'rgba(249,115,22,0.24)', backgroundColor: 'rgba(249,115,22,0.08)', borderRadius: 18, padding: 14, marginBottom: 18 },
-  noticeText: { color: 'rgba(255,255,255,0.76)', fontSize: 13, lineHeight: 19 },
   emptyCard: { borderRadius: 26, padding: 24, backgroundColor: 'rgba(8,31,51,0.58)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   emptyTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '900' },
   emptyCopy: { color: 'rgba(226,232,240,0.68)', fontSize: 15, marginTop: 8 },
