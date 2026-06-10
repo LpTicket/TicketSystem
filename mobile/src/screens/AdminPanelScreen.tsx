@@ -19,8 +19,14 @@ type AdminStats = {
   totalTickets?: number;
   ticketSales?: number;
   serviceFees?: number;
+  stripeFees?: number;
   lpticketProfit?: number;
 };
+
+function pctOf(part?: number, whole?: number) {
+  const w = Number(whole || 0);
+  return w > 0 ? (Number(part || 0) / w) * 100 : 0;
+}
 
 function listFrom(payload: any) {
   if (Array.isArray(payload)) return payload;
@@ -84,6 +90,7 @@ export function AdminPanelScreen() {
 
   const [adminStats, setAdminStats] = useState<AdminStats>({});
   const [adminEvents, setAdminEvents] = useState<any[]>([]);
+  const [financials, setFinancials] = useState<any[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -93,10 +100,15 @@ export function AdminPanelScreen() {
       apiGet<any>('/admin/events?page=1&limit=50'),
       apiGet<any>('/admin/users?page=1&limit=50'),
       apiGet<any>('/categories?all=true'),
-    ]).then(([statsRes, eventsRes, usersRes, categoriesRes]) => {
+      apiGet<any>('/admin/events/financials'),
+    ]).then(([statsRes, eventsRes, usersRes, categoriesRes, financialsRes]) => {
       if (!mounted) return;
 
       if (statsRes.status === 'fulfilled') setAdminStats(statsRes.value || {});
+
+      if (financialsRes.status === 'fulfilled') {
+        setFinancials(financialsRes.value?.events || listFrom(financialsRes.value));
+      }
 
       if (eventsRes.status === 'fulfilled') {
         setAdminEvents(listFrom(eventsRes.value));
@@ -143,6 +155,11 @@ export function AdminPanelScreen() {
   ]);
 
   const firstEvent = adminEvents[0];
+
+  const topEvents = [...financials]
+    .filter((e) => Number(e.totalCharged) > 0)
+    .sort((a, b) => Number(b.totalCharged) - Number(a.totalCharged))
+    .slice(0, 5);
 
   const updateUser = (id: string, key: keyof AdminUser, value: string | boolean) => {
     setUsers((current) => current.map((user) => user.id === id ? { ...user, [key]: value } : user));
@@ -424,28 +441,26 @@ export function AdminPanelScreen() {
         {active === 'analytics' && (
           <>
             <View style={styles.metricsGrid}>
-              <Metric label={t('Conversion', 'Conversion')} value="8.4%" />
-              <Metric label={t('Visitas', 'Visits')} value="18.2k" />
-              <Metric label={t('Checkouts', 'Checkouts')} value="412" />
-              <Metric label={t('Ingresos', 'Revenue')} value="$4.8k" />
+              <Metric label={t('Ingresos', 'Revenue')} value={money(adminStats.totalRevenue ?? 0)} />
+              <Metric label={t('Tickets', 'Tickets')} value={String(adminStats.totalTickets ?? 0)} />
+              <Metric label={t('Órdenes', 'Orders')} value={String(adminStats.paidOrders ?? adminStats.totalOrders ?? 0)} />
+              <Metric label={t('Ganancia LPTicket', 'LPTicket profit')} value={money(adminStats.lpticketProfit ?? 0)} />
             </View>
 
-            <PanelCard title={t('Rendimiento global', 'Global performance')} eyebrow={t('ANALITICAS', 'ANALYTICS')}>
-              <AnalyticsBar label={t('Eventos vistos', 'Events viewed')} value="82%" />
-              <AnalyticsBar label={t('Checkout iniciado', 'Checkout started')} value="48%" />
-              <AnalyticsBar label={t('Compra completada', 'Purchase completed')} value="31%" />
+            <PanelCard title={t('Distribución de ingresos', 'Revenue breakdown')} eyebrow={t('FINANZAS', 'FINANCE')} copy={t('Cómo se reparte cada dólar cobrado a los compradores.', 'How each dollar charged to buyers is split.')}>
+              <AnalyticsBar label={t('Ventas de tickets', 'Ticket sales')} value={money(adminStats.ticketSales ?? 0)} pct={pctOf(adminStats.ticketSales, adminStats.totalRevenue)} />
+              <AnalyticsBar label={t('Cargos de servicio', 'Service fees')} value={money(adminStats.serviceFees ?? 0)} pct={pctOf(adminStats.serviceFees, adminStats.totalRevenue)} />
+              <AnalyticsBar label={t('Comisión Stripe', 'Stripe fees')} value={money(adminStats.stripeFees ?? 0)} pct={pctOf(adminStats.stripeFees, adminStats.totalRevenue)} />
             </PanelCard>
 
-            <PanelCard title={t('Eventos mas vistos', 'Most viewed events')} eyebrow={t('EVENTOS TOP', 'TOP EVENTS')} copy={t('Eventos con mayor actividad en la plataforma.', 'Events with the most activity on the platform.')}>
-              <RankItem index="01" title="Noche de (des)amor" value="2.4k views" />
-              <RankItem index="02" title="Sunset Lounge Experience" value="1.8k views" />
-              <RankItem index="03" title="Private Networking Night" value="920 views" />
-            </PanelCard>
-
-            <PanelCard title={t('Metodos de pago', 'Payment methods')} eyebrow={t('MEZCLA DE PAGOS', 'PAYMENTS MIX')}>
-              <PaymentMix label="Card / Stripe" value="86%" />
-              <PaymentMix label="Apple Pay" value="9%" />
-              <PaymentMix label="Google Pay" value="5%" />
+            <PanelCard title={t('Top eventos por ingresos', 'Top events by revenue')} eyebrow={t('EVENTOS TOP', 'TOP EVENTS')} copy={t('Eventos con mayores ventas en la plataforma.', 'Events with the highest sales on the platform.')}>
+              {topEvents.length === 0 ? (
+                <Text style={styles.copy}>{t('Sin ventas todavía.', 'No sales yet.')}</Text>
+              ) : (
+                topEvents.map((ev, i) => (
+                  <RankItem key={String(ev.id || i)} index={String(i + 1).padStart(2, '0')} title={adminEventTitle(ev)} value={`${money(ev.totalCharged)} · ${ev.ticketsSold || 0} ${t('tickets', 'tickets')}`} />
+                ))
+              )}
             </PanelCard>
           </>
         )}
@@ -609,8 +624,8 @@ function OrderItem({ index, title }: { index: string; title: string }) {
   );
 }
 
-function AnalyticsBar({ label, value }: { label: string; value: string }) {
-  const widthMap: Record<string, `${number}%`> = { '82%': '82%', '48%': '48%', '31%': '31%' };
+function AnalyticsBar({ label, value, pct }: { label: string; value: string; pct: number }) {
+  const w = Math.max(0, Math.min(100, Math.round(pct)));
   return (
     <View style={styles.analyticsRow}>
       <View style={styles.analyticsTop}>
@@ -618,7 +633,7 @@ function AnalyticsBar({ label, value }: { label: string; value: string }) {
         <Text style={styles.analyticsValue}>{value}</Text>
       </View>
       <View style={styles.analyticsTrack}>
-        <View style={[styles.analyticsFill, { width: widthMap[value] || '50%' as `${number}%` }]} />
+        <View style={[styles.analyticsFill, { width: `${w}%` as `${number}%` }]} />
       </View>
     </View>
   );
@@ -634,15 +649,6 @@ function RankItem({ index, title, value }: { index: string; title: string; value
         <Text style={styles.rankTitle}>{title}</Text>
         <Text style={styles.rankValue}>{value}</Text>
       </View>
-    </View>
-  );
-}
-
-function PaymentMix({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.paymentMixRow}>
-      <Text style={styles.paymentMixLabel}>{label}</Text>
-      <Text style={styles.paymentMixValue}>{value}</Text>
     </View>
   );
 }
