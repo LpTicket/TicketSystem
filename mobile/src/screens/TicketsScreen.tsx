@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useLanguage } from '../i18n/LanguageContext';
 import { mockEvents } from '../data/mockEvents';
-import { API_URL, apiGet } from '../services/api';
+import { API_URL, apiGet, apiPost } from '../services/api';
 
 type TicketStatus = 'active' | 'used' | 'cancelled' | string;
 
@@ -118,12 +118,33 @@ export function TicketsScreen() {
 
   const visibleTickets = tickets.length ? tickets : [];
 
+  const [resending, setResending] = useState<string | null>(null);
+
   const openGoogleWallet = async (code: string) => {
     try {
       const response = await apiGet<{ url?: string }>(`/orders/ticket/${code}/google-wallet`);
       openUrl(response.url);
     } catch {
       openUrl(ticketVerifyUrl(code));
+    }
+  };
+
+  const resendEmail = async (code: string) => {
+    if (resending) return;
+    setResending(code);
+    try {
+      const data = await apiPost<{ email?: string }>(`/orders/ticket/${code}/resend-email`);
+      Alert.alert(
+        t('Correo enviado', 'Email sent'),
+        t(`Entrada enviada a ${data?.email || 'tu correo'}`, `Ticket sent to ${data?.email || 'your email'}`),
+      );
+    } catch {
+      Alert.alert(
+        t('No se pudo reenviar', 'Could not resend'),
+        t('Inténtalo de nuevo en un momento.', 'Please try again in a moment.'),
+      );
+    } finally {
+      setResending(null);
     }
   };
 
@@ -195,6 +216,10 @@ export function TicketsScreen() {
                 <ActionButton label={t('VER TICKET', 'VIEW TICKET')} primary onPress={() => openUrl(ticketVerifyUrl(ticket.ticketCode))} />
                 <ActionButton label="APPLE WALLET" onPress={() => openUrl(ticketApiUrl(ticket.ticketCode, 'apple-wallet'))} />
                 <ActionButton label="GOOGLE WALLET" onPress={() => openGoogleWallet(ticket.ticketCode)} />
+                <ActionButton
+                  label={resending === ticket.ticketCode ? t('ENVIANDO...', 'SENDING...') : t('REENVIAR AL CORREO', 'RESEND EMAIL')}
+                  onPress={() => resendEmail(ticket.ticketCode)}
+                />
               </View>
             </View>
           );
