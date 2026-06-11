@@ -142,27 +142,36 @@ export function HomeScreen({ onOpenEvent }: Props) {
         <Image source={getHeroImageSource(heroEvent)} style={styles.heroImage} resizeMode="cover" />
         <TouchableOpacity style={[styles.heroArrow, styles.heroLeft]} onPress={goPrevHero}><Text style={styles.heroArrowText}>‹</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.heroArrow, styles.heroRight]} onPress={goNextHero}><Text style={styles.heroArrowText}>›</Text></TouchableOpacity>
-        <View style={styles.heroDots}>
-          {heroEvents.map((event, index) => (
-            <View key={event.id} style={[styles.heroDot, index === heroIndex % heroEvents.length && styles.heroDotActive]} />
-          ))}
-        </View>
+        {!!heroEvent?.age && (
+          <View style={styles.heroAgeBadge}><Text style={styles.heroAgeText}>{heroEvent.age}</Text></View>
+        )}
       </View>
 
       <View style={styles.searchPanel}>
-        <View pointerEvents="none" style={styles.searchPanelGlow} />
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(21,31,45,0.94)', 'rgba(8,17,29,0.92)']}
+          style={[StyleSheet.absoluteFill, { borderRadius: 14 }]}
+        />
+        <LinearGradient
+          pointerEvents="none"
+          colors={['transparent', 'rgba(255,107,0,0.78)', 'transparent']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.searchAccentLine}
+        />
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t('BUSCAR EVENTO', 'SEARCH EVENT')}</Text>
           <View style={styles.fieldRow}>
-            <Text style={styles.fieldIcon}>⌕</Text>
-            <TextInput value={query} onChangeText={setQuery} placeholder={t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...')} placeholderTextColor="#8B95A3" style={styles.fieldInput} />
+            <Ionicons name="search" size={18} color="#ff7a00" />
+            <TextInput value={query} onChangeText={setQuery} placeholder={t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...')} placeholderTextColor="rgba(248,250,252,0.62)" style={styles.fieldInput} />
           </View>
         </View>
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t('LUGAR', 'PLACE')}</Text>
           <View style={styles.fieldRow}>
-            <Text style={styles.fieldIcon}>⌖</Text>
-            <TextInput value={place} onChangeText={setPlace} placeholder={t('Ciudad o venue', 'City or venue')} placeholderTextColor="#8B95A3" style={styles.fieldInput} />
+            <Ionicons name="location-outline" size={18} color="#ff7a00" />
+            <TextInput value={place} onChangeText={setPlace} placeholder={t('Ciudad o venue', 'City or venue')} placeholderTextColor="rgba(248,250,252,0.62)" style={styles.fieldInput} />
           </View>
         </View>
         <GradientButton
@@ -303,15 +312,14 @@ const styles = StyleSheet.create({
   heroLeft: { left: 14 },
   heroRight: { right: 14 },
   heroArrowText: { color: 'rgba(255,255,255,0.90)', fontSize: 36, lineHeight: 36, fontWeight: '300' },
-  heroDots: { position: 'absolute', left: 0, right: 0, bottom: 16, flexDirection: 'row', justifyContent: 'center', gap: 7 },
-  heroDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.42)' },
-  heroDotActive: { width: 22, backgroundColor: '#F97316' },
-  searchPanel: { marginHorizontal: 16, marginTop: 15, backgroundColor: 'rgba(255,255,255,0.025)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(148,163,184,0.18)', borderTopColor: 'rgba(249,115,22,0.18)', padding: 16, paddingTop: 18, paddingBottom: 26, gap: 12, overflow: 'hidden' },
-  field: { minHeight: 58, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: 'rgba(255,255,255,0.020)' },
-  fieldLabel: { color: 'rgba(255,255,255,0.86)', fontSize: 10, fontWeight: '900', letterSpacing: 0, marginBottom: 8 },
-  fieldRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  fieldIcon: { color: '#F97316', fontSize: 22, fontWeight: '400' },
-  fieldInput: { flex: 1, fontSize: 16, color: 'rgba(255,255,255,0.78)', fontWeight: '400', outlineStyle: 'none' as any },
+  heroAgeBadge: { position: 'absolute', top: 12, right: 12, minWidth: 34, height: 34, borderRadius: 17, paddingHorizontal: 7, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center' },
+  heroAgeText: { color: '#0A375A', fontSize: 12, fontWeight: '900' },
+  searchPanel: { marginHorizontal: 16, marginTop: -28, zIndex: 20, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(139,154,174,0.26)', padding: 16, gap: 12, overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.38, shadowRadius: 28, shadowOffset: { width: 0, height: 18 }, elevation: 10 },
+  searchAccentLine: { position: 'absolute', top: 0, left: 38, right: 38, height: 2, borderRadius: 999 },
+  field: { minHeight: 57, borderWidth: 1, borderColor: 'rgba(139,154,174,0.26)', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', gap: 5 },
+  fieldLabel: { color: '#FFFFFF', fontSize: 10, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase' },
+  fieldRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  fieldInput: { flex: 1, fontSize: 15, color: '#FFFFFF', fontWeight: '500', outlineStyle: 'none' as any, padding: 0 },
   searchText: { fontSize: 13, letterSpacing: 2.8 },
   categoryRow: { paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
   categoryScroll: { gap: 11, paddingRight: 8, paddingVertical: 3 },
