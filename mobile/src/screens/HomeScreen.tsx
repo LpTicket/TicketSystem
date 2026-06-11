@@ -54,12 +54,13 @@ export function HomeScreen({ onOpenEvent }: Props) {
   const [place, setPlace] = useState('');
   const [category, setCategory] = useState('All');
   const [sortBy, setSortBy] = useState<'date' | 'price'>('date');
+  const [sortOpen, setSortOpen] = useState(false);
 
-  const trustItems = [
-    { icon: '▣', title: t('Pagos seguros', 'Secure payments'), subtitle: t('Procesado por Stripe', 'Processed by Stripe') },
-    { icon: '♢', title: t('Tickets verificados', 'Verified tickets'), subtitle: t('Entrada digital protegida', 'Protected digital entry') },
-    { icon: '⌗', title: t('QR único', 'Unique QR'), subtitle: t('Validación rápida en puerta', 'Fast door validation') },
-    { icon: '◎', title: t('Soporte disponible', 'Support available'), subtitle: t('Antes y después de la compra', 'Before and after purchase') },
+  const trustItems: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string }[] = [
+    { icon: 'card-outline', title: t('Pagos seguros', 'Secure payments'), subtitle: t('Procesado por Stripe.', 'Processed by Stripe') },
+    { icon: 'shield-checkmark-outline', title: t('Tickets verificados', 'Verified tickets'), subtitle: t('Entrada digital protegida.', 'Protected digital entry') },
+    { icon: 'qr-code-outline', title: t('QR único', 'Unique QR'), subtitle: t('Validación rápida en puerta.', 'Fast door validation') },
+    { icon: 'help-buoy-outline', title: t('Soporte disponible', 'Support available'), subtitle: t('Antes y después de tu compra.', 'Before and after purchase') },
   ];
 
   const heroEvents = useMemo(() => events.filter((event) => event.bannerImageUrl || event.imageUrl), [events]);
@@ -140,8 +141,12 @@ export function HomeScreen({ onOpenEvent }: Props) {
       <View pointerEvents="none" style={styles.bgGridB} />
       <View style={styles.heroWrap}>
         <Image source={getHeroImageSource(heroEvent)} style={styles.heroImage} resizeMode="cover" />
-        <TouchableOpacity style={[styles.heroArrow, styles.heroLeft]} onPress={goPrevHero}><Text style={styles.heroArrowText}>‹</Text></TouchableOpacity>
-        <TouchableOpacity style={[styles.heroArrow, styles.heroRight]} onPress={goNextHero}><Text style={styles.heroArrowText}>›</Text></TouchableOpacity>
+        <TouchableOpacity style={[styles.heroArrow, styles.heroLeft]} onPress={goPrevHero}>
+          <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.88)" />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.heroArrow, styles.heroRight]} onPress={goNextHero}>
+          <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.88)" />
+        </TouchableOpacity>
         {!!heroEvent?.age && (
           <View style={styles.heroAgeBadge}><Text style={styles.heroAgeText}>{heroEvent.age}</Text></View>
         )}
@@ -211,19 +216,45 @@ export function HomeScreen({ onOpenEvent }: Props) {
           </ScrollView>
         </View>
         <GradientButton
-          onPress={() => setSortBy((s) => (s === 'date' ? 'price' : 'date'))}
+          onPress={() => setSortOpen((open) => !open)}
           height={58}
           style={styles.sortButton}
           textStyle={styles.sortText}
-          label={`${t('ORDENAR POR', 'SORT BY')}: ${sortBy === 'date' ? t('FECHA', 'DATE') : t('PRECIO', 'PRICE')}`}
+          label={`${t('ORDENAR POR', 'SORT BY')}  ▼`}
         />
+        {sortOpen && (
+          <View style={styles.sortMenu}>
+            <View style={styles.sortMenuHeader}>
+              <Text style={styles.sortMenuHeaderText}>{t('ORDENAR POR', 'SORT BY')}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => { setSortBy('date'); setSortOpen(false); }}
+              style={[styles.sortOption, sortBy === 'date' && styles.sortOptionActive]}
+            >
+              <Text style={[styles.sortOptionText, sortBy === 'date' && styles.sortOptionTextActive]}>📅 {t('Fecha', 'Date')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { setSortBy('price'); setSortOpen(false); }}
+              style={[styles.sortOption, sortBy === 'price' && styles.sortOptionActive]}
+            >
+              <Text style={[styles.sortOptionText, sortBy === 'price' && styles.sortOptionTextActive]}>💰 {t('Precio', 'Price')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
-      <View style={styles.trustList}>
-        {trustItems.map((item) => (
-          <View key={item.title} style={styles.trustCard}>
-            <View style={styles.trustIcon}><Text style={styles.trustIconText}>{item.icon}</Text></View>
-            <View>
+      <View style={styles.trustStrip}>
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(17,26,39,0.88)', 'rgba(7,14,23,0.94)']}
+          style={StyleSheet.absoluteFill}
+        />
+        {trustItems.map((item, index) => (
+          <View key={item.title} style={[styles.trustRow, index > 0 && styles.trustRowDivider]}>
+            <View style={styles.trustIcon}>
+              <Ionicons name={item.icon} size={22} color="#ff7a00" />
+            </View>
+            <View style={styles.trustCopy}>
               <Text style={styles.trustTitle}>{item.title}</Text>
               <Text style={styles.trustSubtitle}>{item.subtitle}</Text>
             </View>
@@ -306,12 +337,11 @@ const styles = StyleSheet.create({
   bgGridA: { position: 'absolute', left: 0, right: 0, top: 0, height: 1600, borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,255,255,0.026)' },
   bgGridB: { position: 'absolute', left: '25%', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.022)' },
   content: { paddingTop: 8, paddingBottom: 46, backgroundColor: '#030B14' },
-  heroWrap: { marginHorizontal: 16, marginTop: 12, marginBottom: 0, height: 320, overflow: 'hidden', backgroundColor: '#081F33', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', borderRadius: 18, shadowColor: '#000000', shadowOpacity: 0.30, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
+  heroWrap: { marginHorizontal: 16, marginTop: 12, marginBottom: 0, height: 450, overflow: 'hidden', backgroundColor: '#081F33', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', borderRadius: 16, shadowColor: '#000000', shadowOpacity: 0.30, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
   heroImage: { width: '100%', height: '100%', backgroundColor: '#081F33' },
-  heroArrow: { position: 'absolute', top: '50%', transform: [{ translateY: -22 }], width: 44, height: 44, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  heroArrow: { position: 'absolute', top: '50%', transform: [{ translateY: -22 }], width: 44, height: 44, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', backgroundColor: 'rgba(70,70,75,0.55)', alignItems: 'center', justifyContent: 'center' },
   heroLeft: { left: 14 },
   heroRight: { right: 14 },
-  heroArrowText: { color: 'rgba(255,255,255,0.90)', fontSize: 36, lineHeight: 36, fontWeight: '300' },
   heroAgeBadge: { position: 'absolute', top: 12, right: 12, minWidth: 34, height: 34, borderRadius: 17, paddingHorizontal: 7, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center' },
   heroAgeText: { color: '#0A375A', fontSize: 12, fontWeight: '900' },
   searchPanel: { marginHorizontal: 16, marginTop: -28, zIndex: 20, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(139,154,174,0.26)', padding: 16, gap: 12, overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.38, shadowRadius: 28, shadowOffset: { width: 0, height: 18 }, elevation: 10 },
@@ -343,12 +373,20 @@ const styles = StyleSheet.create({
   categoryDot: { position: 'absolute', right: 12, top: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.orange, shadowColor: colors.orange, shadowOpacity: 0.9, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
   sortButton: { marginBottom: 8 },
   sortText: { fontSize: 12.5, letterSpacing: 2.2 },
-  trustList: { paddingHorizontal: 16, marginTop: 34, gap: 14 },
-  trustCard: { backgroundColor: 'rgba(255,255,255,0.020)', borderWidth: 1, borderColor: 'rgba(246,198,95,0.10)', borderRadius: 12, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 16 },
-  trustIcon: { width: 46, height: 46, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.10)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.32)', alignItems: 'center', justifyContent: 'center' },
-  trustIconText: { color: colors.orange, fontWeight: '400', fontSize: 19 },
-  trustTitle: { color: '#F8FAFC', fontSize: 17, fontWeight: '500' },
-  trustSubtitle: { color: 'rgba(203,213,225,0.76)', fontSize: 14, fontWeight: '400', marginTop: 2 },
+  trustStrip: { marginHorizontal: 16, marginTop: 22, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(117,132,153,0.28)', overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.32, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 6 },
+  trustRow: { minHeight: 94, paddingHorizontal: 23, paddingVertical: 17, flexDirection: 'row', alignItems: 'center', gap: 16 },
+  trustRowDivider: { borderTopWidth: 1, borderTopColor: 'rgba(117,132,153,0.22)' },
+  trustIcon: { width: 57, height: 57, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,122,0,0.55)', backgroundColor: 'rgba(255,122,0,0.10)', alignItems: 'center', justifyContent: 'center', shadowColor: '#ff7a00', shadowOpacity: 0.16, shadowRadius: 12, shadowOffset: { width: 0, height: 0 } },
+  trustCopy: { flex: 1, gap: 4 },
+  trustTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', lineHeight: 17 },
+  trustSubtitle: { color: 'rgba(248,250,252,0.64)', fontSize: 13, fontWeight: '400', lineHeight: 17 },
+  sortMenu: { borderRadius: 16, backgroundColor: '#0b2236', borderWidth: 1, borderColor: 'rgba(246,198,95,0.18)', overflow: 'hidden', marginTop: 2 },
+  sortMenuHeader: { paddingHorizontal: 16, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.05)' },
+  sortMenuHeaderText: { color: 'rgba(203,213,225,0.9)', fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
+  sortOption: { paddingHorizontal: 16, paddingVertical: 13 },
+  sortOptionActive: { backgroundColor: 'rgba(249,115,22,0.16)' },
+  sortOptionText: { color: 'rgba(226,232,240,0.92)', fontSize: 13, fontWeight: '700' },
+  sortOptionTextActive: { color: '#F97316' },
   highlights: { paddingHorizontal: 16, marginTop: 46 },
   eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 3.2, fontWeight: '500', marginBottom: 12 },
   eventsTitle: { color: '#FFFFFF', fontSize: 32, lineHeight: 36, fontWeight: '700' },

@@ -34,11 +34,11 @@ export function AppHeader({ onOpenMenu, onOpenScan, onOpenAccount }: Props) {
         </View>
 
         <TouchableOpacity style={styles.iconButton} onPress={onOpenAccount}>
-          <Ionicons name="person-outline" size={17} color={colors.white} />
+          <Ionicons name="person-outline" size={18} color={colors.white} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.iconButton} onPress={onOpenMenu}>
-          <Ionicons name="menu-outline" size={21} color={colors.white} />
+          <Ionicons name="menu-outline" size={23} color={colors.white} />
         </TouchableOpacity>
       </View>
     </View>
@@ -47,7 +47,7 @@ export function AppHeader({ onOpenMenu, onOpenScan, onOpenAccount }: Props) {
 
 const styles = StyleSheet.create({
   header: {
-    height: 64,
+    height: 72,
     backgroundColor: '#030B14',
     paddingHorizontal: 16,
     flexDirection: 'row',
@@ -55,40 +55,41 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     zIndex: 10,
   },
-  logo: { width: 138, height: 36, tintColor: '#FFFFFF', marginLeft: -6 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
+  logo: { width: 132, height: 34, tintColor: '#FFFFFF', marginLeft: -4 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 0 },
   langSwitch: {
     flexDirection: 'row',
-    borderRadius: 10,
-    overflow: 'hidden',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.20)',
-    height: 32,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.22)',
+    height: 38,
+    padding: 3,
+    gap: 3,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   langButton: {
-    paddingHorizontal: 13,
+    paddingHorizontal: 15,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
   langButtonActive: {
     backgroundColor: '#F97316',
-    borderRadius: 9,
   },
   langText: {
-    color: 'rgba(255,255,255,0.70)',
+    color: 'rgba(255,255,255,0.72)',
     fontWeight: '800',
-    fontSize: 11,
+    fontSize: 12,
   },
   langTextActive: {
     color: '#FFFFFF',
   },
   iconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.20)',
+    borderColor: 'rgba(255,255,255,0.22)',
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
