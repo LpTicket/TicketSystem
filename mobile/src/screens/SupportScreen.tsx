@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../i18n/LanguageContext';
 import { GradientButton } from '../components/GradientButton';
+import { ScreenBackground } from '../components/ScreenBackground';
 
 type Props = { onContact: () => void; onBack: () => void };
 type CatId = 'all' | 'payments' | 'tickets' | 'events';
@@ -39,7 +40,9 @@ export function SupportScreen({ onContact, onBack }: Props) {
   }, [faqs, query, cat]);
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <View style={styles.screenWrap}>
+      <ScreenBackground />
+      <ScrollView style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <TouchableOpacity onPress={onBack} style={styles.back}><Text style={styles.backText}>‹ {t('Volver', 'Back')}</Text></TouchableOpacity>
 
       {/* Hero */}
@@ -95,12 +98,14 @@ export function SupportScreen({ onContact, onBack }: Props) {
         <Text style={styles.helpCopy}>{es ? 'Completa el formulario y nuestro equipo te responderá en menos de 24 horas.' : 'Fill out the form and our team will get back to you within 24 hours.'}</Text>
         <GradientButton label={es ? 'IR A CONTACTO' : 'GO TO CONTACT'} onPress={onContact} height={52} style={styles.helpButton} />
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#030B14' },
+  screenWrap: { flex: 1, backgroundColor: '#05111f' },
+  root: { flex: 1, backgroundColor: 'transparent' },
   content: { padding: 18, paddingTop: 18, paddingBottom: 120 },
   back: { alignSelf: 'flex-start', marginBottom: 14 },
   backText: { color: '#CBD5E1', fontSize: 15, fontWeight: '700' },
@@ -112,11 +117,11 @@ const styles = StyleSheet.create({
   searchBox: { width: '100%', flexDirection: 'row', alignItems: 'center', gap: 10, height: 50, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.72)', paddingHorizontal: 14, marginTop: 4 },
   searchInput: { flex: 1, color: '#FFFFFF', fontSize: 15, fontWeight: '500' },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
-  catCard: { width: '47%', flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(8,31,51,0.6)' },
+  catCard: { width: '47%', flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(246,198,95,0.14)', backgroundColor: 'rgba(8,31,51,0.6)' },
   catCardActive: { borderColor: '#F97316', backgroundColor: 'rgba(249,115,22,0.1)' },
   catLabel: { color: 'rgba(203,213,225,0.6)', fontSize: 12, fontWeight: '700' },
   catLabelActive: { color: '#FFFFFF' },
-  faq: { backgroundColor: 'rgba(8,31,51,0.82)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 16, paddingVertical: 14, marginBottom: 10 },
+  faq: { backgroundColor: 'rgba(8,31,51,0.82)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(246,198,95,0.14)', paddingHorizontal: 16, paddingVertical: 14, marginBottom: 10 },
   faqHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center' },
   faqQ: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', flex: 1, lineHeight: 20 },
   faqA: { color: 'rgba(203,213,225,0.78)', fontSize: 14, lineHeight: 21, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },

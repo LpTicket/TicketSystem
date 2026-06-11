@@ -2,6 +2,7 @@ import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '../i18n/LanguageContext';
+import { ScreenBackground } from './ScreenBackground';
 
 type Props = {
   visible: boolean;
@@ -39,7 +40,7 @@ export function MenuDrawer({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.panel}>
-        <View pointerEvents="none" style={styles.glow} />
+        <ScreenBackground />
 
         <View style={styles.topBar}>
           <Text style={styles.brand}>LPTicket</Text>
@@ -90,11 +91,10 @@ function Row({ label, onPress, icon, danger }: { label: string; onPress: () => v
 const styles = StyleSheet.create({
   panel: {
     flex: 1,
-    backgroundColor: 'rgba(5,13,23,0.985)',
+    backgroundColor: '#05111f',
     paddingHorizontal: 16,
     paddingTop: 54,
   },
-  glow: { position: 'absolute', top: -60, right: -60, width: 280, height: 280, borderRadius: 140, backgroundColor: 'rgba(255,122,0,0.14)' },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 48, marginBottom: 12 },
   brand: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', letterSpacing: -0.3 },
   closeBtn: {

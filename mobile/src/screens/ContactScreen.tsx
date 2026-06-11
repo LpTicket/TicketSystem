@@ -5,6 +5,7 @@ import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser, apiPost } from '../services/api';
 import { GradientButton } from '../components/GradientButton';
+import { ScreenBackground } from '../components/ScreenBackground';
 
 type Props = {
   user?: AuthUser | null;
@@ -41,7 +42,9 @@ export function ContactScreen({ user, onBack }: Props) {
   };
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <View style={styles.screenWrap}>
+      <ScreenBackground />
+      <ScrollView style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <TouchableOpacity onPress={onBack} style={styles.back}><Text style={styles.backText}>‹ {t('Volver', 'Back')}</Text></TouchableOpacity>
 
       {/* Centered title block (matches web) */}
@@ -87,7 +90,8 @@ export function ContactScreen({ user, onBack }: Props) {
           />
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -108,7 +112,8 @@ function InfoCard({ icon, title, lines }: { icon: keyof typeof Ionicons.glyphMap
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#030B14' },
+  screenWrap: { flex: 1, backgroundColor: '#05111f' },
+  root: { flex: 1, backgroundColor: 'transparent' },
   content: { padding: 18, paddingTop: 18, paddingBottom: 120 },
   back: { alignSelf: 'flex-start', marginBottom: 14 },
   backText: { color: '#CBD5E1', fontSize: 15, fontWeight: '700' },
@@ -118,7 +123,7 @@ const styles = StyleSheet.create({
   underline: { width: 96, height: 4, borderRadius: 999, backgroundColor: '#F97316', marginTop: 18 },
   infoCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 16,
-    backgroundColor: 'rgba(8,31,51,0.82)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(8,31,51,0.82)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(246,198,95,0.14)',
     padding: 18, marginBottom: 14,
   },
   infoIcon: {
@@ -129,7 +134,7 @@ const styles = StyleSheet.create({
   infoTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '700', marginBottom: 2 },
   infoValue: { color: 'rgba(226,232,240,0.86)', fontSize: 14, fontWeight: '500' },
   infoSub: { color: 'rgba(203,213,225,0.6)', fontSize: 13, fontWeight: '400' },
-  card: { backgroundColor: 'rgba(8,31,51,0.82)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 18, marginTop: 4 },
+  card: { backgroundColor: 'rgba(8,31,51,0.82)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(246,198,95,0.14)', padding: 18, marginTop: 4 },
   cardTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', marginBottom: 14 },
   successCard: { backgroundColor: 'rgba(22,163,74,0.12)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(34,197,94,0.35)', padding: 22, marginTop: 4 },
   successTitle: { color: '#86EFAC', fontSize: 20, fontWeight: '700', marginBottom: 8 },

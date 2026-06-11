@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useLanguage } from '../i18n/LanguageContext';
 import { GradientButton } from '../components/GradientButton';
+import { ScreenBackground } from '../components/ScreenBackground';
 
 type Props = { onBack: () => void; onContact?: () => void };
 
@@ -9,7 +10,9 @@ export function AboutScreen({ onBack, onContact }: Props) {
   const es = lang === 'es';
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.screenWrap}>
+      <ScreenBackground />
+      <ScrollView style={styles.root} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <TouchableOpacity onPress={onBack} style={styles.back}><Text style={styles.backText}>‹ {t('Volver', 'Back')}</Text></TouchableOpacity>
 
       {/* Hero */}
@@ -77,12 +80,14 @@ export function AboutScreen({ onBack, onContact }: Props) {
         </Text>
         <GradientButton label={es ? 'CONTACTAR' : 'CONTACT'} onPress={() => (onContact ? onContact() : onBack())} height={52} style={styles.ctaButton} />
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#030B14' },
+  screenWrap: { flex: 1, backgroundColor: '#05111f' },
+  root: { flex: 1, backgroundColor: 'transparent' },
   content: { padding: 18, paddingTop: 18, paddingBottom: 120 },
   back: { alignSelf: 'flex-start', marginBottom: 14 },
   backText: { color: '#CBD5E1', fontSize: 15, fontWeight: '700' },
@@ -91,7 +96,7 @@ const styles = StyleSheet.create({
   pillText: { color: '#F97316', fontSize: 11, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase' },
   title: { color: '#FFFFFF', fontSize: 32, lineHeight: 36, fontWeight: '900', textAlign: 'center' },
   subtitle: { color: 'rgba(203,213,225,0.78)', fontSize: 15, lineHeight: 23, textAlign: 'center' },
-  card: { backgroundColor: 'rgba(8,31,51,0.82)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 20, marginBottom: 16 },
+  card: { backgroundColor: 'rgba(8,31,51,0.82)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(246,198,95,0.14)', padding: 20, marginBottom: 16 },
   cardHeading: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', marginBottom: 14 },
   paragraph: { color: 'rgba(203,213,225,0.82)', fontSize: 15, lineHeight: 24, marginBottom: 14 },
   paragraphLast: { marginBottom: 0 },
