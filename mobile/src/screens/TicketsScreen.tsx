@@ -218,7 +218,7 @@ function ActionButton({ label, primary, onPress }: { label: string; primary?: bo
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#030B14' },
-  content: { paddingHorizontal: 18, paddingTop: 78, paddingBottom: 128 },
+  content: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 128 },
   hero: { marginBottom: 18 },
   eyebrow: { color: '#F97316', fontSize: 12, fontWeight: '900', letterSpacing: 5 },
   title: { color: '#FFFFFF', fontSize: 34, lineHeight: 38, fontWeight: '900', marginTop: 10 },

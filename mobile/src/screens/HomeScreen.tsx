@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   bgAccentBlue: { position: 'absolute', right: -150, top: -80, width: 400, height: 400, borderRadius: 200, backgroundColor: 'transparent' },
   bgGridA: { position: 'absolute', left: 0, right: 0, top: 0, height: 1600, borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,255,255,0.026)' },
   bgGridB: { position: 'absolute', left: '25%', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(255,255,255,0.022)' },
-  content: { paddingTop: 72, paddingBottom: 46, backgroundColor: '#030B14' },
+  content: { paddingTop: 8, paddingBottom: 46, backgroundColor: '#030B14' },
   heroWrap: { marginHorizontal: 16, marginTop: 12, marginBottom: 0, height: 320, overflow: 'hidden', backgroundColor: '#081F33', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', borderRadius: 18, shadowColor: '#000000', shadowOpacity: 0.30, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
   heroImage: { width: '100%', height: '100%', backgroundColor: '#081F33' },
   heroArrow: { position: 'absolute', top: '50%', transform: [{ translateY: -22 }], width: 44, height: 44, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },

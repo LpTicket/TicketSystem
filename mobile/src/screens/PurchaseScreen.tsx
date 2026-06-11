@@ -219,7 +219,7 @@ export function PurchaseScreen({ event, user, onBack, onPaid }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screen },
-  content: { padding: 18, paddingTop: 78, paddingBottom: 140 },
+  content: { padding: 18, paddingTop: 18, paddingBottom: 140 },
   center: { paddingVertical: 60, alignItems: 'center' },
   notice: { marginTop: 18, backgroundColor: 'rgba(249,115,22,0.10)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)', borderRadius: 16, padding: 16 },
   noticeText: { color: '#FDBA74', fontSize: 14, lineHeight: 20, fontWeight: '600' },

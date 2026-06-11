@@ -7,6 +7,8 @@ const logo = require('../../assets/lpticket-logo.png');
 
 type Props = { onOpenMenu: () => void; onOpenScan: () => void; onOpenAccount: () => void };
 
+// Mirrors the web's mobile header: logo left, then lang switch (active = orange),
+// account icon and hamburger — one compact 64px row, no dead space below.
 export function AppHeader({ onOpenMenu, onOpenScan, onOpenAccount }: Props) {
   const { lang, setLang } = useLanguage();
 
@@ -31,14 +33,12 @@ export function AppHeader({ onOpenMenu, onOpenScan, onOpenAccount }: Props) {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.accountButton} onPress={onOpenAccount}>
-          <Ionicons name="person-outline" size={19} color={colors.white} />
+        <TouchableOpacity style={styles.iconButton} onPress={onOpenAccount}>
+          <Ionicons name="person-outline" size={17} color={colors.white} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuButton} onPress={onOpenMenu}>
-          <View style={styles.hamburgerLine} />
-          <View style={styles.hamburgerLine} />
-          <View style={styles.hamburgerLine} />
+        <TouchableOpacity style={styles.iconButton} onPress={onOpenMenu}>
+          <Ionicons name="menu-outline" size={21} color={colors.white} />
         </TouchableOpacity>
       </View>
     </View>
@@ -47,41 +47,33 @@ export function AppHeader({ onOpenMenu, onOpenScan, onOpenAccount }: Props) {
 
 const styles = StyleSheet.create({
   header: {
-    height: 71,
+    height: 64,
     backgroundColor: '#030B14',
-    paddingHorizontal: 12,
-    paddingTop: 4,
-    paddingBottom: 6,
+    paddingHorizontal: 16,
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    borderBottomWidth: 0,
-    borderBottomColor: 'transparent',
-    shadowOpacity: 0,
-    elevation: 0,
+    alignItems: 'center',
+    justifyContent: 'space-between',
     zIndex: 10,
   },
-  logo: { width: 176, height: 52, tintColor: '#FFFFFF', transform: [{ translateX: -20 }, { translateY: -17 }] },
-  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, flexShrink: 0, transform: [{ translateX: -4 }] },
+  logo: { width: 138, height: 36, tintColor: '#FFFFFF', marginLeft: -6 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   langSwitch: {
     flexDirection: 'row',
-    borderRadius: 8,
+    borderRadius: 10,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.20)',
-    height: 34,
-    backgroundColor: '#030B14',
-    transform: [{ translateY: -25 }],
+    height: 32,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   langButton: {
     paddingHorizontal: 13,
-    paddingVertical: 9,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   langButtonActive: {
     backgroundColor: '#F97316',
+    borderRadius: 9,
   },
   langText: {
     color: 'rgba(255,255,255,0.70)',
@@ -91,21 +83,9 @@ const styles = StyleSheet.create({
   langTextActive: {
     color: '#FFFFFF',
   },
-  scanButton: {
-    height: 34,
-    minWidth: 68,
-    borderRadius: 13,
-    backgroundColor: '#F97316',
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    transform: [{ translateY: -25 }],
-  },
-  scanText: { color: '#FFFFFF', fontSize: 12, lineHeight: 14, fontWeight: '900', letterSpacing: 0.8 },
-  accountButton: {
-    width: 38,
-    height: 34,
+  iconButton: {
+    width: 32,
+    height: 32,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.20)',
@@ -113,19 +93,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    transform: [{ translateY: -25 }],
   },
-  menuButton: {
-    width: 38,
-    height: 34,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.20)',
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    transform: [{ translateY: -25 }],
-  },
-  hamburgerLine: { width: 21, height: 2, borderRadius: 999, backgroundColor: colors.white, marginVertical: 2 },
 });

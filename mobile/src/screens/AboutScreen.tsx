@@ -51,7 +51,7 @@ export function AboutScreen({ onBack }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#030B14' },
-  content: { padding: 18, paddingTop: 78, paddingBottom: 120 },
+  content: { padding: 18, paddingTop: 18, paddingBottom: 120 },
   back: { alignSelf: 'flex-start', marginBottom: 14 },
   backText: { color: '#CBD5E1', fontSize: 15, fontWeight: '700' },
   eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 3, fontWeight: '900', marginBottom: 8 },
