@@ -1,5 +1,6 @@
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors } from '../theme/colors';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '../i18n/LanguageContext';
 
 type Props = {
@@ -22,7 +23,13 @@ type Props = {
   canAdmin?: boolean;
 };
 
-export function MenuDrawer({ visible, onClose, onGoEvents, onGoTickets, onGoProfile, onGoScan, onGoAiChat, onGoSocialMatch, onGoCart, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onLogout, canOrganize, canAdmin }: Props) {
+type IconName = keyof typeof Ionicons.glyphMap;
+
+export function MenuDrawer({
+  visible, onClose, onGoEvents, onGoTickets, onGoProfile, onGoAiChat,
+  onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onLogout,
+  canOrganize, canAdmin,
+}: Props) {
   const { t } = useLanguage();
   const go = (action?: () => void) => {
     onClose();
@@ -30,157 +37,91 @@ export function MenuDrawer({ visible, onClose, onGoEvents, onGoTickets, onGoProf
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.overlay}>
-        <TouchableOpacity style={styles.backdrop} onPress={onClose} />
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.panel}>
+        <View pointerEvents="none" style={styles.glow} />
 
-        <View style={styles.drawer}>
-          <View style={styles.handle} />
-
-          <Text style={styles.eyebrow}>{t('MENÚ', 'MENU')}</Text>
-          <Text style={styles.title}>Lpticket</Text>
-
-          <View style={styles.links}>
-
-            <TouchableOpacity style={styles.link} onPress={() => go(onGoAiChat)}>
-              <Text style={styles.linkText}>{t('Chat IA', 'AI Assistant')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.link} onPress={() => go(onGoProfile)}>
-              <Text style={styles.linkText}>{t('Pagos', 'Payments')}</Text>
-            </TouchableOpacity>
-            {canOrganize && (
-              <TouchableOpacity style={[styles.link, styles.organizerLink]} onPress={() => go(onGoOrganizer)}>
-                <Text style={styles.organizerText}>{t('Panel Organizador', 'Organizer Panel')}</Text>
-              </TouchableOpacity>
-            )}
-
-            {canAdmin && (
-              <TouchableOpacity style={[styles.link, styles.adminLink]} onPress={() => go(onGoAdmin)}>
-                <Text style={styles.adminText}>{t('Panel Administrador', 'Admin Panel')}</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity style={styles.link} onPress={() => go(onGoAbout)}>
-              <Text style={styles.linkText}>{t('Quiénes Somos', 'About Us')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.link} onPress={() => go(onGoContact)}>
-              <Text style={styles.linkText}>{t('Contacto', 'Contact')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.link} onPress={() => go(onGoSupport)}>
-              <Text style={styles.linkText}>{t('Soporte', 'Support')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.link, styles.logoutLink]} onPress={() => go(onLogout)}>
-              <Text style={styles.logoutText}>{t('Cerrar sesión', 'Log out')}</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.closeText}>{t('CERRAR', 'CLOSE')}</Text>
+        <View style={styles.topBar}>
+          <Text style={styles.brand}>LPTicket</Text>
+          <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+            <Ionicons name="close" size={22} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
+
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* Primary nav — text rows, no icons (matches web) */}
+          <LinearGradient colors={['rgba(18,29,44,0.96)', 'rgba(7,14,23,0.96)']} style={styles.card}>
+            <Row label={t('Eventos', 'Events')} onPress={() => go(onGoEvents)} />
+            <Row label={t('Quiénes Somos', 'About Us')} onPress={() => go(onGoAbout)} />
+            <Row label={t('Mis Tickets', 'My Tickets')} onPress={() => go(onGoTickets)} />
+            <Row label={t('Contacto', 'Contact')} onPress={() => go(onGoContact)} />
+            <Row label={t('Soporte', 'Support')} onPress={() => go(onGoSupport)} />
+          </LinearGradient>
+
+          {/* Account / actions — with orange icons */}
+          <LinearGradient colors={['rgba(18,29,44,0.96)', 'rgba(7,14,23,0.96)']} style={styles.card}>
+            <Row icon="chatbubble-ellipses-outline" label={t('Chat IA', 'AI Assistant')} onPress={() => go(onGoAiChat)} />
+            <Row icon="person-outline" label={t('Mi Perfil', 'My Profile')} onPress={() => go(onGoProfile)} />
+            {canOrganize && (
+              <Row icon="settings-outline" label={t('Panel Organizador', 'Organizer Panel')} onPress={() => go(onGoOrganizer)} />
+            )}
+            {canAdmin && (
+              <Row icon="shield-outline" label={t('Panel Administrador', 'Admin Panel')} onPress={() => go(onGoAdmin)} />
+            )}
+            <Row icon="log-out-outline" label={t('Cerrar sesión', 'Log out')} onPress={() => go(onLogout)} danger />
+          </LinearGradient>
+        </ScrollView>
       </View>
     </Modal>
   );
 }
 
+function Row({ label, onPress, icon, danger }: { label: string; onPress: () => void; icon?: IconName; danger?: boolean }) {
+  return (
+    <TouchableOpacity style={[styles.row, danger && styles.rowDanger]} onPress={onPress} activeOpacity={0.7}>
+      {icon && <Ionicons name={icon} size={23} color={danger ? '#ff5a45' : '#ff7a00'} />}
+      <Text style={[styles.rowText, danger && styles.rowTextDanger]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  overlay: {
+  panel: {
     flex: 1,
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(5,13,23,0.985)',
+    paddingHorizontal: 16,
+    paddingTop: 54,
   },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(15, 23, 42, 0.38)',
+  glow: { position: 'absolute', top: -60, right: -60, width: 280, height: 280, borderRadius: 140, backgroundColor: 'rgba(255,122,0,0.14)' },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 48, marginBottom: 12 },
+  brand: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', letterSpacing: -0.3 },
+  closeBtn: {
+    width: 38, height: 38, borderRadius: 10, borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center',
   },
-  drawer: {
-    backgroundColor: '#071827',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 22,
-    paddingTop: 12,
-    paddingBottom: 26,
-  },
-  handle: {
-    width: 46,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: '#E5E7EB',
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  eyebrow: {
-    color: colors.orange,
-    fontSize: 10,
-    letterSpacing: 0,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '600',
-    marginBottom: 18,
-  },
-  links: {
-    gap: 10,
-  },
-  link: {
-    height: 58,
-    borderRadius: 18,
-    backgroundColor: '#071827',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-  linkText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  organizerLink: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
-  },
-  organizerText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  adminLink: {
-    backgroundColor: '#0A375A',
-    borderColor: '#0A375A',
-  },
-  adminText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  logoutLink: {
-    backgroundColor: 'rgba(248,113,113,0.08)',
-    borderColor: 'rgba(248,113,113,0.26)',
-  },
-  logoutText: {
-    color: '#FCA5A5',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  closeButton: {
-    height: 54,
+  scroll: { paddingBottom: 40, gap: 16 },
+  card: {
+    padding: 8,
     borderRadius: 16,
-    backgroundColor: colors.orange,
+    borderWidth: 1,
+    borderColor: 'rgba(255,122,0,0.18)',
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
+  },
+  row: {
+    minHeight: 50,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 18,
+    gap: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 10,
   },
-  closeText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    letterSpacing: 0,
-    fontWeight: '600',
-  },
+  rowDanger: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', marginTop: 4 },
+  rowText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  rowTextDanger: { color: '#ff5a45' },
 });
