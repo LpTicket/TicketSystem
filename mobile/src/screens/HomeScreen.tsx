@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { getPublicEvents } from '../services/events';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -20,6 +21,27 @@ function getHeroImageSource(event?: MobileEvent) {
 function getPosterImageSource(event?: MobileEvent) {
   const imageUrl = event?.imageUrl || event?.bannerImageUrl;
   return imageUrl ? { uri: imageUrl } : fallbackEventImage;
+}
+
+function categoryEmoji(item: string) {
+  const s = item.toLowerCase();
+  if (/concert|concierto|music|música|musica|festival/.test(s)) return '🎵';
+  if (/sport|deporte|game|partido/.test(s)) return '🏟️';
+  if (/comed/.test(s)) return '🎤';
+  if (/theat|teatro|arte|art|show/.test(s)) return '🎭';
+  if (/network|negocio|business|vip|conf/.test(s)) return '🥂';
+  return '🎟️';
+}
+
+function categoryDesc(item: string, t: (es: string, en: string) => string) {
+  const s = item.toLowerCase();
+  if (item === 'All') return t('Explora todo ahora.', 'Explore everything now.');
+  if (/concert|music|música|musica|festival/.test(s)) return t('Música en vivo y shows.', 'Live music and shows.');
+  if (/sport|deporte|partido/.test(s)) return t('Vive cada partido.', 'Feel every game.');
+  if (/comed/.test(s)) return t('Risas y buen ambiente.', 'Laughs and good energy.');
+  if (/theat|teatro|arte|art|show/.test(s)) return t('Escena, arte y cultura.', 'Stage, art, and culture.');
+  if (/network|negocio|business|vip|conf/.test(s)) return t('Experiencias para conectar.', 'Experiences to connect.');
+  return t('Eventos seleccionados.', 'Curated events.');
 }
 
 export function HomeScreen({ onOpenEvent }: Props) {
@@ -152,10 +174,21 @@ export function HomeScreen({ onOpenEvent }: Props) {
             {categories.map((item) => {
               const active = category === item;
               const label = item === 'All' ? t('Todos', 'All') : item;
+              const match = item === 'All'
+                ? events.find((e) => e.imageUrl || e.bannerImageUrl)
+                : events.find((e) => (e.tag || '').toLowerCase() === item.toLowerCase() && (e.imageUrl || e.bannerImageUrl));
+              const img = match?.imageUrl || match?.bannerImageUrl || '';
               return (
-                <TouchableOpacity key={item} onPress={() => setCategory(item)} style={[styles.category, active && styles.categoryActive]}>
-                  <Text style={[styles.categoryText, active && styles.categoryTextActive]}>{label}</Text>
-                  {active && <View style={styles.categoryDot} />}
+                <TouchableOpacity key={item} activeOpacity={0.85} onPress={() => setCategory(item)} style={[styles.catCard, active && styles.catCardActive]}>
+                  {img ? <Image source={{ uri: img }} style={styles.catImage} resizeMode="cover" /> : null}
+                  <View pointerEvents="none" style={styles.catOverlay} />
+                  <View pointerEvents="none" style={styles.catShade} />
+                  <View pointerEvents="none" style={styles.catGlow} />
+                  <View style={styles.catContent}>
+                    <Text style={styles.catIcon}>{item === 'All' ? '🎟️' : categoryEmoji(item)}</Text>
+                    <Text style={styles.catTitle} numberOfLines={1}>{label}</Text>
+                    <Text style={styles.catDesc} numberOfLines={2}>{categoryDesc(item, t)}</Text>
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -205,14 +238,25 @@ export function HomeScreen({ onOpenEvent }: Props) {
             <View style={styles.featuredBadge}><Text style={styles.featuredText}>{t('DESTACADO', 'FEATURED')}</Text></View>
           </View>
           <View style={styles.eventInfo}>
-            <Text style={styles.eventName}>{event.title}</Text>
-            <Text style={styles.eventMeta}>▣ {event.date}</Text>
-            <Text style={styles.eventMeta}>⌖ {event.venue}</Text>
-            <Text style={styles.eventAddress}>{event.address}</Text>
+            <Text style={styles.eventName} numberOfLines={2}>{event.title}</Text>
+            <View style={styles.metaRow}>
+              <Ionicons name="calendar-outline" size={15} color="#F97316" />
+              <Text style={styles.eventMeta} numberOfLines={1}>{event.date}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Ionicons name="location-outline" size={15} color="#F97316" />
+              <View style={styles.metaCol}>
+                <Text style={styles.eventMeta} numberOfLines={1}>{event.venue}</Text>
+                {!!event.address && <Text style={styles.eventAddress} numberOfLines={1}>{event.address}</Text>}
+              </View>
+            </View>
             <View style={styles.divider} />
-            <Text style={styles.price}>◇ {t('Desde', 'From')} {event.price}</Text>
+            <View style={styles.metaRow}>
+              <Ionicons name="pricetag-outline" size={15} color="#F97316" />
+              <Text style={styles.price}>{t('Desde', 'From')} {event.price}</Text>
+            </View>
             <View style={styles.ctaRow}>
-              <TouchableOpacity style={styles.shareButton}><Text style={styles.shareText}>⌯</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.shareButton}><Ionicons name="share-social-outline" size={20} color="#FFFFFF" /></TouchableOpacity>
               <TouchableOpacity style={styles.buyButton} onPress={() => onOpenEvent(event)}>
                 <View pointerEvents="none" style={styles.orangeButtonTop} />
                 <View pointerEvents="none" style={styles.orangeButtonBottom} />
@@ -260,7 +304,17 @@ const styles = StyleSheet.create({
   searchButton: { height: 58, borderRadius: 8, position: 'relative', overflow: 'hidden', backgroundColor: '#F97316', borderWidth: 0, alignItems: 'center', justifyContent: 'center', shadowColor: '#F97316', shadowOpacity: 0.20, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
   searchText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', letterSpacing: 4.2, zIndex: 3 },
   categoryRow: { paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
-  categoryScroll: { gap: 8, paddingRight: 8 },
+  categoryScroll: { gap: 11, paddingRight: 8, paddingVertical: 3 },
+  catCard: { width: 118, height: 118, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,107,0,0.34)', backgroundColor: '#030914' },
+  catCardActive: { borderColor: 'rgba(255,107,0,0.72)' },
+  catImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.72 },
+  catOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(2,5,9,0.22)' },
+  catShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '62%', backgroundColor: 'rgba(2,5,9,0.62)' },
+  catGlow: { position: 'absolute', top: -22, left: -22, width: 70, height: 70, borderRadius: 35, backgroundColor: 'rgba(255,107,0,0.30)' },
+  catContent: { position: 'absolute', left: 11, right: 11, bottom: 11, gap: 3 },
+  catIcon: { fontSize: 16, color: '#ff8a1c', marginBottom: 1 },
+  catTitle: { color: '#FFFFFF', fontSize: 13, fontWeight: '900', lineHeight: 15 },
+  catDesc: { color: 'rgba(255,255,255,0.74)', fontSize: 9.5, fontWeight: '700', lineHeight: 12 },
   emptyEvents: { marginHorizontal: 16, marginTop: 24, padding: 22, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   emptyEventsText: { color: 'rgba(226,232,240,0.72)', fontSize: 15, textAlign: 'center', lineHeight: 22 },
   category: { height: 42, minWidth: 94, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(246,198,95,0.14)', backgroundColor: 'rgba(255,255,255,0.055)', alignItems: 'center', justifyContent: 'center', position: 'relative' },
@@ -282,7 +336,7 @@ const styles = StyleSheet.create({
   eventsTitle: { color: '#FFFFFF', fontSize: 32, lineHeight: 36, fontWeight: '700' },
   eventsCount: { color: 'rgba(203,213,225,0.72)', fontSize: 16, fontWeight: '400', marginTop: 12 },
   eventCard: { marginHorizontal: 16, marginTop: 28, backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(246,198,95,0.18)' },
-  eventPoster: { width: '100%', aspectRatio: 4 / 5, position: 'relative', backgroundColor: 'rgba(255,255,255,0.012)' },
+  eventPoster: { width: '100%', aspectRatio: 3 / 4, position: 'relative', backgroundColor: 'rgba(255,255,255,0.012)' },
   eventPosterImage: { width: '100%', height: '100%' },
   posterShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(5,24,44,0.12)' },
   privateBadge: { position: 'absolute', top: 16, left: 14, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
@@ -296,9 +350,11 @@ const styles = StyleSheet.create({
   mockEvent: { color: colors.white, fontSize: 22, fontWeight: '800', marginTop: 10, textAlign: 'center' },
   mockLine: { color: colors.white, fontSize: 15, fontWeight: '800', marginTop: 18, letterSpacing: 2 },
   eventInfo: { padding: 18, backgroundColor: 'rgba(255,255,255,0.016)', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
-  eventName: { color: '#F8FAFC', fontSize: 21, fontWeight: '600', marginBottom: 22 },
-  eventMeta: { color: '#F97316', fontSize: 16, fontWeight: '400', marginTop: 8 },
-  eventAddress: { color: 'rgba(226,232,240,0.58)', fontSize: 15, fontWeight: '400', marginTop: 3, paddingLeft: 22 },
+  eventName: { color: '#F8FAFC', fontSize: 21, fontWeight: '700', lineHeight: 25, marginBottom: 14 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  metaCol: { flex: 1 },
+  eventMeta: { color: '#F97316', fontSize: 15, fontWeight: '500' },
+  eventAddress: { color: 'rgba(226,232,240,0.55)', fontSize: 13, fontWeight: '400', marginTop: 1 },
   divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.22)', marginVertical: 20 },
   price: { color: '#F8FAFC', fontSize: 20, fontWeight: '600' },
   ctaRow: { flexDirection: 'row', gap: 14, marginTop: 22 },
