@@ -124,6 +124,7 @@ export function OrganizerPanelScreen() {
   ]);
   const [organizerEvents, setOrganizerEvents] = useState<ReturnType<typeof toOrganizerEvent>[]>([]);
   const [organizerStats, setOrganizerStats] = useState<OrganizerStats>({});
+  const [rewardStats, setRewardStats] = useState({ balance: 0, totalPaid: 0, totalEarned: 0, activeCodes: 0 });
 
   useEffect(() => {
     let mounted = true;
@@ -148,6 +149,31 @@ export function OrganizerPanelScreen() {
         if (mounted) setOrganizerStats(data || {});
       })
       .catch(() => {});
+
+    Promise.allSettled([
+      apiGet<any>('/special-codes/me'),
+      apiGet<any>('/special-codes/my-payouts'),
+    ]).then(([meRes, payoutsRes]) => {
+      if (!mounted) return;
+
+      const activeCodes = meRes.status === 'fulfilled'
+        ? listFrom(meRes.value).filter((c: any) => c.isActive !== false).length
+        : 0;
+
+      let balance = 0;
+      let totalPaid = 0;
+      let totalEarned = 0;
+      if (payoutsRes.status === 'fulfilled') {
+        for (const entry of listFrom(payoutsRes.value)) {
+          balance += Number(entry.balance || 0);
+          totalPaid += Number(entry.totalPaid || 0);
+          totalEarned += Number(entry.totalEarned || 0);
+        }
+      }
+
+      const round2 = (v: number) => Math.round(v * 100) / 100;
+      setRewardStats({ balance: round2(balance), totalPaid: round2(totalPaid), totalEarned: round2(totalEarned), activeCodes });
+    });
 
     return () => {
       mounted = false;
@@ -279,7 +305,7 @@ export function OrganizerPanelScreen() {
         )}
 
         {active === 'rewards' && (
-          <OrganizerRewardsMobile goTo={setActive} />
+          <OrganizerRewardsMobile goTo={setActive} stats={rewardStats} />
         )}
 
       </ScrollView>
