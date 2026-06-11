@@ -141,7 +141,7 @@ function AppContent() {
         ) : tab === 'contact' ? (
           <ContactScreen user={currentUser} onBack={() => goToTab('events')} />
         ) : tab === 'about' ? (
-          <AboutScreen onBack={() => goToTab('events')} />
+          <AboutScreen onBack={() => goToTab('events')} onContact={() => goToTab('contact')} />
         ) : tab === 'support' ? (
           <SupportScreen onContact={() => goToTab('contact')} onBack={() => goToTab('events')} />
         ) : null}
