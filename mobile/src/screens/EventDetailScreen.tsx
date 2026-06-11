@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { GradientButton } from '../components/GradientButton';
 import { useLanguage } from '../i18n/LanguageContext';
 import { MobileEvent } from '../types/event';
 import { apiGet, getImageUrl } from '../services/api';
@@ -257,11 +258,13 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
             <Ionicons name="share-social-outline" size={22} color="#FFFFFF" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.buyButton} onPress={onBuy}>
-            <View pointerEvents="none" style={styles.orangeButtonTop} />
-            <View pointerEvents="none" style={styles.orangeButtonBottom} />
-            <Text style={styles.buyText}>{t('COMPRAR TICKETS', 'BUY TICKETS')}</Text>
-          </TouchableOpacity>
+          <GradientButton
+            onPress={onBuy}
+            height={56}
+            style={styles.buyButton}
+            textStyle={styles.buyText}
+            label={t('COMPRAR TICKETS', 'BUY TICKETS')}
+          />
         </View>
       </View>
     </ScrollView>
@@ -387,21 +390,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   shareText: { color: '#FFFFFF', fontSize: 25, fontWeight: '800' },
-  buyButton: {
-    flex: 1,
-    height: 56,
-    borderRadius: 8,
-    position: 'relative',
-    overflow: 'hidden',
-    backgroundColor: '#F97316',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#F97316',
-    shadowOpacity: 0.20,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
-  },
+  buyButton: { flex: 1 },
   orangeButtonTop: {
     position: 'absolute',
     top: 4,

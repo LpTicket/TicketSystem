@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { GradientButton } from '../components/GradientButton';
 import { getPublicEvents } from '../services/events';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -163,11 +165,12 @@ export function HomeScreen({ onOpenEvent }: Props) {
             <TextInput value={place} onChangeText={setPlace} placeholder={t('Ciudad o venue', 'City or venue')} placeholderTextColor="#8B95A3" style={styles.fieldInput} />
           </View>
         </View>
-        <TouchableOpacity style={styles.searchButton} onPress={() => Keyboard.dismiss()}>
-          <View pointerEvents="none" style={styles.orangeButtonTop} />
-          <View pointerEvents="none" style={styles.orangeButtonBottom} />
-          <Text style={styles.searchText}>{t('BUSCAR', 'SEARCH')}</Text>
-        </TouchableOpacity>
+        <GradientButton
+          label={t('BUSCAR', 'SEARCH')}
+          onPress={() => Keyboard.dismiss()}
+          height={58}
+          textStyle={styles.searchText}
+        />
 
         <View style={styles.categoryRow}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
@@ -181,8 +184,12 @@ export function HomeScreen({ onOpenEvent }: Props) {
               return (
                 <TouchableOpacity key={item} activeOpacity={0.85} onPress={() => setCategory(item)} style={[styles.catCard, active && styles.catCardActive]}>
                   {img ? <Image source={{ uri: img }} style={styles.catImage} resizeMode="cover" /> : null}
-                  <View pointerEvents="none" style={styles.catOverlay} />
-                  <View pointerEvents="none" style={styles.catShade} />
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={['rgba(2,5,9,0.04)', 'rgba(2,5,9,0.42)', 'rgba(2,5,9,0.94)']}
+                    locations={[0, 0.42, 1]}
+                    style={StyleSheet.absoluteFill}
+                  />
                   <View pointerEvents="none" style={styles.catGlow} />
                   <View style={styles.catContent}>
                     <Text style={styles.catIcon}>{item === 'All' ? '🎟️' : categoryEmoji(item)}</Text>
@@ -194,11 +201,13 @@ export function HomeScreen({ onOpenEvent }: Props) {
             })}
           </ScrollView>
         </View>
-        <TouchableOpacity style={styles.sortButton} onPress={() => setSortBy((s) => (s === 'date' ? 'price' : 'date'))}>
-          <View pointerEvents="none" style={styles.orangeButtonTop} />
-          <View pointerEvents="none" style={styles.orangeButtonBottom} />
-          <Text style={styles.sortText}>{t('ORDENAR POR', 'SORT BY')}: {sortBy === 'date' ? t('FECHA', 'DATE') : t('PRECIO', 'PRICE')}</Text>
-        </TouchableOpacity>
+        <GradientButton
+          onPress={() => setSortBy((s) => (s === 'date' ? 'price' : 'date'))}
+          height={58}
+          style={styles.sortButton}
+          textStyle={styles.sortText}
+          label={`${t('ORDENAR POR', 'SORT BY')}: ${sortBy === 'date' ? t('FECHA', 'DATE') : t('PRECIO', 'PRICE')}`}
+        />
       </View>
 
       <View style={styles.trustList}>
@@ -257,11 +266,13 @@ export function HomeScreen({ onOpenEvent }: Props) {
             </View>
             <View style={styles.ctaRow}>
               <TouchableOpacity style={styles.shareButton}><Ionicons name="share-social-outline" size={20} color="#FFFFFF" /></TouchableOpacity>
-              <TouchableOpacity style={styles.buyButton} onPress={() => onOpenEvent(event)}>
-                <View pointerEvents="none" style={styles.orangeButtonTop} />
-                <View pointerEvents="none" style={styles.orangeButtonBottom} />
-                <Text style={styles.buyText}>{t('COMPRAR TICKETS', 'BUY TICKETS')}</Text>
-              </TouchableOpacity>
+              <GradientButton
+                onPress={() => onOpenEvent(event)}
+                height={56}
+                style={styles.buyButton}
+                textStyle={styles.buyText}
+                label={t('COMPRAR TICKETS', 'BUY TICKETS')}
+              />
             </View>
           </View>
         </TouchableOpacity>
@@ -301,8 +312,7 @@ const styles = StyleSheet.create({
   fieldRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   fieldIcon: { color: '#F97316', fontSize: 22, fontWeight: '400' },
   fieldInput: { flex: 1, fontSize: 16, color: 'rgba(255,255,255,0.78)', fontWeight: '400', outlineStyle: 'none' as any },
-  searchButton: { height: 58, borderRadius: 8, position: 'relative', overflow: 'hidden', backgroundColor: '#F97316', borderWidth: 0, alignItems: 'center', justifyContent: 'center', shadowColor: '#F97316', shadowOpacity: 0.20, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
-  searchText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', letterSpacing: 4.2, zIndex: 3 },
+  searchText: { fontSize: 13, letterSpacing: 2.8 },
   categoryRow: { paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
   categoryScroll: { gap: 11, paddingRight: 8, paddingVertical: 3 },
   catCard: { width: 118, height: 118, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,107,0,0.34)', backgroundColor: '#030914' },
@@ -323,8 +333,8 @@ const styles = StyleSheet.create({
   categoryText: { color: '#E5E7EB', fontSize: 14, fontWeight: '900' },
   categoryTextActive: { color: '#FFFFFF', fontWeight: '900' },
   categoryDot: { position: 'absolute', right: 12, top: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.orange, shadowColor: colors.orange, shadowOpacity: 0.9, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
-  sortButton: { height: 58, borderRadius: 8, marginBottom: 8, position: 'relative', overflow: 'hidden', backgroundColor: '#F97316', borderWidth: 0, alignItems: 'center', justifyContent: 'center', shadowColor: '#F97316', shadowOpacity: 0.20, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
-  sortText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900', letterSpacing: 3.8, zIndex: 3 },
+  sortButton: { marginBottom: 8 },
+  sortText: { fontSize: 12.5, letterSpacing: 2.2 },
   trustList: { paddingHorizontal: 16, marginTop: 34, gap: 14 },
   trustCard: { backgroundColor: 'rgba(255,255,255,0.020)', borderWidth: 1, borderColor: 'rgba(246,198,95,0.10)', borderRadius: 12, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 16 },
   trustIcon: { width: 46, height: 46, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.10)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.32)', alignItems: 'center', justifyContent: 'center' },
@@ -360,6 +370,6 @@ const styles = StyleSheet.create({
   ctaRow: { flexDirection: 'row', gap: 14, marginTop: 22 },
   shareButton: { width: 56, height: 56, borderRadius: 8, backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(249,115,22,0.62)', alignItems: 'center', justifyContent: 'center' },
   shareText: { color: colors.white, fontSize: 26, fontWeight: '400' },
-  buyButton: { flex: 1, height: 56, borderRadius: 8, position: 'relative', overflow: 'hidden', backgroundColor: '#F97316', borderWidth: 0, alignItems: 'center', justifyContent: 'center', shadowColor: '#F97316', shadowOpacity: 0.20, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
-  buyText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', letterSpacing: 4.0, zIndex: 3 },
+  buyButton: { flex: 1 },
+  buyText: { fontSize: 12.5, letterSpacing: 2.4 },
 });
