@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 
-// Web background: injects the EXACT web `html body` background (globals.css ~5780)
-// behind the whole app — 92px grid squares + orange glow (right) + blue glow (left)
-// + navy base. Injected once and left in place so navigation never flashes white.
+// Web background: a single fixed, full-viewport ::before layer carrying the EXACT
+// web `html body` background (globals.css ~5780). Using position:fixed; inset:0
+// guarantees the radial glows sit at the same viewport spot as the responsive web
+// (orange 78%/12%, blue 16%/2%), regardless of document/scroll height.
 export function ScreenBackground() {
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -15,7 +16,13 @@ export function ScreenBackground() {
     }
 
     styleEl.innerHTML = `
-      html, body, #root {
+      html, body { background-color: #050b12 !important; }
+      body::before {
+        content: '' !important;
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: -1 !important;
+        pointer-events: none !important;
         background-color: #050b12 !important;
         background-image:
           linear-gradient(90deg, rgba(148,163,184,0.025) 1px, transparent 1px),
@@ -25,11 +32,9 @@ export function ScreenBackground() {
           linear-gradient(180deg, #050b12 0%, #07111d 46%, #050b12 100%) !important;
         background-size: 92px 92px, 92px 92px, auto, auto, auto !important;
         background-repeat: repeat, repeat, no-repeat, no-repeat, no-repeat !important;
-        background-attachment: fixed !important;
-        min-height: 100vh;
       }
-      /* Make React Native Web's wrapper containers transparent so the body
-         background (grid + glows) shows through the whole app, header included. */
+      /* Keep React Native Web wrapper containers transparent so the fixed
+         background shows through the whole app (header + every screen). */
       #root, #root > div, #root > div > div, #root > div > div > div {
         background-color: transparent !important;
       }
