@@ -217,7 +217,7 @@ function ActionButton({ label, primary, onPress }: { label: string; primary?: bo
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#030B14' },
+  screen: { flex: 1, backgroundColor: 'transparent' },
   content: { paddingHorizontal: 18, paddingTop: 78, paddingBottom: 128 },
   hero: { marginBottom: 18 },
   eyebrow: { color: '#F97316', fontSize: 12, fontWeight: '700', letterSpacing: 0 },

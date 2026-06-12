@@ -707,7 +707,7 @@ function subtitleFor(section: Section, t: (es: string, en: string) => string) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.darkBg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   tabs: { height: 86, paddingHorizontal: 16, gap: 8, alignItems: 'center' },
   tab: { height: 40, paddingHorizontal: 14, borderRadius: 8, backgroundColor: 'rgba(8,31,51,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', justifyContent: 'center' },
   tabActive: { backgroundColor: '#0A375A', borderColor: '#0A375A' },

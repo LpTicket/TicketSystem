@@ -429,7 +429,7 @@ function subtitleFor(section: Section, t: (es: string, en: string) => string) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.darkBg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   tabsShell: { height: 82, marginTop: 44, backgroundColor: colors.darkBg, justifyContent: 'center', overflow: 'hidden' },
   tabsScroller: { height: 82, flexGrow: 0, flexShrink: 0, backgroundColor: colors.darkBg },
   tabs: { height: 82, paddingHorizontal: 16, gap: 8, alignItems: 'center' },

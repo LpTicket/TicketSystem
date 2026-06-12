@@ -257,7 +257,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone: 'blu
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#030B14' },
+  screen: { flex: 1, backgroundColor: 'transparent' },
   content: { paddingHorizontal: 18, paddingTop: 78, paddingBottom: 132 },
   bgGridA: { position: 'absolute', left: '28%', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(125,211,252,0.035)' },
   bgGridB: { position: 'absolute', left: 0, right: 0, top: 220, height: 1, backgroundColor: 'rgba(125,211,252,0.030)' },

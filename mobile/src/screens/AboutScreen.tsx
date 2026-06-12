@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useLanguage } from '../i18n/LanguageContext';
 import { GradientButton } from '../components/GradientButton';
 import { ScreenBackground } from '../components/ScreenBackground';
@@ -10,7 +10,7 @@ export function AboutScreen({ onBack, onContact }: Props) {
   const es = lang === 'es';
 
   return (
-    <View style={styles.screenWrap}>
+    <View style={[styles.screenWrap, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
       <ScreenBackground />
       <ScrollView style={styles.root} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <TouchableOpacity onPress={onBack} style={styles.back}><Text style={styles.backText}>‹ {t('Volver', 'Back')}</Text></TouchableOpacity>
@@ -86,7 +86,7 @@ export function AboutScreen({ onBack, onContact }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screenWrap: { flex: 1, backgroundColor: '#05111f' },
+  screenWrap: { flex: 1, backgroundColor: '#030B14' },
   root: { flex: 1, backgroundColor: 'transparent' },
   content: { padding: 18, paddingTop: 18, paddingBottom: 120 },
   back: { alignSelf: 'flex-start', marginBottom: 14 },

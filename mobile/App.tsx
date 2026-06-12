@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, SafeAreaView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Animated, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from './src/components/AppHeader';
 import { MenuDrawer } from './src/components/MenuDrawer';
+import { ScreenBackground } from './src/components/ScreenBackground';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { EventDetailScreen } from './src/screens/EventDetailScreen';
 import { TicketsScreen } from './src/screens/TicketsScreen';
@@ -94,9 +95,13 @@ function AppContent() {
   }, [activeBottomIndex, navIndicatorX, navItemWidth]);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
       <StatusBar style="light" />
-      <View style={styles.app}>
+      <View style={[styles.app, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
+        <ScreenBackground />
+        <View pointerEvents="none" style={styles.appGridVertical} />
+        <View pointerEvents="none" style={styles.appGridHorizontal} />
+
         {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} onOpenAccount={() => goToTab('profile')} />}
 
         {!scanOpen && canOrganize && !selectedEvent && (
@@ -209,10 +214,10 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#030B14' },
+  safe: { flex: 1, backgroundColor: '#05111f' },
   app: {
     flex: 1,
-    backgroundColor: '#030B14',
+    backgroundColor: 'transparent',
     position: 'relative',
     overflow: 'hidden',
   },

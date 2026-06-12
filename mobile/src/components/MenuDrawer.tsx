@@ -1,4 +1,4 @@
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -39,7 +39,7 @@ export function MenuDrawer({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.panel}>
+      <View style={[styles.panel, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
         <ScreenBackground />
 
         <View style={styles.topBar}>
@@ -91,7 +91,7 @@ function Row({ label, onPress, icon, danger }: { label: string; onPress: () => v
 const styles = StyleSheet.create({
   panel: {
     flex: 1,
-    backgroundColor: '#05111f',
+    backgroundColor: '#030B14',
     paddingHorizontal: 16,
     paddingTop: 54,
   },

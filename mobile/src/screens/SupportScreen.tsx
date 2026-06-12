@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../i18n/LanguageContext';
 import { GradientButton } from '../components/GradientButton';
@@ -40,7 +40,7 @@ export function SupportScreen({ onContact, onBack }: Props) {
   }, [faqs, query, cat]);
 
   return (
-    <View style={styles.screenWrap}>
+    <View style={[styles.screenWrap, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
       <ScreenBackground />
       <ScrollView style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <TouchableOpacity onPress={onBack} style={styles.back}><Text style={styles.backText}>‹ {t('Volver', 'Back')}</Text></TouchableOpacity>
@@ -104,7 +104,7 @@ export function SupportScreen({ onContact, onBack }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screenWrap: { flex: 1, backgroundColor: '#05111f' },
+  screenWrap: { flex: 1, backgroundColor: '#030B14' },
   root: { flex: 1, backgroundColor: 'transparent' },
   content: { padding: 18, paddingTop: 18, paddingBottom: 120 },
   back: { alignSelf: 'flex-start', marginBottom: 14 },

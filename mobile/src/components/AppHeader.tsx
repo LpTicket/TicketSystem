@@ -59,7 +59,7 @@ export function AppHeader({ onOpenMenu, onOpenScan, onOpenAccount }: Props) {
 const styles = StyleSheet.create({
   header: {
     height: 84,
-    backgroundColor: '#030B14',
+    backgroundColor: 'transparent',
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
