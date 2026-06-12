@@ -1,68 +1,49 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-// Reproduces the web `.page-dark-shell` background:
-//   linear-gradient(180deg, #061b2d, #071827 46%, #05111f)
+// Pixel-faithful port of the web `.page-dark-shell` background:
+//   linear-gradient(180deg, #061b2d 0%, #071827 46%, #05111f 100%)
 //   radial-gradient(circle at 10% -8%, rgba(249,115,22,0.20), transparent 28rem)
 //   radial-gradient(circle at 86% 3%,  rgba(56,189,248,0.14), transparent 30rem)
-//
-// The radial glows are faked with many dense concentric circles of low opacity
-// (alpha compounds toward the centre -> smooth falloff). Pure RN, works on web.
-
-type Layer = { d: number; o: number };
-
-// Build `count` concentric circles from `maxD` down to ~8%, each at `opacity`.
-function buildGlow(maxD: number, count: number, opacity: number): Layer[] {
-  const out: Layer[] = [];
-  for (let i = 0; i < count; i++) {
-    const d = maxD * (1 - (i / count) * 0.92);
-    out.push({ d, o: opacity });
-  }
-  return out;
-}
-
-function Glow({ color, cx, cy, layers }: { color: string; cx: number; cy: number; layers: Layer[] }) {
-  return (
-    <>
-      {layers.map((l, i) => (
-        <View
-          key={i}
-          style={{
-            position: 'absolute',
-            left: cx - l.d / 2,
-            top: cy - l.d / 2,
-            width: l.d,
-            height: l.d,
-            borderRadius: l.d / 2,
-            backgroundColor: color,
-            opacity: l.o,
-          }}
-        />
-      ))}
-    </>
-  );
-}
-
 export function ScreenBackground() {
-  const { width } = useWindowDimensions();
-
-  // 28rem / 30rem ≈ 448 / 480 px radius -> ~900 / 960 px diameter
-  const orange = buildGlow(900, 16, 0.018);
-  const blue = buildGlow(960, 14, 0.012);
+  const { width, height } = useWindowDimensions();
+  const orangeR = 28 * 16; // 28rem -> px
+  const blueR = 30 * 16; // 30rem -> px
 
   return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.clip]}>
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <LinearGradient
         colors={['#061b2d', '#071827', '#05111f']}
         locations={[0, 0.46, 1]}
         style={StyleSheet.absoluteFill}
       />
-      <Glow color="#F97316" cx={width * 0.1} cy={width * -0.08} layers={orange} />
-      <Glow color="#38bdf8" cx={width * 0.86} cy={width * 0.03} layers={blue} />
+      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+        <Defs>
+          <RadialGradient
+            id="lp-orange"
+            cx={width * 0.1}
+            cy={height * -0.08}
+            r={orangeR}
+            gradientUnits="userSpaceOnUse"
+          >
+            <Stop offset="0" stopColor="#F97316" stopOpacity={0.2} />
+            <Stop offset="1" stopColor="#F97316" stopOpacity={0} />
+          </RadialGradient>
+          <RadialGradient
+            id="lp-blue"
+            cx={width * 0.86}
+            cy={height * 0.03}
+            r={blueR}
+            gradientUnits="userSpaceOnUse"
+          >
+            <Stop offset="0" stopColor="#38bdf8" stopOpacity={0.14} />
+            <Stop offset="1" stopColor="#38bdf8" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#lp-orange)" />
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#lp-blue)" />
+      </Svg>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  clip: { overflow: 'hidden', backgroundColor: '#05111f' },
-});
