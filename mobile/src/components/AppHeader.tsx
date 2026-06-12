@@ -1,6 +1,5 @@
 import { Image, StyleSheet, TouchableOpacity, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLanguage } from '../i18n/LanguageContext';
 
 // Same asset as the web header (/logo.png): color icon + white "LPTicket" text.
@@ -17,14 +16,6 @@ export function AppHeader({ onOpenMenu, onOpenScan, onOpenAccount }: Props) {
 
   return (
     <View style={styles.header}>
-      <LinearGradient
-        pointerEvents="none"
-        colors={['rgba(249,115,22,0)', 'rgba(249,115,22,0.06)', 'rgba(249,115,22,0.16)']}
-        locations={[0, 0.55, 1]}
-        start={{ x: 0, y: 0.5 }}
-        end={{ x: 1, y: 0.5 }}
-        style={StyleSheet.absoluteFill}
-      />
       <Image source={logo} style={styles.logo} resizeMode="contain" />
 
       <View style={styles.actions}>
