@@ -38,17 +38,6 @@ export function AppHeader({ onOpenMenu, onOpenScan, canOrganize, viewMode = 'cli
       <Image source={logo} style={styles.logo} resizeMode="contain" />
 
       <View style={styles.actions}>
-        {canOrganize && onSetMode && (
-          <View style={styles.modePill}>
-            <TouchableOpacity onPress={() => onSetMode('client')} style={[styles.modeBtn, viewMode === 'client' && styles.modeBtnActive]}>
-              <Ionicons name="person-outline" size={15} color={viewMode === 'client' ? '#FFFFFF' : 'rgba(255,255,255,0.66)'} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => onSetMode('organizer')} style={[styles.modeBtn, viewMode === 'organizer' && styles.modeBtnActive]}>
-              <Ionicons name="briefcase-outline" size={15} color={viewMode === 'organizer' ? '#FFFFFF' : 'rgba(255,255,255,0.66)'} />
-            </TouchableOpacity>
-          </View>
-        )}
-
         <View style={styles.langSwitch}>
           <Animated.View style={[styles.langSlidingPill, { transform: [{ translateX: langPillX }] }]} />
           <TouchableOpacity
@@ -65,6 +54,17 @@ export function AppHeader({ onOpenMenu, onOpenScan, canOrganize, viewMode = 'cli
             <Text style={[styles.langText, lang === 'en' && styles.langTextActive]}>EN</Text>
           </TouchableOpacity>
         </View>
+
+        {canOrganize && onSetMode && (
+          <View style={styles.modePill}>
+            <TouchableOpacity onPress={() => onSetMode('client')} style={[styles.modeBtn, viewMode === 'client' && styles.modeBtnActive]}>
+              <Ionicons name="person-outline" size={15} color={viewMode === 'client' ? '#FFFFFF' : 'rgba(255,255,255,0.66)'} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onSetMode('organizer')} style={[styles.modeBtn, viewMode === 'organizer' && styles.modeBtnActive]}>
+              <Ionicons name="briefcase-outline" size={15} color={viewMode === 'organizer' ? '#FFFFFF' : 'rgba(255,255,255,0.66)'} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         <TouchableOpacity style={[styles.iconButton, styles.menuButton]} onPress={onOpenMenu}>
           <Ionicons name="menu-outline" size={21} color="#ff7a00" />
@@ -88,15 +88,15 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   modePill: {
     flexDirection: 'row',
+    width: 74,
     height: 32,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(117,132,153,0.34)',
     backgroundColor: 'rgba(255,255,255,0.035)',
     padding: 3,
-    gap: 2,
   },
-  modeBtn: { width: 26, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  modeBtn: { flex: 1, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   modeBtnActive: { backgroundColor: '#F97316' },
   langSwitch: {
     flexDirection: 'row',
