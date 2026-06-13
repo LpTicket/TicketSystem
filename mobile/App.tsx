@@ -33,6 +33,7 @@ function AppContent() {
   const { t } = useLanguage();
   const { width } = useWindowDimensions();
   const navIndicatorX = useRef(new Animated.Value(0)).current;
+  const modeIndicatorX = useRef(new Animated.Value(0)).current;
   const [tab, setTab] = useState<Tab>('events');
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -83,6 +84,7 @@ function AppContent() {
   const canOrganize = isLoggedIn;
   const navPadding = 8;
   const navItemWidth = (width - navPadding * 2) / bottomTabs.length;
+  const modePillWidth = (width - 42) / 2;
 
   useEffect(() => {
     Animated.spring(navIndicatorX, {
@@ -94,22 +96,34 @@ function AppContent() {
     }).start();
   }, [activeBottomIndex, navIndicatorX, navItemWidth]);
 
+  useEffect(() => {
+    Animated.spring(modeIndicatorX, {
+      toValue: viewMode === 'organizer' ? modePillWidth : 0,
+      useNativeDriver: true,
+      damping: 18,
+      stiffness: 180,
+      mass: 0.7,
+    }).start();
+  }, [modeIndicatorX, modePillWidth, viewMode]);
+
   return (
-    <SafeAreaView style={[styles.safe, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
-      <StatusBar style="light" />
-      <View style={[styles.app, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
-        <ScreenBackground />
+    <View style={styles.root}>
+      <ScreenBackground />
+      <SafeAreaView style={[styles.safe, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
+        <StatusBar style="light" />
+        <View style={[styles.app, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
         <View pointerEvents="none" style={styles.appGridVertical} />
         <View pointerEvents="none" style={styles.appGridHorizontal} />
 
-        {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} onOpenAccount={() => goToTab('profile')} />}
+        {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} />}
 
         {!scanOpen && canOrganize && !selectedEvent && (
           <View style={styles.modeSwitch}>
-            <TouchableOpacity onPress={() => { setViewMode('client'); goToTab('events'); }} style={[styles.modeButton, viewMode === 'client' && styles.modeButtonActive]}>
+            <Animated.View style={[styles.modeSlidingPill, { width: modePillWidth, transform: [{ translateX: modeIndicatorX }] }]} />
+            <TouchableOpacity onPress={() => { setViewMode('client'); goToTab('events'); }} style={styles.modeButton}>
               <Text style={[styles.modeText, viewMode === 'client' && styles.modeTextActive]}>{t('Cliente', 'Client')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => { setViewMode('organizer'); goToTab('organizer'); }} style={[styles.modeButton, viewMode === 'organizer' && styles.modeButtonActive]}>
+            <TouchableOpacity onPress={() => { setViewMode('organizer'); goToTab('organizer'); }} style={styles.modeButton}>
               <Text style={[styles.modeText, viewMode === 'organizer' && styles.modeTextActive]}>{t('Organizador', 'Organizer')}</Text>
             </TouchableOpacity>
           </View>
@@ -200,8 +214,9 @@ function AppContent() {
           canOrganize={canOrganize}
           canAdmin={canAdmin}
         />
-      </View>
-    </SafeAreaView>
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -214,7 +229,13 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#05111f' },
+  root: {
+    flex: 1,
+    backgroundColor: '#050b12',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  safe: { flex: 1, backgroundColor: 'transparent' },
   app: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -248,9 +269,9 @@ const styles = StyleSheet.create({
   },
   modeSwitch: {
     position: 'absolute',
-    top: 63,
-    left: 0,
-    right: 0,
+    top: 67,
+    left: 16,
+    right: 16,
     zIndex: 30,
     elevation: 30,
     backgroundColor: 'rgba(3,11,20,0.96)',
@@ -261,15 +282,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
   },
+  modeSlidingPill: {
+    position: 'absolute',
+    left: 5,
+    top: 5,
+    bottom: 5,
+    borderRadius: 14,
+    backgroundColor: colors.orange,
+    shadowColor: colors.orange,
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+  },
   modeButton: {
     flex: 1,
     height: 42,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   modeButtonActive: {
-    backgroundColor: colors.orange,
   },
   modeText: {
     color: 'rgba(226,232,240,0.62)',

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser } from '../services/api';
@@ -25,6 +25,8 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
+  const [tabShellWidth, setTabShellWidth] = useState(0);
+  const tabIndicatorX = useRef(new Animated.Value(0)).current;
   const [profile, setProfile] = useState({
     firstName: user.firstName || '',
     lastName: user.lastName || '',
@@ -32,8 +34,17 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
     phone: user.phone || '',
   });
 
-  const initials = useMemo(() => `${profile.firstName[0] || ''}${profile.lastName[0] || ''}`.toUpperCase(), [profile]);
-  const fullName = `${profile.firstName} ${profile.lastName}`.trim() || (user.email || '');
+  const tabButtonWidth = tabShellWidth > 0 ? (tabShellWidth - 18) / 2 : 0;
+
+  useEffect(() => {
+    Animated.spring(tabIndicatorX, {
+      toValue: activeTab === 'account' ? 0 : tabButtonWidth + 6,
+      useNativeDriver: true,
+      damping: 17,
+      stiffness: 190,
+      mass: 0.72,
+    }).start();
+  }, [activeTab, tabButtonWidth, tabIndicatorX]);
 
   const updateProfile = (key: keyof typeof profile, value: string) => {
     setProfile((current) => ({ ...current, [key]: value }));
@@ -88,36 +99,24 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
 
   return (
     <ScrollView style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-      <View style={styles.hero}>
-        <View style={styles.heroTop}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
-
-          <View style={styles.heroCopy}>
-            <Text style={styles.eyebrowLight}>{t('CUENTA LP TICKET', 'LP TICKET ACCOUNT')}</Text>
-            <Text style={styles.name}>{fullName}</Text>
-            <Text style={styles.email}>{profile.email}</Text>
-          </View>
-        </View>
-
-        <View style={styles.heroStats}>
-          <MiniStat value="2" label={t('Recibos', 'Receipts')} />
-          <MiniStat value="1" label={t('Ticket activo', 'Active ticket')} />
-          <MiniStat value="92%" label={t('Puntaje social', 'Social score')} />
-        </View>
-
-        <TouchableOpacity style={styles.editButton} onPress={() => setEditing(true)}>
-          <Text style={styles.editText}>{t('EDITAR PERFIL', 'EDIT PROFILE')}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.tabShell}>
+      <View style={styles.tabShell} onLayout={(event) => setTabShellWidth(event.nativeEvent.layout.width)}>
+        {tabButtonWidth > 0 && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.tabSlidingPill,
+              {
+                width: tabButtonWidth,
+                transform: [{ translateX: tabIndicatorX }],
+              },
+            ]}
+          />
+        )}
         <ProfileTabButton label={t('Cuenta', 'Account')} active={activeTab === 'account'} onPress={() => setActiveTab('account')} />
         <ProfileTabButton label={t('Pagos', 'Payments')} active={activeTab === 'payments'} onPress={() => setActiveTab('payments')} />
       </View>
 
-            {activeTab === 'account' && <AccountMobile user={user} onUserUpdated={onUserUpdated} />}
+      {activeTab === 'account' && <AccountMobile user={user} onUserUpdated={onUserUpdated} />}
 
       {activeTab === 'payments' && (
         <>
@@ -175,18 +174,9 @@ function ProfileField({
 
 function ProfileTabButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.tabButton, active && styles.tabButtonActive]}>
+    <TouchableOpacity onPress={onPress} style={styles.tabButton}>
       <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
     </TouchableOpacity>
-  );
-}
-
-function MiniStat({ value, label }: { value: string; label: string }) {
-  return (
-    <View style={styles.miniStat}>
-      <Text style={styles.miniStatValue}>{value}</Text>
-      <Text style={styles.miniStatLabel}>{label}</Text>
-    </View>
   );
 }
 
@@ -216,10 +206,12 @@ function ActionRow({ badge, title, subtitle, action }: { badge: string; title: s
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
-  content: { paddingHorizontal: 18, paddingTop: 78, paddingBottom: 132 },
+  content: { paddingHorizontal: 18, paddingTop: 46, paddingBottom: 132 },
   hero: {
     backgroundColor: 'rgba(255,255,255,0.025)',
     borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
     padding: 20,
     marginBottom: 14,
     shadowColor: '#111827',
@@ -227,39 +219,6 @@ const styles = StyleSheet.create({
     shadowRadius: 22,
     shadowOffset: { width: 0, height: 12 },
   },
-  heroTop: { flexDirection: 'row', gap: 14, alignItems: 'center', marginBottom: 18 },
-  avatar: {
-    width: 76,
-    height: 76,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.018)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { color: '#F8FAFC', fontSize: 26, fontWeight: '700' },
-  heroCopy: { flex: 1 },
-  eyebrowLight: { color: '#f8b37b', fontSize: 10, letterSpacing: 0, fontWeight: '700', marginBottom: 5 },
-  name: { color: '#FFFFFF', fontSize: 24, fontWeight: '700', marginBottom: 4 },
-  email: { color: '#cbd5e1', fontSize: 14, fontWeight: '400' },
-  heroStats: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  miniStat: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    borderRadius: 16,
-    padding: 12,
-  },
-  miniStatValue: { color: '#FFFFFF', fontSize: 18, fontWeight: '700', marginBottom: 2 },
-  miniStatLabel: { color: '#cbd5e1', fontSize: 11, fontWeight: '700' },
-  editButton: {
-    height: 48,
-    borderRadius: 15,
-    backgroundColor: colors.orange,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editText: { color: '#FFFFFF', fontSize: 13, letterSpacing: 0, fontWeight: '700' },
   tabShell: {
     backgroundColor: 'rgba(255,255,255,0.018)',
     borderRadius: 20,
@@ -269,9 +228,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
     marginBottom: 14,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  tabButton: { flex: 1, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  tabButtonActive: { backgroundColor: 'rgba(255,255,255,0.025)' },
+  tabSlidingPill: { position: 'absolute', left: 6, top: 6, height: 44, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.055)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.26)', shadowColor: '#FFFFFF', shadowOpacity: 0.14, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+  tabButton: { flex: 1, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  tabButtonActive: { backgroundColor: '#030B14' },
   tabText: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '700' },
   tabTextActive: { color: '#FFFFFF' },
   editHeader: {
@@ -436,6 +398,8 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 16,
     backgroundColor: '#030B14',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },

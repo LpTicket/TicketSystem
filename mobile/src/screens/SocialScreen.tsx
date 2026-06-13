@@ -22,13 +22,13 @@ export function SocialScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
-  content: { paddingHorizontal: 18, paddingTop: 78, paddingBottom: 132 },
+  content: { paddingHorizontal: 18, paddingTop: 46, paddingBottom: 132 },
   header: {
     marginBottom: 16,
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(8,31,51,0.42)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.018)',
     padding: 18,
   },
   eyebrow: {

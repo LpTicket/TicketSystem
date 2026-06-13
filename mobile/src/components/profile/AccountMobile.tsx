@@ -86,6 +86,18 @@ export function AccountMobile({ user, onUserUpdated }: Props) {
             <Text style={styles.heroStatValue}>100%</Text>
             <Text style={styles.heroStatLabel}>{t('Perfil', 'Profile')}</Text>
           </View>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>2</Text>
+            <Text style={styles.heroStatLabel}>{t('Recibos', 'Receipts')}</Text>
+          </View>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>1</Text>
+            <Text style={styles.heroStatLabel}>{t('Ticket activo', 'Active ticket')}</Text>
+          </View>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>92%</Text>
+            <Text style={styles.heroStatLabel}>{t('Puntaje social', 'Social score')}</Text>
+          </View>
         </View>
       </View>
 
@@ -181,24 +193,26 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: 'rgba(255,255,255,0.025)',
     borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
     padding: 24,
     alignItems: 'center',
     marginBottom: 16,
-    shadowColor: '#111827',
-    shadowOpacity: 0.16,
+    shadowColor: '#000000',
+    shadowOpacity: 0.22,
     shadowRadius: 18,
-    shadowOffset: { width: 0, height: 12 },
+    shadowOffset: { width: 0, height: 10 },
   },
   avatarWrap: { position: 'relative', marginBottom: 15 },
   avatar: {
     width: 92,
     height: 92,
     borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.018)',
+    backgroundColor: '#030B14',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 4,
-    borderColor: 'rgba(255,255,255,0.28)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   avatarText: { color: '#F8FAFC', fontSize: 30, fontWeight: '700' },
   cameraButton: {
@@ -212,22 +226,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: colors.navy,
+    borderColor: '#030B14',
   },
   cameraText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
   name: { color: '#FFFFFF', fontSize: 26, fontWeight: '700', marginBottom: 5 },
   role: { color: '#cbd5e1', fontSize: 12, letterSpacing: 0, fontWeight: '400', marginBottom: 18 },
-  heroStats: { flexDirection: 'row', gap: 12, width: '100%' },
+  heroStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, width: '100%', justifyContent: 'center' },
   heroStat: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    padding: 14,
+    width: '29%',
+    minHeight: 48,
+    backgroundColor: '#030B14',
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  heroStatValue: { color: '#FFFFFF', fontSize: 17, fontWeight: '700', textAlign: 'center' },
-  heroStatLabel: { color: '#cbd5e1', fontSize: 12, fontWeight: '400', textAlign: 'center', marginTop: 3 },
+  heroStatValue: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  heroStatLabel: { color: '#cbd5e1', fontSize: 9, fontWeight: '400', textAlign: 'center', marginTop: 2 },
   card: {
     backgroundColor: 'rgba(255,255,255,0.018)',
     borderRadius: 24,
@@ -235,6 +253,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.14)',
     padding: 18,
     marginBottom: 14,
+    shadowColor: '#000000',
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 14 },
   eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 0, fontWeight: '700', marginBottom: 7 },
@@ -252,13 +274,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 14,
     backgroundColor: '#030B14',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
     justifyContent: 'center',
   },
   cancelSmallText: { color: '#F8FAFC', fontSize: 12, letterSpacing: 0, fontWeight: '700' },
   infoRow: {
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: '#030B14',
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    marginBottom: 10,
   },
   infoLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 12, letterSpacing: 0, fontWeight: '700', marginBottom: 5 },
   infoValue: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', lineHeight: 22 },
@@ -269,7 +297,7 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.018)',
+    backgroundColor: '#030B14',
     paddingHorizontal: 16,
     color: '#F8FAFC',
     fontSize: 16,
@@ -286,9 +314,12 @@ const styles = StyleSheet.create({
   },
   saveText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '700' },
   securityRow: {
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: '#030B14',
+    padding: 14,
+    marginTop: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 14,
@@ -296,8 +327,8 @@ const styles = StyleSheet.create({
   },
   securityTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 3 },
   securityCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '400', lineHeight: 19, maxWidth: 220 },
-  statusPill: { backgroundColor: '#DCFCE7', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
-  statusText: { color: '#15803d', fontSize: 11, letterSpacing: 0, fontWeight: '700' },
-  softPill: { backgroundColor: '#030B14', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+  statusPill: { backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, paddingVertical: 8 },
+  statusText: { color: '#F8FAFC', fontSize: 11, letterSpacing: 0, fontWeight: '700' },
+  softPill: { backgroundColor: '#030B14', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, paddingVertical: 8 },
   softPillText: { color: '#F8FAFC', fontSize: 11, letterSpacing: 0, fontWeight: '700' },
 });

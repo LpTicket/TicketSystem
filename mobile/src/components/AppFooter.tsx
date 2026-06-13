@@ -68,9 +68,9 @@ export function AppFooter() {
 
 const styles = StyleSheet.create({
   footer: {
-    backgroundColor: '#05111F',
+    backgroundColor: '#030B14',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(249,115,22,0.34)',
+    borderTopColor: 'rgba(255,255,255,0.14)',
     paddingHorizontal: 22,
     paddingTop: 42,
     paddingBottom: 112,
@@ -93,10 +93,10 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     borderWidth: 1,
-    borderColor: 'rgba(249,115,22,0.30)',
+    borderColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(8,31,51,0.58)',
+    backgroundColor: 'rgba(255,255,255,0.018)',
   },
   socialText: {
     color: 'rgba(255,255,255,0.82)',

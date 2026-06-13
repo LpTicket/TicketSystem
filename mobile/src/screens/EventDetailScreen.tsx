@@ -153,9 +153,9 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
   }, [event.id, event.slug, lang]);
 
   const imageSource = useMemo(() => {
-    const image = detail.bannerImageUrl || detail.imageUrl;
+    const image = detail.imageUrl || detail.bannerImageUrl;
     return image ? { uri: image } : fallbackImage;
-  }, [detail.bannerImageUrl, detail.imageUrl]);
+  }, [detail.imageUrl, detail.bannerImageUrl]);
 
 
   const toggleSeat = (seat: Seat) => {
@@ -191,7 +191,7 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
       </TouchableOpacity>
 
       <View style={styles.hero}>
-        <Image source={imageSource} style={styles.heroImage} resizeMode="cover" />
+        <Image source={imageSource} style={styles.heroImage} resizeMode="contain" />
         <View style={styles.categoryBadge}>
           <Text style={styles.categoryText}>{detail.tag}</Text>
         </View>
@@ -278,7 +278,7 @@ function Legend({ color, label }: { color: string; label: string }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: 'transparent' },
-  content: { paddingHorizontal: 16, paddingTop: 72, paddingBottom: 130, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 130, backgroundColor: 'transparent' },
   backButton: {
     alignSelf: 'flex-start',
     marginBottom: 14,
@@ -291,14 +291,14 @@ const styles = StyleSheet.create({
   },
   backText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
   hero: {
-    height: 330,
+    height: 500,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#081F33',
+    backgroundColor: 'rgba(2,8,15,0.48)',
     borderWidth: 1,
     borderColor: 'rgba(148,163,184,0.20)',
   },
-  heroImage: { width: '100%', height: '100%' },
+  heroImage: { width: '100%', height: '100%', transform: [{ scale: 1.12 }] },
   categoryBadge: {
     position: 'absolute',
     top: 14,

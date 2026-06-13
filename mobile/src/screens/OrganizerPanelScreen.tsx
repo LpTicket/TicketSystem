@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { VenueMapEditor } from '../components/organizer/VenueMapEditor';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -113,7 +114,13 @@ const sections: Section[] = [
 
 export function OrganizerPanelScreen() {
   const { t } = useLanguage();
+  const organizerIndicatorX = useRef(new Animated.Value(0)).current;
+  const organizerIndicatorWidth = useRef(new Animated.Value(118)).current;
   const [active, setActive] = useState<Section>('dashboard');
+  const [tabLayouts, setTabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
+  const [tabsViewportWidth, setTabsViewportWidth] = useState(0);
+  const [tabsContentWidth, setTabsContentWidth] = useState(0);
+  const [tabsScrollX, setTabsScrollX] = useState(0);
   const [eventTitle, setEventTitle] = useState('Noche de (des)amor');
   const [eventVenue, setEventVenue] = useState('Ambriza');
   const [eventStatus, setEventStatus] = useState<'draft' | 'published'>('published');
@@ -187,6 +194,34 @@ export function OrganizerPanelScreen() {
     orders: String(organizerStats.totalOrders ?? 0),
   };
 
+  const activeSectionIndex = Math.max(0, sections.indexOf(active));
+  const showLeftFade = tabsScrollX > 8;
+  const showRightFade = tabsViewportWidth > 0 && tabsContentWidth > tabsViewportWidth && tabsScrollX + tabsViewportWidth < tabsContentWidth - 8;
+
+  useEffect(() => {
+    const activeLayout = tabLayouts[active];
+    const fallbackX = 6 + activeSectionIndex * 130;
+    const nextX = activeLayout?.x ?? fallbackX;
+    const nextWidth = activeLayout?.width ?? 118;
+
+    Animated.parallel([
+      Animated.spring(organizerIndicatorX, {
+        toValue: nextX,
+        useNativeDriver: false,
+        damping: 17,
+        stiffness: 190,
+        mass: 0.72,
+      }),
+      Animated.spring(organizerIndicatorWidth, {
+        toValue: nextWidth,
+        useNativeDriver: false,
+        damping: 15,
+        stiffness: 150,
+        mass: 0.8,
+      }),
+    ]).start();
+  }, [active, activeSectionIndex, organizerIndicatorWidth, organizerIndicatorX, tabLayouts]);
+
   const toggleAccessItem = (id: string) => {
     setAccessItems((current) => current.map((item) => item.id === id ? { ...item, status: item.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE' } : item));
   };
@@ -198,13 +233,63 @@ export function OrganizerPanelScreen() {
   return (
     <View style={styles.root}>
       <View style={styles.tabsShell}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroller} contentContainerStyle={styles.tabs}>
+        <View style={styles.tabsViewport}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.tabsScroller}
+            contentContainerStyle={styles.tabs}
+            onLayout={(event) => setTabsViewportWidth(event.nativeEvent.layout.width)}
+            onContentSizeChange={(width) => setTabsContentWidth(width)}
+            onScroll={(event) => setTabsScrollX(event.nativeEvent.contentOffset.x)}
+            scrollEventThrottle={16}
+          >
+            <Animated.View
+              style={[
+                styles.organizerSlidingPill,
+                {
+                  left: organizerIndicatorX,
+                  width: organizerIndicatorWidth,
+                },
+              ]}
+            />
+            {sections.map((item) => (
+              <OrganizerTab
+                key={item}
+                label={sectionLabel(item, t)}
+                active={active === item}
+                onPress={() => setActive(item)}
+                onLayout={(x, width) => setTabLayouts((current) => ({ ...current, [item]: { x, width } }))}
+              />
+            ))}
+          </ScrollView>
+
+          {showLeftFade && (
+            <LinearGradient
+              pointerEvents="none"
+              colors={['#030B14', 'rgba(3,11,20,0)']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={[styles.tabsFade, styles.tabsFadeLeft]}
+            />
+          )}
+
+          {showRightFade && (
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(3,11,20,0)', '#030B14']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={[styles.tabsFade, styles.tabsFadeRight]}
+            />
+          )}
+
+        </View>
+        <View pointerEvents="none" style={styles.tabsDots}>
           {sections.map((item) => (
-            <TouchableOpacity key={item} onPress={() => setActive(item)} style={[styles.tab, active === item && styles.tabActive]}>
-              <Text style={[styles.tabText, active === item && styles.tabTextActive]}>{sectionLabel(item, t)}</Text>
-            </TouchableOpacity>
+            <View key={item} style={[styles.tabsDot, active === item && styles.tabsDotActive]} />
           ))}
-        </ScrollView>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -284,6 +369,47 @@ export function OrganizerPanelScreen() {
 
       </ScrollView>
     </View>
+  );
+}
+
+function OrganizerTab({ label, active, onPress, onLayout }: { label: string; active: boolean; onPress: () => void; onLayout: (x: number, width: number) => void }) {
+  const arrival = useRef(new Animated.Value(active ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(arrival, {
+      toValue: active ? 1 : 0,
+      friction: 7,
+      tension: 120,
+      useNativeDriver: true,
+    }).start();
+  }, [active, arrival]);
+
+  const animatedStyle = {
+    transform: [
+      {
+        scale: arrival.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.96, 1],
+        }),
+      },
+      {
+        translateY: arrival.interpolate({
+          inputRange: [0, 1],
+          outputRange: [2, 0],
+        }),
+      },
+    ],
+  };
+
+  return (
+    <Animated.View
+      onLayout={(event) => onLayout(event.nativeEvent.layout.x, event.nativeEvent.layout.width)}
+      style={[styles.tabMotion, active && animatedStyle]}
+    >
+      <TouchableOpacity activeOpacity={0.86} onPress={onPress} style={styles.tab}>
+        <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -430,22 +556,31 @@ function subtitleFor(section: Section, t: (es: string, en: string) => string) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
-  tabsShell: { height: 82, marginTop: 44, backgroundColor: colors.darkBg, justifyContent: 'center', overflow: 'hidden' },
-  tabsScroller: { height: 82, flexGrow: 0, flexShrink: 0, backgroundColor: colors.darkBg },
-  tabs: { height: 82, paddingHorizontal: 16, gap: 8, alignItems: 'center' },
-  tab: { height: 40, paddingHorizontal: 14, borderRadius: 8, backgroundColor: 'rgba(8,31,51,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', justifyContent: 'center' },
-  tabActive: { backgroundColor: colors.orange, borderColor: colors.orange },
+  tabsShell: { height: 94, marginTop: 44, backgroundColor: 'transparent', justifyContent: 'center', overflow: 'visible' },
+  tabsViewport: { height: 62, marginHorizontal: 16, borderRadius: 20, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
+  tabsScroller: { height: 62, flexGrow: 0, flexShrink: 0, backgroundColor: 'transparent' },
+  tabs: { height: 60, paddingLeft: 6, paddingRight: 46, gap: 6, alignItems: 'center', backgroundColor: 'transparent', position: 'relative' },
+  organizerSlidingPill: { position: 'absolute', top: 7, height: 46, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.055)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.26)', zIndex: 0, overflow: 'hidden', shadowColor: '#FFFFFF', shadowOpacity: 0.16, shadowRadius: 13, shadowOffset: { width: 0, height: 6 } },
+  tabMotion: { height: 46, justifyContent: 'center', zIndex: 1 },
+  tab: { height: 46, minWidth: 124, paddingHorizontal: 16, borderRadius: 14, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
+  tabActive: {},
   tabText: { color: '#CBD5E1', fontSize: 13, fontWeight: '700' },
   tabTextActive: { color: '#FFFFFF' },
-  content: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 140 },
+  tabsFade: { position: 'absolute', top: 1, bottom: 1, width: 42, zIndex: 3 },
+  tabsFadeLeft: { left: 0 },
+  tabsFadeRight: { right: 0 },
+  tabsDots: { height: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 5 },
+  tabsDot: { width: 4, height: 4, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.24)' },
+  tabsDotActive: { width: 14, backgroundColor: 'rgba(249,115,22,0.72)' },
+  content: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 140 },
   eyebrow: { color: colors.orange, fontSize: 13, letterSpacing: 0, fontWeight: '700', marginBottom: 8 },
   title: { color: '#F8FAFC', fontSize: 32, fontWeight: '700', marginBottom: 8 },
   subtitle: { color: '#CBD5E1', fontSize: 16, lineHeight: 23, fontWeight: '400', marginBottom: 18 },
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 14 },
-  metric: { width: '48%', backgroundColor: 'rgba(8,31,51,0.82)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 16 },
+  metric: { width: '48%', backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 14 },
   metricValue: { color: colors.orange, fontSize: 24, fontWeight: '700', marginBottom: 4 },
   metricLabel: { color: '#CBD5E1', fontSize: 13, fontWeight: '700' },
-  panelCard: { backgroundColor: 'rgba(8,31,51,0.82)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 20, marginBottom: 16, shadowColor: '#000000', shadowOpacity: 0.22, shadowRadius: 18, shadowOffset: { width: 0, height: 10 } },
+  panelCard: { backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 18, marginBottom: 16, shadowColor: '#000000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
   formEyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 0, fontWeight: '700', marginBottom: 8 },
   panelTitle: { color: '#F8FAFC', fontSize: 26, fontWeight: '700', marginBottom: 8 },
   eventName: { color: colors.textPrimary, fontSize: 22, fontWeight: '700', marginBottom: 6 },

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { apiGet } from '../services/api';
@@ -68,7 +68,10 @@ const sections: { id: Section; label: string }[] = [
 
 export function AdminPanelScreen() {
   const { t } = useLanguage();
+  const adminIndicatorX = useRef(new Animated.Value(0)).current;
+  const adminIndicatorWidth = useRef(new Animated.Value(118)).current;
   const [active, setActive] = useState<Section>('dashboard');
+  const [tabLayouts, setTabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [categoryDraft, setCategoryDraft] = useState('');
@@ -143,6 +146,31 @@ export function AdminPanelScreen() {
   ]);
 
   const firstEvent = adminEvents[0];
+  const activeSectionIndex = Math.max(0, sections.findIndex((section) => section.id === active));
+
+  useEffect(() => {
+    const activeLayout = tabLayouts[active];
+    const fallbackX = 6 + activeSectionIndex * 130;
+    const nextX = activeLayout?.x ?? fallbackX;
+    const nextWidth = activeLayout?.width ?? 118;
+
+    Animated.parallel([
+      Animated.spring(adminIndicatorX, {
+        toValue: nextX,
+        useNativeDriver: false,
+        damping: 17,
+        stiffness: 190,
+        mass: 0.72,
+      }),
+      Animated.spring(adminIndicatorWidth, {
+        toValue: nextWidth,
+        useNativeDriver: false,
+        damping: 15,
+        stiffness: 150,
+        mass: 0.8,
+      }),
+    ]).start();
+  }, [active, activeSectionIndex, adminIndicatorWidth, adminIndicatorX, tabLayouts]);
 
   const updateUser = (id: string, key: keyof AdminUser, value: string | boolean) => {
     setUsers((current) => current.map((user) => user.id === id ? { ...user, [key]: value } : user));
@@ -173,13 +201,33 @@ export function AdminPanelScreen() {
   return (
     <View style={styles.root}>
       <View style={styles.tabsShell}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroller} contentContainerStyle={styles.tabs}>
+        <View style={styles.tabsViewport}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroller} contentContainerStyle={styles.tabs}>
+            <Animated.View
+              style={[
+                styles.adminSlidingPill,
+                {
+                  left: adminIndicatorX,
+                  width: adminIndicatorWidth,
+                },
+              ]}
+            />
+            {sections.map((item) => (
+              <AdminTab
+                key={item.id}
+                label={labelFor(item.id, t)}
+                active={active === item.id}
+                onPress={() => { setActive(item.id as any); setEditingUserId?.(null); setEditingCategoryId?.(null); }}
+                onLayout={(x, width) => setTabLayouts((current) => ({ ...current, [item.id]: { x, width } }))}
+              />
+            ))}
+          </ScrollView>
+        </View>
+        <View pointerEvents="none" style={styles.tabsDots}>
           {sections.map((item) => (
-            <TouchableOpacity key={item.id} onPress={() => { setActive(item.id as any); setEditingUserId?.(null); setEditingCategoryId?.(null); }} style={[styles.tab, active === item.id && styles.tabActive]}>
-              <Text style={[styles.tabText, active === item.id && styles.tabTextActive]}>{labelFor(item.id, t)}</Text>
-            </TouchableOpacity>
+            <View key={item.id} style={[styles.tabsDot, active === item.id && styles.tabsDotActive]} />
           ))}
-        </ScrollView>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -513,6 +561,47 @@ function PanelCard({ title, eyebrow, copy, children }: { title: string; eyebrow?
   );
 }
 
+function AdminTab({ label, active, onPress, onLayout }: { label: string; active: boolean; onPress: () => void; onLayout: (x: number, width: number) => void }) {
+  const arrival = useRef(new Animated.Value(active ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(arrival, {
+      toValue: active ? 1 : 0,
+      friction: 7,
+      tension: 120,
+      useNativeDriver: true,
+    }).start();
+  }, [active, arrival]);
+
+  const animatedStyle = {
+    transform: [
+      {
+        scale: arrival.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.96, 1],
+        }),
+      },
+      {
+        translateY: arrival.interpolate({
+          inputRange: [0, 1],
+          outputRange: [2, 0],
+        }),
+      },
+    ],
+  };
+
+  return (
+    <Animated.View
+      onLayout={(event) => onLayout(event.nativeEvent.layout.x, event.nativeEvent.layout.width)}
+      style={[styles.tabMotion, active && animatedStyle]}
+    >
+      <TouchableOpacity activeOpacity={0.86} onPress={onPress} style={styles.tab}>
+        <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 function FieldLabel({ label }: { label: string }) {
   return <Text style={styles.fieldLabel}>{label}</Text>;
 }
@@ -708,114 +797,119 @@ function subtitleFor(section: Section, t: (es: string, en: string) => string) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
-  tabs: { height: 86, paddingHorizontal: 16, gap: 8, alignItems: 'center' },
-  tab: { height: 40, paddingHorizontal: 14, borderRadius: 8, backgroundColor: 'rgba(8,31,51,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', justifyContent: 'center' },
-  tabActive: { backgroundColor: '#0A375A', borderColor: '#0A375A' },
+  tabsShell: { height: 94, marginTop: 44, backgroundColor: 'transparent', justifyContent: 'center', overflow: 'visible' },
+  tabsViewport: { height: 62, marginHorizontal: 16, borderRadius: 20, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
+  tabsScroller: { height: 62, flexGrow: 0, flexShrink: 0, backgroundColor: 'transparent' },
+  tabs: { height: 60, paddingLeft: 6, paddingRight: 46, gap: 6, alignItems: 'center', backgroundColor: 'transparent', position: 'relative' },
+  adminSlidingPill: { position: 'absolute', top: 7, height: 46, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.055)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.26)', zIndex: 0, overflow: 'hidden', shadowColor: '#FFFFFF', shadowOpacity: 0.16, shadowRadius: 13, shadowOffset: { width: 0, height: 6 } },
+  tabMotion: { height: 46, justifyContent: 'center', zIndex: 1 },
+  tab: { height: 46, minWidth: 124, paddingHorizontal: 16, borderRadius: 14, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
+  tabActive: {},
   tabText: { color: '#CBD5E1', fontSize: 13, fontWeight: '700' },
   tabTextActive: { color: '#FFFFFF' },
-  content: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 140 },
+  tabsDots: { height: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 5 },
+  tabsDot: { width: 4, height: 4, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.24)' },
+  tabsDotActive: { width: 14, backgroundColor: 'rgba(249,115,22,0.72)' },
+  content: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 140 },
   eyebrow: { color: colors.orange, fontSize: 13, letterSpacing: 0, fontWeight: '700', marginBottom: 8 },
   title: { color: '#F8FAFC', fontSize: 32, fontWeight: '700', marginBottom: 8 },
   subtitle: { color: '#CBD5E1', fontSize: 16, lineHeight: 23, fontWeight: '400', marginBottom: 18 },
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 14 },
-  metric: { width: '48%', backgroundColor: 'rgba(8,31,51,0.82)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 16 },
+  metric: { width: '48%', backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 16 },
   metricValue: { color: colors.orange, fontSize: 24, fontWeight: '700', marginBottom: 4 },
-  metricLabel: { color: '#CBD5E1', fontSize: 13, fontWeight: '700' },
-  panelCard: { backgroundColor: 'rgba(8,31,51,0.82)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 20, marginBottom: 16, shadowColor: '#000000', shadowOpacity: 0.22, shadowRadius: 18, shadowOffset: { width: 0, height: 10 } },
+  metricLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '700' },
+  panelCard: { backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 18, marginBottom: 16, shadowColor: '#000000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
   formEyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 0, fontWeight: '700', marginBottom: 8 },
   panelTitle: { color: '#F8FAFC', fontSize: 26, fontWeight: '700', marginBottom: 8 },
   eventName: { color: colors.navy, fontSize: 22, fontWeight: '700', marginBottom: 6 },
   copy: { color: '#CBD5E1', fontSize: 15, lineHeight: 22, fontWeight: '400', marginBottom: 14 },
   statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  statusPill: { height: 32, borderRadius: 999, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
-  statusGreen: { backgroundColor: '#DCFCE7' },
-  statusRed: { backgroundColor: '#FEE2E2' },
-  statusOrange: { backgroundColor: '#FFF7ED' },
-  statusGray: { backgroundColor: '#F3F4F6' },
-  statusDark: { backgroundColor: '#0A375A' },
+  statusPill: { height: 32, borderRadius: 999, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  statusGreen: { backgroundColor: 'rgba(249,115,22,0.12)', borderColor: 'rgba(249,115,22,0.34)' },
+  statusRed: { backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.28)' },
+  statusOrange: { backgroundColor: 'rgba(249,115,22,0.12)', borderColor: 'rgba(249,115,22,0.34)' },
+  statusGray: { backgroundColor: '#030B14', borderColor: 'rgba(255,255,255,0.14)' },
+  statusDark: { backgroundColor: '#030B14', borderColor: 'rgba(255,255,255,0.14)' },
   statusText: { fontSize: 10, fontWeight: '700', letterSpacing: 0 },
-  statusTextGreen: { color: '#15803d' },
-  statusTextRed: { color: '#991b1b' },
+  statusTextGreen: { color: colors.orange },
+  statusTextRed: { color: '#FCA5A5' },
   statusTextOrange: { color: colors.orange },
-  statusTextGray: { color: '#6B7280' },
-  statusTextDark: { color: '#FFFFFF' },
-  userCard: { backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 1, borderColor: '#E5E7EB', padding: 18, marginBottom: 14 },
+  statusTextGray: { color: '#CBD5E1' },
+  statusTextDark: { color: '#F8FAFC' },
+  userCard: { backgroundColor: '#030B14', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 18, marginBottom: 14 },
   cardHeader: { flexDirection: 'row', gap: 14, alignItems: 'center', marginBottom: 16 },
-  avatar: { width: 56, height: 56, borderRadius: 16, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  avatar: { width: 56, height: 56, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.045)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#F8FAFC', fontSize: 16, fontWeight: '700' },
   cardMain: { flex: 1 },
-  cardTitle: { color: colors.navy, fontSize: 20, fontWeight: '700', marginBottom: 4 },
-  cardSub: { color: '#6B7280', fontSize: 14, fontWeight: '400' },
+  cardTitle: { color: '#F8FAFC', fontSize: 20, fontWeight: '700', marginBottom: 4 },
+  cardSub: { color: 'rgba(226,232,240,0.64)', fontSize: 14, fontWeight: '400' },
   actionRow: { flexDirection: 'row', gap: 10 },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 6 },
-  cardPrimaryAction: { flex: 1, height: 50, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
+  cardPrimaryAction: { flex: 1, height: 50, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
   cardPrimaryText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
-  cardSecondaryAction: { width: 104, height: 50, borderRadius: 15, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' },
-  cardSecondaryText: { color: colors.navy, fontSize: 12, fontWeight: '700', letterSpacing: 0 },
-  actionButton: { height: 44, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
-  actionButtonMuted: { backgroundColor: '#F8FAFC' },
+  cardSecondaryAction: { width: 104, height: 50, borderRadius: 14, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  cardSecondaryText: { color: '#F8FAFC', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
+  actionButton: { minHeight: 44, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, flexGrow: 1 },
+  actionButtonMuted: { backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
   actionButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
-  actionButtonTextMuted: { color: colors.navy },
-  fieldLabel: { color: '#6B7280', fontSize: 13, fontWeight: '400', marginBottom: 8 },
-  input: { height: 58, borderRadius: 17, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF', paddingHorizontal: 16, color: colors.navy, fontSize: 16, fontWeight: '700', marginBottom: 16 },
+  actionButtonTextMuted: { color: '#F8FAFC' },
+  fieldLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '400', marginBottom: 8 },
+  input: { height: 58, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 16, color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 16 },
   segmentGroup: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  segment: { flex: 1, height: 48, borderRadius: 15, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' },
-  segmentActive: { backgroundColor: colors.navy, borderColor: colors.navy },
+  segment: { flex: 1, height: 48, borderRadius: 15, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  segmentActive: { backgroundColor: 'rgba(255,255,255,0.055)', borderColor: 'rgba(255,255,255,0.24)' },
   segmentActiveOrange: { backgroundColor: colors.orange, borderColor: colors.orange },
-  segmentDanger: { backgroundColor: '#991b1b', borderColor: '#991b1b' },
-  segmentText: { color: '#6B7280', fontSize: 13, fontWeight: '700' },
+  segmentDanger: { backgroundColor: 'rgba(239,68,68,0.14)', borderColor: 'rgba(239,68,68,0.34)' },
+  segmentText: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '700' },
   segmentTextActive: { color: '#FFFFFF' },
   formActions: { marginTop: 4, gap: 10 },
-  primaryButton: { height: 56, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
+  primaryButton: { height: 56, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
   primaryButtonText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '700' },
-  secondaryButton: { height: 54, borderRadius: 16, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' },
-  secondaryButtonText: { color: colors.navy, fontSize: 13, letterSpacing: 0, fontWeight: '700' },
+  secondaryButton: { height: 54, borderRadius: 16, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  secondaryButtonText: { color: '#F8FAFC', fontSize: 13, letterSpacing: 0, fontWeight: '700' },
   createRow: { flexDirection: 'row', gap: 10, marginTop: 2 },
   createInput: { flex: 1, height: 56, borderRadius: 17, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF', paddingHorizontal: 16, color: colors.navy, fontSize: 15, fontWeight: '700' },
   createButton: { width: 78, height: 56, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
   createButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', letterSpacing: 0 },
-  activity: { flexDirection: 'row', gap: 12, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  activityDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.orange, marginTop: 5 },
+  activity: { flexDirection: 'row', gap: 12, padding: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', marginTop: 10 },
+  activityDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.orange, marginTop: 5 },
   activityCopy: { flex: 1 },
-  activityTitle: { color: colors.navy, fontSize: 16, fontWeight: '700', marginBottom: 3 },
-  listRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.orange },
-  listText: { color: colors.navy, fontSize: 15, fontWeight: '700' },
-tabsShell: { height: 86, marginTop: 58, backgroundColor: colors.darkBg, justifyContent: 'center', overflow: 'hidden' },
-  tabsScroller: { height: 86, flexGrow: 0, flexShrink: 0, backgroundColor: colors.darkBg },
-
-  bannerPreviewCard: { backgroundColor: colors.navy, borderRadius: 20, padding: 20, marginTop: 4 },
-  bannerPreviewPill: { alignSelf: 'flex-start', backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 16 },
-  bannerPreviewPillText: { color: colors.navy, fontSize: 10, fontWeight: '700', letterSpacing: 0 },
-  bannerPreviewTitle: { color: '#FFFFFF', fontSize: 23, fontWeight: '700', lineHeight: 29, marginBottom: 8 },
-  bannerPreviewCopy: { color: '#cbd5e1', fontSize: 14, lineHeight: 21, fontWeight: '600' },
-  avatarOrange: { backgroundColor: colors.orange },
-  avatarMuted: { backgroundColor: '#9CA3AF' },
-  marketingCard: { backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 1, borderColor: '#E5E7EB', padding: 18, marginBottom: 14, shadowColor: '#111827', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
-  marketingEnableButton: { height: 50, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
+  activityTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 3 },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 14, marginTop: 10 },
+  dot: { width: 9, height: 9, borderRadius: 999, backgroundColor: colors.orange },
+  listText: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', flex: 1 },
+  bannerPreviewCard: { backgroundColor: '#030B14', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 20, marginTop: 4 },
+  bannerPreviewPill: { alignSelf: 'flex-start', backgroundColor: 'rgba(249,115,22,0.12)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', paddingHorizontal: 12, paddingVertical: 7, marginBottom: 16 },
+  bannerPreviewPillText: { color: colors.orange, fontSize: 10, fontWeight: '700', letterSpacing: 0 },
+  bannerPreviewTitle: { color: '#F8FAFC', fontSize: 23, fontWeight: '700', lineHeight: 29, marginBottom: 8 },
+  bannerPreviewCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 14, lineHeight: 21, fontWeight: '600' },
+  avatarOrange: { backgroundColor: colors.orange, borderColor: colors.orange },
+  avatarMuted: { backgroundColor: 'rgba(255,255,255,0.045)', borderColor: 'rgba(255,255,255,0.14)' },
+  marketingCard: { backgroundColor: '#030B14', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 18, marginBottom: 14 },
+  marketingEnableButton: { height: 50, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
   marketingEnableText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', letterSpacing: 0 },
-  marketingDisableButton: { height: 50, borderRadius: 15, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' },
-  marketingDisableText: { color: colors.navy, fontSize: 12, fontWeight: '700', letterSpacing: 0 },
-  orderPremiumItem: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', padding: 14, marginTop: 10 },
-  orderPremiumIndex: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
-  orderPremiumIndexText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  marketingDisableButton: { height: 50, borderRadius: 14, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  marketingDisableText: { color: '#F8FAFC', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
+  orderPremiumItem: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 14, marginTop: 10 },
+  orderPremiumIndex: { width: 44, height: 44, borderRadius: 15, backgroundColor: 'rgba(249,115,22,0.12)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', alignItems: 'center', justifyContent: 'center' },
+  orderPremiumIndexText: { color: colors.orange, fontSize: 13, fontWeight: '700' },
   orderPremiumCopy: { flex: 1 },
-  orderPremiumTitle: { color: colors.navy, fontSize: 16, fontWeight: '700', marginBottom: 3 },
-  orderPremiumSub: { color: '#6B7280', fontSize: 13, fontWeight: '600' },
-  analyticsRow: { marginTop: 12 },
+  orderPremiumTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 3 },
+  orderPremiumSub: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '600' },
+  analyticsRow: { marginTop: 12, backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 14 },
   analyticsTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 8 },
-  analyticsLabel: { color: colors.navy, fontSize: 15, fontWeight: '700' },
+  analyticsLabel: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
   analyticsValue: { color: colors.orange, fontSize: 15, fontWeight: '700' },
-  analyticsTrack: { height: 10, borderRadius: 999, backgroundColor: '#E5E7EB', overflow: 'hidden' },
+  analyticsTrack: { height: 10, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.10)', overflow: 'hidden' },
   analyticsFill: { height: '100%', borderRadius: 999, backgroundColor: colors.orange },
-  rankItem: { flexDirection: 'row', gap: 14, alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', padding: 14, marginTop: 10 },
-  rankIndex: { width: 44, height: 44, borderRadius: 15, backgroundColor: colors.navy, alignItems: 'center', justifyContent: 'center' },
-  rankIndexText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  rankItem: { flexDirection: 'row', gap: 14, alignItems: 'center', backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 14, marginTop: 10 },
+  rankIndex: { width: 44, height: 44, borderRadius: 15, backgroundColor: 'rgba(249,115,22,0.12)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', alignItems: 'center', justifyContent: 'center' },
+  rankIndexText: { color: colors.orange, fontSize: 13, fontWeight: '700' },
   rankCopy: { flex: 1 },
-  rankTitle: { color: colors.navy, fontSize: 16, fontWeight: '700', marginBottom: 3 },
-  rankValue: { color: '#6B7280', fontSize: 13, fontWeight: '600' },
-  paymentMixRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 14, backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', padding: 14, marginTop: 10 },
-  paymentMixLabel: { color: colors.navy, fontSize: 15, fontWeight: '700' },
+  rankTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 3 },
+  rankValue: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '600' },
+  paymentMixRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 14, backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 14, marginTop: 10 },
+  paymentMixLabel: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
   paymentMixValue: { color: colors.orange, fontSize: 15, fontWeight: '700' },
-  cardSecondaryActionWide: { height: 50, borderRadius: 15, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' },
+  cardSecondaryActionWide: { height: 50, borderRadius: 15, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
 });

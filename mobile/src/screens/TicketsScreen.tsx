@@ -151,6 +151,7 @@ export function TicketsScreen() {
           const event = ticket.event;
           return (
             <View key={ticket.id || ticket.ticketCode} style={styles.ticketCard}>
+              <View style={styles.ticketGlow} />
               <View style={styles.ticketTop}>
                 <View style={styles.ticketInfo}>
                   <Text style={styles.ticketEyebrow}>{t('ENTRADA LP TICKET', 'LP TICKET PASS')}</Text>
@@ -180,6 +181,12 @@ export function TicketsScreen() {
                   <Detail label={t('Ubicación', 'Seat')} value={seatText(ticket, t)} />
                   <Detail label={t('Emitido', 'Issued')} value={formatDate(ticket.createdAt, lang)} />
                 </View>
+              </View>
+
+              <View style={styles.ticketDivider}>
+                <View style={styles.ticketNotchLeft} />
+                <View style={styles.ticketLine} />
+                <View style={styles.ticketNotchRight} />
               </View>
 
               <View style={styles.actions}>
@@ -219,33 +226,61 @@ function ActionButton({ label, primary, onPress }: { label: string; primary?: bo
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: 'transparent' },
   content: { paddingHorizontal: 18, paddingTop: 78, paddingBottom: 128 },
-  hero: { marginBottom: 18 },
+  hero: {
+    marginBottom: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.018)',
+    padding: 20,
+    shadowColor: '#000000',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+  },
   eyebrow: { color: '#F97316', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
-  title: { color: '#FFFFFF', fontSize: 34, lineHeight: 38, fontWeight: '700', marginTop: 10 },
+  title: { color: '#F8FAFC', fontSize: 32, lineHeight: 36, fontWeight: '700', marginTop: 10 },
   subtitle: { color: 'rgba(226,232,240,0.70)', fontSize: 16, lineHeight: 23, marginTop: 10 },
-  emptyCard: { borderRadius: 26, padding: 24, backgroundColor: 'rgba(8,31,51,0.58)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  emptyTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '700' },
+  emptyCard: { borderRadius: 24, padding: 24, backgroundColor: 'rgba(255,255,255,0.018)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
+  emptyTitle: { color: '#F8FAFC', fontSize: 22, fontWeight: '700' },
   emptyCopy: { color: 'rgba(226,232,240,0.68)', fontSize: 15, marginTop: 8 },
-  ticketCard: { borderRadius: 30, padding: 18, marginBottom: 18, backgroundColor: 'rgba(8,31,51,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)' },
+  ticketCard: {
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 16,
+    backgroundColor: 'rgba(255,255,255,0.018)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  ticketGlow: { position: 'absolute', top: -80, right: -70, width: 170, height: 170, borderRadius: 999, backgroundColor: 'rgba(249,115,22,0.12)' },
   ticketTop: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   ticketInfo: { flex: 1 },
   ticketEyebrow: { color: '#F97316', fontSize: 11, fontWeight: '700', letterSpacing: 0 },
-  eventTitle: { color: '#FFFFFF', fontSize: 28, lineHeight: 32, fontWeight: '700', marginTop: 8 },
+  eventTitle: { color: '#F8FAFC', fontSize: 26, lineHeight: 31, fontWeight: '700', marginTop: 8 },
   eventMeta: { color: 'rgba(226,232,240,0.72)', fontSize: 14, lineHeight: 21, marginTop: 4 },
-  statusPill: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+  statusPill: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   statusText: { fontSize: 11, fontWeight: '700', letterSpacing: 0 },
-  ticketBody: { flexDirection: 'row', gap: 16, marginTop: 18, alignItems: 'center' },
-  qrBox: { width: 118, height: 118, borderRadius: 20, backgroundColor: '#FFFFFF', padding: 10, alignItems: 'center', justifyContent: 'center' },
+  ticketBody: { flexDirection: 'row', gap: 14, marginTop: 18, alignItems: 'stretch' },
+  qrBox: { width: 118, height: 118, borderRadius: 20, backgroundColor: '#F8FAFC', padding: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.26)' },
   qrImage: { width: '100%', height: '100%' },
   qrFallback: { width: '100%', height: '100%', borderRadius: 14, backgroundColor: '#030B14', alignItems: 'center', justifyContent: 'center' },
   qrFallbackText: { color: '#FFFFFF', fontSize: 28, fontWeight: '700' },
   ticketDetails: { flex: 1, gap: 10 },
-  detail: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)', paddingBottom: 8 },
+  detail: { backgroundColor: '#030B14', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, paddingVertical: 10 },
   detailLabel: { color: 'rgba(226,232,240,0.48)', fontSize: 10, fontWeight: '700', letterSpacing: 0 },
-  detailValue: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginTop: 3 },
-  actions: { gap: 10, marginTop: 18 },
-  actionButton: { height: 48, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(255,255,255,0.04)' },
+  detailValue: { color: '#F8FAFC', fontSize: 14, fontWeight: '700', marginTop: 3 },
+  ticketDivider: { height: 28, marginTop: 16, marginHorizontal: -18, flexDirection: 'row', alignItems: 'center' },
+  ticketNotchLeft: { width: 18, height: 36, borderTopRightRadius: 999, borderBottomRightRadius: 999, backgroundColor: '#030B14', borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.14)' },
+  ticketLine: { flex: 1, borderTopWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(226,232,240,0.22)' },
+  ticketNotchRight: { width: 18, height: 36, borderTopLeftRadius: 999, borderBottomLeftRadius: 999, backgroundColor: '#030B14', borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.14)' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
+  actionButton: { width: '48%', minHeight: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 10 },
   actionButtonPrimary: { backgroundColor: '#F97316', borderColor: '#FB923C' },
-  actionText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', letterSpacing: 0 },
+  actionText: { color: '#F8FAFC', fontSize: 11, fontWeight: '700', letterSpacing: 0, textAlign: 'center' },
   actionTextPrimary: { color: '#FFFFFF' },
 });
