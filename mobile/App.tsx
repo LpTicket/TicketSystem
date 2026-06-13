@@ -117,18 +117,6 @@ function AppContent() {
 
         {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} />}
 
-        {!scanOpen && canOrganize && !selectedEvent && (
-          <View style={styles.modeSwitch}>
-            <Animated.View style={[styles.modeSlidingPill, { width: modePillWidth, transform: [{ translateX: modeIndicatorX }] }]} />
-            <TouchableOpacity onPress={() => { setViewMode('client'); goToTab('events'); }} style={styles.modeButton}>
-              <Text style={[styles.modeText, viewMode === 'client' && styles.modeTextActive]}>{t('Cliente', 'Client')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => { setViewMode('organizer'); goToTab('organizer'); }} style={styles.modeButton}>
-              <Text style={[styles.modeText, viewMode === 'organizer' && styles.modeTextActive]}>{t('Organizador', 'Organizer')}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {scanOpen ? (
           <ScanScreen onBack={() => setScanOpen(false)} />
         ) : selectedEvent && paymentSuccessOpen ? (
