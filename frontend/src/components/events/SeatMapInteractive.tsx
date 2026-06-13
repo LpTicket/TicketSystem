@@ -424,10 +424,14 @@ export default function SeatMapInteractive({
     if (focusedSection === section.id) return;
     setFocusedSection(section.id!);
 
-    // For standing sections, auto-select a ticket if empty
+    // For standing sections, auto-select a ticket if empty AND there's availability.
     if (section.sectionType === 'standing') {
+      const cap = Math.max(0, Number(section.capacity) || 0);
+      const seatSold = (section.seats || []).filter(s => s.status === SeatStatus.SOLD || (s.status === SeatStatus.LOCKED && !s.lockExpiresAt)).length;
+      const sold = Math.max(Number((section as any).soldTickets) || 0, seatSold);
+      const remaining = cap > 0 ? Math.max(0, cap - sold) : 1;
       const currentQty = selectedSeats.filter(s => s.sectionId === section.id).length;
-      if (currentQty === 0) {
+      if (currentQty === 0 && remaining > 0) {
         onToggleSeats([{
           id: `standing-${section.id}-1-${Date.now()}`,
           sectionId: section.id!,
@@ -685,7 +689,9 @@ export default function SeatMapInteractive({
                       ? (() => {
                           const isSelected = selectedSeats.some(s => s.sectionId === section.id);
                           if (isSelected) return '#f97316';
-                          const sold = (section.seats || []).filter(s => s.status === SeatStatus.SOLD || (s.status === SeatStatus.LOCKED && !s.lockExpiresAt)).length;
+                          // GA areas have no seats — use backend soldTickets (fallback to seats).
+                          const seatSold = (section.seats || []).filter(s => s.status === SeatStatus.SOLD || (s.status === SeatStatus.LOCKED && !s.lockExpiresAt)).length;
+                          const sold = Math.max(Number((section as any).soldTickets) || 0, seatSold);
                           const total = Number(section.capacity) || (section.seats?.length) || 0;
                           if (total > 0 && sold >= total) return '#9ca3af';
                           return section.color || '#8b5cf6';
@@ -1141,7 +1147,13 @@ export default function SeatMapInteractive({
                   <p className="text-sm text-gray-400">
                     {(() => {
                       const sec = sections.find((s) => s.id === focusedSection);
-                      if (sec?.sectionType === 'standing') return lang === 'es' ? 'Entrada General' : 'General Admission';
+                      if (sec?.sectionType === 'standing') {
+                        const cap = Math.max(0, Number(sec?.capacity) || 0);
+                        const seatSold = (sec?.seats || []).filter((s) => s.status === SeatStatus.SOLD || (s.status === SeatStatus.LOCKED && !s.lockExpiresAt)).length;
+                        const sold = Math.max(Number((sec as any)?.soldTickets) || 0, seatSold);
+                        const remaining = Math.max(0, cap - sold);
+                        return `${lang === 'es' ? 'Entrada General' : 'General Admission'} · ${remaining} ${lang === 'es' ? 'disponibles' : 'available'}`;
+                      }
                       return `${sec?.seats?.filter((s) => s.status === SeatStatus.AVAILABLE).length} ${lang === 'es' ? 'asientos disponibles' : 'available seats'}`;
                     })()}
                   </p>
@@ -1172,8 +1184,13 @@ export default function SeatMapInteractive({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        const sec = sections.find(s => s.id === focusedSection);
+                        const cap = Math.max(0, Number(sec?.capacity) || 0);
+                        const seatSold = (sec?.seats || []).filter(s => s.status === SeatStatus.SOLD || (s.status === SeatStatus.LOCKED && !s.lockExpiresAt)).length;
+                        const sold = Math.max(Number((sec as any)?.soldTickets) || 0, seatSold);
+                        const remaining = cap > 0 ? Math.max(0, cap - sold) : 10;
                         const current = selectedSeats.filter(s => s.sectionId === focusedSection);
-                        if (current.length < 10) {
+                        if (current.length < Math.min(10, remaining)) {
                           onToggleSeats([{
                             id: `standing-${focusedSection}-${current.length + 1}-${Date.now()}`,
                             sectionId: focusedSection,
