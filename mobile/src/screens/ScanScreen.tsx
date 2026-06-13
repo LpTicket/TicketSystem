@@ -15,7 +15,7 @@ const recentScans = [
   { id: '3', valid: false, name: 'Ticket usado', location: 'Entrada principal', code: 'LP-7K20', time: '11:54' },
 ];
 
-export function ScanScreen({ onBack }: Props) {
+export function ScanScreen({ onBack: _onBack }: Props) {
   const { t } = useLanguage();
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [scanState, setScanState] = useState<ScanState>('idle');
@@ -76,20 +76,16 @@ export function ScanScreen({ onBack }: Props) {
       <View pointerEvents="none" style={styles.bgGridB} />
 
       <View style={styles.topRow}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>‹ {t('Atrás', 'Back')}</Text>
-        </TouchableOpacity>
+        <View style={styles.badge}>
+          <Text style={styles.badgeIcon}>▣</Text>
+          <Text style={styles.badgeText}>{t('MODO EVENTO', 'EVENT MODE')}</Text>
+        </View>
 
         <TouchableOpacity onPress={() => setSoundEnabled((current) => !current)} style={[styles.soundButton, soundEnabled && styles.soundButtonActive]}>
           <Text style={[styles.soundText, soundEnabled && styles.soundTextActive]}>
             {soundEnabled ? t('SONIDO', 'SOUND') : t('SILENCIO', 'MUTED')}
           </Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.badge}>
-        <Text style={styles.badgeIcon}>▣</Text>
-        <Text style={styles.badgeText}>{t('MODO EVENTO', 'EVENT MODE')}</Text>
       </View>
 
       <Text style={styles.title}>{t('Scanner de puerta', 'Door scanner')}</Text>
@@ -258,19 +254,17 @@ function Stat({ label, value, tone }: { label: string; value: string; tone: 'blu
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: 'transparent' },
-  content: { paddingHorizontal: 18, paddingTop: 43, paddingBottom: 132 },
+  content: { paddingHorizontal: 18, paddingTop: 37, paddingBottom: 132 },
   bgGridA: { position: 'absolute', left: '28%', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(125,211,252,0.035)' },
   bgGridB: { position: 'absolute', left: 0, right: 0, top: 220, height: 1, backgroundColor: 'rgba(125,211,252,0.030)' },
 
   topRow: { marginTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backButton: { width: 88, height: 38, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#030B14' },
-  backText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
   soundButton: { width: 88, height: 36, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#030B14' },
   soundButtonActive: { backgroundColor: '#F97316' },
   soundText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13, letterSpacing: 0 },
   soundTextActive: { color: '#FFFFFF' },
 
-  badge: { marginTop: 24, alignSelf: 'flex-start', minHeight: 42, borderRadius: 14, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  badge: { height: 36, alignSelf: 'flex-start', borderRadius: 14, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 8 },
   badgeIcon: { color: '#F97316', fontSize: 14, fontWeight: '700' },
   badgeText: { color: '#F8FAFC', fontSize: 11, fontWeight: '700', letterSpacing: 0 },
   title: { color: '#F8FAFC', fontSize: 30, lineHeight: 34, fontWeight: '700', marginTop: 14 },

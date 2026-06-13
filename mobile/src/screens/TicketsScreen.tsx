@@ -225,7 +225,7 @@ function ActionButton({ label, primary, onPress }: { label: string; primary?: bo
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: 'transparent' },
-  content: { paddingHorizontal: 18, paddingTop: 78, paddingBottom: 128 },
+  content: { paddingHorizontal: 18, paddingTop: 45, paddingBottom: 128 },
   hero: {
     marginBottom: 16,
     borderRadius: 24,

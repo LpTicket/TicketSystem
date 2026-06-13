@@ -97,8 +97,7 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
     );
   }
 
-  return (
-    <ScrollView style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+  const tabs = (
       <View style={styles.tabShell} onLayout={(event) => setTabShellWidth(event.nativeEvent.layout.width)}>
         {tabButtonWidth > 0 && (
           <Animated.View
@@ -115,11 +114,17 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
         <ProfileTabButton label={t('Cuenta', 'Account')} active={activeTab === 'account'} onPress={() => setActiveTab('account')} />
         <ProfileTabButton label={t('Pagos', 'Payments')} active={activeTab === 'payments'} onPress={() => setActiveTab('payments')} />
       </View>
+  );
 
-      {activeTab === 'account' && <AccountMobile user={user} onUserUpdated={onUserUpdated} />}
+  return (
+    <ScrollView style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+
+      {activeTab === 'account' && <AccountMobile user={user} onUserUpdated={onUserUpdated} tabs={tabs} />}
 
       {activeTab === 'payments' && (
         <>
+          <AccountMobile user={user} onUserUpdated={onUserUpdated} tabs={tabs} showSections={false} />
+
           <View style={styles.card}>
             <Text style={styles.cardLabel}>{t('MÉTODOS DE PAGO', 'PAYMENT METHODS')}</Text>
             {paymentMethods.map((method) => (

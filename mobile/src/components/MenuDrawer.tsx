@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#030B14',
     paddingHorizontal: 16,
-    paddingTop: 54,
+    paddingTop: 65,
   },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 48, marginBottom: 12 },
   logo: { width: 131, height: 33 },
