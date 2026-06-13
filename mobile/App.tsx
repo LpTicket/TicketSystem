@@ -115,18 +115,7 @@ function AppContent() {
         <View pointerEvents="none" style={styles.appGridVertical} />
         <View pointerEvents="none" style={styles.appGridHorizontal} />
 
-        {!scanOpen && (
-          <AppHeader
-            onOpenMenu={() => setMenuOpen(true)}
-            onOpenScan={() => setScanOpen(true)}
-            canOrganize={canOrganize}
-            viewMode={viewMode}
-            onSetMode={(mode) => {
-              setViewMode(mode);
-              goToTab(mode === 'organizer' ? 'organizer' : 'events');
-            }}
-          />
-        )}
+        {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} />}
 
         {scanOpen ? (
           <ScanScreen onBack={() => setScanOpen(false)} />
@@ -212,6 +201,8 @@ function AppContent() {
           onLogout={handleLogout}
           canOrganize={canOrganize}
           canAdmin={canAdmin}
+          viewMode={viewMode}
+          onSetMode={(mode) => { setViewMode(mode); goToTab(mode === 'organizer' ? 'organizer' : 'events'); }}
         />
         </View>
       </SafeAreaView>

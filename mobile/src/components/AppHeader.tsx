@@ -6,20 +6,13 @@ import { useLanguage } from '../i18n/LanguageContext';
 // Same asset as the web header (/logo.png): color icon + white "LPTicket" text.
 const logo = require('../../assets/logo-header.png');
 
-type Mode = 'client' | 'organizer';
-type Props = {
-  onOpenMenu: () => void;
-  onOpenScan: () => void;
-  canOrganize?: boolean;
-  viewMode?: Mode;
-  onSetMode?: (mode: Mode) => void;
-};
+type Props = { onOpenMenu: () => void; onOpenScan: () => void };
 
 // Mirrors the web's mobile header (max-width 1023px overrides):
 // 84px row over the dark bg with a warm orange glow on the right,
 // Compact lang pill (active = solid orange), 32px glass buttons,
 // orange hamburger icon.
-export function AppHeader({ onOpenMenu, onOpenScan, canOrganize, viewMode = 'client', onSetMode }: Props) {
+export function AppHeader({ onOpenMenu, onOpenScan }: Props) {
   const { lang, setLang } = useLanguage();
   const langPillX = useRef(new Animated.Value(lang === 'es' ? 0 : 34)).current;
 
@@ -55,17 +48,6 @@ export function AppHeader({ onOpenMenu, onOpenScan, canOrganize, viewMode = 'cli
           </TouchableOpacity>
         </View>
 
-        {canOrganize && onSetMode && (
-          <View style={styles.modePill}>
-            <TouchableOpacity onPress={() => onSetMode('client')} style={[styles.modeBtn, viewMode === 'client' && styles.modeBtnActive]}>
-              <Ionicons name="person-outline" size={15} color={viewMode === 'client' ? '#FFFFFF' : 'rgba(255,255,255,0.66)'} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => onSetMode('organizer')} style={[styles.modeBtn, viewMode === 'organizer' && styles.modeBtnActive]}>
-              <Ionicons name="briefcase-outline" size={15} color={viewMode === 'organizer' ? '#FFFFFF' : 'rgba(255,255,255,0.66)'} />
-            </TouchableOpacity>
-          </View>
-        )}
-
         <TouchableOpacity style={[styles.iconButton, styles.menuButton]} onPress={onOpenMenu}>
           <Ionicons name="menu-outline" size={21} color="#ff7a00" />
         </TouchableOpacity>
@@ -85,19 +67,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   logo: { width: 131, height: 33 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
-  modePill: {
-    flexDirection: 'row',
-    width: 74,
-    height: 32,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(117,132,153,0.34)',
-    backgroundColor: 'rgba(255,255,255,0.035)',
-    padding: 3,
-  },
-  modeBtn: { flex: 1, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  modeBtnActive: { backgroundColor: '#F97316' },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 0 },
   langSwitch: {
     flexDirection: 'row',
     width: 74,

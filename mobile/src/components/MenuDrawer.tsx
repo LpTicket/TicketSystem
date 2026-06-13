@@ -21,6 +21,8 @@ type Props = {
   onLogout?: () => void;
   canOrganize?: boolean;
   canAdmin?: boolean;
+  viewMode?: 'client' | 'organizer';
+  onSetMode?: (mode: 'client' | 'organizer') => void;
 };
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -29,7 +31,7 @@ const logo = require('../../assets/logo-header.png');
 export function MenuDrawer({
   visible, onClose, onGoEvents, onGoTickets, onGoProfile, onGoScan, onGoAiChat,
   onGoSocialMatch, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onLogout,
-  canOrganize, canAdmin,
+  canOrganize, canAdmin, viewMode = 'client', onSetMode,
 }: Props) {
   const { t } = useLanguage();
   const go = (action?: () => void) => {
@@ -50,6 +52,26 @@ export function MenuDrawer({
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* Client / Organizer mode toggle */}
+          {canOrganize && onSetMode && (
+            <View style={styles.modeSwitch}>
+              <TouchableOpacity
+                style={[styles.modeBtn, viewMode === 'client' && styles.modeBtnActive]}
+                onPress={() => { onClose(); onSetMode('client'); }}
+              >
+                <Ionicons name="person-outline" size={16} color={viewMode === 'client' ? '#FFFFFF' : 'rgba(255,255,255,0.66)'} />
+                <Text style={[styles.modeText, viewMode === 'client' && styles.modeTextActive]}>{t('Cliente', 'Client')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modeBtn, viewMode === 'organizer' && styles.modeBtnActive]}
+                onPress={() => { onClose(); onSetMode('organizer'); }}
+              >
+                <Ionicons name="briefcase-outline" size={16} color={viewMode === 'organizer' ? '#FFFFFF' : 'rgba(255,255,255,0.66)'} />
+                <Text style={[styles.modeText, viewMode === 'organizer' && styles.modeTextActive]}>{t('Organizador', 'Organizer')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Primary nav — text rows, no icons (matches web) */}
           <View style={styles.card}>
             <Row label={t('Quiénes Somos', 'About Us')} onPress={() => go(onGoAbout)} />
@@ -97,6 +119,27 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', alignItems: 'center', justifyContent: 'center',
   },
   scroll: { paddingBottom: 40, gap: 16 },
+  modeSwitch: {
+    flexDirection: 'row',
+    gap: 6,
+    padding: 4,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  modeBtn: {
+    flex: 1,
+    height: 46,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  modeBtnActive: { backgroundColor: '#F97316' },
+  modeText: { color: 'rgba(255,255,255,0.66)', fontSize: 14, fontWeight: '800' },
+  modeTextActive: { color: '#FFFFFF' },
   card: {
     padding: 8,
     borderRadius: 24,
