@@ -62,7 +62,7 @@ export function MenuDrawer({
         <View style={styles.topBar}>
           <Image source={logo} style={styles.logo} resizeMode="contain" />
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-            <Ionicons name="close" size={22} color="#FFFFFF" />
+            <Ionicons name="close" size={27} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     paddingTop: 65,
   },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 48, marginBottom: 22 },
-  logo: { width: 131, height: 33 },
+  logo: { width: 140, height: 42 },
   closeBtn: {
     width: 38, height: 38, borderRadius: 14, borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', alignItems: 'center', justifyContent: 'center',

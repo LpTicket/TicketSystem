@@ -14,11 +14,11 @@ type Props = { onOpenMenu: () => void; onOpenScan: () => void };
 // orange hamburger icon.
 export function AppHeader({ onOpenMenu, onOpenScan }: Props) {
   const { lang, setLang } = useLanguage();
-  const langPillX = useRef(new Animated.Value(lang === 'es' ? 0 : 34)).current;
+  const langPillX = useRef(new Animated.Value(lang === 'es' ? 0 : 39)).current;
 
   useEffect(() => {
     Animated.spring(langPillX, {
-      toValue: lang === 'es' ? 0 : 34,
+      toValue: lang === 'es' ? 0 : 39,
       useNativeDriver: true,
       damping: 18,
       stiffness: 210,
@@ -49,7 +49,7 @@ export function AppHeader({ onOpenMenu, onOpenScan }: Props) {
         </View>
 
         <TouchableOpacity style={[styles.iconButton, styles.menuButton]} onPress={onOpenMenu}>
-          <Ionicons name="menu-outline" size={21} color="#ff7a00" />
+          <Ionicons name="menu-outline" size={26} color="#ff7a00" />
         </TouchableOpacity>
       </View>
     </View>
@@ -66,12 +66,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     zIndex: 10,
   },
-  logo: { width: 131, height: 33 },
+  logo: { width: 140, height: 42 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 0 },
   langSwitch: {
     flexDirection: 'row',
-    width: 74,
-    height: 32,
+    width: 84,
+    height: 37,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(249,115,22,0.48)',
@@ -84,8 +84,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 3,
     top: 2,
-    width: 34,
-    height: 26,
+    width: 39,
+    height: 31,
     borderRadius: 7,
     backgroundColor: '#F97316',
   },
@@ -99,14 +99,14 @@ const styles = StyleSheet.create({
   langText: {
     color: 'rgba(255,255,255,0.68)',
     fontWeight: '800',
-    fontSize: 10.5,
+    fontSize: 12,
   },
   langTextActive: {
     color: '#FFFFFF',
   },
   iconButton: {
-    width: 32,
-    height: 32,
+    width: 37,
+    height: 37,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(117,132,153,0.24)',
