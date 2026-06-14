@@ -6,14 +6,14 @@ import { useLanguage } from '../i18n/LanguageContext';
 // Same asset as the web header (/logo.png): color icon + white "LPTicket" text.
 const logo = require('../../assets/logo-header.png');
 
-type Props = { onOpenMenu: () => void; onOpenScan: () => void };
+type Props = { onOpenMenu: () => void; onOpenScan: () => void; viewMode?: 'client' | 'organizer' | 'admin' };
 
 // Mirrors the web's mobile header (max-width 1023px overrides):
 // 84px row over the dark bg with a warm orange glow on the right,
 // Compact lang pill (active = solid orange), 32px glass buttons,
 // orange hamburger icon.
-export function AppHeader({ onOpenMenu, onOpenScan }: Props) {
-  const { lang, setLang } = useLanguage();
+export function AppHeader({ onOpenMenu, viewMode = 'client' }: Props) {
+  const { lang, setLang, t } = useLanguage();
   const langPillX = useRef(new Animated.Value(lang === 'es' ? 0 : 39)).current;
 
   useEffect(() => {
@@ -28,7 +28,15 @@ export function AppHeader({ onOpenMenu, onOpenScan }: Props) {
 
   return (
     <View style={styles.header}>
-      <Image source={logo} style={styles.logo} resizeMode="contain" />
+      <View style={styles.brand}>
+        <Image source={logo} style={styles.logo} resizeMode="contain" />
+        <View style={styles.modeBadge}>
+          <Ionicons name={viewMode === 'admin' ? 'shield-outline' : viewMode === 'organizer' ? 'briefcase-outline' : 'person-outline'} size={11} color="#F97316" />
+          <Text style={styles.modeBadgeText}>
+            {viewMode === 'admin' ? t('Administrador activo', 'Admin active') : viewMode === 'organizer' ? t('Organizador activo', 'Organizer active') : t('Cliente activo', 'Client active')}
+          </Text>
+        </View>
+      </View>
 
       <View style={styles.actions}>
         <View style={styles.langSwitch}>
@@ -59,6 +67,7 @@ export function AppHeader({ onOpenMenu, onOpenScan }: Props) {
 const styles = StyleSheet.create({
   header: {
     height: 84,
+    marginBottom: 16,
     backgroundColor: 'transparent',
     paddingHorizontal: 16,
     flexDirection: 'row',
@@ -66,7 +75,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     zIndex: 10,
   },
+  brand: { alignItems: 'flex-start', justifyContent: 'center', transform: [{ translateY: 16 }] },
   logo: { width: 140, height: 42 },
+  modeBadge: {
+    height: 22,
+    marginTop: 11,
+    paddingHorizontal: 9,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(249,115,22,0.36)',
+    backgroundColor: '#030B14',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  modeBadgeText: {
+    color: '#F8FAFC',
+    fontSize: 10,
+    fontWeight: '800',
+  },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 0 },
   langSwitch: {
     flexDirection: 'row',

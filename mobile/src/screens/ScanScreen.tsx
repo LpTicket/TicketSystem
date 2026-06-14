@@ -16,12 +16,16 @@ const recentScans = [
   { id: '3', valid: false, name: 'Ticket usado', location: 'Entrada principal', code: 'LP-7K20', time: '11:54' },
 ];
 
+const approvedSound = require('../../assets/sounds/scan-approved.wav');
+const deniedSound = require('../../assets/sounds/scan-denied.wav');
+
 export function ScanScreen({ onBack: _onBack }: Props) {
   const { t } = useLanguage();
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [manualCode, setManualCode] = useState('');
   const scanAnim = useRef(new Animated.Value(0)).current;
+  const soundPlayers = useRef<{ approved?: any; denied?: any; unavailable?: boolean }>({});
 
   useEffect(() => {
     if (scanState !== 'scanning') {
@@ -54,8 +58,26 @@ export function ScanScreen({ onBack: _onBack }: Props) {
   const validateCode = () => {
     setScanState('validating');
     setTimeout(() => {
-      setScanState(manualCode.trim().length >= 5 ? 'approved' : 'denied');
+      const nextState = manualCode.trim().length >= 5 ? 'approved' : 'denied';
+      setScanState(nextState);
+      playScanSound(nextState);
     }, 600);
+  };
+
+  const playScanSound = (state: 'approved' | 'denied') => {
+    if (!soundEnabled || soundPlayers.current.unavailable) return;
+
+    try {
+      const { createAudioPlayer } = require('expo-audio');
+      if (!soundPlayers.current.approved) soundPlayers.current.approved = createAudioPlayer(approvedSound);
+      if (!soundPlayers.current.denied) soundPlayers.current.denied = createAudioPlayer(deniedSound);
+
+      const player = state === 'approved' ? soundPlayers.current.approved : soundPlayers.current.denied;
+      player.seekTo(0);
+      player.play();
+    } catch {
+      soundPlayers.current.unavailable = true;
+    }
   };
 
   const resetScanner = () => {

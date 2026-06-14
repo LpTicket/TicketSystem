@@ -11,8 +11,8 @@ import { TicketsScreen } from './src/screens/TicketsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SocialScreen } from './src/screens/SocialScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
-import { OrganizerPanelScreen } from './src/screens/OrganizerPanelScreen';
-import { AdminPanelScreen } from './src/screens/AdminPanelScreen';
+import { OrganizerPanelScreen, OrganizerSection } from './src/screens/OrganizerPanelScreen';
+import { AdminPanelScreen, AdminSection } from './src/screens/AdminPanelScreen';
 import { ScanScreen } from './src/screens/ScanScreen';
 import { PurchaseScreen } from './src/screens/PurchaseScreen';
 import { CheckoutInfoScreen } from './src/screens/CheckoutInfoScreen';
@@ -43,7 +43,9 @@ function AppContent() {
   const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loginAfterPurchase, setLoginAfterPurchase] = useState(false);
-  const [viewMode, setViewMode] = useState<'client' | 'organizer'>('client');
+  const [viewMode, setViewMode] = useState<'client' | 'organizer' | 'admin'>('client');
+  const [organizerSection, setOrganizerSection] = useState<OrganizerSection>('dashboard');
+  const [adminSection, setAdminSection] = useState<AdminSection>('dashboard');
   const [paymentSuccessOpen, setPaymentSuccessOpen] = useState(false);
 
   // Restore a saved session on launch so the user stays logged in.
@@ -76,14 +78,32 @@ function AppContent() {
     setTab(nextTab);
   };
 
-  const bottomTabs: Tab[] = ['events', 'tickets', 'scan', 'social', 'profile'];
-  const activeBottomIndex = Math.max(0, bottomTabs.indexOf(tab));
+  const goToOrganizerSection = (section: OrganizerSection) => {
+    setViewMode('organizer');
+    setOrganizerSection(section);
+    goToTab('organizer');
+  };
+
+  const goToAdminSection = (section: AdminSection) => {
+    setViewMode('admin');
+    setAdminSection(section);
+    goToTab('admin');
+  };
+
+  const clientBottomTabs: Tab[] = ['events', 'tickets', 'scan', 'social', 'profile'];
+  const organizerBottomTabs = ['dashboard', 'events', 'create', 'scan', 'profile'] as const;
+  const adminBottomTabs = ['dashboard', 'users', 'events', 'payments', 'profile'] as const;
+  const activeBottomIndex = Math.max(0, viewMode === 'admin'
+    ? adminBottomTabs.findIndex((item) => item === 'profile' ? tab === 'profile' : tab === 'admin' && adminSection === item)
+    : viewMode === 'organizer'
+      ? organizerBottomTabs.findIndex((item) => item === 'scan' ? tab === 'scan' : item === 'profile' ? tab === 'profile' : tab === 'organizer' && organizerSection === item)
+      : clientBottomTabs.indexOf(tab));
   const isLoggedIn = !!currentUser;
   const userRole = currentUser?.role;
   const canAdmin = userRole === 'admin';
   const canOrganize = isLoggedIn;
   const navPadding = 8;
-  const navItemWidth = (width - navPadding * 2) / bottomTabs.length;
+  const navItemWidth = (width - navPadding * 2) / clientBottomTabs.length;
   const modePillWidth = (width - 42) / 2;
 
   useEffect(() => {
@@ -115,7 +135,7 @@ function AppContent() {
         <View pointerEvents="none" style={styles.appGridVertical} />
         <View pointerEvents="none" style={styles.appGridHorizontal} />
 
-        {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} />}
+        {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} viewMode={viewMode} />}
 
         {scanOpen ? (
           <ScanScreen onBack={() => setScanOpen(false)} />
@@ -136,15 +156,15 @@ function AppContent() {
         ) : tab === 'tickets' ? (
           isLoggedIn ? <TicketsScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'scan' ? (
-          <ScanScreen onBack={() => goToTab('events')} />
+          <ScanScreen onBack={() => viewMode === 'organizer' ? goToOrganizerSection('dashboard') : viewMode === 'admin' ? goToAdminSection('dashboard') : goToTab('events')} />
         ) : tab === 'social' ? (
           isLoggedIn ? <SocialScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'profile' ? (
           isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'organizer' ? (
-          isLoggedIn ? <OrganizerPanelScreen /> : <LoginScreen onSignIn={setCurrentUser} />
+          isLoggedIn ? <OrganizerPanelScreen activeSection={organizerSection} onSectionChange={setOrganizerSection} /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'admin' ? (
-          canAdmin ? <AdminPanelScreen /> : <LoginScreen onSignIn={setCurrentUser} />
+          canAdmin ? <AdminPanelScreen activeSection={adminSection} onSectionChange={setAdminSection} /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'contact' ? (
           <ContactScreen user={currentUser} onBack={() => goToTab('events')} />
         ) : tab === 'about' ? (
@@ -156,30 +176,88 @@ function AppContent() {
         {!scanOpen && !purchaseOpen && !checkoutInfoOpen && !orderSummaryOpen && !paymentSuccessOpen && !loginAfterPurchase && (
           <View style={styles.bottomNav}>
             <Animated.View style={[styles.navSlidingLine, { transform: [{ translateX: navIndicatorX }] }]} />
-            <TouchableOpacity onPress={() => goToTab('events')} style={styles.navItem}>
-              <Ionicons name={tab === 'events' ? 'home' : 'home-outline'} size={18} color={tab === 'events' ? colors.orange : 'rgba(226,232,240,0.50)'} />
-              <Text style={[styles.navText, tab === 'events' && styles.navActiveText]}>{t('Eventos', 'Events')}</Text>
-            </TouchableOpacity>
+            {viewMode === 'admin' ? (
+              <>
+                <TouchableOpacity onPress={() => goToAdminSection('dashboard')} style={styles.navItem}>
+                  <Ionicons name={tab === 'admin' && adminSection === 'dashboard' ? 'shield' : 'shield-outline'} size={18} color={tab === 'admin' && adminSection === 'dashboard' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'admin' && adminSection === 'dashboard' && styles.navActiveText]}>{t('Panel', 'Panel')}</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => goToTab('tickets')} style={styles.navItem}>
-              <Ionicons name={tab === 'tickets' ? 'ticket' : 'ticket-outline'} size={17} color={tab === 'tickets' ? colors.orange : 'rgba(226,232,240,0.50)'} />
-              <Text style={[styles.navText, tab === 'tickets' && styles.navActiveText]}>{t('Tickets', 'Tickets')}</Text>
-            </TouchableOpacity>
+                <TouchableOpacity onPress={() => goToAdminSection('users')} style={styles.navItem}>
+                  <Ionicons name={tab === 'admin' && adminSection === 'users' ? 'people' : 'people-outline'} size={17} color={tab === 'admin' && adminSection === 'users' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'admin' && adminSection === 'users' && styles.navActiveText]}>{t('Usuarios', 'Users')}</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => goToTab('scan')} style={styles.navItem}>
-              <Ionicons name={tab === 'scan' ? 'scan' : 'scan-outline'} size={17} color={tab === 'scan' ? colors.orange : 'rgba(226,232,240,0.50)'} />
-              <Text style={[styles.navText, tab === 'scan' && styles.navActiveText]}>Scan</Text>
-            </TouchableOpacity>
+                <TouchableOpacity onPress={() => goToAdminSection('events')} style={styles.navItem}>
+                  <Ionicons name={tab === 'admin' && adminSection === 'events' ? 'calendar' : 'calendar-outline'} size={17} color={tab === 'admin' && adminSection === 'events' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'admin' && adminSection === 'events' && styles.navActiveText]}>{t('Eventos', 'Events')}</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => goToTab('social')} style={styles.navItem}>
-              <Ionicons name={tab === 'social' ? 'people' : 'people-outline'} size={17} color={tab === 'social' ? colors.orange : 'rgba(226,232,240,0.50)'} />
-              <Text style={[styles.navText, tab === 'social' && styles.navActiveText]}>Social</Text>
-            </TouchableOpacity>
+                <TouchableOpacity onPress={() => goToAdminSection('payments')} style={styles.navItem}>
+                  <Ionicons name={tab === 'admin' && adminSection === 'payments' ? 'card' : 'card-outline'} size={17} color={tab === 'admin' && adminSection === 'payments' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'admin' && adminSection === 'payments' && styles.navActiveText]}>{t('Finanzas', 'Finance')}</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => goToTab('profile')} style={styles.navItem}>
-              <Ionicons name={tab === 'profile' ? 'person-circle' : 'person-circle-outline'} size={17} color={tab === 'profile' ? colors.orange : 'rgba(226,232,240,0.50)'} />
-              <Text style={[styles.navText, tab === 'profile' && styles.navActiveText]}>{t('Perfil', 'Profile')}</Text>
-            </TouchableOpacity>
+                <TouchableOpacity onPress={() => goToTab('profile')} style={styles.navItem}>
+                  <Ionicons name={tab === 'profile' ? 'person-circle' : 'person-circle-outline'} size={17} color={tab === 'profile' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'profile' && styles.navActiveText]}>{t('Perfil', 'Profile')}</Text>
+                </TouchableOpacity>
+              </>
+            ) : viewMode === 'organizer' ? (
+              <>
+                <TouchableOpacity onPress={() => goToOrganizerSection('dashboard')} style={styles.navItem}>
+                  <Ionicons name={tab === 'organizer' && organizerSection === 'dashboard' ? 'grid' : 'grid-outline'} size={18} color={tab === 'organizer' && organizerSection === 'dashboard' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'organizer' && organizerSection === 'dashboard' && styles.navActiveText]}>{t('Panel', 'Panel')}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => goToOrganizerSection('events')} style={styles.navItem}>
+                  <Ionicons name={tab === 'organizer' && organizerSection === 'events' ? 'calendar' : 'calendar-outline'} size={17} color={tab === 'organizer' && organizerSection === 'events' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'organizer' && organizerSection === 'events' && styles.navActiveText]}>{t('Mis eventos', 'My events')}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => goToOrganizerSection('create')} style={styles.navItem}>
+                  <Ionicons name={tab === 'organizer' && organizerSection === 'create' ? 'add-circle' : 'add-circle-outline'} size={18} color={tab === 'organizer' && organizerSection === 'create' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'organizer' && organizerSection === 'create' && styles.navActiveText]}>{t('Crear', 'Create')}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => goToTab('scan')} style={styles.navItem}>
+                  <Ionicons name={tab === 'scan' ? 'scan' : 'scan-outline'} size={17} color={tab === 'scan' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'scan' && styles.navActiveText]}>Scan</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => goToTab('profile')} style={styles.navItem}>
+                  <Ionicons name={tab === 'profile' ? 'person-circle' : 'person-circle-outline'} size={17} color={tab === 'profile' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'profile' && styles.navActiveText]}>{t('Perfil', 'Profile')}</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity onPress={() => goToTab('events')} style={styles.navItem}>
+                  <Ionicons name={tab === 'events' ? 'home' : 'home-outline'} size={18} color={tab === 'events' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'events' && styles.navActiveText]}>{t('Eventos', 'Events')}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => goToTab('tickets')} style={styles.navItem}>
+                  <Ionicons name={tab === 'tickets' ? 'ticket' : 'ticket-outline'} size={17} color={tab === 'tickets' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'tickets' && styles.navActiveText]}>{t('Tickets', 'Tickets')}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => goToTab('scan')} style={styles.navItem}>
+                  <Ionicons name={tab === 'scan' ? 'scan' : 'scan-outline'} size={17} color={tab === 'scan' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'scan' && styles.navActiveText]}>Scan</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => goToTab('social')} style={styles.navItem}>
+                  <Ionicons name={tab === 'social' ? 'people' : 'people-outline'} size={17} color={tab === 'social' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'social' && styles.navActiveText]}>Social</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => goToTab('profile')} style={styles.navItem}>
+                  <Ionicons name={tab === 'profile' ? 'person-circle' : 'person-circle-outline'} size={17} color={tab === 'profile' ? colors.orange : 'rgba(226,232,240,0.50)'} />
+                  <Text style={[styles.navText, tab === 'profile' && styles.navActiveText]}>{t('Perfil', 'Profile')}</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         )}
 
@@ -189,8 +267,8 @@ function AppContent() {
           onGoEvents={() => goToTab('events')}
           onGoTickets={() => goToTab('tickets')}
           onGoProfile={() => goToTab('profile')}
-          onGoOrganizer={() => { setViewMode('organizer'); goToTab('organizer'); }}
-          onGoAdmin={() => goToTab('admin')}
+          onGoOrganizer={() => { setViewMode('organizer'); setOrganizerSection('dashboard'); goToTab('organizer'); }}
+          onGoAdmin={() => { setViewMode('admin'); setAdminSection('dashboard'); goToTab('admin'); }}
           onGoScan={() => { clearFlow(); setScanOpen(true); }}
           onGoAiChat={() => goToTab('support')}
           onGoSocialMatch={() => goToTab('social')}
@@ -202,7 +280,18 @@ function AppContent() {
           canOrganize={canOrganize}
           canAdmin={canAdmin}
           viewMode={viewMode}
-          onSetMode={(mode) => { setViewMode(mode); goToTab(mode === 'organizer' ? 'organizer' : 'events'); }}
+          onSetMode={(mode) => {
+            setViewMode(mode);
+            if (mode === 'admin') {
+              setAdminSection('dashboard');
+              goToTab('admin');
+            } else if (mode === 'organizer') {
+              setOrganizerSection('dashboard');
+              goToTab('organizer');
+            } else {
+              goToTab('events');
+            }
+          }}
         />
         </View>
       </SafeAreaView>

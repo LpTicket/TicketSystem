@@ -11,7 +11,7 @@ import { OrganizerAccessMobile } from '../components/organizer/OrganizerAccessMo
 import { OrganizerRewardsMobile } from '../components/organizer/OrganizerRewardsMobile';
 import { apiGet } from '../services/api';
 
-type Section = 'dashboard' | 'events' | 'create' | 'details' | 'map' | 'attendees' | 'blocks' | 'rewards' | 'scan';
+export type OrganizerSection = 'dashboard' | 'events' | 'create' | 'details' | 'map' | 'attendees' | 'blocks' | 'rewards' | 'scan';
 
 
 type OrganizerApiEvent = {
@@ -101,7 +101,7 @@ function toOrganizerEvent(event: OrganizerApiEvent, index: number) {
   };
 }
 
-const sections: Section[] = [
+const sections: OrganizerSection[] = [
   'dashboard',
   'events',
   'create',
@@ -112,12 +112,19 @@ const sections: Section[] = [
   'rewards',
 ];
 
-export function OrganizerPanelScreen() {
+type Props = {
+  activeSection?: OrganizerSection;
+  onSectionChange?: (section: OrganizerSection) => void;
+};
+
+export function OrganizerPanelScreen({ activeSection, onSectionChange }: Props) {
   const { t } = useLanguage();
   const organizerIndicatorX = useRef(new Animated.Value(0)).current;
   const organizerIndicatorWidth = useRef(new Animated.Value(118)).current;
-  const [active, setActive] = useState<Section>('dashboard');
-  const [tabLayouts, setTabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
+  const [internalActive, setInternalActive] = useState<OrganizerSection>('dashboard');
+  const active = activeSection ?? internalActive;
+  const setActive = onSectionChange ?? setInternalActive;
+  const [tabLayouts, setTabLayouts] = useState<Partial<Record<OrganizerSection, { x: number; width: number }>>>({});
   const [tabsViewportWidth, setTabsViewportWidth] = useState(0);
   const [tabsContentWidth, setTabsContentWidth] = useState(0);
   const [tabsScrollX, setTabsScrollX] = useState(0);
@@ -509,8 +516,8 @@ function AccessItem({ title, value }: { title: string; value: string }) {
   );
 }
 
-function sectionLabel(section: Section, t: (es: string, en: string) => string) {
-  const names: Record<Section, string> = {
+function sectionLabel(section: OrganizerSection, t: (es: string, en: string) => string) {
+  const names: Record<OrganizerSection, string> = {
     dashboard: t('Dashboard', 'Dashboard'),
     events: t('Mis eventos', 'My events'),
     create: t('Crear evento', 'Create event'),
@@ -524,8 +531,8 @@ function sectionLabel(section: Section, t: (es: string, en: string) => string) {
   return names[section];
 }
 
-function titleFor(section: Section, t: (es: string, en: string) => string) {
-  const names: Record<Section, string> = {
+function titleFor(section: OrganizerSection, t: (es: string, en: string) => string) {
+  const names: Record<OrganizerSection, string> = {
     dashboard: t('Panel de organizador', 'Organizer dashboard'),
     events: t('Mis eventos', 'My events'),
     create: t('Crear evento', 'Create event'),
@@ -539,8 +546,8 @@ function titleFor(section: Section, t: (es: string, en: string) => string) {
   return names[section];
 }
 
-function subtitleFor(section: Section, t: (es: string, en: string) => string) {
-  const copy: Record<Section, string> = {
+function subtitleFor(section: OrganizerSection, t: (es: string, en: string) => string) {
+  const copy: Record<OrganizerSection, string> = {
     dashboard: t('Ventas, tickets, asistentes y balance.', 'Sales, tickets, attendees and balance.'),
     events: t('Administra tus eventos publicados y borradores.', 'Manage your published events and drafts.'),
     create: t('Crea un evento nuevo desde el movil.', 'Create a new event from mobile.'),

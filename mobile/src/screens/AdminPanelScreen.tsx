@@ -5,7 +5,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { apiGet } from '../services/api';
 import { GradientButton } from '../components/GradientButton';
 
-type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
+export type AdminSection = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
 type AdminUser = { id: string; name: string; email: string; role: 'client' | 'organizer' | 'admin'; suspended: boolean };
 type Category = { id: string; name: string; active: boolean; featured: boolean };
 
@@ -56,7 +56,7 @@ function adminEventDate(event: any) {
   }
 }
 
-const sections: { id: Section; label: string }[] = [
+const sections: { id: AdminSection; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'events', label: 'Eventos' },
   { id: 'users', label: 'Usuarios' },
@@ -67,12 +67,19 @@ const sections: { id: Section; label: string }[] = [
   { id: 'payments', label: 'Pagos' },
 ];
 
-export function AdminPanelScreen() {
+type Props = {
+  activeSection?: AdminSection;
+  onSectionChange?: (section: AdminSection) => void;
+};
+
+export function AdminPanelScreen({ activeSection, onSectionChange }: Props) {
   const { t } = useLanguage();
   const adminIndicatorX = useRef(new Animated.Value(0)).current;
   const adminIndicatorWidth = useRef(new Animated.Value(118)).current;
-  const [active, setActive] = useState<Section>('dashboard');
-  const [tabLayouts, setTabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
+  const [internalActive, setInternalActive] = useState<AdminSection>('dashboard');
+  const active = activeSection ?? internalActive;
+  const setActive = onSectionChange ?? setInternalActive;
+  const [tabLayouts, setTabLayouts] = useState<Partial<Record<AdminSection, { x: number; width: number }>>>({});
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [categoryDraft, setCategoryDraft] = useState('');
@@ -768,8 +775,8 @@ function initials(name: string) {
   return name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 }
 
-function labelFor(section: Section, t: (es: string, en: string) => string) {
-  const labels: Record<Section, string> = {
+function labelFor(section: AdminSection, t: (es: string, en: string) => string) {
+  const labels: Record<AdminSection, string> = {
     dashboard: t('Dashboard', 'Dashboard'),
     events: t('Eventos', 'Events'),
     users: t('Usuarios', 'Users'),
@@ -782,8 +789,8 @@ function labelFor(section: Section, t: (es: string, en: string) => string) {
   return labels[section];
 }
 
-function titleFor(section: Section, t: (es: string, en: string) => string) {
-  const names: Record<Section, string> = {
+function titleFor(section: AdminSection, t: (es: string, en: string) => string) {
+  const names: Record<AdminSection, string> = {
     dashboard: t('Panel administrativo', 'Admin dashboard'),
     events: t('Eventos', 'Events'),
     users: t('Usuarios', 'Users'),
@@ -796,8 +803,8 @@ function titleFor(section: Section, t: (es: string, en: string) => string) {
   return names[section];
 }
 
-function subtitleFor(section: Section, t: (es: string, en: string) => string) {
-  const copy: Record<Section, string> = {
+function subtitleFor(section: AdminSection, t: (es: string, en: string) => string) {
+  const copy: Record<AdminSection, string> = {
     dashboard: t('Resumen de ventas, eventos, usuarios y pagos pendientes.', 'Sales, events, users and pending payouts overview.'),
     events: t('Administra eventos publicados, destacados y visibilidad.', 'Manage published events, featured placement and visibility.'),
     users: t('Gestiona clientes, organizadores, administradores y permisos.', 'Manage customers, organizers, administrators and permissions.'),
