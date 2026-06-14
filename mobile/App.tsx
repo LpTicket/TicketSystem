@@ -33,7 +33,6 @@ function AppContent() {
   const { t } = useLanguage();
   const { width } = useWindowDimensions();
   const navIndicatorX = useRef(new Animated.Value(0)).current;
-  const modeIndicatorX = useRef(new Animated.Value(0)).current;
   const [tab, setTab] = useState<Tab>('events');
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -84,7 +83,6 @@ function AppContent() {
   const canOrganize = isLoggedIn;
   const navPadding = 8;
   const navItemWidth = (width - navPadding * 2) / bottomTabs.length;
-  const modePillWidth = (width - 42) / 2;
 
   useEffect(() => {
     Animated.spring(navIndicatorX, {
@@ -95,16 +93,6 @@ function AppContent() {
       mass: 0.7,
     }).start();
   }, [activeBottomIndex, navIndicatorX, navItemWidth]);
-
-  useEffect(() => {
-    Animated.spring(modeIndicatorX, {
-      toValue: viewMode === 'organizer' ? modePillWidth : 0,
-      useNativeDriver: true,
-      damping: 18,
-      stiffness: 180,
-      mass: 0.7,
-    }).start();
-  }, [modeIndicatorX, modePillWidth, viewMode]);
 
   return (
     <View style={styles.root}>
@@ -202,7 +190,7 @@ function AppContent() {
           canOrganize={canOrganize}
           canAdmin={canAdmin}
           viewMode={viewMode}
-          onSetMode={(mode) => { setViewMode(mode); goToTab(mode === 'organizer' ? 'organizer' : 'events'); }}
+          onSetMode={(mode) => setViewMode(mode)}
         />
         </View>
       </SafeAreaView>

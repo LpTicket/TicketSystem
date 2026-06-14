@@ -61,7 +61,7 @@ export function MenuDrawer({
               </View>
               <Switch
                 value={viewMode === 'organizer'}
-                onValueChange={(on) => { onClose(); onSetMode(on ? 'organizer' : 'client'); }}
+                onValueChange={(on) => onSetMode(on ? 'organizer' : 'client')}
                 trackColor={{ false: 'rgba(255,255,255,0.18)', true: '#F97316' }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor="rgba(255,255,255,0.18)"
@@ -79,10 +79,10 @@ export function MenuDrawer({
           {/* Account / actions — with orange icons */}
           <View style={styles.card}>
             <Row icon="chatbubble-ellipses-outline" label={t('Chat IA', 'AI Assistant')} onPress={() => go(onGoAiChat)} />
-            {canOrganize && (
+            {canOrganize && viewMode === 'organizer' && (
               <Row icon="settings-outline" label={t('Panel Organizador', 'Organizer Panel')} onPress={() => go(onGoOrganizer)} featured />
             )}
-            {canAdmin && (
+            {canAdmin && viewMode === 'organizer' && (
               <Row icon="shield-outline" label={t('Panel Administrador', 'Admin Panel')} onPress={() => go(onGoAdmin)} featured />
             )}
             <Row icon="log-out-outline" label={t('Cerrar sesión', 'Log out')} onPress={() => go(onLogout)} danger />
