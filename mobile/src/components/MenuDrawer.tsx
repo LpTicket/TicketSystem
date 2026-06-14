@@ -1,4 +1,4 @@
-import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ScreenBackground } from './ScreenBackground';
@@ -52,23 +52,20 @@ export function MenuDrawer({
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* Client / Organizer mode toggle */}
+          {/* Client / Organizer mode — Fiverr-style switch row */}
           {canOrganize && onSetMode && (
-            <View style={styles.modeSwitch}>
-              <TouchableOpacity
-                style={[styles.modeBtn, viewMode === 'client' && styles.modeBtnActive]}
-                onPress={() => { onClose(); onSetMode('client'); }}
-              >
-                <Ionicons name="person-outline" size={16} color={viewMode === 'client' ? '#FFFFFF' : 'rgba(255,255,255,0.66)'} />
-                <Text style={[styles.modeText, viewMode === 'client' && styles.modeTextActive]}>{t('Cliente', 'Client')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modeBtn, viewMode === 'organizer' && styles.modeBtnActive]}
-                onPress={() => { onClose(); onSetMode('organizer'); }}
-              >
-                <Ionicons name="briefcase-outline" size={16} color={viewMode === 'organizer' ? '#FFFFFF' : 'rgba(255,255,255,0.66)'} />
-                <Text style={[styles.modeText, viewMode === 'organizer' && styles.modeTextActive]}>{t('Organizador', 'Organizer')}</Text>
-              </TouchableOpacity>
+            <View style={styles.modeRow}>
+              <View style={styles.modeRowLeft}>
+                <Ionicons name="briefcase-outline" size={18} color="#ff7a00" />
+                <Text style={styles.modeRowText}>{t('Modo organizador', 'Organizer mode')}</Text>
+              </View>
+              <Switch
+                value={viewMode === 'organizer'}
+                onValueChange={(on) => { onClose(); onSetMode(on ? 'organizer' : 'client'); }}
+                trackColor={{ false: 'rgba(255,255,255,0.18)', true: '#F97316' }}
+                thumbColor="#FFFFFF"
+                ios_backgroundColor="rgba(255,255,255,0.18)"
+              />
             </View>
           )}
 
@@ -119,27 +116,19 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', alignItems: 'center', justifyContent: 'center',
   },
   scroll: { paddingBottom: 40, gap: 16 },
-  modeSwitch: {
+  modeRow: {
     flexDirection: 'row',
-    gap: 6,
-    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
-  modeBtn: {
-    flex: 1,
-    height: 46,
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-  },
-  modeBtnActive: { backgroundColor: '#F97316' },
-  modeText: { color: 'rgba(255,255,255,0.66)', fontSize: 14, fontWeight: '800' },
-  modeTextActive: { color: '#FFFFFF' },
+  modeRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  modeRowText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   card: {
     padding: 8,
     borderRadius: 24,
