@@ -106,7 +106,7 @@ export function SupportScreen({ onContact, onBack }: Props) {
 const styles = StyleSheet.create({
   screenWrap: { flex: 1, backgroundColor: '#030B14' },
   root: { flex: 1, backgroundColor: 'transparent' },
-  content: { padding: 18, paddingTop: 54, paddingBottom: 120 },
+  content: { padding: 18, paddingTop: 12, paddingBottom: 120 },
   back: { alignSelf: 'flex-start', minHeight: 38, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   backText: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
   hero: {

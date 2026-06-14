@@ -22,7 +22,7 @@ export function SocialScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
-  content: { paddingHorizontal: 18, paddingTop: 46, paddingBottom: 132 },
+  content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 132 },
   header: {
     marginBottom: 16,
     borderRadius: 24,

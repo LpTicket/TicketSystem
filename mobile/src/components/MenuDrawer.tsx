@@ -1,8 +1,11 @@
-import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ScreenBackground } from './ScreenBackground';
 import { ModeSelector, AppMode } from './ModeSelector';
+
+type AdminSectionId = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
+type OrgSectionId = 'dashboard' | 'events' | 'create' | 'scan' | 'analytics';
 
 type Props = {
   visible: boolean;
@@ -20,19 +23,44 @@ type Props = {
   onGoAbout?: () => void;
   onGoSupport?: () => void;
   onLogout?: () => void;
+  isLoggedIn?: boolean;
   canOrganize?: boolean;
   canAdmin?: boolean;
   viewMode?: AppMode;
   onSetMode?: (mode: AppMode) => void;
+  // Admin panel section navigation
+  adminSection?: AdminSectionId;
+  onGoAdminSection?: (section: AdminSectionId) => void;
+  // Organizer panel section navigation
+  orgSection?: OrgSectionId;
+  onGoOrgSection?: (section: OrgSectionId) => void;
 };
 
 type IconName = keyof typeof Ionicons.glyphMap;
 const logo = require('../../assets/logo-header.png');
 
+// Only sections NOT already in the bottom tab bar (dashboard/events/users/analytics/profile are there).
+// Payments omitted — placeholder only, not present in the web sidebar either.
+const adminSections: { id: AdminSectionId; labelEs: string; labelEn: string; icon: IconName }[] = [
+  { id: 'categories', labelEs: 'Categorías', labelEn: 'Categories', icon: 'pricetag-outline' },
+  { id: 'marketing', labelEs: 'Marketing', labelEn: 'Marketing', icon: 'megaphone-outline' },
+  { id: 'codes', labelEs: 'Códigos especiales', labelEn: 'Special codes', icon: 'key-outline' },
+];
+
+const orgSections: { id: OrgSectionId; labelEs: string; labelEn: string; icon: IconName }[] = [
+  { id: 'dashboard', labelEs: 'Dashboard', labelEn: 'Dashboard', icon: 'grid-outline' },
+  { id: 'events', labelEs: 'Mis Eventos', labelEn: 'My Events', icon: 'calendar-outline' },
+  { id: 'create', labelEs: 'Crear Evento', labelEn: 'Create Event', icon: 'add-circle-outline' },
+  { id: 'scan', labelEs: 'Escáner', labelEn: 'Scanner', icon: 'scan-outline' },
+  { id: 'analytics', labelEs: 'Analíticas', labelEn: 'Analytics', icon: 'stats-chart-outline' },
+];
+
 export function MenuDrawer({
   visible, onClose, onGoEvents, onGoTickets, onGoProfile, onGoScan, onGoAiChat,
   onGoSocialMatch, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onLogout,
-  canOrganize, canAdmin, viewMode = 'client', onSetMode,
+  isLoggedIn, canOrganize, canAdmin, viewMode = 'client', onSetMode,
+  adminSection, onGoAdminSection,
+  orgSection, onGoOrgSection,
 }: Props) {
   const { t } = useLanguage();
   const go = (action?: () => void) => {
@@ -42,10 +70,10 @@ export function MenuDrawer({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={[styles.panel, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
+      <SafeAreaView style={[styles.panel, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
         <ScreenBackground />
-
-        <View style={styles.topBar}>
+        <View style={styles.container}>
+          <View style={styles.topBar}>
           <Image source={logo} style={styles.logo} resizeMode="contain" />
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
             <Ionicons name="close" size={22} color="#FFFFFF" />
@@ -58,6 +86,42 @@ export function MenuDrawer({
             <ModeSelector mode={viewMode} canAdmin={canAdmin} onChange={onSetMode} />
           )}
 
+          {/* Admin quick-access sections */}
+          {viewMode === 'admin' && onGoAdminSection && (
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionLabel}>{t('PANEL ADMIN', 'ADMIN PANEL')}</Text>
+              </View>
+              {adminSections.map((s) => (
+                <Row
+                  key={s.id}
+                  icon={s.icon}
+                  label={t(s.labelEs, s.labelEn)}
+                  active={adminSection === s.id}
+                  onPress={() => go(() => onGoAdminSection(s.id))}
+                />
+              ))}
+            </View>
+          )}
+
+          {/* Organizer quick-access sections */}
+          {viewMode === 'organizer' && onGoOrgSection && (
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionLabel}>{t('ORGANIZADOR', 'ORGANIZER')}</Text>
+              </View>
+              {orgSections.map((s) => (
+                <Row
+                  key={s.id}
+                  icon={s.icon}
+                  label={t(s.labelEs, s.labelEn)}
+                  active={orgSection === s.id}
+                  onPress={() => go(() => onGoOrgSection(s.id))}
+                />
+              ))}
+            </View>
+          )}
+
           {/* Primary nav — text rows, no icons (matches web) */}
           <View style={styles.card}>
             <Row label={t('Quiénes Somos', 'About Us')} onPress={() => go(onGoAbout)} />
@@ -65,22 +129,25 @@ export function MenuDrawer({
             <Row label={t('Soporte', 'Support')} onPress={() => go(onGoSupport)} />
           </View>
 
-          {/* Account / actions — with orange icons */}
-          <View style={styles.card}>
-            <Row icon="chatbubble-ellipses-outline" label={t('Chat IA', 'AI Assistant')} onPress={() => go(onGoAiChat)} />
-            <Row icon="log-out-outline" label={t('Cerrar sesión', 'Log out')} onPress={() => go(onLogout)} danger />
-          </View>
+          {/* Account / actions */}
+          {isLoggedIn && (
+            <View style={styles.card}>
+              <Row icon="log-out-outline" label={t('Cerrar sesión', 'Log out')} onPress={() => go(onLogout)} danger />
+            </View>
+          )}
         </ScrollView>
-      </View>
+        </View>
+      </SafeAreaView>
     </Modal>
   );
 }
 
-function Row({ label, onPress, icon, danger, featured }: { label: string; onPress: () => void; icon?: IconName; danger?: boolean; featured?: boolean }) {
+function Row({ label, onPress, icon, danger, featured, active }: { label: string; onPress: () => void; icon?: IconName; danger?: boolean; featured?: boolean; active?: boolean }) {
   return (
-    <TouchableOpacity style={[styles.row, featured && styles.rowFeatured, danger && styles.rowDanger]} onPress={onPress} activeOpacity={0.7}>
-      {icon && <Ionicons name={icon} size={23} color={danger ? '#ff5a45' : '#ff7a00'} />}
-      <Text style={[styles.rowText, danger && styles.rowTextDanger]}>{label}</Text>
+    <TouchableOpacity style={[styles.row, featured && styles.rowFeatured, danger && styles.rowDanger, active && styles.rowActive]} onPress={onPress} activeOpacity={0.7}>
+      {icon && <Ionicons name={icon} size={20} color={danger ? '#ff5a45' : active ? '#F97316' : 'rgba(255,255,255,0.55)'} />}
+      <Text style={[styles.rowText, danger && styles.rowTextDanger, active && styles.rowTextActive]}>{label}</Text>
+      {active && <View style={styles.rowActiveDot} />}
     </TouchableOpacity>
   );
 }
@@ -89,10 +156,12 @@ const styles = StyleSheet.create({
   panel: {
     flex: 1,
     backgroundColor: '#030B14',
-    paddingHorizontal: 16,
-    paddingTop: 65,
   },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 48, marginBottom: 12 },
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 84 },
   logo: { width: 131, height: 33 },
   closeBtn: {
     width: 38, height: 38, borderRadius: 14, borderWidth: 1,
@@ -139,6 +208,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   rowDanger: { borderColor: 'rgba(255,90,69,0.24)', backgroundColor: 'rgba(255,90,69,0.08)', marginTop: 4, marginBottom: 0 },
+  rowActive: {
+    borderColor: 'rgba(249,115,22,0.45)',
+    backgroundColor: 'rgba(249,115,22,0.10)',
+  },
   rowFeatured: {
     borderColor: 'rgba(249,115,22,0.34)',
     backgroundColor: 'rgba(249,115,22,0.075)',
@@ -147,6 +220,29 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 5 },
   },
-  rowText: { color: '#F8FAFC', fontSize: 16, fontWeight: '700' },
+  rowText: { color: 'rgba(248,250,252,0.80)', fontSize: 15, fontWeight: '600' },
+  rowTextActive: { color: '#F97316', fontWeight: '700' },
   rowTextDanger: { color: '#ff5a45' },
+  rowActiveDot: {
+    marginLeft: 'auto',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F97316',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  sectionLabel: {
+    color: '#F97316',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
 });

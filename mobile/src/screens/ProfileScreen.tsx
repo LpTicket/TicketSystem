@@ -6,8 +6,9 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser } from '../services/api';
 import { updateProfile as updateProfileRequest } from '../services/auth';
 import { AccountMobile } from '../components/profile/AccountMobile';
+import { MySpecialCodesMobile } from '../components/profile/MySpecialCodesMobile';
 
-type ProfileTab = 'account' | 'payments';
+type ProfileTab = 'account' | 'payments' | 'codes';
 
 type Props = {
   initialTab?: ProfileTab;
@@ -39,11 +40,15 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
     phone: user.phone || '',
   });
 
-  const tabButtonWidth = tabShellWidth > 0 ? (tabShellWidth - 18) / 2 : 0;
+  const tabButtonWidth = tabShellWidth > 0 ? (tabShellWidth - 24) / 3 : 0;
 
   useEffect(() => {
+    let targetX = 0;
+    if (activeTab === 'payments') targetX = tabButtonWidth + 6;
+    if (activeTab === 'codes') targetX = (tabButtonWidth + 6) * 2;
+
     Animated.spring(tabIndicatorX, {
-      toValue: activeTab === 'account' ? 0 : tabButtonWidth + 6,
+      toValue: targetX,
       useNativeDriver: true,
       damping: 17,
       stiffness: 190,
@@ -118,6 +123,7 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
         )}
         <ProfileTabButton label={t('Cuenta', 'Account')} active={activeTab === 'account'} onPress={() => setActiveTab('account')} />
         <ProfileTabButton label={t('Pagos', 'Payments')} active={activeTab === 'payments'} onPress={() => setActiveTab('payments')} />
+        <ProfileTabButton label={t('Códigos', 'Codes')} active={activeTab === 'codes'} onPress={() => setActiveTab('codes')} />
       </View>
   );
 
@@ -158,6 +164,13 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
             <ActionRow badge="RC" title={t('Archivo de recibos', 'Receipts archive')} subtitle={t('Ver pagos, impuestos y confirmaciones', 'View payments, taxes and confirmations')} action={t('ABRIR', 'OPEN')} />
             <ActionRow badge="ST" title={t('Checkout de Stripe', 'Stripe checkout')} subtitle={t('Pagos seguros y confirmación instantánea', 'Secure payments and instant confirmation')} action={t('LISTO', 'READY')} />
           </View>
+        </>
+      )}
+
+      {activeTab === 'codes' && (
+        <>
+          <AccountMobile user={user} onUserUpdated={onUserUpdated} tabs={tabs} showSections={false} />
+          <MySpecialCodesMobile />
         </>
       )}
 
@@ -223,7 +236,7 @@ function ActionRow({ badge, title, subtitle, action }: { badge: string; title: s
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
-  content: { paddingHorizontal: 18, paddingTop: 46, paddingBottom: 132 },
+  content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 132 },
   modeSelectorWrap: { marginBottom: 16 },
   modeSelectorLabel: { color: colors.orange, fontSize: 11, letterSpacing: 1, fontWeight: '800', marginBottom: 8, marginLeft: 2 },
   hero: {
@@ -435,6 +448,38 @@ const styles = StyleSheet.create({
     color: '#F8FAFC',
     fontSize: 16,
     fontWeight: '700',
+  },
+  codeInputWrap: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  codeInput: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.018)',
+    paddingHorizontal: 16,
+    color: '#F8FAFC',
+    fontSize: 15,
+  },
+  codeApplyBtn: {
+    height: 48,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    backgroundColor: 'rgba(249,115,22,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(249,115,22,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  codeApplyText: {
+    color: colors.orange,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   saveButton: {
     height: 58,

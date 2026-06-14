@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
+import { apiPost } from '../services/api';
 
 type Props = {
   onBack: () => void;
@@ -9,17 +9,37 @@ type Props = {
 
 type ScanState = 'idle' | 'scanning' | 'validating' | 'approved' | 'denied';
 
-const recentScans = [
-  { id: '1', valid: true, name: 'Maria Lopez', location: 'VIP A · Mesa 4', code: 'LP-8A42', time: '12:02' },
-  { id: '2', valid: true, name: 'Carlos Perez', location: 'General', code: 'LP-2F91', time: '11:58' },
-  { id: '3', valid: false, name: 'Ticket usado', location: 'Entrada principal', code: 'LP-7K20', time: '11:54' },
-];
+type ScanResult = {
+  valid: boolean;
+  message?: string;
+  ticket?: {
+    ticketCode?: string;
+    status?: string;
+    sectionName?: string | null;
+    rowLabel?: string | null;
+    seatNumber?: number | null;
+    seatLabel?: string | null;
+    event?: { title?: string; venueName?: string } | null;
+    user?: { firstName?: string; lastName?: string; email?: string } | null;
+  };
+  eventStats?: {
+    totalCapacity?: number;
+    totalIssued?: number;
+    ticketsToScan?: number;
+    ticketsEntered?: number;
+  };
+};
+
+type RecentScan = { id: string; valid: boolean; name: string; location: string; code: string; time: string };
 
 export function ScanScreen({ onBack: _onBack }: Props) {
   const { t } = useLanguage();
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [manualCode, setManualCode] = useState('');
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [eventStats, setEventStats] = useState<ScanResult['eventStats'] | null>(null);
+  const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
   const scanAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -50,15 +70,32 @@ export function ScanScreen({ onBack: _onBack }: Props) {
     return () => loop.stop();
   }, [scanAnim, scanState]);
 
-  const validateCode = () => {
+  const validateCode = async () => {
+    const code = manualCode.trim();
+    if (!code) return;
     setScanState('validating');
-    setTimeout(() => {
-      setScanState(manualCode.trim().length >= 5 ? 'approved' : 'denied');
-    }, 600);
+    try {
+      const result = await apiPost<ScanResult>(`/orders/ticket/${code}/validate`, {});
+      setScanResult(result);
+      if (result.eventStats) setEventStats(result.eventStats);
+      const u = result.ticket?.user;
+      const name = [u?.firstName, u?.lastName].filter(Boolean).join(' ') || u?.email || t('Visitante', 'Guest');
+      const t2 = result.ticket;
+      const seatParts = [t2?.sectionName, t2?.rowLabel, t2?.seatNumber].filter(Boolean);
+      const location = t2?.seatLabel || (seatParts.length ? seatParts.join(' · ') : 'General');
+      const now = new Date();
+      const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+      setRecentScans((prev) => [{ id: String(Date.now()), valid: result.valid, name, location, code: t2?.ticketCode || code, time }, ...prev].slice(0, 10));
+      setScanState(result.valid ? 'approved' : 'denied');
+    } catch (err: any) {
+      setScanResult({ valid: false, message: err?.message });
+      setScanState('denied');
+    }
   };
 
   const resetScanner = () => {
     setManualCode('');
+    setScanResult(null);
     setScanState('idle');
   };
 
@@ -140,12 +177,12 @@ export function ScanScreen({ onBack: _onBack }: Props) {
           </Text>
 
           <View style={styles.ticketDetails}>
-            <Detail label={t('EVENTO', 'EVENT')} value="Gran Concierto Noche de Salsa" featured />
+            <Detail label={t('EVENTO', 'EVENT')} value={scanResult?.ticket?.event?.title || t('Evento', 'Event')} featured />
             <View style={styles.detailGrid}>
-              <Detail label={t('ASISTENTE', 'ATTENDEE')} value="Sundin Galue" />
-              <Detail label={t('UBICACIÓN', 'LOCATION')} value="VIP A · Mesa 4" />
-              <Detail label={t('SECCIÓN', 'SECTION')} value="General" />
-              <Detail label={t('CÓDIGO', 'CODE')} value={manualCode || 'LP-8A42'} orange />
+              <Detail label={t('ASISTENTE', 'ATTENDEE')} value={[scanResult?.ticket?.user?.firstName, scanResult?.ticket?.user?.lastName].filter(Boolean).join(' ') || scanResult?.ticket?.user?.email || '-'} />
+              <Detail label={t('UBICACIÓN', 'LOCATION')} value={scanResult?.ticket?.seatLabel || [scanResult?.ticket?.sectionName, scanResult?.ticket?.rowLabel, scanResult?.ticket?.seatNumber].filter(Boolean).join(' · ') || 'General'} />
+              <Detail label={t('ESTADO', 'STATUS')} value={scanResult?.message || (isApproved ? t('Válido', 'Valid') : t('Inválido', 'Invalid'))} />
+              <Detail label={t('CÓDIGO', 'CODE')} value={scanResult?.ticket?.ticketCode || manualCode} orange />
             </View>
           </View>
 
@@ -193,17 +230,21 @@ export function ScanScreen({ onBack: _onBack }: Props) {
         </View>
 
         <View style={styles.statGrid}>
-          <Stat label={t('ENTRADAS EMITIDAS', 'ISSUED TICKETS')} value="248" tone="blue" />
-          <Stat label={t('POR ESCANEAR', 'LEFT TO SCAN')} value="173" tone="orange" />
-          <Stat label={t('YA INGRESARON', 'ALREADY ENTERED')} value="75" tone="green" />
+          <Stat label={t('ENTRADAS EMITIDAS', 'ISSUED TICKETS')} value={String(eventStats?.totalIssued ?? '—')} tone="blue" />
+          <Stat label={t('POR ESCANEAR', 'LEFT TO SCAN')} value={String(eventStats?.ticketsToScan ?? '—')} tone="orange" />
+          <Stat label={t('YA INGRESARON', 'ALREADY ENTERED')} value={String(eventStats?.ticketsEntered ?? '—')} tone="green" />
         </View>
 
         <View style={styles.capacityCard}>
           <View>
             <Text style={styles.capacityLabel}>{t('CAPACIDAD DEL LUGAR', 'VENUE CAPACITY')}</Text>
-            <Text style={styles.capacityValue}>420</Text>
+            <Text style={styles.capacityValue}>{eventStats?.totalCapacity ?? '—'}</Text>
           </View>
-          <Text style={styles.capacityPercent}>18%</Text>
+          <Text style={styles.capacityPercent}>
+            {eventStats?.totalCapacity && eventStats?.ticketsEntered != null
+              ? `${Math.round((eventStats.ticketsEntered / eventStats.totalCapacity) * 100)}%`
+              : '—'}
+          </Text>
         </View>
       </View>
 
@@ -254,7 +295,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone: 'blu
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: 'transparent' },
-  content: { paddingHorizontal: 18, paddingTop: 37, paddingBottom: 132 },
+  content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 132 },
   bgGridA: { position: 'absolute', left: '28%', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(125,211,252,0.035)' },
   bgGridB: { position: 'absolute', left: 0, right: 0, top: 220, height: 1, backgroundColor: 'rgba(125,211,252,0.030)' },
 
