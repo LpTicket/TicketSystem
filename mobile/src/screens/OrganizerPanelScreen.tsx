@@ -296,8 +296,30 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
     setAccessItems((current) => current.map((item) => item.id === id ? { ...item, status: item.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE' } : item));
   };
 
-  const toggleAttendeeStatus = (id: string) => {
-    setAttendees((current) => current.map((item) => item.id === id ? { ...item, status: item.status === 'SCANNED' ? 'PAID' : 'SCANNED' } : item));
+  const toggleAttendeeStatus = async (id: string) => {
+    const attendee = attendees.find((a) => a.id === id);
+    if (!attendee) return;
+    if (attendee.status === 'SCANNED') {
+      setAttendees((current) => current.map((item) => item.id === id ? { ...item, status: 'PAID' } : item));
+      return;
+    }
+    try {
+      await apiPost(`/orders/ticket/${attendee.code}/validate`, {});
+      setAttendees((current) => current.map((item) => item.id === id ? { ...item, status: 'SCANNED' } : item));
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Could not check in attendee');
+    }
+  };
+
+  const handleResendAttendee = async (id: string) => {
+    const attendee = attendees.find((a) => a.id === id);
+    if (!attendee?.code) return;
+    try {
+      await apiPost(`/orders/ticket/${attendee.code}/resend-email`, {});
+      Alert.alert(t('Enviado', 'Sent'), t('Ticket reenviado al comprador.', 'Ticket resent to buyer.'));
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Could not resend ticket');
+    }
   };
 
   return (
@@ -434,6 +456,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             attendees={attendees}
             revenueLabel={money(organizerStats.totalRevenue)}
             onToggle={toggleAttendeeStatus}
+            onResend={handleResendAttendee}
             goTo={setActive}
           />
         )}

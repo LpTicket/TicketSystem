@@ -16,10 +16,11 @@ type Props = {
   attendees: Attendee[];
   revenueLabel?: string;
   onToggle: (id: string) => void;
+  onResend?: (id: string) => void;
   goTo: (section: 'events' | 'map' | 'blocks' | 'scan') => void;
 };
 
-export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, goTo }: Props) {
+export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, onResend, goTo }: Props) {
   const { t } = useLanguage();
   const scanned = attendees.filter((item) => item.status === 'SCANNED').length;
   const pending = attendees.length - scanned;
@@ -74,7 +75,7 @@ export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, go
               <TouchableOpacity onPress={() => onToggle(item.id)} style={styles.primaryAction}>
                 <Text style={styles.primaryText}>{item.status === 'SCANNED' ? 'UNDO SCAN' : 'CHECK IN'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryAction}>
+              <TouchableOpacity onPress={() => onResend?.(item.id)} style={styles.secondaryAction}>
                 <Text style={styles.secondaryText}>{t('REENVIAR', 'RESEND')}</Text>
               </TouchableOpacity>
             </View>
