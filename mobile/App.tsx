@@ -107,7 +107,6 @@ function AppContent() {
     : [
         { key: 'events', label: t('Eventos', 'Events'), icon: 'home', active: tab === 'events', onPress: () => goToTab('events') },
         { key: 'tickets', label: t('Tickets', 'Tickets'), icon: 'ticket', active: tab === 'tickets', onPress: () => goToTab('tickets') },
-        { key: 'scan', label: 'Scan', icon: 'scan', active: tab === 'scan', onPress: () => goToTab('scan') },
         { key: 'social', label: 'Social', icon: 'people', active: tab === 'social', onPress: () => goToTab('social') },
         { key: 'profile', label: t('Perfil', 'Profile'), icon: 'person-circle', active: tab === 'profile', onPress: () => goToTab('profile') },
       ];
