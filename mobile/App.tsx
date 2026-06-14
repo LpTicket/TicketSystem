@@ -158,7 +158,7 @@ function AppContent() {
         ) : tab === 'social' ? (
           isLoggedIn ? <SocialScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'profile' ? (
-          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} /> : <LoginScreen onSignIn={setCurrentUser} />
+          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} canOrganize={canOrganize} viewMode={viewMode} onSetMode={(mode) => setViewMode(mode)} /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'organizer' ? (
           isLoggedIn ? <OrganizerPanelScreen section={organizerSection} onSectionChange={setOrganizerSection} /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'admin' ? (
