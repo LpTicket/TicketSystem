@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { VenueMapEditor } from '../components/organizer/VenueMapEditor';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -9,7 +9,7 @@ import { OrganizerEventsMobile } from '../components/organizer/OrganizerEventsMo
 import { OrganizerAttendeesMobile } from '../components/organizer/OrganizerAttendeesMobile';
 import { OrganizerAccessMobile } from '../components/organizer/OrganizerAccessMobile';
 import { OrganizerRewardsMobile } from '../components/organizer/OrganizerRewardsMobile';
-import { apiGet } from '../services/api';
+import { apiGet, apiPatch, apiPost } from '../services/api';
 
 export type Section = 'dashboard' | 'events' | 'create' | 'details' | 'map' | 'attendees' | 'blocks' | 'rewards' | 'scan';
 
@@ -122,15 +122,13 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
   const [eventTitle, setEventTitle] = useState('Noche de (des)amor');
   const [eventVenue, setEventVenue] = useState('Ambriza');
   const [eventStatus, setEventStatus] = useState<'draft' | 'published'>('published');
-  const [accessItems, setAccessItems] = useState([
-    { id: '1', title: 'Mesa 8', type: 'Reserva', status: 'ACTIVE' },
-    { id: '2', title: 'VIP Familia', type: 'Invitacion', status: 'ACTIVE' },
-    { id: '3', title: 'PRIVATE-21', type: 'Codigo privado', status: 'PAUSED' },
-  ]);
+  const [accessItems, setAccessItems] = useState<{ id: string; title: string; type: string; status: string }[]>([]);
   const [organizerEvents, setOrganizerEvents] = useState<ReturnType<typeof toOrganizerEvent>[]>([]);
   const [organizerStats, setOrganizerStats] = useState<OrganizerStats>({});
   // The event the organizer is currently managing (null = global view).
   const [selectedEvent, setSelectedEvent] = useState<ReturnType<typeof toOrganizerEvent> | null>(null);
+  const [rewardStats, setRewardStats] = useState<{ balance: number; activeCodes: number; totalPaid: number; pending: number } | null>(null);
+  const [rewardStatsLoaded, setRewardStatsLoaded] = useState(false);
 
   // Open a specific event in one of its sections.
   const openEvent = (ev: ReturnType<typeof toOrganizerEvent>, toSection: Section) => {
@@ -196,6 +194,36 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
     };
   }, [selectedEventId]);
 
+  // Load access items (special codes) for the selected event.
+  useEffect(() => {
+    if (!selectedEventId) { setAccessItems([]); return; }
+    apiGet<any[]>(`/special-codes/by-event/${selectedEventId}`)
+      .then((data) => {
+        const items = (Array.isArray(data) ? data : []).map((code: any) => ({
+          id: String(code.id),
+          title: code.code,
+          type: code.type || 'Codigo especial',
+          status: code.isActive ? 'ACTIVE' : 'PAUSED',
+        }));
+        setAccessItems(items);
+      })
+      .catch(() => {});
+  }, [selectedEventId]);
+
+  // Lazy load reward stats when visiting the rewards section.
+  useEffect(() => {
+    if (active !== 'rewards' || rewardStatsLoaded) return;
+    setRewardStatsLoaded(true);
+    apiGet<any[]>('/special-codes/my-payouts')
+      .then((data) => {
+        const payouts = Array.isArray(data) ? data : [];
+        const balance = payouts.reduce((s: number, p: any) => s + Number(p.balance || 0), 0);
+        const totalPaid = payouts.reduce((s: number, p: any) => s + Number(p.totalPaid || 0), 0);
+        setRewardStats({ balance, activeCodes: payouts.length, totalPaid, pending: balance });
+      })
+      .catch(() => {});
+  }, [active, rewardStatsLoaded]);
+
   // Leaving an event section (e.g. via the bottom bar) returns to the global view.
   useEffect(() => {
     if (!isEventSection(active) && selectedEvent) setSelectedEvent(null);
@@ -243,6 +271,26 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
       }),
     ]).start();
   }, [active, activeSectionIndex, organizerIndicatorWidth, organizerIndicatorX, tabLayouts]);
+
+  const handleTogglePublish = async (event: ReturnType<typeof toOrganizerEvent>) => {
+    const newStatus: 'draft' | 'published' = event.status === 'published' ? 'draft' : 'published';
+    try {
+      if (newStatus === 'published') {
+        await apiPost(`/events/${event.id}/publish`, {});
+      } else {
+        await apiPatch(`/events/${event.id}`, { status: 'draft' });
+      }
+      setOrganizerEvents((prev) => prev.map((e) => e.id === event.id ? { ...e, status: newStatus } : e));
+      if (selectedEvent?.id === event.id) setEventStatus(newStatus);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Could not change event status');
+    }
+  };
+
+  const handleEventCreated = (newEventData: any) => {
+    const newEvent = toOrganizerEvent(newEventData, organizerEvents.length);
+    setOrganizerEvents((prev) => [newEvent, ...prev]);
+  };
 
   const toggleAccessItem = (id: string) => {
     setAccessItems((current) => current.map((item) => item.id === id ? { ...item, status: item.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE' } : item));
@@ -349,6 +397,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             setEventStatus={setEventStatus}
             goTo={setActive}
             onOpen={(ev, toSection) => openEvent(ev, toSection)}
+            onTogglePublish={handleTogglePublish}
           />
         )}
 
@@ -361,6 +410,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             eventStatus={eventStatus}
             setEventStatus={setEventStatus}
             goTo={setActive}
+            onEventCreated={handleEventCreated}
           />
         )}
 
@@ -373,6 +423,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             eventStatus={eventStatus}
             setEventStatus={setEventStatus}
             goTo={setActive}
+            selectedEventId={selectedEvent?.id}
           />
         )}
 
@@ -396,7 +447,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
         )}
 
         {active === 'rewards' && (
-          <OrganizerRewardsMobile goTo={setActive} />
+          <OrganizerRewardsMobile goTo={setActive} stats={rewardStats ?? undefined} />
         )}
 
       </ScrollView>

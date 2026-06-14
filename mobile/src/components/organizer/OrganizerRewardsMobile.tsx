@@ -2,20 +2,28 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 
-type Props = {
-  goTo: (section: 'attendees' | 'events' | 'details') => void;
+type RewardStats = {
+  balance?: number;
+  activeCodes?: number;
+  totalPaid?: number;
+  pending?: number;
 };
 
-export function OrganizerRewardsMobile({ goTo }: Props) {
+type Props = {
+  goTo: (section: 'attendees' | 'events' | 'details') => void;
+  stats?: RewardStats;
+};
+
+export function OrganizerRewardsMobile({ goTo, stats }: Props) {
   const { t } = useLanguage();
 
   return (
     <View>
       <View style={styles.metricsGrid}>
-        <Metric label={t('Balance actual', 'Current balance')} value="$320.00" />
-        <Metric label={t('Codigos activos', 'Active codes')} value="2" />
-        <Metric label={t('Pagado historico', 'Total paid')} value="$540.00" />
-        <Metric label={t('Pendiente', 'Pending')} value="$120.00" />
+        <Metric label={t('Balance actual', 'Current balance')} value={stats?.balance != null ? `$${Number(stats.balance).toFixed(2)}` : '$0.00'} />
+        <Metric label={t('Codigos activos', 'Active codes')} value={String(stats?.activeCodes ?? 0)} />
+        <Metric label={t('Pagado historico', 'Total paid')} value={stats?.totalPaid != null ? `$${Number(stats.totalPaid).toFixed(2)}` : '$0.00'} />
+        <Metric label={t('Pendiente', 'Pending')} value={stats?.pending != null ? `$${Number(stats.pending).toFixed(2)}` : '$0.00'} />
       </View>
 
       <View style={styles.panel}>
@@ -31,21 +39,21 @@ export function OrganizerRewardsMobile({ goTo }: Props) {
         <RewardCard
           title={t('Balance disponible', 'Available balance')}
           copy={t('Ingreso estimado listo para conciliacion y pagos.', 'Estimated revenue ready for reconciliation and payouts.')}
-          value="$320.00"
+          value={stats?.balance != null ? `$${Number(stats.balance).toFixed(2)}` : '$0.00'}
           tone="orange"
         />
 
         <RewardCard
           title={t('Codigos especiales', 'Special codes')}
           copy={t('Codigos de descuento, acceso privado o recompensas.', 'Discount, private access or reward codes.')}
-          value="2"
+          value={String(stats?.activeCodes ?? 0)}
           tone="navy"
         />
 
         <RewardCard
           title={t('Historial de pagos', 'Payout history')}
           copy={t('Resumen de pagos realizados al organizador.', 'Summary of payouts sent to the organizer.')}
-          value="$540.00"
+          value={stats?.totalPaid != null ? `$${Number(stats.totalPaid).toFixed(2)}` : '$0.00'}
           tone="green"
         />
 

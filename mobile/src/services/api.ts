@@ -92,7 +92,8 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
     throw new Error(message);
   }
 
-  return response.json() as Promise<T>;
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {

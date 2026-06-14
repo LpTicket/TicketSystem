@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { apiPatch, apiPost } from '../../services/api';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 
@@ -13,6 +14,8 @@ type SharedProps = {
   eventStatus: EventStatus;
   setEventStatus: (value: EventStatus) => void;
   goTo: (section: 'events' | 'create' | 'details' | 'map' | 'attendees') => void;
+  selectedEventId?: string;
+  onEventCreated?: (event: any) => void;
 };
 
 type DashboardMetrics = { revenue: string; ticketsSold: string; activeEvents: string; orders: string };
@@ -75,7 +78,7 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
   );
 }
 
-export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVenue, setEventVenue, goTo }: SharedProps) {
+export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVenue, setEventVenue, goTo, onEventCreated }: SharedProps) {
   const { t } = useLanguage();
   const [description, setDescription] = useState('Drink, sing, dance. Evento privado con compra segura y acceso digital.');
   const [category, setCategory] = useState('Private Event');
@@ -84,6 +87,30 @@ export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVen
   const [eventTime, setEventTime] = useState('19:00');
   const [timezone, setTimezone] = useState('America/Chicago');
   const [maxTickets, setMaxTickets] = useState('8');
+  const [saving, setSaving] = useState(false);
+
+  const saveDraft = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const result = await apiPost<any>('/events', {
+        title: eventTitle,
+        description,
+        category,
+        eventDate: `${eventDate}T${eventTime}:00`,
+        timezone: timezone || 'America/Chicago',
+        venueName: eventVenue,
+        venueAddress: address,
+        maxTicketsPerPerson: Number(maxTickets) || 1,
+      });
+      onEventCreated?.(result);
+      goTo('events');
+    } catch (err: any) {
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo crear el evento', 'Could not create event'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <View>
@@ -112,7 +139,7 @@ export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVen
         </View>
 
         <View style={styles.actionGrid}>
-          <PremiumButton label={t('GUARDAR BORRADOR', 'SAVE DRAFT')} onPress={() => goTo('events')} />
+          <PremiumButton label={saving ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR BORRADOR', 'SAVE DRAFT')} onPress={saveDraft} />
           <PremiumButton label={t('CONTINUAR A MAPA', 'CONTINUE TO MAP')} onPress={() => goTo('map')} muted />
         </View>
       </View>
@@ -120,7 +147,7 @@ export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVen
   );
 }
 
-export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, setEventVenue, eventStatus, setEventStatus, goTo }: SharedProps) {
+export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, setEventVenue, eventStatus, setEventStatus, goTo, selectedEventId }: SharedProps) {
   const { t } = useLanguage();
   const [description, setDescription] = useState('Evento privado con musica, cena, tickets digitales y acceso con QR.');
   const [category, setCategory] = useState('Private Event');
@@ -129,6 +156,45 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
   const [eventTime, setEventTime] = useState('19:00');
   const [timezone, setTimezone] = useState('America/Chicago');
   const [maxTickets, setMaxTickets] = useState('8');
+  const [saving, setSaving] = useState(false);
+
+  const saveEvent = async () => {
+    if (saving || !selectedEventId) return;
+    setSaving(true);
+    try {
+      await apiPatch(`/events/${selectedEventId}`, {
+        title: eventTitle,
+        description,
+        category,
+        eventDate: `${eventDate}T${eventTime}:00`,
+        timezone: timezone || 'America/Chicago',
+        venueName: eventVenue,
+        venueAddress: address,
+        maxTicketsPerPerson: Number(maxTickets) || 1,
+      });
+      goTo('events');
+    } catch (err: any) {
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo guardar el evento', 'Could not save event'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const changeStatus = async (newStatus: EventStatus) => {
+    const prevStatus = eventStatus;
+    setEventStatus(newStatus);
+    if (!selectedEventId) return;
+    try {
+      if (newStatus === 'published') {
+        await apiPost(`/events/${selectedEventId}/publish`, {});
+      } else {
+        await apiPatch(`/events/${selectedEventId}`, { status: 'draft' });
+      }
+    } catch (err: any) {
+      setEventStatus(prevStatus);
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo cambiar el estado', 'Could not change status'));
+    }
+  };
 
   return (
     <View>
@@ -157,10 +223,10 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
 
         <Text style={styles.fieldLabel}>{t('Estado', 'Status')}</Text>
         <View style={styles.segmentGroup}>
-          <TouchableOpacity onPress={() => setEventStatus('published')} style={[styles.segment, eventStatus === 'published' && styles.segmentActive]}>
+          <TouchableOpacity onPress={() => changeStatus('published')} style={[styles.segment, eventStatus === 'published' && styles.segmentActive]}>
             <Text style={[styles.segmentText, eventStatus === 'published' && styles.segmentTextActive]}>{t('Publicado', 'Published')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setEventStatus('draft')} style={[styles.segment, eventStatus === 'draft' && styles.segmentActive]}>
+          <TouchableOpacity onPress={() => changeStatus('draft')} style={[styles.segment, eventStatus === 'draft' && styles.segmentActive]}>
             <Text style={[styles.segmentText, eventStatus === 'draft' && styles.segmentTextActive]}>{t('Borrador', 'Draft')}</Text>
           </TouchableOpacity>
         </View>
@@ -176,7 +242,7 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
       </View>
 
       <View style={styles.actionGrid}>
-        <PremiumButton label={t('GUARDAR EVENTO', 'SAVE EVENT')} onPress={() => goTo('events')} />
+        <PremiumButton label={saving ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR EVENTO', 'SAVE EVENT')} onPress={saveEvent} />
         <PremiumButton label={t('EDITAR MAPA', 'EDIT MAP')} onPress={() => goTo('map')} muted />
       </View>
     </View>

@@ -13,6 +13,7 @@ type Props = {
   setEventStatus: (value: EventStatus) => void;
   goTo: (section: 'dashboard' | 'create' | 'details' | 'map' | 'attendees' | 'blocks') => void;
   onOpen?: (event: OrganizerEventItem, section: EventSection) => void;
+  onTogglePublish?: (event: OrganizerEventItem) => void;
 };
 
 type OrganizerEventItem = {
@@ -55,7 +56,7 @@ const demoEvents: OrganizerEventItem[] = [
   },
 ];
 
-export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, events, setEventStatus, goTo, onOpen }: Props) {
+export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, events, setEventStatus, goTo, onOpen, onTogglePublish }: Props) {
   const { t } = useLanguage();
   const sourceEvents = events?.length ? events : demoEvents;
   const visibleEvents = sourceEvents.map((item) =>
@@ -116,14 +117,12 @@ export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, eve
             <Action label={t('BLOQUEOS', 'ACCESS')} muted onPress={() => (onOpen ? onOpen(item, 'blocks') : goTo('blocks'))} />
           </View>
 
-          {item.id === '1' && (
-            <TouchableOpacity
-              style={styles.publishButton}
-              onPress={() => setEventStatus(item.status === 'published' ? 'draft' : 'published')}
-            >
-              <Text style={styles.publishText}>{item.status === 'published' ? 'MOVE TO DRAFT' : 'PUBLISH EVENT'}</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.publishButton}
+            onPress={() => onTogglePublish ? onTogglePublish(item) : setEventStatus(item.status === 'published' ? 'draft' : 'published')}
+          >
+            <Text style={styles.publishText}>{item.status === 'published' ? 'MOVE TO DRAFT' : 'PUBLISH EVENT'}</Text>
+          </TouchableOpacity>
         </View>
       ))}
     </View>
