@@ -101,16 +101,10 @@ function toOrganizerEvent(event: OrganizerApiEvent, index: number) {
   };
 }
 
-const sections: Section[] = [
-  'dashboard',
-  'events',
-  'create',
-  'details',
-  'map',
-  'attendees',
-  'blocks',
-  'rewards',
-];
+// Global sections (always available) vs event sections (only after picking an event).
+const GLOBAL_SECTIONS: Section[] = ['dashboard', 'events', 'create'];
+const EVENT_SECTIONS: Section[] = ['details', 'map', 'attendees', 'blocks', 'rewards'];
+const isEventSection = (s: Section) => EVENT_SECTIONS.includes(s);
 
 type PanelProps = { section?: Section; onSectionChange?: (s: Section) => void };
 
@@ -135,6 +129,24 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
   ]);
   const [organizerEvents, setOrganizerEvents] = useState<ReturnType<typeof toOrganizerEvent>[]>([]);
   const [organizerStats, setOrganizerStats] = useState<OrganizerStats>({});
+  // The event the organizer is currently managing (null = global view).
+  const [selectedEvent, setSelectedEvent] = useState<ReturnType<typeof toOrganizerEvent> | null>(null);
+
+  // Open a specific event in one of its sections.
+  const openEvent = (ev: ReturnType<typeof toOrganizerEvent>, toSection: Section) => {
+    setSelectedEvent(ev);
+    setEventTitle(ev.title);
+    setEventVenue(ev.venue);
+    setEventStatus(ev.status);
+    setActive(toSection);
+  };
+
+  const backToEvents = () => {
+    setSelectedEvent(null);
+    setActive('events');
+  };
+
+  const visibleSections = selectedEvent ? EVENT_SECTIONS : GLOBAL_SECTIONS;
 
   useEffect(() => {
     let mounted = true;
@@ -167,13 +179,13 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
 
   const [attendees, setAttendees] = useState<MobileAttendee[]>([]);
 
-  const firstEventId = organizerEvents[0]?.id;
-
+  // Load attendees for the event currently being managed.
+  const selectedEventId = selectedEvent?.id;
   useEffect(() => {
-    if (!firstEventId) return;
+    if (!selectedEventId) { setAttendees([]); return; }
     let mounted = true;
 
-    apiGet<any>(`/orders/event/${firstEventId}/attendees`)
+    apiGet<any>(`/orders/event/${selectedEventId}/attendees`)
       .then((data) => {
         if (mounted) setAttendees(listFrom(data).map(toAttendee));
       })
@@ -182,7 +194,13 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
     return () => {
       mounted = false;
     };
-  }, [firstEventId]);
+  }, [selectedEventId]);
+
+  // Leaving an event section (e.g. via the bottom bar) returns to the global view.
+  useEffect(() => {
+    if (!isEventSection(active) && selectedEvent) setSelectedEvent(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
 
   const firstEvent = organizerEvents[0];
   const activeEvents = organizerEvents.filter((e) => e.status === 'published').length;
@@ -198,7 +216,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
     orders: String(organizerStats.totalOrders ?? 0),
   };
 
-  const activeSectionIndex = Math.max(0, sections.indexOf(active));
+  const activeSectionIndex = Math.max(0, visibleSections.indexOf(active));
   const showLeftFade = tabsScrollX > 8;
   const showRightFade = tabsViewportWidth > 0 && tabsContentWidth > tabsViewportWidth && tabsScrollX + tabsViewportWidth < tabsContentWidth - 8;
 
@@ -257,7 +275,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
                 },
               ]}
             />
-            {sections.map((item) => (
+            {visibleSections.map((item) => (
               <OrganizerTab
                 key={item}
                 label={sectionLabel(item, t)}
@@ -290,14 +308,20 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
 
         </View>
         <View pointerEvents="none" style={styles.tabsDots}>
-          {sections.map((item) => (
+          {visibleSections.map((item) => (
             <View key={item} style={[styles.tabsDot, active === item && styles.tabsDotActive]} />
           ))}
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <Text style={styles.eyebrow}>{t('ORGANIZADOR', 'ORGANIZER')}</Text>
+        {selectedEvent ? (
+          <TouchableOpacity style={styles.eventBackChip} onPress={backToEvents}>
+            <Text style={styles.eventBackArrow}>‹</Text>
+            <Text style={styles.eventBackText} numberOfLines={1}>{selectedEvent.title}</Text>
+          </TouchableOpacity>
+        ) : null}
+        <Text style={styles.eyebrow}>{selectedEvent ? t('EVENTO', 'EVENT') : t('ORGANIZADOR', 'ORGANIZER')}</Text>
         <Text style={styles.title}>{titleFor(active, t)}</Text>
         <Text style={styles.subtitle}>{subtitleFor(active, t)}</Text>
 
@@ -321,6 +345,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             events={organizerEvents}
             setEventStatus={setEventStatus}
             goTo={setActive}
+            onOpen={(ev, toSection) => openEvent(ev, toSection)}
           />
         )}
 
@@ -577,6 +602,13 @@ const styles = StyleSheet.create({
   tabsDot: { width: 4, height: 4, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.24)' },
   tabsDotActive: { width: 14, backgroundColor: 'rgba(249,115,22,0.72)' },
   content: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 140 },
+  eventBackChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+    paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, marginBottom: 12,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  eventBackArrow: { color: colors.orange, fontSize: 18, fontWeight: '900', marginTop: -2 },
+  eventBackText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800', maxWidth: 240 },
   eyebrow: { color: colors.orange, fontSize: 13, letterSpacing: 0, fontWeight: '700', marginBottom: 8 },
   title: { color: '#F8FAFC', fontSize: 32, fontWeight: '700', marginBottom: 8 },
   subtitle: { color: '#CBD5E1', fontSize: 16, lineHeight: 23, fontWeight: '400', marginBottom: 18 },

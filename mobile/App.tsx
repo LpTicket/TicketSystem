@@ -100,7 +100,7 @@ function AppContent() {
     ? [
         { key: 'panel', label: t('Panel', 'Panel'), icon: 'grid', active: tab === 'organizer' && organizerSection === 'dashboard', onPress: () => goOrganizerSection('dashboard') },
         { key: 'oevents', label: t('Eventos', 'Events'), icon: 'calendar', active: tab === 'organizer' && organizerSection === 'events', onPress: () => goOrganizerSection('events') },
-        { key: 'attendees', label: t('Asistentes', 'Attendees'), icon: 'people', active: tab === 'organizer' && organizerSection === 'attendees', onPress: () => goOrganizerSection('attendees') },
+        { key: 'ocreate', label: t('Crear', 'Create'), icon: 'add-circle', active: tab === 'organizer' && organizerSection === 'create', onPress: () => goOrganizerSection('create') },
         { key: 'oscan', label: 'Scan', icon: 'scan', active: tab === 'scan', onPress: () => goToTab('scan') },
         { key: 'oprofile', label: t('Perfil', 'Profile'), icon: 'person-circle', active: tab === 'profile', onPress: () => goToTab('profile') },
       ]

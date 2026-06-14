@@ -4,6 +4,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 
 type EventStatus = 'draft' | 'published';
 
+type EventSection = 'details' | 'map' | 'attendees' | 'blocks';
 type Props = {
   eventTitle: string;
   eventVenue: string;
@@ -11,6 +12,7 @@ type Props = {
   events?: OrganizerEventItem[];
   setEventStatus: (value: EventStatus) => void;
   goTo: (section: 'dashboard' | 'create' | 'details' | 'map' | 'attendees' | 'blocks') => void;
+  onOpen?: (event: OrganizerEventItem, section: EventSection) => void;
 };
 
 type OrganizerEventItem = {
@@ -53,7 +55,7 @@ const demoEvents: OrganizerEventItem[] = [
   },
 ];
 
-export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, events, setEventStatus, goTo }: Props) {
+export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, events, setEventStatus, goTo, onOpen }: Props) {
   const { t } = useLanguage();
   const sourceEvents = events?.length ? events : demoEvents;
   const visibleEvents = sourceEvents.map((item) =>
@@ -78,7 +80,7 @@ export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, eve
 
       {visibleEvents.map((item) => (
         <View key={item.id} style={styles.eventCard}>
-          <View style={styles.cardTop}>
+          <TouchableOpacity activeOpacity={0.85} onPress={() => (onOpen ? onOpen(item, 'details') : goTo('details'))} style={styles.cardTop}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{item.title.slice(0, 2).toUpperCase()}</Text>
             </View>
@@ -95,7 +97,7 @@ export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, eve
               <Text style={styles.eventMeta}>{item.date} · {item.time}</Text>
               <Text style={styles.eventMeta}>{item.venue}</Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
           <View style={styles.statsRow}>
             <MiniStat label={t('Vendidos', 'Sold')} value={String(item.sold)} />
@@ -108,10 +110,10 @@ export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, eve
           </View>
 
           <View style={styles.actions}>
-            <Action label={t('EDITAR', 'EDIT')} onPress={() => goTo('details')} />
-            <Action label={t('MAPA', 'MAP')} muted onPress={() => goTo('map')} />
-            <Action label={t('VENTAS', 'SALES')} muted onPress={() => goTo('attendees')} />
-            <Action label={t('BLOQUEOS', 'ACCESS')} muted onPress={() => goTo('blocks')} />
+            <Action label={t('EDITAR', 'EDIT')} onPress={() => (onOpen ? onOpen(item, 'details') : goTo('details'))} />
+            <Action label={t('MAPA', 'MAP')} muted onPress={() => (onOpen ? onOpen(item, 'map') : goTo('map'))} />
+            <Action label={t('VENTAS', 'SALES')} muted onPress={() => (onOpen ? onOpen(item, 'attendees') : goTo('attendees'))} />
+            <Action label={t('BLOQUEOS', 'ACCESS')} muted onPress={() => (onOpen ? onOpen(item, 'blocks') : goTo('blocks'))} />
           </View>
 
           {item.id === '1' && (
