@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Animated, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from './src/components/AppHeader';
@@ -21,18 +21,29 @@ import { PaymentSuccessScreen } from './src/screens/PaymentSuccessScreen';
 import { ContactScreen } from './src/screens/ContactScreen';
 import { AboutScreen } from './src/screens/AboutScreen';
 import { SupportScreen } from './src/screens/SupportScreen';
+import { AiChatScreen } from './src/screens/AiChatScreen';
 import { LanguageProvider, useLanguage } from './src/i18n/LanguageContext';
 import { colors } from './src/theme/colors';
 import { MobileEvent } from './src/types/event';
 import { AuthUser } from './src/services/api';
 import { logout as logoutRequest, restoreSession } from './src/services/auth';
 
-type Tab = 'events' | 'tickets' | 'scan' | 'social' | 'profile' | 'organizer' | 'admin' | 'contact' | 'about' | 'support';
+type Tab = 'events' | 'tickets' | 'scan' | 'social' | 'profile' | 'organizer' | 'admin' | 'contact' | 'about' | 'support' | 'aichat';
 
 function AppContent() {
   const { t } = useLanguage();
   const { width } = useWindowDimensions();
   const navIndicatorX = useRef(new Animated.Value(0)).current;
+  const adminTabScrollRef = useRef<ScrollView>(null);
+  const adminTabScrollX = useRef(0);
+  const [adminAtStart, setAdminAtStart] = useState(true);
+  const [adminAtEnd, setAdminAtEnd] = useState(false);
+  // Each item is 1/4 of visible area → 4 items fit at once.
+  // Order: [cat, marketing] | [dashboard, events, users, profile] | [analytics, codes, payments]
+  // Arrows let user scroll left/right to reveal off-screen sections.
+  const ARROW_W = 28;
+  const ADMIN_ITEM_W = Math.floor((width - ARROW_W * 2) / 4);
+  const ADMIN_PAGE = ADMIN_ITEM_W * 2; // scroll 2 items at a time
   const [tab, setTab] = useState<Tab>('events');
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -107,11 +118,18 @@ function AppContent() {
   // Bottom tab bar swaps with the mode: client / organizer / admin tools.
   const navItems = viewMode === 'admin'
     ? [
-        { key: 'adash', label: t('Panel', 'Dashboard'), icon: 'grid', active: tab === 'admin' && adminSection === 'dashboard', onPress: () => goAdminSection('dashboard') },
-        { key: 'aevents', label: t('Eventos', 'Events'), icon: 'calendar', active: tab === 'admin' && adminSection === 'events', onPress: () => goAdminSection('events') },
-        { key: 'ausers', label: t('Usuarios', 'Users'), icon: 'people', active: tab === 'admin' && adminSection === 'users', onPress: () => goAdminSection('users') },
-        { key: 'aanalytics', label: t('Analíticas', 'Analytics'), icon: 'stats-chart', active: tab === 'admin' && adminSection === 'analytics', onPress: () => goAdminSection('analytics') },
-        { key: 'aprofile', label: t('Perfil', 'Profile'), icon: 'person-circle', active: tab === 'profile', onPress: () => goToTab('profile') },
+        // 2 extras LEFT
+        { key: 'acategories', label: t('Categ.', 'Categories'),    icon: 'pricetag',      active: tab === 'admin' && adminSection === 'categories', onPress: () => goAdminSection('categories') },
+        { key: 'amarketing',  label: 'Marketing',                  icon: 'megaphone',     active: tab === 'admin' && adminSection === 'marketing',  onPress: () => goAdminSection('marketing') },
+        // 4 PRINCIPALES
+        { key: 'adash',       label: t('Dashboard', 'Dashboard'),  icon: 'grid',          active: tab === 'admin' && adminSection === 'dashboard',  onPress: () => goAdminSection('dashboard') },
+        { key: 'aevents',     label: t('Eventos', 'Events'),       icon: 'calendar',      active: tab === 'admin' && adminSection === 'events',     onPress: () => goAdminSection('events') },
+        { key: 'ausers',      label: t('Usuarios', 'Users'),       icon: 'people',        active: tab === 'admin' && adminSection === 'users',      onPress: () => goAdminSection('users') },
+        { key: 'aprofile',    label: t('Perfil', 'Profile'),       icon: 'person-circle', active: tab === 'profile',                                 onPress: () => goToTab('profile') },
+        // 3 extras RIGHT
+        { key: 'aanalytics',  label: t('Analíticas', 'Analytics'), icon: 'stats-chart',   active: tab === 'admin' && adminSection === 'analytics',  onPress: () => goAdminSection('analytics') },
+        { key: 'acodes',      label: t('Códigos', 'Codes'),        icon: 'key',           active: tab === 'admin' && adminSection === 'codes',      onPress: () => goAdminSection('codes') },
+        { key: 'apayments',   label: t('Pagos', 'Payments'),       icon: 'card',          active: tab === 'admin' && adminSection === 'payments',   onPress: () => goAdminSection('payments') },
       ]
     : viewMode === 'organizer'
     ? [
@@ -122,10 +140,11 @@ function AppContent() {
         { key: 'oprofile', label: t('Perfil', 'Profile'), icon: 'person-circle', active: tab === 'profile', onPress: () => goToTab('profile') },
       ]
     : [
-        { key: 'events', label: t('Eventos', 'Events'), icon: 'home', active: tab === 'events', onPress: () => goToTab('events') },
-        { key: 'tickets', label: t('Tickets', 'Tickets'), icon: 'ticket', active: tab === 'tickets', onPress: () => goToTab('tickets') },
-        { key: 'social', label: 'Social', icon: 'people', active: tab === 'social', onPress: () => goToTab('social') },
-        { key: 'profile', label: t('Perfil', 'Profile'), icon: 'person-circle', active: tab === 'profile', onPress: () => goToTab('profile') },
+        { key: 'events',  label: t('Eventos', 'Events'),   icon: 'home',                   active: tab === 'events',  onPress: () => goToTab('events') },
+        { key: 'tickets', label: t('Tickets', 'Tickets'),  icon: 'ticket',                 active: tab === 'tickets', onPress: () => goToTab('tickets') },
+        { key: 'social',  label: 'Social',                 icon: 'people',                 active: tab === 'social',  onPress: () => goToTab('social') },
+        { key: 'ai',      label: t('Asistente', 'AI Chat'),icon: 'chatbubble-ellipses',    active: tab === 'aichat',  onPress: () => goToTab('aichat') },
+        { key: 'profile', label: t('Perfil', 'Profile'),   icon: 'person-circle',          active: tab === 'profile', onPress: () => goToTab('profile') },
       ];
   const activeBottomIndex = Math.max(0, navItems.findIndex((i) => i.active));
   const navItemWidth = (width - navPadding * 2) / navItems.length;
@@ -139,6 +158,31 @@ function AppContent() {
       mass: 0.7,
     }).start();
   }, [activeBottomIndex, navIndicatorX, navItemWidth]);
+
+  // Snap admin tab bar to the correct group when section changes
+  // Order: categories(0) marketing(1) | dashboard(2) events(3) users(4) profile(5) | analytics(6) codes(7) payments(8)
+  useEffect(() => {
+    if (viewMode !== 'admin') return;
+    const adminNavOrder = [
+      'categories', 'marketing', 'dashboard', 'events', 'users', 'profile', 'analytics', 'codes', 'payments',
+    ];
+    const activeKey = tab === 'profile' ? 'profile' : adminSection;
+    const idx = adminNavOrder.indexOf(activeKey);
+    if (idx < 0) return;
+    // Snap to group: left extras → 0, principals → 2*ITEM_W, right extras → 5*ITEM_W
+    let targetX: number;
+    if (idx <= 1) {
+      targetX = 0;                       // show left extras
+    } else if (idx <= 5) {
+      targetX = 2 * ADMIN_ITEM_W;        // show the 4 principals group
+    } else {
+      targetX = 5 * ADMIN_ITEM_W;        // show right extras (analytics, codes, payments)
+    }
+    const timer = setTimeout(() => {
+      adminTabScrollRef.current?.scrollTo({ x: targetX, animated: true });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [adminSection, tab, viewMode, ADMIN_ITEM_W]);
 
   return (
     <View style={styles.root}>
@@ -185,21 +229,86 @@ function AppContent() {
           <AboutScreen onBack={() => goToTab('events')} onContact={() => goToTab('contact')} />
         ) : tab === 'support' ? (
           <SupportScreen onContact={() => goToTab('contact')} onBack={() => goToTab('events')} />
+        ) : tab === 'aichat' ? (
+          <AiChatScreen />
         ) : null}
 
         {!scanOpen && !purchaseOpen && !checkoutInfoOpen && !orderSummaryOpen && !paymentSuccessOpen && !loginAfterPurchase && (
           <View style={styles.bottomNav}>
-            <Animated.View style={[styles.navSlidingLine, { transform: [{ translateX: navIndicatorX }] }]} />
-            {navItems.map((item) => (
-              <TouchableOpacity key={item.key} onPress={item.onPress} style={styles.navItem}>
-                <Ionicons
-                  name={(item.active ? item.icon : `${item.icon}-outline`) as any}
-                  size={item.key === 'events' ? 18 : 17}
-                  color={item.active ? colors.orange : 'rgba(226,232,240,0.50)'}
-                />
-                <Text style={[styles.navText, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
+            {viewMode === 'admin' ? (
+              // Scrollable tab bar for admin with arrow buttons
+              <>
+                {/* Left arrow — disabled at leftmost position */}
+                <TouchableOpacity
+                  style={[styles.navArrow, adminAtStart && styles.navArrowDisabled]}
+                  disabled={adminAtStart}
+                  onPress={() => {
+                    const next = Math.max(0, adminTabScrollX.current - ADMIN_PAGE);
+                    adminTabScrollRef.current?.scrollTo({ x: next, animated: true });
+                  }}
+                >
+                  <Ionicons name="chevron-back" size={16} color={adminAtStart ? 'rgba(249,115,22,0.20)' : 'rgba(249,115,22,0.70)'} />
+                </TouchableOpacity>
+
+                <ScrollView
+                  ref={adminTabScrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.navScrollContent}
+                  snapToInterval={ADMIN_ITEM_W}
+                  snapToAlignment="start"
+                  decelerationRate="fast"
+                  disableIntervalMomentum
+                  onScroll={(e) => {
+                    const x = e.nativeEvent.contentOffset.x;
+                    const maxX = 5 * ADMIN_ITEM_W; // 9 items - 4 visible = 5 item widths
+                    adminTabScrollX.current = x;
+                    setAdminAtStart(x <= 4);
+                    setAdminAtEnd(x >= maxX - 2);
+                  }}
+                  scrollEventThrottle={16}
+                >
+                  {navItems.map((item) => (
+                    <TouchableOpacity key={item.key} onPress={item.onPress} style={[styles.navItemFixed, { width: ADMIN_ITEM_W }]}>
+                      {item.active && <View style={styles.navFixedActiveLine} />}
+                      <Ionicons
+                        name={(item.active ? item.icon : `${item.icon}-outline`) as any}
+                        size={17}
+                        color={item.active ? colors.orange : 'rgba(226,232,240,0.45)'}
+                      />
+                      <Text style={[styles.navText, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {/* Right arrow — disabled at rightmost position */}
+                <TouchableOpacity
+                  style={[styles.navArrow, adminAtEnd && styles.navArrowDisabled]}
+                  disabled={adminAtEnd}
+                  onPress={() => {
+                    const next = adminTabScrollX.current + ADMIN_PAGE;
+                    adminTabScrollRef.current?.scrollTo({ x: next, animated: true });
+                  }}
+                >
+                  <Ionicons name="chevron-forward" size={16} color={adminAtEnd ? 'rgba(249,115,22,0.20)' : 'rgba(249,115,22,0.70)'} />
+                </TouchableOpacity>
+              </>
+            ) : (
+              // Fixed tab bar for client / organizer
+              <>
+                <Animated.View style={[styles.navSlidingLine, { transform: [{ translateX: navIndicatorX }] }]} />
+                {navItems.map((item) => (
+                  <TouchableOpacity key={item.key} onPress={item.onPress} style={styles.navItem}>
+                    <Ionicons
+                      name={(item.active ? item.icon : `${item.icon}-outline`) as any}
+                      size={item.key === 'events' ? 18 : 17}
+                      color={item.active ? colors.orange : 'rgba(226,232,240,0.50)'}
+                    />
+                    <Text style={[styles.navText, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
           </View>
         )}
 
@@ -212,17 +321,22 @@ function AppContent() {
           onGoOrganizer={() => { setViewMode('organizer'); goToTab('organizer'); }}
           onGoAdmin={() => goToTab('admin')}
           onGoScan={() => { clearFlow(); setScanOpen(true); }}
-          onGoAiChat={() => goToTab('support')}
+          onGoAiChat={() => goToTab('aichat')}
           onGoSocialMatch={() => goToTab('social')}
           onGoCart={() => goToTab('tickets')}
           onGoContact={() => goToTab('contact')}
           onGoAbout={() => goToTab('about')}
           onGoSupport={() => goToTab('support')}
           onLogout={handleLogout}
+          isLoggedIn={isLoggedIn}
           canOrganize={canOrganize}
           canAdmin={canAdmin}
           viewMode={viewMode}
           onSetMode={setMode}
+          adminSection={adminSection}
+          onGoAdminSection={(s) => { goAdminSection(s); }}
+          orgSection={organizerSection as any}
+          onGoOrgSection={(s) => { goOrganizerSection(s as any); }}
         />
         </View>
       </SafeAreaView>
@@ -350,6 +464,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
     position: 'relative',
+  },
+  navScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    gap: 0,
+  },
+  navItemFixed: {
+    // width is set inline as (screenWidth - arrows) / 5
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    position: 'relative',
+  },
+  navFixedActiveLine: {
+    position: 'absolute',
+    top: 0,
+    width: 22,
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: colors.orange,
+    shadowColor: colors.orange,
+    shadowOpacity: 0.7,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  navArrow: {
+    width: 28,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  navArrowDisabled: {
+    opacity: 0.4,
   },
   navSlidingLine: {
     position: 'absolute',

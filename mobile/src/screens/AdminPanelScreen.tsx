@@ -1,12 +1,47 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
-import { apiGet } from '../services/api';
+import { apiDelete, apiGet, apiPatch, apiPost } from '../services/api';
 
 export type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
 type AdminUser = { id: string; name: string; email: string; role: 'client' | 'organizer' | 'admin'; suspended: boolean };
 type Category = { id: string; name: string; active: boolean; featured: boolean };
+
+type AnalyticsSummary = {
+  days: number;
+  totalViews: number;
+  uniqueVisitors: number;
+  topEvents: { eventSlug: string; views: number; visitors: number }[];
+  daily: { date: string; views: number; visitors: number }[];
+};
+
+type ApiSpecialCode = {
+  id: string;
+  code: string;
+  ownerUserId: string;
+  owner?: { firstName?: string; lastName?: string; email?: string };
+  commissionFixed: number;
+  isActive: boolean;
+};
+
+type CommissionEntry = {
+  ownerUserId: string;
+  ownerName?: string;
+  totalEarned: number;
+  totalPaid: number;
+  balance: number;
+};
+
+type AdminOrder = {
+  id: string;
+  createdAt?: string;
+  totalAmount?: number;
+  paidAt?: string;
+  status?: string;
+  event?: { title?: string };
+  user?: { firstName?: string; lastName?: string; email?: string };
+};
 
 
 type AdminStats = {
@@ -68,29 +103,36 @@ const sections: { id: Section; label: string }[] = [
 
 type AdminProps = { section?: Section; onSectionChange?: (s: Section) => void };
 
-export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) {
+export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }: AdminProps = {}) {
   const { t } = useLanguage();
   const adminIndicatorX = useRef(new Animated.Value(0)).current;
   const adminIndicatorWidth = useRef(new Animated.Value(118)).current;
-  const [internalSection, setInternalSection] = useState<Section>('dashboard');
-  const active = section ?? internalSection;
-  const setActive = (s: Section) => { setInternalSection(s); onSectionChange?.(s); };
-  const [tabLayouts, setTabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
+  const active: Section = section ?? 'dashboard';
+  const [tabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [categoryDraft, setCategoryDraft] = useState('');
   const [marketingBannerEnabled, setMarketingBannerEnabled] = useState(true);
   const [marketingFeaturedEnabled, setMarketingFeaturedEnabled] = useState(true);
   const [marketingPromoEnabled, setMarketingPromoEnabled] = useState(false);
-  const [specialCodeDraft, setSpecialCodeDraft] = useState('LPVIP');
-  const [specialCodes, setSpecialCodes] = useState([
-    { id: '1', code: 'LPVIP', owner: 'Fidel Genre', commission: 10, active: true, generated: 420 },
-    { id: '2', code: 'AMBRIZA21', owner: 'Sundin Galue', commission: 15, active: true, generated: 860 },
-    { id: '3', code: 'PRIVATE5', owner: 'Maria Lopez', commission: 5, active: false, generated: 120 },
-  ]);
+  const [specialCodeDraft, setSpecialCodeDraft] = useState('');
 
   const [adminStats, setAdminStats] = useState<AdminStats>({});
   const [adminEvents, setAdminEvents] = useState<any[]>([]);
+
+  // Lazy-loaded section data
+  const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [apiCodes, setApiCodes] = useState<ApiSpecialCode[]>([]);
+  const [codesLoading, setCodesLoading] = useState(false);
+  const [commissionSummary, setCommissionSummary] = useState<CommissionEntry[]>([]);
+  const [homeBanner, setHomeBanner] = useState<{ title?: string; isActive?: boolean } | null | false>(null);
+  const [recipientsCount, setRecipientsCount] = useState(0);
+  const [adminOrders, setAdminOrders] = useState<AdminOrder[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [campaignSubjectDraft, setCampaignSubjectDraft] = useState('');
+  const [campaignBodyDraft, setCampaignBodyDraft] = useState('');
+  const [specialCodeOwnerDraft, setSpecialCodeOwnerDraft] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -176,68 +218,277 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
     ]).start();
   }, [active, activeSectionIndex, adminIndicatorWidth, adminIndicatorX, tabLayouts]);
 
+  // Lazy-load analytics when that section is first opened
+  useEffect(() => {
+    if (active !== 'analytics' || analyticsSummary !== null || analyticsLoading) return;
+    setAnalyticsLoading(true);
+    apiGet<AnalyticsSummary>('/analytics/summary?days=7')
+      .then(setAnalyticsSummary)
+      .catch(() => {})
+      .finally(() => setAnalyticsLoading(false));
+  }, [active, analyticsSummary, analyticsLoading]);
+
+  // Lazy-load special codes when that section is first opened
+  useEffect(() => {
+    if (active !== 'codes' || apiCodes.length > 0 || codesLoading) return;
+    setCodesLoading(true);
+    Promise.allSettled([
+      apiGet<ApiSpecialCode[]>('/special-codes'),
+      apiGet<CommissionEntry[]>('/special-codes/admin/commission-summary'),
+    ]).then(([codesRes, commRes]) => {
+      if (codesRes.status === 'fulfilled') setApiCodes(codesRes.value || []);
+      if (commRes.status === 'fulfilled') setCommissionSummary(commRes.value || []);
+    }).finally(() => setCodesLoading(false));
+  }, [active, apiCodes.length, codesLoading]);
+
+  // Lazy-load marketing data when that section is first opened
+  useEffect(() => {
+    if (active !== 'marketing' || homeBanner !== null) return;
+    Promise.allSettled([
+      apiGet<any>('/marketing/banner/home'),
+      apiGet<any[]>('/marketing/admin/recipients'),
+    ]).then(([bannerRes, recipientsRes]) => {
+      setHomeBanner(bannerRes.status === 'fulfilled' ? (bannerRes.value || false) : false);
+      if (recipientsRes.status === 'fulfilled') setRecipientsCount((recipientsRes.value || []).length);
+    });
+  }, [active, homeBanner]);
+
+  // Lazy-load orders/financials when payments section is opened
+  useEffect(() => {
+    if (active !== 'payments' || adminOrders.length > 0 || ordersLoading) return;
+    setOrdersLoading(true);
+    apiGet<any>('/admin/orders?page=1&limit=20')
+      .then((data) => setAdminOrders(listFrom(data)))
+      .catch(() => {})
+      .finally(() => setOrdersLoading(false));
+  }, [active, adminOrders.length, ordersLoading]);
+
+  // ── User actions ───────────────────────────────────────────────────────────
+
   const updateUser = (id: string, key: keyof AdminUser, value: string | boolean) => {
     setUsers((current) => current.map((user) => user.id === id ? { ...user, [key]: value } : user));
   };
+
+  const saveUserToApi = async (id: string) => {
+    const user = users.find((u) => u.id === id);
+    if (!user) return;
+    const [firstName, ...rest] = user.name.split(' ');
+    try {
+      await apiPatch(`/admin/users/${id}`, { firstName, lastName: rest.join(' '), email: user.email });
+      await apiPatch(`/admin/users/${id}/role`, { role: user.role });
+      setEditingUserId(null);
+    } catch {
+      Alert.alert(t('Error', 'Error'), t('No se pudo guardar el usuario.', 'Could not save user.'));
+    }
+  };
+
+  const toggleUserActiveApi = async (id: string) => {
+    try {
+      await apiPatch(`/admin/users/${id}/toggle-active`);
+      updateUser(id, 'suspended', !users.find((u) => u.id === id)?.suspended);
+    } catch {}
+  };
+
+  const deleteUserApi = (id: string) => {
+    Alert.alert(
+      t('Eliminar usuario', 'Delete user'),
+      t('¿Estás seguro? Esta acción no se puede deshacer.', 'Are you sure? This cannot be undone.'),
+      [
+        { text: t('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: t('Eliminar', 'Delete'), style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiDelete(`/admin/users/${id}`);
+              setUsers((current) => current.filter((u) => u.id !== id));
+            } catch {
+              Alert.alert(t('Error', 'Error'), t('No se pudo eliminar el usuario.', 'Could not delete user.'));
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // ── Category actions ───────────────────────────────────────────────────────
 
   const updateCategory = (id: string, key: keyof Category, value: string | boolean) => {
     setCategories((current) => current.map((category) => category.id === id ? { ...category, [key]: value } : category));
   };
 
-  const addSpecialCode = () => {
-    const code = specialCodeDraft.trim().toUpperCase();
-    if (!code) return;
-    setSpecialCodes((current) => [...current, { id: String(Date.now()), code, owner: 'Nuevo creador', commission: 10, active: true, generated: 0 }]);
-    setSpecialCodeDraft('');
-  };
-
-  const toggleSpecialCode = (id: string) => {
-    setSpecialCodes((current) => current.map((item) => item.id === id ? { ...item, active: !item.active } : item));
-  };
-
-  const addCategory = () => {
+  const addCategory = async () => {
     const name = categoryDraft.trim();
     if (!name) return;
-    setCategories((current) => [...current, { id: String(Date.now()), name, active: true, featured: false }]);
-    setCategoryDraft('');
+    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    try {
+      const result = await apiPost<any>('/categories', { slug, labelEs: name, labelEn: name });
+      setCategories((current) => [...current, { id: String(result.id || Date.now()), name, active: true, featured: false }]);
+      setCategoryDraft('');
+    } catch {
+      Alert.alert(t('Error', 'Error'), t('No se pudo crear la categoría.', 'Could not create category.'));
+    }
+  };
+
+  const saveCategoryToApi = async (id: string) => {
+    const cat = categories.find((c) => c.id === id);
+    if (!cat) return;
+    const slug = cat.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    try {
+      await apiPatch(`/categories/${id}`, { slug, labelEs: cat.name, labelEn: cat.name, isActive: cat.active });
+      setEditingCategoryId(null);
+    } catch {
+      Alert.alert(t('Error', 'Error'), t('No se pudo guardar la categoría.', 'Could not save category.'));
+    }
+  };
+
+  const toggleCategoryActiveApi = async (id: string) => {
+    const cat = categories.find((c) => c.id === id);
+    if (!cat) return;
+    const next = !cat.active;
+    updateCategory(id, 'active', next);
+    try {
+      await apiPatch(`/categories/${id}`, { isActive: next });
+    } catch {
+      updateCategory(id, 'active', !next);
+    }
+  };
+
+  const deleteCategoryApi = (id: string) => {
+    Alert.alert(
+      t('Eliminar categoría', 'Delete category'),
+      t('¿Estás seguro?', 'Are you sure?'),
+      [
+        { text: t('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: t('Eliminar', 'Delete'), style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiDelete(`/categories/${id}`);
+              setCategories((current) => current.filter((c) => c.id !== id));
+            } catch {
+              Alert.alert(t('Error', 'Error'), t('No se pudo eliminar.', 'Could not delete.'));
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // ── Event actions ──────────────────────────────────────────────────────────
+
+  const toggleEventFeaturedApi = async (id: string) => {
+    try {
+      await apiPatch(`/admin/events/${id}/toggle-featured`);
+      setAdminEvents((current) => current.map((e) => e.id === id ? { ...e, isFeatured: !e.isFeatured, featured: !e.featured } : e));
+    } catch {}
+  };
+
+  const toggleEventVisibilityApi = async (id: string) => {
+    try {
+      await apiPatch(`/admin/events/${id}/toggle-public-visibility`);
+      setAdminEvents((current) => current.map((e) => e.id === id ? { ...e, status: e.status === 'published' ? 'draft' : 'published' } : e));
+    } catch {}
+  };
+
+  const deleteEventApi = (id: string) => {
+    Alert.alert(
+      t('Eliminar evento', 'Delete event'),
+      t('¿Estás seguro? Esta acción no se puede deshacer.', 'Are you sure? This cannot be undone.'),
+      [
+        { text: t('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: t('Eliminar', 'Delete'), style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiDelete(`/admin/events/${id}`);
+              setAdminEvents((current) => current.filter((e) => e.id !== id));
+            } catch {
+              Alert.alert(t('Error', 'Error'), t('No se pudo eliminar el evento.', 'Could not delete event.'));
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // ── Special codes actions ──────────────────────────────────────────────────
+
+  const addSpecialCode = async () => {
+    const code = specialCodeDraft.trim().toUpperCase();
+    const ownerUserId = specialCodeOwnerDraft.trim();
+    if (!code || !ownerUserId) {
+      Alert.alert(t('Campos requeridos', 'Required fields'), t('Ingresa el código y el ID del dueño.', 'Enter the code and owner user ID.'));
+      return;
+    }
+    try {
+      const result = await apiPost<ApiSpecialCode>('/special-codes', { code, ownerUserId, isActive: true, commissionFixed: 0 });
+      setApiCodes((current) => [result, ...current]);
+      setSpecialCodeDraft('');
+      setSpecialCodeOwnerDraft('');
+    } catch (err: any) {
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo crear el código.', 'Could not create code.'));
+    }
+  };
+
+  const toggleSpecialCode = async (id: string) => {
+    const code = apiCodes.find((c) => c.id === id);
+    if (!code) return;
+    const next = !code.isActive;
+    setApiCodes((current) => current.map((c) => c.id === id ? { ...c, isActive: next } : c));
+    try {
+      await apiPatch(`/special-codes/${id}`, { isActive: next });
+    } catch {
+      setApiCodes((current) => current.map((c) => c.id === id ? { ...c, isActive: !next } : c));
+    }
+  };
+
+  const deleteCodeApi = (id: string) => {
+    Alert.alert(
+      t('Eliminar código', 'Delete code'),
+      t('¿Estás seguro?', 'Are you sure?'),
+      [
+        { text: t('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: t('Eliminar', 'Delete'), style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiDelete(`/special-codes/${id}`);
+              setApiCodes((current) => current.filter((c) => c.id !== id));
+            } catch {
+              Alert.alert(t('Error', 'Error'), t('No se pudo eliminar el código.', 'Could not delete code.'));
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // ── Marketing campaigns ────────────────────────────────────────────────────
+
+  const sendEmailCampaign = async () => {
+    const subject = campaignSubjectDraft.trim();
+    const body = campaignBodyDraft.trim();
+    if (!subject) {
+      Alert.alert(t('Asunto requerido', 'Subject required'), t('Ingresa un asunto para el email.', 'Enter a subject for the email.'));
+      return;
+    }
+    try {
+      const result = await apiPost<{ sent: number; failed: number; total: number }>('/marketing/admin/email-campaign', { subject, title: subject, preheader: body });
+      Alert.alert(t('Campaña enviada', 'Campaign sent'), t(`Enviados: ${result.sent} / ${result.total}`, `Sent: ${result.sent} / ${result.total}`));
+      setCampaignSubjectDraft('');
+      setCampaignBodyDraft('');
+    } catch {
+      Alert.alert(t('Error', 'Error'), t('No se pudo enviar la campaña.', 'Could not send campaign.'));
+    }
   };
 
   return (
     <View style={styles.root}>
-      <View style={styles.tabsShell}>
-        <View style={styles.tabsViewport}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroller} contentContainerStyle={styles.tabs}>
-            <Animated.View
-              style={[
-                styles.adminSlidingPill,
-                {
-                  left: adminIndicatorX,
-                  width: adminIndicatorWidth,
-                },
-              ]}
-            />
-            {sections.map((item) => (
-              <AdminTab
-                key={item.id}
-                label={labelFor(item.id, t)}
-                active={active === item.id}
-                onPress={() => { setActive(item.id as any); setEditingUserId?.(null); setEditingCategoryId?.(null); }}
-                onLayout={(x, width) => setTabLayouts((current) => ({ ...current, [item.id]: { x, width } }))}
-              />
-            ))}
-          </ScrollView>
-        </View>
-        <View pointerEvents="none" style={styles.tabsDots}>
-          {sections.map((item) => (
-            <View key={item.id} style={[styles.tabsDot, active === item.id && styles.tabsDotActive]} />
-          ))}
-        </View>
-      </View>
-
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.eyebrow}>{t('ADMIN', 'ADMIN')}</Text>
         <Text style={styles.title}>{titleFor(active, t)}</Text>
         <Text style={styles.subtitle}>{subtitleFor(active, t)}</Text>
+
 
         {active === 'dashboard' && (
           <>
@@ -270,10 +521,9 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
                   {item.featured || item.isFeatured ? <StatusPill label={t('DESTACADO', 'FEATURED')} tone="orange" /> : null}
                 </View>
                 <View style={styles.actionGrid}>
-                  <ActionButton label={t('Ver evento', 'View event')} />
-                  <ActionButton label={t('Editar', 'Edit')} />
-                  <ActionButton label={t('Destacar', 'Feature')} />
-                  <ActionButton label={t('Ocultar', 'Hide')} muted />
+                  <ActionButton label={item.featured || item.isFeatured ? t('Quitar destacado', 'Unfeature') : t('Destacar', 'Feature')} onPress={() => toggleEventFeaturedApi(item.id)} />
+                  <ActionButton label={item.status === 'published' ? t('Ocultar', 'Hide') : t('Publicar', 'Publish')} onPress={() => toggleEventVisibilityApi(item.id)} muted={item.status === 'published'} />
+                  <ActionButton label={t('Eliminar', 'Delete')} onPress={() => deleteEventApi(item.id)} muted />
                 </View>
               </PanelCard>
             ))}
@@ -310,7 +560,7 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
                 </View>
 
                 <View style={styles.formActions}>
-                  <TouchableOpacity onPress={() => setEditingUserId(null)} style={styles.primaryButton}>
+                  <TouchableOpacity onPress={() => saveUserToApi(user.id)} style={styles.primaryButton}>
                     <Text style={styles.primaryButtonText}>{t('GUARDAR USUARIO', 'SAVE USER')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setEditingUserId(null)} style={styles.secondaryButton}>
@@ -341,10 +591,13 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
 
                   <View style={styles.actionRow}>
                     <TouchableOpacity onPress={() => setEditingUserId(user.id)} style={styles.cardPrimaryAction}>
-                      <Text style={styles.cardPrimaryText}>{t('EDITAR USUARIO', 'EDIT USER')}</Text>
+                      <Text style={styles.cardPrimaryText}>{t('EDITAR', 'EDIT')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => updateUser(user.id, 'suspended', !user.suspended)} style={styles.cardSecondaryAction}>
+                    <TouchableOpacity onPress={() => toggleUserActiveApi(user.id)} style={styles.cardSecondaryAction}>
                       <Text style={styles.cardSecondaryText}>{user.suspended ? 'ENABLE' : 'SUSPEND'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => deleteUserApi(user.id)} style={[styles.cardSecondaryAction, { borderColor: 'rgba(239,68,68,0.28)' }]}>
+                      <Text style={[styles.cardSecondaryText, { color: '#FCA5A5' }]}>DEL</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -381,7 +634,7 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
                 </View>
 
                 <View style={styles.formActions}>
-                  <TouchableOpacity onPress={() => setEditingCategoryId(null)} style={styles.primaryButton}>
+                  <TouchableOpacity onPress={() => saveCategoryToApi(category.id)} style={styles.primaryButton}>
                     <Text style={styles.primaryButtonText}>{t('GUARDAR CATEGORIA', 'SAVE CATEGORY')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setEditingCategoryId(null)} style={styles.secondaryButton}>
@@ -420,10 +673,13 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
 
                   <View style={styles.actionRow}>
                     <TouchableOpacity onPress={() => setEditingCategoryId(category.id)} style={styles.cardPrimaryAction}>
-                      <Text style={styles.cardPrimaryText}>{t('EDITAR CATEGORIA', 'EDIT CATEGORY')}</Text>
+                      <Text style={styles.cardPrimaryText}>{t('EDITAR', 'EDIT')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => updateCategory(category.id, 'active', !category.active)} style={styles.cardSecondaryAction}>
+                    <TouchableOpacity onPress={() => toggleCategoryActiveApi(category.id)} style={styles.cardSecondaryAction}>
                       <Text style={styles.cardSecondaryText}>{category.active ? 'DISABLE' : 'ENABLE'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => deleteCategoryApi(category.id)} style={[styles.cardSecondaryAction, { borderColor: 'rgba(239,68,68,0.28)' }]}>
+                      <Text style={[styles.cardSecondaryText, { color: '#FCA5A5' }]}>DEL</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -475,80 +731,189 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
         )}
         {active === 'analytics' && (
           <>
-            <View style={styles.metricsGrid}>
-              <Metric label={t('Conversion', 'Conversion')} value="8.4%" />
-              <Metric label={t('Visitas', 'Visits')} value="18.2k" />
-              <Metric label={t('Checkouts', 'Checkouts')} value="412" />
-              <Metric label={t('Ingresos', 'Revenue')} value="$4.8k" />
-            </View>
+            {analyticsLoading && <PanelCard title={t('Cargando...', 'Loading...')} />}
+            {analyticsSummary && (
+              <>
+                <View style={styles.metricsGrid}>
+                  <Metric label={t('Vistas totales', 'Total views')} value={analyticsSummary.totalViews >= 1000 ? `${(analyticsSummary.totalViews / 1000).toFixed(1)}k` : String(analyticsSummary.totalViews)} />
+                  <Metric label={t('Visitantes únicos', 'Unique visitors')} value={analyticsSummary.uniqueVisitors >= 1000 ? `${(analyticsSummary.uniqueVisitors / 1000).toFixed(1)}k` : String(analyticsSummary.uniqueVisitors)} />
+                  <Metric label={t('Órdenes pagadas', 'Paid orders')} value={String(adminStats.paidOrders ?? adminStats.totalOrders ?? 0)} />
+                  <Metric label={t('Ingresos', 'Revenue')} value={money(adminStats.totalRevenue ?? 0)} />
+                </View>
 
-            <PanelCard title={t('Rendimiento global', 'Global performance')} eyebrow={t('ANALITICAS', 'ANALYTICS')}>
-              <AnalyticsBar label={t('Eventos vistos', 'Events viewed')} value="82%" />
-              <AnalyticsBar label={t('Checkout iniciado', 'Checkout started')} value="48%" />
-              <AnalyticsBar label={t('Compra completada', 'Purchase completed')} value="31%" />
-            </PanelCard>
+                {analyticsSummary.topEvents.length > 0 && (
+                  <PanelCard title={t('Eventos más vistos', 'Most viewed events')} eyebrow={t('EVENTOS TOP', 'TOP EVENTS')} copy={t(`Últimos ${analyticsSummary.days ?? 7} días`, `Last ${analyticsSummary.days ?? 7} days`)}>
+                    {analyticsSummary.topEvents.slice(0, 5).map((ev, i) => (
+                      <RankItem
+                        key={ev.eventSlug}
+                        index={String(i + 1).padStart(2, '0')}
+                        title={ev.eventSlug}
+                        value={`${ev.views} ${t('vistas', 'views')}`}
+                      />
+                    ))}
+                  </PanelCard>
+                )}
 
-            <PanelCard title={t('Eventos mas vistos', 'Most viewed events')} eyebrow={t('EVENTOS TOP', 'TOP EVENTS')} copy={t('Eventos con mayor actividad en la plataforma.', 'Events with the most activity on the platform.')}>
-              <RankItem index="01" title="Noche de (des)amor" value="2.4k views" />
-              <RankItem index="02" title="Sunset Lounge Experience" value="1.8k views" />
-              <RankItem index="03" title="Private Networking Night" value="920 views" />
-            </PanelCard>
-
-            <PanelCard title={t('Metodos de pago', 'Payment methods')} eyebrow={t('MEZCLA DE PAGOS', 'PAYMENTS MIX')}>
-              <PaymentMix label="Card / Stripe" value="86%" />
-              <PaymentMix label="Apple Pay" value="9%" />
-              <PaymentMix label="Google Pay" value="5%" />
-            </PanelCard>
+                {analyticsSummary.daily.length > 0 && (
+                  <PanelCard title={t('Vistas por día', 'Daily views')} eyebrow={t('ACTIVIDAD', 'ACTIVITY')}>
+                    {analyticsSummary.daily.map((d) => {
+                      const maxViews = Math.max(...analyticsSummary.daily.map((r) => r.views), 1);
+                      const pct = Math.round((d.views / maxViews) * 100);
+                      return <AnalyticsBar key={d.date} label={d.date.slice(5)} value={`${pct}%` as `${number}%`} />;
+                    })}
+                  </PanelCard>
+                )}
+              </>
+            )}
+            {!analyticsLoading && !analyticsSummary && (
+              <PanelCard title={t('Sin datos todavía', 'No data yet')} copy={t('Las analíticas aparecerán aquí cuando haya actividad.', 'Analytics will appear here once there is activity.')} />
+            )}
           </>
         )}
         {active === 'codes' && (
           <>
             <PanelCard title={t('Codigos especiales', 'Special codes')} eyebrow={t('CODIGOS ESPECIALES', 'SPECIAL CODES')} copy={t('Crea codigos, asigna comisiones y monitorea ventas generadas.', 'Create codes, assign commissions and monitor generated sales.')}>
+              <TextInput value={specialCodeDraft} onChangeText={setSpecialCodeDraft} placeholder={t('Codigo (ej: LPVIP)', 'Code (e.g. LPVIP)')} placeholderTextColor="#9CA3AF" autoCapitalize="characters" style={[styles.createInput, { marginBottom: 10 }]} />
               <View style={styles.createRow}>
-                <TextInput value={specialCodeDraft} onChangeText={setSpecialCodeDraft} placeholder={t('Codigo', 'Code')} placeholderTextColor="#9CA3AF" autoCapitalize="characters" style={styles.createInput} />
+                <TextInput value={specialCodeOwnerDraft} onChangeText={setSpecialCodeOwnerDraft} placeholder={t('ID del dueño (UUID)', 'Owner user ID (UUID)')} placeholderTextColor="#9CA3AF" autoCapitalize="none" style={styles.createInput} />
                 <TouchableOpacity onPress={addSpecialCode} style={styles.createButton}>
                   <Text style={styles.createButtonText}>{t('AGREGAR', 'ADD')}</Text>
                 </TouchableOpacity>
               </View>
             </PanelCard>
 
-            <View style={styles.metricsGrid}>
-              <Metric label={t('Generado', 'Generated')} value="$1.4k" />
-              <Metric label={t('Comisiones', 'Commissions')} value="$184" />
-              <Metric label={t('Codigos', 'Codes')} value={String(specialCodes.length)} />
-              <Metric label={t('Activos', 'Active')} value={String(specialCodes.filter((code) => code.active).length)} />
-            </View>
+            {codesLoading && <PanelCard title={t('Cargando...', 'Loading...')} />}
 
-            {specialCodes.map((item) => (
-              <View key={item.id} style={styles.userCard}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.avatar, item.active ? styles.avatarOrange : styles.avatarMuted]}>
-                    <Text style={styles.avatarText}>{item.code.slice(0, 2)}</Text>
-                  </View>
-                  <View style={styles.cardMain}>
-                    <Text style={styles.cardTitle}>{item.code}</Text>
-                    <Text style={styles.cardSub}>{item.owner} · {item.commission}% commission</Text>
-                  </View>
-                </View>
-
-                <View style={styles.statusRow}>
-                  <StatusPill label={item.active ? 'ACTIVE' : 'INACTIVE'} tone={item.active ? 'green' : 'gray'} />
-                  <StatusPill label={`$${item.generated}`} tone="orange" />
-                </View>
-
-                <View style={styles.actionRow}>
-                  <TouchableOpacity style={styles.cardPrimaryAction}>
-                    <Text style={styles.cardPrimaryText}>{t('VER VENTAS', 'VIEW SALES')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => toggleSpecialCode(item.id)} style={styles.cardSecondaryAction}>
-                    <Text style={styles.cardSecondaryText}>{item.active ? 'DISABLE' : 'ENABLE'}</Text>
-                  </TouchableOpacity>
-                </View>
+            {!codesLoading && (
+              <View style={styles.metricsGrid}>
+                <Metric label={t('Generado', 'Generated')} value={money(commissionSummary.reduce((s, e) => s + (e.totalEarned || 0), 0))} />
+                <Metric label={t('Pagado', 'Paid out')} value={money(commissionSummary.reduce((s, e) => s + (e.totalPaid || 0), 0))} />
+                <Metric label={t('Codigos', 'Codes')} value={String(apiCodes.length)} />
+                <Metric label={t('Activos', 'Active')} value={String(apiCodes.filter((c) => c.isActive).length)} />
               </View>
-            ))}
+            )}
+
+            {apiCodes.map((item) => {
+              const ownerName = [item.owner?.firstName, item.owner?.lastName].filter(Boolean).join(' ') || item.owner?.email || item.ownerUserId.slice(0, 8);
+              return (
+                <View key={item.id} style={styles.userCard}>
+                  <View style={styles.cardHeader}>
+                    <View style={[styles.avatar, item.isActive ? styles.avatarOrange : styles.avatarMuted]}>
+                      <Text style={styles.avatarText}>{item.code.slice(0, 2)}</Text>
+                    </View>
+                    <View style={styles.cardMain}>
+                      <Text style={styles.cardTitle}>{item.code}</Text>
+                      <Text style={styles.cardSub}>{ownerName} · ${Number(item.commissionFixed).toFixed(0)} commission</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.statusRow}>
+                    <StatusPill label={item.isActive ? 'ACTIVE' : 'INACTIVE'} tone={item.isActive ? 'green' : 'gray'} />
+                  </View>
+
+                  <View style={styles.actionRow}>
+                    <TouchableOpacity onPress={() => toggleSpecialCode(item.id)} style={styles.cardPrimaryAction}>
+                      <Text style={styles.cardPrimaryText}>{item.isActive ? 'DISABLE' : 'ENABLE'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => deleteCodeApi(item.id)} style={[styles.cardSecondaryAction, { borderColor: 'rgba(239,68,68,0.28)' }]}>
+                      <Text style={[styles.cardSecondaryText, { color: '#FCA5A5' }]}>DEL</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })}
           </>
         )}
-        {active === 'payments' && <Placeholder title={t('Pagos', 'Payments')} items={[t('Pagos por evento', 'Payments by event'), t('Saldo organizador', 'Organizer balance'), t('Comision plataforma', 'Platform commission'), t('Registrar pago manual', 'Register manual payment'), t('Exportar reporte', 'Export report')]} />}
+
+        {active === 'marketing' && (
+          <>
+            <PanelCard
+              title={t('Banner home', 'Home banner')}
+              eyebrow={t('BANNER ACTUAL', 'CURRENT BANNER')}
+              copy={homeBanner === null
+                ? t('Cargando...', 'Loading...')
+                : homeBanner
+                  ? t(`Activo — ${(homeBanner as any).title || 'Banner home'}`, `Active — ${(homeBanner as any).title || 'Home banner'}`)
+                  : t('Sin banner activo.', 'No active banner.')}
+            />
+
+            <PanelCard title={t('Campaña de email', 'Email campaign')} eyebrow={`RECIPIENTS: ${recipientsCount}`} copy={t('Se enviará a todos los usuarios activos.', 'Will be sent to all active users.')}>
+              <TextInput
+                value={campaignSubjectDraft}
+                onChangeText={setCampaignSubjectDraft}
+                placeholder={t('Asunto del email', 'Email subject')}
+                placeholderTextColor="#9CA3AF"
+                style={[styles.createInput, { marginBottom: 10 }]}
+              />
+              <TextInput
+                value={campaignBodyDraft}
+                onChangeText={setCampaignBodyDraft}
+                placeholder={t('Mensaje / preheader (opcional)', 'Message / preheader (optional)')}
+                placeholderTextColor="#9CA3AF"
+                multiline
+                numberOfLines={3}
+                style={[styles.createInput, { height: 80, textAlignVertical: 'top', paddingTop: 14 }]}
+              />
+              <TouchableOpacity onPress={sendEmailCampaign} style={styles.primaryButton}>
+                <Text style={styles.primaryButtonText}>{t('ENVIAR CAMPAÑA', 'SEND CAMPAIGN')}</Text>
+              </TouchableOpacity>
+            </PanelCard>
+
+            <MarketingRow
+              title={t('Eventos destacados', 'Featured events')}
+              copy={t('Controla los eventos que aparecen como destacados.', 'Control events that appear as featured.')}
+              enabled={marketingFeaturedEnabled}
+              onToggle={() => setMarketingFeaturedEnabled(!marketingFeaturedEnabled)}
+            />
+
+            <MarketingRow
+              title={t('Promociones', 'Promotions')}
+              copy={t('Activa mensajes comerciales, descuentos o campanas.', 'Enable commercial messages, discounts or campaigns.')}
+              enabled={marketingPromoEnabled}
+              onToggle={() => setMarketingPromoEnabled(!marketingPromoEnabled)}
+            />
+          </>
+        )}
+
+        {active === 'payments' && (
+          <>
+            <View style={styles.metricsGrid}>
+              <Metric label={t('Total órdenes', 'Total orders')} value={String(adminStats.totalOrders ?? adminOrders.length)} />
+              <Metric label={t('Órdenes pagadas', 'Paid orders')} value={String(adminStats.paidOrders ?? 0)} />
+              <Metric label={t('Ingresos', 'Revenue')} value={money(adminStats.totalRevenue ?? 0)} />
+              <Metric label={t('Ganancia LP', 'LP profit')} value={money(adminStats.lpticketProfit ?? adminStats.serviceFees ?? 0)} />
+            </View>
+
+            {ordersLoading && <PanelCard title={t('Cargando órdenes...', 'Loading orders...')} />}
+
+            {adminOrders.slice(0, 15).map((order) => {
+              const buyer = [order.user?.firstName, order.user?.lastName].filter(Boolean).join(' ') || order.user?.email || '—';
+              const date = order.paidAt || order.createdAt;
+              const dateStr = date ? new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+              return (
+                <View key={order.id} style={styles.userCard}>
+                  <View style={styles.cardHeader}>
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>{buyer.slice(0, 2).toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.cardMain}>
+                      <Text style={styles.cardTitle}>{order.event?.title || t('Evento', 'Event')}</Text>
+                      <Text style={styles.cardSub}>{buyer} · {dateStr}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.statusRow}>
+                    <StatusPill label={(order.status || 'paid').toUpperCase()} tone={order.status === 'paid' ? 'green' : order.status === 'cancelled' ? 'red' : 'gray'} />
+                    <StatusPill label={money(order.totalAmount ?? 0)} tone="orange" />
+                  </View>
+                </View>
+              );
+            })}
+
+            {!ordersLoading && adminOrders.length === 0 && (
+              <PanelCard title={t('Sin órdenes todavía', 'No orders yet')} copy={t('Las órdenes pagadas aparecerán aquí.', 'Paid orders will appear here.')} />
+            )}
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -562,47 +927,6 @@ function PanelCard({ title, eyebrow, copy, children }: { title: string; eyebrow?
       {copy && <Text style={styles.copy}>{copy}</Text>}
       {children}
     </View>
-  );
-}
-
-function AdminTab({ label, active, onPress, onLayout }: { label: string; active: boolean; onPress: () => void; onLayout: (x: number, width: number) => void }) {
-  const arrival = useRef(new Animated.Value(active ? 1 : 0)).current;
-
-  useEffect(() => {
-    Animated.spring(arrival, {
-      toValue: active ? 1 : 0,
-      friction: 7,
-      tension: 120,
-      useNativeDriver: true,
-    }).start();
-  }, [active, arrival]);
-
-  const animatedStyle = {
-    transform: [
-      {
-        scale: arrival.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.96, 1],
-        }),
-      },
-      {
-        translateY: arrival.interpolate({
-          inputRange: [0, 1],
-          outputRange: [2, 0],
-        }),
-      },
-    ],
-  };
-
-  return (
-    <Animated.View
-      onLayout={(event) => onLayout(event.nativeEvent.layout.x, event.nativeEvent.layout.width)}
-      style={[styles.tabMotion, active && animatedStyle]}
-    >
-      <TouchableOpacity activeOpacity={0.86} onPress={onPress} style={styles.tab}>
-        <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
-      </TouchableOpacity>
-    </Animated.View>
   );
 }
 
@@ -655,9 +979,9 @@ function StatusPill({ label, tone }: { label: string; tone: 'green' | 'red' | 'o
   );
 }
 
-function ActionButton({ label, muted }: { label: string; muted?: boolean }) {
+function ActionButton({ label, muted, onPress }: { label: string; muted?: boolean; onPress?: () => void }) {
   return (
-    <TouchableOpacity style={[styles.actionButton, muted && styles.actionButtonMuted]}>
+    <TouchableOpacity onPress={onPress} style={[styles.actionButton, muted && styles.actionButtonMuted]}>
       <Text style={[styles.actionButtonText, muted && styles.actionButtonTextMuted]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -702,8 +1026,7 @@ function OrderItem({ index, title }: { index: string; title: string }) {
   );
 }
 
-function AnalyticsBar({ label, value }: { label: string; value: string }) {
-  const widthMap: Record<string, `${number}%`> = { '82%': '82%', '48%': '48%', '31%': '31%' };
+function AnalyticsBar({ label, value }: { label: string; value: `${number}%` }) {
   return (
     <View style={styles.analyticsRow}>
       <View style={styles.analyticsTop}>
@@ -711,7 +1034,7 @@ function AnalyticsBar({ label, value }: { label: string; value: string }) {
         <Text style={styles.analyticsValue}>{value}</Text>
       </View>
       <View style={styles.analyticsTrack}>
-        <View style={[styles.analyticsFill, { width: widthMap[value] || '50%' as `${number}%` }]} />
+        <View style={[styles.analyticsFill, { width: value }]} />
       </View>
     </View>
   );
@@ -731,44 +1054,8 @@ function RankItem({ index, title, value }: { index: string; title: string; value
   );
 }
 
-function PaymentMix({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.paymentMixRow}>
-      <Text style={styles.paymentMixLabel}>{label}</Text>
-      <Text style={styles.paymentMixValue}>{value}</Text>
-    </View>
-  );
-}
-
-function Placeholder({ title, items }: { title: string; items: string[] }) {
-  return (
-    <PanelCard title={title}>
-      {items.map((item) => (
-        <View key={item} style={styles.listRow}>
-          <View style={styles.dot} />
-          <Text style={styles.listText}>{item}</Text>
-        </View>
-      ))}
-    </PanelCard>
-  );
-}
-
 function initials(name: string) {
   return name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
-}
-
-function labelFor(section: Section, t: (es: string, en: string) => string) {
-  const labels: Record<Section, string> = {
-    dashboard: t('Dashboard', 'Dashboard'),
-    events: t('Eventos', 'Events'),
-    users: t('Usuarios', 'Users'),
-    categories: t('Categorias', 'Categories'),
-    marketing: t('Marketing', 'Marketing'),
-    analytics: t('Analiticas', 'Analytics'),
-    codes: t('Codigos', 'Codes'),
-    payments: t('Pagos', 'Payments'),
-  };
-  return labels[section];
 }
 
 function titleFor(section: Section, t: (es: string, en: string) => string) {
