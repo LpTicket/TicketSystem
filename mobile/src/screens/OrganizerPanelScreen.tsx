@@ -254,6 +254,8 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
 
   return (
     <View style={styles.root}>
+      {/* Section tabs only in event view — global sections live in the bottom bar. */}
+      {selectedEvent && (
       <View style={styles.tabsShell}>
         <View style={styles.tabsViewport}>
           <ScrollView
@@ -313,8 +315,9 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
           ))}
         </View>
       </View>
+      )}
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, !selectedEvent && { paddingTop: 44 }]}>
         {selectedEvent ? (
           <TouchableOpacity style={styles.eventBackChip} onPress={backToEvents}>
             <Text style={styles.eventBackArrow}>‹</Text>
