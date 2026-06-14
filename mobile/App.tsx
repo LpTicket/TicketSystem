@@ -12,7 +12,7 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { SocialScreen } from './src/screens/SocialScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { OrganizerPanelScreen, Section as OrgSection } from './src/screens/OrganizerPanelScreen';
-import { AdminPanelScreen } from './src/screens/AdminPanelScreen';
+import { AdminPanelScreen, Section as AdminSection } from './src/screens/AdminPanelScreen';
 import { ScanScreen } from './src/screens/ScanScreen';
 import { PurchaseScreen } from './src/screens/PurchaseScreen';
 import { CheckoutInfoScreen } from './src/screens/CheckoutInfoScreen';
@@ -42,12 +42,14 @@ function AppContent() {
   const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loginAfterPurchase, setLoginAfterPurchase] = useState(false);
-  const [viewMode, setViewMode] = useState<'client' | 'organizer'>('client');
+  const [viewMode, setViewMode] = useState<'client' | 'organizer' | 'admin'>('client');
   const [organizerSection, setOrganizerSection] = useState<OrgSection>('dashboard');
+  const [adminSection, setAdminSection] = useState<AdminSection>('dashboard');
 
-  const setMode = (mode: 'client' | 'organizer') => {
+  const setMode = (mode: 'client' | 'organizer' | 'admin') => {
     setViewMode(mode);
     if (mode === 'organizer') { setOrganizerSection('dashboard'); goToTab('organizer'); }
+    else if (mode === 'admin') { setAdminSection('dashboard'); goToTab('admin'); }
     else { goToTab('events'); }
   };
 
@@ -56,6 +58,13 @@ function AppContent() {
     setViewMode('organizer');
     setOrganizerSection(section);
     setTab('organizer');
+  };
+
+  const goAdminSection = (section: AdminSection) => {
+    clearFlow();
+    setViewMode('admin');
+    setAdminSection(section);
+    setTab('admin');
   };
   const [paymentSuccessOpen, setPaymentSuccessOpen] = useState(false);
 
@@ -95,8 +104,16 @@ function AppContent() {
   const canOrganize = isLoggedIn;
   const navPadding = 8;
 
-  // Bottom tab bar swaps with the mode: client tools vs organizer tools.
-  const navItems = viewMode === 'organizer'
+  // Bottom tab bar swaps with the mode: client / organizer / admin tools.
+  const navItems = viewMode === 'admin'
+    ? [
+        { key: 'adash', label: t('Panel', 'Dashboard'), icon: 'grid', active: tab === 'admin' && adminSection === 'dashboard', onPress: () => goAdminSection('dashboard') },
+        { key: 'aevents', label: t('Eventos', 'Events'), icon: 'calendar', active: tab === 'admin' && adminSection === 'events', onPress: () => goAdminSection('events') },
+        { key: 'ausers', label: t('Usuarios', 'Users'), icon: 'people', active: tab === 'admin' && adminSection === 'users', onPress: () => goAdminSection('users') },
+        { key: 'aanalytics', label: t('Analíticas', 'Analytics'), icon: 'stats-chart', active: tab === 'admin' && adminSection === 'analytics', onPress: () => goAdminSection('analytics') },
+        { key: 'aprofile', label: t('Perfil', 'Profile'), icon: 'person-circle', active: tab === 'profile', onPress: () => goToTab('profile') },
+      ]
+    : viewMode === 'organizer'
     ? [
         { key: 'panel', label: t('Panel', 'Dashboard'), icon: 'grid', active: tab === 'organizer' && organizerSection === 'dashboard', onPress: () => goOrganizerSection('dashboard') },
         { key: 'oevents', label: t('Eventos', 'Events'), icon: 'calendar', active: tab === 'organizer' && organizerSection === 'events', onPress: () => goOrganizerSection('events') },
@@ -157,11 +174,11 @@ function AppContent() {
         ) : tab === 'social' ? (
           isLoggedIn ? <SocialScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'profile' ? (
-          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} canOrganize={canOrganize} viewMode={viewMode} onSetMode={(mode) => setViewMode(mode)} /> : <LoginScreen onSignIn={setCurrentUser} />
+          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} canOrganize={canOrganize} canAdmin={canAdmin} viewMode={viewMode} onSetMode={(mode) => setViewMode(mode)} /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'organizer' ? (
           isLoggedIn ? <OrganizerPanelScreen section={organizerSection} onSectionChange={setOrganizerSection} /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'admin' ? (
-          canAdmin ? <AdminPanelScreen /> : <LoginScreen onSignIn={setCurrentUser} />
+          canAdmin ? <AdminPanelScreen section={adminSection} onSectionChange={setAdminSection} /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'contact' ? (
           <ContactScreen user={currentUser} onBack={() => goToTab('events')} />
         ) : tab === 'about' ? (

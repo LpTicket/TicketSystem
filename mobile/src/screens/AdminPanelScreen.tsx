@@ -4,7 +4,7 @@ import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { apiGet } from '../services/api';
 
-type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
+export type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
 type AdminUser = { id: string; name: string; email: string; role: 'client' | 'organizer' | 'admin'; suspended: boolean };
 type Category = { id: string; name: string; active: boolean; featured: boolean };
 
@@ -66,11 +66,15 @@ const sections: { id: Section; label: string }[] = [
   { id: 'payments', label: 'Pagos' },
 ];
 
-export function AdminPanelScreen() {
+type AdminProps = { section?: Section; onSectionChange?: (s: Section) => void };
+
+export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) {
   const { t } = useLanguage();
   const adminIndicatorX = useRef(new Animated.Value(0)).current;
   const adminIndicatorWidth = useRef(new Animated.Value(118)).current;
-  const [active, setActive] = useState<Section>('dashboard');
+  const [internalSection, setInternalSection] = useState<Section>('dashboard');
+  const active = section ?? internalSection;
+  const setActive = (s: Section) => { setInternalSection(s); onSectionChange?.(s); };
   const [tabLayouts, setTabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);

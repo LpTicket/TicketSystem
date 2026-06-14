@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
+import { ModeSelector, AppMode } from '../components/ModeSelector';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser } from '../services/api';
 import { updateProfile as updateProfileRequest } from '../services/auth';
@@ -15,8 +15,9 @@ type Props = {
   onUserUpdated?: (user: AuthUser) => void;
   onLogout?: () => void;
   canOrganize?: boolean;
-  viewMode?: 'client' | 'organizer';
-  onSetMode?: (mode: 'client' | 'organizer') => void;
+  canAdmin?: boolean;
+  viewMode?: AppMode;
+  onSetMode?: (mode: AppMode) => void;
 };
 
 const paymentMethods = [
@@ -24,7 +25,7 @@ const paymentMethods = [
   { id: '2', brand: 'Apple Pay', last4: 'Ready', label: 'Fast checkout' },
 ];
 
-export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onLogout, canOrganize, viewMode = 'client', onSetMode }: Props) {
+export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onLogout, canOrganize, canAdmin, viewMode = 'client', onSetMode }: Props) {
   const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -124,25 +125,9 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
     <ScrollView style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
 
       {canOrganize && onSetMode && (
-        <View style={styles.modeRow}>
-          <View style={styles.modeRowLeft}>
-            <View style={styles.modeIcon}>
-              <Ionicons name={viewMode === 'organizer' ? 'briefcase-outline' : 'person-outline'} size={18} color="#ff7a00" />
-            </View>
-            <View>
-              <Text style={styles.modeRowText}>{viewMode === 'organizer' ? t('Modo organizador', 'Organizer mode') : t('Modo cliente', 'Client mode')}</Text>
-              <Text style={styles.modeRowSub}>
-                {viewMode === 'organizer' ? t('Gestiona tus eventos', 'Manage your events') : t('Compra y vive eventos', 'Buy and enjoy events')}
-              </Text>
-            </View>
-          </View>
-          <Switch
-            value={viewMode === 'organizer'}
-            onValueChange={(on) => onSetMode(on ? 'organizer' : 'client')}
-            trackColor={{ false: 'rgba(255,255,255,0.18)', true: '#F97316' }}
-            thumbColor="#FFFFFF"
-            ios_backgroundColor="rgba(255,255,255,0.18)"
-          />
+        <View style={styles.modeSelectorWrap}>
+          <Text style={styles.modeSelectorLabel}>{t('CAMBIAR MODO', 'SWITCH MODE')}</Text>
+          <ModeSelector mode={viewMode} canAdmin={canAdmin} onChange={onSetMode} />
         </View>
       )}
 
@@ -239,25 +224,8 @@ function ActionRow({ badge, title, subtitle, action }: { badge: string; title: s
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
   content: { paddingHorizontal: 18, paddingTop: 46, paddingBottom: 132 },
-  modeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(249,115,22,0.28)',
-    backgroundColor: 'rgba(249,115,22,0.06)',
-    marginBottom: 14,
-  },
-  modeRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  modeIcon: {
-    width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,122,0,0.45)', backgroundColor: 'rgba(255,122,0,0.10)',
-  },
-  modeRowText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  modeRowSub: { color: 'rgba(226,232,240,0.6)', fontSize: 12, marginTop: 1 },
+  modeSelectorWrap: { marginBottom: 16 },
+  modeSelectorLabel: { color: colors.orange, fontSize: 11, letterSpacing: 1, fontWeight: '800', marginBottom: 8, marginLeft: 2 },
   hero: {
     backgroundColor: 'rgba(255,255,255,0.025)',
     borderRadius: 24,

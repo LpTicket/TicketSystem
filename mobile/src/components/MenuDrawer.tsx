@@ -1,7 +1,8 @@
-import { Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ScreenBackground } from './ScreenBackground';
+import { ModeSelector, AppMode } from './ModeSelector';
 
 type Props = {
   visible: boolean;
@@ -21,8 +22,8 @@ type Props = {
   onLogout?: () => void;
   canOrganize?: boolean;
   canAdmin?: boolean;
-  viewMode?: 'client' | 'organizer';
-  onSetMode?: (mode: 'client' | 'organizer') => void;
+  viewMode?: AppMode;
+  onSetMode?: (mode: AppMode) => void;
 };
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -52,21 +53,9 @@ export function MenuDrawer({
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* Client / Organizer mode — Fiverr-style switch row */}
+          {/* Mode selector — Client / Organizer (+ Admin) */}
           {canOrganize && onSetMode && (
-            <View style={styles.modeRow}>
-              <View style={styles.modeRowLeft}>
-                <Ionicons name={viewMode === 'organizer' ? 'briefcase-outline' : 'person-outline'} size={18} color="#ff7a00" />
-                <Text style={styles.modeRowText}>{viewMode === 'organizer' ? t('Organizador', 'Organizer') : t('Cliente', 'Client')}</Text>
-              </View>
-              <Switch
-                value={viewMode === 'organizer'}
-                onValueChange={(on) => onSetMode(on ? 'organizer' : 'client')}
-                trackColor={{ false: 'rgba(255,255,255,0.18)', true: '#F97316' }}
-                thumbColor="#FFFFFF"
-                ios_backgroundColor="rgba(255,255,255,0.18)"
-              />
-            </View>
+            <ModeSelector mode={viewMode} canAdmin={canAdmin} onChange={onSetMode} />
           )}
 
           {/* Primary nav — text rows, no icons (matches web) */}
@@ -79,12 +68,6 @@ export function MenuDrawer({
           {/* Account / actions — with orange icons */}
           <View style={styles.card}>
             <Row icon="chatbubble-ellipses-outline" label={t('Chat IA', 'AI Assistant')} onPress={() => go(onGoAiChat)} />
-            {canOrganize && viewMode === 'organizer' && (
-              <Row icon="settings-outline" label={t('Panel Organizador', 'Organizer Panel')} onPress={() => go(onGoOrganizer)} featured />
-            )}
-            {canAdmin && viewMode === 'organizer' && (
-              <Row icon="shield-outline" label={t('Panel Administrador', 'Admin Panel')} onPress={() => go(onGoAdmin)} featured />
-            )}
             <Row icon="log-out-outline" label={t('Cerrar sesión', 'Log out')} onPress={() => go(onLogout)} danger />
           </View>
         </ScrollView>
