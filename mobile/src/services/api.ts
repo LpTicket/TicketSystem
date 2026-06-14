@@ -113,6 +113,24 @@ export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
+  if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
+
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const response = await fetch(`${API_URL}${cleanPath}`, {
+    method: 'PUT',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.status}`);
+  }
+
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
 export async function apiDelete<T = void>(path: string): Promise<T> {
   if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 

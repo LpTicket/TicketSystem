@@ -1,11 +1,59 @@
-import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { apiGet, apiPost, apiPut } from '../../services/api';
 
-type ConnectionStatus = 'incoming' | 'outgoing' | 'accepted';
+type EligibleEvent = {
+  id: string;
+  title: string;
+  eventDate: string;
+  venueName?: string;
+};
 
-const interests = [
+type Preference = {
+  eventId: string;
+  isActive: boolean;
+  interests: string[];
+  industry: string | null;
+  instagram: string | null;
+  privateMode: boolean;
+  invisibleMode: boolean;
+  shareInstagram: boolean;
+  shareLocation: boolean;
+};
+
+type Suggestion = {
+  userId: string;
+  displayName: string;
+  score: number;
+  interests: string[];
+  sharedInterests: string[];
+  industryMatch: boolean;
+  industry: string | null;
+  canShareLocationLater: boolean;
+};
+
+type Connection = {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  status: string;
+  direction: 'incoming' | 'outgoing';
+  otherUserName: string;
+  profile: { fullName: string; industry: string | null; interests: string[]; instagram: string | null; photos: string[] } | null;
+};
+
+type Message = {
+  id: string;
+  message: string;
+  senderId: string;
+  senderName: string;
+  isMine: boolean;
+  createdAt: string;
+};
+
+const INTEREST_OPTIONS = [
   { id: 'professional_networking', label: 'Networking' },
   { id: 'make_friends', label: 'Friends' },
   { id: 'music_party', label: 'Music' },
@@ -16,74 +64,213 @@ const interests = [
   { id: 'other', label: 'Other' },
 ];
 
-const eligibleEvents = [
-  { id: 'event-1', title: 'Noche de (des)amor', date: 'Jun 25, 2026', venue: 'Ambriza' },
-  { id: 'event-2', title: 'Sunset Lounge Experience', date: 'Jul 12, 2026', venue: 'Miami, FL' },
-];
-
-const suggestions = [
-  { id: '1', name: 'Compatible attendee', meta: '3 shared interests', score: 92, tags: ['Music', 'VIP', 'Friends'] },
-  { id: '2', name: 'Maria L.', meta: 'Same industry', score: 86, tags: ['Business', 'Networking'] },
-  { id: '3', name: 'Private profile', meta: 'Location optional later', score: 79, tags: ['Collabs', 'VIP'] },
-];
-
-const initialConnections = [
-  { id: 'c1', name: 'Fidel G.', event: 'Noche de (des)amor', status: 'incoming' as ConnectionStatus },
-  { id: 'c2', name: 'Andrea P.', event: 'Sunset Lounge Experience', status: 'outgoing' as ConnectionStatus },
-  { id: 'c3', name: 'Carlos R.', event: 'Noche de (des)amor', status: 'accepted' as ConnectionStatus },
-];
+const DEFAULT_PREF: Preference = {
+  eventId: '',
+  isActive: false,
+  interests: [],
+  industry: null,
+  instagram: null,
+  privateMode: true,
+  invisibleMode: false,
+  shareInstagram: false,
+  shareLocation: false,
+};
 
 export function SocialMatchMobile() {
   const { t } = useLanguage();
-  const [selectedEventId, setSelectedEventId] = useState(eligibleEvents[0]?.id || '');
-  const [isActive, setIsActive] = useState(true);
-  const [selectedInterests, setSelectedInterests] = useState(['music_party', 'vip_experience', 'make_friends']);
-  const [industry, setIndustry] = useState('Events / entertainment');
-  const [instagram, setInstagram] = useState('@lpticket');
-  const [privateMode, setPrivateMode] = useState(true);
-  const [invisibleMode, setInvisibleMode] = useState(false);
-  const [shareInstagram, setShareInstagram] = useState(false);
-  const [shareLocation, setShareLocation] = useState(false);
-  const [connections, setConnections] = useState(initialConnections);
+  const [eligibleEvents, setEligibleEvents] = useState<EligibleEvent[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [prefMap, setPrefMap] = useState<Record<string, Preference>>({});
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [loadedSuggestionsFor, setLoadedSuggestionsFor] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [chatDraft, setChatDraft] = useState('');
-  const [messages, setMessages] = useState([
-    { id: 'm1', mine: false, text: 'Hi, we matched for Noche de (des)amor.' },
-    { id: 'm2', mine: true, text: 'Nice, see you there.' },
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [savingPref, setSavingPref] = useState(false);
+  const [sendingMsg, setSendingMsg] = useState(false);
+  const [requesting, setRequesting] = useState('');
+  const [editInterests, setEditInterests] = useState<string[]>([]);
+  const [editIndustry, setEditIndustry] = useState('');
+  const [editInstagram, setEditInstagram] = useState('');
 
-  const selectedEvent = eligibleEvents.find((event) => event.id === selectedEventId);
-  const activeConnection = connections.find((connection) => connection.id === activeChatId);
+  const currentPref = prefMap[selectedEventId] ?? DEFAULT_PREF;
+  const activeConnection = connections.find((c) => c.id === activeChatId);
+  const visibleConnections = connections.filter((c) => c.status === 'PENDING' || c.status === 'ACCEPTED');
+
+  // Load profile on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await apiGet<{
+          eligibleEvents: EligibleEvent[];
+          preferences: Preference[];
+          connections: Connection[];
+        }>('/social-match/me');
+        const events = data.eligibleEvents || [];
+        setEligibleEvents(events);
+        setConnections(data.connections || []);
+        const map: Record<string, Preference> = {};
+        for (const pref of data.preferences || []) map[pref.eventId] = pref;
+        setPrefMap(map);
+        const firstId = events[0]?.id || '';
+        setSelectedEventId(firstId);
+        if (firstId && map[firstId]) {
+          setEditInterests(map[firstId].interests || []);
+          setEditIndustry(map[firstId].industry || '');
+          setEditInstagram(map[firstId].instagram || '');
+        }
+      } catch (err: any) {
+        Alert.alert('Error', err?.message || 'Could not load Social Match');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // When event changes: sync edit fields + load suggestions
+  useEffect(() => {
+    if (!selectedEventId) return;
+    const pref = prefMap[selectedEventId];
+    setEditInterests(pref?.interests || []);
+    setEditIndustry(pref?.industry || '');
+    setEditInstagram(pref?.instagram || '');
+    if (pref?.isActive && !pref?.invisibleMode && loadedSuggestionsFor !== selectedEventId) {
+      loadSuggestions(selectedEventId);
+    }
+  }, [selectedEventId]);
+
+  // Load messages when chat opens
+  useEffect(() => {
+    if (!activeChatId) { setMessages([]); return; }
+    (async () => {
+      try {
+        const data = await apiGet<{ messages: Message[] }>(`/social-match/connections/${activeChatId}/messages`);
+        setMessages(data.messages || []);
+      } catch {
+        setMessages([]);
+      }
+    })();
+  }, [activeChatId]);
+
+  const loadSuggestions = async (eventId: string) => {
+    try {
+      const data = await apiGet<{ suggestions: Suggestion[] }>(`/social-match/events/${eventId}/suggestions`);
+      setSuggestions(data.suggestions || []);
+      setLoadedSuggestionsFor(eventId);
+    } catch {
+      setSuggestions([]);
+    }
+  };
+
+  const savePref = async (updates: Partial<Preference>) => {
+    if (!selectedEventId || savingPref) return;
+    const base = prefMap[selectedEventId] ?? DEFAULT_PREF;
+    const merged = { ...base, ...updates };
+    setPrefMap((prev) => ({ ...prev, [selectedEventId]: merged }));
+    setSavingPref(true);
+    try {
+      const result = await apiPut<{ preference: Preference }>(`/social-match/events/${selectedEventId}/preferences`, {
+        isActive: merged.isActive,
+        interests: merged.interests,
+        industry: merged.industry || null,
+        instagram: merged.instagram || null,
+        privateMode: merged.privateMode,
+        invisibleMode: merged.invisibleMode,
+        shareInstagram: merged.shareInstagram,
+        shareLocation: merged.shareLocation,
+      });
+      setPrefMap((prev) => ({ ...prev, [selectedEventId]: { ...result.preference, eventId: selectedEventId } }));
+      if (result.preference.isActive && !result.preference.invisibleMode) {
+        await loadSuggestions(selectedEventId);
+      } else if (!result.preference.isActive) {
+        setSuggestions([]);
+        setLoadedSuggestionsFor('');
+      }
+    } catch (err: any) {
+      setPrefMap((prev) => ({ ...prev, [selectedEventId]: base }));
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo guardar', 'Could not save preferences'));
+    } finally {
+      setSavingPref(false);
+    }
+  };
+
+  const saveEditedPref = () => {
+    savePref({ interests: editInterests, industry: editIndustry || null, instagram: editInstagram || null });
+  };
+
+  const handleRequestConnection = async (receiverId: string) => {
+    if (!selectedEventId || requesting) return;
+    setRequesting(receiverId);
+    try {
+      await apiPost('/social-match/connections', { eventId: selectedEventId, receiverId });
+      setSuggestions((prev) => prev.filter((s) => s.userId !== receiverId));
+    } catch (err: any) {
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo enviar solicitud', 'Could not send request'));
+    } finally {
+      setRequesting('');
+    }
+  };
+
+  const handleUpdateConnection = async (id: string, status: 'ACCEPTED' | 'DECLINED' | 'CANCELLED') => {
+    const prev = connections.find((c) => c.id === id);
+    if (!prev) return;
+    if (status === 'DECLINED' || status === 'CANCELLED') {
+      setConnections((current) => current.filter((c) => c.id !== id));
+    } else {
+      setConnections((current) => current.map((c) => c.id === id ? { ...c, status } : c));
+    }
+    try {
+      await apiPut(`/social-match/connections/${id}`, { status });
+    } catch (err: any) {
+      setConnections((current) => {
+        const exists = current.find((c) => c.id === id);
+        return exists ? current.map((c) => c.id === id ? prev : c) : [...current, prev];
+      });
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo actualizar', 'Could not update'));
+    }
+  };
+
+  const handleSendMessage = async () => {
+    const text = chatDraft.trim();
+    if (!text || !activeChatId || sendingMsg) return;
+    setChatDraft('');
+    setSendingMsg(true);
+    try {
+      const result = await apiPost<Message>(`/social-match/connections/${activeChatId}/messages`, { message: text });
+      setMessages((prev) => [...prev, result]);
+    } catch (err: any) {
+      setChatDraft(text);
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo enviar', 'Could not send'));
+    } finally {
+      setSendingMsg(false);
+    }
+  };
 
   const summary = useMemo(() => {
-    if (!isActive) return ['Social Match is currently off for this event.'];
+    if (!currentPref.isActive) return [t('Social Match está desactivado para este evento.', 'Social Match is currently off for this event.')];
     return [
-      `${suggestions.length} compatible profiles`,
-      `${selectedInterests.length} selected interests`,
-      shareLocation ? 'Location sharing ready after mutual acceptance' : 'Location sharing is private',
+      `${suggestions.length} ${t('perfiles compatibles', 'compatible profiles')}`,
+      `${editInterests.length} ${t('intereses seleccionados', 'selected interests')}`,
+      currentPref.shareLocation
+        ? t('Ubicación lista tras aceptación mutua', 'Location sharing ready after mutual acceptance')
+        : t('Ubicación privada', 'Location sharing is private'),
     ];
-  }, [isActive, selectedInterests.length, shareLocation]);
+  }, [currentPref.isActive, currentPref.shareLocation, editInterests.length, suggestions.length, t]);
 
-  const toggleInterest = (id: string) => {
-    setSelectedInterests((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+  const formatDate = (iso: string) => {
+    try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+    catch { return iso; }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.emptyCard}>
+        <Text style={styles.emptyCopy}>{t('Cargando...', 'Loading...')}</Text>
+      </View>
     );
-  };
-
-  const updateConnection = (id: string, status: ConnectionStatus | 'declined' | 'cancelled') => {
-    if (status === 'declined' || status === 'cancelled') {
-      setConnections((current) => current.filter((item) => item.id !== id));
-      return;
-    }
-    setConnections((current) => current.map((item) => item.id === id ? { ...item, status } : item));
-  };
-
-  const sendMessage = () => {
-    const text = chatDraft.trim();
-    if (!text) return;
-    setMessages((current) => [...current, { id: `${Date.now()}`, mine: true, text }]);
-    setChatDraft('');
-  };
+  }
 
   if (eligibleEvents.length === 0) {
     return (
@@ -105,30 +292,40 @@ export function SocialMatchMobile() {
             return (
               <TouchableOpacity key={event.id} onPress={() => setSelectedEventId(event.id)} style={[styles.eventChip, selected && styles.eventChipActive]}>
                 <Text style={[styles.eventTitle, selected && styles.eventTitleActive]}>{event.title}</Text>
-                <Text style={[styles.eventMeta, selected && styles.eventMetaActive]}>{event.date} - {event.venue}</Text>
+                <Text style={[styles.eventMeta, selected && styles.eventMetaActive]}>{formatDate(event.eventDate)}{event.venueName ? ` - ${event.venueName}` : ''}</Text>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
 
-        <TouchableOpacity onPress={() => setIsActive((current) => !current)} style={[styles.activation, isActive && styles.activationActive]}>
+        <TouchableOpacity
+          onPress={() => savePref({ isActive: !currentPref.isActive, interests: editInterests, industry: editIndustry || null, instagram: editInstagram || null })}
+          style={[styles.activation, currentPref.isActive && styles.activationActive]}
+          disabled={savingPref}
+        >
           <View>
-            <Text style={[styles.activationTitle, isActive && styles.activationTitleActive]}>
-              {isActive ? 'SOCIAL MATCH ACTIVE' : 'SOCIAL MATCH OFF'}
+            <Text style={[styles.activationTitle, currentPref.isActive && styles.activationTitleActive]}>
+              {currentPref.isActive ? 'SOCIAL MATCH ACTIVE' : 'SOCIAL MATCH OFF'}
             </Text>
-            <Text style={[styles.activationSub, isActive && styles.activationSubActive]}>{selectedEvent?.title}</Text>
+            <Text style={[styles.activationSub, currentPref.isActive && styles.activationSubActive]}>
+              {eligibleEvents.find((e) => e.id === selectedEventId)?.title}
+            </Text>
           </View>
-          <View style={[styles.switchKnob, isActive && styles.switchKnobActive]} />
+          <View style={[styles.switchKnob, currentPref.isActive && styles.switchKnobActive]} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>{t('INTERESES', 'INTERESTS')}</Text>
         <View style={styles.chipGrid}>
-          {interests.map((interest) => {
-            const selected = selectedInterests.includes(interest.id);
+          {INTEREST_OPTIONS.map((interest) => {
+            const selected = editInterests.includes(interest.id);
             return (
-              <TouchableOpacity key={interest.id} onPress={() => toggleInterest(interest.id)} style={[styles.interestChip, selected && styles.interestChipActive]}>
+              <TouchableOpacity
+                key={interest.id}
+                onPress={() => setEditInterests((prev) => prev.includes(interest.id) ? prev.filter((i) => i !== interest.id) : [...prev, interest.id])}
+                style={[styles.interestChip, selected && styles.interestChipActive]}
+              >
                 <Text style={[styles.interestText, selected && styles.interestTextActive]}>{interest.label}</Text>
               </TouchableOpacity>
             );
@@ -137,21 +334,25 @@ export function SocialMatchMobile() {
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>{t('Industria o área', 'Industry or field')}</Text>
-          <TextInput value={industry} onChangeText={setIndustry} style={styles.input} placeholder={t('Música, finanzas, bienes raíces...', 'Music, finance, real estate...')} placeholderTextColor="#9CA3AF" />
+          <TextInput value={editIndustry} onChangeText={setEditIndustry} style={styles.input} placeholder={t('Música, finanzas, bienes raíces...', 'Music, finance, real estate...')} placeholderTextColor="#9CA3AF" />
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>{t('Instagram opcional', 'Optional Instagram')}</Text>
-          <TextInput value={instagram} onChangeText={setInstagram} style={styles.input} placeholder="@username" placeholderTextColor="#9CA3AF" autoCapitalize="none" />
+          <TextInput value={editInstagram} onChangeText={setEditInstagram} style={styles.input} placeholder="@username" placeholderTextColor="#9CA3AF" autoCapitalize="none" />
         </View>
+
+        <TouchableOpacity onPress={saveEditedPref} disabled={savingPref} style={styles.saveButton}>
+          <Text style={styles.saveText}>{savingPref ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR', 'SAVE')}</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>{t('PRIVACIDAD', 'PRIVACY')}</Text>
-        <ToggleRow title={t('Modo privado', 'Private mode')} subtitle={t('Muestra primero detalles limitados del perfil.', 'Show limited profile details first.')} value={privateMode} onPress={() => setPrivateMode((current) => !current)} />
-        <ToggleRow title={t('Modo invisible', 'Invisible mode')} subtitle={t('Oculta tu perfil de sugerencias hasta activarlo.', 'Hide from suggestions until enabled.')} value={invisibleMode} onPress={() => setInvisibleMode((current) => !current)} />
-        <ToggleRow title={t('Compartir Instagram', 'Share Instagram')} subtitle={t('Solo después de que ambos acepten.', 'Only after both people accept.')} value={shareInstagram} onPress={() => setShareInstagram((current) => !current)} />
-        <ToggleRow title={t('Ubicación aproximada', 'Approximate location')} subtitle={t('Solo después de aceptación mutua.', 'Only after mutual acceptance.')} value={shareLocation} onPress={() => setShareLocation((current) => !current)} />
+        <ToggleRow title={t('Modo privado', 'Private mode')} subtitle={t('Muestra primero detalles limitados del perfil.', 'Show limited profile details first.')} value={currentPref.privateMode} onPress={() => savePref({ privateMode: !currentPref.privateMode })} />
+        <ToggleRow title={t('Modo invisible', 'Invisible mode')} subtitle={t('Oculta tu perfil de sugerencias hasta activarlo.', 'Hide from suggestions until enabled.')} value={currentPref.invisibleMode} onPress={() => savePref({ invisibleMode: !currentPref.invisibleMode })} />
+        <ToggleRow title={t('Compartir Instagram', 'Share Instagram')} subtitle={t('Solo después de que ambos acepten.', 'Only after both people accept.')} value={currentPref.shareInstagram} onPress={() => savePref({ shareInstagram: !currentPref.shareInstagram })} />
+        <ToggleRow title={t('Ubicación aproximada', 'Approximate location')} subtitle={t('Solo después de aceptación mutua.', 'Only after mutual acceptance.')} value={currentPref.shareLocation} onPress={() => savePref({ shareLocation: !currentPref.shareLocation })} />
       </View>
 
       <View style={styles.summaryCard}>
@@ -161,28 +362,37 @@ export function SocialMatchMobile() {
         ))}
       </View>
 
-      {isActive && !invisibleMode && (
+      {currentPref.isActive && !currentPref.invisibleMode && (
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>{t('PERFILES SUGERIDOS', 'SUGGESTED PROFILES')}</Text>
+          {suggestions.length === 0 && (
+            <Text style={styles.emptyCopy}>{t('Sin sugerencias por ahora.', 'No suggestions yet.')}</Text>
+          )}
           {suggestions.map((suggestion) => (
-            <View key={suggestion.id} style={styles.suggestionCard}>
+            <View key={suggestion.userId} style={styles.suggestionCard}>
               <View style={styles.suggestionTop}>
                 <View style={styles.scoreBadge}><Text style={styles.scoreText}>{suggestion.score}%</Text></View>
                 <View style={styles.suggestionCopy}>
-                  <Text style={styles.suggestionName} numberOfLines={1}>{suggestion.name}</Text>
-                  <Text style={styles.suggestionMeta} numberOfLines={1}>{suggestion.meta}</Text>
+                  <Text style={styles.suggestionName} numberOfLines={1}>{suggestion.displayName}</Text>
+                  <Text style={styles.suggestionMeta} numberOfLines={1}>{suggestion.sharedInterests.length} {t('intereses en común', 'shared interests')}</Text>
                 </View>
-                <TouchableOpacity style={styles.connectButton}>
-                  <Text style={styles.connectText}>{t('SOLICITAR', 'REQUEST')}</Text>
+                <TouchableOpacity
+                  style={[styles.connectButton, requesting === suggestion.userId && { opacity: 0.6 }]}
+                  onPress={() => handleRequestConnection(suggestion.userId)}
+                  disabled={!!requesting}
+                >
+                  <Text style={styles.connectText}>{requesting === suggestion.userId ? '...' : t('SOLICITAR', 'REQUEST')}</Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.tagRow}>
-                {suggestion.tags.map((tag) => (
-                  <View key={tag} style={styles.tag}>
-                    <Text style={styles.tagText}>{tag}</Text>
-                  </View>
-                ))}
-              </View>
+              {suggestion.sharedInterests.length > 0 && (
+                <View style={styles.tagRow}>
+                  {suggestion.sharedInterests.map((tag) => (
+                    <View key={tag} style={styles.tag}>
+                      <Text style={styles.tagText}>{tag.replace(/_/g, ' ')}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           ))}
         </View>
@@ -190,24 +400,37 @@ export function SocialMatchMobile() {
 
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>{t('SOLICITUDES', 'REQUESTS')}</Text>
-        {connections.map((connection) => (
+        {visibleConnections.length === 0 && (
+          <Text style={styles.emptyCopy}>{t('Sin solicitudes por ahora.', 'No requests yet.')}</Text>
+        )}
+        {visibleConnections.map((connection) => (
           <View key={connection.id} style={styles.connectionCard}>
-            <View style={styles.connectionAvatar}><Text style={styles.connectionAvatarText}>{connection.name.slice(0, 2).toUpperCase()}</Text></View>
-            <View style={styles.connectionCopy}>
-              <Text style={styles.connectionName}>{connection.name}</Text>
-              <Text style={styles.connectionMeta}>{connection.event} - {connection.status}</Text>
+            <View style={styles.connectionAvatar}>
+              <Text style={styles.connectionAvatarText}>{connection.otherUserName.slice(0, 2).toUpperCase()}</Text>
             </View>
-            {connection.status === 'incoming' && (
+            <View style={styles.connectionCopy}>
+              <Text style={styles.connectionName}>{connection.otherUserName}</Text>
+              <Text style={styles.connectionMeta}>{connection.eventTitle} - {connection.status}</Text>
+            </View>
+            {connection.status === 'PENDING' && connection.direction === 'incoming' && (
               <View style={styles.connectionActions}>
-                <TouchableOpacity onPress={() => updateConnection(connection.id, 'accepted')} style={styles.acceptButton}><Text style={styles.acceptText}>{t('ACEPTAR', 'ACCEPT')}</Text></TouchableOpacity>
-                <TouchableOpacity onPress={() => updateConnection(connection.id, 'declined')} style={styles.rejectButton}><Text style={styles.rejectText}>No</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => handleUpdateConnection(connection.id, 'ACCEPTED')} style={styles.acceptButton}>
+                  <Text style={styles.acceptText}>{t('ACEPTAR', 'ACCEPT')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleUpdateConnection(connection.id, 'DECLINED')} style={styles.rejectButton}>
+                  <Text style={styles.rejectText}>No</Text>
+                </TouchableOpacity>
               </View>
             )}
-            {connection.status === 'outgoing' && (
-              <TouchableOpacity onPress={() => updateConnection(connection.id, 'cancelled')} style={styles.rejectButton}><Text style={styles.rejectText}>{t('CANCELAR', 'CANCEL')}</Text></TouchableOpacity>
+            {connection.status === 'PENDING' && connection.direction === 'outgoing' && (
+              <TouchableOpacity onPress={() => handleUpdateConnection(connection.id, 'CANCELLED')} style={styles.rejectButton}>
+                <Text style={styles.rejectText}>{t('CANCELAR', 'CANCEL')}</Text>
+              </TouchableOpacity>
             )}
-            {connection.status === 'accepted' && (
-              <TouchableOpacity onPress={() => setActiveChatId(connection.id)} style={styles.chatButton}><Text style={styles.chatText}>Chat</Text></TouchableOpacity>
+            {connection.status === 'ACCEPTED' && (
+              <TouchableOpacity onPress={() => setActiveChatId(connection.id)} style={styles.chatButton}>
+                <Text style={styles.chatText}>Chat</Text>
+              </TouchableOpacity>
             )}
           </View>
         ))}
@@ -218,22 +441,32 @@ export function SocialMatchMobile() {
           <View style={styles.chatHeader}>
             <View>
               <Text style={styles.sectionLabel}>Chat</Text>
-              <Text style={styles.chatName}>{activeConnection.name}</Text>
+              <Text style={styles.chatName}>{activeConnection.otherUserName}</Text>
             </View>
-            <TouchableOpacity onPress={() => setActiveChatId(null)} style={styles.closeChat}><Text style={styles.closeChatText}>{t('CERRAR', 'CLOSE')}</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setActiveChatId(null)} style={styles.closeChat}>
+              <Text style={styles.closeChatText}>{t('CERRAR', 'CLOSE')}</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.messagesBox}>
             {messages.map((message) => (
-              <View key={message.id} style={[styles.messageBubble, message.mine ? styles.messageMine : styles.messageTheirs]}>
-                <Text style={[styles.messageText, message.mine && styles.messageTextMine]}>{message.text}</Text>
+              <View key={message.id} style={[styles.messageBubble, message.isMine ? styles.messageMine : styles.messageTheirs]}>
+                <Text style={[styles.messageText, message.isMine && styles.messageTextMine]}>{message.message}</Text>
               </View>
             ))}
           </View>
 
           <View style={styles.chatComposer}>
-            <TextInput value={chatDraft} onChangeText={setChatDraft} style={styles.chatInput} placeholder={t('Escribe un mensaje...', 'Write a message...')} placeholderTextColor="#9CA3AF" />
-            <TouchableOpacity onPress={sendMessage} style={styles.sendButton}><Text style={styles.sendText}>{t('ENVIAR', 'SEND')}</Text></TouchableOpacity>
+            <TextInput
+              value={chatDraft}
+              onChangeText={setChatDraft}
+              style={styles.chatInput}
+              placeholder={t('Escribe un mensaje...', 'Write a message...')}
+              placeholderTextColor="#9CA3AF"
+            />
+            <TouchableOpacity onPress={handleSendMessage} disabled={sendingMsg} style={[styles.sendButton, sendingMsg && { opacity: 0.6 }]}>
+              <Text style={styles.sendText}>{t('ENVIAR', 'SEND')}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -359,6 +592,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  saveButton: {
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: colors.orange,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  saveText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '700' },
   toggleRow: {
     minHeight: 70,
     borderRadius: 16,
