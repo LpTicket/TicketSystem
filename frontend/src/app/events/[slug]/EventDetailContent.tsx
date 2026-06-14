@@ -281,7 +281,8 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
 
   const publicSiteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.lpticket.com';
   const eventPublicUrl = `${publicSiteUrl}/events/${event.slug}`;
-  const eventImageUrl = getImageUrl(event.bannerImageUrl || event.imageUrl) || `${publicSiteUrl}/logo.png`;
+  const eventImageVersion = event.updatedAt || event.createdAt || event.eventDate;
+  const eventImageUrl = getImageUrl(event.bannerImageUrl || event.imageUrl, eventImageVersion) || `${publicSiteUrl}/logo.png`;
   const lowestSectionPrice = event.sections?.length
     ? Math.min(...event.sections.map((section) => Number(section.price || 0)))
     : Number(event.minPrice || 0);
@@ -327,7 +328,7 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
       <div className="event-premium-hero relative overflow-hidden mb-8 aspect-[16/9] sm:aspect-[21/8]">
         {(event.bannerImageUrl || event.imageUrl) ? (
           <img 
-            src={getImageUrl(event.bannerImageUrl || event.imageUrl)} 
+            src={eventImageUrl} 
             alt={event.title} 
             className="w-full h-full object-cover" 
             style={{ objectPosition: event.bannerPosition || 'center' }}
