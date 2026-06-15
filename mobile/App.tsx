@@ -27,6 +27,7 @@ import { colors } from './src/theme/colors';
 import { MobileEvent } from './src/types/event';
 import { AuthUser } from './src/services/api';
 import { logout as logoutRequest, restoreSession } from './src/services/auth';
+import { SplashVideo } from './src/components/SplashVideo';
 
 type Tab = 'events' | 'tickets' | 'scan' | 'social' | 'profile' | 'organizer' | 'admin' | 'contact' | 'about' | 'support' | 'aichat';
 
@@ -345,8 +346,11 @@ function AppContent() {
 }
 
 export default function App() {
+  const [splashDone, setSplashDone] = useState(false);
+
   return (
     <LanguageProvider>
+      {!splashDone && <SplashVideo onFinish={() => setSplashDone(true)} />}
       <AppContent />
     </LanguageProvider>
   );
