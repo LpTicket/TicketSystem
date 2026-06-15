@@ -5,8 +5,8 @@ import { Animated, Image, StyleSheet, View } from 'react-native';
 // the same file (keeps the alpha channel, plays once and holds the lockup).
 const splashWebp = require('../../assets/splash.webp');
 
-// The exported animation runs ~6.0s (146 frames @ 24fps) then holds.
-const WEB_ANIM_MS = 5800;
+// The exported animation runs ~3.1s (sped up 2x) then holds.
+const WEB_ANIM_MS = 2800;
 
 type Props = {
   onFinish: () => void;
