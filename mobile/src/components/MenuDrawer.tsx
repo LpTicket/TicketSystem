@@ -39,12 +39,15 @@ type Props = {
 type IconName = keyof typeof Ionicons.glyphMap;
 const logo = require('../../assets/logo-header.png');
 
-// Only sections NOT already in the bottom tab bar (dashboard/events/users/analytics/profile are there).
-// Payments omitted — placeholder only, not present in the web sidebar either.
 const adminSections: { id: AdminSectionId; labelEs: string; labelEn: string; icon: IconName }[] = [
+  { id: 'dashboard', labelEs: 'Dashboard', labelEn: 'Dashboard', icon: 'grid-outline' },
+  { id: 'events', labelEs: 'Eventos', labelEn: 'Events', icon: 'calendar-outline' },
+  { id: 'users', labelEs: 'Usuarios', labelEn: 'Users', icon: 'people-outline' },
   { id: 'categories', labelEs: 'Categorías', labelEn: 'Categories', icon: 'pricetag-outline' },
   { id: 'marketing', labelEs: 'Marketing', labelEn: 'Marketing', icon: 'megaphone-outline' },
+  { id: 'analytics', labelEs: 'Analíticas', labelEn: 'Analytics', icon: 'stats-chart-outline' },
   { id: 'codes', labelEs: 'Códigos especiales', labelEn: 'Special codes', icon: 'key-outline' },
+  { id: 'payments', labelEs: 'Pagos', labelEn: 'Payments', icon: 'card-outline' },
 ];
 
 const orgSections: { id: OrgSectionId; labelEs: string; labelEn: string; icon: IconName }[] = [
@@ -122,7 +125,22 @@ export function MenuDrawer({
             </View>
           )}
 
-          {/* Primary nav — text rows, no icons (matches web) */}
+          {/* Client nav */}
+          {viewMode === 'client' && isLoggedIn && (
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionLabel}>{t('MI CUENTA', 'MY ACCOUNT')}</Text>
+              </View>
+              <Row icon="calendar-outline" label={t('Eventos', 'Events')} onPress={() => go(onGoEvents)} />
+              <Row icon="ticket-outline" label={t('Mis tickets', 'My tickets')} onPress={() => go(onGoTickets)} />
+              <Row icon="person-outline" label={t('Mi perfil', 'My profile')} onPress={() => go(onGoProfile)} />
+              <Row icon="people-outline" label={t('Social Match', 'Social Match')} onPress={() => go(onGoSocialMatch)} />
+              <Row icon="chatbubble-ellipses-outline" label={t('AI Chat', 'AI Chat')} onPress={() => go(onGoAiChat)} />
+              <Row icon="scan-outline" label={t('Escanear ticket', 'Scan ticket')} onPress={() => go(onGoScan)} />
+            </View>
+          )}
+
+          {/* Primary nav */}
           <View style={styles.card}>
             <Row label={t('Quiénes Somos', 'About Us')} onPress={() => go(onGoAbout)} />
             <Row label={t('Contacto', 'Contact')} onPress={() => go(onGoContact)} />
