@@ -51,6 +51,5 @@ backend/seed_*.js
 backend/migrate_*.js
 lp-ticket-daa331f792c5.json
 
-# Splash source videos (heavy .mov, kept local — web uses splash.webp)
-*.mov
+# Splash frame extraction temp folder
 /_splashframes/
