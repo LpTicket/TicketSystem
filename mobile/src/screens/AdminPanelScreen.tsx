@@ -3,6 +3,7 @@ import { Alert, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpac
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { apiDelete, apiGet, apiPatch, apiPost } from '../services/api';
+import { GradientButton } from '../components/GradientButton';
 
 export type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
 type AdminUser = { id: string; name: string; email: string; role: 'client' | 'organizer' | 'admin'; suspended: boolean };
@@ -574,30 +575,30 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               <PanelCard title={t('Usuarios', 'Users')} eyebrow={t('GESTOR DE USUARIOS', 'USER MANAGER')} copy={t('Clientes, organizadores y administradores de la plataforma.', 'Customers, organizers and platform administrators.')} />
               {users.map((user) => (
                 <View key={user.id} style={styles.userCard}>
-                  <View style={styles.cardHeader}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>{initials(user.name)}</Text>
+                  <View style={styles.userHeader}>
+                    <View style={styles.userIdentity}>
+                      <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
+                      <Text style={styles.userEmail} numberOfLines={1}>{user.email}</Text>
                     </View>
-                    <View style={styles.cardMain}>
-                      <Text style={styles.cardTitle}>{user.name}</Text>
-                      <Text style={styles.cardSub}>{user.email}</Text>
+                    <View style={styles.userBadges}>
+                      <StatusPill label={user.suspended ? 'SUSPENDED' : 'ACTIVE'} tone={user.suspended ? 'red' : 'green'} compact />
+                      <StatusPill label={user.role.toUpperCase()} tone={user.role === 'admin' ? 'dark' : user.role === 'organizer' ? 'orange' : 'gray'} compact />
                     </View>
                   </View>
 
-                  <View style={styles.statusRow}>
-                    <StatusPill label={user.suspended ? 'SUSPENDED' : 'ACTIVE'} tone={user.suspended ? 'red' : 'green'} />
-                    <StatusPill label={user.role.toUpperCase()} tone={user.role === 'admin' ? 'dark' : user.role === 'organizer' ? 'orange' : 'gray'} />
-                  </View>
-
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity onPress={() => setEditingUserId(user.id)} style={styles.cardPrimaryAction}>
-                      <Text style={styles.cardPrimaryText}>{t('EDITAR', 'EDIT')}</Text>
+                  <View style={styles.userActionRow}>
+                    <GradientButton
+                      label={t('EDITAR', 'EDIT')}
+                      onPress={() => setEditingUserId(user.id)}
+                      height={36}
+                      style={styles.userPrimaryAction}
+                      textStyle={styles.userPrimaryText}
+                    />
+                    <TouchableOpacity onPress={() => toggleUserActiveApi(user.id)} style={styles.userSecondaryAction}>
+                      <Text style={styles.userSecondaryText}>{user.suspended ? 'ENABLE' : 'SUSPEND'}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => toggleUserActiveApi(user.id)} style={styles.cardSecondaryAction}>
-                      <Text style={styles.cardSecondaryText}>{user.suspended ? 'ENABLE' : 'SUSPEND'}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => deleteUserApi(user.id)} style={[styles.cardSecondaryAction, { borderColor: 'rgba(239,68,68,0.28)' }]}>
-                      <Text style={[styles.cardSecondaryText, { color: '#FCA5A5' }]}>DEL</Text>
+                    <TouchableOpacity onPress={() => deleteUserApi(user.id)} style={[styles.userSecondaryAction, styles.userDangerAction]}>
+                      <Text style={[styles.userSecondaryText, styles.userDangerText]}>DEL</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -955,21 +956,21 @@ function Activity({ title, copy }: { title: string; copy: string }) {
   );
 }
 
-function StatusPill({ label, tone }: { label: string; tone: 'green' | 'red' | 'orange' | 'gray' | 'dark' }) {
+function StatusPill({ label, tone, compact }: { label: string; tone: 'green' | 'red' | 'orange' | 'gray' | 'dark'; compact?: boolean }) {
   const styleMap = {
-    green: [styles.statusPill, styles.statusGreen],
-    red: [styles.statusPill, styles.statusRed],
-    orange: [styles.statusPill, styles.statusOrange],
-    gray: [styles.statusPill, styles.statusGray],
-    dark: [styles.statusPill, styles.statusDark],
+    green: [styles.statusPill, compact && styles.statusPillCompact, styles.statusGreen],
+    red: [styles.statusPill, compact && styles.statusPillCompact, styles.statusRed],
+    orange: [styles.statusPill, compact && styles.statusPillCompact, styles.statusOrange],
+    gray: [styles.statusPill, compact && styles.statusPillCompact, styles.statusGray],
+    dark: [styles.statusPill, compact && styles.statusPillCompact, styles.statusDark],
   };
 
   const textMap = {
-    green: [styles.statusText, styles.statusTextGreen],
-    red: [styles.statusText, styles.statusTextRed],
-    orange: [styles.statusText, styles.statusTextOrange],
-    gray: [styles.statusText, styles.statusTextGray],
-    dark: [styles.statusText, styles.statusTextDark],
+    green: [styles.statusText, compact && styles.statusTextCompact, styles.statusTextGreen],
+    red: [styles.statusText, compact && styles.statusTextCompact, styles.statusTextRed],
+    orange: [styles.statusText, compact && styles.statusTextCompact, styles.statusTextOrange],
+    gray: [styles.statusText, compact && styles.statusTextCompact, styles.statusTextGray],
+    dark: [styles.statusText, compact && styles.statusTextCompact, styles.statusTextDark],
   };
 
   return (
@@ -1054,10 +1055,6 @@ function RankItem({ index, title, value }: { index: string; title: string; value
   );
 }
 
-function initials(name: string) {
-  return name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
-}
-
 function titleFor(section: Section, t: (es: string, en: string) => string) {
   const names: Record<Section, string> = {
     dashboard: t('Panel administrativo', 'Admin dashboard'),
@@ -1116,18 +1113,32 @@ const styles = StyleSheet.create({
   copy: { color: '#CBD5E1', fontSize: 15, lineHeight: 22, fontWeight: '400', marginBottom: 14 },
   statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   statusPill: { height: 32, borderRadius: 999, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  statusPillCompact: { height: 24, paddingHorizontal: 9 },
   statusGreen: { backgroundColor: 'rgba(249,115,22,0.12)', borderColor: 'rgba(249,115,22,0.34)' },
   statusRed: { backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.28)' },
   statusOrange: { backgroundColor: 'rgba(249,115,22,0.12)', borderColor: 'rgba(249,115,22,0.34)' },
   statusGray: { backgroundColor: '#030B14', borderColor: 'rgba(255,255,255,0.14)' },
   statusDark: { backgroundColor: '#030B14', borderColor: 'rgba(255,255,255,0.14)' },
   statusText: { fontSize: 10, fontWeight: '700', letterSpacing: 0 },
+  statusTextCompact: { fontSize: 9 },
   statusTextGreen: { color: colors.orange },
   statusTextRed: { color: '#FCA5A5' },
   statusTextOrange: { color: colors.orange },
   statusTextGray: { color: '#CBD5E1' },
   statusTextDark: { color: '#F8FAFC' },
-  userCard: { backgroundColor: '#030B14', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 18, marginBottom: 14 },
+  userCard: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 12, marginBottom: 10 },
+  userHeader: { gap: 10, marginBottom: 10 },
+  userIdentity: { minWidth: 0 },
+  userName: { color: '#F8FAFC', fontSize: 17, fontWeight: '700', marginBottom: 3 },
+  userEmail: { color: 'rgba(226,232,240,0.58)', fontSize: 12, fontWeight: '400' },
+  userBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  userActionRow: { flexDirection: 'row', gap: 7 },
+  userPrimaryAction: { flex: 1, borderRadius: 10 },
+  userPrimaryText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700', letterSpacing: 0 },
+  userSecondaryAction: { flex: 1, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.025)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  userSecondaryText: { color: '#F8FAFC', fontSize: 10, fontWeight: '700', letterSpacing: 0 },
+  userDangerAction: { borderColor: 'rgba(239,68,68,0.24)' },
+  userDangerText: { color: '#FCA5A5' },
   cardHeader: { flexDirection: 'row', gap: 14, alignItems: 'center', marginBottom: 16 },
   avatar: { width: 56, height: 56, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.045)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#F8FAFC', fontSize: 16, fontWeight: '700' },
