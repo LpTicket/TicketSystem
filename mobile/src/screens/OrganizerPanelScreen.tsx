@@ -35,6 +35,7 @@ type OrganizerApiEvent = {
   creatorCommission?: number;
   pendingCreatorCommission?: number | null;
   revenue?: number;
+  totalOrders?: number;
   imageUrl?: string | null;
   bannerImageUrl?: string | null;
 };
@@ -94,12 +95,13 @@ function formatEventDate(value?: string) {
 
 function toOrganizerEvent(event: OrganizerApiEvent, index: number): {
   id: string; title: string; venue: string; date: string; eventDate: string; time: string;
-  category: string; capacity: number; sold: number; revenue: string;
+  category: string; capacity: number; sold: number; revenue: string; revenueAmount: number; orders: number;
   status: 'draft' | 'published'; imageUrl: string;
   creatorCommission?: number; pendingCreatorCommission?: number | null;
 } {
   const capacity = Number(event.capacity || event.totalCapacity || 0);
   const sold = Number(event.soldTickets || event.ticketsSold || 0);
+  const revenueAmount = Number(event.totalRevenue || event.revenue || 0);
   return {
     id: String(event.id || index),
     title: event.title || 'Evento',
@@ -110,7 +112,9 @@ function toOrganizerEvent(event: OrganizerApiEvent, index: number): {
     category: event.categoryName || event.category || 'Event',
     capacity,
     sold,
-    revenue: money(event.totalRevenue || event.revenue || 0),
+    revenue: money(revenueAmount),
+    revenueAmount,
+    orders: Number(event.totalOrders || 0),
     status: event.status === 'published' ? 'published' as const : 'draft' as const,
     imageUrl: getImageUrl(event.imageUrl || event.bannerImageUrl),
     creatorCommission: Number(event.creatorCommission || 0),
@@ -300,17 +304,29 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
 
   const firstEvent = organizerEvents[0];
   const activeEvents = organizerEvents.filter((e) => e.status === 'published').length;
+  const visibleTotals = organizerEvents.reduce((totals, event) => ({
+    capacity: totals.capacity + Number(event.capacity || 0),
+    sold: totals.sold + Number(event.sold || 0),
+    revenue: totals.revenue + Number(event.revenueAmount || 0),
+    orders: totals.orders + Number(event.orders || 0),
+  }), { capacity: 0, sold: 0, revenue: 0, orders: 0 });
+  const statsHaveLiveData = Boolean(
+    Number(organizerStats.totalRevenue || 0) ||
+    Number(organizerStats.totalTickets || 0) ||
+    Number(organizerStats.totalOrders || 0)
+  );
   const capacity = firstEvent?.capacity ?? 0;
-  const sold = firstEvent?.sold ?? Number(organizerStats.totalTickets ?? 0);
+  const sold = firstEvent?.sold ?? (statsHaveLiveData ? Number(organizerStats.totalTickets ?? 0) : visibleTotals.sold);
   const scanned = Number(organizerStats.scannedTickets ?? 0);
   const soldPct = capacity > 0 ? Math.min(100, Math.round((sold / capacity) * 100)) : 0;
 
   const dashMetrics = {
-    revenue: money(organizerStats.totalRevenue),
-    ticketsSold: String(organizerStats.totalTickets ?? sold),
+    revenue: money(statsHaveLiveData ? organizerStats.totalRevenue : visibleTotals.revenue),
+    ticketsSold: String(statsHaveLiveData ? Number(organizerStats.totalTickets || 0) : visibleTotals.sold),
     activeEvents: String(activeEvents),
-    orders: String(organizerStats.totalOrders ?? 0),
+    orders: String(statsHaveLiveData ? Number(organizerStats.totalOrders || 0) : visibleTotals.orders),
   };
+  const selectedEventRevenue = eventSales?.totalRevenue ?? selectedEvent?.revenueAmount ?? 0;
 
   const activeSectionIndex = Math.max(0, visibleSections.indexOf(active));
   const showLeftFade = tabsScrollX > 8;
@@ -549,7 +565,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
         {active === 'attendees' && (
           <OrganizerAttendeesMobile
             attendees={attendees}
-            revenueLabel={money(organizerStats.totalRevenue)}
+            revenueLabel={money(selectedEventRevenue)}
             onToggle={toggleAttendeeStatus}
             onResend={handleResendAttendee}
             goTo={setActive}

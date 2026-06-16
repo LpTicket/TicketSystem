@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, ConflictException }
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User, UserRole, Event, EventStatus, Order, Ticket, VenueSection, Seat } from '../database/entities';
+import { User, UserRole, Event, EventStatus, Order, OrderStatus, Ticket, VenueSection, Seat } from '../database/entities';
 
 @Injectable()
 export class AdminService {
@@ -288,7 +288,40 @@ export class AdminService {
       take: limit,
     });
 
-    return { events: events.map((event) => this.routeBase64EventImages(event)), total, page, totalPages: Math.ceil(total / limit) };
+    const eventIds = events.map((event) => event.id);
+    const rows = eventIds.length
+      ? await this.orderRepo
+          .createQueryBuilder('order')
+          .select('order."eventId"', 'eventId')
+          .addSelect('COALESCE(SUM(order."ticketCount"), 0)', 'soldTickets')
+          .addSelect('COALESCE(SUM(order.subtotal), 0)', 'totalRevenue')
+          .addSelect('COUNT(order.id)', 'totalOrders')
+          .where('order."eventId" IN (:...eventIds)', { eventIds })
+          .andWhere('order.status = :status', { status: OrderStatus.PAID })
+          .groupBy('order."eventId"')
+          .getRawMany()
+      : [];
+
+    const statsByEventId = new Map(rows.map((row) => [
+      row.eventId,
+      {
+        soldTickets: Number(row.soldTickets || 0),
+        totalRevenue: Number(row.totalRevenue || 0),
+        totalOrders: Number(row.totalOrders || 0),
+      },
+    ]));
+
+    return {
+      events: events.map((event) => ({
+        ...this.routeBase64EventImages(event),
+        soldTickets: statsByEventId.get(event.id)?.soldTickets || 0,
+        totalRevenue: statsByEventId.get(event.id)?.totalRevenue || 0,
+        totalOrders: statsByEventId.get(event.id)?.totalOrders || 0,
+      })),
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async approveEvent(eventId: string) {

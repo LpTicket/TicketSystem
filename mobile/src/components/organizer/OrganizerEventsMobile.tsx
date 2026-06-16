@@ -29,6 +29,8 @@ type OrganizerEventItem = {
   capacity: number;
   sold: number;
   revenue: string;
+  revenueAmount: number;
+  orders: number;
   status: EventStatus;
   imageUrl: string;
 };
