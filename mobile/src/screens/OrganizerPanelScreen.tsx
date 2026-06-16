@@ -11,6 +11,7 @@ import { OrganizerAccessMobile } from '../components/organizer/OrganizerAccessMo
 import { OrganizerRewardsMobile } from '../components/organizer/OrganizerRewardsMobile';
 import { OrganizerAnalyticsMobile } from '../components/organizer/OrganizerAnalyticsMobile';
 import { OrganizerOverviewMobile } from '../components/organizer/OrganizerOverviewMobile';
+import { OrganizerCommissionMobile } from '../components/organizer/OrganizerCommissionMobile';
 import { apiGet, apiPatch, apiPost } from '../services/api';
 
 export type Section = 'dashboard' | 'events' | 'create' | 'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'commission' | 'rewards' | 'scan';
@@ -30,6 +31,8 @@ type OrganizerApiEvent = {
   soldTickets?: number;
   ticketsSold?: number;
   totalRevenue?: number;
+  creatorCommission?: number;
+  pendingCreatorCommission?: number | null;
   revenue?: number;
 };
 
@@ -86,7 +89,12 @@ function formatEventDate(value?: string) {
   }
 }
 
-function toOrganizerEvent(event: OrganizerApiEvent, index: number) {
+function toOrganizerEvent(event: OrganizerApiEvent, index: number): {
+  id: string; title: string; venue: string; date: string; time: string;
+  category: string; capacity: number; sold: number; revenue: string;
+  status: 'draft' | 'published';
+  creatorCommission?: number; pendingCreatorCommission?: number | null;
+} {
   const capacity = Number(event.capacity || event.totalCapacity || 0);
   const sold = Number(event.soldTickets || event.ticketsSold || 0);
   return {
@@ -100,12 +108,14 @@ function toOrganizerEvent(event: OrganizerApiEvent, index: number) {
     sold,
     revenue: money(event.totalRevenue || event.revenue || 0),
     status: event.status === 'published' ? 'published' as const : 'draft' as const,
+    creatorCommission: Number(event.creatorCommission || 0),
+    pendingCreatorCommission: event.pendingCreatorCommission ?? null,
   };
 }
 
 // Global sections (always available) vs event sections (only after picking an event).
-const GLOBAL_SECTIONS: Section[] = ['dashboard', 'events', 'create'];
-const EVENT_SECTIONS: Section[] = ['analytics', 'details', 'overview', 'attendees', 'map', 'blocks', 'rewards'];
+const GLOBAL_SECTIONS: Section[] = ['dashboard', 'events', 'create', 'rewards'];
+const EVENT_SECTIONS: Section[] = ['analytics', 'details', 'overview', 'attendees', 'map', 'blocks', 'commission'];
 const isEventSection = (s: Section) => EVENT_SECTIONS.includes(s);
 
 type PanelProps = { section?: Section; onSectionChange?: (s: Section) => void };
@@ -517,6 +527,16 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             items={accessItems}
             onToggle={toggleAccessItem}
             goTo={setActive}
+          />
+        )}
+
+        {active === 'commission' && (
+          <OrganizerCommissionMobile
+            eventId={selectedEvent?.id}
+            eventStatus={eventStatus}
+            sections={eventSections}
+            initialCommission={selectedEvent?.creatorCommission}
+            pendingCommission={selectedEvent?.pendingCreatorCommission}
           />
         )}
 
