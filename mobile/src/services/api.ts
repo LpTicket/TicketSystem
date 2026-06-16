@@ -1,6 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 // Defaults to the production Railway backend so the app works out of the box.
 // Override with EXPO_PUBLIC_API_URL (e.g. http://192.168.x.x:3001/api for local dev).
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://ticketsystembackend.up.railway.app/api').replace(/\/$/, '');
+const TOKENS_KEY = 'lp_auth_tokens';
 
 let accessToken = '';
 let refreshToken = '';
@@ -16,6 +19,7 @@ export type AuthUser = {
   phone?: string | null;
   role?: 'client' | 'admin' | string;
   isActive?: boolean;
+  avatarUrl?: string | null;
 };
 
 export type AuthResponse = {
@@ -36,6 +40,19 @@ export function clearAuthTokens() {
 
 export function getAccessToken() {
   return accessToken;
+}
+
+async function ensureAuthTokens() {
+  if (accessToken) return;
+  try {
+    const tokensRaw = await AsyncStorage.getItem(TOKENS_KEY);
+    if (!tokensRaw) return;
+    const tokens = JSON.parse(tokensRaw);
+    accessToken = tokens?.accessToken || '';
+    refreshToken = tokens?.refreshToken || '';
+  } catch {
+    /* ignore */
+  }
 }
 
 function authHeaders(extra?: Record<string, string>) {
@@ -62,6 +79,7 @@ export async function apiGet<T>(path: string): Promise<T> {
   if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  await ensureAuthTokens();
   const response = await fetch(`${API_URL}${cleanPath}`, {
     headers: authHeaders(),
   });
@@ -77,6 +95,7 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  await ensureAuthTokens();
   const response = await fetch(`${API_URL}${cleanPath}`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -100,6 +119,7 @@ export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  await ensureAuthTokens();
   const response = await fetch(`${API_URL}${cleanPath}`, {
     method: 'PATCH',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -117,6 +137,7 @@ export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
   if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  await ensureAuthTokens();
   const response = await fetch(`${API_URL}${cleanPath}`, {
     method: 'PUT',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -153,6 +174,7 @@ export async function apiUploadImage<T>(path: string, image: PickedImage, field 
     form.append(field, { uri: image.uri, name, type } as any);
   }
 
+  await ensureAuthTokens();
   const response = await fetch(`${API_URL}${cleanPath}`, {
     method: 'POST',
     headers: authHeaders(),
@@ -176,6 +198,7 @@ export async function apiDelete<T = void>(path: string): Promise<T> {
   if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  await ensureAuthTokens();
   const response = await fetch(`${API_URL}${cleanPath}`, {
     method: 'DELETE',
     headers: authHeaders(),

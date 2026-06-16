@@ -75,20 +75,20 @@ export async function updateProfile(
 /** Restore a saved session on app launch. Returns the user or null. */
 export async function restoreSession(): Promise<AuthUser | null> {
   try {
-    const [tokensRaw, userRaw] = await Promise.all([
-      AsyncStorage.getItem(TOKENS_KEY),
-      AsyncStorage.getItem(USER_KEY),
-    ]);
+    const tokensRaw = await AsyncStorage.getItem(TOKENS_KEY);
     if (!tokensRaw) return null;
     const tokens = JSON.parse(tokensRaw);
     setAuthTokens(tokens.accessToken, tokens.refreshToken);
-    // Refresh from the server; fall back to the cached user if offline.
+    // Only restore a session that the backend still accepts. Otherwise the app
+    // can show admin UI with a stale token and fail every admin request.
     try {
       const fresh = await fetchProfile();
       await AsyncStorage.setItem(USER_KEY, JSON.stringify(fresh));
       return fresh;
     } catch {
-      return userRaw ? (JSON.parse(userRaw) as AuthUser) : null;
+      clearAuthTokens();
+      await AsyncStorage.multiRemove([TOKENS_KEY, USER_KEY]);
+      return null;
     }
   } catch {
     return null;

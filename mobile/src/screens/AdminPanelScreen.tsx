@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
-import { apiDelete, apiGet, apiPatch, apiPost } from '../services/api';
+import { apiDelete, apiGet, apiPatch, apiPost, getImageUrl } from '../services/api';
 import { GradientButton } from '../components/GradientButton';
 
 export type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
-type AdminUser = { id: string; name: string; email: string; role: 'client' | 'organizer' | 'admin'; suspended: boolean };
+type AdminUser = { id: string; name: string; email: string; role: 'client' | 'organizer' | 'admin'; suspended: boolean; avatarUrl?: string };
 type Category = { id: string; name: string; active: boolean; featured: boolean };
 
 type AnalyticsSummary = {
@@ -91,6 +91,41 @@ function adminEventDate(event: any) {
   }
 }
 
+function isAdminEventPast(event: any) {
+  const value = event?.eventDate || event?.date;
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) && time < Date.now();
+}
+
+function adminEventTime(event: any) {
+  const value = event?.eventDate || event?.date;
+  const time = value ? new Date(value).getTime() : Number.POSITIVE_INFINITY;
+  return Number.isFinite(time) ? time : Number.POSITIVE_INFINITY;
+}
+
+function sortAdminEventsBySchedule(a: any, b: any) {
+  const aPast = isAdminEventPast(a);
+  const bPast = isAdminEventPast(b);
+  if (aPast !== bPast) return aPast ? 1 : -1;
+  return adminEventTime(a) - adminEventTime(b);
+}
+
+function adminEventImage(event: any) {
+  return getImageUrl(event?.imageUrl || event?.bannerImageUrl || event?.imageData || event?.mobileImageData);
+}
+
+function toAdminUser(user: any): AdminUser {
+  return {
+    id: String(user.id || user._id || user.email),
+    name: fullName(user),
+    email: user.email || '',
+    role: user.role === 'admin' ? 'admin' : user.role === 'organizer' ? 'organizer' : 'client',
+    suspended: user.isActive === false || user.suspended === true,
+    avatarUrl: getImageUrl(user.avatarUrl || user.profileImageUrl || user.photoUrl || user.imageUrl),
+  };
+}
+
 const sections: { id: Section; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'events', label: 'Eventos' },
@@ -117,6 +152,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [marketingFeaturedEnabled, setMarketingFeaturedEnabled] = useState(true);
   const [marketingPromoEnabled, setMarketingPromoEnabled] = useState(false);
   const [specialCodeDraft, setSpecialCodeDraft] = useState('');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
 
   const [adminStats, setAdminStats] = useState<AdminStats>({});
   const [adminEvents, setAdminEvents] = useState<any[]>([]);
@@ -134,6 +170,17 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [campaignSubjectDraft, setCampaignSubjectDraft] = useState('');
   const [campaignBodyDraft, setCampaignBodyDraft] = useState('');
   const [specialCodeOwnerDraft, setSpecialCodeOwnerDraft] = useState('');
+  const [usersApiError, setUsersApiError] = useState('');
+
+  const loadUsers = async () => {
+    try {
+      setUsersApiError('');
+      const data = await apiGet<any>('/admin/users?page=1&limit=20');
+      setUsers(listFrom(data).map(toAdminUser));
+    } catch (err: any) {
+      setUsersApiError(err?.message || 'Could not load users');
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -153,14 +200,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       }
 
       if (usersRes.status === 'fulfilled') {
-        const liveUsers = listFrom(usersRes.value).map((user: any) => ({
-          id: String(user.id || user._id || user.email),
-          name: fullName(user),
-          email: user.email || '',
-          role: user.role === 'admin' ? 'admin' : user.role === 'organizer' ? 'organizer' : 'client',
-          suspended: user.isActive === false || user.suspended === true,
-        }));
-        if (liveUsers.length) setUsers(liveUsers);
+        setUsers(listFrom(usersRes.value).map(toAdminUser));
+        setUsersApiError('');
       }
 
       if (categoriesRes.status === 'fulfilled') {
@@ -184,6 +225,19 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     { id: '2', name: 'Fidel Genre', email: 'fidel@example.com', role: 'organizer', suspended: false },
     { id: '3', name: 'Maria Lopez', email: 'maria@example.com', role: 'client', suspended: false },
   ]);
+
+  useEffect(() => {
+    if (active === 'users') loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  const normalizedUserSearch = userSearchQuery.trim().toLowerCase();
+  const visibleUsers = normalizedUserSearch
+    ? users.filter((user) => {
+        const haystack = `${user.name} ${user.email} ${user.role} ${user.suspended ? 'suspended suspendido' : 'active activo'}`.toLowerCase();
+        return haystack.includes(normalizedUserSearch);
+      })
+    : users;
 
   const [categories, setCategories] = useState<Category[]>([
     { id: '1', name: 'Concert', active: true, featured: true },
@@ -514,19 +568,47 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             {adminEvents.length === 0 && (
               <PanelCard title={t('Sin eventos todavía', 'No events yet')} copy={t('Cuando se publiquen eventos aparecerán aquí.', 'Published events will appear here.')} />
             )}
-            {adminEvents.map((item: any) => (
-              <PanelCard key={String(item.id || item.slug || adminEventTitle(item))} title={adminEventTitle(item)} eyebrow={(item.status || 'EVENT').toUpperCase()}>
-                <Text style={styles.copy}>{adminEventDate(item)} · {adminEventVenue(item)}</Text>
-                <View style={styles.statusRow}>
-                  <StatusPill label={(item.status || 'PUBLICADO').toUpperCase()} tone={item.status === 'draft' ? 'gray' : 'green'} />
-                  {item.featured || item.isFeatured ? <StatusPill label={t('DESTACADO', 'FEATURED')} tone="orange" /> : null}
+            {[...adminEvents].sort(sortAdminEventsBySchedule).map((item: any) => (
+              <View key={String(item.id || item.slug || adminEventTitle(item))} style={[styles.adminEventCard, isAdminEventPast(item) && styles.adminEventCardPast]}>
+                <View style={styles.adminEventTop}>
+                  <View style={styles.adminEventPosterWrap}>
+                    {adminEventImage(item) ? (
+                      <Image source={{ uri: adminEventImage(item) }} style={styles.adminEventPoster} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.adminEventPosterFallback}>
+                        <Text style={styles.adminEventPosterText}>EVENT</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.adminEventMain}>
+                    <Text style={styles.adminEventEyebrow}>{(item.status || 'EVENT').toUpperCase()}</Text>
+                    <Text style={styles.adminEventTitle} numberOfLines={2}>{adminEventTitle(item)}</Text>
+                    <Text style={styles.adminEventMeta} numberOfLines={2}>{adminEventDate(item)} · {adminEventVenue(item)}</Text>
+                    <View style={styles.adminEventBadges}>
+                      <StatusPill label={isAdminEventPast(item) ? t('PASADO', 'PAST') : t('ACTIVO', 'ACTIVE')} tone={isAdminEventPast(item) ? 'gray' : 'red'} compact />
+                      <StatusPill label={(item.status || 'PUBLICADO').toUpperCase()} tone={item.status === 'draft' ? 'gray' : 'green'} compact />
+                      {item.featured || item.isFeatured ? <StatusPill label={t('DESTACADO', 'FEATURED')} tone="orange" compact /> : null}
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.actionGrid}>
-                  <ActionButton label={item.featured || item.isFeatured ? t('Quitar destacado', 'Unfeature') : t('Destacar', 'Feature')} onPress={() => toggleEventFeaturedApi(item.id)} />
-                  <ActionButton label={item.status === 'published' ? t('Ocultar', 'Hide') : t('Publicar', 'Publish')} onPress={() => toggleEventVisibilityApi(item.id)} muted={item.status === 'published'} />
-                  <ActionButton label={t('Eliminar', 'Delete')} onPress={() => deleteEventApi(item.id)} muted />
+
+                <View style={styles.adminEventActions}>
+                  <GradientButton
+                    label={item.featured || item.isFeatured ? t('QUITAR', 'UNFEATURE') : t('DESTACAR', 'FEATURE')}
+                    onPress={() => toggleEventFeaturedApi(item.id)}
+                    height={34}
+                    style={styles.adminEventPrimaryAction}
+                    textStyle={styles.adminEventPrimaryText}
+                  />
+                  <TouchableOpacity onPress={() => toggleEventVisibilityApi(item.id)} style={styles.adminEventSecondaryAction}>
+                    <Text style={styles.adminEventSecondaryText}>{item.status === 'published' ? t('OCULTAR', 'HIDE') : t('PUBLICAR', 'PUBLISH')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => deleteEventApi(item.id)} style={[styles.adminEventSecondaryAction, styles.adminEventDangerAction]}>
+                    <Text style={[styles.adminEventSecondaryText, styles.adminEventDangerText]}>{t('DEL', 'DEL')}</Text>
+                  </TouchableOpacity>
                 </View>
-              </PanelCard>
+              </View>
             ))}
           </>
         )}
@@ -572,17 +654,51 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             ))
           ) : (
             <>
-              <PanelCard title={t('Usuarios', 'Users')} eyebrow={t('GESTOR DE USUARIOS', 'USER MANAGER')} copy={t('Clientes, organizadores y administradores de la plataforma.', 'Customers, organizers and platform administrators.')} />
-              {users.map((user) => (
+              <View style={styles.userSearchBox}>
+                <Text style={styles.userSearchIcon}>⌕</Text>
+                <TextInput
+                  value={userSearchQuery}
+                  onChangeText={setUserSearchQuery}
+                  placeholder={t('Buscar usuarios', 'Search users')}
+                  placeholderTextColor="rgba(226,232,240,0.38)"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={styles.userSearchInput}
+                />
+              </View>
+              {usersApiError ? (
+                <View style={styles.userEmptyCard}>
+                  <Text style={styles.userEmptyText}>{t('No se pudo actualizar la lista real de usuarios.', 'Could not refresh the real users list.')}</Text>
+                  <Text style={styles.userEmptyText}>{usersApiError}</Text>
+                </View>
+              ) : null}
+              {visibleUsers.length === 0 && (
+                <View style={styles.userEmptyCard}>
+                  <Text style={styles.userEmptyText}>{t('No se encontraron usuarios', 'No users found')}</Text>
+                </View>
+              )}
+              {visibleUsers.map((user) => (
                 <View key={user.id} style={styles.userCard}>
                   <View style={styles.userHeader}>
-                    <View style={styles.userIdentity}>
-                      <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
-                      <Text style={styles.userEmail} numberOfLines={1}>{user.email}</Text>
+                    <View style={styles.userInfo}>
+                      <View style={styles.userIdentity}>
+                        <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
+                        <Text style={styles.userEmail} numberOfLines={1}>{user.email}</Text>
+                      </View>
+                      <View style={styles.userBadges}>
+                        <StatusPill label={user.suspended ? 'SUSPENDED' : 'ACTIVE'} tone={user.suspended ? 'red' : 'green'} compact />
+                        <StatusPill label={user.role.toUpperCase()} tone={user.role === 'admin' ? 'dark' : user.role === 'organizer' ? 'orange' : 'gray'} compact />
+                      </View>
                     </View>
-                    <View style={styles.userBadges}>
-                      <StatusPill label={user.suspended ? 'SUSPENDED' : 'ACTIVE'} tone={user.suspended ? 'red' : 'green'} compact />
-                      <StatusPill label={user.role.toUpperCase()} tone={user.role === 'admin' ? 'dark' : user.role === 'organizer' ? 'orange' : 'gray'} compact />
+                    <View style={styles.userAvatarBox}>
+                      {user.avatarUrl ? (
+                        <Image source={{ uri: user.avatarUrl }} style={styles.userAvatarImage} resizeMode="cover" />
+                      ) : (
+                        <View style={styles.userAvatarFallback}>
+                          <View style={styles.userAvatarHead} />
+                          <View style={styles.userAvatarBody} />
+                        </View>
+                      )}
                     </View>
                   </View>
 
@@ -1126,12 +1242,37 @@ const styles = StyleSheet.create({
   statusTextOrange: { color: colors.orange },
   statusTextGray: { color: '#CBD5E1' },
   statusTextDark: { color: '#F8FAFC' },
+  adminEventCard: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 11, marginBottom: 10 },
+  adminEventCardPast: { backgroundColor: 'rgba(3,11,20,0.74)', borderColor: 'rgba(148,163,184,0.18)' },
+  adminEventTop: { flexDirection: 'row', gap: 11, alignItems: 'center' },
+  adminEventPosterWrap: { width: 76, height: 96, borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  adminEventPoster: { width: '100%', height: '100%' },
+  adminEventPosterFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.08)' },
+  adminEventPosterText: { color: colors.orange, fontSize: 9, fontWeight: '700', letterSpacing: 0 },
+  adminEventMain: { flex: 1, minWidth: 0 },
+  adminEventEyebrow: { color: colors.orange, fontSize: 10, fontWeight: '700', letterSpacing: 0, marginBottom: 4 },
+  adminEventTitle: { color: '#F8FAFC', fontSize: 17, lineHeight: 21, fontWeight: '700', marginBottom: 5 },
+  adminEventMeta: { color: 'rgba(226,232,240,0.62)', fontSize: 12, lineHeight: 17, fontWeight: '400', marginBottom: 8 },
+  adminEventBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  adminEventActions: { flexDirection: 'row', gap: 7, marginTop: 10 },
+  adminEventPrimaryAction: { flex: 1.12, borderRadius: 10 },
+  adminEventPrimaryText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700', letterSpacing: 0 },
+  adminEventSecondaryAction: { flex: 1, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.025)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  adminEventSecondaryText: { color: '#F8FAFC', fontSize: 10, fontWeight: '700', letterSpacing: 0 },
+  adminEventDangerAction: { flex: 0.72, borderColor: 'rgba(239,68,68,0.24)' },
+  adminEventDangerText: { color: '#FCA5A5' },
   userCard: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 12, marginBottom: 10 },
-  userHeader: { gap: 10, marginBottom: 10 },
+  userHeader: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 10 },
+  userInfo: { flex: 1, minWidth: 0, gap: 8 },
   userIdentity: { minWidth: 0 },
   userName: { color: '#F8FAFC', fontSize: 17, fontWeight: '700', marginBottom: 3 },
   userEmail: { color: 'rgba(226,232,240,0.58)', fontSize: 12, fontWeight: '400' },
   userBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  userAvatarBox: { width: 58, height: 58, borderRadius: 16, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.035)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  userAvatarImage: { width: '100%', height: '100%' },
+  userAvatarFallback: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.025)' },
+  userAvatarHead: { width: 17, height: 17, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.72)', marginBottom: 5 },
+  userAvatarBody: { width: 31, height: 15, borderTopLeftRadius: 999, borderTopRightRadius: 999, backgroundColor: 'rgba(226,232,240,0.58)' },
   userActionRow: { flexDirection: 'row', gap: 7 },
   userPrimaryAction: { flex: 1, borderRadius: 10 },
   userPrimaryText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700', letterSpacing: 0 },
@@ -1139,6 +1280,11 @@ const styles = StyleSheet.create({
   userSecondaryText: { color: '#F8FAFC', fontSize: 10, fontWeight: '700', letterSpacing: 0 },
   userDangerAction: { borderColor: 'rgba(239,68,68,0.24)' },
   userDangerText: { color: '#FCA5A5' },
+  userSearchBox: { height: 46, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: '#030B14', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 13, marginBottom: 10 },
+  userSearchIcon: { color: colors.orange, fontSize: 18, fontWeight: '700', width: 18, textAlign: 'center' },
+  userSearchInput: { flex: 1, color: '#F8FAFC', fontSize: 14, fontWeight: '600', paddingVertical: 0 },
+  userEmptyCard: { backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', padding: 14, marginBottom: 10, alignItems: 'center' },
+  userEmptyText: { color: 'rgba(226,232,240,0.62)', fontSize: 13, fontWeight: '600' },
   cardHeader: { flexDirection: 'row', gap: 14, alignItems: 'center', marginBottom: 16 },
   avatar: { width: 56, height: 56, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.045)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#F8FAFC', fontSize: 16, fontWeight: '700' },

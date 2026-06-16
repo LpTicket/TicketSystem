@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { AuthUser } from '../../services/api';
+import { AuthUser, getImageUrl } from '../../services/api';
 import { updateProfile as updateProfileRequest } from '../../services/auth';
 import { GradientButton } from '../GradientButton';
 
@@ -39,6 +39,7 @@ export function AccountMobile({ user, onUserUpdated, tabs, showSections = true }
   });
 
   const initials = `${account.firstName[0] || ''}${account.lastName[0] || ''}`.toUpperCase();
+  const avatarUrl = getImageUrl(user.avatarUrl);
 
   const update = (key: keyof AccountForm, value: string) => {
     setAccount((current) => ({ ...current, [key]: value }));
@@ -71,7 +72,11 @@ export function AccountMobile({ user, onUserUpdated, tabs, showSections = true }
       <View style={styles.heroCard}>
         <View style={styles.avatarWrap}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} resizeMode="cover" />
+            ) : (
+              <Text style={styles.avatarText}>{initials}</Text>
+            )}
           </View>
           <TouchableOpacity style={styles.cameraButton}>
             <Text style={styles.cameraText}>{t('FOTO', 'CAM')}</Text>
@@ -227,7 +232,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
+    overflow: 'hidden',
   },
+  avatarImage: { width: '100%', height: '100%' },
   avatarText: { color: '#F8FAFC', fontSize: 30, fontWeight: '700' },
   cameraButton: {
     position: 'absolute',
