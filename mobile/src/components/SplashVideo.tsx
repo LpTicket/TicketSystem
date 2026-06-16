@@ -1,25 +1,27 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useLanguage } from '../i18n/LanguageContext';
+import { Animated, StyleSheet, View } from 'react-native';
+import { VideoView, useVideoPlayer } from 'expo-video';
 
-// Native (iOS) can't decode the animated WebP, so the splash shows the white
-// logo lockup as a static PNG (extracted from the source video) over the dark
-// background. Web uses SplashVideo.web.tsx with the animated WebP.
-const splashLogo = require('../../assets/splash-logo.png');
+const splashAnimation = require('../../assets/splash-animation.mp4');
 
-const SPLASH_MS = 2800;
+const SPLASH_MS = 7000;
 
 // Hard safety: the splash can NEVER block the app longer than this.
-const MAX_BLOCK_MS = 7000;
+const MAX_BLOCK_MS = 8500;
 
 type Props = {
   onFinish: () => void;
 };
 
 export function SplashVideo({ onFinish }: Props) {
-  const { t } = useLanguage();
   const containerOpacity = useRef(new Animated.Value(1)).current;
   const done = useRef(false);
+  const player = useVideoPlayer(splashAnimation, (videoPlayer) => {
+    videoPlayer.loop = false;
+    videoPlayer.muted = true;
+    videoPlayer.volume = 0;
+    videoPlayer.play();
+  });
 
   // Fade out + finish, guaranteed to run only once no matter what triggers it.
   const dismiss = () => {
@@ -46,14 +48,15 @@ export function SplashVideo({ onFinish }: Props) {
 
   return (
     <Animated.View style={[styles.container, { opacity: containerOpacity }]}>
-      {/* Tap anywhere to skip. */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={dismiss}>
-        <View style={styles.bg} />
-      </Pressable>
-      <Image source={splashLogo} style={styles.lockup} resizeMode="contain" />
-      <Pressable style={styles.skip} onPress={dismiss}>
-        <Text style={styles.skipText}>{t('Saltar', 'Skip')}</Text>
-      </Pressable>
+      <View style={styles.bg} />
+      <VideoView
+        player={player}
+        style={styles.video}
+        nativeControls={false}
+        contentFit="cover"
+        allowsPictureInPicture={false}
+        pointerEvents="none"
+      />
     </Animated.View>
   );
 }
@@ -70,26 +73,9 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     backgroundColor: '#030B14',
   },
-  lockup: {
-    width: 300,
-    aspectRatio: 1498 / 398,
-    pointerEvents: 'none',
-  },
-  skip: {
-    position: 'absolute',
-    bottom: 40,
-    right: 24,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  skipText: {
-    color: 'rgba(248,250,252,0.9)',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+  video: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
   },
 });
