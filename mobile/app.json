@@ -9,7 +9,11 @@
     "ios": {
       "bundleIdentifier": "com.inhoustontexas.lpticket",
       "buildNumber": "1",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "LPTicket necesita acceso a tus fotos para cambiar tu foto de perfil.",
+        "NSPhotoLibraryAddUsageDescription": "LPTicket necesita permiso para guardar imágenes cuando sea necesario."
+      }
     },
     "android": {
       "package": "com.inhoustontexas.lpticket",
@@ -26,7 +30,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "LPTicket necesita acceso a tus fotos para cambiar tu foto de perfil."
+        }
+      ]
     ]
   }
 }

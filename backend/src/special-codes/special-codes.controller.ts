@@ -88,6 +88,8 @@ export class SpecialCodesController {
   ) {
     return this.specialCodesService.updateCode(id, dto);
   }
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.specialCodesService.remove(id);

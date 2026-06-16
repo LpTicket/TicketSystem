@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Event, EventStatus, EventCategory, VenueSection, Seat, SeatStatus, User, Ticket, TicketStatus, Order, EventCategoryEntity } from '../database/entities';
+import { Event, EventStatus, EventCategory, VenueSection, Seat, SeatStatus, User, Ticket, TicketStatus, Order, OrderStatus, EventCategoryEntity } from '../database/entities';
 import { CreateEventDto, UpdateEventDto, EventQueryDto } from './dto/event.dto';
 
 /**
@@ -404,7 +404,32 @@ export class EventsService {
       where: { organizerId },
       order: { createdAt: 'DESC' },
     });
-    return events.map((event) => this.routeBase64EventImages(event));
+    if (!events.length) return [];
+
+    const eventIds = events.map((event) => event.id);
+    const orderRows = await this.eventRepo.manager.getRepository(Order)
+      .createQueryBuilder('order')
+      .select('order."eventId"', 'eventId')
+      .addSelect('COALESCE(SUM(order."ticketCount"), 0)', 'soldTickets')
+      .addSelect('COALESCE(SUM(order.subtotal), 0)', 'totalRevenue')
+      .where('order."eventId" IN (:...eventIds)', { eventIds })
+      .andWhere('order.status = :status', { status: OrderStatus.PAID })
+      .groupBy('order."eventId"')
+      .getRawMany();
+
+    const statsByEventId = new Map(orderRows.map((row) => [
+      row.eventId,
+      {
+        soldTickets: Number(row.soldTickets || 0),
+        totalRevenue: Number(row.totalRevenue || 0),
+      },
+    ]));
+
+    return events.map((event) => ({
+      ...this.routeBase64EventImages(event),
+      soldTickets: statsByEventId.get(event.id)?.soldTickets || 0,
+      totalRevenue: statsByEventId.get(event.id)?.totalRevenue || 0,
+    }));
   }
 
   // --- Seat Map & Inventory Management ---

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Repository } from 'typeorm';
 import { AnalyticsPageView } from './analytics-page-view.entity';
+import { Event } from '../database/entities/event.entity';
 
 type TrackViewDto = {
   visitorId?: string;
@@ -17,6 +18,8 @@ export class AnalyticsService {
   constructor(
     @InjectRepository(AnalyticsPageView)
     private readonly pageViewRepo: Repository<AnalyticsPageView>,
+    @InjectRepository(Event)
+    private readonly eventRepo: Repository<Event>,
   ) {}
 
   private cleanText(value: unknown, max: number) {
@@ -31,6 +34,21 @@ export class AnalyticsService {
     } catch {
       return this.cleanText(referrer, 80);
     }
+  }
+
+  private formatEventSlug(slug: string | null | undefined) {
+    if (!slug) return null;
+    const parts = slug
+      .split(/[/-]+/)
+      .filter(Boolean)
+      .filter((word, index, words) => {
+        const isLast = index === words.length - 1;
+        return !(isLast && /^[a-z0-9]{8,}$/i.test(word));
+      });
+
+    return parts
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   }
 
   async trackView(dto: TrackViewDto) {
@@ -100,12 +118,22 @@ export class AnalyticsService {
         .getRawMany(),
     ]);
 
+    const eventSlugs = topEvents.map((item) => item.eventSlug).filter(Boolean);
+    const events = eventSlugs.length
+      ? await this.eventRepo.find({
+          where: eventSlugs.map((slug) => ({ slug })),
+          select: ['slug', 'title'],
+        })
+      : [];
+    const eventTitlesBySlug = new Map(events.map((event) => [event.slug, event.title]));
+
     return {
       days: safeDays,
       totalViews,
       uniqueVisitors: Number(uniqueVisitors?.count || 0),
       topEvents: topEvents.map((item) => ({
         eventSlug: item.eventSlug,
+        eventTitle: eventTitlesBySlug.get(item.eventSlug) || this.formatEventSlug(item.eventSlug),
         views: Number(item.views || 0),
         visitors: Number(item.visitors || 0),
       })),

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Feather } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { AuthUser, getImageUrl } from '../../services/api';
-import { updateProfile as updateProfileRequest } from '../../services/auth';
+import { updateProfile as updateProfileRequest, uploadAvatar as uploadAvatarRequest } from '../../services/auth';
 import { GradientButton } from '../GradientButton';
 
 type AccountForm = {
@@ -28,6 +30,7 @@ export function AccountMobile({ user, onUserUpdated, tabs, showSections = true }
   const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [account, setAccount] = useState<AccountForm>({
     firstName: user.firstName || '',
     lastName: user.lastName || '',
@@ -67,6 +70,45 @@ export function AccountMobile({ user, onUserUpdated, tabs, showSections = true }
     }
   };
 
+  const changeAvatar = async () => {
+    if (uploadingAvatar) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(
+        t('Permiso necesario', 'Permission needed'),
+        t('Concede acceso a tus fotos para cambiar tu foto de perfil.', 'Grant photo access to change your profile photo.'),
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.86,
+    });
+    if (result.canceled || !result.assets?.length) return;
+
+    const asset = result.assets[0];
+    setUploadingAvatar(true);
+    try {
+      const updated = await uploadAvatarRequest({
+        uri: asset.uri,
+        fileName: asset.fileName,
+        mimeType: asset.mimeType,
+      });
+      onUserUpdated?.(updated);
+    } catch (err: any) {
+      Alert.alert(
+        t('Error', 'Error'),
+        err?.message || t('No se pudo cambiar la foto de perfil.', 'Could not change your profile photo.'),
+      );
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   return (
     <View>
       <View style={styles.heroCard}>
@@ -78,8 +120,18 @@ export function AccountMobile({ user, onUserUpdated, tabs, showSections = true }
               <Text style={styles.avatarText}>{initials}</Text>
             )}
           </View>
-          <TouchableOpacity style={styles.cameraButton}>
-            <Text style={styles.cameraText}>{t('FOTO', 'CAM')}</Text>
+          <TouchableOpacity
+            activeOpacity={0.88}
+            style={[styles.cameraButton, uploadingAvatar && styles.cameraButtonDisabled]}
+            onPress={changeAvatar}
+            disabled={uploadingAvatar}
+            accessibilityLabel={t('Cambiar foto de perfil', 'Change profile photo')}
+          >
+            {uploadingAvatar ? (
+              <ActivityIndicator size="small" color={colors.orange} />
+            ) : (
+              <Feather name="edit-2" size={14} color={colors.orange} />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -238,18 +290,22 @@ const styles = StyleSheet.create({
   avatarText: { color: '#F8FAFC', fontSize: 30, fontWeight: '700' },
   cameraButton: {
     position: 'absolute',
-    right: -4,
-    bottom: -4,
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    right: -2,
+    bottom: -2,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     backgroundColor: '#030B14',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(249,115,22,0.72)',
+    shadowColor: '#ff6800',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
   },
-  cameraText: { color: colors.orange, fontSize: 10, fontWeight: '700' },
+  cameraButtonDisabled: { opacity: 0.66 },
   name: { color: '#FFFFFF', fontSize: 26, fontWeight: '700', marginBottom: 5 },
   role: { color: '#cbd5e1', fontSize: 12, letterSpacing: 0, fontWeight: '400', marginBottom: 14 },
   heroStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, width: '100%', justifyContent: 'center' },

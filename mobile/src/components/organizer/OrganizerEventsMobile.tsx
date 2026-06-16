@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { GradientButton } from '../GradientButton';
@@ -22,13 +22,22 @@ type OrganizerEventItem = {
   title: string;
   venue: string;
   date: string;
+  eventDate: string;
   time: string;
   category: string;
   capacity: number;
   sold: number;
   revenue: string;
   status: EventStatus;
+  imageUrl: string;
 };
+
+function isPastEvent(value: string) {
+  if (!value) return false;
+  const eventDate = new Date(value);
+  if (Number.isNaN(eventDate.getTime())) return false;
+  return eventDate.getTime() < Date.now();
+}
 
 
 export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, events, setEventStatus, goTo, onOpen, onTogglePublish }: Props) {
@@ -63,21 +72,28 @@ export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, eve
       {visibleEvents.map((item) => (
         <View key={item.id} style={styles.eventCard}>
           <TouchableOpacity activeOpacity={0.85} onPress={() => (onOpen ? onOpen(item, 'details') : goTo('details'))} style={styles.cardTop}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{item.title.slice(0, 2).toUpperCase()}</Text>
+            <View style={styles.flyerWrap}>
+              {item.imageUrl ? (
+                <Image source={{ uri: item.imageUrl }} style={styles.flyer} resizeMode="cover" />
+              ) : (
+                <View style={styles.flyerFallback}>
+                  <Text style={styles.flyerFallbackText}>EVENT</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.eventMain}>
               <View style={styles.badgeRow}>
+                <ScheduleBadge past={isPastEvent(item.eventDate)} />
                 <StatusBadge status={item.status} />
                 <View style={styles.categoryBadge}>
                   <Text style={styles.categoryText}>{item.category}</Text>
                 </View>
               </View>
 
-              <Text style={styles.eventTitle}>{item.title}</Text>
-              <Text style={styles.eventMeta}>{item.date} · {item.time}</Text>
-              <Text style={styles.eventMeta}>{item.venue}</Text>
+              <Text style={styles.eventTitle} numberOfLines={2}>{item.title}</Text>
+              <Text style={styles.eventMeta} numberOfLines={1}>{item.date}</Text>
+              <Text style={styles.eventMeta} numberOfLines={1}>{item.venue}</Text>
             </View>
           </TouchableOpacity>
 
@@ -116,6 +132,16 @@ function StatusBadge({ status }: { status: EventStatus }) {
     <View style={[styles.statusBadge, published ? styles.statusPublished : styles.statusDraft]}>
       <Text style={[styles.statusText, published ? styles.statusPublishedText : styles.statusDraftText]}>
         {published ? 'PUBLICADO' : 'BORRADOR'}
+      </Text>
+    </View>
+  );
+}
+
+function ScheduleBadge({ past }: { past: boolean }) {
+  return (
+    <View style={[styles.statusBadge, past ? styles.schedulePast : styles.scheduleActive]}>
+      <Text style={[styles.statusText, past ? styles.schedulePastText : styles.scheduleActiveText]}>
+        {past ? 'PASADO' : 'ACTIVO'}
       </Text>
     </View>
   );
@@ -179,68 +205,78 @@ const styles = StyleSheet.create({
   createText: { color: '#FFFFFF', fontSize: 13, letterSpacing: 0, fontWeight: '700' },
   eventCard: {
     backgroundColor: 'rgba(255,255,255,0.018)',
-    borderRadius: 24,
+    borderRadius: 17,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    padding: 18,
-    marginBottom: 16,
+    borderColor: 'rgba(255,255,255,0.12)',
+    padding: 11,
+    marginBottom: 10,
     shadowColor: '#000000',
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 9 },
   },
-  cardTop: { flexDirection: 'row', gap: 14, marginBottom: 16 },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 19,
-    backgroundColor: '#030B14',
+  cardTop: { flexDirection: 'row', gap: 11, marginBottom: 11, alignItems: 'center' },
+  flyerWrap: {
+    width: 76,
+    height: 96,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  flyer: { width: '100%', height: '100%' },
+  flyerFallback: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(249,115,22,0.08)',
   },
-  avatarText: { color: '#F8FAFC', fontSize: 17, fontWeight: '700' },
-  eventMain: { flex: 1 },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 9 },
-  statusBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1 },
-  statusPublished: { backgroundColor: 'rgba(249,115,22,0.12)', borderColor: 'rgba(249,115,22,0.36)' },
+  flyerFallbackText: { color: colors.orange, fontSize: 9, fontWeight: '700', letterSpacing: 0 },
+  eventMain: { flex: 1, minWidth: 0 },
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 7 },
+  statusBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5, borderWidth: 1 },
+  statusPublished: { backgroundColor: 'rgba(34,197,94,0.12)', borderColor: 'rgba(34,197,94,0.34)' },
   statusDraft: { backgroundColor: '#030B14', borderColor: 'rgba(255,255,255,0.14)' },
-  statusText: { fontSize: 10, letterSpacing: 0, fontWeight: '700' },
-  statusPublishedText: { color: colors.orange },
+  scheduleActive: { backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.30)' },
+  schedulePast: { backgroundColor: 'rgba(148,163,184,0.10)', borderColor: 'rgba(148,163,184,0.24)' },
+  statusText: { fontSize: 9, letterSpacing: 0, fontWeight: '700' },
+  statusPublishedText: { color: '#4ADE80' },
   statusDraftText: { color: '#CBD5E1' },
-  categoryBadge: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 10, paddingVertical: 7 },
-  categoryText: { color: colors.orange, fontSize: 10, letterSpacing: 0, fontWeight: '700' },
-  eventTitle: { color: '#F8FAFC', fontSize: 21, fontWeight: '700', lineHeight: 26, marginBottom: 5 },
-  eventMeta: { color: 'rgba(226,232,240,0.64)', fontSize: 13, lineHeight: 19, fontWeight: '400' },
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  miniStat: { flex: 1, backgroundColor: '#030B14', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
-  miniValue: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  miniLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 11, fontWeight: '400', textAlign: 'center', marginTop: 3 },
-  progressTrack: { height: 9, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.1)', overflow: 'hidden', marginBottom: 15 },
+  scheduleActiveText: { color: '#FCA5A5' },
+  schedulePastText: { color: 'rgba(203,213,225,0.72)' },
+  categoryBadge: { backgroundColor: '#030B14', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(249,115,22,0.26)', paddingHorizontal: 8, paddingVertical: 5 },
+  categoryText: { color: colors.orange, fontSize: 9, letterSpacing: 0, fontWeight: '700' },
+  eventTitle: { color: '#F8FAFC', fontSize: 17, fontWeight: '700', lineHeight: 21, marginBottom: 5 },
+  eventMeta: { color: 'rgba(226,232,240,0.62)', fontSize: 12, lineHeight: 17, fontWeight: '400' },
+  statsRow: { flexDirection: 'row', gap: 7, marginBottom: 10 },
+  miniStat: { flex: 1, backgroundColor: '#030B14', borderRadius: 11, paddingVertical: 9, paddingHorizontal: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  miniValue: { color: '#F8FAFC', fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  miniLabel: { color: 'rgba(226,232,240,0.58)', fontSize: 10, fontWeight: '500', textAlign: 'center', marginTop: 2 },
+  progressTrack: { height: 7, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.10)', overflow: 'hidden', marginBottom: 10 },
   progressFill: { height: '100%', backgroundColor: colors.orange },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   action: {
-    minHeight: 43,
-    borderRadius: 14,
+    minHeight: 34,
+    borderRadius: 10,
     backgroundColor: colors.orange,
-    paddingHorizontal: 13,
+    paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
     flexGrow: 1,
   },
   actionMuted: { backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
-  actionText: { color: '#FFFFFF', fontSize: 11, letterSpacing: 0, fontWeight: '700' },
+  actionText: { color: '#FFFFFF', fontSize: 10, letterSpacing: 0, fontWeight: '700' },
   actionTextMuted: { color: '#F8FAFC' },
   publishButton: {
-    height: 46,
-    borderRadius: 15,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: '#030B14',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
+    marginTop: 8,
   },
-  publishText: { color: colors.orange, fontSize: 14, letterSpacing: 0, fontWeight: '700' },
+  publishText: { color: colors.orange, fontSize: 11, letterSpacing: 0, fontWeight: '700' },
 });

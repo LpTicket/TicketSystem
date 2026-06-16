@@ -3,8 +3,10 @@ import {
   apiGet,
   apiPatch,
   apiPost,
+  apiUploadImage,
   AuthResponse,
   AuthUser,
+  PickedImage,
   clearAuthTokens,
   setAuthTokens,
 } from './api';
@@ -64,6 +66,16 @@ export async function updateProfile(
   dto: Partial<AuthUser> & { password?: string; address?: string },
 ): Promise<AuthUser> {
   const user = await apiPatch<AuthUser>('/auth/profile', dto);
+  try {
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+  } catch {
+    /* ignore */
+  }
+  return user;
+}
+
+export async function uploadAvatar(image: PickedImage): Promise<AuthUser> {
+  const user = await apiUploadImage<AuthUser>('/auth/profile/avatar', image, 'avatar');
   try {
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
   } catch {

@@ -9,7 +9,7 @@ import { OrganizerEventsMobile } from '../components/organizer/OrganizerEventsMo
 import { OrganizerAttendeesMobile } from '../components/organizer/OrganizerAttendeesMobile';
 import { OrganizerAccessMobile } from '../components/organizer/OrganizerAccessMobile';
 import { OrganizerRewardsMobile } from '../components/organizer/OrganizerRewardsMobile';
-import { apiGet, apiPatch, apiPost } from '../services/api';
+import { apiGet, apiPatch, apiPost, getImageUrl } from '../services/api';
 
 export type Section = 'dashboard' | 'events' | 'create' | 'details' | 'map' | 'attendees' | 'blocks' | 'rewards' | 'scan';
 
@@ -29,6 +29,8 @@ type OrganizerApiEvent = {
   ticketsSold?: number;
   totalRevenue?: number;
   revenue?: number;
+  imageUrl?: string | null;
+  bannerImageUrl?: string | null;
 };
 
 type OrganizerStats = {
@@ -92,12 +94,14 @@ function toOrganizerEvent(event: OrganizerApiEvent, index: number) {
     title: event.title || 'Evento',
     venue: event.venueName || event.venueAddress || 'Venue',
     date: formatEventDate(event.eventDate),
+    eventDate: event.eventDate || '',
     time: '',
     category: event.categoryName || event.category || 'Event',
     capacity,
     sold,
     revenue: money(event.totalRevenue || event.revenue || 0),
     status: event.status === 'published' ? 'published' as const : 'draft' as const,
+    imageUrl: getImageUrl(event.imageUrl || event.bannerImageUrl),
   };
 }
 
@@ -404,9 +408,13 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             <Text style={styles.eventBackText} numberOfLines={1}>{selectedEvent.title}</Text>
           </TouchableOpacity>
         ) : null}
-        <Text style={styles.eyebrow}>{selectedEvent ? t('EVENTO', 'EVENT') : t('ORGANIZADOR', 'ORGANIZER')}</Text>
-        <Text style={styles.title}>{titleFor(active, t)}</Text>
-        <Text style={styles.subtitle}>{subtitleFor(active, t)}</Text>
+        {active !== 'events' && (
+          <>
+            <Text style={styles.eyebrow}>{selectedEvent ? t('EVENTO', 'EVENT') : t('ORGANIZADOR', 'ORGANIZER')}</Text>
+            <Text style={styles.title}>{titleFor(active, t)}</Text>
+            <Text style={styles.subtitle}>{subtitleFor(active, t)}</Text>
+          </>
+        )}
 
         {active === 'dashboard' && (
           <OrganizerDashboardMobile

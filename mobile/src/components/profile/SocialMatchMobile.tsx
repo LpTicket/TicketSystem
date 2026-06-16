@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { apiGet, apiPost, apiPut } from '../../services/api';
@@ -275,7 +276,9 @@ export function SocialMatchMobile() {
   if (eligibleEvents.length === 0) {
     return (
       <View style={styles.emptyCard}>
-        <View style={styles.emptyIcon}><Text style={styles.emptyIconText}>Sm</Text></View>
+        <View style={styles.emptyIcon}>
+          <FontAwesome5 name="handshake" size={27} color={colors.orange} />
+        </View>
         <Text style={styles.emptyTitle}>Social match</Text>
         <Text style={styles.emptyCopy}>{t('Compra un ticket para activar Social Match en ese evento.', 'Buy a ticket to activate Social Match for that event.')}</Text>
       </View>
@@ -718,8 +721,7 @@ const styles = StyleSheet.create({
   sendButton: { width: 76, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
   sendText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '700' },
   emptyCard: { backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 24, alignItems: 'center' },
-  emptyIcon: { width: 60, height: 60, borderRadius: 20, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  emptyIconText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  emptyIcon: { width: 60, height: 60, borderRadius: 20, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   emptyTitle: { color: '#F8FAFC', fontSize: 24, fontWeight: '700', marginBottom: 8 },
   emptyCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 14, fontWeight: '400', textAlign: 'center', lineHeight: 21 },
 });

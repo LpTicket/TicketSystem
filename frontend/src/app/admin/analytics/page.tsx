@@ -10,7 +10,7 @@ type AnalyticsSummary = {
   days: number;
   totalViews: number;
   uniqueVisitors: number;
-  topEvents: { eventSlug: string; views: number; visitors: number }[];
+  topEvents: { eventSlug: string; eventTitle?: string | null; views: number; visitors: number }[];
   topPages: { path: string; views: number; visitors: number }[];
   daily: { date: string; views: number; visitors: number }[];
   recentViews: {
@@ -59,6 +59,20 @@ export default function AdminAnalyticsPage() {
     noData: lang === 'es' ? 'Aún no hay datos para este periodo.' : 'No data for this period yet.',
     views: lang === 'es' ? 'visitas' : 'views',
     visitorsLabel: lang === 'es' ? 'visitantes' : 'visitors',
+  };
+
+  const formatEventSlug = (slug: string) => {
+    const parts = slug
+      .split(/[/-]+/)
+      .filter(Boolean)
+      .filter((word, index, words) => {
+        const isLast = index === words.length - 1;
+        return !(isLast && /^[a-z0-9]{8,}$/i.test(word));
+      });
+
+    return parts
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   const statCards = [
@@ -125,7 +139,7 @@ export default function AdminAnalyticsPage() {
                   <div key={event.eventSlug} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/70 px-3 py-3">
                     <div className="public-premium-icon w-8 h-8 flex items-center justify-center text-xs font-black">{index + 1}</div>
                     <Link href={`/events/${event.eventSlug}`} className="min-w-0 flex-1 truncate text-sm font-bold text-[#0A375A] hover:text-primary-600">
-                      {event.eventSlug}
+                      {event.eventTitle || formatEventSlug(event.eventSlug)}
                     </Link>
                     <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-gray-600 border border-gray-100">
                       {event.views} {labels.views} · {event.visitors} {labels.visitorsLabel}

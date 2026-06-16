@@ -448,7 +448,7 @@ export class AdminService {
 
   async getAllOrders(page: number, limit: number) {
     const [orders, total] = await this.orderRepo.findAndCount({
-      relations: ['event'],
+      relations: ['event', 'user'],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
