@@ -12,6 +12,7 @@ import { OrganizerRewardsMobile } from '../components/organizer/OrganizerRewards
 import { OrganizerAnalyticsMobile } from '../components/organizer/OrganizerAnalyticsMobile';
 import { OrganizerOverviewMobile } from '../components/organizer/OrganizerOverviewMobile';
 import { OrganizerCommissionMobile } from '../components/organizer/OrganizerCommissionMobile';
+import { OrganizerBlocksMobile } from '../components/organizer/OrganizerBlocksMobile';
 import { apiGet, apiPatch, apiPost } from '../services/api';
 
 export type Section = 'dashboard' | 'events' | 'create' | 'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'commission' | 'rewards' | 'scan';
@@ -532,10 +533,10 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
         )}
 
         {active === 'blocks' && (
-          <OrganizerAccessMobile
-            items={accessItems}
-            onToggle={toggleAccessItem}
-            goTo={setActive}
+          <OrganizerBlocksMobile
+            eventId={selectedEvent?.id}
+            sections={eventSections}
+            onReload={reloadEventData}
           />
         )}
 
