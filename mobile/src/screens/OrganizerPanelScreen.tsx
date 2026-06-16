@@ -525,6 +525,9 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             onToggle={toggleAttendeeStatus}
             onResend={handleResendAttendee}
             goTo={setActive}
+            eventId={selectedEvent?.id}
+            event={selectedEvent ? rawEventsById[selectedEvent.id] : undefined}
+            eventTitle={selectedEvent?.title}
           />
         )}
 

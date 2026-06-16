@@ -1,7 +1,10 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Modal, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { GradientButton } from '../GradientButton';
+import { apiPost, apiPut } from '../../services/api';
+import { exportCsv } from '../../utils/csv';
 
 type Attendee = {
   id: string;
@@ -19,12 +22,81 @@ type Props = {
   onToggle: (id: string) => void;
   onResend?: (id: string) => void;
   goTo: (section: 'events' | 'map' | 'blocks' | 'scan') => void;
+  eventId?: string;
+  event?: any;
+  eventTitle?: string;
 };
 
-export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, onResend, goTo }: Props) {
+export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, onResend, goTo, eventId, event, eventTitle }: Props) {
   const { t } = useLanguage();
   const scanned = attendees.filter((item) => item.status === 'SCANNED').length;
   const pending = attendees.length - scanned;
+
+  // Reminder settings (mirror of the web editor's reminder modal).
+  const [showReminder, setShowReminder] = useState(false);
+  const [autoEnabled, setAutoEnabled] = useState(false);
+  const [autoDays, setAutoDays] = useState('0');
+  const [autoMsg, setAutoMsg] = useState('');
+  const [sendMsg, setSendMsg] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [sendingReminder, setSendingReminder] = useState(false);
+
+  useEffect(() => {
+    if (!event) return;
+    setAutoEnabled(!!event.autoReminderEnabled);
+    setAutoDays(String(event.autoReminderDays || 0));
+    setAutoMsg(event.autoReminderMessage || '');
+  }, [event]);
+
+  const daysUntilEvent = (() => {
+    if (!event?.eventDate) return 0;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const d = new Date(event.eventDate); d.setHours(0, 0, 0, 0);
+    return Math.max(0, Math.ceil((d.getTime() - today.getTime()) / (1000 * 3600 * 24)));
+  })();
+
+  const saveReminderSettings = async () => {
+    if (!eventId) return;
+    setSavingSettings(true);
+    try {
+      await apiPut(`/orders/event/${eventId}/reminder-settings`, {
+        autoReminderEnabled: autoEnabled,
+        autoReminderDays: Number(autoDays) || 0,
+        autoReminderMessage: autoMsg.trim() || undefined,
+      });
+      Alert.alert(t('Listo', 'Done'), t('Configuración de recordatorios guardada.', 'Reminder settings saved.'));
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('Error al guardar recordatorios', 'Error saving reminders'));
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const sendReminderNow = async () => {
+    if (!eventId) return;
+    setSendingReminder(true);
+    try {
+      const res = await apiPost<any>(`/orders/event/${eventId}/send-reminder`, {
+        daysUntilEvent,
+        customMessage: sendMsg.trim() || undefined,
+      });
+      Alert.alert(t('Enviado', 'Sent'), t(`Recordatorios enviados a ${res?.sent ?? 0} asistentes.`, `Reminders sent to ${res?.sent ?? 0} attendees.`));
+      setShowReminder(false);
+      setSendMsg('');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('Error al enviar recordatorios', 'Error sending reminders'));
+    } finally {
+      setSendingReminder(false);
+    }
+  };
+
+  const onExportCsv = () => {
+    const rows: (string | number)[][] = [
+      [t('Nombre', 'Name'), 'Email', t('Ticket', 'Ticket'), t('Código', 'Code'), t('Estado', 'Status')],
+      ...attendees.map((a) => [a.name, a.email, a.ticket, a.code, a.status]),
+    ];
+    exportCsv(`${(eventTitle || 'event').replace(/\s+/g, '-').toLowerCase()}-attendees.csv`, rows);
+  };
 
   return (
     <View>
@@ -84,11 +156,43 @@ export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, on
         ))}
 
         <View style={styles.bottomActions}>
-          <Button label={t('SCAN QR', 'SCAN QR')} onPress={() => goTo('scan')} />
+          <Button label={t('RECORDATORIOS', 'REMINDERS')} onPress={() => setShowReminder(true)} />
+          <Button label={t('EXPORTAR CSV', 'EXPORT CSV')} muted onPress={onExportCsv} />
+          <Button label={t('SCAN QR', 'SCAN QR')} muted onPress={() => goTo('scan')} />
           <Button label={t('MAPA', 'MAP')} muted onPress={() => goTo('map')} />
-          <Button label={t('BLOQUEOS', 'ACCESS')} muted onPress={() => goTo('blocks')} />
+          <Button label={t('BLOQUEOS', 'BLOCKS')} muted onPress={() => goTo('blocks')} />
         </View>
       </View>
+
+      <Modal visible={showReminder} transparent animationType="fade" onRequestClose={() => setShowReminder(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('Recordatorios', 'Reminders')}</Text>
+              <TouchableOpacity onPress={() => setShowReminder(false)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
+            </View>
+
+            <View style={styles.modalSection}>
+              <View style={styles.switchRow}>
+                <Text style={styles.modalLabel}>{t('Recordatorio automático', 'Automatic reminder')}</Text>
+                <Switch value={autoEnabled} onValueChange={setAutoEnabled} trackColor={{ true: colors.orange, false: '#334155' }} thumbColor="#fff" />
+              </View>
+              <Text style={styles.modalFieldLabel}>{t('Días antes del evento', 'Days before the event')}</Text>
+              <TextInput value={autoDays} onChangeText={setAutoDays} keyboardType="number-pad" style={styles.modalInput} placeholderTextColor="#9CA3AF" />
+              <Text style={styles.modalFieldLabel}>{t('Mensaje (opcional)', 'Message (optional)')}</Text>
+              <TextInput value={autoMsg} onChangeText={setAutoMsg} multiline style={[styles.modalInput, styles.modalTextArea]} placeholderTextColor="#9CA3AF" />
+              <GradientButton label={savingSettings ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR AJUSTES', 'SAVE SETTINGS')} onPress={saveReminderSettings} height={48} style={{ marginTop: 10 }} />
+            </View>
+
+            <View style={[styles.modalSection, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 14 }]}>
+              <Text style={styles.modalLabel}>{t('Enviar ahora', 'Send now')}</Text>
+              <Text style={styles.modalHint}>{t(`Faltan ${daysUntilEvent} días para el evento.`, `${daysUntilEvent} days until the event.`)}</Text>
+              <TextInput value={sendMsg} onChangeText={setSendMsg} multiline placeholder={t('Mensaje personalizado (opcional)', 'Custom message (optional)')} style={[styles.modalInput, styles.modalTextArea]} placeholderTextColor="#9CA3AF" />
+              <GradientButton label={sendingReminder ? t('ENVIANDO...', 'SENDING...') : t('ENVIAR RECORDATORIO', 'SEND REMINDER')} onPress={sendReminderNow} height={48} style={{ marginTop: 10 }} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -198,4 +302,16 @@ const styles = StyleSheet.create({
   buttonMuted: { backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
   buttonText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '700' },
   buttonTextMuted: { color: '#F8FAFC' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(2,8,15,0.78)', alignItems: 'center', justifyContent: 'center', padding: 18 },
+  modalCard: { width: '100%', maxWidth: 460, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#0A1420', padding: 18 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  modalTitle: { color: '#F8FAFC', fontSize: 18, fontWeight: '800' },
+  modalClose: { color: 'rgba(248,250,252,0.7)', fontSize: 18, fontWeight: '700' },
+  modalSection: { gap: 8 },
+  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalLabel: { color: '#F8FAFC', fontSize: 14, fontWeight: '800' },
+  modalHint: { color: 'rgba(226,232,240,0.6)', fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  modalFieldLabel: { color: 'rgba(203,213,225,0.8)', fontSize: 12, fontWeight: '700', marginTop: 4 },
+  modalInput: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 12, backgroundColor: '#030B14', color: '#FFFFFF', fontSize: 14, paddingHorizontal: 12, paddingVertical: 11 },
+  modalTextArea: { minHeight: 70, textAlignVertical: 'top' },
 });
