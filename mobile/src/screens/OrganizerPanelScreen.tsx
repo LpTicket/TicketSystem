@@ -136,6 +136,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
   const [eventStatus, setEventStatus] = useState<'draft' | 'published'>('published');
   const [accessItems, setAccessItems] = useState<{ id: string; title: string; type: string; status: string }[]>([]);
   const [organizerEvents, setOrganizerEvents] = useState<ReturnType<typeof toOrganizerEvent>[]>([]);
+  const [rawEventsById, setRawEventsById] = useState<Record<string, any>>({});
   const [organizerStats, setOrganizerStats] = useState<OrganizerStats>({});
   // The event the organizer is currently managing (null = global view).
   const [selectedEvent, setSelectedEvent] = useState<ReturnType<typeof toOrganizerEvent> | null>(null);
@@ -164,7 +165,11 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
     apiGet<any>('/events/mine/list')
       .then((data) => {
         if (!mounted) return;
-        const items = listFrom(data).map(toOrganizerEvent);
+        const raw = listFrom(data);
+        const byId: Record<string, any> = {};
+        raw.forEach((e: any) => { if (e?.id) byId[String(e.id)] = e; });
+        setRawEventsById(byId);
+        const items = raw.map(toOrganizerEvent);
         setOrganizerEvents(items);
 
         const first = items[0];
@@ -496,6 +501,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             setEventStatus={setEventStatus}
             goTo={setActive}
             selectedEventId={selectedEvent?.id}
+            event={selectedEvent ? rawEventsById[selectedEvent.id] : undefined}
           />
         )}
 

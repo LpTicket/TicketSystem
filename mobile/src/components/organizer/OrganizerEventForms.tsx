@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { apiPatch, apiPost, apiUploadImage, getImageUrl } from '../../services/api';
+import { apiDelete, apiPatch, apiPost, apiUploadImage, getImageUrl } from '../../services/api';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { GradientButton } from '../GradientButton';
@@ -18,6 +18,7 @@ type SharedProps = {
   goTo: (section: 'events' | 'create' | 'details' | 'map' | 'attendees') => void;
   selectedEventId?: string;
   onEventCreated?: (event: any) => void;
+  event?: any;
 };
 
 type DashboardMetrics = { revenue: string; ticketsSold: string; activeEvents: string; orders: string };
@@ -156,16 +157,35 @@ export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVen
   );
 }
 
-export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, setEventVenue, eventStatus, setEventStatus, goTo, selectedEventId }: SharedProps) {
+export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, setEventVenue, eventStatus, setEventStatus, goTo, selectedEventId, event }: SharedProps) {
   const { t } = useLanguage();
-  const [description, setDescription] = useState('Evento privado con musica, cena, tickets digitales y acceso con QR.');
-  const [category, setCategory] = useState('Private Event');
-  const [address, setAddress] = useState('23501 Cinco Ranch Blvd, Katy, TX 77494');
-  const [eventDate, setEventDate] = useState('2026-06-25');
-  const [eventTime, setEventTime] = useState('19:00');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [address, setAddress] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
   const [timezone, setTimezone] = useState('America/Chicago');
-  const [maxTickets, setMaxTickets] = useState('8');
+  const [maxTickets, setMaxTickets] = useState('10');
+  const [bannerPosition, setBannerPosition] = useState<'center' | 'top' | 'bottom'>('center');
   const [saving, setSaving] = useState(false);
+
+  // Populate from the real event (mirrors the web editor's loadEvent).
+  useEffect(() => {
+    if (!event) return;
+    setDescription(event.description || '');
+    setCategory(event.pendingCategory || event.category || '');
+    setAddress(event.venueAddress || '');
+    setMaxTickets(String(event.maxTicketsPerTransaction || 10));
+    setBannerPosition((event.bannerPosition as any) || 'center');
+    setTimezone(event.eventTimezone || 'America/Chicago');
+    if (event.eventDate) {
+      const d = new Date(event.eventDate);
+      if (!Number.isNaN(d.getTime())) {
+        setEventDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+        setEventTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+      }
+    }
+  }, [event]);
 
   const saveEvent = async () => {
     if (saving || !selectedEventId) return;
@@ -176,10 +196,12 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
         description,
         category,
         eventDate: `${eventDate}T${eventTime}:00`,
-        timezone: timezone || 'America/Chicago',
+        eventTimezone: timezone || 'America/Chicago',
         venueName: eventVenue,
         venueAddress: address,
-        maxTicketsPerPerson: Number(maxTickets) || 1,
+        hasSeatMap: true,
+        bannerPosition,
+        maxTicketsPerTransaction: Number(maxTickets) || 10,
       });
       goTo('events');
     } catch (err: any) {
@@ -228,7 +250,18 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
         <Field label={t('Zona horaria', 'Timezone')} value={timezone} onChangeText={setTimezone} />
         <Field label={t('Lugar', 'Venue')} value={eventVenue} onChangeText={setEventVenue} />
         <Field label={t('Direccion', 'Address')} value={address} onChangeText={setAddress} multiline />
-        <Field label={t('Límite de venta', 'Sale limit')} value={maxTickets} onChangeText={setMaxTickets} keyboardType="number-pad" />
+        <Field label={t('Máx. entradas por transacción', 'Max tickets per transaction')} value={maxTickets} onChangeText={setMaxTickets} keyboardType="number-pad" />
+
+        <Text style={styles.fieldLabel}>{t('Posición del banner', 'Banner position')}</Text>
+        <View style={styles.segmentGroup}>
+          {(['center', 'top', 'bottom'] as const).map((pos) => (
+            <TouchableOpacity key={pos} onPress={() => setBannerPosition(pos)} style={[styles.segment, bannerPosition === pos && styles.segmentActive]}>
+              <Text style={[styles.segmentText, bannerPosition === pos && styles.segmentTextActive]}>
+                {pos === 'center' ? t('Centro', 'Center') : pos === 'top' ? t('Arriba', 'Top') : t('Abajo', 'Bottom')}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <Text style={styles.fieldLabel}>{t('Estado', 'Status')}</Text>
         <View style={styles.segmentGroup}>
@@ -245,8 +278,8 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
         <Text style={styles.eyebrow}>{t('IMÁGENES', 'MEDIA')}</Text>
         <Text style={styles.cardTitle}>{t('Imágenes del evento', 'Event images')}</Text>
         <View style={styles.mediaGrid}>
-          <MediaBox title={t('Miniatura', 'Thumbnail')} copy={t('Imagen que aparece en listados y tarjetas', 'Image shown in listings and cards')} eventId={selectedEventId} kind="thumbnail" />
-          <MediaBox title={t('Banner', 'Banner')} copy={t('Imagen grande del detalle y home', 'Large image for details and home')} eventId={selectedEventId} kind="banner" />
+          <MediaBox title={t('Miniatura', 'Thumbnail')} copy={t('Imagen que aparece en listados y tarjetas', 'Image shown in listings and cards')} eventId={selectedEventId} kind="thumbnail" initialUrl={event?.imageUrl} canDelete />
+          <MediaBox title={t('Banner', 'Banner')} copy={t('Imagen grande del detalle y home', 'Large image for details and home')} eventId={selectedEventId} kind="banner" initialUrl={event?.bannerImageUrl} canDelete />
         </View>
       </View>
 
@@ -301,10 +334,27 @@ function Activity({ title, copy }: { title: string; copy: string }) {
   );
 }
 
-function MediaBox({ title, copy, eventId, kind, initialUrl }: { title: string; copy: string; eventId?: string; kind: 'thumbnail' | 'banner'; initialUrl?: string }) {
+function MediaBox({ title, copy, eventId, kind, initialUrl, canDelete }: { title: string; copy: string; eventId?: string; kind: 'thumbnail' | 'banner'; initialUrl?: string; canDelete?: boolean }) {
   const { t } = useLanguage();
   const [preview, setPreview] = useState<string>(initialUrl ? getImageUrl(initialUrl) : '');
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Keep preview in sync when the event loads/changes.
+  useEffect(() => { setPreview(initialUrl ? getImageUrl(initialUrl) : ''); }, [initialUrl]);
+
+  const removeImage = async () => {
+    if (!eventId || !preview) return;
+    setDeleting(true);
+    try {
+      await apiDelete(kind === 'banner' ? `/events/${eventId}/image/banner` : `/events/${eventId}/image`);
+      setPreview('');
+    } catch (err: any) {
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo eliminar la imagen', 'Could not delete the image'));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const pickAndUpload = async () => {
     if (!eventId) {
@@ -349,6 +399,11 @@ function MediaBox({ title, copy, eventId, kind, initialUrl }: { title: string; c
           {uploading ? t('SUBIENDO...', 'UPLOADING...') : preview ? t('CAMBIAR', 'CHANGE') : t('SELECCIONAR', 'SELECT')}
         </Text>
       </TouchableOpacity>
+      {canDelete && !!preview && (
+        <TouchableOpacity style={styles.mediaDeleteButton} onPress={removeImage} disabled={deleting}>
+          <Text style={styles.mediaDeleteText}>{deleting ? t('ELIMINANDO...', 'DELETING...') : t('ELIMINAR', 'DELETE')}</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -427,6 +482,8 @@ const styles = StyleSheet.create({
   mediaTitle: { color: colors.textPrimary, fontSize: 17, fontWeight: '700', marginBottom: 4 },
   mediaCopy: { color: colors.textFaint, fontSize: 13, fontWeight: '700', lineHeight: 18, marginBottom: 12 },
   mediaButton: { height: 42, borderRadius: 13, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  mediaDeleteButton: { height: 38, borderRadius: 12, marginTop: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,90,69,0.3)', backgroundColor: 'rgba(255,90,69,0.08)' },
+  mediaDeleteText: { color: '#ff5a45', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
   mediaButtonText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '700' },
   noticeCard: { backgroundColor: '#030B14', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 16, marginBottom: 14 },
   noticeTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: 5 },
