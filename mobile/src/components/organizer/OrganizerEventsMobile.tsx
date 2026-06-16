@@ -30,41 +30,10 @@ type OrganizerEventItem = {
   status: EventStatus;
 };
 
-const demoEvents: OrganizerEventItem[] = [
-  {
-    id: '1',
-    title: 'Noche de (des)amor',
-    venue: 'Ambriza',
-    date: '25 Jun 2026',
-    time: '07:00 PM',
-    category: 'Private Event',
-    capacity: 262,
-    sold: 62,
-    revenue: '$1,240.00',
-    status: 'published',
-  },
-  {
-    id: '2',
-    title: 'Sunset Lounge Experience',
-    venue: 'Miami, FL',
-    date: '12 Jul 2026',
-    time: '08:30 PM',
-    category: 'Concert',
-    capacity: 180,
-    sold: 38,
-    revenue: '$1,330.00',
-    status: 'draft' as EventStatus,
-  },
-];
 
 export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, events, setEventStatus, goTo, onOpen, onTogglePublish }: Props) {
   const { t } = useLanguage();
-  const sourceEvents = events?.length ? events : demoEvents;
-  const visibleEvents = sourceEvents.map((item) =>
-    item.id === '1'
-      ? { ...item, title: eventTitle, venue: eventVenue, status: eventStatus }
-      : item
-  );
+  const visibleEvents = events ?? [];
 
   return (
     <View>
@@ -83,6 +52,13 @@ export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, eve
           textStyle={styles.createText}
         />
       </View>
+
+      {visibleEvents.length === 0 && (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>{t('Aún no tienes eventos', 'No events yet')}</Text>
+          <Text style={styles.emptyCopy}>{t('Crea tu primer evento para gestionarlo aquí.', 'Create your first event to manage it here.')}</Text>
+        </View>
+      )}
 
       {visibleEvents.map((item) => (
         <View key={item.id} style={styles.eventCard}>
@@ -167,6 +143,17 @@ function Action({ label, muted, onPress }: { label: string; muted?: boolean; onP
 }
 
 const styles = StyleSheet.create({
+  emptyCard: {
+    backgroundColor: 'rgba(255,255,255,0.018)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    padding: 24,
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyTitle: { color: '#F8FAFC', fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  emptyCopy: { color: 'rgba(226,232,240,0.66)', fontSize: 14, lineHeight: 20, textAlign: 'center' },
   topCard: {
     backgroundColor: 'rgba(255,255,255,0.018)',
     borderRadius: 24,
