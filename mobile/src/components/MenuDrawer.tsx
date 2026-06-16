@@ -22,6 +22,7 @@ type Props = {
   onGoContact?: () => void;
   onGoAbout?: () => void;
   onGoSupport?: () => void;
+  onGoLegal?: (key: 'privacy' | 'terms' | 'refunds' | 'organizer-agreement') => void;
   onLogout?: () => void;
   isLoggedIn?: boolean;
   canOrganize?: boolean;
@@ -60,7 +61,7 @@ const orgSections: { id: OrgSectionId; labelEs: string; labelEn: string; icon: I
 
 export function MenuDrawer({
   visible, onClose, onGoEvents, onGoTickets, onGoProfile, onGoScan, onGoAiChat,
-  onGoSocialMatch, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onLogout,
+  onGoSocialMatch, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onGoLegal, onLogout,
   isLoggedIn, canOrganize, canAdmin, viewMode = 'client', onSetMode,
   adminSection, onGoAdminSection,
   orgSection, onGoOrgSection,
@@ -146,6 +147,19 @@ export function MenuDrawer({
             <Row label={t('Contacto', 'Contact')} onPress={() => go(onGoContact)} />
             <Row label={t('Soporte', 'Support')} onPress={() => go(onGoSupport)} />
           </View>
+
+          {/* Legal */}
+          {onGoLegal && (
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionLabel}>{t('LEGAL', 'LEGAL')}</Text>
+              </View>
+              <Row icon="shield-checkmark-outline" label={t('Términos y Condiciones', 'Terms & Conditions')} onPress={() => go(() => onGoLegal('terms'))} />
+              <Row icon="lock-closed-outline" label={t('Privacidad', 'Privacy')} onPress={() => go(() => onGoLegal('privacy'))} />
+              <Row icon="cash-outline" label={t('Reembolsos', 'Refunds')} onPress={() => go(() => onGoLegal('refunds'))} />
+              <Row icon="briefcase-outline" label={t('Acuerdo de Organizador', 'Organizer Agreement')} onPress={() => go(() => onGoLegal('organizer-agreement'))} />
+            </View>
+          )}
 
           {/* Account / actions */}
           {isLoggedIn && (

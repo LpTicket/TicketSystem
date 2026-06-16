@@ -21,6 +21,8 @@ import { PaymentSuccessScreen } from './src/screens/PaymentSuccessScreen';
 import { ContactScreen } from './src/screens/ContactScreen';
 import { AboutScreen } from './src/screens/AboutScreen';
 import { SupportScreen } from './src/screens/SupportScreen';
+import { LegalScreen } from './src/screens/LegalScreen';
+import { LegalKey } from './src/data/legalContent';
 import { AiChatScreen } from './src/screens/AiChatScreen';
 import { LanguageProvider, useLanguage } from './src/i18n/LanguageContext';
 import { colors } from './src/theme/colors';
@@ -29,7 +31,7 @@ import { AuthUser } from './src/services/api';
 import { logout as logoutRequest, restoreSession } from './src/services/auth';
 import { SplashVideo } from './src/components/SplashVideo';
 
-type Tab = 'events' | 'tickets' | 'scan' | 'social' | 'profile' | 'organizer' | 'admin' | 'contact' | 'about' | 'support' | 'aichat';
+type Tab = 'events' | 'tickets' | 'scan' | 'social' | 'profile' | 'organizer' | 'admin' | 'contact' | 'about' | 'support' | 'legal' | 'aichat';
 
 function AppContent() {
   const { t } = useLanguage();
@@ -58,6 +60,8 @@ function AppContent() {
   const [viewMode, setViewMode] = useState<'client' | 'organizer' | 'admin'>('client');
   const [organizerSection, setOrganizerSection] = useState<OrgSection>('dashboard');
   const [adminSection, setAdminSection] = useState<AdminSection>('dashboard');
+  const [legalDoc, setLegalDoc] = useState<LegalKey>('terms');
+  const goToLegal = (key: LegalKey) => { setLegalDoc(key); goToTab('legal'); };
 
   const setMode = (mode: 'client' | 'organizer' | 'admin') => {
     setViewMode(mode);
@@ -243,6 +247,8 @@ function AppContent() {
           <AboutScreen onBack={() => goToTab('events')} onContact={() => goToTab('contact')} />
         ) : tab === 'support' ? (
           <SupportScreen onContact={() => goToTab('contact')} onBack={() => goToTab('events')} />
+        ) : tab === 'legal' ? (
+          <LegalScreen docKey={legalDoc} onBack={() => goToTab('events')} />
         ) : tab === 'aichat' ? (
           <AiChatScreen />
         ) : null}
@@ -350,6 +356,7 @@ function AppContent() {
           onGoContact={() => goToTab('contact')}
           onGoAbout={() => goToTab('about')}
           onGoSupport={() => goToTab('support')}
+          onGoLegal={goToLegal}
           onLogout={handleLogout}
           isLoggedIn={isLoggedIn}
           canOrganize={canOrganize}
