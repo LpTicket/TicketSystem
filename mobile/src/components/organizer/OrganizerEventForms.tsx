@@ -32,6 +32,7 @@ type DashboardEvent = {
   sold: number;
   capacity: number;
   revenue: string;
+  imageUrl: string;
 };
 
 type DashboardProps = Pick<SharedProps, 'eventTitle' | 'eventVenue' | 'eventStatus' | 'goTo'> & {
@@ -88,6 +89,15 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
               return (
                 <View key={item.id} style={styles.dashboardEventCard}>
                   <View style={styles.dashboardEventTop}>
+                    <View style={styles.dashboardFlyerWrap}>
+                      {item.imageUrl ? (
+                        <Image source={{ uri: item.imageUrl }} style={styles.dashboardFlyer} resizeMode="cover" />
+                      ) : (
+                        <View style={styles.dashboardFlyerFallback}>
+                          <Text style={styles.dashboardFlyerFallbackText}>EVENT</Text>
+                        </View>
+                      )}
+                    </View>
                     <View style={styles.dashboardEventTitleBlock}>
                       <Text style={styles.dashboardEventTitle} numberOfLines={2}>{item.title}</Text>
                       <Text style={styles.dashboardEventMeta} numberOfLines={1}>{[item.date, item.venue].filter(Boolean).join(' · ')}</Text>
@@ -508,6 +518,10 @@ const styles = StyleSheet.create({
   dashboardEvents: { gap: 10, marginBottom: 14 },
   dashboardEventCard: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 12 },
   dashboardEventTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  dashboardFlyerWrap: { width: 54, height: 64, borderRadius: 12, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
+  dashboardFlyer: { width: '100%', height: '100%' },
+  dashboardFlyerFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,122,24,0.10)' },
+  dashboardFlyerFallbackText: { color: colors.orange, fontSize: 8.5, fontWeight: '700' },
   dashboardEventTitleBlock: { flex: 1 },
   dashboardEventTitle: { color: '#FFFFFF', fontSize: 16, lineHeight: 20, fontWeight: '700' },
   dashboardEventMeta: { color: '#9CA3AF', fontSize: 11.5, fontWeight: '700', marginTop: 4 },
