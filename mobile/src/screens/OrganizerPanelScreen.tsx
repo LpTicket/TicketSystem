@@ -10,6 +10,7 @@ import { OrganizerAttendeesMobile } from '../components/organizer/OrganizerAtten
 import { OrganizerAccessMobile } from '../components/organizer/OrganizerAccessMobile';
 import { OrganizerRewardsMobile } from '../components/organizer/OrganizerRewardsMobile';
 import { OrganizerAnalyticsMobile } from '../components/organizer/OrganizerAnalyticsMobile';
+import { OrganizerOverviewMobile } from '../components/organizer/OrganizerOverviewMobile';
 import { apiGet, apiPatch, apiPost } from '../services/api';
 
 export type Section = 'dashboard' | 'events' | 'create' | 'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'commission' | 'rewards' | 'scan';
@@ -104,7 +105,7 @@ function toOrganizerEvent(event: OrganizerApiEvent, index: number) {
 
 // Global sections (always available) vs event sections (only after picking an event).
 const GLOBAL_SECTIONS: Section[] = ['dashboard', 'events', 'create'];
-const EVENT_SECTIONS: Section[] = ['analytics', 'details', 'map', 'attendees', 'blocks', 'rewards'];
+const EVENT_SECTIONS: Section[] = ['analytics', 'details', 'overview', 'attendees', 'map', 'blocks', 'rewards'];
 const isEventSection = (s: Section) => EVENT_SECTIONS.includes(s);
 
 type PanelProps = { section?: Section; onSectionChange?: (s: Section) => void };
@@ -496,6 +497,8 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             eventTitle={selectedEvent?.title}
           />
         )}
+
+        {active === 'overview' && <OrganizerOverviewMobile sections={eventSections} />}
 
         {active === 'map' && <VenueMapEditor eventId={selectedEvent?.id} />}
 
