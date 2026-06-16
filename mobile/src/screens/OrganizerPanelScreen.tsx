@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Alert, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
@@ -11,7 +11,7 @@ import { OrganizerAccessMobile } from '../components/organizer/OrganizerAccessMo
 import { OrganizerRewardsMobile } from '../components/organizer/OrganizerRewardsMobile';
 import { apiGet, apiPatch, apiPost } from '../services/api';
 
-export type Section = 'dashboard' | 'events' | 'create' | 'details' | 'map' | 'attendees' | 'blocks' | 'rewards' | 'scan';
+export type Section = 'dashboard' | 'events' | 'create' | 'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'commission' | 'rewards' | 'scan';
 
 
 type OrganizerApiEvent = {
@@ -209,6 +209,28 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
       })
       .catch(() => {});
   }, [selectedEventId]);
+
+  // Load sales + sections (seatmap) for the selected event — feeds Analytics,
+  // Overview and Blocks (mirror of the web editor's loadEvent).
+  const [eventSales, setEventSales] = useState<any | null>(null);
+  const [eventSections, setEventSections] = useState<any[]>([]);
+  const reloadEventData = useCallback(async () => {
+    if (!selectedEventId) { setEventSales(null); setEventSections([]); return; }
+    try {
+      const sales = await apiGet<any>(`/orders/event/${selectedEventId}/sales`);
+      setEventSales(sales || null);
+    } catch { setEventSales(null); }
+    try {
+      const secs = await apiGet<any[]>(`/events/${selectedEventId}/seatmap`);
+      setEventSections(Array.isArray(secs) ? secs : []);
+    } catch {
+      try {
+        const secs = await apiGet<any[]>(`/events/${selectedEventId}/sections`);
+        setEventSections(Array.isArray(secs) ? secs : []);
+      } catch { setEventSections([]); }
+    }
+  }, [selectedEventId]);
+  useEffect(() => { reloadEventData(); }, [reloadEventData]);
 
   // Lazy load reward stats when visiting the rewards section.
   useEffect(() => {
@@ -630,10 +652,13 @@ function sectionLabel(section: Section, t: (es: string, en: string) => string) {
     dashboard: t('Dashboard', 'Dashboard'),
     events: t('Mis eventos', 'My events'),
     create: t('Crear evento', 'Create event'),
+    analytics: t('Analytics', 'Analytics'),
     details: t('Detalles', 'Details'),
+    overview: t('Resumen', 'Overview'),
     map: t('Mapa visual', 'Visual map'),
     attendees: t('Asistentes', 'Attendees'),
-    blocks: t('Bloqueos', 'Access'),
+    blocks: t('Bloqueos', 'Blocks'),
+    commission: t('Comisión', 'Commission'),
     rewards: t('Recompensas', 'Rewards'),
     scan: t('Escanear', 'Scan'),
   };
@@ -645,10 +670,13 @@ function titleFor(section: Section, t: (es: string, en: string) => string) {
     dashboard: t('Panel de organizador', 'Organizer dashboard'),
     events: t('Mis eventos', 'My events'),
     create: t('Crear evento', 'Create event'),
-    details: t('Detalles', 'Details'),
+    analytics: t('Analytics del evento', 'Event analytics'),
+    details: t('Detalles e imágenes', 'Details and media'),
+    overview: t('Resumen de secciones', 'Sections overview'),
     map: t('Mapa visual', 'Visual map'),
     attendees: t('Asistentes y ventas', 'Attendees and sales'),
-    blocks: t('Bloqueos e invitaciones', 'Access and invitations'),
+    blocks: t('Bloqueos e invitaciones', 'Blocks and invitations'),
+    commission: t('Comisión del creador', 'Creator commission'),
     rewards: t('Recompensas', 'Rewards'),
     scan: t('Escanear tickets', 'Scan tickets'),
   };
@@ -660,10 +688,13 @@ function subtitleFor(section: Section, t: (es: string, en: string) => string) {
     dashboard: t('Ventas, tickets, asistentes y balance.', 'Sales, tickets, attendees and balance.'),
     events: t('Administra tus eventos publicados y borradores.', 'Manage your published events and drafts.'),
     create: t('Crea un evento nuevo desde el movil.', 'Create a new event from mobile.'),
+    analytics: t('Ventas, acceso y rendimiento por sección.', 'Sales, access and section performance.'),
     details: t('Edita informacion publica e imagenes.', 'Edit public information and images.'),
+    overview: t('Secciones, capacidad y precios del evento.', 'Event sections, capacity and prices.'),
     map: t('Mesas, sillas, areas, barras y precios.', 'Tables, seats, areas, bars and prices.'),
     attendees: t('Compradores, tickets y acceso.', 'Buyers, tickets and access.'),
-    blocks: t('Reservas, invitaciones y lista VIP.', 'Reservations, invitations and VIP list.'),
+    blocks: t('Bloquea asientos e invita gratis.', 'Block seats and send free invites.'),
+    commission: t('Define tu comisión por entrada.', 'Set your per-ticket commission.'),
     rewards: t('Comisiones, codigos y pagos.', 'Commissions, codes and payouts.'),
     scan: t('Valida tickets en la puerta.', 'Validate tickets at the door.'),
   };
