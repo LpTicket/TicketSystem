@@ -1,11 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLanguage } from '../i18n/LanguageContext';
 
-// Native plays the .mov directly (qtrle with alpha over the dark background).
-// Web uses SplashVideo.web.tsx (animated WebP) — Metro picks the platform file.
-const splashVideo = require('../../assets/splash.mov');
+const splashWebp = require('../../assets/splash.webp');
+
+const SPLASH_MS = 2800;
 
 // Hard safety: the splash can NEVER block the app longer than this.
 const MAX_BLOCK_MS = 7000;
@@ -30,13 +29,16 @@ export function SplashVideo({ onFinish }: Props) {
     }).start(() => onFinish());
   };
 
-  // Safety net in case the video never fires didJustFinish.
   useEffect(() => {
-    const safety = setTimeout(() => {
+    const t1 = setTimeout(dismiss, SPLASH_MS);
+    const t2 = setTimeout(() => {
       done.current = false;
       onFinish();
     }, MAX_BLOCK_MS);
-    return () => clearTimeout(safety);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, []);
 
   return (
@@ -45,20 +47,7 @@ export function SplashVideo({ onFinish }: Props) {
       <Pressable style={StyleSheet.absoluteFill} onPress={dismiss}>
         <View style={styles.bg} />
       </Pressable>
-      <Video
-        source={splashVideo}
-        style={styles.video}
-        resizeMode={ResizeMode.CONTAIN}
-        shouldPlay
-        isLooping={false}
-        isMuted
-        pointerEvents="none"
-        onPlaybackStatusUpdate={(status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            dismiss();
-          }
-        }}
-      />
+      <Image source={splashWebp} style={styles.lockup} resizeMode="contain" />
       <Pressable style={styles.skip} onPress={dismiss}>
         <Text style={styles.skipText}>{t('Saltar', 'Skip')}</Text>
       </Pressable>
@@ -78,9 +67,10 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     backgroundColor: '#030B14',
   },
-  video: {
-    width: '80%',
-    aspectRatio: 1,
+  lockup: {
+    width: 360,
+    height: 203,
+    pointerEvents: 'none',
   },
   skip: {
     position: 'absolute',

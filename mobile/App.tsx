@@ -35,6 +35,7 @@ function AppContent() {
   const { t } = useLanguage();
   const { width } = useWindowDimensions();
   const navIndicatorX = useRef(new Animated.Value(0)).current;
+  const adminNavIndicatorX = useRef(new Animated.Value(0)).current;
   const adminTabScrollRef = useRef<ScrollView>(null);
   const adminTabScrollX = useRef(0);
   const [adminAtStart, setAdminAtStart] = useState(true);
@@ -115,6 +116,7 @@ function AppContent() {
   const canAdmin = userRole === 'admin';
   const canOrganize = isLoggedIn;
   const navPadding = 8;
+  const adminNavPadding = 4;
 
   // Bottom tab bar swaps with the mode: client / organizer / admin tools.
   const navItems = viewMode === 'admin'
@@ -159,6 +161,17 @@ function AppContent() {
       mass: 0.7,
     }).start();
   }, [activeBottomIndex, navIndicatorX, navItemWidth]);
+
+  useEffect(() => {
+    if (viewMode !== 'admin') return;
+    Animated.spring(adminNavIndicatorX, {
+      toValue: adminNavPadding + ADMIN_ITEM_W * activeBottomIndex + ADMIN_ITEM_W / 2 - 11,
+      useNativeDriver: true,
+      damping: 18,
+      stiffness: 180,
+      mass: 0.7,
+    }).start();
+  }, [ADMIN_ITEM_W, activeBottomIndex, adminNavIndicatorX, viewMode]);
 
   // Snap admin tab bar to the correct group when section changes
   // Order: categories(0) marketing(1) | dashboard(2) events(3) users(4) profile(5) | analytics(6) codes(7) payments(8)
@@ -236,6 +249,7 @@ function AppContent() {
 
         {!scanOpen && !purchaseOpen && !checkoutInfoOpen && !orderSummaryOpen && !paymentSuccessOpen && !loginAfterPurchase && (
           <View style={styles.bottomNav}>
+            <View pointerEvents="none" style={styles.bottomNavBg} />
             {viewMode === 'admin' ? (
               // Scrollable tab bar for admin with arrow buttons
               <>
@@ -254,6 +268,7 @@ function AppContent() {
                 <ScrollView
                   ref={adminTabScrollRef}
                   horizontal
+                  style={styles.navAdminScroll}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.navScrollContent}
                   snapToInterval={ADMIN_ITEM_W}
@@ -269,15 +284,20 @@ function AppContent() {
                   }}
                   scrollEventThrottle={16}
                 >
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[styles.navFixedSlidingLine, { transform: [{ translateX: adminNavIndicatorX }] }]}
+                  />
                   {navItems.map((item) => (
                     <TouchableOpacity key={item.key} onPress={item.onPress} style={[styles.navItemFixed, { width: ADMIN_ITEM_W }]}>
-                      {item.active && <View style={styles.navFixedActiveLine} />}
-                      <Ionicons
-                        name={(item.active ? item.icon : `${item.icon}-outline`) as any}
-                        size={17}
-                        color={item.active ? colors.orange : 'rgba(226,232,240,0.45)'}
-                      />
-                      <Text style={[styles.navText, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
+                      <View style={[styles.navItemContent, styles.navItemContentAdmin]}>
+                        <Ionicons
+                          name={(item.active ? item.icon : `${item.icon}-outline`) as any}
+                          size={17}
+                          color={item.active ? colors.orange : 'rgba(226,232,240,0.45)'}
+                        />
+                        <Text style={[styles.navText, styles.navTextAdmin, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
+                      </View>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -300,12 +320,14 @@ function AppContent() {
                 <Animated.View style={[styles.navSlidingLine, { transform: [{ translateX: navIndicatorX }] }]} />
                 {navItems.map((item) => (
                   <TouchableOpacity key={item.key} onPress={item.onPress} style={styles.navItem}>
-                    <Ionicons
-                      name={(item.active ? item.icon : `${item.icon}-outline`) as any}
-                      size={item.key === 'events' ? 18 : 17}
-                      color={item.active ? colors.orange : 'rgba(226,232,240,0.50)'}
-                    />
-                    <Text style={[styles.navText, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
+                    <View style={styles.navItemContent}>
+                      <Ionicons
+                        name={(item.active ? item.icon : `${item.icon}-outline`) as any}
+                        size={item.key === 'events' ? 18 : 17}
+                        color={item.active ? colors.orange : 'rgba(226,232,240,0.50)'}
+                      />
+                      <Text style={[styles.navText, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </>
@@ -452,40 +474,68 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
+    backgroundColor: 'transparent',
+  },
+  bottomNavBg: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 23,
+    bottom: -23,
     backgroundColor: 'rgba(2,8,15,0.98)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(125,211,252,0.12)',
+    borderTopWidth: 0,
+    borderTopColor: 'transparent',
     shadowColor: '#000000',
     shadowOpacity: 0.34,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: -6 },
     elevation: 18,
+    zIndex: 0,
   },
   navItem: {
     flex: 1,
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
     position: 'relative',
+    zIndex: 2,
+  },
+  navItemContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    transform: [{ translateY: 26 }],
+  },
+  navItemContentAdmin: {
+    transform: [{ translateY: 25 }],
+  },
+  navAdminScroll: {
+    height: 78,
+    flexGrow: 0,
+    flexShrink: 1,
+    zIndex: 2,
   },
   navScrollContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 78,
     paddingHorizontal: 4,
     gap: 0,
+    position: 'relative',
+    zIndex: 2,
   },
   navItemFixed: {
     // width is set inline as (screenWidth - arrows) / 5
-    height: 50,
+    height: 62,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
     position: 'relative',
+    zIndex: 2,
   },
-  navFixedActiveLine: {
+  navFixedSlidingLine: {
     position: 'absolute',
-    top: 0,
+    top: 41,
+    left: 0,
     width: 22,
     height: 2,
     borderRadius: 999,
@@ -494,6 +544,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.7,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
+    zIndex: 3,
   },
   navArrow: {
     width: 28,
@@ -501,13 +552,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    transform: [{ translateY: 17 }],
+    zIndex: 2,
   },
   navArrowDisabled: {
     opacity: 0.4,
   },
   navSlidingLine: {
     position: 'absolute',
-    top: 15,
+    top: 38,
     left: 0,
     width: 18,
     height: 2,
@@ -517,12 +570,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.65,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
+    zIndex: 3,
   },
   navText: {
     color: 'rgba(226,232,240,0.48)',
     fontWeight: '600',
     fontSize: 10,
     lineHeight: 12,
+  },
+  navTextAdmin: {
+    transform: [{ translateY: -3 }],
   },
   navActiveText: { color: colors.orange },
 });
