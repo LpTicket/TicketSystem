@@ -7,6 +7,7 @@ import { AuthUser } from '../services/api';
 import { updateProfile as updateProfileRequest } from '../services/auth';
 import { AccountMobile } from '../components/profile/AccountMobile';
 import { MySpecialCodesMobile } from '../components/profile/MySpecialCodesMobile';
+import { OrdersMobile } from '../components/profile/OrdersMobile';
 
 type ProfileTab = 'account' | 'payments' | 'codes';
 
@@ -159,11 +160,7 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
             ))}
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>{t('FACTURACIÓN', 'BILLING')}</Text>
-            <ActionRow badge="RC" title={t('Archivo de recibos', 'Receipts archive')} subtitle={t('Ver pagos, impuestos y confirmaciones', 'View payments, taxes and confirmations')} action={t('ABRIR', 'OPEN')} />
-            <ActionRow badge="ST" title={t('Checkout de Stripe', 'Stripe checkout')} subtitle={t('Pagos seguros y confirmación instantánea', 'Secure payments and instant confirmation')} action={t('LISTO', 'READY')} />
-          </View>
+          <OrdersMobile />
         </>
       )}
 
