@@ -408,13 +408,13 @@ export class EventsService {
 
     const eventIds = events.map((event) => event.id);
     const orderRows = await this.eventRepo.manager.getRepository(Order)
-      .createQueryBuilder('order')
-      .select('order."eventId"', 'eventId')
-      .addSelect('COALESCE(SUM(order."ticketCount"), 0)', 'soldTickets')
-      .addSelect('COALESCE(SUM(order.subtotal), 0)', 'totalRevenue')
-      .where('order."eventId" IN (:...eventIds)', { eventIds })
-      .andWhere('order.status = :status', { status: OrderStatus.PAID })
-      .groupBy('order."eventId"')
+      .createQueryBuilder('o')
+      .select('o."eventId"', 'eventId')
+      .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'soldTickets')
+      .addSelect('COALESCE(SUM(o.subtotal), 0)', 'totalRevenue')
+      .where('o."eventId" IN (:...eventIds)', { eventIds })
+      .andWhere('o.status = :status', { status: OrderStatus.PAID })
+      .groupBy('o."eventId"')
       .getRawMany();
 
     const statsByEventId = new Map(orderRows.map((row) => [
