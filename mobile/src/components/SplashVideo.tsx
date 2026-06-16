@@ -2,7 +2,10 @@ import { useEffect, useRef } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLanguage } from '../i18n/LanguageContext';
 
-const splashWebp = require('../../assets/splash.webp');
+// Native (iOS) can't decode the animated WebP, so the splash shows the white
+// logo lockup as a static PNG (extracted from the source video) over the dark
+// background. Web uses SplashVideo.web.tsx with the animated WebP.
+const splashLogo = require('../../assets/splash-logo.png');
 
 const SPLASH_MS = 2800;
 
@@ -47,7 +50,7 @@ export function SplashVideo({ onFinish }: Props) {
       <Pressable style={StyleSheet.absoluteFill} onPress={dismiss}>
         <View style={styles.bg} />
       </Pressable>
-      <Image source={splashWebp} style={styles.lockup} resizeMode="contain" />
+      <Image source={splashLogo} style={styles.lockup} resizeMode="contain" />
       <Pressable style={styles.skip} onPress={dismiss}>
         <Text style={styles.skipText}>{t('Saltar', 'Skip')}</Text>
       </Pressable>
@@ -68,8 +71,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#030B14',
   },
   lockup: {
-    width: 360,
-    height: 203,
+    width: 300,
+    aspectRatio: 1498 / 398,
     pointerEvents: 'none',
   },
   skip: {
