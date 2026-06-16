@@ -23,15 +23,28 @@ type SharedProps = {
 
 type DashboardMetrics = { revenue: string; ticketsSold: string; activeEvents: string; orders: string };
 type DashboardSummary = { capacity: number; sold: number; scanned: number; soldPct: number };
+type DashboardEvent = {
+  id: string;
+  title: string;
+  venue: string;
+  date: string;
+  status: EventStatus;
+  sold: number;
+  capacity: number;
+  revenue: string;
+};
 
 type DashboardProps = Pick<SharedProps, 'eventTitle' | 'eventVenue' | 'eventStatus' | 'goTo'> & {
   eventDateLabel?: string;
   metrics: DashboardMetrics;
   summary: DashboardSummary;
+  events?: DashboardEvent[];
 };
 
-export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, eventDateLabel, metrics, summary, goTo }: DashboardProps) {
+export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, eventDateLabel, metrics, summary, events = [], goTo }: DashboardProps) {
   const { t } = useLanguage();
+  const hasEvents = events.length > 0;
+
   return (
     <View>
       <View style={styles.metricsGrid}>
@@ -45,11 +58,17 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
         <View pointerEvents="none" style={styles.heroPanelGlass} />
         <View style={styles.heroTop}>
           <View style={styles.heroTitleBlock}>
-            <Text style={styles.eyebrow}>{t('EVENTO ACTIVO', 'LIVE EVENT')}</Text>
-            <Text style={styles.heroTitle}>{eventTitle}</Text>
-            <Text style={styles.heroSub}>{[eventDateLabel, eventVenue].filter(Boolean).join(' · ')}</Text>
+            <Text style={styles.eyebrow}>{t('PANEL ORGANIZADOR', 'ORGANIZER PANEL')}</Text>
+            <Text style={styles.heroTitle}>{hasEvents ? t('Tus eventos', 'Your events') : eventTitle}</Text>
+            <Text style={styles.heroSub}>
+              {hasEvents
+                ? t('Datos reales de tus eventos publicados y borradores.', 'Live data from your published events and drafts.')
+                : [eventDateLabel, eventVenue].filter(Boolean).join(' · ')}
+            </Text>
           </View>
-          <StatusBadge label={eventStatus === 'published' ? t('PUBLICADO', 'PUBLISHED') : t('BORRADOR', 'DRAFT')} active={eventStatus === 'published'} />
+          {!hasEvents && (
+            <StatusBadge label={eventStatus === 'published' ? t('PUBLICADO', 'PUBLISHED') : t('BORRADOR', 'DRAFT')} active={eventStatus === 'published'} />
+          )}
         </View>
 
         <View style={styles.progressTrack}>
@@ -61,6 +80,37 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
           <Summary label={t('Vendidos', 'Sold')} value={String(summary.sold)} />
           <Summary label={t('Escaneados', 'Scanned')} value={String(summary.scanned)} />
         </View>
+
+        {hasEvents ? (
+          <View style={styles.dashboardEvents}>
+            {events.slice(0, 5).map((item) => {
+              const pct = item.capacity > 0 ? Math.min(100, Math.round((item.sold / item.capacity) * 100)) : 0;
+              return (
+                <View key={item.id} style={styles.dashboardEventCard}>
+                  <View style={styles.dashboardEventTop}>
+                    <View style={styles.dashboardEventTitleBlock}>
+                      <Text style={styles.dashboardEventTitle} numberOfLines={2}>{item.title}</Text>
+                      <Text style={styles.dashboardEventMeta} numberOfLines={1}>{[item.date, item.venue].filter(Boolean).join(' · ')}</Text>
+                    </View>
+                    <View style={[styles.eventPill, item.status === 'published' ? styles.eventPillActive : styles.eventPillDraft]}>
+                      <Text style={[styles.eventPillText, item.status === 'published' ? styles.eventPillActiveText : styles.eventPillDraftText]}>
+                        {item.status === 'published' ? t('PUBLICADO', 'PUBLISHED') : t('BORRADOR', 'DRAFT')}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.dashboardEventStats}>
+                    <Text style={styles.dashboardEventStat}>{item.sold} {t('vendidos', 'sold')}</Text>
+                    <Text style={styles.dashboardEventStat}>{item.revenue}</Text>
+                    <Text style={styles.dashboardEventStat}>{pct}%</Text>
+                  </View>
+                  <View style={styles.dashboardEventTrack}>
+                    <View style={[styles.dashboardEventFill, { width: `${pct}%` as `${number}%` }]} />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
 
         <View style={styles.actionGrid}>
           <PremiumButton label={t('MIS EVENTOS', 'MY EVENTS')} onPress={() => goTo('events')} />
@@ -455,6 +505,22 @@ const styles = StyleSheet.create({
   summary: { flex: 1, minHeight: 62, backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 10, justifyContent: 'center' },
   summaryValue: { color: '#FFFFFF', fontSize: 18, fontWeight: '700', textAlign: 'center' },
   summaryLabel: { color: '#CBD5E1', fontSize: 10.5, fontWeight: '700', textAlign: 'center', marginTop: 3 },
+  dashboardEvents: { gap: 10, marginBottom: 14 },
+  dashboardEventCard: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 12 },
+  dashboardEventTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  dashboardEventTitleBlock: { flex: 1 },
+  dashboardEventTitle: { color: '#FFFFFF', fontSize: 16, lineHeight: 20, fontWeight: '700' },
+  dashboardEventMeta: { color: '#9CA3AF', fontSize: 11.5, fontWeight: '700', marginTop: 4 },
+  dashboardEventStats: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
+  dashboardEventStat: { color: '#CBD5E1', fontSize: 11.5, fontWeight: '700' },
+  dashboardEventTrack: { height: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
+  dashboardEventFill: { height: '100%', backgroundColor: colors.orange },
+  eventPill: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 6 },
+  eventPillActive: { backgroundColor: 'rgba(255,90,69,0.12)', borderColor: 'rgba(255,90,69,0.35)' },
+  eventPillDraft: { backgroundColor: 'rgba(148,163,184,0.10)', borderColor: 'rgba(148,163,184,0.28)' },
+  eventPillText: { fontSize: 8.5, letterSpacing: 0, fontWeight: '700' },
+  eventPillActiveText: { color: '#ff5a45' },
+  eventPillDraftText: { color: '#CBD5E1' },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 6, marginBottom: 14 },
   button: { width: '48%', height: 52, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
   buttonMuted: { backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },

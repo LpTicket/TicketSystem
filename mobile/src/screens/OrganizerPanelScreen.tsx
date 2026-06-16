@@ -305,8 +305,8 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
     Number(organizerStats.totalTickets || 0) ||
     Number(organizerStats.totalOrders || 0)
   );
-  const capacity = firstEvent?.capacity ?? 0;
-  const sold = firstEvent?.sold ?? (statsHaveLiveData ? Number(organizerStats.totalTickets ?? 0) : visibleTotals.sold);
+  const capacity = visibleTotals.capacity || firstEvent?.capacity || 0;
+  const sold = statsHaveLiveData ? Number(organizerStats.totalTickets ?? visibleTotals.sold) : visibleTotals.sold;
   const scanned = Number(organizerStats.scannedTickets ?? 0);
   const soldPct = capacity > 0 ? Math.min(100, Math.round((sold / capacity) * 100)) : 0;
 
@@ -494,6 +494,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             eventDateLabel={firstEvent?.date}
             metrics={dashMetrics}
             summary={{ capacity, sold, scanned, soldPct }}
+            events={organizerEvents}
             goTo={setActive}
           />
         )}
