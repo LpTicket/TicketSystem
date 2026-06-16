@@ -11,6 +11,7 @@ type Props = {
   eventVenue: string;
   eventStatus: EventStatus;
   events?: OrganizerEventItem[];
+  errorMessage?: string;
   setEventStatus: (value: EventStatus) => void;
   goTo: (section: 'dashboard' | 'create' | 'details' | 'map' | 'attendees' | 'blocks') => void;
   onOpen?: (event: OrganizerEventItem, section: EventSection) => void;
@@ -40,7 +41,7 @@ function isPastEvent(value: string) {
 }
 
 
-export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, events, setEventStatus, goTo, onOpen, onTogglePublish }: Props) {
+export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, events, errorMessage, setEventStatus, goTo, onOpen, onTogglePublish }: Props) {
   const { t } = useLanguage();
   const visibleEvents = events ?? [];
 
@@ -64,8 +65,12 @@ export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, eve
 
       {visibleEvents.length === 0 && (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>{t('Aún no tienes eventos', 'No events yet')}</Text>
-          <Text style={styles.emptyCopy}>{t('Crea tu primer evento para gestionarlo aquí.', 'Create your first event to manage it here.')}</Text>
+          <Text style={styles.emptyTitle}>{errorMessage || t('Aún no tienes eventos', 'No events yet')}</Text>
+          <Text style={styles.emptyCopy}>
+            {errorMessage
+              ? t('Revisa tu sesión e intenta entrar de nuevo.', 'Check your session and try signing in again.')
+              : t('Crea tu primer evento para gestionarlo aquí.', 'Create your first event to manage it here.')}
+          </Text>
         </View>
       )}
 

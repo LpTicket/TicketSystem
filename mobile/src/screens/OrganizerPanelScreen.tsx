@@ -141,6 +141,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
   const [eventStatus, setEventStatus] = useState<'draft' | 'published'>('published');
   const [accessItems, setAccessItems] = useState<{ id: string; title: string; type: string; status: string }[]>([]);
   const [organizerEvents, setOrganizerEvents] = useState<ReturnType<typeof toOrganizerEvent>[]>([]);
+  const [organizerEventsError, setOrganizerEventsError] = useState('');
   const [rawEventsById, setRawEventsById] = useState<Record<string, any>>({});
   const [organizerStats, setOrganizerStats] = useState<OrganizerStats>({});
   // The event the organizer is currently managing (null = global view).
@@ -167,15 +168,28 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
   useEffect(() => {
     let mounted = true;
 
-    apiGet<any>('/events/mine/list')
-      .then((data) => {
+    async function loadOrganizerEvents() {
+      try {
+        const data = await apiGet<any>('/events/mine/list');
         if (!mounted) return;
-        const raw = listFrom(data);
+        let raw = listFrom(data);
+
+        if (raw.length === 0) {
+          try {
+            const adminEvents = await apiGet<any>('/admin/events?page=1&limit=50');
+            if (!mounted) return;
+            raw = listFrom(adminEvents);
+          } catch {
+            // Non-admin organizers should keep the normal empty state.
+          }
+        }
+
         const byId: Record<string, any> = {};
         raw.forEach((e: any) => { if (e?.id) byId[String(e.id)] = e; });
         setRawEventsById(byId);
         const items = raw.map(toOrganizerEvent);
         setOrganizerEvents(items);
+        setOrganizerEventsError('');
 
         const first = items[0];
         if (first) {
@@ -183,8 +197,12 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
           setEventVenue(first.venue);
           setEventStatus(first.status);
         }
-      })
-      .catch(() => {});
+      } catch {
+        if (mounted) setOrganizerEventsError(t('No se pudieron cargar los eventos.', 'Could not load events.'));
+      }
+    }
+
+    loadOrganizerEvents();
 
     apiGet<OrganizerStats>('/orders/organizer/stats')
       .then((data) => {
@@ -480,6 +498,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             eventVenue={eventVenue}
             eventStatus={eventStatus}
             events={organizerEvents}
+            errorMessage={organizerEventsError}
             setEventStatus={setEventStatus}
             goTo={setActive}
             onOpen={(ev, toSection) => openEvent(ev, toSection)}
