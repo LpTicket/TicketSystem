@@ -182,6 +182,38 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     }
   };
 
+  // ── Create user (admin) ────────────────────────────────────────────────────
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [cuForm, setCuForm] = useState({ firstName: '', lastName: '', username: '', email: '', password: '', phone: '', role: 'client' as 'client' | 'organizer' | 'admin' });
+  const [creatingUser, setCreatingUser] = useState(false);
+  const setCu = (k: keyof typeof cuForm, v: string) => setCuForm((f) => ({ ...f, [k]: v }));
+  const createUserApi = async () => {
+    if (!cuForm.firstName.trim() || !cuForm.lastName.trim() || !cuForm.username.trim() || !cuForm.email.trim()) {
+      Alert.alert(t('Faltan datos', 'Missing info'), t('Nombre, apellido, usuario y correo son requeridos.', 'First name, last name, username and email are required.'));
+      return;
+    }
+    setCreatingUser(true);
+    try {
+      await apiPost('/admin/users', {
+        firstName: cuForm.firstName,
+        lastName: cuForm.lastName,
+        username: cuForm.username,
+        email: cuForm.email,
+        password: cuForm.password || undefined,
+        role: cuForm.role,
+        phone: cuForm.phone,
+      });
+      Alert.alert(t('Listo', 'Done'), t('Usuario creado.', 'User created.'));
+      setShowCreateUser(false);
+      setCuForm({ firstName: '', lastName: '', username: '', email: '', password: '', phone: '', role: 'client' });
+      await loadUsers();
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('No se pudo crear el usuario', 'Could not create user'));
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -728,6 +760,36 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   style={styles.userSearchInput}
                 />
               </View>
+
+              <TouchableOpacity onPress={() => setShowCreateUser((v) => !v)} style={styles.createToggle}>
+                <Text style={styles.createToggleText}>{showCreateUser ? t('✕ Cancelar', '✕ Cancel') : t('+ Crear usuario', '+ Create user')}</Text>
+              </TouchableOpacity>
+
+              {showCreateUser && (
+                <PanelCard title={t('Nuevo usuario', 'New user')} eyebrow={t('CREAR', 'CREATE')} copy={t('Crea una cuenta manualmente.', 'Create an account manually.')}>
+                  <View style={styles.twoColRow}>
+                    <View style={styles.col}><FieldLabel label={t('Nombre', 'First name')} /><TextInput value={cuForm.firstName} onChangeText={(v) => setCu('firstName', v)} style={styles.input} /></View>
+                    <View style={styles.col}><FieldLabel label={t('Apellido', 'Last name')} /><TextInput value={cuForm.lastName} onChangeText={(v) => setCu('lastName', v)} style={styles.input} /></View>
+                  </View>
+                  <FieldLabel label={t('Usuario', 'Username')} />
+                  <TextInput value={cuForm.username} onChangeText={(v) => setCu('username', v)} autoCapitalize="none" style={styles.input} />
+                  <FieldLabel label={t('Email', 'Email')} />
+                  <TextInput value={cuForm.email} onChangeText={(v) => setCu('email', v)} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
+                  <FieldLabel label={t('Teléfono', 'Phone')} />
+                  <TextInput value={cuForm.phone} onChangeText={(v) => setCu('phone', v)} keyboardType="phone-pad" style={styles.input} />
+                  <FieldLabel label={t('Contraseña (opcional)', 'Password (optional)')} />
+                  <TextInput value={cuForm.password} onChangeText={(v) => setCu('password', v)} secureTextEntry style={styles.input} />
+                  <FieldLabel label={t('Rol', 'Role')} />
+                  <View style={styles.segmentGroup}>
+                    {(['client', 'organizer', 'admin'] as const).map((role) => (
+                      <TouchableOpacity key={role} onPress={() => setCu('role', role)} style={[styles.segment, cuForm.role === role && styles.segmentActive]}>
+                        <Text style={[styles.segmentText, cuForm.role === role && styles.segmentTextActive]}>{role}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <GradientButton label={creatingUser ? t('CREANDO...', 'CREATING...') : t('CREAR USUARIO', 'CREATE USER')} onPress={createUserApi} height={48} style={{ marginTop: 12 }} />
+                </PanelCard>
+              )}
               {usersApiError ? (
                 <View style={styles.userEmptyCard}>
                   <Text style={styles.userEmptyText}>{t('No se pudo actualizar la lista real de usuarios.', 'Could not refresh the real users list.')}</Text>
@@ -1371,6 +1433,10 @@ const styles = StyleSheet.create({
   fieldLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '400', marginBottom: 8 },
   input: { height: 58, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 16, color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 16 },
   segmentGroup: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  createToggle: { alignSelf: 'flex-start', marginBottom: 12, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.4)', backgroundColor: 'rgba(249,115,22,0.1)' },
+  createToggleText: { color: '#F97316', fontSize: 13, fontWeight: '800' },
+  twoColRow: { flexDirection: 'row', gap: 10 },
+  col: { flex: 1 },
   segment: { flex: 1, height: 48, borderRadius: 15, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   segmentActive: { backgroundColor: 'rgba(255,255,255,0.055)', borderColor: 'rgba(255,255,255,0.24)' },
   segmentActiveOrange: { backgroundColor: colors.orange, borderColor: colors.orange },
