@@ -3,6 +3,7 @@ import { Animated, Easing, Image, Keyboard, ScrollView, StyleSheet, Text, TextIn
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Polygon } from 'react-native-svg';
+import { EventCardSkeleton } from '../components/Skeleton';
 import { GradientButton } from '../components/GradientButton';
 import { getPublicEvents } from '../services/events';
 import { colors } from '../theme/colors';
@@ -74,6 +75,7 @@ export function HomeScreen({ onOpenEvent }: Props) {
   const { t } = useLanguage();
   const { width } = useWindowDimensions();
   const [events, setEvents] = useState<MobileEvent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [heroIndex, setHeroIndex] = useState(0);
   const [previousHeroIndex, setPreviousHeroIndex] = useState<number | null>(null);
   const [heroTransitionReady, setHeroTransitionReady] = useState(false);
@@ -190,6 +192,9 @@ export function HomeScreen({ onOpenEvent }: Props) {
       })
       .catch(() => {
         if (mounted) setEvents([]);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
       });
 
     return () => {
@@ -443,17 +448,21 @@ export function HomeScreen({ onOpenEvent }: Props) {
         <Text style={styles.eventsCount}>{filteredEvents.length} {t('eventos disponibles', 'available events')}</Text>
       </View>
 
-      {filteredEvents.length === 0 && (
+      {loading && events.length === 0 ? (
+        <>
+          <EventCardSkeleton />
+          <EventCardSkeleton />
+          <EventCardSkeleton />
+        </>
+      ) : filteredEvents.length === 0 ? (
         <View style={styles.emptyEvents}>
           <Text style={styles.emptyEventsText}>
-            {events.length === 0
-              ? t('Cargando eventos...', 'Loading events...')
-              : t('No hay eventos que coincidan con tu búsqueda.', 'No events match your search.')}
+            {t('No hay eventos que coincidan con tu búsqueda.', 'No events match your search.')}
           </Text>
         </View>
-      )}
+      ) : null}
 
-      {filteredEvents.map((event) => (
+      {!loading && filteredEvents.map((event) => (
         <TouchableOpacity key={event.id} style={styles.eventCard} onPress={() => onOpenEvent(event)}>
           <View style={styles.eventPoster}>
             <Image source={getPosterImageSource(event)} style={styles.eventPosterImage} resizeMode="cover" />

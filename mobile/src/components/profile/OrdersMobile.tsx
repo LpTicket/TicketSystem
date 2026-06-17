@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { apiGet } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { OrderRowSkeleton } from '../Skeleton';
 
 type Order = {
   id: string;
@@ -190,7 +191,12 @@ export function OrdersMobile() {
       <Text style={styles.cardLabel}>{t('MIS RECIBOS', 'MY RECEIPTS')}</Text>
 
       {loading ? (
-        <View style={styles.empty}><ActivityIndicator color="#F97316" /></View>
+        <>
+          <OrderRowSkeleton />
+          <OrderRowSkeleton />
+          <OrderRowSkeleton />
+          <OrderRowSkeleton />
+        </>
       ) : orders.length === 0 ? (
         <View style={styles.empty}><Text style={styles.emptyText}>{t('Aún no tienes pedidos.', 'No orders yet.')}</Text></View>
       ) : (

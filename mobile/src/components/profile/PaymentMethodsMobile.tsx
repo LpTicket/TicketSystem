@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { apiGet, apiPost, apiDelete } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { PaymentMethodSkeleton } from '../Skeleton';
 
 type MethodType = 'credit_card' | 'bank_account';
 
@@ -238,7 +239,11 @@ export function PaymentMethodsMobile() {
       )}
 
       {loading ? (
-        <View style={styles.empty}><ActivityIndicator color="#F97316" size="small" /></View>
+        <>
+          <PaymentMethodSkeleton />
+          <PaymentMethodSkeleton />
+          <PaymentMethodSkeleton />
+        </>
       ) : methods.length === 0 ? (
         !adding && (
           <View style={styles.emptyState}>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useLanguage } from '../i18n/LanguageContext';
 import { API_URL, apiGet, apiPost } from '../services/api';
+import { TicketCardSkeleton } from '../components/Skeleton';
 
 type TicketStatus = 'active' | 'used' | 'cancelled' | string;
 
@@ -137,9 +138,11 @@ export function TicketsScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>{t('Cargando tickets...', 'Loading tickets...')}</Text>
-        </View>
+        <>
+          <TicketCardSkeleton />
+          <TicketCardSkeleton />
+          <TicketCardSkeleton />
+        </>
       ) : visibleTickets.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>{t('No tienes tickets todavía', 'No tickets yet')}</Text>
