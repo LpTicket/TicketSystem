@@ -10,6 +10,8 @@ import {
   HiOutlinePhotograph,
   HiOutlineMap,
   HiOutlineX,
+  HiOutlineClock,
+  HiOutlineChevronDown,
 } from 'react-icons/hi';
 import Link from 'next/link';
 import VenueMapBuilder from '@/components/events/VenueMapBuilder';
@@ -116,6 +118,20 @@ const getCurrentTimeInTimezone = (timezone: string): string => {
     return '??:??';
   }
 };
+
+const TIME_OPTIONS = Array.from({ length: 96 }, (_, index) => {
+  const totalMinutes = index * 15;
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const displayHour = hour % 12 || 12;
+  const period = hour < 12 ? 'AM' : 'PM';
+
+  return {
+    value,
+    label: `${displayHour}:${String(minute).padStart(2, '0')} ${period}`,
+  };
+});
 
 const buildLocalEventDate = (date: string, time: string, timezone: string = 'UTC') => {
   const safeTime = time || '00:00';
@@ -379,13 +395,23 @@ export default function CreateEventPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Hora del evento *' : 'Event Time *'}</label>
-                    <input
-                      type="time"
-                      value={form.eventTime}
-                      onChange={(e) => updateForm('eventTime', e.target.value)}
-                      className="input py-3"
-                      required
-                    />
+                    <div className="relative group">
+                      <HiOutlineClock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-primary-500 transition-transform group-focus-within:scale-110" />
+                      <select
+                        value={form.eventTime}
+                        onChange={(e) => updateForm('eventTime', e.target.value)}
+                        className="w-full appearance-none rounded-2xl border border-[rgba(255,122,24,0.26)] bg-gradient-to-b from-white to-orange-50/45 py-3.5 pl-12 pr-12 text-sm font-bold text-gray-900 shadow-[0_14px_34px_rgba(10,55,90,0.08)] outline-none transition-all focus:border-primary-500 focus:ring-4 focus:ring-primary-500/15"
+                        required
+                      >
+                        <option value="" disabled>{lang === 'es' ? 'Selecciona la hora' : 'Select time'}</option>
+                        {TIME_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <HiOutlineChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 transition-transform group-focus-within:rotate-180 group-focus-within:text-primary-500" />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Zona horaria del evento *' : 'Event Timezone *'}</label>
@@ -408,17 +434,22 @@ export default function CreateEventPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgDoorsOpen')}</label>
-                    <input
-                      type="time"
-                      value={form.doorsOpen}
-                      onChange={(e) => updateForm('doorsOpen', e.target.value)}
-                      onClick={(e) => {
-                        if (document.activeElement === e.currentTarget) {
-                          e.currentTarget.blur();
-                        }
-                      }}
-                      className="input py-3"
-                    />
+                    <div className="relative group">
+                      <HiOutlineClock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-primary-500 transition-transform group-focus-within:scale-110" />
+                      <select
+                        value={form.doorsOpen}
+                        onChange={(e) => updateForm('doorsOpen', e.target.value)}
+                        className="w-full appearance-none rounded-2xl border border-[rgba(255,122,24,0.22)] bg-gradient-to-b from-white to-orange-50/35 py-3.5 pl-12 pr-12 text-sm font-bold text-gray-900 shadow-[0_14px_34px_rgba(10,55,90,0.07)] outline-none transition-all focus:border-primary-500 focus:ring-4 focus:ring-primary-500/15"
+                      >
+                        <option value="">{lang === 'es' ? 'Sin hora definida' : 'No time set'}</option>
+                        {TIME_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <HiOutlineChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 transition-transform group-focus-within:rotate-180 group-focus-within:text-primary-500" />
+                    </div>
                   </div>
                 </div>
 
