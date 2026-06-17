@@ -151,7 +151,7 @@ function AppContent() {
         // 3 extras RIGHT
         { key: 'aanalytics',  label: t('Analíticas', 'Analytics'), icon: 'stats-chart',   active: tab === 'admin' && adminSection === 'analytics',  onPress: () => goAdminSection('analytics') },
         { key: 'acodes',      label: t('Códigos', 'Codes'),        icon: 'key',           active: tab === 'admin' && adminSection === 'codes',      onPress: () => goAdminSection('codes') },
-        { key: 'apayments',   label: t('Pagos', 'Payments'),       icon: 'card',          active: tab === 'admin' && adminSection === 'payments',   onPress: () => goAdminSection('payments') },
+        { key: 'ausers',      label: t('Usuarios', 'Users'),       icon: 'people',        active: tab === 'admin' && adminSection === 'users',      onPress: () => goAdminSection('users') },
       ]
     : viewMode === 'organizer'
     ? [

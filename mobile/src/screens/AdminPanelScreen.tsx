@@ -8,7 +8,7 @@ import { apiDelete, apiGet, apiPatch, apiPost, getImageUrl } from '../services/a
 import { GradientButton } from '../components/GradientButton';
 import { OrganizerDetailsMobile } from '../components/organizer/OrganizerEventForms';
 
-export type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
+export type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes';
 type AdminUser = {
   id: string;
   name: string;
@@ -248,7 +248,6 @@ const sections: { id: Section; label: string }[] = [
   { id: 'marketing', label: 'Marketing' },
   { id: 'analytics', label: 'Analiticas' },
   { id: 'codes', label: 'Codigos' },
-  { id: 'payments', label: 'Pagos' },
 ];
 
 type AdminProps = { section?: Section; onSectionChange?: (s: Section) => void };
@@ -555,19 +554,6 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     });
   }, [active, homeBanner]);
 
-  // Lazy-load orders/financials when payments section is opened
-  useEffect(() => {
-    if (active !== 'payments' || ordersLoaded || ordersLoading) return;
-    setOrdersLoading(true);
-    setOrdersError('');
-    apiGet<any>('/admin/orders?page=1&limit=20')
-      .then((data) => setAdminOrders(listFrom(data)))
-      .catch((err: any) => setOrdersError(err?.message || 'Could not load orders'))
-      .finally(() => {
-        setOrdersLoaded(true);
-        setOrdersLoading(false);
-      });
-  }, [active, ordersLoaded, ordersLoading]);
 
   // ── User actions ───────────────────────────────────────────────────────────
 
@@ -2453,48 +2439,6 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
           </>
         )}
 
-        {active === 'payments' && (
-          <>
-            <View style={styles.metricsGrid}>
-              <Metric label={t('Total órdenes', 'Total orders')} value={String(adminStats.totalOrders ?? adminOrders.length)} />
-              <Metric label={t('Órdenes pagadas', 'Paid orders')} value={String(adminStats.paidOrders ?? 0)} />
-              <Metric label={t('Ingresos', 'Revenue')} value={money(adminStats.totalRevenue ?? 0)} />
-              <Metric label={t('Ganancia LP', 'LP profit')} value={money(adminStats.lpticketProfit ?? adminStats.serviceFees ?? 0)} />
-            </View>
-
-            {ordersLoading && <PanelCard title={t('Cargando órdenes...', 'Loading orders...')} />}
-            {!ordersLoading && ordersError ? (
-              <PanelCard title={t('No se pudieron cargar los pagos', 'Could not load payments')} copy={ordersError} />
-            ) : null}
-
-            {adminOrders.slice(0, 15).map((order) => {
-              const buyer = [order.user?.firstName, order.user?.lastName].filter(Boolean).join(' ') || order.user?.email || '—';
-              const date = order.paidAt || order.createdAt;
-              const dateStr = date ? new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-              return (
-                <View key={order.id} style={styles.userCard}>
-                  <View style={styles.cardHeader}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>{buyer.slice(0, 2).toUpperCase()}</Text>
-                    </View>
-                    <View style={styles.cardMain}>
-                      <Text style={styles.cardTitle}>{order.event?.title || t('Evento', 'Event')}</Text>
-                      <Text style={styles.cardSub}>{buyer} · {dateStr}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.statusRow}>
-                    <StatusPill label={(order.status || 'paid').toUpperCase()} tone={order.status === 'paid' ? 'green' : order.status === 'cancelled' ? 'red' : 'gray'} />
-                    <StatusPill label={money(order.totalAmount ?? 0)} tone="orange" />
-                  </View>
-                </View>
-              );
-            })}
-
-            {!ordersLoading && adminOrders.length === 0 && (
-              <PanelCard title={t('Sin órdenes todavía', 'No orders yet')} copy={t('Las órdenes pagadas aparecerán aquí.', 'Paid orders will appear here.')} />
-            )}
-          </>
-        )}
       </ScrollView>
     </View>
   );
@@ -2651,7 +2595,6 @@ function titleFor(section: Section, t: (es: string, en: string) => string) {
     marketing: t('Marketing', 'Marketing'),
     analytics: t('Analiticas', 'Analytics'),
     codes: t('Codigos especiales', 'Special codes'),
-    payments: t('Pagos', 'Payments'),
   };
   return names[section];
 }
@@ -2665,7 +2608,6 @@ function subtitleFor(section: Section, t: (es: string, en: string) => string) {
     marketing: t('Controla banners, promociones y orden visual del home.', 'Control banners, promotions and the visual order of the home screen.'),
     analytics: t('Mide conversion, visitas, checkouts e ingresos.', 'Measure conversion, visits, checkouts and revenue.'),
     codes: t('Crea codigos, comisiones y seguimiento de ventas.', 'Create codes, commissions and sales tracking.'),
-    payments: t('Revisa pagos, saldos y reportes financieros.', 'Review payouts, balances and financial reports.'),
   };
   return copy[section];
 }
@@ -2785,7 +2727,7 @@ const styles = StyleSheet.create({
   actionButtonMuted: { backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
   actionButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   actionButtonTextMuted: { color: '#F8FAFC' },
-  fieldLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '400', marginBottom: 8 },
+  fieldLabel: { color: 'rgba(226,232,240,0.85)', fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 7 },
   input: { height: 58, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 16, color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 16 },
   segmentGroup: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   createToggle: { alignSelf: 'flex-start', marginBottom: 12, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.4)', backgroundColor: 'rgba(249,115,22,0.1)' },
@@ -2818,7 +2760,7 @@ const styles = StyleSheet.create({
   codeCreateCard: { backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 13, marginBottom: 12, shadowColor: '#000000', shadowOpacity: 0.14, shadowRadius: 12, shadowOffset: { width: 0, height: 7 } },
   codePanelTitle: { color: '#F8FAFC', fontSize: 20, fontWeight: '700', marginBottom: 5 },
   codePanelCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 12, lineHeight: 17, fontWeight: '500', marginBottom: 10 },
-  codeInput: { flex: 1, height: 44, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: '#030B14', paddingHorizontal: 12, color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
+  codeInput: { height: 48, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.04)', paddingHorizontal: 14, color: '#F8FAFC', fontSize: 14, fontWeight: '700', marginBottom: 10 },
   codeAddButton: { width: 82, borderRadius: 10 },
   codeAddButtonText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700', letterSpacing: 0 },
   codeCard: { backgroundColor: '#030B14', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 11, marginBottom: 8 },
@@ -3054,7 +2996,7 @@ const styles = StyleSheet.create({
   createdCodesTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 2 },
   createdCodesSub: { color: 'rgba(226,232,240,0.52)', fontSize: 12, fontWeight: '400' },
   codeCard2: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 14, marginBottom: 10 },
-  codeCard2Label: { color: 'rgba(226,232,240,0.44)', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
+  codeCard2Label: { color: 'rgba(226,232,240,0.6)', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
   codeCard2Code: { color: '#F8FAFC', fontSize: 22, fontWeight: '900', marginBottom: 10 },
   codeCard2OwnerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   codeCard2OwnerName: { color: '#CBD5E1', fontSize: 13, fontWeight: '700' },
@@ -3076,7 +3018,7 @@ const styles = StyleSheet.create({
   eventRewardsTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 2 },
   eventRewardsSub: { color: 'rgba(226,232,240,0.52)', fontSize: 12, fontWeight: '400', flex: 1 },
   eventRewardCard: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 14, marginBottom: 10 },
-  eventRewardFieldLabel: { color: 'rgba(226,232,240,0.44)', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
+  eventRewardFieldLabel: { color: 'rgba(226,232,240,0.6)', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
   eventRewardEventTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 8 },
   eventRewardOrgName: { color: '#CBD5E1', fontSize: 13, fontWeight: '600', marginBottom: 8 },
   eventRewardCurrent: { color: '#4ADE80', fontSize: 16, fontWeight: '800', marginBottom: 10 },

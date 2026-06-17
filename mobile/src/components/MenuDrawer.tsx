@@ -5,7 +5,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { ScreenBackground } from './ScreenBackground';
 import { ModeSelector, AppMode } from './ModeSelector';
 
-type AdminSectionId = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
+type AdminSectionId = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes';
 type OrgSectionId = 'dashboard' | 'events' | 'create' | 'rewards';
 
 type Props = {
@@ -50,7 +50,6 @@ const adminSections: { id: AdminSectionId; labelEs: string; labelEn: string; ico
   { id: 'marketing', labelEs: 'Marketing', labelEn: 'Marketing', icon: 'megaphone-outline' },
   { id: 'analytics', labelEs: 'Analíticas', labelEn: 'Analytics', icon: 'stats-chart-outline' },
   { id: 'codes', labelEs: 'Códigos especiales', labelEn: 'Special codes', icon: 'key-outline' },
-  { id: 'payments', labelEs: 'Pagos', labelEn: 'Payments', icon: 'card-outline' },
 ];
 
 const orgSections: { id: OrgSectionId; labelEs: string; labelEn: string; icon: IconName }[] = [
