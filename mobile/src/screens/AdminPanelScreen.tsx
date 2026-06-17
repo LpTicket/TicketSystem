@@ -2172,16 +2172,20 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 </TouchableOpacity>
                 {analyticsRecentOpen && (
                   <ScrollView style={styles.anTableScroll} nestedScrollEnabled showsVerticalScrollIndicator>
-                    <View style={styles.anTableHeader}>
-                      <Text style={[styles.anTableCol, { flex: 2 }]}>PATH</Text>
-                      <Text style={[styles.anTableCol, { flex: 1, textAlign: 'right' }]}>EVENT</Text>
-                    </View>
-                    {analyticsSummary!.recentViews.map((view) => (
-                      <View key={view.id} style={styles.anTableRow}>
-                        <Text style={[styles.anTablePath, { flex: 2 }]} numberOfLines={1}>{view.path}</Text>
-                        <Text style={[styles.anTableEvent, { flex: 1, textAlign: 'right' }]} numberOfLines={1}>{view.eventSlug ? view.eventSlug.split('-').slice(0, 2).join('-') + (view.eventSlug.split('-').length > 2 ? '...' : '') : '-'}</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator nestedScrollEnabled>
+                      <View style={styles.anTableInner}>
+                        <View style={styles.anTableHeader}>
+                          <Text style={styles.anTableColPath}>PATH</Text>
+                          <Text style={styles.anTableColEvent}>EVENT</Text>
+                        </View>
+                        {analyticsSummary!.recentViews.map((view) => (
+                          <View key={view.id} style={styles.anTableRow}>
+                            <Text style={styles.anTablePath} numberOfLines={1}>{view.path}</Text>
+                            <Text style={styles.anTableEvent} numberOfLines={1}>{view.eventSlug ? view.eventSlug.split('-').slice(0, 3).join('-') + (view.eventSlug.split('-').length > 3 ? '...' : '') : '-'}</Text>
+                          </View>
+                        ))}
                       </View>
-                    ))}
+                    </ScrollView>
                   </ScrollView>
                 )}
               </View>
@@ -3447,10 +3451,13 @@ const styles = StyleSheet.create({
   anRecentHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 4 },
   anRecentCount: { color: 'rgba(226,232,240,0.5)', fontSize: 13, fontWeight: '500' },
   anRecentToggle: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)', backgroundColor: 'rgba(249,115,22,0.08)', alignItems: 'center', justifyContent: 'center' },
+  anTableScroll: { maxHeight: 280 },
+  anTableInner: { minWidth: 520 },
   anTableHeader: { flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)', marginBottom: 4 },
   anTableCol: { color: 'rgba(226,232,240,0.4)', fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase' },
-  anTableScroll: { maxHeight: 260 },
+  anTableColPath: { color: 'rgba(226,232,240,0.4)', fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', width: 300, paddingRight: 12 },
+  anTableColEvent: { color: 'rgba(226,232,240,0.4)', fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', width: 180 },
   anTableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
-  anTablePath: { color: '#F8FAFC', fontSize: 13, fontWeight: '500' },
-  anTableEvent: { color: 'rgba(226,232,240,0.5)', fontSize: 12, fontWeight: '500' },
+  anTablePath: { color: '#F8FAFC', fontSize: 13, fontWeight: '500', width: 300, paddingRight: 12 },
+  anTableEvent: { color: 'rgba(226,232,240,0.5)', fontSize: 12, fontWeight: '500', width: 180 },
 });
