@@ -2087,90 +2087,108 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
         )}
         {active === 'analytics' && (
           <>
-            {/* Day selector */}
-            <View style={styles.analyticsDayRow}>
-              {([1, 7, 30, 90] as const).map((d) => (
-                <TouchableOpacity key={d} onPress={() => setAnalyticsDays(d)} style={[styles.analyticsDayPill, analyticsDays === d && styles.analyticsDayPillActive]}>
-                  <Text style={[styles.analyticsDayText, analyticsDays === d && styles.analyticsDayTextActive]}>
-                    {d === 1 ? t('24h', '24h') : d === 7 ? t('7d', '7d') : d === 30 ? t('30d', '30d') : t('90d', '90d')}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            {/* ─── Header ─── */}
+            <View style={styles.anHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.anTitle}>{t('Analíticas', 'Analytics')}</Text>
+                <Text style={styles.anSubtitle}>{t('Visitas del sitio y eventos más vistos', 'Site visits and most viewed events')}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  const opts = [1, 7, 30, 90] as const;
+                  const next = opts[(opts.indexOf(analyticsDays as 1 | 7 | 30 | 90) + 1) % opts.length];
+                  setAnalyticsDays(next);
+                }}
+                style={styles.anDayBtn}
+              >
+                <Text style={styles.anDayBtnText}>
+                  {analyticsDays === 1 ? t('Últimas 24h', 'Last 24 hours') : analyticsDays === 7 ? t('Últimos 7 días', 'Last 7 days') : analyticsDays === 30 ? t('Últimos 30 días', 'Last 30 days') : t('Últimos 90 días', 'Last 90 days')}
+                </Text>
+                <Ionicons name="chevron-down" size={14} color="rgba(226,232,240,0.6)" />
+              </TouchableOpacity>
             </View>
 
-            {analyticsLoading && <PanelCard title={t('Cargando...', 'Loading...')} />}
-            {analyticsSummary && (
-              <>
-                <View style={styles.metricsGrid}>
-                  <Metric label={t('Vistas totales', 'Total views')} value={analyticsSummary.totalViews >= 1000 ? `${(analyticsSummary.totalViews / 1000).toFixed(1)}k` : String(analyticsSummary.totalViews)} />
-                  <Metric label={t('Visitantes únicos', 'Unique visitors')} value={analyticsSummary.uniqueVisitors >= 1000 ? `${(analyticsSummary.uniqueVisitors / 1000).toFixed(1)}k` : String(analyticsSummary.uniqueVisitors)} />
-                  <Metric label={t('Eventos vistos', 'Viewed events')} value={String(analyticsSummary.topEvents.length)} />
-                  <Metric label={t('Páginas vistas', 'Pages viewed')} value={String((analyticsSummary.topPages ?? []).length)} />
+            {/* ─── Stat cards ─── */}
+            {[
+              { label: t('Total views', 'Total views'), value: analyticsSummary?.totalViews ?? 0, icon: 'eye-outline' as const },
+              { label: t('Unique visitors', 'Unique visitors'), value: analyticsSummary?.uniqueVisitors ?? 0, icon: 'people-outline' as const },
+              { label: t('Viewed events', 'Viewed events'), value: analyticsSummary?.topEvents.length ?? 0, icon: 'flash-outline' as const },
+              { label: t('Viewed pages', 'Viewed pages'), value: (analyticsSummary?.topPages ?? []).length, icon: 'bar-chart-outline' as const },
+            ].map((s) => (
+              <View key={s.label} style={styles.anStatCard}>
+                <View style={styles.anStatTop}>
+                  <Text style={styles.anStatLabel}>{s.label}</Text>
+                  <View style={styles.anStatIconBox}><Ionicons name={s.icon} size={18} color={colors.orange} /></View>
                 </View>
+                <Text style={styles.anStatValue}>{s.value >= 1000 ? `${(s.value / 1000).toFixed(1)}k` : String(s.value)}</Text>
+              </View>
+            ))}
 
-                {analyticsSummary.topEvents.length > 0 && (
-                  <PanelCard title={t('Eventos más vistos', 'Most viewed events')} eyebrow={t('EVENTOS TOP', 'TOP EVENTS')} copy={t(`Últimos ${analyticsDays} días`, `Last ${analyticsDays} days`)}>
-                    {analyticsSummary.topEvents.slice(0, 8).map((ev, i) => (
-                      <RankItem
-                        key={ev.eventSlug}
-                        index={String(i + 1).padStart(2, '0')}
-                        imageUrl={analyticsEventImage(ev, adminEvents)}
-                        title={ev.eventTitle || formatEventSlug(ev.eventSlug)}
-                        value={`${ev.views} ${t('v', 'v')} · ${ev.visitors} ${t('u', 'u')}`}
-                      />
-                    ))}
-                  </PanelCard>
-                )}
-
-                {(analyticsSummary.topPages ?? []).length > 0 && (
-                  <PanelCard title={t('Páginas más vistas', 'Top pages')} eyebrow={t('PÁGINAS TOP', 'TOP PAGES')} copy={t(`Últimos ${analyticsDays} días`, `Last ${analyticsDays} days`)}>
-                    {(analyticsSummary.topPages ?? []).slice(0, 8).map((page, i) => (
-                      <RankItem
-                        key={page.path}
-                        index={String(i + 1).padStart(2, '0')}
-                        title={page.path}
-                        value={`${page.views} ${t('v', 'v')} · ${page.visitors} ${t('u', 'u')}`}
-                      />
-                    ))}
-                  </PanelCard>
-                )}
-
-                {analyticsSummary.daily.length > 0 && (
-                  <PanelCard title={t('Vistas por día', 'Daily views')} eyebrow={t('ACTIVIDAD', 'ACTIVITY')}>
-                    {analyticsSummary.daily.map((d) => {
-                      const maxViews = Math.max(...analyticsSummary!.daily.map((r) => r.views), 1);
-                      const pct = Math.round((d.views / maxViews) * 100);
-                      return <AnalyticsBar key={d.date} label={d.date.slice(5)} value={`${pct}%` as `${number}%`} views={d.views} />;
-                    })}
-                  </PanelCard>
-                )}
-
-                {(analyticsSummary.recentViews ?? []).length > 0 && (
-                  <View style={styles.panelCard}>
-                    <TouchableOpacity onPress={() => setAnalyticsRecentOpen((v) => !v)} style={styles.recentToggleRow}>
-                      <View>
-                        <Text style={styles.formEyebrow}>{t('ACTIVIDAD RECIENTE', 'RECENT ACTIVITY')}</Text>
-                        <Text style={styles.panelTitle}>{t('Últimas visitas', 'Recent views')}</Text>
-                        <Text style={styles.copy}>{analyticsSummary.recentViews.length} {t('registros', 'records')}</Text>
-                      </View>
-                      <Ionicons name={analyticsRecentOpen ? 'chevron-up' : 'chevron-down'} size={20} color={colors.orange} />
-                    </TouchableOpacity>
-                    {analyticsRecentOpen && (analyticsSummary.recentViews ?? []).map((view) => (
-                      <View key={view.id} style={styles.recentViewRow}>
-                        <Text style={styles.recentViewPath} numberOfLines={1}>{view.path}</Text>
-                        <View style={styles.recentViewMeta}>
-                          {view.deviceType ? <Text style={styles.recentViewTag}>{view.deviceType}</Text> : null}
-                          {view.referrerHost ? <Text style={styles.recentViewTag}>{view.referrerHost}</Text> : null}
-                          <Text style={styles.recentViewTime}>{new Date(view.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </>
+            {analyticsLoading && (
+              <View style={styles.anStatCard}><Text style={styles.anStatLabel}>{t('Cargando...', 'Loading...')}</Text></View>
             )}
+
+            {/* ─── Top events ─── */}
+            {(analyticsSummary?.topEvents ?? []).length > 0 && (
+              <View style={styles.anSection}>
+                <Text style={styles.anSectionTitle}>{t('Top events', 'Top events')}</Text>
+                {(analyticsSummary?.topEvents ?? []).slice(0, 5).map((ev, i) => (
+                  <View key={ev.eventSlug} style={styles.anRankRow}>
+                    <View style={styles.anRankNum}><Text style={styles.anRankNumText}>{i + 1}</Text></View>
+                    <Text style={styles.anRankTitle} numberOfLines={1}>{ev.eventTitle || formatEventSlug(ev.eventSlug)}</Text>
+                    <Text style={styles.anRankMeta}>{ev.views} {t('views', 'views')} · {ev.visitors} {t('visitors', 'visitors')}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* ─── Top pages ─── */}
+            {(analyticsSummary?.topPages ?? []).length > 0 && (
+              <View style={styles.anSection}>
+                <Text style={styles.anSectionTitle}>{t('Top pages', 'Top pages')}</Text>
+                {(analyticsSummary?.topPages ?? []).slice(0, 5).map((page, i) => (
+                  <View key={page.path} style={styles.anRankRow}>
+                    <View style={styles.anRankNum}><Text style={styles.anRankNumText}>{i + 1}</Text></View>
+                    <Text style={styles.anRankTitle} numberOfLines={1}>{page.path}</Text>
+                    <Text style={styles.anRankMeta}>{page.views} {t('views', 'views')} · {page.visitors} {t('visitors', 'visitors')}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* ─── Recent activity ─── */}
+            {(analyticsSummary?.recentViews ?? []).length > 0 && (
+              <View style={styles.anSection}>
+                <TouchableOpacity onPress={() => setAnalyticsRecentOpen((v) => !v)} style={styles.anRecentHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.anSectionTitle}>{t('Recent activity', 'Recent activity')}</Text>
+                    <Text style={styles.anRecentCount}>{analyticsSummary!.recentViews.length} {t('views', 'views')}</Text>
+                  </View>
+                  <View style={styles.anRecentToggle}>
+                    <Ionicons name={analyticsRecentOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.orange} />
+                  </View>
+                </TouchableOpacity>
+                {analyticsRecentOpen && (
+                  <>
+                    <View style={styles.anTableHeader}>
+                      <Text style={[styles.anTableCol, { flex: 2 }]}>PATH</Text>
+                      <Text style={[styles.anTableCol, { flex: 1, textAlign: 'right' }]}>EVENT</Text>
+                    </View>
+                    {analyticsSummary!.recentViews.map((view) => (
+                      <View key={view.id} style={styles.anTableRow}>
+                        <Text style={[styles.anTablePath, { flex: 2 }]} numberOfLines={1}>{view.path}</Text>
+                        <Text style={[styles.anTableEvent, { flex: 1, textAlign: 'right' }]} numberOfLines={1}>{view.eventSlug ? view.eventSlug.split('-').slice(0, 2).join('-') + (view.eventSlug.split('-').length > 2 ? '...' : '') : '-'}</Text>
+                      </View>
+                    ))}
+                  </>
+                )}
+              </View>
+            )}
+
             {!analyticsLoading && !analyticsSummary && (
-              <PanelCard title={t('Sin datos todavía', 'No data yet')} copy={t('Las analíticas aparecerán aquí cuando haya actividad.', 'Analytics will appear here once there is activity.')} />
+              <View style={styles.anStatCard}>
+                <Text style={styles.anStatLabel}>{t('Sin datos todavía. Las analíticas aparecerán cuando haya actividad.', 'No data yet. Analytics will appear once there is activity.')}</Text>
+              </View>
             )}
           </>
         )}
@@ -3404,4 +3422,31 @@ const styles = StyleSheet.create({
   mktPublishBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', letterSpacing: 0.5 },
   mktChangeImgBtn: { height: 44, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center' },
   mktChangeImgBtnText: { color: 'rgba(226,232,240,0.8)', fontSize: 14, fontWeight: '700' },
+
+  // ── Analytics redesign ────────────────────────────────────────────────────
+  anHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
+  anTitle: { color: '#F8FAFC', fontSize: 26, fontWeight: '800', marginBottom: 4 },
+  anSubtitle: { color: 'rgba(226,232,240,0.55)', fontSize: 13, fontWeight: '500' },
+  anDayBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.04)', marginTop: 4 },
+  anDayBtnText: { color: '#F8FAFC', fontSize: 13, fontWeight: '600' },
+  anStatCard: { padding: 20, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.018)', marginBottom: 12 },
+  anStatTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  anStatLabel: { color: 'rgba(226,232,240,0.6)', fontSize: 13, fontWeight: '600' },
+  anStatIconBox: { width: 36, height: 36, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.35)', backgroundColor: 'rgba(249,115,22,0.1)', alignItems: 'center', justifyContent: 'center' },
+  anStatValue: { color: '#F8FAFC', fontSize: 36, fontWeight: '800', letterSpacing: -1 },
+  anSection: { padding: 20, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.018)', marginBottom: 12 },
+  anSectionTitle: { color: '#F8FAFC', fontSize: 18, fontWeight: '800', marginBottom: 14 },
+  anRankRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  anRankNum: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#F97316', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  anRankNumText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  anRankTitle: { flex: 1, color: '#F8FAFC', fontSize: 14, fontWeight: '600' },
+  anRankMeta: { color: 'rgba(226,232,240,0.5)', fontSize: 12, fontWeight: '500', flexShrink: 0 },
+  anRecentHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 4 },
+  anRecentCount: { color: 'rgba(226,232,240,0.5)', fontSize: 13, fontWeight: '500' },
+  anRecentToggle: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)', backgroundColor: 'rgba(249,115,22,0.08)', alignItems: 'center', justifyContent: 'center' },
+  anTableHeader: { flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)', marginBottom: 4 },
+  anTableCol: { color: 'rgba(226,232,240,0.4)', fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase' },
+  anTableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  anTablePath: { color: '#F8FAFC', fontSize: 13, fontWeight: '500' },
+  anTableEvent: { color: 'rgba(226,232,240,0.5)', fontSize: 12, fontWeight: '500' },
 });
