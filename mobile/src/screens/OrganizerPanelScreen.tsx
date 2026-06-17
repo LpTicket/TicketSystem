@@ -138,6 +138,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
   const { t } = useLanguage();
   const organizerIndicatorX = useRef(new Animated.Value(0)).current;
   const organizerIndicatorWidth = useRef(new Animated.Value(118)).current;
+  const tabsScrollRef = useRef<ScrollView>(null);
   const [internalSection, setInternalSection] = useState<Section>('dashboard');
   const active = section ?? internalSection;
   const setActive = (s: Section) => { setInternalSection(s); onSectionChange?.(s); };
@@ -351,7 +352,13 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
         mass: 0.8,
       }),
     ]).start();
-  }, [active, activeSectionIndex, organizerIndicatorWidth, organizerIndicatorX, tabLayouts]);
+
+    // Scroll the tab bar so the active tab is centred in view.
+    if (activeLayout && tabsScrollRef.current) {
+      const scrollTarget = Math.max(0, activeLayout.x - tabsViewportWidth / 2 + activeLayout.width / 2);
+      tabsScrollRef.current.scrollTo({ x: scrollTarget, animated: true });
+    }
+  }, [active, activeSectionIndex, organizerIndicatorWidth, organizerIndicatorX, tabLayouts, tabsViewportWidth]);
 
   const handleTogglePublish = async (event: ReturnType<typeof toOrganizerEvent>) => {
     const newStatus: 'draft' | 'published' = event.status === 'published' ? 'draft' : 'published';
@@ -438,6 +445,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
 
           <View style={styles.tabsViewport}>
             <ScrollView
+              ref={tabsScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.tabsScroller}
