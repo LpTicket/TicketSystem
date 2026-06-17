@@ -23,7 +23,7 @@ type AdminUser = {
   avatarUrl?: string;
   createdAt?: string;
 };
-type Category = { id: string; name: string; active: boolean; featured: boolean };
+type Category = { id: string; name: string; labelEs: string; labelEn: string; slug: string; icon: string; color: string; sortOrder: number; imageData?: string; active: boolean; featured: boolean };
 
 type AnalyticsSummary = {
   days: number;
@@ -54,6 +54,8 @@ type ApiSpecialCode = {
   owner?: { firstName?: string; lastName?: string; email?: string };
   commissionFixed: number;
   isActive: boolean;
+  eventId?: string | null;
+  event?: { id: string; title: string } | null;
 };
 
 type CommissionEntry = {
@@ -127,6 +129,9 @@ type AdminStats = {
   stripeFixed?: number;
   lpticketProfit?: number;
 };
+
+const PRESET_ICONS = ['🎵','🎭','🎪','😂','⚽','🎤','🧒','🎫','🎬','🏟️','🎺','🥁','🎸','🎹','🎻','🏀','🎾','🏐','🚀','🌟'];
+const PRESET_COLORS = ['#f97316','#8b5cf6','#ec4899','#eab308','#22c55e','#06b6d4','#3b82f6','#6b7280','#ef4444','#10b981','#f59e0b','#6366f1'];
 
 function listFrom(payload: any) {
   if (Array.isArray(payload)) return payload;
@@ -303,6 +308,25 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [usersApiError, setUsersApiError] = useState('');
   const [usersTotal, setUsersTotal] = useState<number | null>(null);
 
+  // Category form (create + edit modals)
+  const emptyCategForm = { labelEs: '', labelEn: '', icon: '🎫', color: '#6366f1', sortOrder: 0, imageData: '' as string };
+  const [showCreateCategory, setShowCreateCategory] = useState(false);
+  const [categoryForm, setCategoryForm] = useState({ ...emptyCategForm });
+  const [editingCategoryModal, setEditingCategoryModal] = useState<Category | null>(null);
+  const [editCategoryForm, setEditCategoryForm] = useState({ ...emptyCategForm });
+  const [savingCategory, setSavingCategory] = useState(false);
+
+  // Special codes extra state
+  const [codeSearch, setCodeSearch] = useState('');
+  const [editingCode, setEditingCode] = useState<ApiSpecialCode | null>(null);
+  const [editCodeForm, setEditCodeForm] = useState({ code: '', ownerUserId: '', ownerName: '', ownerEmail: '', eventId: '', isActive: true });
+  const [editCodeOwnerQuery, setEditCodeOwnerQuery] = useState('');
+  const [editCodeOwnerResults, setEditCodeOwnerResults] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [codeActiveCreate, setCodeActiveCreate] = useState(true);
+  const [codeEventId, setCodeEventId] = useState('');
+  const [eventRewards, setEventRewards] = useState<Record<string, string>>({});
+  const [savingEventReward, setSavingEventReward] = useState<string | null>(null);
+
   // Fees config
   const [feeEventId, setFeeEventId] = useState<string | null>(null);
   const [feeConfig, setFeeConfig] = useState<FeeConfig | null>(null);
@@ -405,7 +429,14 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       if (categoriesRes.status === 'fulfilled') {
         const liveCategories = listFrom(categoriesRes.value).map((category: any) => ({
           id: String(category.id || category._id || category.name),
-          name: category.name || category.label || 'Category',
+          name: category.labelEs || category.name || category.label || 'Category',
+          labelEs: category.labelEs || category.name || '',
+          labelEn: category.labelEn || category.name || '',
+          slug: category.slug || '',
+          icon: category.icon || '🎫',
+          color: category.color || '#6366f1',
+          sortOrder: category.sortOrder ?? 0,
+          imageData: category.imageData || '',
           active: category.isActive !== false && category.active !== false,
           featured: Boolean(category.featured || category.isFeatured),
         }));
@@ -438,10 +469,10 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     : users;
 
   const [categories, setCategories] = useState<Category[]>([
-    { id: '1', name: 'Concert', active: true, featured: true },
-    { id: '2', name: 'Private Event', active: true, featured: true },
-    { id: '3', name: 'Theater', active: true, featured: false },
-    { id: '4', name: 'Workshop', active: false, featured: false },
+    { id: '1', name: 'Concert', labelEs: 'Concierto', labelEn: 'Concert', slug: 'concierto', icon: '🎵', color: '#f97316', sortOrder: 0, active: true, featured: true },
+    { id: '2', name: 'Private Event', labelEs: 'Evento Privado', labelEn: 'Private Event', slug: 'evento-privado', icon: '🎫', color: '#6366f1', sortOrder: 1, active: true, featured: true },
+    { id: '3', name: 'Theater', labelEs: 'Teatro', labelEn: 'Theater', slug: 'teatro', icon: '🎭', color: '#8b5cf6', sortOrder: 2, active: true, featured: false },
+    { id: '4', name: 'Workshop', labelEs: 'Taller', labelEn: 'Workshop', slug: 'taller', icon: '🎪', color: '#6b7280', sortOrder: 3, active: false, featured: false },
   ]);
 
   const firstEvent = adminEvents[0];
@@ -591,29 +622,77 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     setCategories((current) => current.map((category) => category.id === id ? { ...category, [key]: value } : category));
   };
 
+  const pickCategoryImage = async (which: 'create' | 'edit') => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert(t('Permiso necesario', 'Permission needed'), t('Concede acceso a tus fotos.', 'Grant photo access.')); return; }
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.82, base64: true });
+    if (res.canceled || !res.assets?.length) return;
+    const a = res.assets[0];
+    const dataUrl = a.base64 ? `data:${a.mimeType || 'image/jpeg'};base64,${a.base64}` : a.uri;
+    if (which === 'create') setCategoryForm((f) => ({ ...f, imageData: dataUrl }));
+    else setEditCategoryForm((f) => ({ ...f, imageData: dataUrl }));
+  };
+
+  const slugify = (text: string) =>
+    text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
   const addCategory = async () => {
-    const name = categoryDraft.trim();
-    if (!name) return;
-    const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const labelEs = categoryForm.labelEs.trim();
+    const labelEn = categoryForm.labelEn.trim() || labelEs;
+    if (!labelEs) return;
+    const slug = slugify(labelEs);
+    setSavingCategory(true);
     try {
-      const result = await apiPost<any>('/categories', { slug, labelEs: name, labelEn: name });
-      setCategories((current) => [...current, { id: String(result.id || Date.now()), name, active: true, featured: false }]);
-      setCategoryDraft('');
+      const result = await apiPost<any>('/categories', {
+        slug, labelEs, labelEn,
+        icon: categoryForm.icon,
+        color: categoryForm.color,
+        sortOrder: Number(categoryForm.sortOrder) || 0,
+        ...(categoryForm.imageData ? { imageData: categoryForm.imageData } : {}),
+      });
+      setCategories((current) => [...current, {
+        id: String(result.id || Date.now()),
+        name: labelEs, labelEs, labelEn,
+        slug: result.slug || slug,
+        icon: result.icon || categoryForm.icon,
+        color: result.color || categoryForm.color,
+        sortOrder: result.sortOrder ?? Number(categoryForm.sortOrder) ?? 0,
+        imageData: categoryForm.imageData || '',
+        active: true, featured: false,
+      }]);
+      setCategoryForm({ ...emptyCategForm });
+      setShowCreateCategory(false);
     } catch {
       Alert.alert(t('Error', 'Error'), t('No se pudo crear la categoría.', 'Could not create category.'));
-    }
+    } finally { setSavingCategory(false); }
   };
 
   const saveCategoryToApi = async (id: string) => {
-    const cat = categories.find((c) => c.id === id);
-    if (!cat) return;
-    const slug = cat.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const labelEs = editCategoryForm.labelEs.trim();
+    const labelEn = editCategoryForm.labelEn.trim() || labelEs;
+    const slug = slugify(labelEs);
+    setSavingCategory(true);
     try {
-      await apiPatch(`/categories/${id}`, { slug, labelEs: cat.name, labelEn: cat.name, isActive: cat.active });
+      await apiPatch(`/categories/${id}`, {
+        slug, labelEs, labelEn,
+        icon: editCategoryForm.icon,
+        color: editCategoryForm.color,
+        sortOrder: Number(editCategoryForm.sortOrder) || 0,
+        isActive: editingCategoryModal?.active ?? true,
+        ...(editCategoryForm.imageData ? { imageData: editCategoryForm.imageData } : {}),
+      });
+      setCategories((current) => current.map((c) => c.id === id ? {
+        ...c, name: labelEs, labelEs, labelEn, slug,
+        icon: editCategoryForm.icon,
+        color: editCategoryForm.color,
+        sortOrder: Number(editCategoryForm.sortOrder) || 0,
+        imageData: editCategoryForm.imageData || c.imageData,
+      } : c));
+      setEditingCategoryModal(null);
       setEditingCategoryId(null);
     } catch {
       Alert.alert(t('Error', 'Error'), t('No se pudo guardar la categoría.', 'Could not save category.'));
-    }
+    } finally { setSavingCategory(false); }
   };
 
   const toggleCategoryActiveApi = async (id: string) => {
@@ -751,15 +830,66 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       return;
     }
     try {
-      const result = await apiPost<ApiSpecialCode>('/special-codes', { code, ownerUserId, isActive: true, commissionFixed: 0 });
+      const result = await apiPost<ApiSpecialCode>('/special-codes', { code, ownerUserId, eventId: codeEventId || null, isActive: codeActiveCreate, commissionFixed: 0 });
       setApiCodes((current) => [result, ...current]);
       setSpecialCodeDraft('');
       setSpecialCodeOwnerDraft('');
       setOwnerSearchQuery('');
       setOwnerSearchResults([]);
+      setCodeEventId('');
     } catch (err: any) {
       Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo crear el código.', 'Could not create code.'));
     }
+  };
+
+  const searchEditCodeOwner = async (q: string) => {
+    if (q.trim().length < 2) { setEditCodeOwnerResults([]); return; }
+    try {
+      const data = await apiGet<any>(`/admin/users?search=${encodeURIComponent(q.trim())}&limit=5`);
+      setEditCodeOwnerResults(listFrom(data).map((u: any) => ({
+        id: u.id || u._id,
+        name: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.name || u.email,
+        email: u.email,
+      })));
+    } catch { setEditCodeOwnerResults([]); }
+  };
+
+  const saveEditCode = async () => {
+    if (!editingCode) return;
+    if (!editCodeForm.code.trim() || !editCodeForm.ownerUserId) {
+      Alert.alert(t('Campos requeridos', 'Required'), t('Código y dueño son requeridos.', 'Code and owner required.'));
+      return;
+    }
+    try {
+      await apiPatch(`/special-codes/${editingCode.id}`, {
+        code: editCodeForm.code.trim().toUpperCase(),
+        ownerUserId: editCodeForm.ownerUserId,
+        eventId: editCodeForm.eventId || null,
+        isActive: editCodeForm.isActive,
+      });
+      setApiCodes((current) => current.map((c) => c.id === editingCode.id ? {
+        ...c,
+        code: editCodeForm.code.trim().toUpperCase(),
+        ownerUserId: editCodeForm.ownerUserId,
+        isActive: editCodeForm.isActive,
+        eventId: editCodeForm.eventId || null,
+      } : c));
+      setEditingCode(null);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('No se pudo guardar.', 'Could not save.'));
+    }
+  };
+
+  const saveEventReward = async (eventId: string) => {
+    const amount = Math.round(Number(eventRewards[eventId] ?? '0') * 100) / 100;
+    if (isNaN(amount) || amount < 0) { Alert.alert('Error', t('Monto inválido', 'Invalid amount')); return; }
+    setSavingEventReward(eventId);
+    try {
+      await apiPatch(`/admin/events/${eventId}/creator-commission`, { amount });
+      setAdminEvents((current) => current.map((e) => e.id === eventId ? { ...e, creatorCommission: amount } : e));
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('No se pudo guardar', 'Could not save'));
+    } finally { setSavingEventReward(null); }
   };
 
   const toggleSpecialCode = async (id: string) => {
@@ -1411,36 +1541,10 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             </View>
 
             {/* Create user button */}
-            <TouchableOpacity onPress={() => setShowCreateUser((v) => !v)} style={styles.createUserBtn}>
+            <TouchableOpacity onPress={() => setShowCreateUser(true)} style={styles.createUserBtn}>
               <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.createUserBtnText}>{showCreateUser ? t('CANCELAR', 'CANCEL') : t('CREAR USUARIO', 'CREATE USER')}</Text>
+              <Text style={styles.createUserBtnText}>{t('CREAR USUARIO', 'CREATE USER')}</Text>
             </TouchableOpacity>
-
-            {showCreateUser && (
-              <PanelCard title={t('Nuevo usuario', 'New user')} eyebrow={t('CREAR', 'CREATE')} copy={t('Crea una cuenta manualmente.', 'Create an account manually.')}>
-                <View style={styles.twoColRow}>
-                  <View style={styles.col}><FieldLabel label={t('Nombre', 'First name')} /><TextInput value={cuForm.firstName} onChangeText={(v) => setCu('firstName', v)} style={styles.input} /></View>
-                  <View style={styles.col}><FieldLabel label={t('Apellido', 'Last name')} /><TextInput value={cuForm.lastName} onChangeText={(v) => setCu('lastName', v)} style={styles.input} /></View>
-                </View>
-                <FieldLabel label={t('Usuario', 'Username')} />
-                <TextInput value={cuForm.username} onChangeText={(v) => setCu('username', v)} autoCapitalize="none" style={styles.input} />
-                <FieldLabel label={t('Email', 'Email')} />
-                <TextInput value={cuForm.email} onChangeText={(v) => setCu('email', v)} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
-                <FieldLabel label={t('Teléfono', 'Phone')} />
-                <TextInput value={cuForm.phone} onChangeText={(v) => setCu('phone', v)} keyboardType="phone-pad" style={styles.input} />
-                <FieldLabel label={t('Contraseña (opcional)', 'Password (optional)')} />
-                <TextInput value={cuForm.password} onChangeText={(v) => setCu('password', v)} secureTextEntry style={styles.input} />
-                <FieldLabel label={t('Rol', 'Role')} />
-                <View style={styles.segmentGroup}>
-                  {(['client', 'organizer', 'admin'] as const).map((role) => (
-                    <TouchableOpacity key={role} onPress={() => setCu('role', role)} style={[styles.segment, cuForm.role === role && styles.segmentActive]}>
-                      <Text style={[styles.segmentText, cuForm.role === role && styles.segmentTextActive]}>{role}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <GradientButton label={creatingUser ? t('CREANDO...', 'CREATING...') : t('CREAR USUARIO', 'CREATE USER')} onPress={createUserApi} height={48} style={{ marginTop: 12 }} />
-              </PanelCard>
-            )}
 
             {usersApiError ? (
               <View style={styles.userEmptyCard}>
@@ -1596,86 +1700,285 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
         </Modal>
         )}
 
+      {/* ── Create User Modal ─────────────────────────────────────────────── */}
+      {showCreateUser && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setShowCreateUser(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowCreateUser(false)} activeOpacity={1} />
+            <View style={[styles.userModal, { maxHeight: '92%' }]}>
+              <View style={styles.userModalHeader}>
+                <View style={[styles.userInitialsAvatarLg, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
+                  <Ionicons name="person-add-outline" size={22} color={colors.orange} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.userModalName}>{t('Nuevo usuario', 'New user')}</Text>
+                  <Text style={styles.userModalSub}>{t('Crea una cuenta manualmente', 'Create an account manually')}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowCreateUser(false)} style={styles.userModalClose}>
+                  <Ionicons name="close" size={20} color="rgba(226,232,240,0.7)" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 10 }}>
+                <View style={styles.twoColRow}>
+                  <View style={styles.col}><FieldLabel label={t('Nombre', 'First name')} /><TextInput value={cuForm.firstName} onChangeText={(v) => setCu('firstName', v)} style={styles.input} /></View>
+                  <View style={styles.col}><FieldLabel label={t('Apellido', 'Last name')} /><TextInput value={cuForm.lastName} onChangeText={(v) => setCu('lastName', v)} style={styles.input} /></View>
+                </View>
+                <FieldLabel label={t('Usuario', 'Username')} />
+                <TextInput value={cuForm.username} onChangeText={(v) => setCu('username', v)} autoCapitalize="none" style={styles.input} />
+                <FieldLabel label={t('Email', 'Email')} />
+                <TextInput value={cuForm.email} onChangeText={(v) => setCu('email', v)} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
+                <FieldLabel label={t('Teléfono', 'Phone')} />
+                <TextInput value={cuForm.phone} onChangeText={(v) => setCu('phone', v)} keyboardType="phone-pad" style={styles.input} />
+                <FieldLabel label={t('Contraseña (opcional)', 'Password (optional)')} />
+                <TextInput value={cuForm.password} onChangeText={(v) => setCu('password', v)} secureTextEntry style={styles.input} />
+                <FieldLabel label={t('Rol', 'Role')} />
+                <View style={styles.segmentGroup}>
+                  {(['client', 'organizer', 'admin'] as const).map((role) => (
+                    <TouchableOpacity key={role} onPress={() => setCu('role', role)} style={[styles.segment, cuForm.role === role && styles.segmentActive]}>
+                      <Text style={[styles.segmentText, cuForm.role === role && styles.segmentTextActive]}>{role}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+              <View style={[styles.userModalFooter, { justifyContent: 'flex-end', gap: 10 }]}>
+                <TouchableOpacity onPress={() => setShowCreateUser(false)} style={styles.userModalCloseBtn}>
+                  <Text style={styles.userModalCloseBtnText}>{t('Cancelar', 'Cancel')}</Text>
+                </TouchableOpacity>
+                <GradientButton label={creatingUser ? t('CREANDO...', 'CREATING...') : t('CREAR USUARIO', 'CREATE USER')} onPress={createUserApi} height={44} style={{ flex: 1 }} />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ── Create Category Modal ─────────────────────────────────────────── */}
+      {showCreateCategory && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setShowCreateCategory(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowCreateCategory(false)} activeOpacity={1} />
+            <View style={[styles.userModal, { maxHeight: '96%' }]}>
+              <View style={styles.userModalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.userModalName}>{t('Nueva categoría', 'New category')}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowCreateCategory(false)} style={styles.userModalClose}>
+                  <Ionicons name="close" size={20} color="rgba(226,232,240,0.7)" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 10 }}>
+                <FieldLabel label={t('Nombre (ES):', 'Nombre (ES):')} />
+                <TextInput value={categoryForm.labelEs} onChangeText={(v) => setCategoryForm((f) => ({ ...f, labelEs: v }))} placeholder={t('ej. Concierto', 'e.g. Concert')} placeholderTextColor="#9CA3AF" style={styles.input} />
+                <FieldLabel label="Name (EN):" />
+                <TextInput value={categoryForm.labelEn} onChangeText={(v) => setCategoryForm((f) => ({ ...f, labelEn: v }))} placeholder="e.g. Concert" placeholderTextColor="#9CA3AF" style={styles.input} />
+                <FieldLabel label={t('Slug (auto-generado):', 'Slug (auto-generated):')} />
+                <TextInput value={categoryForm.labelEs ? categoryForm.labelEs.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : ''} editable={false} placeholderTextColor="#9CA3AF" style={[styles.input, { opacity: 0.5 }]} />
+                <FieldLabel label={t('Orden:', 'Order:')} />
+                <TextInput value={String(categoryForm.sortOrder)} onChangeText={(v) => setCategoryForm((f) => ({ ...f, sortOrder: Number(v) || 0 }))} keyboardType="number-pad" style={styles.input} />
+                <FieldLabel label={t('Ícono:', 'Icon:')} />
+                <View style={styles.catIconGrid}>
+                  {PRESET_ICONS.map((icon) => (
+                    <TouchableOpacity key={icon} onPress={() => setCategoryForm((f) => ({ ...f, icon }))} style={[styles.catIconPicker, categoryForm.icon === icon && { borderColor: colors.orange, backgroundColor: 'rgba(249,115,22,0.14)' }]}>
+                      <Text style={{ fontSize: 22 }}>{icon}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={styles.catSelectedIconBox}>
+                  <Text style={{ fontSize: 28 }}>{categoryForm.icon}</Text>
+                </View>
+                <FieldLabel label={t('Color:', 'Color:')} />
+                <View style={styles.catColorGrid}>
+                  {PRESET_COLORS.map((color) => (
+                    <TouchableOpacity key={color} onPress={() => setCategoryForm((f) => ({ ...f, color }))} style={[styles.catColorSwatch, { backgroundColor: color }, categoryForm.color === color && styles.catColorSwatchSelected]} />
+                  ))}
+                </View>
+                <Text style={styles.catColorHex}>{categoryForm.color}</Text>
+                <FieldLabel label={t('Imagen de la categoría (opcional):', 'Category image (optional):')} />
+                <View style={styles.catImageRow}>
+                  {categoryForm.imageData ? (
+                    <Image source={{ uri: categoryForm.imageData }} style={styles.catImageThumb} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.catImageEmpty}><Ionicons name="image-outline" size={28} color="rgba(226,232,240,0.3)" /></View>
+                  )}
+                  <TouchableOpacity onPress={() => pickCategoryImage('create')} style={styles.catImagePickBtn}>
+                    <Text style={styles.catImagePickText}>{t('Subir imagen', 'Upload image')}</Text>
+                  </TouchableOpacity>
+                </View>
+                <FieldLabel label={t('Vista previa:', 'Preview:')} />
+                <View style={[styles.catPreviewPill, { backgroundColor: categoryForm.color }]}>
+                  <Text style={styles.catPreviewPillText}>{categoryForm.icon} {categoryForm.labelEs || t('Nombre', 'Name')}</Text>
+                </View>
+              </ScrollView>
+              <View style={[styles.userModalFooter, { gap: 10 }]}>
+                <TouchableOpacity onPress={() => setShowCreateCategory(false)} style={[styles.userModalCloseBtn, { flex: 1, alignItems: 'center' }]}>
+                  <Text style={styles.userModalCloseBtnText}>{t('Cancelar', 'Cancel')}</Text>
+                </TouchableOpacity>
+                <GradientButton label={savingCategory ? t('CREANDO...', 'CREATING...') : t('CREAR CATEGORÍA', 'CREATE CATEGORY')} onPress={addCategory} height={44} style={{ flex: 2 }} />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ── Edit Category Modal ───────────────────────────────────────────── */}
+      {editingCategoryModal && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setEditingCategoryModal(null)}>
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setEditingCategoryModal(null)} activeOpacity={1} />
+            <View style={[styles.userModal, { maxHeight: '92%' }]}>
+              <View style={styles.userModalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.userModalName}>{editingCategoryModal.name}</Text>
+                  <Text style={styles.userModalSub}>{editingCategoryModal.slug}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setEditingCategoryModal(null)} style={styles.userModalClose}>
+                  <Ionicons name="close" size={20} color="rgba(226,232,240,0.7)" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 10 }}>
+                <FieldLabel label={t('Nombre (ES):', 'Name (ES):')} />
+                <TextInput value={editCategoryForm.labelEs} onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, labelEs: v }))} style={styles.input} />
+                <FieldLabel label="Name (EN):" />
+                <TextInput value={editCategoryForm.labelEn} onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, labelEn: v }))} style={styles.input} />
+                <FieldLabel label={t('Color:', 'Color:')} />
+                <View style={styles.catColorGrid}>
+                  {PRESET_COLORS.map((color) => (
+                    <TouchableOpacity key={color} onPress={() => setEditCategoryForm((f) => ({ ...f, color }))} style={[styles.catColorSwatch, { backgroundColor: color }, editCategoryForm.color === color && styles.catColorSwatchSelected]} />
+                  ))}
+                </View>
+                <View style={[styles.catColorHexBox, { backgroundColor: editCategoryForm.color }]} />
+                <Text style={styles.catColorHex}>{editCategoryForm.color}</Text>
+                <FieldLabel label={t('Imagen de la categoría:', 'Category image:')} />
+                <View style={styles.catImageRow}>
+                  {editCategoryForm.imageData ? (
+                    <Image source={{ uri: editCategoryForm.imageData }} style={styles.catImageThumb} resizeMode="cover" />
+                  ) : editingCategoryModal.imageData ? (
+                    <Image source={{ uri: editingCategoryModal.imageData }} style={styles.catImageThumb} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.catImageEmpty}><Ionicons name="image-outline" size={28} color="rgba(226,232,240,0.3)" /></View>
+                  )}
+                  <TouchableOpacity onPress={() => pickCategoryImage('edit')} style={styles.catImagePickBtn}>
+                    <Text style={styles.catImagePickText}>{t('Cambiar imagen', 'Change image')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+              <View style={[styles.userModalFooter, { gap: 10 }]}>
+                <TouchableOpacity onPress={() => setEditingCategoryModal(null)} style={[styles.userModalCloseBtn, { flex: 1, alignItems: 'center' }]}>
+                  <Text style={styles.userModalCloseBtnText}>{t('Cancelar', 'Cancel')}</Text>
+                </TouchableOpacity>
+                <GradientButton label={savingCategory ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR', 'SAVE')} onPress={() => saveCategoryToApi(editingCategoryModal.id)} height={44} style={{ flex: 2 }} />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ── Edit Code Modal ───────────────────────────────────────────────── */}
+      {editingCode && (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setEditingCode(null)}>
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setEditingCode(null)} activeOpacity={1} />
+            <View style={[styles.userModal, { maxHeight: '88%' }]}>
+              <View style={styles.userModalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.userModalName}>{t('Editar código', 'Edit code')}: {editingCode.code}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setEditingCode(null)} style={styles.userModalClose}>
+                  <Ionicons name="close" size={20} color="rgba(226,232,240,0.7)" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 10 }}>
+                <FieldLabel label={t('CÓDIGO', 'CODE')} />
+                <TextInput value={editCodeForm.code} onChangeText={(v) => setEditCodeForm((f) => ({ ...f, code: v.toUpperCase().replace(/[^A-Z0-9_-]/g, '') }))} autoCapitalize="characters" style={styles.input} />
+                <FieldLabel label={t('CODE OWNER', 'CODE OWNER')} />
+                <TextInput
+                  value={editCodeOwnerQuery}
+                  onChangeText={(v) => { setEditCodeOwnerQuery(v); searchEditCodeOwner(v); }}
+                  placeholder={t('Buscar usuario...', 'Search user...')}
+                  placeholderTextColor="#9CA3AF"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={styles.input}
+                />
+                {editCodeOwnerResults.length > 0 && (
+                  <View style={styles.ownerResultsList}>
+                    {editCodeOwnerResults.map((u) => (
+                      <TouchableOpacity key={u.id} onPress={() => { setEditCodeForm((f) => ({ ...f, ownerUserId: u.id, ownerName: u.name, ownerEmail: u.email })); setEditCodeOwnerQuery(`${u.name} (${u.email})`); setEditCodeOwnerResults([]); }} style={styles.ownerResultRow}>
+                        <Text style={styles.ownerResultName}>{u.name}</Text>
+                        <Text style={styles.ownerResultEmail}>{u.email}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+                {editCodeForm.ownerUserId ? (
+                  <View style={styles.ownerSelectedRow}>
+                    <Ionicons name="checkmark-circle" size={16} color="#4ADE80" />
+                    <Text style={styles.ownerSelectedText} numberOfLines={1}>{editCodeForm.ownerName || editCodeForm.ownerEmail || editCodeForm.ownerUserId}</Text>
+                  </View>
+                ) : null}
+                <FieldLabel label={t('EVENTO', 'EVENT')} />
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
+                  <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 4 }}>
+                    <TouchableOpacity onPress={() => setEditCodeForm((f) => ({ ...f, eventId: '' }))} style={[styles.codeEventPill, !editCodeForm.eventId && styles.codeEventPillActive]}>
+                      <Text style={[styles.codeEventPillText, !editCodeForm.eventId && styles.codeEventPillTextActive]}>{t('Todos', 'All')}</Text>
+                    </TouchableOpacity>
+                    {adminEvents.slice(0, 10).map((ev) => (
+                      <TouchableOpacity key={ev.id} onPress={() => setEditCodeForm((f) => ({ ...f, eventId: ev.id }))} style={[styles.codeEventPill, editCodeForm.eventId === ev.id && styles.codeEventPillActive]}>
+                        <Text style={[styles.codeEventPillText, editCodeForm.eventId === ev.id && styles.codeEventPillTextActive]} numberOfLines={1}>{adminEventTitle(ev)}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+                <TouchableOpacity onPress={() => setEditCodeForm((f) => ({ ...f, isActive: !f.isActive }))} style={styles.codeActiveRow}>
+                  <View style={[styles.codeActiveCheck, editCodeForm.isActive && styles.codeActiveCheckOn]}>
+                    {editCodeForm.isActive && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
+                  </View>
+                  <Text style={styles.codeActiveLabel}>{t('Activo', 'Active')}</Text>
+                </TouchableOpacity>
+              </ScrollView>
+              <View style={[styles.userModalFooter, { gap: 10 }]}>
+                <TouchableOpacity onPress={() => setEditingCode(null)} style={[styles.userModalCloseBtn, { flex: 1, alignItems: 'center' }]}>
+                  <Text style={styles.userModalCloseBtnText}>{t('Cancelar', 'Cancel')}</Text>
+                </TouchableOpacity>
+                <GradientButton label={t('GUARDAR', 'SAVE')} onPress={saveEditCode} height={44} style={{ flex: 2 }} />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
         {active === 'categories' && (
-          editingCategoryId ? (
-            categories.filter((category) => category.id === editingCategoryId).map((category) => (
-              <PanelCard key={category.id} title={t('Editar categoria', 'Edit category')} eyebrow={t('CONFIGURACION DE CATEGORIA', 'CATEGORY SETTINGS')} copy={t('Ajusta visibilidad, nombre y posicionamiento en el home.', 'Adjust visibility, name and home placement.')}>
-                <FieldLabel label={t('Nombre de categoria', 'Category name')} />
-                <TextInput value={category.name} onChangeText={(value) => updateCategory(category.id, 'name', value)} style={styles.input} />
+          <>
+            {/* Header row: count + NUEVA CATEGORÍA button */}
+            <View style={styles.catHeaderRow}>
+              <Text style={styles.catCount}>{categories.length} {t('categorías', 'categories')} — {t('los organizadores las verán al crear eventos', 'organizers see them when creating events')}</Text>
+              <TouchableOpacity onPress={() => { setCategoryForm({ ...emptyCategForm }); setShowCreateCategory(true); }} style={styles.catNewBtn}>
+                <Text style={styles.catNewBtnText}>{t('NUEVA\nCATEGORÍA', 'NEW\nCATEGORY')}</Text>
+              </TouchableOpacity>
+            </View>
 
-                <FieldLabel label={t('Visibilidad', 'Visibility')} />
-                <View style={styles.segmentGroup}>
-                  <TouchableOpacity onPress={() => updateCategory(category.id, 'active', true)} style={[styles.segment, category.active && styles.segmentActive]}>
-                    <Text style={[styles.segmentText, category.active && styles.segmentTextActive]}>{t('Activo', 'Active')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => updateCategory(category.id, 'active', false)} style={[styles.segment, !category.active && styles.segmentDanger]}>
-                    <Text style={[styles.segmentText, !category.active && styles.segmentTextActive]}>{t('Inactivo', 'Inactive')}</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <FieldLabel label={t('Ubicacion en home', 'Home placement')} />
-                <View style={styles.segmentGroup}>
-                  <TouchableOpacity onPress={() => updateCategory(category.id, 'featured', true)} style={[styles.segment, category.featured && styles.segmentActiveOrange]}>
-                    <Text style={[styles.segmentText, category.featured && styles.segmentTextActive]}>{t('Destacado', 'Featured')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => updateCategory(category.id, 'featured', false)} style={[styles.segment, !category.featured && styles.segmentActive]}>
-                    <Text style={[styles.segmentText, !category.featured && styles.segmentTextActive]}>{t('Estandar', 'Standard')}</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.formActions}>
-                  <TouchableOpacity onPress={() => saveCategoryToApi(category.id)} style={styles.primaryButton}>
-                    <Text style={styles.primaryButtonText}>{t('GUARDAR CATEGORIA', 'SAVE CATEGORY')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setEditingCategoryId(null)} style={styles.secondaryButton}>
-                    <Text style={styles.secondaryButtonText}>{t('CANCELAR', 'CANCEL')}</Text>
-                  </TouchableOpacity>
-                </View>
-              </PanelCard>
-            ))
-          ) : (
-            <>
-              <PanelCard title={t('Categorias', 'Categories')} eyebrow={t('GESTOR DE CATEGORIAS', 'CATEGORY MANAGER')} copy={t('Crea y organiza categorias para filtros, busqueda y eventos destacados.', 'Create and organize categories for filters, search and featured events.')}>
-                <View style={styles.createRow}>
-                  <TextInput value={categoryDraft} onChangeText={setCategoryDraft} placeholder={t('Nueva categoria', 'New category')} placeholderTextColor="#9CA3AF" style={styles.createInput} />
-                  <TouchableOpacity onPress={addCategory} style={styles.createButton}>
-                    <Text style={styles.createButtonText}>{t('AGREGAR', 'ADD')}</Text>
-                  </TouchableOpacity>
-                </View>
-              </PanelCard>
-
-              {categories.map((category) => (
-                <View key={category.id} style={styles.userCard}>
-                  <View style={styles.cardHeader}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>{category.name.slice(0, 2).toUpperCase()}</Text>
-                    </View>
-                    <View style={styles.cardMain}>
-                      <Text style={styles.cardTitle}>{category.name}</Text>
-                      <Text style={styles.cardSub}>{t('Filtros, discovery y home.', 'Filters, discovery and home.')}</Text>
-                    </View>
+            {categories.map((category) => (
+              <View key={category.id} style={styles.catCard}>
+                <View style={styles.catCardLeft}>
+                  <View style={[styles.catIconBox, { backgroundColor: `${category.color}22`, borderColor: `${category.color}66` }]}>
+                    <Text style={styles.catIconText}>{category.icon || '🎫'}</Text>
                   </View>
-
-                  <View style={styles.statusRow}>
-                    <StatusPill label={category.active ? 'ACTIVE' : 'INACTIVE'} tone={category.active ? 'green' : 'red'} />
-                    <StatusPill label={category.featured ? 'FEATURED' : 'STANDARD'} tone={category.featured ? 'orange' : 'gray'} />
-                  </View>
-
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity onPress={() => setEditingCategoryId(category.id)} style={styles.cardPrimaryAction}>
-                      <Text style={styles.cardPrimaryText}>{t('EDITAR', 'EDIT')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => toggleCategoryActiveApi(category.id)} style={styles.cardSecondaryAction}>
-                      <Text style={styles.cardSecondaryText}>{category.active ? 'DISABLE' : 'ENABLE'}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => deleteCategoryApi(category.id)} style={[styles.cardSecondaryAction, { borderColor: 'rgba(239,68,68,0.28)' }]}>
-                      <Text style={[styles.cardSecondaryText, { color: '#FCA5A5' }]}>DEL</Text>
-                    </TouchableOpacity>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.catCardName} numberOfLines={1}>{category.name}</Text>
+                    <Text style={styles.catCardSlug} numberOfLines={1}>{category.slug}</Text>
+                    <StatusPill label={category.active ? t('ACTIVA', 'ACTIVE') : t('INACTIVA', 'INACTIVE')} tone={category.active ? 'green' : 'red'} compact />
                   </View>
                 </View>
-              ))}
-            </>
-          )
+                <View style={styles.catCardActions}>
+                  <TouchableOpacity onPress={() => { setEditingCategoryModal(category); setEditCategoryForm({ labelEs: category.labelEs, labelEn: category.labelEn, icon: category.icon, color: category.color, sortOrder: category.sortOrder, imageData: category.imageData || '' }); }} style={styles.catActionBtn}>
+                    <Ionicons name="pencil-outline" size={17} color="#94A3B8" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => deleteCategoryApi(category.id)} style={[styles.catActionBtn, { borderColor: 'rgba(239,68,68,0.28)' }]}>
+                    <Ionicons name="trash-outline" size={17} color="#FCA5A5" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </>
         )}
 
         {active === 'marketing' && (
@@ -1830,16 +2133,49 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
         )}
         {active === 'codes' && (
           <>
+            {/* Refresh + stats */}
+            <GradientButton label={codesLoading ? t('Actualizando...', 'Updating...') : t('Refresh', 'Refresh')} onPress={() => { setCodesLoaded(false); setCodesLoading(false); }} height={42} style={{ marginBottom: 14 }} />
+
+            {!codesLoading && (
+              <>
+                <View style={styles.codeStatRow}>
+                  <View style={styles.codeStatCard}>
+                    <View style={styles.codeStatTop}><Text style={styles.codeStatLabel}>{t('TOTAL', 'TOTAL')}</Text><Ionicons name="pricetag-outline" size={18} color={colors.orange} /></View>
+                    <Text style={styles.codeStatValue}>{apiCodes.length}</Text>
+                  </View>
+                  <View style={styles.codeStatCard}>
+                    <View style={styles.codeStatTop}><Text style={styles.codeStatLabel}>{t('ACTIVE', 'ACTIVE')}</Text><Ionicons name="checkmark-circle-outline" size={18} color="#4ADE80" /></View>
+                    <Text style={styles.codeStatValue}>{apiCodes.filter((c) => c.isActive).length}</Text>
+                  </View>
+                  <View style={styles.codeStatCard}>
+                    <View style={styles.codeStatTop}><Text style={styles.codeStatLabel}>{t('GLOBAL', 'GLOBAL')}</Text><Ionicons name="calendar-outline" size={18} color={colors.orange} /></View>
+                    <Text style={styles.codeStatValue}>{apiCodes.filter((c) => !c.eventId).length}</Text>
+                  </View>
+                </View>
+              </>
+            )}
+
+            {codesError ? <PanelCard title={t('Error', 'Error')} copy={codesError} /> : null}
+
+            {/* Create code card */}
             <View style={styles.codeCreateCard}>
-              <Text style={styles.formEyebrow}>{t('CODIGOS ESPECIALES', 'SPECIAL CODES')}</Text>
-              <Text style={styles.codePanelTitle}>{t('Codigos especiales', 'Special codes')}</Text>
-              <Text style={styles.codePanelCopy}>{t('Crea codigos, asigna comisiones y monitorea ventas generadas.', 'Create codes, assign commissions and monitor generated sales.')}</Text>
-              <TextInput value={specialCodeDraft} onChangeText={setSpecialCodeDraft} placeholder={t('Codigo (ej: LPVIP)', 'Code (e.g. LPVIP)')} placeholderTextColor="#9CA3AF" autoCapitalize="characters" style={[styles.codeInput, { marginBottom: 8 }]} />
+              <View style={styles.codeCreateHeader}>
+                <View style={styles.codeCreateIcon}><Ionicons name="qr-code-outline" size={20} color={colors.orange} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.codeCreateTitle}>{t('Create code', 'Create code')}</Text>
+                  <Text style={styles.codeCreateSub}>{t('La recompensa se configura por evento y se paga manualmente.', 'Reward is configured per event and paid manually.')}</Text>
+                </View>
+              </View>
+
+              <FieldLabel label={t('CODE', 'CODE')} />
+              <TextInput value={specialCodeDraft} onChangeText={(v) => setSpecialCodeDraft(v.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))} placeholder="MARIA" placeholderTextColor="#9CA3AF" autoCapitalize="characters" style={styles.codeInput} />
+
+              <FieldLabel label={t('CODE OWNER', 'CODE OWNER')} />
               <View style={styles.ownerSearchBox}>
                 <TextInput
                   value={ownerSearchQuery}
                   onChangeText={(v) => { setOwnerSearchQuery(v); searchOwnerUsers(v); }}
-                  placeholder={t('Buscar dueño por nombre o email', 'Search owner by name or email')}
+                  placeholder={t('Buscar usuario...', 'Search user...')}
                   placeholderTextColor="#9CA3AF"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -1866,46 +2202,133 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   </TouchableOpacity>
                 </View>
               ) : null}
-              <GradientButton label={t('AGREGAR CÓDIGO', 'ADD CODE')} onPress={addSpecialCode} height={44} style={{ marginTop: 8 }} />
+
+              <FieldLabel label={t('EVENT', 'EVENT')} />
+              <View style={styles.codeEventPicker}>
+                <TouchableOpacity style={styles.codeEventPickerInner} onPress={() => setCodeEventId('')}>
+                  <Text style={[styles.codeEventPickerText, !codeEventId && { color: colors.orange }]}>{!codeEventId ? t('Todos los eventos', 'All events') : adminEvents.find((e) => e.id === codeEventId)?.title || t('Todos los eventos', 'All events')}</Text>
+                  <Ionicons name="chevron-down" size={14} color="rgba(226,232,240,0.5)" />
+                </TouchableOpacity>
+              </View>
+              {adminEvents.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 4 }}>
+                    <TouchableOpacity onPress={() => setCodeEventId('')} style={[styles.codeEventPill, !codeEventId && styles.codeEventPillActive]}>
+                      <Text style={[styles.codeEventPillText, !codeEventId && styles.codeEventPillTextActive]}>{t('Todos', 'All')}</Text>
+                    </TouchableOpacity>
+                    {adminEvents.slice(0, 10).map((ev) => (
+                      <TouchableOpacity key={ev.id} onPress={() => setCodeEventId(ev.id)} style={[styles.codeEventPill, codeEventId === ev.id && styles.codeEventPillActive]}>
+                        <Text style={[styles.codeEventPillText, codeEventId === ev.id && styles.codeEventPillTextActive]} numberOfLines={1}>{adminEventTitle(ev)}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              )}
+
+              <TouchableOpacity onPress={() => setCodeActiveCreate((v) => !v)} style={styles.codeActiveRow}>
+                <View style={[styles.codeActiveCheck, codeActiveCreate && styles.codeActiveCheckOn]}>
+                  {codeActiveCreate && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
+                </View>
+                <Text style={styles.codeActiveLabel}>{t('Activo', 'Active')}</Text>
+              </TouchableOpacity>
+
+              <GradientButton label={t('+ CREATE CODE', '+ CREATE CODE')} onPress={addSpecialCode} height={48} style={{ marginTop: 8 }} />
+            </View>
+
+            {/* Created codes list */}
+            <View style={styles.createdCodesHeader}>
+              <View>
+                <Text style={styles.createdCodesTitle}>{t('Created codes', 'Created codes')}</Text>
+                <Text style={styles.createdCodesSub}>{t('Activa o pausa códigos sin eliminarlos.', 'Activate or pause codes without deleting them.')}</Text>
+              </View>
+            </View>
+
+            {/* Search */}
+            <View style={[styles.userSearchBox, { marginBottom: 10 }]}>
+              <Text style={styles.userSearchIcon}>⌕</Text>
+              <TextInput value={codeSearch} onChangeText={setCodeSearch} placeholder={t('Buscar...', 'Search...')} placeholderTextColor="rgba(226,232,240,0.38)" autoCapitalize="none" autoCorrect={false} style={styles.userSearchInput} />
             </View>
 
             {codesLoading && <PanelCard title={t('Cargando...', 'Loading...')} />}
-            {!codesLoading && codesError ? (
-              <PanelCard title={t('No se pudieron cargar los códigos', 'Could not load codes')} copy={codesError} />
-            ) : null}
 
-            {!codesLoading && (
-              <View style={styles.metricsGrid}>
-                <Metric label={t('Generado', 'Generated')} value={money(commissionSummary.reduce((s, e) => s + (e.totalEarned || 0), 0))} />
-                <Metric label={t('Pagado', 'Paid out')} value={money(commissionSummary.reduce((s, e) => s + (e.totalPaid || 0), 0))} />
-                <Metric label={t('Codigos', 'Codes')} value={String(apiCodes.length)} />
-                <Metric label={t('Activos', 'Active')} value={String(apiCodes.filter((c) => c.isActive).length)} />
-              </View>
-            )}
-
-            {apiCodes.map((item) => {
+            {apiCodes.filter((item) => {
+              const term = codeSearch.trim().toLowerCase();
+              if (!term) return true;
+              const ownerStr = `${item.owner?.firstName || ''} ${item.owner?.lastName || ''} ${item.owner?.email || ''}`.toLowerCase();
+              return item.code.toLowerCase().includes(term) || ownerStr.includes(term) || (item.event?.title || '').toLowerCase().includes(term);
+            }).map((item) => {
               const ownerName = [item.owner?.firstName, item.owner?.lastName].filter(Boolean).join(' ') || item.owner?.email || item.ownerUserId.slice(0, 8);
               return (
-                <View key={item.id} style={styles.codeCard}>
-                  <View style={styles.codeCardTop}>
-                    <View style={styles.cardMain}>
-                      <Text style={styles.codeCardTitle}>{item.code}</Text>
-                      <Text style={styles.codeCardSub}>{ownerName} · ${Number(item.commissionFixed).toFixed(0)} commission</Text>
-                    </View>
-                    <StatusPill label={item.isActive ? 'ACTIVE' : 'INACTIVE'} tone={item.isActive ? 'green' : 'gray'} compact />
+                <View key={item.id} style={styles.codeCard2}>
+                  <Text style={styles.codeCard2Label}>{t('CÓDIGO', 'CODE')}</Text>
+                  <Text style={styles.codeCard2Code}>{item.code}</Text>
+                  <Text style={styles.codeCard2Label}>{t('OWNER', 'OWNER')}</Text>
+                  <View style={styles.codeCard2OwnerRow}>
+                    <Ionicons name="person-outline" size={13} color="rgba(226,232,240,0.5)" />
+                    <Text style={styles.codeCard2OwnerName}>{ownerName}</Text>
                   </View>
-
-                  <View style={styles.codeActionRow}>
-                    <TouchableOpacity onPress={() => toggleSpecialCode(item.id)} style={styles.codePrimaryAction}>
-                      <Text style={styles.codePrimaryText}>{item.isActive ? 'DISABLE' : 'ENABLE'}</Text>
+                  {item.owner?.email ? <Text style={styles.codeCard2OwnerEmail}>{item.owner.email}</Text> : null}
+                  <Text style={styles.codeCard2Label}>{t('EVENT', 'EVENT')}</Text>
+                  <Text style={styles.codeCard2Event}>{item.event?.title || t('All', 'All')}</Text>
+                  <View style={styles.codeCard2Actions}>
+                    <TouchableOpacity onPress={() => { setEditingCode(item); setEditCodeForm({ code: item.code, ownerUserId: item.ownerUserId, ownerName: ownerName, ownerEmail: item.owner?.email || '', eventId: item.eventId || '', isActive: item.isActive }); setEditCodeOwnerQuery(`${ownerName}${item.owner?.email ? ` (${item.owner.email})` : ''}`); setEditCodeOwnerResults([]); }} style={styles.codeEditBtn}>
+                      <Ionicons name="pencil-outline" size={15} color={colors.orange} />
+                      <Text style={styles.codeEditBtnText}>{t('Edit', 'Edit')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => deleteCodeApi(item.id)} style={styles.codeDeleteAction}>
-                      <Text style={styles.codeDeleteText}>DEL</Text>
+                    <TouchableOpacity onPress={() => deleteCodeApi(item.id)} style={styles.codeDeleteBtn}>
+                      <Text style={styles.codeDeleteBtnText}>{t('Delete', 'Delete')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => toggleSpecialCode(item.id)} style={[styles.codeStatusBtn, item.isActive ? styles.codeStatusBtnActive : styles.codeStatusBtnInactive]}>
+                      <Ionicons name={item.isActive ? 'checkmark-circle-outline' : 'close-circle-outline'} size={14} color={item.isActive ? '#4ADE80' : '#94A3B8'} />
+                      <Text style={[styles.codeStatusBtnText, { color: item.isActive ? '#4ADE80' : '#94A3B8' }]}>{item.isActive ? t('Active', 'Active') : t('Inactive', 'Inactive')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               );
             })}
+
+            {/* Event rewards */}
+            {adminEvents.length > 0 && (
+              <>
+                <View style={styles.eventRewardsHeader}>
+                  <View style={styles.eventRewardsIcon}><Ionicons name="cash-outline" size={20} color={colors.orange} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.eventRewardsTitle}>{t('Event rewards', 'Event rewards')}</Text>
+                    <Text style={styles.eventRewardsSub}>{t('Administra la recompensa base por evento cuando se usa un código de creador.', 'Manage the base reward per event when creator codes are used.')}</Text>
+                  </View>
+                </View>
+                {adminEvents.map((ev) => {
+                  const orgName = [ev.organizer?.firstName, ev.organizer?.lastName].filter(Boolean).join(' ') || ev.organizerName || '-';
+                  const current = Number(ev.creatorCommission || 0);
+                  const rewardVal = eventRewards[ev.id] !== undefined ? eventRewards[ev.id] : current.toFixed(2);
+                  return (
+                    <View key={ev.id} style={styles.eventRewardCard}>
+                      <Text style={styles.eventRewardFieldLabel}>{t('EVENT', 'EVENT')}</Text>
+                      <Text style={styles.eventRewardEventTitle}>{adminEventTitle(ev)}</Text>
+                      <Text style={styles.eventRewardFieldLabel}>{t('ORGANIZER', 'ORGANIZER')}</Text>
+                      <Text style={styles.eventRewardOrgName}>{orgName}</Text>
+                      <Text style={styles.eventRewardFieldLabel}>{t('CURRENT', 'CURRENT')}</Text>
+                      <Text style={styles.eventRewardCurrent}>${current.toFixed(2)}</Text>
+                      <Text style={styles.eventRewardFieldLabel}>{t('BASE REWARD ($)', 'BASE REWARD ($)')}</Text>
+                      <TextInput
+                        value={rewardVal}
+                        onChangeText={(v) => setEventRewards((prev) => ({ ...prev, [ev.id]: v }))}
+                        keyboardType="decimal-pad"
+                        placeholder="0.00"
+                        placeholderTextColor="#9CA3AF"
+                        style={styles.input}
+                      />
+                      <GradientButton
+                        label={savingEventReward === ev.id ? t('GUARDANDO...', 'SAVING...') : t('SAVE', 'SAVE')}
+                        onPress={() => saveEventReward(ev.id)}
+                        height={44}
+                        style={{ marginTop: 10 }}
+                      />
+                    </View>
+                  );
+                })}
+              </>
+            )}
 
             {/* Commission summary with payouts */}
             {commissionSummary.length > 0 && (
@@ -1965,21 +2388,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                       </TouchableOpacity>
                       {isPayoutOpen && (
                         <View style={{ marginTop: 10, gap: 8 }}>
-                          <TextInput
-                            value={payoutAmount}
-                            onChangeText={setPayoutAmount}
-                            placeholder={t('Monto ($)', 'Amount ($)')}
-                            placeholderTextColor="#9CA3AF"
-                            keyboardType="decimal-pad"
-                            style={styles.inlinePanelInput}
-                          />
-                          <TextInput
-                            value={payoutNote}
-                            onChangeText={setPayoutNote}
-                            placeholder={t('Nota (opcional)', 'Note (optional)')}
-                            placeholderTextColor="#9CA3AF"
-                            style={styles.inlinePanelInput}
-                          />
+                          <TextInput value={payoutAmount} onChangeText={setPayoutAmount} placeholder={t('Monto ($)', 'Amount ($)')} placeholderTextColor="#9CA3AF" keyboardType="decimal-pad" style={styles.inlinePanelInput} />
+                          <TextInput value={payoutNote} onChangeText={setPayoutNote} placeholder={t('Nota (opcional)', 'Note (optional)')} placeholderTextColor="#9CA3AF" style={styles.inlinePanelInput} />
                           <TouchableOpacity onPress={recordPayout} style={styles.inlinePanelSave} disabled={payoutSaving}>
                             <Text style={styles.inlinePanelSaveText}>{payoutSaving ? t('REGISTRANDO...', 'RECORDING...') : t('CONFIRMAR PAGO', 'CONFIRM PAYOUT')}</Text>
                           </TouchableOpacity>
@@ -2587,4 +2997,87 @@ const styles = StyleSheet.create({
   ownerResultEmail: { color: 'rgba(226,232,240,0.58)', fontSize: 11, fontWeight: '400' },
   ownerSelectedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(34,197,94,0.24)', paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 },
   ownerSelectedText: { flex: 1, color: '#4ADE80', fontSize: 12, fontWeight: '600' },
+
+  // Categories redesign
+  catHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
+  catCount: { flex: 1, color: '#CBD5E1', fontSize: 14, lineHeight: 20, fontWeight: '400' },
+  catNewBtn: { backgroundColor: colors.orange, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', minWidth: 100 },
+  catNewBtnText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900', letterSpacing: 0.5, textAlign: 'center', lineHeight: 15 },
+  catCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 12, marginBottom: 10 },
+  catCardLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 0 },
+  catIconBox: { width: 48, height: 48, borderRadius: 14, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  catIconText: { fontSize: 24 },
+  catCardName: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  catCardSlug: { color: 'rgba(226,232,240,0.44)', fontSize: 11, fontWeight: '500', marginBottom: 6 },
+  catCardActions: { flexDirection: 'row', gap: 8 },
+  catActionBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+
+  // Category form (create/edit modals)
+  catIconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  catIconPicker: { width: 44, height: 44, borderRadius: 10, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
+  catSelectedIconBox: { alignSelf: 'flex-start', width: 52, height: 52, borderRadius: 14, borderWidth: 2, borderColor: colors.orange, backgroundColor: 'rgba(249,115,22,0.10)', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  catColorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
+  catColorSwatch: { width: 36, height: 36, borderRadius: 999 },
+  catColorSwatchSelected: { borderWidth: 3, borderColor: '#FFFFFF' },
+  catColorHex: { color: 'rgba(226,232,240,0.55)', fontSize: 12, fontWeight: '600', marginBottom: 6 },
+  catColorHexBox: { width: 36, height: 36, borderRadius: 8, marginBottom: 4 },
+  catImageRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 6 },
+  catImageThumb: { width: 64, height: 64, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
+  catImageEmpty: { width: 64, height: 64, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  catImagePickBtn: { height: 40, paddingHorizontal: 18, borderRadius: 10, borderWidth: 1, borderColor: colors.orange, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.08)' },
+  catImagePickText: { color: colors.orange, fontSize: 13, fontWeight: '700' },
+  catPreviewPill: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  catPreviewPillText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+
+  // Special codes redesign
+  codeStatRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  codeStatCard: { flex: 1, backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 14 },
+  codeStatTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  codeStatLabel: { color: 'rgba(226,232,240,0.52)', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  codeStatValue: { color: '#F8FAFC', fontSize: 28, fontWeight: '800' },
+  codeCreateHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
+  codeCreateIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.10)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', alignItems: 'center', justifyContent: 'center' },
+  codeCreateTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  codeCreateSub: { color: 'rgba(226,232,240,0.52)', fontSize: 12, fontWeight: '400' },
+  codeEventPicker: { borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.04)', marginBottom: 6 },
+  codeEventPickerInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12 },
+  codeEventPickerText: { color: '#CBD5E1', fontSize: 13, fontWeight: '600', flex: 1 },
+  codeEventPill: { height: 32, borderRadius: 99, paddingHorizontal: 12, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  codeEventPillActive: { backgroundColor: 'rgba(249,115,22,0.14)', borderColor: 'rgba(249,115,22,0.5)' },
+  codeEventPillText: { color: 'rgba(226,232,240,0.62)', fontSize: 12, fontWeight: '700', maxWidth: 120 },
+  codeEventPillTextActive: { color: colors.orange },
+  codeActiveRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  codeActiveCheck: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.28)', backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center' },
+  codeActiveCheckOn: { backgroundColor: colors.orange, borderColor: colors.orange },
+  codeActiveLabel: { color: '#CBD5E1', fontSize: 14, fontWeight: '700' },
+  createdCodesHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10, marginTop: 4 },
+  createdCodesTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  createdCodesSub: { color: 'rgba(226,232,240,0.52)', fontSize: 12, fontWeight: '400' },
+  codeCard2: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 14, marginBottom: 10 },
+  codeCard2Label: { color: 'rgba(226,232,240,0.44)', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
+  codeCard2Code: { color: '#F8FAFC', fontSize: 22, fontWeight: '900', marginBottom: 10 },
+  codeCard2OwnerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  codeCard2OwnerName: { color: '#CBD5E1', fontSize: 13, fontWeight: '700' },
+  codeCard2OwnerEmail: { color: 'rgba(226,232,240,0.48)', fontSize: 11, fontWeight: '400', marginBottom: 10 },
+  codeCard2Event: { color: '#CBD5E1', fontSize: 13, fontWeight: '600', marginBottom: 12 },
+  codeCard2Actions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  codeEditBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 36, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(249,115,22,0.4)', backgroundColor: 'rgba(249,115,22,0.08)' },
+  codeEditBtnText: { color: colors.orange, fontSize: 12, fontWeight: '700' },
+  codeDeleteBtn: { height: 36, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.06)', alignItems: 'center', justifyContent: 'center' },
+  codeDeleteBtnText: { color: '#FCA5A5', fontSize: 12, fontWeight: '700' },
+  codeStatusBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 36, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1 },
+  codeStatusBtnActive: { backgroundColor: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.3)' },
+  codeStatusBtnInactive: { backgroundColor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.12)' },
+  codeStatusBtnText: { fontSize: 12, fontWeight: '700' },
+
+  // Event rewards
+  eventRewardsHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginTop: 8, marginBottom: 12 },
+  eventRewardsIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.10)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', alignItems: 'center', justifyContent: 'center' },
+  eventRewardsTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  eventRewardsSub: { color: 'rgba(226,232,240,0.52)', fontSize: 12, fontWeight: '400', flex: 1 },
+  eventRewardCard: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 14, marginBottom: 10 },
+  eventRewardFieldLabel: { color: 'rgba(226,232,240,0.44)', fontSize: 9, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
+  eventRewardEventTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 8 },
+  eventRewardOrgName: { color: '#CBD5E1', fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  eventRewardCurrent: { color: '#4ADE80', fontSize: 16, fontWeight: '800', marginBottom: 10 },
 });
