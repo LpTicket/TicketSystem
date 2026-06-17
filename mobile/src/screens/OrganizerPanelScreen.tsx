@@ -128,34 +128,38 @@ function toOrganizerEvent(event: OrganizerApiEvent, index: number): {
 }
 
 // Global sections (always available) vs event sections (only after picking an event).
-const GLOBAL_SECTIONS: Section[] = ['dashboard', 'events', 'create', 'rewards'];
-const EVENT_SECTIONS: Section[] = ['analytics', 'details', 'overview', 'attendees', 'map', 'blocks', 'commission'];
+const GLOBAL_SECTIONS: Section[] = ['dashboard', 'events', 'create'];
+const EVENT_SECTIONS: Section[] = ['analytics', 'details', 'overview', 'attendees', 'map', 'blocks', 'commission', 'rewards'];
 const isEventSection = (s: Section) => EVENT_SECTIONS.includes(s);
 
-type PanelProps = { section?: Section; onSectionChange?: (s: Section) => void };
+type PanelProps = { section?: Section; onSectionChange?: (s: Section) => void; adminEvent?: any; onAdminBack?: () => void };
 
-export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = {}) {
+export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onAdminBack }: PanelProps = {}) {
   const { t } = useLanguage();
   const organizerIndicatorX = useRef(new Animated.Value(0)).current;
   const organizerIndicatorWidth = useRef(new Animated.Value(118)).current;
   const tabsScrollRef = useRef<ScrollView>(null);
-  const [internalSection, setInternalSection] = useState<Section>('dashboard');
+  const [internalSection, setInternalSection] = useState<Section>(adminEvent ? 'details' : 'dashboard');
   const active = section ?? internalSection;
   const setActive = (s: Section) => { setInternalSection(s); onSectionChange?.(s); };
   const [tabLayouts, setTabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
   const [tabsViewportWidth, setTabsViewportWidth] = useState(0);
   const [tabsContentWidth, setTabsContentWidth] = useState(0);
   const [tabsScrollX, setTabsScrollX] = useState(0);
-  const [eventTitle, setEventTitle] = useState('Noche de (des)amor');
-  const [eventVenue, setEventVenue] = useState('Ambriza');
-  const [eventStatus, setEventStatus] = useState<'draft' | 'published' | 'cancelled'>('published');
+
+  // Seed state from adminEvent if provided (admin viewing an organizer's event)
+  const [eventTitle, setEventTitle] = useState(adminEvent?.title || 'Noche de (des)amor');
+  const [eventVenue, setEventVenue] = useState(adminEvent?.venueName || adminEvent?.venue || 'Ambriza');
+  const [eventStatus, setEventStatus] = useState<'draft' | 'published' | 'cancelled'>(adminEvent?.status === 'draft' ? 'draft' : adminEvent?.status === 'cancelled' ? 'cancelled' : 'published');
   const [accessItems, setAccessItems] = useState<{ id: string; title: string; type: string; status: string }[]>([]);
   const [organizerEvents, setOrganizerEvents] = useState<ReturnType<typeof toOrganizerEvent>[]>([]);
   const [organizerEventsError, setOrganizerEventsError] = useState('');
   const [rawEventsById, setRawEventsById] = useState<Record<string, any>>({});
   const [organizerStats, setOrganizerStats] = useState<OrganizerStats>({});
   // The event the organizer is currently managing (null = global view).
-  const [selectedEvent, setSelectedEvent] = useState<ReturnType<typeof toOrganizerEvent> | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<ReturnType<typeof toOrganizerEvent> | null>(
+    adminEvent ? toOrganizerEvent(adminEvent, 0) : null
+  );
   const [rewardStats, setRewardStats] = useState<{ balance: number; activeCodes: number; totalPaid: number; pending: number } | null>(null);
   const [rewardStatsLoaded, setRewardStatsLoaded] = useState(false);
 
@@ -169,11 +173,13 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
   };
 
   const backToEvents = () => {
+    if (adminEvent && onAdminBack) { onAdminBack(); return; }
     setSelectedEvent(null);
     setActive('events');
   };
 
-  const visibleSections = selectedEvent ? EVENT_SECTIONS : GLOBAL_SECTIONS;
+  // In admin mode: always show event sections; otherwise depend on selectedEvent
+  const visibleSections = (selectedEvent || adminEvent) ? EVENT_SECTIONS : GLOBAL_SECTIONS;
 
   useEffect(() => {
     let mounted = true;
@@ -221,7 +227,7 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
   const [attendeesRaw, setAttendeesRaw] = useState<any[]>([]);
 
   // Load attendees for the event currently being managed.
-  const selectedEventId = selectedEvent?.id;
+  const selectedEventId = selectedEvent?.id ?? (adminEvent ? String(adminEvent.id) : undefined);
   useEffect(() => {
     if (!selectedEventId) { setAttendees([]); setAttendeesRaw([]); return; }
     let mounted = true;
@@ -591,8 +597,8 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             eventStatus={eventStatus}
             setEventStatus={setEventStatus}
             goTo={setActive}
-            selectedEventId={selectedEvent?.id}
-            event={selectedEvent ? rawEventsById[selectedEvent.id] : undefined}
+            selectedEventId={selectedEventId}
+            event={selectedEvent ? rawEventsById[selectedEvent.id] : adminEvent}
           />
         )}
 
@@ -601,13 +607,13 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             sales={eventSales}
             attendees={attendeesRaw}
             sections={eventSections}
-            eventTitle={selectedEvent?.title}
+            eventTitle={selectedEvent?.title ?? adminEvent?.title}
           />
         )}
 
         {active === 'overview' && <OrganizerOverviewMobile sections={eventSections} />}
 
-        {active === 'map' && <VenueMapEditor eventId={selectedEvent?.id} />}
+        {active === 'map' && <VenueMapEditor eventId={selectedEventId} />}
 
         {active === 'attendees' && (
           <OrganizerAttendeesMobile
@@ -616,16 +622,16 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             onToggle={toggleAttendeeStatus}
             onResend={handleResendAttendee}
             goTo={setActive}
-            eventId={selectedEvent?.id}
-            event={selectedEvent ? rawEventsById[selectedEvent.id] : undefined}
-            eventTitle={selectedEvent?.title}
+            eventId={selectedEventId}
+            event={selectedEvent ? rawEventsById[selectedEvent.id] : adminEvent}
+            eventTitle={selectedEvent?.title ?? adminEvent?.title}
             sales={eventSales}
           />
         )}
 
         {active === 'blocks' && (
           <OrganizerBlocksMobile
-            eventId={selectedEvent?.id}
+            eventId={selectedEventId}
             sections={eventSections}
             onReload={reloadEventData}
           />
@@ -633,16 +639,19 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
 
         {active === 'commission' && (
           <OrganizerCommissionMobile
-            eventId={selectedEvent?.id}
+            eventId={selectedEventId}
             eventStatus={eventStatus}
             sections={eventSections}
-            initialCommission={selectedEvent?.creatorCommission}
-            pendingCommission={selectedEvent?.pendingCreatorCommission}
+            initialCommission={selectedEvent?.creatorCommission ?? (adminEvent ? Number(adminEvent.creatorCommission || 0) : undefined)}
+            pendingCommission={selectedEvent?.pendingCreatorCommission ?? adminEvent?.pendingCreatorCommission}
           />
         )}
 
         {active === 'rewards' && (
-          <OrganizerRewardsMobile goTo={setActive} stats={rewardStats ?? undefined} />
+          <OrganizerRewardsMobile
+            goTo={setActive}
+            stats={rewardStats ?? undefined}
+          />
         )}
 
       </ScrollView>

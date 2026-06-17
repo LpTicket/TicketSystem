@@ -6,7 +6,7 @@ import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { apiDelete, apiGet, apiPatch, apiPost, getImageUrl } from '../services/api';
 import { GradientButton } from '../components/GradientButton';
-import { OrganizerDetailsMobile } from '../components/organizer/OrganizerEventForms';
+import { OrganizerPanelScreen } from './OrganizerPanelScreen';
 
 export type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes';
 type AdminUser = {
@@ -1328,25 +1328,10 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
 
         {active === 'events' && (
           editingAdminEvent ? (
-            <>
-              <TouchableOpacity onPress={closeAdminEventEditor} style={styles.adminEditBack}>
-                <Text style={styles.adminEditBackText}>‹ {t('Eventos admin', 'Admin events')}</Text>
-              </TouchableOpacity>
-              <OrganizerDetailsMobile
-                eventTitle={adminEditTitle}
-                setEventTitle={setAdminEditTitle}
-                eventVenue={adminEditVenue}
-                setEventVenue={setAdminEditVenue}
-                eventStatus={adminEditStatus}
-                setEventStatus={setAdminEditStatus}
-                goTo={(section) => {
-                  if (section === 'events') closeAdminEventEditor();
-                  if (section === 'map') Alert.alert(t('Mapa visual', 'Visual map'), t('Edita el mapa desde el panel Organizador del evento.', 'Edit the map from the Organizer event panel.'));
-                }}
-                selectedEventId={String(editingAdminEvent.id)}
-                event={editingAdminEvent}
-              />
-            </>
+            <OrganizerPanelScreen
+              adminEvent={editingAdminEvent}
+              onAdminBack={closeAdminEventEditor}
+            />
           ) : (
             <>
             {/* Status filter tabs */}
