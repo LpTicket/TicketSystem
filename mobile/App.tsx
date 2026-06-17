@@ -214,7 +214,7 @@ function AppContent() {
         {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} />}
 
         {scanOpen ? (
-          <ScanScreen onBack={() => setScanOpen(false)} />
+          <ScanScreen onBack={() => setScanOpen(false)} user={currentUser} />
         ) : selectedEvent && paymentSuccessOpen ? (
           <PaymentSuccessScreen event={selectedEvent} user={currentUser} onViewTickets={() => { clearFlow(); setTab('tickets'); }} onHome={() => { clearFlow(); setTab('events'); }} />
         ) : selectedEvent && orderSummaryOpen ? (
@@ -232,7 +232,7 @@ function AppContent() {
         ) : tab === 'tickets' ? (
           isLoggedIn ? <TicketsScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'scan' ? (
-          <ScanScreen onBack={() => goToTab('events')} />
+          <ScanScreen onBack={() => goToTab('events')} user={currentUser} />
         ) : tab === 'social' ? (
           isLoggedIn ? <SocialScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'profile' ? (

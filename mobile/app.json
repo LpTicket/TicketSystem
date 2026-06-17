@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "LPTicket necesita acceso a tus fotos para cambiar tu foto de perfil.",
-        "NSPhotoLibraryAddUsageDescription": "LPTicket necesita permiso para guardar imágenes cuando sea necesario."
+        "NSPhotoLibraryAddUsageDescription": "LPTicket necesita permiso para guardar imágenes cuando sea necesario.",
+        "NSCameraUsageDescription": "LPTicket necesita la cámara para escanear códigos QR de entradas."
       }
     },
     "android": {
@@ -24,7 +25,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.CAMERA"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,6 +37,12 @@
         "expo-image-picker",
         {
           "photosPermission": "LPTicket necesita acceso a tus fotos para cambiar tu foto de perfil."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "LPTicket necesita la cámara para escanear códigos QR de entradas."
         }
       ]
     ]
