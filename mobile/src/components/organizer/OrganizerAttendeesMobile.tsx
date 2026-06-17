@@ -172,18 +172,22 @@ export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, on
 
   return (
     <View>
-      {/* KPI tiles */}
-      <View style={styles.metricsGrid}>
-        <Metric label={t('Compradores', 'Buyers')} value={String(buyers.length)} />
-        <Metric label={t('Escaneados', 'Scanned')} value={String(scanned)} />
-        <Metric label={t('Pendientes', 'Pending')} value={String(pending)} />
-        <Metric label={t('Ingresos', 'Revenue')} value={revenueLabel || '—'} />
-      </View>
-
       <View style={styles.panel}>
-        <Text style={styles.eyebrow}>{t('ASISTENTES', 'ATTENDEES')}</Text>
-        <Text style={styles.title}>{t('Asistentes y ventas', 'Attendees & Sales')}</Text>
-        <Text style={styles.copy}>{t('Compradores agrupados por email, tickets, estado de acceso y exportación.', 'Buyers grouped by email, tickets, access status and export.')}</Text>
+        {/* Header row matching web */}
+        <View style={styles.listHeader}>
+          <Ionicons name="people-outline" size={18} color="#F97316" style={{ marginRight: 8 }} />
+          <View>
+            <Text style={styles.title}>{t('Lista de asistentes', 'Attendee List')}</Text>
+            <Text style={styles.subtitle}>{buyers.length} {t('compradores', 'buyers')} · {attendees.length} {t('tickets', 'tickets')}</Text>
+          </View>
+        </View>
+
+        {/* Action buttons row — web layout */}
+        <View style={styles.actionRow}>
+          <Button label={t('ENVIAR RECORDATORIO', 'Send Reminder')} onPress={() => setShowReminder(true)} icon="notifications-outline" />
+          <Button label={t('EXPORTAR CSV', 'Export CSV')} muted onPress={onExportAttendeesCsv} icon="download-outline" />
+        </View>
+        <Button label={t('EXPORTAR VENTAS', 'Export Sales')} muted onPress={onExportSalesCsv} icon="download-outline" style={styles.exportSalesBtn} />
 
         {/* Functional search */}
         <View style={styles.searchBox}>
@@ -273,11 +277,8 @@ export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, on
           );
         })}
 
-        {/* Bottom actions */}
+        {/* Quick nav */}
         <View style={styles.bottomActions}>
-          <Button label={t('RECORDATORIOS', 'REMINDERS')} onPress={() => setShowReminder(true)} />
-          <Button label={t('EXPORTAR ASISTENTES', 'EXPORT ATTENDEES')} muted onPress={onExportAttendeesCsv} />
-          <Button label={t('EXPORTAR VENTAS', 'EXPORT SALES')} muted onPress={onExportSalesCsv} />
           <Button label={t('SCAN QR', 'SCAN QR')} muted onPress={() => goTo('scan')} />
           <Button label={t('MAPA', 'MAP')} muted onPress={() => goTo('map')} />
           <Button label={t('BLOQUEOS', 'BLOCKS')} muted onPress={() => goTo('blocks')} />
@@ -322,15 +323,6 @@ export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, on
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.metric}>
-      <Text style={styles.metricValue}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
-    </View>
-  );
-}
-
 function StatusBadge({ status }: { status: string }) {
   const scanned = status === 'SCANNED';
   return (
@@ -340,26 +332,30 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function Button({ label, muted, onPress }: { label: string; muted?: boolean; onPress?: () => void }) {
+function Button({ label, muted, onPress, icon, style }: { label: string; muted?: boolean; onPress?: () => void; icon?: string; style?: any }) {
   if (!muted) {
-    return <GradientButton label={label} onPress={onPress} height={46} style={styles.btn} textStyle={styles.btnText} />;
+    return (
+      <GradientButton height={44} onPress={onPress} style={[styles.btn, style]}>
+        {icon ? <Ionicons name={icon as any} size={14} color="#FFFFFF" style={{ marginRight: 6 }} /> : null}
+        <Text style={styles.btnText}>{label}</Text>
+      </GradientButton>
+    );
   }
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.btn, styles.btnMuted]}>
+    <TouchableOpacity onPress={onPress} style={[styles.btn, styles.btnMuted, style]}>
+      {icon ? <Ionicons name={icon as any} size={14} color="#F97316" style={{ marginRight: 6 }} /> : null}
       <Text style={[styles.btnText, styles.btnTextMuted]}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 14 },
-  metric: { width: '48%', backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 16 },
-  metricValue: { color: colors.orange, fontSize: 25, fontWeight: '700', marginBottom: 4 },
-  metricLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '700' },
   panel: { backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 18, marginBottom: 16 },
-  eyebrow: { color: colors.orange, fontSize: 12, fontWeight: '700', marginBottom: 8 },
-  title: { color: '#F8FAFC', fontSize: 26, fontWeight: '700', marginBottom: 8 },
-  copy: { color: 'rgba(226,232,240,0.64)', fontSize: 14, lineHeight: 21, marginBottom: 16 },
+  listHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  title: { color: '#F8FAFC', fontSize: 18, fontWeight: '800' },
+  subtitle: { color: 'rgba(203,213,225,0.65)', fontSize: 12, fontWeight: '600', marginTop: 2 },
+  actionRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
+  exportSalesBtn: { marginBottom: 14 },
   empty: { color: 'rgba(203,213,225,0.7)', fontSize: 13, textAlign: 'center', paddingVertical: 18 },
 
   // Search

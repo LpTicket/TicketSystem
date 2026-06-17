@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useMemo, useEffect, useRef, useState } from 'react';
+import { Alert, Image, PanResponder, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { apiDelete, apiPatch, apiPost, apiUploadImage, getImageUrl } from '../../services/api';
@@ -309,7 +309,7 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
   const [eventTime, setEventTime] = useState('');
   const [timezone, setTimezone] = useState('America/Chicago');
   const [maxTickets, setMaxTickets] = useState('10');
-  const [bannerPosition, setBannerPosition] = useState<'center' | 'top' | 'bottom'>('center');
+  const [focalY, setFocalY] = useState(50); // 0 = top, 50 = center, 100 = bottom
   const [saving, setSaving] = useState(false);
 
   // Populate from the real event (mirrors the web editor's loadEvent).
@@ -319,7 +319,11 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
     setCategory(event.pendingCategory || event.category || '');
     setAddress(event.venueAddress || '');
     setMaxTickets(String(event.maxTicketsPerTransaction || 10));
-    setBannerPosition((event.bannerPosition as any) || 'center');
+    const bp = event.bannerPosition;
+    if (typeof bp === 'number') setFocalY(Math.max(0, Math.min(100, bp)));
+    else if (bp === 'top') setFocalY(0);
+    else if (bp === 'bottom') setFocalY(100);
+    else setFocalY(50);
     setTimezone(event.eventTimezone || 'America/Chicago');
     if (event.eventDate) {
       const d = new Date(event.eventDate);
@@ -343,7 +347,8 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
         venueName: eventVenue,
         venueAddress: address,
         hasSeatMap: true,
-        bannerPosition,
+        bannerPosition: focalY <= 20 ? 'top' : focalY >= 80 ? 'bottom' : 'center',
+        bannerPositionY: focalY,
         maxTicketsPerTransaction: Number(maxTickets) || 10,
       });
       goTo('events');
@@ -395,15 +400,22 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
         <Field label={t('Direccion', 'Address')} value={address} onChangeText={setAddress} multiline />
         <Field label={t('Máx. entradas por transacción', 'Max tickets per transaction')} value={maxTickets} onChangeText={setMaxTickets} keyboardType="number-pad" />
 
-        <Text style={styles.fieldLabel}>{t('Posición del banner', 'Banner position')}</Text>
+        <View style={styles.focalHeader}>
+          <Text style={styles.fieldLabel}>{t('ALINEACIÓN FOCAL / VERTICAL', 'FOCAL / VERTICAL ALIGNMENT')}</Text>
+          <Text style={styles.focalPct}>{focalY}%</Text>
+        </View>
         <View style={styles.segmentGroup}>
-          {(['center', 'top', 'bottom'] as const).map((pos) => (
-            <TouchableOpacity key={pos} onPress={() => setBannerPosition(pos)} style={[styles.segment, bannerPosition === pos && styles.segmentActive]}>
-              <Text style={[styles.segmentText, bannerPosition === pos && styles.segmentTextActive]}>
-                {pos === 'center' ? t('Centro', 'Center') : pos === 'top' ? t('Arriba', 'Top') : t('Abajo', 'Bottom')}
-              </Text>
+          {([{ label: t('Arriba', 'Top'), val: 0 }, { label: t('Centro', 'Center'), val: 50 }, { label: t('Abajo', 'Bottom'), val: 100 }] as const).map(({ label, val }) => (
+            <TouchableOpacity key={val} onPress={() => setFocalY(val)} style={[styles.segment, focalY === val && styles.segmentActive]}>
+              <Text style={[styles.segmentText, focalY === val && styles.segmentTextActive]}>{label}</Text>
             </TouchableOpacity>
           ))}
+        </View>
+        <BannerSlider value={focalY} onChange={setFocalY} />
+        <View style={styles.focalLabels}>
+          <Text style={styles.focalTickLabel}>TOP</Text>
+          <Text style={styles.focalTickLabel}>CENTER</Text>
+          <Text style={styles.focalTickLabel}>BOTTOM</Text>
         </View>
 
         <Text style={styles.fieldLabel}>{t('Estado', 'Status')}</Text>
@@ -430,6 +442,38 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
         <PremiumButton label={saving ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR EVENTO', 'SAVE EVENT')} onPress={saveEvent} />
         <PremiumButton label={t('EDITAR MAPA', 'EDIT MAP')} onPress={() => goTo('map')} muted />
       </View>
+    </View>
+  );
+}
+
+function BannerSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const trackWidthRef = useRef(1);
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (evt) => {
+          const pct = Math.max(0, Math.min(100, Math.round((evt.nativeEvent.locationX / trackWidthRef.current) * 100)));
+          onChange(pct);
+        },
+        onPanResponderMove: (evt) => {
+          const pct = Math.max(0, Math.min(100, Math.round((evt.nativeEvent.locationX / trackWidthRef.current) * 100)));
+          onChange(pct);
+        },
+      }),
+    [onChange],
+  );
+
+  const thumbPct = Math.max(0, Math.min(100, value));
+  return (
+    <View
+      onLayout={(e) => { trackWidthRef.current = e.nativeEvent.layout.width; }}
+      {...panResponder.panHandlers}
+      style={styles.sliderTrack}
+    >
+      <View style={[styles.sliderFill, { width: `${thumbPct}%` as `${number}%` }]} />
+      <View style={[styles.sliderThumb, { left: `${thumbPct}%` as `${number}%`, transform: [{ translateX: -10 }] }]} />
     </View>
   );
 }
@@ -653,11 +697,20 @@ const styles = StyleSheet.create({
   noticeCard: { backgroundColor: '#030B14', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 16, marginBottom: 14 },
   noticeTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: 5 },
   noticeCopy: { color: colors.textFaint, fontSize: 13, lineHeight: 19, fontWeight: '700' },
-  segmentGroup: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  segmentGroup: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   segment: { flex: 1, height: 48, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.018)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   segmentActive: { backgroundColor: '#030B14', borderColor: 'rgba(255,255,255,0.14)' },
   segmentText: { color: colors.textFaint, fontSize: 12, fontWeight: '700' },
   segmentTextActive: { color: '#FFFFFF' },
+
+  // Focal / Banner slider
+  focalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  focalPct: { color: '#F97316', fontSize: 12, fontWeight: '800' },
+  sliderTrack: { height: 20, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.10)', marginBottom: 6, justifyContent: 'center', position: 'relative' },
+  sliderFill: { height: '100%', borderRadius: 999, backgroundColor: '#F97316', position: 'absolute', left: 0, top: 0 },
+  sliderThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#F97316', position: 'absolute', top: 0, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  focalLabels: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  focalTickLabel: { color: 'rgba(148,163,184,0.6)', fontSize: 9, fontWeight: '700' },
 
   // Net estimated card
   netCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(141,231,177,0.06)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(141,231,177,0.22)', padding: 14, marginBottom: 14 },
