@@ -1,5 +1,5 @@
-import { Alert, GestureResponderEvent, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { Alert, Dimensions, GestureResponderEvent, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { apiGet, apiPost } from '../../services/api';
 
@@ -106,18 +106,45 @@ const initialItems: VenueItem[] = [
 
 type Props = { eventId?: string };
 
+const VP_H = 440; // canvas viewport height (matches styles.workbench height)
+
 export function VenueMapEditor({ eventId }: Props) {
   const { t } = useLanguage();
+  const vpW = Dimensions.get('window').width;
   const [items, setItems] = useState<VenueItem[]>(initialItems);
   const [selectedId, setSelectedId] = useState(initialItems[2].id);
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; pageX: number; pageY: number } | null>(null);
-  const [canvasPan, setCanvasPan] = useState({ x: -60, y: -40 });
+  const [canvasPan, setCanvasPan] = useState({ x: 0, y: 0 });
   const [canvasDrag, setCanvasDrag] = useState<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
   const [objectDrag, setObjectDrag] = useState<{ id: string; x: number; y: number; pageX: number; pageY: number } | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(0.5);
+
+  // Compute pan+zoom so all items fit in the viewport.
+  const fitToContent = useCallback((loadedItems: VenueItem[]) => {
+    if (loadedItems.length === 0) return;
+    const pad = 24;
+    const x1 = Math.min(...loadedItems.map((i) => i.x)) - pad;
+    const y1 = Math.min(...loadedItems.map((i) => i.y)) - pad;
+    const x2 = Math.max(...loadedItems.map((i) => i.x + i.width)) + pad;
+    const y2 = Math.max(...loadedItems.map((i) => i.y + i.height)) + pad;
+    const cW = x2 - x1;
+    const cH = y2 - y1;
+    const s = Math.min(vpW / cW, VP_H / cH, 1.1);
+    const cX = (x1 + x2) / 2;
+    const cY = (y1 + y2) / 2;
+    // RN transform [translateX, translateY, scale] maps canvas point (px,py) to viewport:
+    // vp_x = tx + CANVAS_WIDTH/2 + (px - CANVAS_WIDTH/2) * s
+    const tx = vpW / 2 - CANVAS_WIDTH / 2 + (CANVAS_WIDTH / 2 - cX) * s;
+    const ty = VP_H / 2 - CANVAS_HEIGHT / 2 + (CANVAS_HEIGHT / 2 - cY) * s;
+    setZoom(Number(s.toFixed(3)));
+    setCanvasPan({ x: Number(tx.toFixed(1)), y: Number(ty.toFixed(1)) });
+  }, [vpW]);
+
+  // Fit default items on first render.
+  useEffect(() => { fitToContent(initialItems); }, [fitToContent]);
 
   // Load the persisted seat map for the selected event.
   useEffect(() => {
@@ -125,18 +152,17 @@ export function VenueMapEditor({ eventId }: Props) {
     let mounted = true;
     apiGet<any[]>(`/events/${eventId}/sections`)
       .then((data) => {
-        if (!mounted || !Array.isArray(data) || data.length === 0) return;
-        const loaded = data.map(sectionToItem);
+        if (!mounted) return;
+        const loaded = Array.isArray(data) && data.length > 0 ? data.map(sectionToItem) : initialItems;
         setItems(loaded);
         setSelectedId(loaded[0].id);
         setSelectedSeat(null);
         setSaved(true);
+        fitToContent(loaded);
       })
-      .catch(() => undefined);
-    return () => {
-      mounted = false;
-    };
-  }, [eventId]);
+      .catch(() => fitToContent(initialItems));
+    return () => { mounted = false; };
+  }, [eventId, fitToContent]);
 
   const saveMap = async () => {
     if (!eventId) {
@@ -295,12 +321,15 @@ export function VenueMapEditor({ eventId }: Props) {
         <Tool icon="▰" label={t('Escenario', 'Stage')} onPress={() => addItem('stage')} />
         <Tool icon="●" label={t('Asiento', 'Seat')} onPress={() => addItem('seat')} />
         <View style={styles.zoomGroup}>
-          <TouchableOpacity onPress={() => setZoom((current) => Math.max(0.4, Number((current - 0.15).toFixed(2))))} style={styles.railZoomButton}>
+          <TouchableOpacity onPress={() => setZoom((current) => Math.max(0.2, Number((current - 0.1).toFixed(2))))} style={styles.railZoomButton}>
             <Text style={styles.railZoomText}>-</Text>
           </TouchableOpacity>
           <Text style={styles.railZoomValue}>{Math.round(zoom * 100)}%</Text>
-          <TouchableOpacity onPress={() => setZoom((current) => Math.min(2.4, Number((current + 0.15).toFixed(2))))} style={styles.railZoomButton}>
+          <TouchableOpacity onPress={() => setZoom((current) => Math.min(2.4, Number((current + 0.1).toFixed(2))))} style={styles.railZoomButton}>
             <Text style={styles.railZoomText}>+</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => fitToContent(items)} style={styles.railZoomButton}>
+            <Text style={styles.railZoomText}>⊡</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -580,7 +609,7 @@ const styles = StyleSheet.create({
   saveText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#030B14', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)', flexWrap: 'wrap' },
   zoomGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
-  workbench: { height: 440, backgroundColor: '#020712' },
+  workbench: { height: VP_H, backgroundColor: '#0d2138' },
   leftRail: { display: 'none', width: 0 },
   tool: { alignItems: 'center', gap: 5 },
   toolIcon: { width: 22, height: 16, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
@@ -597,13 +626,13 @@ const styles = StyleSheet.create({
   railZoomText: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
   railZoomValue: { color: 'rgba(226,232,240,0.64)', fontSize: 9, fontWeight: '700' },
   toolText: { color: 'rgba(226,232,240,0.64)', fontSize: 9, fontWeight: '700' },
-  canvasViewport: { flex: 1, height: 440, overflow: 'hidden', position: 'relative', backgroundColor: '#020712' },
+  canvasViewport: { flex: 1, height: VP_H, overflow: 'hidden', position: 'relative', backgroundColor: '#0d2138' },
   zoomControls: { position: 'absolute', right: 14, top: 14, height: 34, borderRadius: 17, backgroundColor: '#0A375A', flexDirection: 'row', alignItems: 'center', overflow: 'hidden', zIndex: 20 },
   zoomButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1f2937' },
   zoomButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
   zoomValue: { width: 52, alignItems: 'center', justifyContent: 'center' },
   zoomText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
-  canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, position: 'relative', backgroundColor: '#020712' },
+  canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, position: 'relative', backgroundColor: '#0d2138' },
   canvasTips: { position: 'absolute', left: 16, bottom: 14, gap: 6 },
   tipText: { color: '#cbd5e1', backgroundColor: '#334155', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 4, fontSize: 10, fontWeight: '700' },
   tipTextOrange: { color: '#fbbf24', backgroundColor: '#8b6b4a', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 4, fontSize: 10, fontWeight: '700' },
