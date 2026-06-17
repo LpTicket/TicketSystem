@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../theme/colors';
@@ -9,7 +9,20 @@ import { GradientButton } from '../components/GradientButton';
 import { OrganizerDetailsMobile } from '../components/organizer/OrganizerEventForms';
 
 export type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes' | 'payments';
-type AdminUser = { id: string; name: string; email: string; role: 'client' | 'organizer' | 'admin'; suspended: boolean; avatarUrl?: string };
+type AdminUser = {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  role: 'client' | 'organizer' | 'admin';
+  suspended: boolean;
+  avatarUrl?: string;
+  createdAt?: string;
+};
 type Category = { id: string; name: string; active: boolean; featured: boolean };
 
 type AnalyticsSummary = {
@@ -17,7 +30,21 @@ type AnalyticsSummary = {
   totalViews: number;
   uniqueVisitors: number;
   topEvents: { eventSlug: string; eventTitle?: string | null; views: number; visitors: number }[];
+  topPages: { path: string; views: number; visitors: number }[];
   daily: { date: string; views: number; visitors: number }[];
+  recentViews: { id: string; path: string; eventSlug?: string | null; deviceType?: string | null; referrerHost?: string | null; createdAt: string }[];
+};
+
+type EventFinancial = {
+  id: string;
+  title: string;
+  totalCharged: number;
+  ticketSales: number;
+  serviceFees: number;
+  stripeFees: number;
+  lpticketProfit: number;
+  ticketsSold: number;
+  orders: number;
 };
 
 type ApiSpecialCode = {
@@ -84,14 +111,20 @@ type AdminOrder = {
 
 type AdminStats = {
   totalUsers?: number;
+  clients?: number;
+  admins?: number;
   totalEvents?: number;
   publishedEvents?: number;
+  draftEvents?: number;
   totalOrders?: number;
   paidOrders?: number;
   totalRevenue?: number;
   totalTickets?: number;
   ticketSales?: number;
   serviceFees?: number;
+  stripeFees?: number;
+  stripePercent?: number;
+  stripeFixed?: number;
   lpticketProfit?: number;
 };
 
@@ -170,10 +203,16 @@ function toAdminUser(user: any): AdminUser {
   return {
     id: String(user.id || user._id || user.email),
     name: fullName(user),
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
+    username: user.username || user.email?.split('@')[0] || '',
     email: user.email || '',
+    phone: user.phone || '',
+    address: user.address || '',
     role: user.role === 'admin' ? 'admin' : user.role === 'organizer' ? 'organizer' : 'client',
     suspended: user.isActive === false || user.suspended === true,
     avatarUrl: getImageUrl(user.avatarUrl || user.profileImageUrl || user.photoUrl || user.imageUrl),
+    createdAt: user.createdAt,
   };
 }
 
@@ -204,17 +243,27 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [marketingPromoEnabled, setMarketingPromoEnabled] = useState(false);
   const [specialCodeDraft, setSpecialCodeDraft] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<'' | 'client' | 'admin'>('');
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [selectedUserTickets, setSelectedUserTickets] = useState<any[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
 
   const [adminStats, setAdminStats] = useState<AdminStats>({});
   const [adminEvents, setAdminEvents] = useState<any[]>([]);
+  const [eventFilter, setEventFilter] = useState<'all' | 'pending_approval' | 'draft' | 'published' | 'cancelled'>('all');
+  const [eventSearch, setEventSearch] = useState('');
   const [editingAdminEvent, setEditingAdminEvent] = useState<any | null>(null);
   const [adminEditTitle, setAdminEditTitle] = useState('');
   const [adminEditVenue, setAdminEditVenue] = useState('');
   const [adminEditStatus, setAdminEditStatus] = useState<'draft' | 'published' | 'cancelled'>('published');
 
   // Lazy-loaded section data
+  const [analyticsDays, setAnalyticsDays] = useState(7);
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsRecentOpen, setAnalyticsRecentOpen] = useState(false);
+  const [eventFinancials, setEventFinancials] = useState<EventFinancial[]>([]);
+  const [selectedFinancialEventId, setSelectedFinancialEventId] = useState('');
   const [apiCodes, setApiCodes] = useState<ApiSpecialCode[]>([]);
   const [codesLoading, setCodesLoading] = useState(false);
   const [codesLoaded, setCodesLoaded] = useState(false);
@@ -229,6 +278,9 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [campaignSubjectDraft, setCampaignSubjectDraft] = useState('');
   const [campaignBodyDraft, setCampaignBodyDraft] = useState('');
   const [specialCodeOwnerDraft, setSpecialCodeOwnerDraft] = useState('');
+  const [ownerSearchQuery, setOwnerSearchQuery] = useState('');
+  const [ownerSearchResults, setOwnerSearchResults] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [ownerSearching, setOwnerSearching] = useState(false);
   const [usersApiError, setUsersApiError] = useState('');
   const [usersTotal, setUsersTotal] = useState<number | null>(null);
 
@@ -250,15 +302,28 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [payoutNote, setPayoutNote] = useState('');
   const [payoutSaving, setPayoutSaving] = useState(false);
 
-  const loadUsers = async () => {
+  const loadUsers = async (roleFilter?: string) => {
     try {
       setUsersApiError('');
-      const data = await apiGet<any>('/admin/users?page=1&limit=20');
+      const role = roleFilter !== undefined ? roleFilter : userRoleFilter;
+      const params = role ? `?role=${role}&page=1&limit=50` : '?page=1&limit=50';
+      const data = await apiGet<any>(`/admin/users${params}`);
       setUsers(listFrom(data).map(toAdminUser));
       setUsersTotal(typeof data?.total === 'number' ? data.total : listFrom(data).length);
     } catch (err: any) {
       setUsersApiError(err?.message || 'Could not load users');
     }
+  };
+
+  const openUserDetail = async (u: AdminUser) => {
+    setSelectedUser(u);
+    setSelectedUserTickets([]);
+    setLoadingTickets(true);
+    try {
+      const data = await apiGet<any[]>(`/orders/user/${u.id}/tickets`);
+      setSelectedUserTickets(Array.isArray(data) ? data : []);
+    } catch { setSelectedUserTickets([]); }
+    finally { setLoadingTickets(false); }
   };
 
   // ── Create user (admin) ────────────────────────────────────────────────────
@@ -301,10 +366,12 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       apiGet<any>('/admin/events?page=1&limit=50'),
       apiGet<any>('/admin/users?page=1&limit=50'),
       apiGet<any>('/categories?all=true'),
-    ]).then(([statsRes, eventsRes, usersRes, categoriesRes]) => {
+      apiGet<any>('/admin/events/financials').catch(() => ({ events: [] })),
+    ]).then(([statsRes, eventsRes, usersRes, categoriesRes, finRes]) => {
       if (!mounted) return;
 
       if (statsRes.status === 'fulfilled') setAdminStats(statsRes.value || {});
+      if (finRes.status === 'fulfilled') setEventFinancials((finRes.value as any)?.events || []);
 
       if (eventsRes.status === 'fulfilled') {
         setAdminEvents(listFrom(eventsRes.value));
@@ -333,15 +400,15 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   }, []);
 
   const [users, setUsers] = useState<AdminUser[]>([
-    { id: '1', name: 'Sundin Galue', email: 'sundin@example.com', role: 'admin', suspended: false },
-    { id: '2', name: 'Fidel Genre', email: 'fidel@example.com', role: 'organizer', suspended: false },
-    { id: '3', name: 'Maria Lopez', email: 'maria@example.com', role: 'client', suspended: false },
+    { id: '1', name: 'Sundin Galue', firstName: 'Sundin', lastName: 'Galue', username: 'sundin', email: 'sundin@example.com', role: 'admin', suspended: false },
+    { id: '2', name: 'Fidel Genre', firstName: 'Fidel', lastName: 'Genre', username: 'fidel', email: 'fidel@example.com', role: 'organizer', suspended: false },
+    { id: '3', name: 'Maria Lopez', firstName: 'Maria', lastName: 'Lopez', username: 'maria', email: 'maria@example.com', role: 'client', suspended: false },
   ]);
 
   useEffect(() => {
-    if (active === 'users') loadUsers();
+    if (active === 'users') loadUsers(userRoleFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
+  }, [active, userRoleFilter]);
 
   const normalizedUserSearch = userSearchQuery.trim().toLowerCase();
   const visibleUsers = normalizedUserSearch
@@ -385,15 +452,25 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     ]).start();
   }, [active, activeSectionIndex, adminIndicatorWidth, adminIndicatorX, tabLayouts]);
 
-  // Lazy-load analytics when that section is first opened
+  // Reload events when filter changes
   useEffect(() => {
-    if (active !== 'analytics' || analyticsSummary !== null || analyticsLoading) return;
+    if (active !== 'events') return;
+    const params = eventFilter !== 'all' ? `?status=${eventFilter}&page=1&limit=50` : '?page=1&limit=50';
+    apiGet<any>(`/admin/events${params}`)
+      .then((data) => setAdminEvents(listFrom(data)))
+      .catch(() => {});
+  }, [eventFilter, active]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lazy-load analytics when that section is first opened or days changes
+  useEffect(() => {
+    if (active !== 'analytics' || analyticsLoading) return;
     setAnalyticsLoading(true);
-    apiGet<AnalyticsSummary>('/analytics/summary?days=7')
+    setAnalyticsSummary(null);
+    apiGet<AnalyticsSummary>(`/analytics/summary?days=${analyticsDays}`)
       .then(setAnalyticsSummary)
       .catch(() => {})
       .finally(() => setAnalyticsLoading(false));
-  }, [active, analyticsSummary, analyticsLoading]);
+  }, [active, analyticsDays]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lazy-load special codes when that section is first opened
   useEffect(() => {
@@ -633,11 +710,25 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
 
   // ── Special codes actions ──────────────────────────────────────────────────
 
+  const searchOwnerUsers = async (q: string) => {
+    if (q.trim().length < 2) { setOwnerSearchResults([]); return; }
+    setOwnerSearching(true);
+    try {
+      const data = await apiGet<any>(`/admin/users?search=${encodeURIComponent(q.trim())}&limit=5`);
+      setOwnerSearchResults(listFrom(data).map((u: any) => ({
+        id: u.id || u._id,
+        name: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.name || u.email,
+        email: u.email,
+      })));
+    } catch { setOwnerSearchResults([]); }
+    finally { setOwnerSearching(false); }
+  };
+
   const addSpecialCode = async () => {
     const code = specialCodeDraft.trim().toUpperCase();
     const ownerUserId = specialCodeOwnerDraft.trim();
     if (!code || !ownerUserId) {
-      Alert.alert(t('Campos requeridos', 'Required fields'), t('Ingresa el código y el ID del dueño.', 'Enter the code and owner user ID.'));
+      Alert.alert(t('Campos requeridos', 'Required fields'), t('Ingresa el código y selecciona el dueño.', 'Enter the code and select the owner.'));
       return;
     }
     try {
@@ -645,6 +736,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       setApiCodes((current) => [result, ...current]);
       setSpecialCodeDraft('');
       setSpecialCodeOwnerDraft('');
+      setOwnerSearchQuery('');
+      setOwnerSearchResults([]);
     } catch (err: any) {
       Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo crear el código.', 'Could not create code.'));
     }
@@ -940,11 +1033,98 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
         {active === 'dashboard' && (
           <>
             <View style={styles.metricsGrid}>
-              <Metric label={t('Ventas plataforma', 'Platform sales')} value={money(adminStats.totalRevenue ?? 0)} />
-              <Metric label={t('Eventos activos', 'Active events')} value={String(adminStats.publishedEvents ?? adminStats.totalEvents ?? 0)} />
+              <Metric label={t('Ingresos totales', 'Total revenue')} value={money(adminStats.totalRevenue ?? 0)} />
               <Metric label={t('Usuarios', 'Users')} value={String(adminStats.totalUsers ?? 0)} />
-              <Metric label={t('Ganancia LPTicket', 'LPTicket profit')} value={money(adminStats.lpticketProfit ?? adminStats.serviceFees ?? 0)} />
+              <Metric label={t('Eventos totales', 'Total events')} value={String(adminStats.totalEvents ?? 0)} />
+              <Metric label={t('Órdenes', 'Orders')} value={String(adminStats.totalOrders ?? 0)} />
             </View>
+
+            <View style={styles.dashRowTwo}>
+              <View style={styles.dashHalfCard}>
+                <Text style={styles.dashCardEyebrow}>{t('USUARIOS', 'USERS')}</Text>
+                <View style={styles.dashMiniGrid}>
+                  <View style={[styles.dashMiniStat, { borderColor: 'rgba(249,115,22,0.28)' }]}>
+                    <Text style={[styles.dashMiniValue, { color: colors.orange }]}>{adminStats.clients ?? 0}</Text>
+                    <Text style={styles.dashMiniLabel}>{t('Clientes', 'Clients')}</Text>
+                  </View>
+                  <View style={[styles.dashMiniStat, { borderColor: 'rgba(239,68,68,0.28)' }]}>
+                    <Text style={[styles.dashMiniValue, { color: '#FCA5A5' }]}>{adminStats.admins ?? 0}</Text>
+                    <Text style={styles.dashMiniLabel}>{t('Admins', 'Admins')}</Text>
+                  </View>
+                </View>
+              </View>
+              <View style={styles.dashHalfCard}>
+                <Text style={styles.dashCardEyebrow}>{t('EVENTOS', 'EVENTS')}</Text>
+                <View style={styles.dashMiniGrid}>
+                  <View style={[styles.dashMiniStat, { borderColor: 'rgba(34,197,94,0.28)' }]}>
+                    <Text style={[styles.dashMiniValue, { color: '#4ADE80' }]}>{adminStats.publishedEvents ?? 0}</Text>
+                    <Text style={styles.dashMiniLabel}>{t('Activos', 'Published')}</Text>
+                  </View>
+                  <View style={[styles.dashMiniStat, { borderColor: 'rgba(234,179,8,0.28)' }]}>
+                    <Text style={[styles.dashMiniValue, { color: '#FDE047' }]}>{adminStats.draftEvents ?? 0}</Text>
+                    <Text style={styles.dashMiniLabel}>{t('Borradores', 'Drafts')}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Financial breakdown */}
+            {(() => {
+              const selEv = selectedFinancialEventId ? eventFinancials.find((e) => e.id === selectedFinancialEventId) : null;
+              const fin = selEv
+                ? { totalRevenue: selEv.totalCharged, ticketSales: selEv.ticketSales, serviceFees: selEv.serviceFees, stripeFees: selEv.stripeFees, lpticketProfit: selEv.lpticketProfit }
+                : { totalRevenue: adminStats.totalRevenue ?? 0, ticketSales: adminStats.ticketSales ?? 0, serviceFees: adminStats.serviceFees ?? 0, stripeFees: adminStats.stripeFees ?? 0, lpticketProfit: adminStats.lpticketProfit ?? 0 };
+              return (
+                <View style={styles.panelCard}>
+                  <Text style={styles.formEyebrow}>{t('DESGLOSE FINANCIERO', 'FINANCIAL BREAKDOWN')}</Text>
+                  <Text style={styles.panelTitle}>{t('Finanzas', 'Finances')}</Text>
+                  {eventFinancials.length > 0 && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                      <TouchableOpacity onPress={() => setSelectedFinancialEventId('')} style={[styles.finEventPill, !selectedFinancialEventId && styles.finEventPillActive]}>
+                        <Text style={[styles.finEventPillText, !selectedFinancialEventId && styles.finEventPillTextActive]}>{t('Global', 'Global')}</Text>
+                      </TouchableOpacity>
+                      {eventFinancials.map((ev) => (
+                        <TouchableOpacity key={ev.id} onPress={() => setSelectedFinancialEventId(ev.id)} style={[styles.finEventPill, selectedFinancialEventId === ev.id && styles.finEventPillActive]}>
+                          <Text style={[styles.finEventPillText, selectedFinancialEventId === ev.id && styles.finEventPillTextActive]} numberOfLines={1}>{ev.title}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )}
+                  {selEv && (
+                    <Text style={[styles.copy, { marginBottom: 10, marginTop: -8, fontSize: 12 }]}>
+                      {selEv.ticketsSold} {t('tickets', 'tickets')} · {selEv.orders} {t('órdenes', 'orders')}
+                    </Text>
+                  )}
+                  <View style={styles.finGrid}>
+                    <View style={[styles.finCard, { borderColor: 'rgba(249,115,22,0.28)' }]}>
+                      <Text style={styles.finCardLabel}>{t('TOTAL COBRADO', 'TOTAL CHARGED')}</Text>
+                      <Text style={[styles.finCardValue, { color: colors.orange }]}>{money(fin.totalRevenue)}</Text>
+                      <Text style={styles.finCardNote}>{t('Lo que pagaron compradores', 'What buyers paid')}</Text>
+                    </View>
+                    <View style={[styles.finCard, { borderColor: 'rgba(96,165,250,0.28)' }]}>
+                      <Text style={styles.finCardLabel}>{t('VENTA ENTRADAS', 'TICKET SALES')}</Text>
+                      <Text style={[styles.finCardValue, { color: '#60A5FA' }]}>{money(fin.ticketSales)}</Text>
+                      <Text style={styles.finCardNote}>{t('Para organizadores', 'To organizers')}</Text>
+                    </View>
+                    <View style={[styles.finCard, { borderColor: 'rgba(249,115,22,0.28)' }]}>
+                      <Text style={styles.finCardLabel}>{t('COMISIÓN LP', 'LP FEES')}</Text>
+                      <Text style={[styles.finCardValue, { color: colors.orange }]}>{money(fin.serviceFees)}</Text>
+                      <Text style={styles.finCardNote}>{t('Cargo sobre precio base', 'Markup over base price')}</Text>
+                    </View>
+                    <View style={[styles.finCard, { borderColor: 'rgba(168,85,247,0.28)' }]}>
+                      <Text style={styles.finCardLabel}>{t('COMISIÓN STRIPE', 'STRIPE FEES')}</Text>
+                      <Text style={[styles.finCardValue, { color: '#C084FC' }]}>-{money(fin.stripeFees)}</Text>
+                      <Text style={styles.finCardNote}>{(adminStats.stripePercent ?? 0.029) * 100}% + ${(adminStats.stripeFixed ?? 0.30).toFixed(2)}</Text>
+                    </View>
+                    <View style={[styles.finCard, styles.finCardGreen]}>
+                      <Text style={styles.finCardLabel}>{t('GANANCIA LP', 'LP PROFIT')}</Text>
+                      <Text style={[styles.finCardValue, { color: '#4ADE80' }]}>{money(fin.lpticketProfit)}</Text>
+                      <Text style={styles.finCardNote}>{t('Comisión − Stripe (neto)', 'Fees − Stripe (net)')}</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })()}
 
             <PanelCard title={t('Actividad reciente', 'Recent activity')}>
               <Activity title={t('Evento más reciente', 'Latest event')} copy={firstEvent ? adminEventTitle(firstEvent) : t('Sin eventos todavía', 'No events yet')} />
@@ -977,10 +1157,39 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             </>
           ) : (
             <>
-            {adminEvents.length === 0 && (
-              <PanelCard title={t('Sin eventos todavía', 'No events yet')} copy={t('Cuando se publiquen eventos aparecerán aquí.', 'Published events will appear here.')} />
+            {/* Status filter tabs */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eventFilterRow} contentContainerStyle={styles.eventFilterContent}>
+              {([
+                { key: 'all', label: t('Todos', 'All') },
+                { key: 'pending_approval', label: t('Por aprobar', 'Pending Approval') },
+                { key: 'draft', label: t('Borradores', 'Drafts') },
+                { key: 'published', label: t('Publicados', 'Published') },
+                { key: 'cancelled', label: t('Rechazados', 'Rejected') },
+              ] as const).map((f) => (
+                <TouchableOpacity key={f.key} onPress={() => setEventFilter(f.key)} style={[styles.eventFilterPill, eventFilter === f.key && styles.eventFilterPillActive]}>
+                  <Text style={[styles.eventFilterText, eventFilter === f.key && styles.eventFilterTextActive]}>{f.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Search */}
+            <View style={styles.userSearchBox}>
+              <Text style={styles.userSearchIcon}>⌕</Text>
+              <TextInput
+                value={eventSearch}
+                onChangeText={setEventSearch}
+                placeholder={t('Buscar eventos...', 'Search events...')}
+                placeholderTextColor="rgba(226,232,240,0.38)"
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.userSearchInput}
+              />
+            </View>
+
+            {adminEvents.filter((e) => !eventSearch || (e.title || '').toLowerCase().includes(eventSearch.toLowerCase())).length === 0 && (
+              <PanelCard title={t('Sin eventos', 'No events')} copy={t('No hay eventos con ese filtro.', 'No events match this filter.')} />
             )}
-            {[...adminEvents].sort(sortAdminEventsBySchedule).map((item: any) => (
+            {[...adminEvents].filter((e) => !eventSearch || (e.title || '').toLowerCase().includes(eventSearch.toLowerCase())).sort(sortAdminEventsBySchedule).map((item: any) => (
               <View key={String(item.id || item.slug || adminEventTitle(item))} style={[styles.adminEventCard, isAdminEventPast(item) && styles.adminEventCardPast]}>
                 <TouchableOpacity
                   onPress={() => openAdminEventEditor(item)}
@@ -1154,158 +1363,218 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
         )}
 
         {active === 'users' && (
-          editingUserId ? (
-            users.filter((user) => user.id === editingUserId).map((user) => (
-              <PanelCard key={user.id} title={t('Editar usuario', 'Edit user')} eyebrow={t('CONFIGURACION DE USUARIO', 'USER SETTINGS')} copy={t('Gestiona la informacion, permisos y estado de la cuenta.', 'Manage account information, permissions and status.')}>
-                <FieldLabel label={t('Nombre completo', 'Full name')} />
-                <TextInput value={user.name} onChangeText={(value) => updateUser(user.id, 'name', value)} style={styles.input} />
+          <>
+            {/* Role filter tabs */}
+            <View style={styles.userRoleFilterRow}>
+              {([
+                { key: '', label: t('Todos', 'All') },
+                { key: 'client', label: t('Clientes', 'Clients') },
+                { key: 'admin', label: t('Admins', 'Admins') },
+              ] as const).map((f) => (
+                <TouchableOpacity key={f.key} onPress={() => setUserRoleFilter(f.key)} style={[styles.eventFilterPill, userRoleFilter === f.key && styles.eventFilterPillActive]}>
+                  <Text style={[styles.eventFilterText, userRoleFilter === f.key && styles.eventFilterTextActive]}>{f.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
+            {/* Search */}
+            <View style={[styles.userSearchBox, { marginBottom: 10 }]}>
+              <Text style={styles.userSearchIcon}>⌕</Text>
+              <TextInput
+                value={userSearchQuery}
+                onChangeText={setUserSearchQuery}
+                placeholder={t('Buscar usuarios...', 'Search users...')}
+                placeholderTextColor="rgba(226,232,240,0.38)"
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.userSearchInput}
+              />
+            </View>
+
+            {/* Create user button */}
+            <TouchableOpacity onPress={() => setShowCreateUser((v) => !v)} style={styles.createUserBtn}>
+              <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.createUserBtnText}>{showCreateUser ? t('CANCELAR', 'CANCEL') : t('CREAR USUARIO', 'CREATE USER')}</Text>
+            </TouchableOpacity>
+
+            {showCreateUser && (
+              <PanelCard title={t('Nuevo usuario', 'New user')} eyebrow={t('CREAR', 'CREATE')} copy={t('Crea una cuenta manualmente.', 'Create an account manually.')}>
+                <View style={styles.twoColRow}>
+                  <View style={styles.col}><FieldLabel label={t('Nombre', 'First name')} /><TextInput value={cuForm.firstName} onChangeText={(v) => setCu('firstName', v)} style={styles.input} /></View>
+                  <View style={styles.col}><FieldLabel label={t('Apellido', 'Last name')} /><TextInput value={cuForm.lastName} onChangeText={(v) => setCu('lastName', v)} style={styles.input} /></View>
+                </View>
+                <FieldLabel label={t('Usuario', 'Username')} />
+                <TextInput value={cuForm.username} onChangeText={(v) => setCu('username', v)} autoCapitalize="none" style={styles.input} />
                 <FieldLabel label={t('Email', 'Email')} />
-                <TextInput value={user.email} onChangeText={(value) => updateUser(user.id, 'email', value)} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
-
+                <TextInput value={cuForm.email} onChangeText={(v) => setCu('email', v)} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
+                <FieldLabel label={t('Teléfono', 'Phone')} />
+                <TextInput value={cuForm.phone} onChangeText={(v) => setCu('phone', v)} keyboardType="phone-pad" style={styles.input} />
+                <FieldLabel label={t('Contraseña (opcional)', 'Password (optional)')} />
+                <TextInput value={cuForm.password} onChangeText={(v) => setCu('password', v)} secureTextEntry style={styles.input} />
                 <FieldLabel label={t('Rol', 'Role')} />
                 <View style={styles.segmentGroup}>
                   {(['client', 'organizer', 'admin'] as const).map((role) => (
-                    <TouchableOpacity key={role} onPress={() => updateUser(user.id, 'role', role)} style={[styles.segment, user.role === role && styles.segmentActive]}>
-                      <Text style={[styles.segmentText, user.role === role && styles.segmentTextActive]}>{role}</Text>
+                    <TouchableOpacity key={role} onPress={() => setCu('role', role)} style={[styles.segment, cuForm.role === role && styles.segmentActive]}>
+                      <Text style={[styles.segmentText, cuForm.role === role && styles.segmentTextActive]}>{role}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-
-                <FieldLabel label={t('Estado', 'Status')} />
-                <View style={styles.segmentGroup}>
-                  <TouchableOpacity onPress={() => updateUser(user.id, 'suspended', false)} style={[styles.segment, !user.suspended && styles.segmentActiveOrange]}>
-                    <Text style={[styles.segmentText, !user.suspended && styles.segmentTextActive]}>{t('Activo', 'Active')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => updateUser(user.id, 'suspended', true)} style={[styles.segment, user.suspended && styles.segmentDanger]}>
-                    <Text style={[styles.segmentText, user.suspended && styles.segmentTextActive]}>{t('Suspendido', 'Suspended')}</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.formActions}>
-                  <TouchableOpacity onPress={() => saveUserToApi(user.id)} style={styles.primaryButton}>
-                    <Text style={styles.primaryButtonText}>{t('GUARDAR USUARIO', 'SAVE USER')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setEditingUserId(null)} style={styles.secondaryButton}>
-                    <Text style={styles.secondaryButtonText}>{t('CANCELAR', 'CANCEL')}</Text>
-                  </TouchableOpacity>
-                </View>
+                <GradientButton label={creatingUser ? t('CREANDO...', 'CREATING...') : t('CREAR USUARIO', 'CREATE USER')} onPress={createUserApi} height={48} style={{ marginTop: 12 }} />
               </PanelCard>
-            ))
-          ) : (
-            <>
-              <View style={styles.userCountCard}>
-                <View>
-                  <Text style={styles.userCountEyebrow}>{t('USUARIOS ACTUALES', 'CURRENT USERS')}</Text>
-                  <Text style={styles.userCountCopy}>
-                    {userSearchQuery.trim()
-                      ? t('Coincidencias visibles en la búsqueda', 'Visible search matches')
-                      : t('Total registrado en la plataforma', 'Total registered on the platform')}
-                  </Text>
-                </View>
-                <View style={styles.userCountBadge}>
-                  <Text style={styles.userCountValue}>
-                    {userSearchQuery.trim() ? visibleUsers.length : (usersTotal ?? users.length)}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.userSearchBox}>
-                <Text style={styles.userSearchIcon}>⌕</Text>
-                <TextInput
-                  value={userSearchQuery}
-                  onChangeText={setUserSearchQuery}
-                  placeholder={t('Buscar usuarios', 'Search users')}
-                  placeholderTextColor="rgba(226,232,240,0.38)"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={styles.userSearchInput}
-                />
-              </View>
+            )}
 
-              <TouchableOpacity onPress={() => setShowCreateUser((v) => !v)} style={styles.createToggle}>
-                <Text style={styles.createToggleText}>{showCreateUser ? t('✕ Cancelar', '✕ Cancel') : t('+ Crear usuario', '+ Create user')}</Text>
-              </TouchableOpacity>
+            {usersApiError ? (
+              <View style={styles.userEmptyCard}>
+                <Text style={styles.userEmptyText}>{usersApiError}</Text>
+              </View>
+            ) : null}
 
-              {showCreateUser && (
-                <PanelCard title={t('Nuevo usuario', 'New user')} eyebrow={t('CREAR', 'CREATE')} copy={t('Crea una cuenta manualmente.', 'Create an account manually.')}>
-                  <View style={styles.twoColRow}>
-                    <View style={styles.col}><FieldLabel label={t('Nombre', 'First name')} /><TextInput value={cuForm.firstName} onChangeText={(v) => setCu('firstName', v)} style={styles.input} /></View>
-                    <View style={styles.col}><FieldLabel label={t('Apellido', 'Last name')} /><TextInput value={cuForm.lastName} onChangeText={(v) => setCu('lastName', v)} style={styles.input} /></View>
-                  </View>
-                  <FieldLabel label={t('Usuario', 'Username')} />
-                  <TextInput value={cuForm.username} onChangeText={(v) => setCu('username', v)} autoCapitalize="none" style={styles.input} />
-                  <FieldLabel label={t('Email', 'Email')} />
-                  <TextInput value={cuForm.email} onChangeText={(v) => setCu('email', v)} autoCapitalize="none" keyboardType="email-address" style={styles.input} />
-                  <FieldLabel label={t('Teléfono', 'Phone')} />
-                  <TextInput value={cuForm.phone} onChangeText={(v) => setCu('phone', v)} keyboardType="phone-pad" style={styles.input} />
-                  <FieldLabel label={t('Contraseña (opcional)', 'Password (optional)')} />
-                  <TextInput value={cuForm.password} onChangeText={(v) => setCu('password', v)} secureTextEntry style={styles.input} />
-                  <FieldLabel label={t('Rol', 'Role')} />
-                  <View style={styles.segmentGroup}>
-                    {(['client', 'organizer', 'admin'] as const).map((role) => (
-                      <TouchableOpacity key={role} onPress={() => setCu('role', role)} style={[styles.segment, cuForm.role === role && styles.segmentActive]}>
-                        <Text style={[styles.segmentText, cuForm.role === role && styles.segmentTextActive]}>{role}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  <GradientButton label={creatingUser ? t('CREANDO...', 'CREATING...') : t('CREAR USUARIO', 'CREATE USER')} onPress={createUserApi} height={48} style={{ marginTop: 12 }} />
-                </PanelCard>
-              )}
-              {usersApiError ? (
-                <View style={styles.userEmptyCard}>
-                  <Text style={styles.userEmptyText}>{t('No se pudo actualizar la lista real de usuarios.', 'Could not refresh the real users list.')}</Text>
-                  <Text style={styles.userEmptyText}>{usersApiError}</Text>
-                </View>
-              ) : null}
-              {visibleUsers.length === 0 && (
-                <View style={styles.userEmptyCard}>
-                  <Text style={styles.userEmptyText}>{t('No se encontraron usuarios', 'No users found')}</Text>
-                </View>
-              )}
-              {visibleUsers.map((user) => (
-                <View key={user.id} style={styles.userCard}>
-                  <View style={styles.userHeader}>
-                    <View style={styles.userInfo}>
-                      <View style={styles.userIdentity}>
-                        <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
-                        <Text style={styles.userEmail} numberOfLines={1}>{user.email}</Text>
-                      </View>
-                      <View style={styles.userBadges}>
-                        <StatusPill label={user.suspended ? 'SUSPENDED' : 'ACTIVE'} tone={user.suspended ? 'red' : 'green'} compact />
-                        <StatusPill label={user.role.toUpperCase()} tone={user.role === 'admin' ? 'dark' : user.role === 'organizer' ? 'orange' : 'gray'} compact />
-                      </View>
-                    </View>
-                    <View style={styles.userAvatarBox}>
+            {visibleUsers.length === 0 && !usersApiError && (
+              <View style={styles.userEmptyCard}>
+                <Text style={styles.userEmptyText}>{t('No se encontraron usuarios', 'No users found')}</Text>
+              </View>
+            )}
+
+            {visibleUsers.map((user) => {
+              const initials = ((user.firstName[0] || '') + (user.lastName[0] || '')).toUpperCase() || user.name.slice(0, 2).toUpperCase();
+              const dateStr = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+              return (
+                <TouchableOpacity key={user.id} onPress={() => openUserDetail(user)} style={styles.userCard2} activeOpacity={0.8}>
+                  {/* Top row: avatar + name + role badge */}
+                  <View style={styles.userCard2Top}>
+                    <View style={styles.userInitialsAvatar}>
                       {user.avatarUrl ? (
-                        <Image source={{ uri: user.avatarUrl }} style={styles.userAvatarImage} resizeMode="cover" />
+                        <Image source={{ uri: user.avatarUrl }} style={{ width: '100%', height: '100%', borderRadius: 999 }} resizeMode="cover" />
                       ) : (
-                        <View style={styles.userAvatarFallback}>
-                          <View style={styles.userAvatarHead} />
-                          <View style={styles.userAvatarBody} />
-                        </View>
+                        <Text style={styles.userInitialsText}>{initials}</Text>
                       )}
                     </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.userCard2Name} numberOfLines={1}>{user.name}</Text>
+                      <Text style={styles.userCard2Username} numberOfLines={1}>@{user.username}</Text>
+                    </View>
+                    <StatusPill label={user.role.toUpperCase()} tone={user.role === 'admin' ? 'dark' : 'gray'} compact />
                   </View>
 
-                  <View style={styles.userActionRow}>
-                    <GradientButton
-                      label={t('EDITAR', 'EDIT')}
-                      onPress={() => setEditingUserId(user.id)}
-                      height={36}
-                      style={styles.userPrimaryAction}
-                      textStyle={styles.userPrimaryText}
-                    />
-                    <TouchableOpacity onPress={() => toggleUserActiveApi(user.id)} style={styles.userSecondaryAction}>
-                      <Text style={styles.userSecondaryText}>{user.suspended ? 'ENABLE' : 'SUSPEND'}</Text>
+                  {/* Email row */}
+                  <View style={styles.userCard2EmailRow}>
+                    <Ionicons name="mail-outline" size={13} color="rgba(226,232,240,0.5)" />
+                    <Text style={styles.userCard2Email} numberOfLines={1}>{user.email}</Text>
+                  </View>
+
+                  {/* Status + date */}
+                  <View style={styles.userCard2StatusRow}>
+                    <StatusPill label={user.suspended ? t('INACTIVO', 'INACTIVE') : t('ACTIVO', 'ACTIVE')} tone={user.suspended ? 'red' : 'green'} compact />
+                    {dateStr ? <Text style={styles.userCard2Date}>{dateStr}</Text> : null}
+                  </View>
+
+                  {/* Action bar */}
+                  <View style={styles.userCard2Actions} onStartShouldSetResponder={() => true}>
+                    <View style={styles.userRoleDropdown}>
+                      <Text style={styles.userRoleDropdownText}>{user.role === 'admin' ? 'Admin' : user.role === 'organizer' ? 'Organizer' : 'Client'}</Text>
+                      <Ionicons name="chevron-down" size={12} color="rgba(226,232,240,0.5)" />
+                    </View>
+                    <TouchableOpacity onPress={(e) => { e.stopPropagation(); openUserDetail(user); }} style={styles.userActionIcon}>
+                      <Ionicons name="pencil-outline" size={18} color="#94A3B8" />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => deleteUserApi(user.id)} style={[styles.userSecondaryAction, styles.userDangerAction]}>
-                      <Text style={[styles.userSecondaryText, styles.userDangerText]}>DEL</Text>
+                    <TouchableOpacity onPress={(e) => { e.stopPropagation(); toggleUserActiveApi(user.id); }} style={[styles.userActionIcon, { borderColor: user.suspended ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)' }]}>
+                      <Ionicons name={user.suspended ? 'checkmark-circle-outline' : 'ban-outline'} size={18} color={user.suspended ? '#4ADE80' : '#FCA5A5'} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={(e) => { e.stopPropagation(); deleteUserApi(user.id); }} style={[styles.userActionIcon, { borderColor: 'rgba(239,68,68,0.28)' }]}>
+                      <Ionicons name="trash-outline" size={18} color="#FCA5A5" />
                     </TouchableOpacity>
                   </View>
+                </TouchableOpacity>
+              );
+            })}
+          </>
+        )}
+
+      {selectedUser && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setSelectedUser(null)}>
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setSelectedUser(null)} activeOpacity={1} />
+            <View style={styles.userModal}>
+              {/* Modal header */}
+              <View style={styles.userModalHeader}>
+                <View style={styles.userInitialsAvatarLg}>
+                  {selectedUser.avatarUrl ? (
+                    <Image source={{ uri: selectedUser.avatarUrl }} style={{ width: '100%', height: '100%', borderRadius: 999 }} resizeMode="cover" />
+                  ) : (
+                    <Text style={styles.userInitialsTextLg}>
+                      {((selectedUser.firstName[0] || '') + (selectedUser.lastName[0] || '')).toUpperCase() || selectedUser.name.slice(0, 2).toUpperCase()}
+                    </Text>
+                  )}
                 </View>
-              ))}
-            </>
-          )
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.userModalName}>{selectedUser.name}</Text>
+                  <Text style={styles.userModalSub}>@{selectedUser.username} · {selectedUser.role.toUpperCase()}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setSelectedUser(null)} style={styles.userModalClose}>
+                  <Ionicons name="close" size={20} color="rgba(226,232,240,0.7)" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 16 }}>
+                {/* Contact info */}
+                <View>
+                  <Text style={styles.userModalSectionLabel}>{t('INFORMACIÓN DE CONTACTO', 'CONTACT INFORMATION')}</Text>
+                  <View style={styles.userModalInfoCard}>
+                    <View style={styles.userModalInfoRow}>
+                      <Ionicons name="mail-outline" size={16} color="rgba(226,232,240,0.5)" />
+                      <Text style={styles.userModalInfoText}>{selectedUser.email}</Text>
+                    </View>
+                    <View style={styles.userModalInfoRow}>
+                      <Ionicons name="call-outline" size={16} color="rgba(226,232,240,0.5)" />
+                      <Text style={styles.userModalInfoText}>{selectedUser.phone || t('No configurado', 'Not configured')}</Text>
+                    </View>
+                    <View style={styles.userModalInfoRow}>
+                      <Ionicons name="location-outline" size={16} color="rgba(226,232,240,0.5)" />
+                      <Text style={styles.userModalInfoText}>{selectedUser.address || t('No configurado', 'Not configured')}</Text>
+                    </View>
+                    {selectedUser.createdAt && (
+                      <View style={styles.userModalInfoRow}>
+                        <Ionicons name="calendar-outline" size={16} color="rgba(226,232,240,0.5)" />
+                        <Text style={styles.userModalInfoText}>{t('Registrado el', 'Registered on')} {new Date(selectedUser.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* Ticket history */}
+                <View>
+                  <Text style={styles.userModalSectionLabel}>{t('HISTORIAL DE COMPRAS', 'TICKETS PURCHASE HISTORY')}</Text>
+                  <View style={styles.userModalInfoCard}>
+                    {loadingTickets ? (
+                      <Text style={styles.userModalEmptyText}>{t('Cargando...', 'Loading...')}</Text>
+                    ) : selectedUserTickets.length === 0 ? (
+                      <Text style={styles.userModalEmptyText}>{t('No se encontraron compras de tickets para este cliente', 'No ticket purchases found for this client')}</Text>
+                    ) : selectedUserTickets.map((tk: any, i) => (
+                      <View key={tk.id || i} style={[styles.userModalInfoRow, i > 0 && { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', paddingTop: 10 }]}>
+                        <Ionicons name="ticket-outline" size={15} color="rgba(249,115,22,0.7)" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.userModalInfoText, { fontWeight: '700' }]} numberOfLines={1}>{tk.event?.title || tk.eventTitle || t('Evento', 'Event')}</Text>
+                          <Text style={[styles.userModalInfoText, { fontSize: 11, color: 'rgba(226,232,240,0.5)' }]}>{tk.seatLabel || tk.seat || ''} · ${tk.price ?? ''}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Footer */}
+              <View style={styles.userModalFooter}>
+                <TouchableOpacity onPress={() => { setSelectedUser(null); setEditingUserId(selectedUser.id); }} style={styles.userModalEditBtn}>
+                  <Ionicons name="pencil-outline" size={15} color={colors.orange} />
+                  <Text style={styles.userModalEditBtnText}>{t('Editar perfil', 'Edit Profile')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setSelectedUser(null)} style={styles.userModalCloseBtn}>
+                  <Text style={styles.userModalCloseBtnText}>{t('Cerrar', 'Close')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
         )}
 
         {active === 'categories' && (
@@ -1453,24 +1722,48 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
         )}
         {active === 'analytics' && (
           <>
+            {/* Day selector */}
+            <View style={styles.analyticsDayRow}>
+              {([1, 7, 30, 90] as const).map((d) => (
+                <TouchableOpacity key={d} onPress={() => setAnalyticsDays(d)} style={[styles.analyticsDayPill, analyticsDays === d && styles.analyticsDayPillActive]}>
+                  <Text style={[styles.analyticsDayText, analyticsDays === d && styles.analyticsDayTextActive]}>
+                    {d === 1 ? t('24h', '24h') : d === 7 ? t('7d', '7d') : d === 30 ? t('30d', '30d') : t('90d', '90d')}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             {analyticsLoading && <PanelCard title={t('Cargando...', 'Loading...')} />}
             {analyticsSummary && (
               <>
                 <View style={styles.metricsGrid}>
                   <Metric label={t('Vistas totales', 'Total views')} value={analyticsSummary.totalViews >= 1000 ? `${(analyticsSummary.totalViews / 1000).toFixed(1)}k` : String(analyticsSummary.totalViews)} />
                   <Metric label={t('Visitantes únicos', 'Unique visitors')} value={analyticsSummary.uniqueVisitors >= 1000 ? `${(analyticsSummary.uniqueVisitors / 1000).toFixed(1)}k` : String(analyticsSummary.uniqueVisitors)} />
-                  <Metric label={t('Órdenes pagadas', 'Paid orders')} value={String(adminStats.paidOrders ?? adminStats.totalOrders ?? 0)} />
-                  <Metric label={t('Ingresos', 'Revenue')} value={money(adminStats.totalRevenue ?? 0)} />
+                  <Metric label={t('Eventos vistos', 'Viewed events')} value={String(analyticsSummary.topEvents.length)} />
+                  <Metric label={t('Páginas vistas', 'Pages viewed')} value={String((analyticsSummary.topPages ?? []).length)} />
                 </View>
 
                 {analyticsSummary.topEvents.length > 0 && (
-                  <PanelCard title={t('Eventos más vistos', 'Most viewed events')} eyebrow={t('EVENTOS TOP', 'TOP EVENTS')} copy={t(`Últimos ${analyticsSummary.days ?? 7} días`, `Last ${analyticsSummary.days ?? 7} days`)}>
-                    {analyticsSummary.topEvents.slice(0, 5).map((ev, i) => (
+                  <PanelCard title={t('Eventos más vistos', 'Most viewed events')} eyebrow={t('EVENTOS TOP', 'TOP EVENTS')} copy={t(`Últimos ${analyticsDays} días`, `Last ${analyticsDays} days`)}>
+                    {analyticsSummary.topEvents.slice(0, 8).map((ev, i) => (
                       <RankItem
                         key={ev.eventSlug}
                         index={String(i + 1).padStart(2, '0')}
                         title={ev.eventTitle || formatEventSlug(ev.eventSlug)}
-                        value={`${ev.views} ${t('vistas', 'views')}`}
+                        value={`${ev.views} ${t('v', 'v')} · ${ev.visitors} ${t('u', 'u')}`}
+                      />
+                    ))}
+                  </PanelCard>
+                )}
+
+                {(analyticsSummary.topPages ?? []).length > 0 && (
+                  <PanelCard title={t('Páginas más vistas', 'Top pages')} eyebrow={t('PÁGINAS TOP', 'TOP PAGES')} copy={t(`Últimos ${analyticsDays} días`, `Last ${analyticsDays} days`)}>
+                    {(analyticsSummary.topPages ?? []).slice(0, 8).map((page, i) => (
+                      <RankItem
+                        key={page.path}
+                        index={String(i + 1).padStart(2, '0')}
+                        title={page.path}
+                        value={`${page.views} ${t('v', 'v')} · ${page.visitors} ${t('u', 'u')}`}
                       />
                     ))}
                   </PanelCard>
@@ -1479,11 +1772,34 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 {analyticsSummary.daily.length > 0 && (
                   <PanelCard title={t('Vistas por día', 'Daily views')} eyebrow={t('ACTIVIDAD', 'ACTIVITY')}>
                     {analyticsSummary.daily.map((d) => {
-                      const maxViews = Math.max(...analyticsSummary.daily.map((r) => r.views), 1);
+                      const maxViews = Math.max(...analyticsSummary!.daily.map((r) => r.views), 1);
                       const pct = Math.round((d.views / maxViews) * 100);
                       return <AnalyticsBar key={d.date} label={d.date.slice(5)} value={`${pct}%` as `${number}%`} views={d.views} />;
                     })}
                   </PanelCard>
+                )}
+
+                {(analyticsSummary.recentViews ?? []).length > 0 && (
+                  <View style={styles.panelCard}>
+                    <TouchableOpacity onPress={() => setAnalyticsRecentOpen((v) => !v)} style={styles.recentToggleRow}>
+                      <View>
+                        <Text style={styles.formEyebrow}>{t('ACTIVIDAD RECIENTE', 'RECENT ACTIVITY')}</Text>
+                        <Text style={styles.panelTitle}>{t('Últimas visitas', 'Recent views')}</Text>
+                        <Text style={styles.copy}>{analyticsSummary.recentViews.length} {t('registros', 'records')}</Text>
+                      </View>
+                      <Ionicons name={analyticsRecentOpen ? 'chevron-up' : 'chevron-down'} size={20} color={colors.orange} />
+                    </TouchableOpacity>
+                    {analyticsRecentOpen && (analyticsSummary.recentViews ?? []).map((view) => (
+                      <View key={view.id} style={styles.recentViewRow}>
+                        <Text style={styles.recentViewPath} numberOfLines={1}>{view.path}</Text>
+                        <View style={styles.recentViewMeta}>
+                          {view.deviceType ? <Text style={styles.recentViewTag}>{view.deviceType}</Text> : null}
+                          {view.referrerHost ? <Text style={styles.recentViewTag}>{view.referrerHost}</Text> : null}
+                          <Text style={styles.recentViewTime}>{new Date(view.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
                 )}
               </>
             )}
@@ -1499,10 +1815,38 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               <Text style={styles.codePanelTitle}>{t('Codigos especiales', 'Special codes')}</Text>
               <Text style={styles.codePanelCopy}>{t('Crea codigos, asigna comisiones y monitorea ventas generadas.', 'Create codes, assign commissions and monitor generated sales.')}</Text>
               <TextInput value={specialCodeDraft} onChangeText={setSpecialCodeDraft} placeholder={t('Codigo (ej: LPVIP)', 'Code (e.g. LPVIP)')} placeholderTextColor="#9CA3AF" autoCapitalize="characters" style={[styles.codeInput, { marginBottom: 8 }]} />
-              <View style={styles.createRow}>
-                <TextInput value={specialCodeOwnerDraft} onChangeText={setSpecialCodeOwnerDraft} placeholder={t('ID del dueño (UUID)', 'Owner user ID (UUID)')} placeholderTextColor="#9CA3AF" autoCapitalize="none" style={styles.codeInput} />
-                <GradientButton label={t('AGREGAR', 'ADD')} onPress={addSpecialCode} height={44} style={styles.codeAddButton} textStyle={styles.codeAddButtonText} />
+              <View style={styles.ownerSearchBox}>
+                <TextInput
+                  value={ownerSearchQuery}
+                  onChangeText={(v) => { setOwnerSearchQuery(v); searchOwnerUsers(v); }}
+                  placeholder={t('Buscar dueño por nombre o email', 'Search owner by name or email')}
+                  placeholderTextColor="#9CA3AF"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={styles.codeInput}
+                />
+                {ownerSearching && <Text style={styles.ownerSearchingText}>...</Text>}
               </View>
+              {ownerSearchResults.length > 0 && (
+                <View style={styles.ownerResultsList}>
+                  {ownerSearchResults.map((u) => (
+                    <TouchableOpacity key={u.id} onPress={() => { setSpecialCodeOwnerDraft(u.id); setOwnerSearchQuery(`${u.name} (${u.email})`); setOwnerSearchResults([]); }} style={styles.ownerResultRow}>
+                      <Text style={styles.ownerResultName}>{u.name}</Text>
+                      <Text style={styles.ownerResultEmail}>{u.email}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {specialCodeOwnerDraft ? (
+                <View style={styles.ownerSelectedRow}>
+                  <Ionicons name="checkmark-circle" size={16} color="#4ADE80" />
+                  <Text style={styles.ownerSelectedText} numberOfLines={1}>{ownerSearchQuery || specialCodeOwnerDraft}</Text>
+                  <TouchableOpacity onPress={() => { setSpecialCodeOwnerDraft(''); setOwnerSearchQuery(''); setOwnerSearchResults([]); }}>
+                    <Ionicons name="close-circle" size={16} color="rgba(226,232,240,0.4)" />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              <GradientButton label={t('AGREGAR CÓDIGO', 'ADD CODE')} onPress={addSpecialCode} height={44} style={{ marginTop: 8 }} />
             </View>
 
             {codesLoading && <PanelCard title={t('Cargando...', 'Loading...')} />}
@@ -1725,7 +2069,6 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     </View>
   );
 }
-
 function PanelCard({ title, eyebrow, copy, children }: { title: string; eyebrow?: string; copy?: string; children?: React.ReactNode }) {
   return (
     <View style={styles.panelCard}>
@@ -2126,4 +2469,95 @@ const styles = StyleSheet.create({
   commissionStatValue: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginTop: 4 },
   payoutHistory: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 8, marginTop: 4, gap: 4 },
   payoutHistoryItem: { color: 'rgba(226,232,240,0.52)', fontSize: 11, fontWeight: '400' },
+
+  // Dashboard financial breakdown
+  dashRowTwo: { flexDirection: 'row', gap: 12, marginBottom: 14 },
+  dashHalfCard: { flex: 1, backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 14 },
+  dashCardEyebrow: { color: colors.orange, fontSize: 11, fontWeight: '700', marginBottom: 10 },
+  dashMiniGrid: { flexDirection: 'row', gap: 8 },
+  dashMiniStat: { flex: 1, backgroundColor: '#030B14', borderRadius: 12, borderWidth: 1, padding: 10, alignItems: 'center' },
+  dashMiniValue: { fontSize: 22, fontWeight: '800', marginBottom: 2 },
+  dashMiniLabel: { color: 'rgba(226,232,240,0.58)', fontSize: 10, fontWeight: '700' },
+  finGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  finCard: { width: '48%', backgroundColor: '#030B14', borderRadius: 14, borderWidth: 1, padding: 12 },
+  finCardGreen: { borderColor: 'rgba(34,197,94,0.28)' },
+  finCardLabel: { color: 'rgba(226,232,240,0.52)', fontSize: 9, fontWeight: '700', marginBottom: 6 },
+  finCardValue: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
+  finCardNote: { color: 'rgba(226,232,240,0.44)', fontSize: 10, fontWeight: '500' },
+  finEventPill: { height: 32, borderRadius: 99, paddingHorizontal: 14, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  finEventPillActive: { backgroundColor: 'rgba(249,115,22,0.14)', borderColor: 'rgba(249,115,22,0.5)' },
+  finEventPillText: { color: 'rgba(226,232,240,0.62)', fontSize: 12, fontWeight: '700' },
+  finEventPillTextActive: { color: colors.orange },
+
+  // Analytics day selector
+  analyticsDayRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  analyticsDayPill: { height: 36, borderRadius: 12, paddingHorizontal: 14, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  analyticsDayPillActive: { backgroundColor: 'rgba(249,115,22,0.14)', borderColor: 'rgba(249,115,22,0.5)' },
+  analyticsDayText: { color: 'rgba(226,232,240,0.62)', fontSize: 13, fontWeight: '700' },
+  analyticsDayTextActive: { color: colors.orange },
+
+  // Recent activity (analytics)
+  recentToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  recentViewRow: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 10, marginTop: 10 },
+  recentViewPath: { color: '#F8FAFC', fontSize: 13, fontWeight: '700', marginBottom: 5 },
+  recentViewMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  recentViewTag: { backgroundColor: '#030B14', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, color: 'rgba(226,232,240,0.62)', fontSize: 11, fontWeight: '600', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  recentViewTime: { color: 'rgba(226,232,240,0.44)', fontSize: 11, fontWeight: '400' },
+
+  // User v2 cards
+  userRoleFilterRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  createUserBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 42, borderRadius: 12, paddingHorizontal: 16, backgroundColor: 'rgba(10,55,90,0.8)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignSelf: 'flex-start', marginBottom: 12 },
+  createUserBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0 },
+  userCard2: { backgroundColor: '#030B14', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 14, marginBottom: 10 },
+  userCard2Top: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  userInitialsAvatar: { width: 42, height: 42, borderRadius: 999, backgroundColor: 'rgba(249,115,22,0.14)', borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.4)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  userInitialsText: { color: colors.orange, fontSize: 14, fontWeight: '800' },
+  userInitialsAvatarLg: { width: 52, height: 52, borderRadius: 999, backgroundColor: 'rgba(249,115,22,0.14)', borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.4)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  userInitialsTextLg: { color: colors.orange, fontSize: 18, fontWeight: '800' },
+  userCard2Name: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  userCard2Username: { color: 'rgba(226,232,240,0.48)', fontSize: 11, fontWeight: '700' },
+  userCard2EmailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  userCard2Email: { color: 'rgba(226,232,240,0.55)', fontSize: 12, fontWeight: '400', flex: 1 },
+  userCard2StatusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  userCard2Date: { color: 'rgba(226,232,240,0.4)', fontSize: 11, fontWeight: '500', fontStyle: 'italic' },
+  userCard2Actions: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 10 },
+  userRoleDropdown: { flex: 1, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10 },
+  userRoleDropdownText: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' },
+  userActionIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+
+  // User detail modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(3,11,20,0.72)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  userModal: { width: '100%', maxHeight: '88%', backgroundColor: '#0d1f33', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' },
+  userModalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.10)' },
+  userModalName: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 2 },
+  userModalSub: { color: 'rgba(226,232,240,0.52)', fontSize: 11, fontWeight: '600' },
+  userModalClose: { width: 34, height: 34, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
+  userModalSectionLabel: { color: 'rgba(226,232,240,0.44)', fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 10 },
+  userModalInfoCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', padding: 14, gap: 12 },
+  userModalInfoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  userModalInfoText: { color: '#CBD5E1', fontSize: 13, fontWeight: '500', flex: 1 },
+  userModalEmptyText: { color: 'rgba(226,232,240,0.44)', fontSize: 13, fontWeight: '400', textAlign: 'center', paddingVertical: 8 },
+  userModalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
+  userModalEditBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  userModalEditBtnText: { color: colors.orange, fontSize: 14, fontWeight: '700' },
+  userModalCloseBtn: { height: 40, paddingHorizontal: 20, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  userModalCloseBtnText: { color: '#CBD5E1', fontSize: 14, fontWeight: '700' },
+
+  // Event filter tabs
+  eventFilterRow: { marginBottom: 10 },
+  eventFilterContent: { paddingRight: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
+  eventFilterPill: { height: 38, borderRadius: 12, paddingHorizontal: 14, backgroundColor: 'rgba(8,31,51,0.6)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  eventFilterPillActive: { backgroundColor: 'rgba(249,115,22,0.9)', borderColor: 'rgba(255,151,45,0.62)' },
+  eventFilterText: { color: '#CBD5E1', fontSize: 13, fontWeight: '700' },
+  eventFilterTextActive: { color: '#FFFFFF' },
+
+  // Owner user search (special codes)
+  ownerSearchBox: { position: 'relative', marginBottom: 6 },
+  ownerSearchingText: { color: colors.orange, fontSize: 11, fontWeight: '700', marginTop: 4 },
+  ownerResultsList: { backgroundColor: '#030B14', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', marginBottom: 8, overflow: 'hidden' },
+  ownerResultRow: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  ownerResultName: { color: '#F8FAFC', fontSize: 13, fontWeight: '700', marginBottom: 2 },
+  ownerResultEmail: { color: 'rgba(226,232,240,0.58)', fontSize: 11, fontWeight: '400' },
+  ownerSelectedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(34,197,94,0.08)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(34,197,94,0.24)', paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 },
+  ownerSelectedText: { flex: 1, color: '#4ADE80', fontSize: 12, fontWeight: '600' },
 });
