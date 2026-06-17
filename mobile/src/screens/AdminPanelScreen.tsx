@@ -30,11 +30,45 @@ type ApiSpecialCode = {
 };
 
 type CommissionEntry = {
+  eventId?: string;
+  eventTitle?: string;
   ownerUserId: string;
   ownerName?: string;
+  ownerEmail?: string;
+  totalTickets?: number;
   totalEarned: number;
   totalPaid: number;
   balance: number;
+  payouts?: { id: string; amount: number; note: string | null; paidAt: string }[];
+};
+
+type FeeConfig = {
+  event: {
+    id: string;
+    serviceFeePercent: string;
+    serviceFeeFixedPerTicket: string;
+    processingFeePercent: string;
+    processingFeeFixedPerTicket: string;
+  };
+  sections: {
+    id: string;
+    name: string;
+    serviceFeePercent: string;
+    serviceFeeFixedPerTicket: string;
+    processingFeePercent: string;
+    processingFeeFixedPerTicket: string;
+  }[];
+};
+
+type PriceConfig = {
+  event: { id: string; title: string };
+  sections: {
+    id: string;
+    name: string;
+    price: number | null;
+    pendingPrice: number | null;
+    priceStatus: string | null;
+  }[];
 };
 
 type AdminOrder = {
@@ -197,6 +231,24 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [specialCodeOwnerDraft, setSpecialCodeOwnerDraft] = useState('');
   const [usersApiError, setUsersApiError] = useState('');
   const [usersTotal, setUsersTotal] = useState<number | null>(null);
+
+  // Fees config
+  const [feeEventId, setFeeEventId] = useState<string | null>(null);
+  const [feeConfig, setFeeConfig] = useState<FeeConfig | null>(null);
+  const [feeLoading, setFeeLoading] = useState(false);
+  const [feeSaving, setFeeSaving] = useState(false);
+  const [feeTab, setFeeTab] = useState<'global' | 'sections'>('global');
+
+  // Price approvals
+  const [priceEventId, setPriceEventId] = useState<string | null>(null);
+  const [priceConfig, setPriceConfig] = useState<PriceConfig | null>(null);
+  const [priceLoading, setPriceLoading] = useState(false);
+
+  // Payout
+  const [payoutEntry, setPayoutEntry] = useState<CommissionEntry | null>(null);
+  const [payoutAmount, setPayoutAmount] = useState('');
+  const [payoutNote, setPayoutNote] = useState('');
+  const [payoutSaving, setPayoutSaving] = useState(false);
 
   const loadUsers = async () => {
     try {
@@ -695,6 +747,167 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     }
   };
 
+  // ── Fees ──────────────────────────────────────────────────────────────────
+
+  const openFees = async (ev: any) => {
+    if (feeEventId === ev.id) { setFeeEventId(null); setFeeConfig(null); return; }
+    setFeeEventId(ev.id);
+    setFeeConfig(null);
+    setFeeLoading(true);
+    setFeeTab('global');
+    try {
+      const data = await apiGet<any>(`/admin/events/${ev.id}/fees`);
+      const toStr = (v: any) => v != null ? String(v) : '';
+      setFeeConfig({
+        event: {
+          id: data.event.id,
+          serviceFeePercent: toStr(data.event.serviceFeePercent),
+          serviceFeeFixedPerTicket: toStr(data.event.serviceFeeFixedPerTicket),
+          processingFeePercent: toStr(data.event.processingFeePercent),
+          processingFeeFixedPerTicket: toStr(data.event.processingFeeFixedPerTicket),
+        },
+        sections: (data.sections || []).map((s: any) => ({
+          id: s.id,
+          name: s.name || s.sectionType || 'Sección',
+          serviceFeePercent: toStr(s.serviceFeePercent),
+          serviceFeeFixedPerTicket: toStr(s.serviceFeeFixedPerTicket),
+          processingFeePercent: toStr(s.processingFeePercent),
+          processingFeeFixedPerTicket: toStr(s.processingFeeFixedPerTicket),
+        })),
+      });
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('No se pudo cargar la configuración de fees', 'Could not load fee configuration'));
+      setFeeEventId(null);
+    } finally {
+      setFeeLoading(false);
+    }
+  };
+
+  const saveEventFees = async () => {
+    if (!feeConfig) return;
+    const toNum = (v: string) => v.trim() !== '' ? Number(v) : null;
+    setFeeSaving(true);
+    try {
+      await apiPatch(`/admin/events/${feeConfig.event.id}/fees`, {
+        serviceFeePercent: toNum(feeConfig.event.serviceFeePercent),
+        serviceFeeFixedPerTicket: toNum(feeConfig.event.serviceFeeFixedPerTicket),
+        processingFeePercent: toNum(feeConfig.event.processingFeePercent),
+        processingFeeFixedPerTicket: toNum(feeConfig.event.processingFeeFixedPerTicket),
+      });
+      Alert.alert(t('Listo', 'Done'), t('Fees del evento guardados.', 'Event fees saved.'));
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('No se pudo guardar', 'Could not save'));
+    } finally {
+      setFeeSaving(false);
+    }
+  };
+
+  const saveSectionFees = async (sectionId: string) => {
+    if (!feeConfig) return;
+    const sec = feeConfig.sections.find((s) => s.id === sectionId);
+    if (!sec) return;
+    const toNum = (v: string) => v.trim() !== '' ? Number(v) : null;
+    setFeeSaving(true);
+    try {
+      await apiPatch(`/admin/sections/${sectionId}/fees`, {
+        serviceFeePercent: toNum(sec.serviceFeePercent),
+        serviceFeeFixedPerTicket: toNum(sec.serviceFeeFixedPerTicket),
+        processingFeePercent: toNum(sec.processingFeePercent),
+        processingFeeFixedPerTicket: toNum(sec.processingFeeFixedPerTicket),
+      });
+      Alert.alert(t('Listo', 'Done'), t('Fees de sección guardados.', 'Section fees saved.'));
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('No se pudo guardar', 'Could not save'));
+    } finally {
+      setFeeSaving(false);
+    }
+  };
+
+  const updateFeeEvent = (key: keyof FeeConfig['event'], value: string) => {
+    setFeeConfig((prev) => prev ? { ...prev, event: { ...prev.event, [key]: value } } : prev);
+  };
+
+  const updateFeeSection = (sectionId: string, key: string, value: string) => {
+    setFeeConfig((prev) => prev ? {
+      ...prev,
+      sections: prev.sections.map((s) => s.id === sectionId ? { ...s, [key]: value } : s),
+    } : prev);
+  };
+
+  // ── Prices ─────────────────────────────────────────────────────────────────
+
+  const openPrices = async (ev: any) => {
+    if (priceEventId === ev.id) { setPriceEventId(null); setPriceConfig(null); return; }
+    setPriceEventId(ev.id);
+    setPriceConfig(null);
+    setPriceLoading(true);
+    try {
+      const data = await apiGet<PriceConfig>(`/admin/events/${ev.id}/prices`);
+      setPriceConfig(data);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('No se pudo cargar los precios', 'Could not load prices'));
+      setPriceEventId(null);
+    } finally {
+      setPriceLoading(false);
+    }
+  };
+
+  const approveSectionPrice = async (sectionId: string) => {
+    try {
+      await apiPatch(`/admin/sections/${sectionId}/approve-price`, {});
+      Alert.alert(t('Aprobado', 'Approved'), t('Precio aprobado.', 'Price approved.'));
+      if (priceEventId) {
+        const data = await apiGet<PriceConfig>(`/admin/events/${priceEventId}/prices`);
+        setPriceConfig(data);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Error');
+    }
+  };
+
+  const rejectSectionPrice = async (sectionId: string) => {
+    try {
+      await apiPatch(`/admin/sections/${sectionId}/reject-price`, {});
+      Alert.alert(t('Rechazado', 'Rejected'), t('Precio rechazado.', 'Price rejected.'));
+      if (priceEventId) {
+        const data = await apiGet<PriceConfig>(`/admin/events/${priceEventId}/prices`);
+        setPriceConfig(data);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Error');
+    }
+  };
+
+  // ── Payouts ────────────────────────────────────────────────────────────────
+
+  const recordPayout = async () => {
+    if (!payoutEntry) return;
+    const amount = parseFloat(payoutAmount);
+    if (!amount || amount <= 0) {
+      Alert.alert(t('Monto requerido', 'Amount required'), t('Ingresa un monto válido.', 'Enter a valid amount.'));
+      return;
+    }
+    setPayoutSaving(true);
+    try {
+      await apiPost('/special-codes/admin/payouts', {
+        eventId: payoutEntry.eventId,
+        ownerUserId: payoutEntry.ownerUserId,
+        amount,
+        note: payoutNote.trim() || undefined,
+      });
+      Alert.alert(t('Pago registrado', 'Payout recorded'), `$${amount.toFixed(2)} → ${payoutEntry.ownerName || payoutEntry.ownerUserId}`);
+      setPayoutEntry(null);
+      setPayoutAmount('');
+      setPayoutNote('');
+      // Reload commission summary
+      setCodesLoaded(false);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('No se pudo registrar el pago', 'Could not record payout'));
+    } finally {
+      setPayoutSaving(false);
+    }
+  };
+
   const openAdminEventEditor = (event: any) => {
     setEditingAdminEvent(event);
     setAdminEditTitle(adminEventTitle(event));
@@ -835,6 +1048,105 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                     <Text style={[styles.adminEventSecondaryText, styles.adminEventDangerText]}>{t('DEL', 'DEL')}</Text>
                   </TouchableOpacity>
                 </View>
+                <View style={styles.adminEventActions}>
+                  <TouchableOpacity onPress={() => openFees(item)} style={[styles.adminEventSecondaryAction, feeEventId === item.id && styles.adminEventSecondaryActionActive]}>
+                    <Text style={[styles.adminEventSecondaryText, feeEventId === item.id && styles.adminEventSecondaryTextActive]}>{t('FEES', 'FEES')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => openPrices(item)} style={[styles.adminEventSecondaryAction, priceEventId === item.id && styles.adminEventSecondaryActionActive]}>
+                    <Text style={[styles.adminEventSecondaryText, priceEventId === item.id && styles.adminEventSecondaryTextActive]}>{t('PRECIOS', 'PRICES')}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Inline fees panel */}
+                {feeEventId === item.id && (
+                  <View style={styles.inlinePanel}>
+                    {feeLoading ? (
+                      <Text style={styles.inlinePanelLoading}>{t('Cargando fees...', 'Loading fees...')}</Text>
+                    ) : feeConfig ? (
+                      <>
+                        <View style={styles.feeTabs}>
+                          <TouchableOpacity onPress={() => setFeeTab('global')} style={[styles.feeTab, feeTab === 'global' && styles.feeTabActive]}>
+                            <Text style={[styles.feeTabText, feeTab === 'global' && styles.feeTabTextActive]}>{t('Global', 'Global')}</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => setFeeTab('sections')} style={[styles.feeTab, feeTab === 'sections' && styles.feeTabActive]}>
+                            <Text style={[styles.feeTabText, feeTab === 'sections' && styles.feeTabTextActive]}>{t('Secciones', 'Sections')}</Text>
+                          </TouchableOpacity>
+                        </View>
+                        {feeTab === 'global' ? (
+                          <>
+                            <Text style={styles.inlinePanelLabel}>{t('Fee servicio %', 'Service fee %')}</Text>
+                            <TextInput style={styles.inlinePanelInput} value={feeConfig.event.serviceFeePercent} onChangeText={(v) => updateFeeEvent('serviceFeePercent', v)} keyboardType="decimal-pad" placeholder="12" placeholderTextColor="#6B7280" />
+                            <Text style={styles.inlinePanelLabel}>{t('Fee servicio fijo/ticket', 'Fixed service fee/ticket')}</Text>
+                            <TextInput style={styles.inlinePanelInput} value={feeConfig.event.serviceFeeFixedPerTicket} onChangeText={(v) => updateFeeEvent('serviceFeeFixedPerTicket', v)} keyboardType="decimal-pad" placeholder="0" placeholderTextColor="#6B7280" />
+                            <Text style={styles.inlinePanelLabel}>{t('Fee procesamiento %', 'Processing fee %')}</Text>
+                            <TextInput style={styles.inlinePanelInput} value={feeConfig.event.processingFeePercent} onChangeText={(v) => updateFeeEvent('processingFeePercent', v)} keyboardType="decimal-pad" placeholder="2.9" placeholderTextColor="#6B7280" />
+                            <Text style={styles.inlinePanelLabel}>{t('Fee procesamiento fijo/ticket', 'Fixed processing fee/ticket')}</Text>
+                            <TextInput style={styles.inlinePanelInput} value={feeConfig.event.processingFeeFixedPerTicket} onChangeText={(v) => updateFeeEvent('processingFeeFixedPerTicket', v)} keyboardType="decimal-pad" placeholder="0.30" placeholderTextColor="#6B7280" />
+                            <TouchableOpacity onPress={saveEventFees} style={styles.inlinePanelSave} disabled={feeSaving}>
+                              <Text style={styles.inlinePanelSaveText}>{feeSaving ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR FEES', 'SAVE FEES')}</Text>
+                            </TouchableOpacity>
+                          </>
+                        ) : (
+                          feeConfig.sections.map((sec) => (
+                            <View key={sec.id} style={styles.inlineSectionFee}>
+                              <Text style={styles.inlineSectionFeeTitle}>{sec.name}</Text>
+                              <View style={styles.inlineFeeRow}>
+                                <View style={styles.inlineFeeField}>
+                                  <Text style={styles.inlinePanelLabel}>{t('Svc %', 'Svc %')}</Text>
+                                  <TextInput style={styles.inlinePanelInput} value={sec.serviceFeePercent} onChangeText={(v) => updateFeeSection(sec.id, 'serviceFeePercent', v)} keyboardType="decimal-pad" placeholder="—" placeholderTextColor="#6B7280" />
+                                </View>
+                                <View style={styles.inlineFeeField}>
+                                  <Text style={styles.inlinePanelLabel}>{t('Svc fijo', 'Svc fix')}</Text>
+                                  <TextInput style={styles.inlinePanelInput} value={sec.serviceFeeFixedPerTicket} onChangeText={(v) => updateFeeSection(sec.id, 'serviceFeeFixedPerTicket', v)} keyboardType="decimal-pad" placeholder="—" placeholderTextColor="#6B7280" />
+                                </View>
+                                <View style={styles.inlineFeeField}>
+                                  <Text style={styles.inlinePanelLabel}>{t('Proc %', 'Proc %')}</Text>
+                                  <TextInput style={styles.inlinePanelInput} value={sec.processingFeePercent} onChangeText={(v) => updateFeeSection(sec.id, 'processingFeePercent', v)} keyboardType="decimal-pad" placeholder="—" placeholderTextColor="#6B7280" />
+                                </View>
+                              </View>
+                              <TouchableOpacity onPress={() => saveSectionFees(sec.id)} style={styles.inlinePanelSave} disabled={feeSaving}>
+                                <Text style={styles.inlinePanelSaveText}>{feeSaving ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR', 'SAVE')}</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ))
+                        )}
+                      </>
+                    ) : null}
+                  </View>
+                )}
+
+                {/* Inline prices panel */}
+                {priceEventId === item.id && (
+                  <View style={styles.inlinePanel}>
+                    {priceLoading ? (
+                      <Text style={styles.inlinePanelLoading}>{t('Cargando precios...', 'Loading prices...')}</Text>
+                    ) : priceConfig ? (
+                      priceConfig.sections.length === 0 ? (
+                        <Text style={styles.inlinePanelLoading}>{t('Sin secciones con precios.', 'No sections with prices.')}</Text>
+                      ) : (
+                        priceConfig.sections.map((sec) => (
+                          <View key={sec.id} style={styles.inlineSectionFee}>
+                            <Text style={styles.inlineSectionFeeTitle}>{sec.name}</Text>
+                            <Text style={styles.inlinePanelLabel}>
+                              {t('Precio actual', 'Current price')}: ${sec.price ?? '—'}
+                              {sec.pendingPrice != null ? `  →  $${sec.pendingPrice} (${t('pendiente', 'pending')})` : ''}
+                            </Text>
+                            {sec.pendingPrice != null && (
+                              <View style={styles.adminApprovalRow}>
+                                <TouchableOpacity onPress={() => approveSectionPrice(sec.id)} style={styles.adminApproveBtn}>
+                                  <Text style={styles.adminApproveText}>{t('APROBAR', 'APPROVE')}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => rejectSectionPrice(sec.id)} style={styles.adminRejectBtn}>
+                                  <Text style={styles.adminRejectText}>{t('RECHAZAR', 'REJECT')}</Text>
+                                </TouchableOpacity>
+                              </View>
+                            )}
+                          </View>
+                        ))
+                      )
+                    ) : null}
+                  </View>
+                )}
               </View>
             ))}
             </>
@@ -1230,6 +1542,90 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 </View>
               );
             })}
+
+            {/* Commission summary with payouts */}
+            {commissionSummary.length > 0 && (
+              <>
+                <Text style={styles.codePanelTitle}>{t('Comisiones por evento', 'Commissions by event')}</Text>
+                <Text style={[styles.codePanelCopy, { marginBottom: 12 }]}>{t('Registra pagos y revisa el historial.', 'Record payouts and review history.')}</Text>
+                {commissionSummary.map((entry, idx) => {
+                  const key = `${entry.ownerUserId}-${entry.eventId || idx}`;
+                  const isPayoutOpen = payoutEntry?.ownerUserId === entry.ownerUserId && payoutEntry?.eventId === entry.eventId;
+                  return (
+                    <View key={key} style={styles.commissionCard}>
+                      <View style={styles.commissionHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.commissionOwner}>{entry.ownerName || entry.ownerEmail || entry.ownerUserId.slice(0, 8)}</Text>
+                          {entry.eventTitle ? <Text style={styles.commissionEvent}>{entry.eventTitle}</Text> : null}
+                        </View>
+                        <View style={styles.commissionBadge}>
+                          <Text style={styles.commissionBalance}>${Number(entry.balance).toFixed(2)}</Text>
+                          <Text style={styles.commissionBalanceLabel}>{t('saldo', 'balance')}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.commissionStats}>
+                        <View style={styles.commissionStat}>
+                          <Text style={styles.commissionStatLabel}>{t('GANADO', 'EARNED')}</Text>
+                          <Text style={styles.commissionStatValue}>${Number(entry.totalEarned).toFixed(2)}</Text>
+                        </View>
+                        <View style={styles.commissionStat}>
+                          <Text style={styles.commissionStatLabel}>{t('PAGADO', 'PAID')}</Text>
+                          <Text style={[styles.commissionStatValue, { color: '#10B981' }]}>${Number(entry.totalPaid).toFixed(2)}</Text>
+                        </View>
+                        {entry.totalTickets != null && (
+                          <View style={styles.commissionStat}>
+                            <Text style={styles.commissionStatLabel}>{t('TICKETS', 'TICKETS')}</Text>
+                            <Text style={styles.commissionStatValue}>{entry.totalTickets}</Text>
+                          </View>
+                        )}
+                      </View>
+                      {entry.payouts && entry.payouts.length > 0 && (
+                        <View style={styles.payoutHistory}>
+                          {entry.payouts.map((p) => (
+                            <Text key={p.id} style={styles.payoutHistoryItem}>
+                              ${Number(p.amount).toFixed(2)} · {new Date(p.paidAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}{p.note ? ` · ${p.note}` : ''}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (isPayoutOpen) { setPayoutEntry(null); return; }
+                          setPayoutEntry(entry);
+                          setPayoutAmount('');
+                          setPayoutNote('');
+                        }}
+                        style={[styles.codePrimaryAction, { marginTop: 10 }]}
+                      >
+                        <Text style={styles.codePrimaryText}>{isPayoutOpen ? t('CANCELAR', 'CANCEL') : t('REGISTRAR PAGO', 'RECORD PAYOUT')}</Text>
+                      </TouchableOpacity>
+                      {isPayoutOpen && (
+                        <View style={{ marginTop: 10, gap: 8 }}>
+                          <TextInput
+                            value={payoutAmount}
+                            onChangeText={setPayoutAmount}
+                            placeholder={t('Monto ($)', 'Amount ($)')}
+                            placeholderTextColor="#9CA3AF"
+                            keyboardType="decimal-pad"
+                            style={styles.inlinePanelInput}
+                          />
+                          <TextInput
+                            value={payoutNote}
+                            onChangeText={setPayoutNote}
+                            placeholder={t('Nota (opcional)', 'Note (optional)')}
+                            placeholderTextColor="#9CA3AF"
+                            style={styles.inlinePanelInput}
+                          />
+                          <TouchableOpacity onPress={recordPayout} style={styles.inlinePanelSave} disabled={payoutSaving}>
+                            <Text style={styles.inlinePanelSaveText}>{payoutSaving ? t('REGISTRANDO...', 'RECORDING...') : t('CONFIRMAR PAGO', 'CONFIRM PAYOUT')}</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </>
+            )}
           </>
         )}
 
@@ -1696,4 +2092,38 @@ const styles = StyleSheet.create({
   paymentMixLabel: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
   paymentMixValue: { color: colors.orange, fontSize: 15, fontWeight: '700' },
   cardSecondaryActionWide: { height: 50, borderRadius: 15, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+
+  // Fees / prices inline panel
+  adminEventSecondaryActionActive: { backgroundColor: 'rgba(249,115,22,0.18)', borderColor: 'rgba(249,115,22,0.55)' },
+  adminEventSecondaryTextActive: { color: '#F97316' },
+  inlinePanel: { marginTop: 12, backgroundColor: 'rgba(3,11,20,0.88)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', padding: 14 },
+  inlinePanelLoading: { color: 'rgba(226,232,240,0.52)', fontSize: 12, fontWeight: '400' },
+  inlinePanelLabel: { color: '#94A3B8', fontSize: 10, fontWeight: '700', letterSpacing: 0, marginTop: 8, marginBottom: 4 },
+  inlinePanelInput: { height: 40, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', color: '#FFFFFF', fontSize: 13, fontWeight: '700', paddingHorizontal: 12, outlineStyle: 'none' as any },
+  inlinePanelSave: { marginTop: 10, height: 40, borderRadius: 12, backgroundColor: '#F97316', alignItems: 'center', justifyContent: 'center' },
+  inlinePanelSaveText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  feeTabs: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  feeTab: { flex: 1, height: 34, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', alignItems: 'center', justifyContent: 'center' },
+  feeTabActive: { backgroundColor: 'rgba(249,115,22,0.18)', borderColor: 'rgba(249,115,22,0.55)' },
+  feeTabText: { color: 'rgba(226,232,240,0.58)', fontSize: 11, fontWeight: '700' },
+  feeTabTextActive: { color: '#F97316' },
+  inlineSectionFee: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 10, marginTop: 10 },
+  inlineSectionFeeTitle: { color: '#F8FAFC', fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  inlineFeeRow: { flexDirection: 'row', gap: 8 },
+  inlineFeeField: { flex: 1 },
+
+  // Commission / payout
+  commissionCard: { backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 16, marginBottom: 12 },
+  commissionHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
+  commissionOwner: { color: '#F8FAFC', fontSize: 14, fontWeight: '700' },
+  commissionEvent: { color: 'rgba(226,232,240,0.58)', fontSize: 11, fontWeight: '400', marginTop: 2 },
+  commissionBadge: { alignItems: 'flex-end' },
+  commissionBalance: { color: '#F97316', fontSize: 20, fontWeight: '700' },
+  commissionBalanceLabel: { color: 'rgba(226,232,240,0.48)', fontSize: 9, fontWeight: '400' },
+  commissionStats: { flexDirection: 'row', gap: 10, marginBottom: 8 },
+  commissionStat: { flex: 1, backgroundColor: '#030B14', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', padding: 10 },
+  commissionStatLabel: { color: '#94A3B8', fontSize: 9, fontWeight: '700' },
+  commissionStatValue: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginTop: 4 },
+  payoutHistory: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 8, marginTop: 4, gap: 4 },
+  payoutHistoryItem: { color: 'rgba(226,232,240,0.52)', fontSize: 11, fontWeight: '400' },
 });
