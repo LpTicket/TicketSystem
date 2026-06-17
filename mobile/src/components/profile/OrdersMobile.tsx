@@ -7,9 +7,24 @@ type Order = {
   id: string;
   status?: string;
   total?: number | string;
+  subtotal?: number | string;
+  lpFee?: number | string;
+  processingFee?: number | string;
   ticketCount?: number;
   createdAt?: string;
-  event?: { title?: string };
+  paidAt?: string;
+  event?: { title?: string; eventDate?: string; venueName?: string; currency?: string };
+  tickets?: OrderTicket[];
+};
+
+type OrderTicket = {
+  id: string;
+  ticketCode?: string;
+  price?: number | string;
+  sectionName?: string | null;
+  rowLabel?: string | null;
+  seatNumber?: string | number | null;
+  seatLabel?: string | null;
 };
 
 type OrdersResponse = { data?: Order[]; pagination?: { total?: number; pages?: number } };
@@ -37,6 +52,103 @@ function statusBadge(status: string | undefined, t: (es: string, en: string) => 
   }
 }
 
+function seatText(ticket: OrderTicket, t: (es: string, en: string) => string) {
+  if (ticket.seatLabel) return ticket.seatLabel;
+  const parts = [ticket.sectionName, ticket.rowLabel, ticket.seatNumber].filter(Boolean);
+  return parts.length ? parts.join(' · ') : t('General', 'General');
+}
+
+function OrderDetail({ orderId }: { orderId: string }) {
+  const { t, lang } = useLanguage();
+  const es = lang === 'es';
+  const [detail, setDetail] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    apiGet<Order>(`/orders/${orderId}`)
+      .then((data) => { if (mounted) setDetail(data); })
+      .catch(() => { if (mounted) setDetail(null); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [orderId]);
+
+  if (loading) return <View style={styles.detailLoader}><ActivityIndicator color="#F97316" size="small" /></View>;
+  if (!detail) return <Text style={styles.detailError}>{t('No se pudo cargar el recibo.', 'Could not load receipt.')}</Text>;
+
+  const currency = detail.event?.currency || 'USD';
+  const tickets = detail.tickets || [];
+  const subtotal = Number(detail.subtotal ?? 0);
+  const lpFee = Number(detail.lpFee ?? 0);
+  const processingFee = Number(detail.processingFee ?? 0);
+  const total = Number(detail.total ?? 0);
+  const purchaseDate = detail.paidAt || detail.createdAt;
+
+  return (
+    <View style={styles.receipt}>
+      {/* Header */}
+      <View style={styles.receiptHeader}>
+        <Text style={styles.receiptEyebrow}>{t('RECIBO DE COMPRA', 'PURCHASE RECEIPT')}</Text>
+        <Text style={styles.receiptEvent} numberOfLines={2}>{detail.event?.title || t('Evento', 'Event')}</Text>
+        {detail.event?.eventDate && (
+          <Text style={styles.receiptMeta}>{formatDate(detail.event.eventDate, es)}</Text>
+        )}
+        {detail.event?.venueName && (
+          <Text style={styles.receiptMeta}>{detail.event.venueName}</Text>
+        )}
+        {purchaseDate && (
+          <Text style={styles.receiptMeta}>{t('Compra', 'Purchase')}: {formatDate(purchaseDate, es)}</Text>
+        )}
+        <Text style={styles.receiptOrderId} numberOfLines={1}>{t('Orden', 'Order')}: {orderId.slice(0, 20)}…</Text>
+      </View>
+
+      {/* Tickets list */}
+      {tickets.length > 0 && (
+        <View style={styles.ticketsBlock}>
+          <Text style={styles.ticketsBlockLabel}>{t('ENTRADAS', 'TICKETS')}</Text>
+          {tickets.map((tk, i) => (
+            <View key={tk.id || i} style={styles.ticketRow}>
+              <View style={styles.ticketRowLeft}>
+                <Text style={styles.ticketSeat}>{seatText(tk, t)}</Text>
+                {tk.ticketCode && <Text style={styles.ticketCode}>{tk.ticketCode}</Text>}
+              </View>
+              <Text style={styles.ticketPrice}>{money(tk.price)} {currency}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Fees breakdown */}
+      <View style={styles.feesBlock}>
+        <View style={styles.feeRow}>
+          <Text style={styles.feeLabel}>{t('Subtotal entradas', 'Ticket subtotal')}</Text>
+          <Text style={styles.feeValue}>{money(subtotal)} {currency}</Text>
+        </View>
+        {lpFee > 0 && (
+          <View style={styles.feeRow}>
+            <Text style={styles.feeLabel}>{t('Cargo por servicio', 'Service fee')}</Text>
+            <Text style={styles.feeValue}>{money(lpFee)} {currency}</Text>
+          </View>
+        )}
+        {processingFee > 0 && (
+          <View style={styles.feeRow}>
+            <Text style={styles.feeLabel}>{t('Tarifa de procesamiento', 'Processing fee')}</Text>
+            <Text style={styles.feeValue}>{money(processingFee)} {currency}</Text>
+          </View>
+        )}
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>{t('Total cobrado', 'Total charged')}</Text>
+          <Text style={styles.totalValue}>{money(total)} {currency}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.receiptFooter}>
+        {t('Este recibo corresponde a la orden completa.', 'This receipt covers the complete order.')}
+      </Text>
+    </View>
+  );
+}
+
 export function OrdersMobile() {
   const { t, lang } = useLanguage();
   const es = lang === 'es';
@@ -45,6 +157,7 @@ export function OrdersMobile() {
   const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = async (nextPage: number) => {
     try {
@@ -70,6 +183,8 @@ export function OrdersMobile() {
     setLoadingMore(false);
   };
 
+  const toggleExpand = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
+
   return (
     <View style={styles.card}>
       <Text style={styles.cardLabel}>{t('MIS RECIBOS', 'MY RECEIPTS')}</Text>
@@ -82,20 +197,25 @@ export function OrdersMobile() {
         <>
           {orders.map((order) => {
             const badge = statusBadge(order.status, t);
+            const isOpen = expandedId === order.id;
             return (
-              <View key={order.id} style={styles.row}>
-                <View style={styles.rowLeft}>
-                  <Text style={styles.event} numberOfLines={1}>{order.event?.title || t('Evento', 'Event')}</Text>
-                  <Text style={styles.meta} numberOfLines={1}>
-                    {formatDate(order.createdAt, es)} · {order.ticketCount || 0} {t('ticket(s)', 'ticket(s)')}
-                  </Text>
-                </View>
-                <View style={styles.rowRight}>
-                  <Text style={styles.total}>{money(order.total)}</Text>
-                  <View style={[styles.badge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
-                    <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
+              <View key={order.id}>
+                <TouchableOpacity onPress={() => toggleExpand(order.id)} activeOpacity={0.78} style={styles.row}>
+                  <View style={styles.rowLeft}>
+                    <Text style={styles.event} numberOfLines={1}>{order.event?.title || t('Evento', 'Event')}</Text>
+                    <Text style={styles.meta} numberOfLines={1}>
+                      {formatDate(order.createdAt, es)} · {order.ticketCount || 0} {t('ticket(s)', 'ticket(s)')}
+                    </Text>
                   </View>
-                </View>
+                  <View style={styles.rowRight}>
+                    <Text style={styles.total}>{money(order.total)}</Text>
+                    <View style={[styles.badge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
+                      <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+
+                {isOpen && <OrderDetail orderId={order.id} />}
               </View>
             );
           })}
@@ -141,4 +261,49 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(249,115,22,0.12)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.4)',
   },
   loadMoreText: { color: '#F97316', fontSize: 13, fontWeight: '800' },
+
+  // Receipt detail
+  receipt: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(249,115,22,0.28)',
+    backgroundColor: 'rgba(3,11,20,0.92)',
+    marginBottom: 4,
+    overflow: 'hidden',
+  },
+  detailLoader: { paddingVertical: 20, alignItems: 'center' },
+  detailError: { color: 'rgba(226,232,240,0.5)', fontSize: 12, padding: 14, textAlign: 'center' },
+
+  receiptHeader: { padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  receiptEyebrow: { color: '#F97316', fontSize: 9, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
+  receiptEvent: { color: '#F8FAFC', fontSize: 16, fontWeight: '800', lineHeight: 20 },
+  receiptMeta: { color: 'rgba(226,232,240,0.6)', fontSize: 11, fontWeight: '400', marginTop: 3 },
+  receiptOrderId: { color: 'rgba(226,232,240,0.36)', fontSize: 10, fontFamily: 'monospace', marginTop: 6 },
+
+  ticketsBlock: { padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  ticketsBlockLabel: { color: '#94A3B8', fontSize: 9, fontWeight: '800', letterSpacing: 1, marginBottom: 8 },
+  ticketRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', gap: 10,
+  },
+  ticketRowLeft: { flex: 1, minWidth: 0 },
+  ticketSeat: { color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
+  ticketCode: { color: 'rgba(226,232,240,0.44)', fontSize: 10, fontFamily: 'monospace', marginTop: 2 },
+  ticketPrice: { color: '#F8FAFC', fontSize: 13, fontWeight: '700' },
+
+  feesBlock: { padding: 14 },
+  feeRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
+  feeLabel: { color: 'rgba(226,232,240,0.7)', fontSize: 12, fontWeight: '400' },
+  feeValue: { color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
+  totalRow: {
+    flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8,
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)', marginTop: 4,
+  },
+  totalLabel: { color: '#F8FAFC', fontSize: 14, fontWeight: '800' },
+  totalValue: { color: '#F97316', fontSize: 16, fontWeight: '800' },
+
+  receiptFooter: {
+    color: 'rgba(226,232,240,0.3)', fontSize: 10, fontWeight: '400',
+    textAlign: 'center', padding: 12, paddingTop: 0,
+  },
 });
