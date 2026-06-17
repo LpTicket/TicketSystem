@@ -154,6 +154,20 @@ const getCurrentTimeInTimezone = (timezone: string): string => {
   }
 };
 
+const TIME_OPTIONS = Array.from({ length: 96 }, (_, index) => {
+  const totalMinutes = index * 15;
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const displayHour = hour % 12 || 12;
+  const period = hour < 12 ? 'AM' : 'PM';
+
+  return {
+    value,
+    label: `${displayHour}:${String(minute).padStart(2, '0')} ${period}`,
+  };
+});
+
 const getPartsInTimezone = (date: Date, timezone: string) => {
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
@@ -2354,13 +2368,19 @@ export default function EventDetailPage() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Hora del Evento' : 'Event Time'}</label>
-                <input
-                  type="time"
+                <select
                   value={editForm.eventTime}
                   onChange={(e) => setEditForm({ ...editForm, eventTime: e.target.value })}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
                   required
-                />
+                >
+                  <option value="" disabled>{lang === 'es' ? 'Selecciona la hora' : 'Select time'}</option>
+                  {TIME_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1.5">

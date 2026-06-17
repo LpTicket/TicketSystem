@@ -117,6 +117,20 @@ const getCurrentTimeInTimezone = (timezone: string): string => {
   }
 };
 
+const TIME_OPTIONS = Array.from({ length: 96 }, (_, index) => {
+  const totalMinutes = index * 15;
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+  const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const displayHour = hour % 12 || 12;
+  const period = hour < 12 ? 'AM' : 'PM';
+
+  return {
+    value,
+    label: `${displayHour}:${String(minute).padStart(2, '0')} ${period}`,
+  };
+});
+
 const buildLocalEventDate = (date: string, time: string, timezone: string = 'UTC') => {
   const safeTime = time || '00:00';
   const [year, month, day] = date.split('-').map(Number);
@@ -379,13 +393,19 @@ export default function CreateEventPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Hora del evento *' : 'Event Time *'}</label>
-                    <input
-                      type="time"
+                    <select
                       value={form.eventTime}
                       onChange={(e) => updateForm('eventTime', e.target.value)}
                       className="input py-3"
                       required
-                    />
+                    >
+                      <option value="" disabled>{lang === 'es' ? 'Selecciona la hora' : 'Select time'}</option>
+                      {TIME_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Zona horaria del evento *' : 'Event Timezone *'}</label>
@@ -408,17 +428,18 @@ export default function CreateEventPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgDoorsOpen')}</label>
-                    <input
-                      type="time"
+                    <select
                       value={form.doorsOpen}
                       onChange={(e) => updateForm('doorsOpen', e.target.value)}
-                      onClick={(e) => {
-                        if (document.activeElement === e.currentTarget) {
-                          e.currentTarget.blur();
-                        }
-                      }}
                       className="input py-3"
-                    />
+                    >
+                      <option value="">{lang === 'es' ? 'Sin hora definida' : 'No time set'}</option>
+                      {TIME_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
