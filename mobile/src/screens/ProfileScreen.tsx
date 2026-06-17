@@ -8,6 +8,7 @@ import { updateProfile as updateProfileRequest } from '../services/auth';
 import { AccountMobile } from '../components/profile/AccountMobile';
 import { MySpecialCodesMobile } from '../components/profile/MySpecialCodesMobile';
 import { OrdersMobile } from '../components/profile/OrdersMobile';
+import { PaymentMethodsMobile } from '../components/profile/PaymentMethodsMobile';
 
 type ProfileTab = 'account' | 'payments' | 'codes';
 
@@ -21,11 +22,6 @@ type Props = {
   viewMode?: AppMode;
   onSetMode?: (mode: AppMode) => void;
 };
-
-const paymentMethods = [
-  { id: '1', brand: 'Visa', last4: '4242', label: 'Primary card' },
-  { id: '2', brand: 'Apple Pay', last4: 'Ready', label: 'Fast checkout' },
-];
 
 export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onLogout, canOrganize, canAdmin, viewMode = 'client', onSetMode }: Props) {
   const { t } = useLanguage();
@@ -144,22 +140,7 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
         <>
           <AccountMobile user={user} onUserUpdated={onUserUpdated} tabs={tabs} showSections={false} />
 
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>{t('MÉTODOS DE PAGO', 'PAYMENT METHODS')}</Text>
-            {paymentMethods.map((method) => (
-              <View key={method.id} style={styles.paymentCard}>
-                <View style={styles.paymentIcon}>
-                  <Text style={styles.paymentIconText}>{method.brand.slice(0, 2).toUpperCase()}</Text>
-                </View>
-                <View style={styles.paymentCopy}>
-                  <Text style={styles.paymentTitle}>{method.brand}</Text>
-                  <Text style={styles.paymentSub}>{method.label} - {method.last4}</Text>
-                </View>
-                <Text style={styles.paymentAction}>{t('EDITAR', 'EDIT')}</Text>
-              </View>
-            ))}
-          </View>
-
+          <PaymentMethodsMobile />
           <OrdersMobile />
         </>
       )}
