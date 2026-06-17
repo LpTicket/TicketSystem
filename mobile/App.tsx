@@ -556,7 +556,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    transform: [{ translateY: 17 }],
     zIndex: 2,
   },
   navArrowDisabled: {
