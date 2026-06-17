@@ -5,11 +5,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Polygon } from 'react-native-svg';
 import { GradientButton } from '../components/GradientButton';
 import { getPublicEvents } from '../services/events';
+import { apiGet, getImageUrl } from '../services/api';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { MobileEvent } from '../types/event';
 import { AppFooter } from '../components/AppFooter';
 
+const fallbackHeroLogo = require('../../assets/logo-header.png');
 const fallbackEventImage = require('../../assets/demo-concert.png');
 const CATEGORY_CARD_WIDTH = 85;
 const CATEGORY_CARD_GAP = 11;
@@ -21,9 +23,26 @@ type Props = {
   onOpenEvent: (event: MobileEvent) => void;
 };
 
+type ApiCategory = {
+  id?: string;
+  slug?: string;
+  labelEs?: string;
+  labelEn?: string;
+  imageData?: string | null;
+  imageUrl?: string | null;
+  isActive?: boolean;
+};
+
+type HomeCategory = {
+  id: string;
+  slug: string;
+  label: string;
+  imageUrl: string;
+};
+
 function getHeroImageSource(event?: MobileEvent) {
   const imageUrl = event?.bannerImageUrl || event?.imageUrl;
-  return imageUrl ? { uri: imageUrl } : fallbackEventImage;
+  return imageUrl ? { uri: imageUrl } : fallbackHeroLogo;
 }
 
 function getHeroImageUrl(event?: MobileEvent) {
@@ -47,33 +66,36 @@ function SharePointIcon() {
   );
 }
 
-function categoryIcon(item: string): keyof typeof Ionicons.glyphMap {
-  const s = item.toLowerCase();
-  if (item === 'All') return 'sparkles-outline';
-  if (/priv|vip/.test(s)) return 'diamond-outline';
-  if (/concert|concierto|music|música|musica|festival/.test(s)) return 'musical-notes-outline';
-  if (/sport|deporte|game|partido/.test(s)) return 'trophy-outline';
-  if (/comed/.test(s)) return 'mic-outline';
-  if (/theat|teatro|arte|art|show/.test(s)) return 'color-palette-outline';
-  if (/network|negocio|business|conf/.test(s)) return 'briefcase-outline';
-  return 'ticket-outline';
-}
-
 function categoryDesc(item: string, t: (es: string, en: string) => string) {
   const s = item.toLowerCase();
   if (item === 'All') return t('Explora todo ahora.', 'Explore everything now.');
-  if (/concert|music|música|musica|festival/.test(s)) return t('Música en vivo y shows.', 'Live music and shows.');
+  if (/concert|concierto|music|música|musica|festival/.test(s)) return t('Música en vivo y shows.', 'Live music and shows.');
   if (/sport|deporte|partido/.test(s)) return t('Vive cada partido.', 'Feel every game.');
   if (/comed/.test(s)) return t('Risas y buen ambiente.', 'Laughs and good energy.');
   if (/theat|teatro|arte|art|show/.test(s)) return t('Escena, arte y cultura.', 'Stage, art, and culture.');
-  if (/network|negocio|business|vip|conf/.test(s)) return t('Experiencias para conectar.', 'Experiences to connect.');
+  if (/infantil|kids/.test(s)) return t('Planes para toda la familia.', 'Family-friendly plans.');
+  if (/network|negocio|business|vip|conf|conferencia/.test(s)) return t('Experiencias para conectar.', 'Experiences to connect.');
   return t('Eventos seleccionados.', 'Curated events.');
 }
 
+function normalizeCategory(value?: string | null) {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function eventMatchesCategory(event: MobileEvent, categorySlug: string) {
+  const selected = normalizeCategory(categorySlug);
+  return [event.category, event.categoryName, event.tag].some((value) => normalizeCategory(value) === selected);
+}
+
 export function HomeScreen({ onOpenEvent }: Props) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const { width } = useWindowDimensions();
   const [events, setEvents] = useState<MobileEvent[]>([]);
+  const [realCategories, setRealCategories] = useState<ApiCategory[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
   const [previousHeroIndex, setPreviousHeroIndex] = useState<number | null>(null);
   const [heroTransitionReady, setHeroTransitionReady] = useState(false);
@@ -104,11 +126,26 @@ export function HomeScreen({ onOpenEvent }: Props) {
   const heroProgressTrackWidth = HERO_PROGRESS_ACTIVE_WIDTH + (safeHeroLength - 1) * HERO_PROGRESS_STEP;
   const heroProgressWidth = Math.max(78, heroProgressTrackWidth + 16);
 
-  const categories = useMemo(() => {
-    const tags = Array.from(new Set(events.map((e) => (e.tag || '').trim()).filter(Boolean)));
-    const base = ['Private Event', 'Music', 'Business', 'VIP'];
-    return ['All', ...Array.from(new Set([...base, ...tags]))];
-  }, [events]);
+  const categories = useMemo<HomeCategory[]>(() => {
+    const allCategory = realCategories.find((item) => item.slug === 'todos' || item.slug === 'todas');
+    const activeCategories = realCategories.filter((item) => item.slug && item.slug !== 'todos' && item.slug !== 'todas' && item.isActive !== false);
+    const liveCategories = activeCategories.map((item) => ({
+      id: item.id || item.slug || item.labelEs || item.labelEn || 'category',
+      slug: item.slug || item.labelEs || item.labelEn || 'category',
+      label: lang === 'es' ? item.labelEs || item.labelEn || item.slug || '' : item.labelEn || item.labelEs || item.slug || '',
+      imageUrl: getImageUrl(item.imageUrl || item.imageData || ''),
+    }));
+
+    return [
+      {
+        id: 'all',
+        slug: 'All',
+        label: t('Todos', 'All'),
+        imageUrl: getImageUrl(allCategory?.imageUrl || allCategory?.imageData || ''),
+      },
+      ...liveCategories,
+    ];
+  }, [lang, realCategories, t]);
   const categoryShineX = categoryShine.interpolate({
     inputRange: [0, 1],
     outputRange: [-50, 50],
@@ -117,7 +154,7 @@ export function HomeScreen({ onOpenEvent }: Props) {
     inputRange: [0, 0.08, 1],
     outputRange: [0, 1, 1],
   });
-  const activeCategoryIndex = Math.max(0, categories.findIndex((item) => item === category));
+  const activeCategoryIndex = Math.max(0, categories.findIndex((item) => item.slug === category));
 
   useEffect(() => {
     Animated.spring(categoryFrameX, {
@@ -159,18 +196,18 @@ export function HomeScreen({ onOpenEvent }: Props) {
     }).start();
   };
 
-  const handleCategoryPress = (item: string) => {
-    setCategory(item);
-    playCategoryShine(item);
+  const handleCategoryPress = (item: HomeCategory) => {
+    setCategory(item.slug);
+    playCategoryShine(item.slug);
   };
 
   const filteredEvents = useMemo(() => {
     const q = query.trim().toLowerCase();
     const p = place.trim().toLowerCase();
     const list = events.filter((e) => {
-      const matchesQuery = !q || [e.title, e.venue, e.address, e.tag].some((v) => (v || '').toLowerCase().includes(q));
+      const matchesQuery = !q || [e.title, e.venue, e.address, e.tag, e.categoryName, e.category].some((v) => (v || '').toLowerCase().includes(q));
       const matchesPlace = !p || [e.venue, e.address].some((v) => (v || '').toLowerCase().includes(p));
-      const matchesCategory = category === 'All' || (e.tag || '').toLowerCase() === category.toLowerCase();
+      const matchesCategory = category === 'All' || eventMatchesCategory(e, category);
       return matchesQuery && matchesPlace && matchesCategory;
     });
     return [...list].sort((a, b) => {
@@ -192,10 +229,23 @@ export function HomeScreen({ onOpenEvent }: Props) {
         if (mounted) setEvents([]);
       });
 
+    apiGet<ApiCategory[]>('/categories')
+      .then((categoryItems) => {
+        if (mounted) setRealCategories(Array.isArray(categoryItems) ? categoryItems : []);
+      })
+      .catch(() => {
+        if (mounted) setRealCategories([]);
+      });
+
     return () => {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (category === 'All') return;
+    if (!categories.some((item) => item.slug === category)) setCategory('All');
+  }, [categories, category]);
 
   useEffect(() => {
     if (heroEvents.length <= 1) return;
@@ -284,11 +334,11 @@ export function HomeScreen({ onOpenEvent }: Props) {
       <View pointerEvents="none" style={styles.bgGridB} />
       <View style={[styles.heroWrap, { height: heroHeight }]}>
         {previousHeroEvent && (
-          <Image source={getHeroImageSource(previousHeroEvent)} style={styles.heroImage} resizeMode="contain" />
+          <Image source={getHeroImageSource(previousHeroEvent)} style={[styles.heroImage, !getHeroImageUrl(previousHeroEvent) && styles.heroFallbackLogo]} resizeMode="contain" />
         )}
         <Animated.Image
           source={getHeroImageSource(heroEvent)}
-          style={[styles.heroImage, previousHeroEvent && styles.heroImageLayer, { opacity: previousHeroEvent ? heroFade : 1 }]}
+          style={[styles.heroImage, !getHeroImageUrl(heroEvent) && styles.heroFallbackLogo, previousHeroEvent && styles.heroImageLayer, { opacity: previousHeroEvent ? heroFade : 1 }]}
           resizeMode="contain"
           onLoad={finishHeroImageLoad}
           onError={finishHeroImageLoad}
@@ -354,14 +404,13 @@ export function HomeScreen({ onOpenEvent }: Props) {
         <View style={styles.categoryRow}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
             {categories.map((item) => {
-              const active = category === item;
-              const label = item === 'All' ? t('Todos', 'All') : item;
-              const match = item === 'All'
-                ? events.find((e) => e.imageUrl || e.bannerImageUrl)
-                : events.find((e) => (e.tag || '').toLowerCase() === item.toLowerCase() && (e.imageUrl || e.bannerImageUrl));
-              const img = match?.imageUrl || match?.bannerImageUrl || '';
+              const active = category === item.slug;
+              const match = item.slug === 'All'
+                ? undefined
+                : events.find((e) => eventMatchesCategory(e, item.slug) && (e.imageUrl || e.bannerImageUrl));
+              const img = item.imageUrl || match?.imageUrl || match?.bannerImageUrl || '';
               return (
-                <TouchableOpacity key={item} activeOpacity={0.85} onPress={() => handleCategoryPress(item)} style={[styles.catCard, active && styles.catCardActive]}>
+                <TouchableOpacity key={item.id} activeOpacity={0.85} onPress={() => handleCategoryPress(item)} style={[styles.catCard, active && styles.catCardActive]}>
                   <Animated.Image
                     source={img ? { uri: img } : fallbackEventImage}
                     style={[styles.catImage, active && styles.catImageActive, active && { transform: [{ scale: categoryImageScale }] }]}
@@ -373,7 +422,7 @@ export function HomeScreen({ onOpenEvent }: Props) {
                     locations={[0, 0.42, 1]}
                     style={StyleSheet.absoluteFill}
                   />
-                  {shiningCategory === item && (
+                  {shiningCategory === item.slug && (
                     <Animated.View
                       pointerEvents="none"
                       style={[
@@ -393,12 +442,9 @@ export function HomeScreen({ onOpenEvent }: Props) {
                       />
                     </Animated.View>
                   )}
-                  <View style={styles.catIconBadge}>
-                    <Ionicons name={categoryIcon(item)} size={15} color="#FFFFFF" />
-                  </View>
                   <View style={styles.catContent}>
-                    <Text style={styles.catTitle} numberOfLines={1}>{label}</Text>
-                    <Text style={styles.catDesc} numberOfLines={2}>{categoryDesc(item, t)}</Text>
+                    <Text style={styles.catTitle} numberOfLines={2}>{item.label}</Text>
+                    <Text style={styles.catDesc} numberOfLines={1}>{categoryDesc(item.slug, t)}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -516,6 +562,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 10, paddingBottom: 46, backgroundColor: 'transparent' },
   heroWrap: { alignSelf: 'stretch', marginHorizontal: 16, marginTop: 0, marginBottom: 10, overflow: 'hidden', backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 18, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.30, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
   heroImage: { width: '100%', height: '100%', backgroundColor: 'transparent' },
+  heroFallbackLogo: { transform: [{ scale: 0.88 }] },
   heroImageLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   heroControls: { alignSelf: 'center', minHeight: 38, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.82)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 8, marginBottom: 12, shadowColor: '#000000', shadowOpacity: 0.24, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
   heroControlButton: { width: 30, height: 30, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(249,115,22,0.38)', backgroundColor: 'rgba(249,115,22,0.12)', alignItems: 'center', justifyContent: 'center' },
@@ -540,10 +587,9 @@ const styles = StyleSheet.create({
   catImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.72 },
   catImageActive: { opacity: 0.9 },
   catShine: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 4 },
-  catIconBadge: { position: 'absolute', top: 8, left: 8, width: 30, height: 30, borderRadius: 10, backgroundColor: 'rgba(3,11,20,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', zIndex: 5 },
-  catContent: { position: 'absolute', left: 10, right: 10, bottom: 9, gap: 4, zIndex: 5 },
-  catTitle: { color: '#FFFFFF', fontSize: 13, fontWeight: '900', lineHeight: 15 },
-  catDesc: { color: 'rgba(255,255,255,0.76)', fontSize: 9.5, fontWeight: '700', lineHeight: 12 },
+  catContent: { position: 'absolute', left: 8, right: 8, bottom: 8, gap: 3, zIndex: 5 },
+  catTitle: { color: '#FFFFFF', fontSize: 11.5, fontWeight: '900', lineHeight: 13, minHeight: 26 },
+  catDesc: { color: 'rgba(255,255,255,0.76)', fontSize: 9, fontWeight: '700', lineHeight: 11 },
   emptyEvents: { marginHorizontal: 16, marginTop: 24, padding: 22, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   emptyEventsText: { color: 'rgba(226,232,240,0.72)', fontSize: 15, textAlign: 'center', lineHeight: 22 },
   category: { height: 42, minWidth: 94, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(246,198,95,0.14)', backgroundColor: 'rgba(255,255,255,0.055)', alignItems: 'center', justifyContent: 'center', position: 'relative' },

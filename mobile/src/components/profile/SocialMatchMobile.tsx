@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Animated, Easing, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { apiGet, apiPost, apiPut } from '../../services/api';
+import { apiDelete, apiGet, apiPost, apiPut, apiUploadImage } from '../../services/api';
 
 type EligibleEvent = {
   id: string;
@@ -22,6 +24,7 @@ type Preference = {
   invisibleMode: boolean;
   shareInstagram: boolean;
   shareLocation: boolean;
+  photos?: string[] | null;
 };
 
 type Suggestion = {
@@ -75,7 +78,10 @@ const DEFAULT_PREF: Preference = {
   invisibleMode: false,
   shareInstagram: false,
   shareLocation: false,
+  photos: [],
 };
+const PREVIEW_EVENT_ID = '__social_match_preview__';
+const PREVIEW_PREF_KEY = 'lp_social_match_preview_pref';
 
 export function SocialMatchMobile() {
   const { t } = useLanguage();
@@ -90,15 +96,61 @@ export function SocialMatchMobile() {
   const [chatDraft, setChatDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const [savingPref, setSavingPref] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [sendingMsg, setSendingMsg] = useState(false);
   const [requesting, setRequesting] = useState('');
   const [editInterests, setEditInterests] = useState<string[]>([]);
   const [editIndustry, setEditIndustry] = useState('');
   const [editInstagram, setEditInstagram] = useState('');
+  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
+  const photoPreviewAnim = useRef(new Animated.Value(0)).current;
 
+  const hasEligibleEvent = eligibleEvents.length > 0;
   const currentPref = prefMap[selectedEventId] ?? DEFAULT_PREF;
   const activeConnection = connections.find((c) => c.id === activeChatId);
   const visibleConnections = connections.filter((c) => c.status === 'PENDING' || c.status === 'ACCEPTED');
+  const selectedEvent = eligibleEvents.find((e) => e.id === selectedEventId);
+  const myPhotos = (currentPref.photos || []).filter(Boolean);
+  const previewEvent: EligibleEvent = {
+    id: PREVIEW_EVENT_ID,
+    title: t('Compra requerida', 'Purchase required'),
+    eventDate: '',
+    venueName: t('Social Match desactivado', 'Social Match disabled'),
+  };
+  const displayEvents = hasEligibleEvent ? eligibleEvents : [previewEvent];
+
+  const openPhotoPreview = (photo: string) => {
+    photoPreviewAnim.stopAnimation();
+    setExpandedPhoto(photo);
+    photoPreviewAnim.setValue(0);
+    Animated.timing(photoPreviewAnim, {
+      toValue: 1,
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closePhotoPreview = () => {
+    photoPreviewAnim.stopAnimation();
+    Animated.timing(photoPreviewAnim, {
+      toValue: 0,
+      duration: 220,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setExpandedPhoto(null);
+    });
+  };
+
+  const togglePhotoPreview = (photo: string) => {
+    if (expandedPhoto === photo) closePhotoPreview();
+    else openPhotoPreview(photo);
+  };
+
+  useEffect(() => {
+    if (expandedPhoto && !myPhotos.includes(expandedPhoto)) closePhotoPreview();
+  }, [expandedPhoto, myPhotos]);
 
   // Load profile on mount
   useEffect(() => {
@@ -114,8 +166,16 @@ export function SocialMatchMobile() {
         setConnections(data.connections || []);
         const map: Record<string, Preference> = {};
         for (const pref of data.preferences || []) map[pref.eventId] = pref;
+        if (events.length === 0) {
+          try {
+            const stored = await AsyncStorage.getItem(PREVIEW_PREF_KEY);
+            if (stored) map[PREVIEW_EVENT_ID] = { ...DEFAULT_PREF, ...JSON.parse(stored), eventId: PREVIEW_EVENT_ID, isActive: false };
+          } catch {
+            map[PREVIEW_EVENT_ID] = { ...DEFAULT_PREF, eventId: PREVIEW_EVENT_ID };
+          }
+        }
         setPrefMap(map);
-        const firstId = events[0]?.id || '';
+        const firstId = events[0]?.id || PREVIEW_EVENT_ID;
         setSelectedEventId(firstId);
         if (firstId && map[firstId]) {
           setEditInterests(map[firstId].interests || []);
@@ -168,8 +228,21 @@ export function SocialMatchMobile() {
   const savePref = async (updates: Partial<Preference>) => {
     if (!selectedEventId || savingPref) return;
     const base = prefMap[selectedEventId] ?? DEFAULT_PREF;
-    const merged = { ...base, ...updates };
+    const merged = {
+      ...base,
+      ...updates,
+      eventId: selectedEventId,
+      isActive: selectedEventId === PREVIEW_EVENT_ID ? false : updates.isActive ?? base.isActive,
+    };
     setPrefMap((prev) => ({ ...prev, [selectedEventId]: merged }));
+
+    if (selectedEventId === PREVIEW_EVENT_ID) {
+      try {
+        await AsyncStorage.setItem(PREVIEW_PREF_KEY, JSON.stringify(merged));
+      } catch {}
+      return;
+    }
+
     setSavingPref(true);
     try {
       const result = await apiPut<{ preference: Preference }>(`/social-match/events/${selectedEventId}/preferences`, {
@@ -199,6 +272,67 @@ export function SocialMatchMobile() {
 
   const saveEditedPref = () => {
     savePref({ interests: editInterests, industry: editIndustry || null, instagram: editInstagram || null });
+  };
+
+  const savePreviewPhotos = async (photos: string[]) => {
+    const merged = { ...currentPref, eventId: PREVIEW_EVENT_ID, isActive: false, photos };
+    setPrefMap((prev) => ({ ...prev, [PREVIEW_EVENT_ID]: merged }));
+    try {
+      await AsyncStorage.setItem(PREVIEW_PREF_KEY, JSON.stringify(merged));
+    } catch {}
+  };
+
+  const handleUploadPhoto = async () => {
+    if (!selectedEventId || uploadingPhoto) return;
+    if (myPhotos.length >= 6) {
+      Alert.alert(t('Límite de fotos', 'Photo limit'), t('Máximo 6 fotos.', 'Maximum 6 photos.'));
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t('Permiso necesario', 'Permission needed'), t('Concede acceso a tus fotos para subir una imagen.', 'Grant photo access to upload an image.'));
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.86 });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+
+    if (selectedEventId === PREVIEW_EVENT_ID) {
+      await savePreviewPhotos([...myPhotos, asset.uri]);
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const upload = await apiUploadImage<{ photos: string[] }>(
+        `/social-match/events/${selectedEventId}/photos`,
+        { uri: asset.uri, fileName: asset.fileName, mimeType: asset.mimeType },
+        'photo',
+      );
+      setPrefMap((prev) => ({ ...prev, [selectedEventId]: { ...currentPref, eventId: selectedEventId, photos: upload.photos || [] } }));
+    } catch (err: any) {
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo subir la foto.', 'Could not upload photo.'));
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleDeletePhoto = async (index: number) => {
+    if (!selectedEventId) return;
+
+    if (selectedEventId === PREVIEW_EVENT_ID) {
+      await savePreviewPhotos(myPhotos.filter((_, i) => i !== index));
+      return;
+    }
+
+    try {
+      const result = await apiDelete<{ photos: string[] }>(`/social-match/events/${selectedEventId}/photos/${index}`);
+      setPrefMap((prev) => ({ ...prev, [selectedEventId]: { ...currentPref, eventId: selectedEventId, photos: result.photos || [] } }));
+    } catch (err: any) {
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo eliminar la foto.', 'Could not delete photo.'));
+    }
   };
 
   const handleRequestConnection = async (receiverId: string) => {
@@ -250,6 +384,12 @@ export function SocialMatchMobile() {
   };
 
   const summary = useMemo(() => {
+    if (!hasEligibleEvent) {
+      return [
+        t('Desactivado hasta que compres un ticket.', 'Disabled until you buy a ticket.'),
+        t('Puedes preparar tu perfil ahora.', 'You can prepare your profile now.'),
+      ];
+    }
     if (!currentPref.isActive) return [t('Social Match está desactivado para este evento.', 'Social Match is currently off for this event.')];
     return [
       `${suggestions.length} ${t('perfiles compatibles', 'compatible profiles')}`,
@@ -258,7 +398,7 @@ export function SocialMatchMobile() {
         ? t('Ubicación lista tras aceptación mutua', 'Location sharing ready after mutual acceptance')
         : t('Ubicación privada', 'Location sharing is private'),
     ];
-  }, [currentPref.isActive, currentPref.shareLocation, editInterests.length, suggestions.length, t]);
+  }, [currentPref.isActive, currentPref.shareLocation, editInterests.length, hasEligibleEvent, suggestions.length, t]);
 
   const formatDate = (iso: string) => {
     try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
@@ -273,29 +413,38 @@ export function SocialMatchMobile() {
     );
   }
 
-  if (eligibleEvents.length === 0) {
-    return (
-      <View style={styles.emptyCard}>
-        <View style={styles.emptyIcon}>
-          <FontAwesome5 name="handshake" size={27} color={colors.orange} />
-        </View>
-        <Text style={styles.emptyTitle}>Social match</Text>
-        <Text style={styles.emptyCopy}>{t('Compra un ticket para activar Social Match en ese evento.', 'Buy a ticket to activate Social Match for that event.')}</Text>
-      </View>
-    );
-  }
-
   return (
     <View>
+      <View style={[styles.statusCard, hasEligibleEvent && styles.statusCardActive]}>
+        <View style={styles.statusIcon}>
+          <FontAwesome5 name="handshake" size={22} color={hasEligibleEvent ? '#FFFFFF' : colors.orange} />
+        </View>
+        <View style={styles.statusCopy}>
+          <Text style={styles.statusTitle}>Social Match</Text>
+          <Text style={styles.statusText}>
+            {hasEligibleEvent
+              ? t('Activado para eventos con ticket comprado.', 'Enabled for events with purchased tickets.')
+              : t('Desactivado. Compra un ticket para activar matches reales.', 'Disabled. Buy a ticket to activate real matches.')}
+          </Text>
+        </View>
+        <View style={[styles.statusPill, hasEligibleEvent && styles.statusPillActive]}>
+          <Text style={[styles.statusPillText, hasEligibleEvent && styles.statusPillTextActive]}>
+            {hasEligibleEvent ? t('ACTIVADO', 'ACTIVE') : t('DESACTIVADO', 'OFF')}
+          </Text>
+        </View>
+      </View>
+
       <View style={styles.card}>
-        <Text style={styles.sectionLabel}>{t('EVENTO ELEGIBLE', 'ELIGIBLE EVENT')}</Text>
+        <Text style={styles.sectionLabel}>{hasEligibleEvent ? t('EVENTO ELEGIBLE', 'ELIGIBLE EVENT') : t('ESTADO', 'STATUS')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.eventRail}>
-          {eligibleEvents.map((event) => {
+          {displayEvents.map((event) => {
             const selected = event.id === selectedEventId;
             return (
-              <TouchableOpacity key={event.id} onPress={() => setSelectedEventId(event.id)} style={[styles.eventChip, selected && styles.eventChipActive]}>
+              <TouchableOpacity key={event.id} onPress={() => hasEligibleEvent && setSelectedEventId(event.id)} style={[styles.eventChip, selected && styles.eventChipActive, !hasEligibleEvent && styles.eventChipDisabled]} activeOpacity={hasEligibleEvent ? 0.85 : 1}>
                 <Text style={[styles.eventTitle, selected && styles.eventTitleActive]}>{event.title}</Text>
-                <Text style={[styles.eventMeta, selected && styles.eventMetaActive]}>{formatDate(event.eventDate)}{event.venueName ? ` - ${event.venueName}` : ''}</Text>
+                <Text style={[styles.eventMeta, selected && styles.eventMetaActive]}>
+                  {event.eventDate ? `${formatDate(event.eventDate)}${event.venueName ? ` - ${event.venueName}` : ''}` : event.venueName}
+                </Text>
               </TouchableOpacity>
             );
           })}
@@ -304,14 +453,14 @@ export function SocialMatchMobile() {
         <TouchableOpacity
           onPress={() => savePref({ isActive: !currentPref.isActive, interests: editInterests, industry: editIndustry || null, instagram: editInstagram || null })}
           style={[styles.activation, currentPref.isActive && styles.activationActive]}
-          disabled={savingPref}
+          disabled={savingPref || !hasEligibleEvent}
         >
           <View>
             <Text style={[styles.activationTitle, currentPref.isActive && styles.activationTitleActive]}>
-              {currentPref.isActive ? 'SOCIAL MATCH ACTIVE' : 'SOCIAL MATCH OFF'}
+              {hasEligibleEvent && currentPref.isActive ? 'SOCIAL MATCH ACTIVE' : 'SOCIAL MATCH OFF'}
             </Text>
             <Text style={[styles.activationSub, currentPref.isActive && styles.activationSubActive]}>
-              {eligibleEvents.find((e) => e.id === selectedEventId)?.title}
+              {selectedEvent?.title || t('Se activará cuando tengas una compra.', 'It will activate when you have a purchase.')}
             </Text>
           </View>
           <View style={[styles.switchKnob, currentPref.isActive && styles.switchKnobActive]} />
@@ -320,6 +469,67 @@ export function SocialMatchMobile() {
 
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>{t('INTERESES', 'INTERESTS')}</Text>
+        <View style={styles.photoHeader}>
+          <Text style={styles.photoTitle}>{t(`Mis fotos (${myPhotos.length}/6)`, `My photos (${myPhotos.length}/6)`)}</Text>
+          <Text style={styles.photoHint}>
+            {hasEligibleEvent
+              ? t('Estas fotos se verán en tus matches.', 'These photos appear in your matches.')
+              : t('Preview de tu perfil. Se activará con una compra.', 'Profile preview. It activates with a purchase.')}
+          </Text>
+        </View>
+        {expandedPhoto && (
+          <Animated.View
+            style={[
+              styles.photoPreview,
+              {
+                opacity: photoPreviewAnim,
+                transform: [
+                  {
+                    translateY: photoPreviewAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [10, 0],
+                    }),
+                  },
+                  {
+                    scale: photoPreviewAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.94, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+          <TouchableOpacity onPress={closePhotoPreview} activeOpacity={0.94} style={styles.photoPreviewTap}>
+            <Image source={{ uri: expandedPhoto }} style={styles.photoPreviewImage} resizeMode="contain" />
+            <View style={styles.photoPreviewHint}>
+              <Text style={styles.photoPreviewHintText}>{t('Toca para reducir', 'Tap to shrink')}</Text>
+            </View>
+          </TouchableOpacity>
+          </Animated.View>
+        )}
+        <View style={styles.photoGrid}>
+          {myPhotos.map((photo, index) => (
+            <TouchableOpacity
+              key={`${photo}-${index}`}
+              onPress={() => togglePhotoPreview(photo)}
+              activeOpacity={0.88}
+              style={[styles.photoTile, expandedPhoto === photo && styles.photoTileActive]}
+            >
+              <Image source={{ uri: photo }} style={styles.photoImage} resizeMode="cover" />
+              <TouchableOpacity onPress={() => handleDeletePhoto(index)} style={styles.photoDelete} activeOpacity={0.85}>
+                <FontAwesome5 name="trash-alt" size={12} color="#FFFFFF" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
+          {myPhotos.length < 6 && (
+            <TouchableOpacity onPress={handleUploadPhoto} disabled={uploadingPhoto} style={[styles.photoAdd, uploadingPhoto && { opacity: 0.6 }]} activeOpacity={0.85}>
+              <FontAwesome5 name="camera" size={18} color={colors.orange} />
+              <Text style={styles.photoAddText}>{uploadingPhoto ? '...' : t('Agregar', 'Add')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <View style={styles.chipGrid}>
           {INTEREST_OPTIONS.map((interest) => {
             const selected = editInterests.includes(interest.id);
@@ -533,6 +743,45 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 8 },
   },
+  statusCard: {
+    backgroundColor: 'rgba(255,255,255,0.018)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    padding: 16,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statusCardActive: { borderColor: 'rgba(249,115,22,0.42)' },
+  statusIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#030B14',
+    borderWidth: 1,
+    borderColor: 'rgba(249,115,22,0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusCopy: { flex: 1, minWidth: 0 },
+  statusTitle: { color: '#F8FAFC', fontSize: 18, fontWeight: '800', marginBottom: 3 },
+  statusText: { color: 'rgba(226,232,240,0.64)', fontSize: 12, lineHeight: 17, fontWeight: '400' },
+  statusPill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.32)',
+    backgroundColor: 'rgba(148,163,184,0.10)',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+  },
+  statusPillActive: {
+    borderColor: 'rgba(249,115,22,0.48)',
+    backgroundColor: 'rgba(249,115,22,0.16)',
+  },
+  statusPillText: { color: 'rgba(226,232,240,0.72)', fontSize: 9, fontWeight: '900' },
+  statusPillTextActive: { color: colors.orange },
   sectionLabel: { color: colors.orange, fontSize: 11, letterSpacing: 0, fontWeight: '700', marginBottom: 12 },
   eventRail: { gap: 10, paddingRight: 4 },
   eventChip: {
@@ -544,6 +793,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   eventChipActive: { backgroundColor: '#030B14', borderColor: 'rgba(249,115,22,0.62)' },
+  eventChipDisabled: { borderColor: 'rgba(148,163,184,0.18)', opacity: 0.92 },
   eventTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 4 },
   eventTitleActive: { color: '#FFFFFF' },
   eventMeta: { color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '400' },
@@ -567,6 +817,75 @@ const styles = StyleSheet.create({
   activationSubActive: { color: '#cbd5e1' },
   switchKnob: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#cbd5e1' },
   switchKnobActive: { backgroundColor: colors.orange },
+  photoHeader: { marginBottom: 11 },
+  photoTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '800', marginBottom: 3 },
+  photoHint: { color: 'rgba(226,232,240,0.58)', fontSize: 11.5, lineHeight: 16, fontWeight: '400' },
+  photoPreview: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: '#030B14',
+    borderWidth: 1,
+    borderColor: 'rgba(249,115,22,0.42)',
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoPreviewTap: { width: '100%', height: '100%' },
+  photoPreviewImage: { width: '100%', height: '100%' },
+  photoPreviewHint: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 10,
+    height: 28,
+    borderRadius: 999,
+    backgroundColor: 'rgba(3,11,20,0.68)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoPreviewHintText: { color: 'rgba(248,250,252,0.86)', fontSize: 11, fontWeight: '800' },
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 18 },
+  photoTile: {
+    width: 74,
+    height: 74,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#030B14',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  photoTileActive: { borderColor: 'rgba(249,115,22,0.78)' },
+  photoImage: { width: '100%', height: '100%' },
+  photoDelete: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 25,
+    height: 25,
+    borderRadius: 999,
+    backgroundColor: 'rgba(3,11,20,0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoAdd: {
+    width: 74,
+    height: 74,
+    borderRadius: 18,
+    borderWidth: 1.4,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(249,115,22,0.48)',
+    backgroundColor: 'rgba(249,115,22,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  photoAddText: { color: colors.orange, fontSize: 10.5, fontWeight: '800' },
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 16 },
   interestChip: {
     width: '48%',

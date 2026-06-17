@@ -32,6 +32,11 @@ import { logout as logoutRequest, restoreSession } from './src/services/auth';
 import { SplashVideo } from './src/components/SplashVideo';
 
 type Tab = 'events' | 'tickets' | 'scan' | 'social' | 'profile' | 'organizer' | 'admin' | 'contact' | 'about' | 'support' | 'legal' | 'aichat';
+const NAV_LINE_WIDTH = 22;
+const NAV_LINE_TOP = 10;
+const ADMIN_NAV_LINE_TOP = NAV_LINE_TOP + 5;
+const NAV_ICON_SIZE = 20;
+const NAV_ICON_RAISE = 2;
 
 function AppContent() {
   const { t } = useLanguage();
@@ -73,6 +78,10 @@ function AppContent() {
   const goOrganizerSection = (section: OrgSection) => {
     clearFlow();
     setViewMode('organizer');
+    if (section === 'scan') {
+      setTab('scan');
+      return;
+    }
     setOrganizerSection(section);
     setTab('organizer');
   };
@@ -113,6 +122,12 @@ function AppContent() {
   const goToTab = (nextTab: Tab) => {
     clearFlow();
     setTab(nextTab);
+  };
+
+  const goHome = () => {
+    clearFlow();
+    setViewMode('client');
+    setTab('events');
   };
 
   const isLoggedIn = !!currentUser;
@@ -158,7 +173,7 @@ function AppContent() {
 
   useEffect(() => {
     Animated.spring(navIndicatorX, {
-      toValue: navPadding + navItemWidth * activeBottomIndex + navItemWidth / 2 - 9,
+      toValue: navPadding + navItemWidth * activeBottomIndex + navItemWidth / 2 - NAV_LINE_WIDTH / 2,
       useNativeDriver: true,
       damping: 18,
       stiffness: 180,
@@ -211,7 +226,7 @@ function AppContent() {
         <View pointerEvents="none" style={styles.appGridVertical} />
         <View pointerEvents="none" style={styles.appGridHorizontal} />
 
-        {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} />}
+        {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} onGoHome={goHome} />}
 
         {scanOpen ? (
           <ScanScreen onBack={() => setScanOpen(false)} user={currentUser} />
@@ -299,8 +314,9 @@ function AppContent() {
                       <View style={[styles.navItemContent, styles.navItemContentAdmin]}>
                         <Ionicons
                           name={(item.active ? item.icon : `${item.icon}-outline`) as any}
-                          size={17}
+                          size={NAV_ICON_SIZE}
                           color={item.active ? colors.orange : 'rgba(226,232,240,0.45)'}
+                          style={styles.navIcon}
                         />
                         <Text style={[styles.navText, styles.navTextAdmin, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
                       </View>
@@ -329,8 +345,9 @@ function AppContent() {
                     <View style={styles.navItemContent}>
                       <Ionicons
                         name={(item.active ? item.icon : `${item.icon}-outline`) as any}
-                        size={item.key === 'events' ? 18 : 17}
+                        size={NAV_ICON_SIZE}
                         color={item.active ? colors.orange : 'rgba(226,232,240,0.50)'}
+                        style={styles.navIcon}
                       />
                       <Text style={[styles.navText, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
                     </View>
@@ -344,6 +361,7 @@ function AppContent() {
         <MenuDrawer
           visible={menuOpen}
           onClose={() => setMenuOpen(false)}
+          onGoHome={goHome}
           onGoEvents={() => goToTab('events')}
           onGoTickets={() => goToTab('tickets')}
           onGoProfile={() => goToTab('profile')}
@@ -474,6 +492,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    transform: [{ translateY: 18 }],
     height: 78,
     paddingTop: 10,
     paddingBottom: 18,
@@ -513,6 +532,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   navItemContentAdmin: {},
+  navIcon: {
+    transform: [{ translateY: NAV_ICON_RAISE }],
+  },
   navAdminScroll: {
     height: 78,
     flexGrow: 0,
@@ -538,9 +560,9 @@ const styles = StyleSheet.create({
   },
   navFixedSlidingLine: {
     position: 'absolute',
-    top: 41,
+    top: ADMIN_NAV_LINE_TOP,
     left: 0,
-    width: 22,
+    width: NAV_LINE_WIDTH,
     height: 2,
     borderRadius: 999,
     backgroundColor: colors.orange,
@@ -563,9 +585,9 @@ const styles = StyleSheet.create({
   },
   navSlidingLine: {
     position: 'absolute',
-    top: 38,
+    top: NAV_LINE_TOP,
     left: 0,
-    width: 18,
+    width: NAV_LINE_WIDTH,
     height: 2,
     borderRadius: 999,
     backgroundColor: colors.orange,
@@ -582,7 +604,7 @@ const styles = StyleSheet.create({
     lineHeight: 12,
   },
   navTextAdmin: {
-    transform: [{ translateY: -3 }],
+    transform: [{ translateY: 0 }],
   },
   navActiveText: { color: colors.orange },
 });
