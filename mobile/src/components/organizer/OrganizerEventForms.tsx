@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { apiDelete, apiPatch, apiPost, apiUploadImage, getImageUrl } from '../../services/api';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -21,8 +22,8 @@ type SharedProps = {
   event?: any;
 };
 
-type DashboardMetrics = { revenue: string; ticketsSold: string; activeEvents: string; orders: string };
-type DashboardSummary = { capacity: number; sold: number; scanned: number; soldPct: number };
+type DashboardMetrics = { revenue: string; ticketsSold: string; activeEvents: string; orders: string; netEstimated: string };
+type DashboardSummary = { capacity: number; sold: number; scanned: number; soldPct: number; pending: number };
 type DashboardEvent = {
   id: string;
   title: string;
@@ -33,21 +34,40 @@ type DashboardEvent = {
   capacity: number;
   revenue: string;
   imageUrl: string;
+  minPrice?: number;
 };
+
+type SalesByDayItem = { date: string; orders: number; tickets: number; revenue: number };
 
 type DashboardProps = Pick<SharedProps, 'eventTitle' | 'eventVenue' | 'eventStatus' | 'goTo'> & {
   eventDateLabel?: string;
   metrics: DashboardMetrics;
   summary: DashboardSummary;
   events?: DashboardEvent[];
+  salesByDay?: SalesByDayItem[];
+  onOpenEvent?: (eventId: string) => void;
 };
 
-export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, eventDateLabel, metrics, summary, events = [], goTo }: DashboardProps) {
-  const { t } = useLanguage();
+function formatDayLabel(dateStr: string, lang: string) {
+  try {
+    return new Date(`${dateStr}T12:00:00`).toLocaleDateString(
+      lang === 'es' ? 'es-MX' : 'en-US',
+      { month: 'short', day: 'numeric' },
+    );
+  } catch { return dateStr; }
+}
+
+export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, eventDateLabel, metrics, summary, events = [], salesByDay = [], onOpenEvent, goTo }: DashboardProps) {
+  const { t, lang } = useLanguage();
   const hasEvents = events.length > 0;
+
+  const accessTotal = summary.scanned + summary.pending;
+  const accessPct = accessTotal > 0 ? Math.round((summary.scanned / accessTotal) * 100) : 0;
+  const maxRevenue = Math.max(...salesByDay.map((d) => d.revenue), 1);
 
   return (
     <View>
+      {/* 4 KPI cards */}
       <View style={styles.metricsGrid}>
         <Metric label={t('Ingresos brutos', 'Gross revenue')} value={metrics.revenue} tone="orange" />
         <Metric label={t('Tickets vendidos', 'Tickets sold')} value={metrics.ticketsSold} tone="navy" />
@@ -55,6 +75,17 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
         <Metric label={t('Ordenes', 'Orders')} value={metrics.orders} tone="slate" />
       </View>
 
+      {/* Net estimated */}
+      <View style={styles.netCard}>
+        <View style={styles.netCardLeft}>
+          <Text style={styles.netEyebrow}>{t('NETO ESTIMADO', 'ESTIMATED NET')}</Text>
+          <Text style={styles.netValue}>{metrics.netEstimated}</Text>
+          <Text style={styles.netCopy}>{t('Ventas menos comisión estimada de pago.', 'Ticket sales minus estimated processing fee.')}</Text>
+        </View>
+        <Ionicons name="trending-up-outline" size={28} color="#8DE7B1" style={{ opacity: 0.6 }} />
+      </View>
+
+      {/* Hero panel: overall capacity/sold summary */}
       <View style={styles.heroPanel}>
         <View pointerEvents="none" style={styles.heroPanelGlass} />
         <View style={styles.heroTop}>
@@ -82,12 +113,18 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
           <Summary label={t('Escaneados', 'Scanned')} value={String(summary.scanned)} />
         </View>
 
-        {hasEvents ? (
+        {/* Recent events list */}
+        {hasEvents && (
           <View style={styles.dashboardEvents}>
             {events.slice(0, 5).map((item) => {
               const pct = item.capacity > 0 ? Math.min(100, Math.round((item.sold / item.capacity) * 100)) : 0;
               return (
-                <View key={item.id} style={styles.dashboardEventCard}>
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.dashboardEventCard}
+                  activeOpacity={onOpenEvent ? 0.75 : 1}
+                  onPress={onOpenEvent ? () => onOpenEvent(item.id) : undefined}
+                >
                   <View style={styles.dashboardEventTop}>
                     <View style={styles.dashboardFlyerWrap}>
                       {item.imageUrl ? (
@@ -101,11 +138,17 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
                     <View style={styles.dashboardEventTitleBlock}>
                       <Text style={styles.dashboardEventTitle} numberOfLines={2}>{item.title}</Text>
                       <Text style={styles.dashboardEventMeta} numberOfLines={1}>{[item.date, item.venue].filter(Boolean).join(' · ')}</Text>
+                      {item.minPrice ? (
+                        <Text style={styles.dashboardEventPrice}>{t('desde', 'from')} ${item.minPrice}</Text>
+                      ) : null}
                     </View>
-                    <View style={[styles.eventPill, item.status === 'published' ? styles.eventPillActive : styles.eventPillDraft]}>
-                      <Text style={[styles.eventPillText, item.status === 'published' ? styles.eventPillActiveText : styles.eventPillDraftText]}>
-                        {item.status === 'published' ? t('PUBLICADO', 'PUBLISHED') : t('BORRADOR', 'DRAFT')}
-                      </Text>
+                    <View style={styles.dashboardEventRight}>
+                      <View style={[styles.eventPill, item.status === 'published' ? styles.eventPillActive : styles.eventPillDraft]}>
+                        <Text style={[styles.eventPillText, item.status === 'published' ? styles.eventPillActiveText : styles.eventPillDraftText]}>
+                          {item.status === 'published' ? t('PUB', 'PUB') : t('BDRDR', 'DRAFT')}
+                        </Text>
+                      </View>
+                      {onOpenEvent && <Ionicons name="chevron-forward" size={14} color="rgba(249,115,22,0.6)" style={{ marginTop: 6 }} />}
                     </View>
                   </View>
                   <View style={styles.dashboardEventStats}>
@@ -116,26 +159,66 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
                   <View style={styles.dashboardEventTrack}>
                     <View style={[styles.dashboardEventFill, { width: `${pct}%` as `${number}%` }]} />
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
-        ) : null}
+        )}
 
-        <View style={styles.actionGrid}>
-          <PremiumButton label={t('MIS EVENTOS', 'MY EVENTS')} onPress={() => goTo('events')} />
-          <PremiumButton label={t('DETALLES', 'DETAILS')} onPress={() => goTo('details')} muted />
-          <PremiumButton label={t('MAPA VISUAL', 'VISUAL MAP')} onPress={() => goTo('map')} muted />
-          <PremiumButton label={t('ASISTENTES', 'ATTENDEES')} onPress={() => goTo('attendees')} muted />
-        </View>
+        <GradientButton label={t('+ CREAR EVENTO', '+ CREATE EVENT')} onPress={() => goTo('create')} height={50} style={styles.createBtn} textStyle={styles.createBtnText} />
       </View>
 
+      {/* Sales by day chart */}
       <View style={styles.card}>
-        <Text style={styles.eyebrow}>{t('ACTIVIDAD RECIENTE', 'RECENT ACTIVITY')}</Text>
-        <Text style={styles.cardTitle}>{t('Actividad reciente', 'Recent activity')}</Text>
-        <Activity title={t('Nueva orden recibida', 'New order received')} copy={t('Mesa 8 · 2 tickets · $200.00', 'Table 8 · 2 tickets · $200.00')} />
-        <Activity title={t('Ticket escaneado', 'Ticket scanned')} copy={t('Entrada validada en puerta · General admission', 'Door entry validated · General admission')} />
-        <Activity title={t('Mapa actualizado', 'Map updated')} copy={t('Cambios guardados en el diseño del venue', 'Venue design changes saved')} />
+        <View style={styles.chartHeader}>
+          <View>
+            <Text style={styles.eyebrow}>{t('VENTAS POR DÍA', 'SALES BY DAY')}</Text>
+            <Text style={styles.chartSub}>{t('Últimos 14 días · todos tus eventos', 'Last 14 days · all your events')}</Text>
+          </View>
+          <Ionicons name="bar-chart-outline" size={20} color="#F97316" />
+        </View>
+        {salesByDay.length === 0 ? (
+          <Text style={styles.emptyText}>{t('Aún no hay ventas en este periodo.', 'No sales in this period yet.')}</Text>
+        ) : (
+          salesByDay.map((day) => {
+            const barPct = Math.max(4, (day.revenue / maxRevenue) * 100);
+            return (
+              <View key={day.date} style={styles.dayRow}>
+                <View style={styles.dayTop}>
+                  <Text style={styles.dayLabel}>{formatDayLabel(day.date, lang)}</Text>
+                  <Text style={styles.dayRevenue}>${day.revenue.toFixed(2)}</Text>
+                </View>
+                <View style={styles.dayTrack}>
+                  <View style={[styles.dayFill, { width: `${barPct}%` as `${number}%` }]} />
+                </View>
+                <Text style={styles.dayMeta}>{day.orders} {t('órdenes', 'orders')} · {day.tickets} tickets</Text>
+              </View>
+            );
+          })
+        )}
+      </View>
+
+      {/* Access control */}
+      <View style={styles.card}>
+        <Text style={styles.eyebrow}>{t('CONTROL DE ACCESO', 'ACCESS CONTROL')}</Text>
+        <Text style={styles.cardTitle}>{t('Tickets escaneados vs pendientes', 'Scanned vs pending tickets')}</Text>
+        <View style={styles.accessRow}>
+          <Text style={styles.accessPct}>{accessPct}%</Text>
+          <Text style={styles.accessCount}>{summary.scanned} / {accessTotal} {t('ingresados', 'checked in')}</Text>
+        </View>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFillGreen, { width: `${accessPct}%` as `${number}%` }]} />
+        </View>
+        <View style={styles.accessBoxes}>
+          <View style={styles.accessScannedBox}>
+            <Text style={styles.accessScannedVal}>{summary.scanned}</Text>
+            <Text style={styles.accessScannedLbl}>{t('INGRESADOS', 'SCANNED')}</Text>
+          </View>
+          <View style={styles.accessPendingBox}>
+            <Text style={styles.accessPendingVal}>{summary.pending}</Text>
+            <Text style={styles.accessPendingLbl}>{t('PENDIENTES', 'PENDING')}</Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -527,9 +610,11 @@ const styles = StyleSheet.create({
   dashboardEventMeta: { color: '#9CA3AF', fontSize: 11.5, fontWeight: '700', marginTop: 4 },
   dashboardEventStats: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
   dashboardEventStat: { color: '#CBD5E1', fontSize: 11.5, fontWeight: '700' },
+  dashboardEventPrice: { color: '#F97316', fontSize: 11, fontWeight: '700', marginTop: 3 },
+  dashboardEventRight: { alignItems: 'flex-end', gap: 2 },
   dashboardEventTrack: { height: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
   dashboardEventFill: { height: '100%', backgroundColor: colors.orange },
-  eventPill: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 6 },
+  eventPill: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 5 },
   eventPillActive: { backgroundColor: 'rgba(255,90,69,0.12)', borderColor: 'rgba(255,90,69,0.35)' },
   eventPillDraft: { backgroundColor: 'rgba(148,163,184,0.10)', borderColor: 'rgba(148,163,184,0.28)' },
   eventPillText: { fontSize: 8.5, letterSpacing: 0, fontWeight: '700' },
@@ -573,4 +658,40 @@ const styles = StyleSheet.create({
   segmentActive: { backgroundColor: '#030B14', borderColor: 'rgba(255,255,255,0.14)' },
   segmentText: { color: colors.textFaint, fontSize: 12, fontWeight: '700' },
   segmentTextActive: { color: '#FFFFFF' },
+
+  // Net estimated card
+  netCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(141,231,177,0.06)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(141,231,177,0.22)', padding: 14, marginBottom: 14 },
+  netCardLeft: { flex: 1 },
+  netEyebrow: { color: '#8DE7B1', fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 4 },
+  netValue: { color: '#8DE7B1', fontSize: 26, fontWeight: '800', marginBottom: 3 },
+  netCopy: { color: 'rgba(141,231,177,0.55)', fontSize: 12, fontWeight: '600', lineHeight: 17 },
+
+  // Create event button inside hero panel
+  createBtn: { marginTop: 4 },
+  createBtnText: { fontSize: 13, letterSpacing: 0 },
+
+  // Sales by day chart
+  chartHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 },
+  chartSub: { color: '#9CA3AF', fontSize: 11, fontWeight: '600', marginTop: 3 },
+  emptyText: { color: 'rgba(148,163,184,0.6)', fontSize: 13, fontWeight: '600', textAlign: 'center', paddingVertical: 16 },
+  dayRow: { marginBottom: 10 },
+  dayTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  dayLabel: { color: '#CBD5E1', fontSize: 12, fontWeight: '700' },
+  dayRevenue: { color: '#F97316', fontSize: 12, fontWeight: '800' },
+  dayTrack: { height: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginBottom: 4 },
+  dayFill: { height: '100%', borderRadius: 999, backgroundColor: '#F97316' },
+  dayMeta: { color: '#6B7280', fontSize: 10, fontWeight: '600' },
+
+  // Access control section
+  accessRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 10 },
+  accessPct: { color: '#8DE7B1', fontSize: 36, fontWeight: '800', lineHeight: 40 },
+  accessCount: { color: 'rgba(148,163,184,0.6)', fontSize: 11, fontWeight: '600', marginBottom: 4 },
+  progressFillGreen: { height: '100%', backgroundColor: '#22C55E' },
+  accessBoxes: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  accessScannedBox: { flex: 1, backgroundColor: 'rgba(34,197,94,0.10)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(34,197,94,0.25)', padding: 12, alignItems: 'center' },
+  accessScannedVal: { color: '#8DE7B1', fontSize: 24, fontWeight: '800' },
+  accessScannedLbl: { color: 'rgba(141,231,177,0.65)', fontSize: 9, fontWeight: '800', letterSpacing: 0.6, marginTop: 3 },
+  accessPendingBox: { flex: 1, backgroundColor: 'rgba(249,115,22,0.10)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(249,115,22,0.25)', padding: 12, alignItems: 'center' },
+  accessPendingVal: { color: '#F97316', fontSize: 24, fontWeight: '800' },
+  accessPendingLbl: { color: 'rgba(249,115,22,0.65)', fontSize: 9, fontWeight: '800', letterSpacing: 0.6, marginTop: 3 },
 });

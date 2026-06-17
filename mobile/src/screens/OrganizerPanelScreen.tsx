@@ -38,6 +38,7 @@ type OrganizerApiEvent = {
   totalOrders?: number;
   imageUrl?: string | null;
   bannerImageUrl?: string | null;
+  minPrice?: number;
 };
 
 type OrganizerStats = {
@@ -47,6 +48,8 @@ type OrganizerStats = {
   totalOrders?: number;
   scannedTickets?: number;
   pendingTickets?: number;
+  netEstimated?: number;
+  salesByDay?: { date: string; orders: number; tickets: number; revenue: number }[];
 };
 
 type MobileAttendee = {
@@ -96,7 +99,7 @@ function formatEventDate(value?: string) {
 function toOrganizerEvent(event: OrganizerApiEvent, index: number): {
   id: string; title: string; venue: string; date: string; eventDate: string; time: string;
   category: string; capacity: number; sold: number; revenue: string; revenueAmount: number; orders: number;
-  status: 'draft' | 'published'; imageUrl: string;
+  status: 'draft' | 'published'; imageUrl: string; minPrice?: number;
   creatorCommission?: number; pendingCreatorCommission?: number | null;
 } {
   const capacity = Number(event.capacity || event.totalCapacity || 0);
@@ -117,6 +120,7 @@ function toOrganizerEvent(event: OrganizerApiEvent, index: number): {
     orders: Number(event.totalOrders || 0),
     status: event.status === 'published' ? 'published' as const : 'draft' as const,
     imageUrl: getImageUrl(event.imageUrl || event.bannerImageUrl),
+    minPrice: event.minPrice ? Number(event.minPrice) : undefined,
     creatorCommission: Number(event.creatorCommission || 0),
     pendingCreatorCommission: event.pendingCreatorCommission ?? null,
   };
@@ -315,7 +319,9 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
     ticketsSold: String(statsHaveLiveData ? Number(organizerStats.totalTickets || 0) : visibleTotals.sold),
     activeEvents: String(activeEvents),
     orders: String(statsHaveLiveData ? Number(organizerStats.totalOrders || 0) : visibleTotals.orders),
+    netEstimated: money(Number(organizerStats.netEstimated || 0)),
   };
+  const pending = Number(organizerStats.pendingTickets ?? 0);
   const selectedEventRevenue = eventSales?.totalRevenue ?? selectedEvent?.revenueAmount ?? 0;
 
   const activeSectionIndex = Math.max(0, visibleSections.indexOf(active));
@@ -493,8 +499,13 @@ export function OrganizerPanelScreen({ section, onSectionChange }: PanelProps = 
             eventStatus={eventStatus}
             eventDateLabel={firstEvent?.date}
             metrics={dashMetrics}
-            summary={{ capacity, sold, scanned, soldPct }}
+            summary={{ capacity, sold, scanned, soldPct, pending }}
             events={organizerEvents}
+            salesByDay={organizerStats.salesByDay ?? []}
+            onOpenEvent={(id) => {
+              const ev = organizerEvents.find((e) => e.id === id);
+              if (ev) openEvent(ev, 'analytics');
+            }}
             goTo={setActive}
           />
         )}
