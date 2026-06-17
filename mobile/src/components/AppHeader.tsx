@@ -6,15 +6,16 @@ import { useLanguage } from '../i18n/LanguageContext';
 // Same asset as the web header (/logo.png): color icon + white "LPTicket" text.
 const logo = require('../../assets/logo-header.png');
 
-type Props = { onOpenMenu: () => void; onOpenScan: () => void };
+type Props = { onOpenMenu: () => void; onOpenScan: () => void; onGoHome: () => void };
 
 // Mirrors the web's mobile header (max-width 1023px overrides):
 // 84px row over the dark bg with a warm orange glow on the right,
 // Compact lang pill (active = solid orange), 32px glass buttons,
 // orange hamburger icon.
-export function AppHeader({ onOpenMenu, onOpenScan }: Props) {
+export function AppHeader({ onOpenMenu, onGoHome }: Props) {
   const { lang, setLang } = useLanguage();
   const langPillX = useRef(new Animated.Value(lang === 'es' ? 0 : 39)).current;
+  const logoPress = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.spring(langPillX, {
@@ -26,9 +27,19 @@ export function AppHeader({ onOpenMenu, onOpenScan }: Props) {
     }).start();
   }, [lang, langPillX]);
 
+  const handleLogoPress = () => {
+    Animated.sequence([
+      Animated.timing(logoPress, { toValue: 0.94, duration: 85, useNativeDriver: true }),
+      Animated.spring(logoPress, { toValue: 1, useNativeDriver: true, damping: 13, stiffness: 260, mass: 0.55 }),
+    ]).start();
+    onGoHome();
+  };
+
   return (
     <View style={styles.header}>
-      <Image source={logo} style={styles.logo} resizeMode="contain" />
+      <TouchableOpacity activeOpacity={0.86} onPress={handleLogoPress} style={styles.logoButton}>
+        <Animated.Image source={logo} style={[styles.logo, { transform: [{ scale: logoPress }] }]} resizeMode="contain" />
+      </TouchableOpacity>
 
       <View style={styles.actions}>
         <View style={styles.langSwitch}>
@@ -66,6 +77,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     zIndex: 10,
   },
+  logoButton: { width: 146, height: 48, alignItems: 'flex-start', justifyContent: 'center' },
   logo: { width: 140, height: 42 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 0 },
   langSwitch: {

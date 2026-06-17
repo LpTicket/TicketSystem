@@ -7,6 +7,8 @@ export type MobileEvent = {
   address: string;
   price: string;
   tag: string;
+  category?: string;
+  categoryName?: string;
   featured: boolean;
   age: string;
   description?: string;

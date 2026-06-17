@@ -104,6 +104,8 @@ export async function getPublicEvents(): Promise<MobileEvent[]> {
       address: event.venueAddress || '',
       price: `${price.toFixed(2)} ${currency}`,
       tag: event.tag || event.categoryName || event.category || 'EVENT',
+      category: event.category,
+      categoryName: event.categoryName,
       featured: event.isFeatured ?? true,
       age: event.ageRestriction || '+21',
       description: event.description || '',

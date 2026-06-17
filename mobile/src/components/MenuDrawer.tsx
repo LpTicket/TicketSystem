@@ -1,4 +1,5 @@
-import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, SafeAreaView } from 'react-native';
+import { useRef } from 'react';
+import { Animated, Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ScreenBackground } from './ScreenBackground';
@@ -11,6 +12,7 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onGoEvents?: () => void;
+  onGoHome?: () => void;
   onGoTickets?: () => void;
   onGoProfile?: () => void;
   onGoScan?: () => void;
@@ -59,16 +61,24 @@ const orgSections: { id: OrgSectionId; labelEs: string; labelEn: string; icon: I
 ];
 
 export function MenuDrawer({
-  visible, onClose, onGoEvents, onGoTickets, onGoProfile, onGoScan, onGoAiChat,
+  visible, onClose, onGoEvents, onGoHome, onGoTickets, onGoProfile, onGoScan, onGoAiChat,
   onGoSocialMatch, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onGoLegal, onLogout,
   isLoggedIn, canOrganize, canAdmin, viewMode = 'client', onSetMode,
   adminSection, onGoAdminSection,
   orgSection, onGoOrgSection,
 }: Props) {
   const { t } = useLanguage();
+  const logoPress = useRef(new Animated.Value(1)).current;
   const go = (action?: () => void) => {
     onClose();
     action?.();
+  };
+  const handleLogoPress = () => {
+    Animated.sequence([
+      Animated.timing(logoPress, { toValue: 0.94, duration: 85, useNativeDriver: true }),
+      Animated.spring(logoPress, { toValue: 1, useNativeDriver: true, damping: 13, stiffness: 260, mass: 0.55 }),
+    ]).start();
+    go(onGoHome || onGoEvents);
   };
 
   return (
@@ -77,7 +87,9 @@ export function MenuDrawer({
         <ScreenBackground />
         <View style={styles.container}>
           <View style={styles.topBar}>
-          <Image source={logo} style={styles.logo} resizeMode="contain" />
+          <TouchableOpacity activeOpacity={0.86} onPress={handleLogoPress} style={styles.logoButton}>
+            <Animated.Image source={logo} style={[styles.logo, { transform: [{ scale: logoPress }] }]} resizeMode="contain" />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
             <Ionicons name="close" size={22} color="#FFFFFF" />
           </TouchableOpacity>
@@ -136,7 +148,6 @@ export function MenuDrawer({
               <Row icon="person-outline" label={t('Mi perfil', 'My profile')} onPress={() => go(onGoProfile)} />
               <Row icon="people-outline" label={t('Social Match', 'Social Match')} onPress={() => go(onGoSocialMatch)} />
               <Row icon="chatbubble-ellipses-outline" label={t('AI Chat', 'AI Chat')} onPress={() => go(onGoAiChat)} />
-              <Row icon="scan-outline" label={t('Escanear ticket', 'Scan ticket')} onPress={() => go(onGoScan)} />
             </View>
           )}
 
@@ -193,6 +204,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 84 },
+  logoButton: { width: 146, height: 48, alignItems: 'flex-start', justifyContent: 'center' },
   logo: { width: 140, height: 42 },
   closeBtn: {
     width: 38, height: 38, borderRadius: 14, borderWidth: 1,

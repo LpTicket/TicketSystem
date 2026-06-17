@@ -24,7 +24,6 @@ import {
   HiOutlineTrash,
   HiOutlineUsers,
   HiOutlineCalendar,
-  HiOutlineClock,
   HiOutlineLocationMarker,
   HiOutlineMap,
   HiOutlinePencil,
@@ -40,6 +39,7 @@ import {
   HiOutlineChevronRight,
 } from 'react-icons/hi';
 import VenueMapBuilder from '@/components/events/VenueMapBuilder';
+import PremiumTimeSelect from '@/components/forms/PremiumTimeSelect';
 import toast from 'react-hot-toast';
 
 interface Attendee {
@@ -2369,23 +2369,13 @@ export default function EventDetailPage() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Hora del Evento' : 'Event Time'}</label>
-                <div className="relative group">
-                  <HiOutlineClock className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-primary-500 transition-transform group-focus-within:scale-110" />
-                  <select
-                    value={editForm.eventTime}
-                    onChange={(e) => setEditForm({ ...editForm, eventTime: e.target.value })}
-                    className="w-full appearance-none rounded-2xl border border-[rgba(255,122,24,0.24)] bg-gradient-to-b from-white to-orange-50/40 py-2.5 pl-11 pr-11 text-sm font-bold text-gray-900 shadow-[0_12px_28px_rgba(10,55,90,0.08)] outline-none transition-all focus:border-primary-500 focus:ring-4 focus:ring-primary-500/15"
-                    required
-                  >
-                    <option value="" disabled>{lang === 'es' ? 'Selecciona la hora' : 'Select time'}</option>
-                    {TIME_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <HiOutlineChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 transition-transform group-focus-within:rotate-180 group-focus-within:text-primary-500" />
-                </div>
+                <PremiumTimeSelect
+                  value={editForm.eventTime}
+                  options={TIME_OPTIONS}
+                  onChange={(value) => setEditForm({ ...editForm, eventTime: value })}
+                  placeholder={lang === 'es' ? 'Selecciona la hora' : 'Select time'}
+                  compact
+                />
               </div>
 
               <div className="space-y-1.5">

@@ -152,6 +152,25 @@ function formatEventSlug(slug: string) {
     .join(' ');
 }
 
+function analyticsEventKey(value?: string | null) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function analyticsEventImage(topEvent: AnalyticsSummary['topEvents'][number], events: any[]) {
+  const titleKey = analyticsEventKey(topEvent.eventTitle || formatEventSlug(topEvent.eventSlug));
+  const slugKey = analyticsEventKey(formatEventSlug(topEvent.eventSlug));
+  const match = events.find((event) => {
+    const eventTitle = analyticsEventKey(event?.title || event?.name);
+    return eventTitle && (eventTitle === titleKey || eventTitle === slugKey);
+  });
+  return adminEventImage(match);
+}
+
 function fullName(user: any) {
   const name = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
   return name || user?.name || user?.username || user?.email || 'Usuario';
@@ -1749,6 +1768,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                       <RankItem
                         key={ev.eventSlug}
                         index={String(i + 1).padStart(2, '0')}
+                        imageUrl={analyticsEventImage(ev, adminEvents)}
                         title={ev.eventTitle || formatEventSlug(ev.eventSlug)}
                         value={`${ev.views} ${t('v', 'v')} · ${ev.visitors} ${t('u', 'u')}`}
                       />
@@ -2192,11 +2212,17 @@ function AnalyticsBar({ label, value, views }: { label: string; value: `${number
   );
 }
 
-function RankItem({ index, title, value }: { index: string; title: string; value: string }) {
+function RankItem({ index: _index, title, value, imageUrl }: { index: string; title: string; value: string; imageUrl?: string }) {
   return (
     <View style={styles.rankItem}>
-      <View style={styles.rankIndex}>
-        <Text style={styles.rankIndexText}>{index}</Text>
+      <View style={styles.rankImageWrap}>
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.rankImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.rankImageFallback}>
+            <Ionicons name="image-outline" size={18} color="#F97316" />
+          </View>
+        )}
       </View>
       <View style={styles.rankCopy}>
         <Text style={styles.rankTitle}>{title}</Text>
@@ -2426,8 +2452,9 @@ const styles = StyleSheet.create({
   analyticsTrack: { height: 10, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.10)', overflow: 'hidden' },
   analyticsFill: { height: '100%', borderRadius: 999, backgroundColor: colors.orange },
   rankItem: { flexDirection: 'row', gap: 14, alignItems: 'center', backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 14, marginTop: 10 },
-  rankIndex: { width: 44, height: 44, borderRadius: 15, backgroundColor: 'rgba(249,115,22,0.12)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', alignItems: 'center', justifyContent: 'center' },
-  rankIndexText: { color: colors.orange, fontSize: 13, fontWeight: '700' },
+  rankImageWrap: { width: 48, height: 48, borderRadius: 15, overflow: 'hidden', backgroundColor: 'rgba(249,115,22,0.10)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.30)' },
+  rankImage: { width: '100%', height: '100%' },
+  rankImageFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.08)' },
   rankCopy: { flex: 1 },
   rankTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 3 },
   rankValue: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '600' },

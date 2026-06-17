@@ -1,9 +1,10 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
+﻿import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { GradientButton } from '../components/GradientButton';
 import { useLanguage } from '../i18n/LanguageContext';
-import { AuthUser, apiGet, apiPost } from '../services/api';
+import { AuthUser, apiGet, apiPost, getImageUrl } from '../services/api';
 
 type Props = { onBack: () => void; user?: AuthUser | null };
 
@@ -35,7 +36,14 @@ type ValidateResult = {
   eventStats?: EventStats;
 };
 
-type MyEvent = { id: string; title: string };
+type MyEvent = {
+  id: string;
+  title: string;
+  eventDate?: string | null;
+  status?: string | null;
+  imageUrl?: string | null;
+  bannerImageUrl?: string | null;
+};
 
 type RecentScan = {
   id: string;
@@ -45,6 +53,38 @@ type RecentScan = {
   code: string;
   time: string;
 };
+
+function listFrom(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  return payload?.data || payload?.events || payload?.items || [];
+}
+
+function isActiveEvent(eventDate?: string | null) {
+  if (!eventDate) return true;
+  const date = new Date(eventDate);
+  if (Number.isNaN(date.getTime())) return true;
+  const eventDay = new Date(date);
+  eventDay.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return eventDay.getTime() >= today.getTime();
+}
+
+function eventDateBadge(eventDate?: string | null) {
+  if (!eventDate) return null;
+  const date = new Date(eventDate);
+  if (Number.isNaN(date.getTime())) return null;
+  return {
+    day: String(date.getDate()),
+    month: date.toLocaleString('en-US', { month: 'short' }).toUpperCase(),
+  };
+}
+
+function eventTime(value?: string | null) {
+  if (!value) return Number.MAX_SAFE_INTEGER;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+}
 
 export function ScanScreen({ onBack: _onBack, user }: Props) {
   const { t } = useLanguage();
@@ -70,15 +110,29 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
 
   useEffect(() => {
     if (!user) return;
-    apiGet<{ events: (MyEvent & { organizerId?: string })[] }>('/events?limit=100&includePast=true')
+    apiGet<any>('/events/mine/list')
       .then((data) => {
-        const filtered = (data.events || [])
-          .filter((e) => !user?.id || e.organizerId === user.id || user?.role === 'admin')
-          .map((e) => ({ id: e.id, title: e.title }));
+        const filtered = listFrom(data)
+          .filter((e) => (e.status || 'published') === 'published')
+          .filter((e) => isActiveEvent(e.eventDate))
+          .sort((a, b) => eventTime(a.eventDate) - eventTime(b.eventDate))
+          .map((e) => ({
+            id: String(e.id),
+            title: e.title || t('Evento', 'Event'),
+            eventDate: e.eventDate,
+            status: e.status,
+            imageUrl: getImageUrl(e.imageUrl || e.bannerImageUrl),
+            bannerImageUrl: getImageUrl(e.bannerImageUrl || e.imageUrl),
+          }));
         setMyEvents(filtered);
+        setSelectedEventId((current) => (
+          current && filtered.some((event) => event.id === current)
+            ? current
+            : filtered[0]?.id || null
+        ));
       })
       .catch(() => {});
-  }, [user?.id]);
+  }, [t, user]);
 
   useEffect(() => {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -199,7 +253,59 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
         {t('Validación rápida con cámara, vibración, sonido y conteo en vivo.', 'Fast validation with camera, vibration, sound and live counts.')}
       </Text>
 
-      {/* ── Camera / scan box ── */}
+      {/* Event selector */}
+      {myEvents.length > 0 && (
+        <View style={styles.selectorCard}>
+          <View style={styles.selectorHeader}>
+            <View>
+              <Text style={styles.selectorLabel}>{t('EVENTO', 'EVENT')}</Text>
+              <Text style={styles.selectorTitle}>{t('Eventos activos', 'Active events')}</Text>
+            </View>
+            <Ionicons name="albums-outline" size={20} color="#F97316" />
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectorScroll}>
+            {myEvents.map((ev) => {
+              const badge = eventDateBadge(ev.eventDate);
+              return (
+                <TouchableOpacity
+                  key={ev.id}
+                  activeOpacity={0.88}
+                  style={[styles.eventPickerItem, selectedEventId === ev.id && styles.eventPickerItemActive]}
+                  onPress={() => setSelectedEventId(ev.id)}
+                >
+                  <View style={styles.eventThumb}>
+                    {ev.imageUrl || ev.bannerImageUrl ? (
+                      <Image source={{ uri: ev.imageUrl || ev.bannerImageUrl || '' }} style={styles.eventThumbImage} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.eventThumbFallback}>
+                        <Ionicons name="ticket-outline" size={21} color="#F97316" />
+                      </View>
+                    )}
+                    {selectedEventId === ev.id && (
+                      <View style={styles.selectedCheck}>
+                        <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.eventPickerMetaRow}>
+                    <Text style={[styles.eventPickerText, selectedEventId === ev.id && styles.eventPickerTextActive]} numberOfLines={2}>
+                      {ev.title}
+                    </Text>
+                    {badge && (
+                      <View style={[styles.eventDateBadge, selectedEventId === ev.id && styles.eventDateBadgeActive]}>
+                        <Text style={styles.eventDateDay}>{badge.day}</Text>
+                        <Text style={styles.eventDateMonth}>{badge.month}</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Camera / scan box */}
       {showIdle && (
         <View style={styles.scannerCard}>
           {scanState === 'scanning' ? (
@@ -229,15 +335,29 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
             )
           ) : (
             <View style={styles.startPanel}>
-              <View style={styles.cameraIconBox}>
-                <Ionicons name="camera-outline" size={32} color="#F97316" />
+              <View style={styles.scanHeroIcon}>
+                <View style={styles.scanHeroGlow} />
+                <View style={styles.scanCornerTL} />
+                <View style={styles.scanCornerTR} />
+                <View style={styles.scanCornerBL} />
+                <View style={styles.scanCornerBR} />
+                <Ionicons name="scan-outline" size={38} color="#FFFFFF" />
+                <View style={styles.qrDotRow}>
+                  <View style={styles.qrDot} />
+                  <View style={styles.qrDotSmall} />
+                  <View style={styles.qrDot} />
+                </View>
               </View>
-              <TouchableOpacity style={styles.startBtn} onPress={startScanner}>
-                <View pointerEvents="none" style={styles.startBtnShine} />
-                <View pointerEvents="none" style={styles.startBtnShadow} />
-                <Ionicons name="camera-outline" size={18} color="#FFFFFF" style={{ marginRight: 8, zIndex: 2 }} />
-                <Text style={styles.startBtnText}>{t('INICIAR SCANNER', 'START SCANNER')}</Text>
-              </TouchableOpacity>
+              <Text style={styles.startTitle}>{t('Listo para validar', 'Ready to validate')}</Text>
+              <Text style={styles.startCopy}>{t('Escanea el QR del ticket en la puerta.', 'Scan the ticket QR at the door.')}</Text>
+              <GradientButton onPress={startScanner} height={58} style={styles.startScanButton}>
+                <View style={styles.startButtonContent}>
+                  <Text style={styles.startButtonText}>{t('INICIAR SCANNER', 'START SCANNER')}</Text>
+                  <View style={styles.startArrow}>
+                    <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
+                  </View>
+                </View>
+              </GradientButton>
               {!permission?.granted && Platform.OS !== 'web' && (
                 <Text style={styles.permNote}>{t('Se necesita permiso de cámara', 'Camera permission required')}</Text>
               )}
@@ -463,30 +583,54 @@ const styles = StyleSheet.create({
   title: { color: '#F8FAFC', fontSize: 30, lineHeight: 34, fontWeight: '700', marginTop: 14 },
   subtitle: { color: 'rgba(226,232,240,0.6)', fontSize: 13, lineHeight: 20, marginTop: 6, marginBottom: 2 },
 
-  // Camera box
-  scannerCard: { marginTop: 18, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.018)', overflow: 'hidden' },
-  startPanel: { minHeight: 240, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 18, backgroundColor: 'rgba(3,11,20,0.6)' },
-  cameraIconBox: {
-    width: 72, height: 72, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(249,115,22,0.10)',
-    borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)',
-  },
-  startBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    minWidth: 220, height: 56, borderRadius: 16, backgroundColor: '#F97316',
-    paddingHorizontal: 28, overflow: 'hidden', elevation: 5,
-  },
-  startBtnShine: { position: 'absolute', top: 4, left: 14, right: 14, height: 1, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.24)' },
-  startBtnShadow: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '48%', backgroundColor: 'rgba(154,52,18,0.18)' },
-  startBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', zIndex: 2 },
-  permNote: { color: 'rgba(226,232,240,0.46)', fontSize: 11, textAlign: 'center', marginTop: 4 },
+  selectorCard: { marginTop: 14, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.74)', padding: 12, overflow: 'hidden' },
+  selectorHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  selectorLabel: { color: '#F97316', fontSize: 10, fontWeight: '700' },
+  selectorTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginTop: 3 },
+  selectorScroll: { flexDirection: 'row' },
+  eventPickerItem: { width: 118, minHeight: 122, marginRight: 10, padding: 8, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(2,6,23,0.84)', alignItems: 'center' },
+  eventPickerItemActive: { borderColor: 'rgba(249,115,22,0.72)', backgroundColor: 'rgba(249,115,22,0.12)', shadowColor: '#F97316', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 10 }, elevation: 5 },
+  eventThumb: { width: '100%', height: 68, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#020617', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  eventThumbImage: { width: '100%', height: '100%' },
+  eventThumbFallback: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.08)' },
+  selectedCheck: { position: 'absolute', right: 5, top: 5, width: 20, height: 20, borderRadius: 10, backgroundColor: '#F97316', borderWidth: 1, borderColor: 'rgba(255,255,255,0.64)', alignItems: 'center', justifyContent: 'center' },
+  eventPickerMetaRow: { width: '100%', minHeight: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  eventPickerText: { flex: 1, minWidth: 0, color: 'rgba(226,232,240,0.72)', fontSize: 11, lineHeight: 14, fontWeight: '700', textAlign: 'left' },
+  eventPickerTextActive: { color: '#FFFFFF' },
+  eventDateBadge: { width: 32, height: 32, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(249,115,22,0.30)', backgroundColor: 'rgba(249,115,22,0.10)', alignItems: 'center', justifyContent: 'center' },
+  eventDateBadgeActive: { borderColor: 'rgba(249,115,22,0.72)', backgroundColor: 'rgba(249,115,22,0.20)' },
+  eventDateDay: { color: '#FFFFFF', fontSize: 13, lineHeight: 15, fontWeight: '700' },
+  eventDateMonth: { color: '#FB923C', fontSize: 8, lineHeight: 9, fontWeight: '700' },
+
+  scannerCard: { marginTop: 22, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.018)', overflow: 'hidden' },
+  startPanel: { minHeight: 282, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: 'rgba(255,255,255,0.025)' },
+  scanHeroIcon: { width: 92, height: 92, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(249,115,22,0.42)', marginBottom: 14, shadowColor: '#F97316', shadowOpacity: 0.24, shadowRadius: 22, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
+  scanHeroGlow: { position: 'absolute', left: 12, right: 12, top: 12, bottom: 12, borderRadius: 22, backgroundColor: 'rgba(249,115,22,0.12)' },
+  scanCornerTL: { position: 'absolute', left: 15, top: 15, width: 18, height: 18, borderLeftWidth: 2, borderTopWidth: 2, borderColor: '#FB923C', borderTopLeftRadius: 5 },
+  scanCornerTR: { position: 'absolute', right: 15, top: 15, width: 18, height: 18, borderRightWidth: 2, borderTopWidth: 2, borderColor: '#FB923C', borderTopRightRadius: 5 },
+  scanCornerBL: { position: 'absolute', left: 15, bottom: 15, width: 18, height: 18, borderLeftWidth: 2, borderBottomWidth: 2, borderColor: '#FB923C', borderBottomLeftRadius: 5 },
+  scanCornerBR: { position: 'absolute', right: 15, bottom: 15, width: 18, height: 18, borderRightWidth: 2, borderBottomWidth: 2, borderColor: '#FB923C', borderBottomRightRadius: 5 },
+  qrDotRow: { position: 'absolute', bottom: 22, flexDirection: 'row', gap: 4, alignItems: 'center' },
+  qrDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#F97316' },
+  qrDotSmall: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: 'rgba(255,255,255,0.72)' },
+  startTitle: { color: '#F8FAFC', fontSize: 20, fontWeight: '700', marginTop: 4, textAlign: 'center' },
+  startCopy: { color: 'rgba(226,232,240,0.56)', fontSize: 12, lineHeight: 18, fontWeight: '400', marginTop: 6, marginBottom: 18, textAlign: 'center' },
   cameraFrame: { height: 300, backgroundColor: '#020617', overflow: 'hidden' },
   cameraNoise: { position: 'absolute', inset: 0, backgroundColor: 'rgba(15,23,42,0.3)' },
   scanBox: { position: 'absolute', left: 28, right: 28, top: 28, bottom: 44, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(249,115,22,0.82)' },
   scanLine: { position: 'absolute', left: 36, right: 36, top: 0, height: 2, backgroundColor: '#F97316' },
   stopButton: { position: 'absolute', bottom: 14, alignSelf: 'center', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 18, paddingVertical: 10 },
-  stopText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  stopText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
+  permNote: { color: 'rgba(226,232,240,0.52)', fontSize: 11, fontWeight: '400', marginTop: 10, textAlign: 'center' },
+
+  orangeButton: { minHeight: 56, borderRadius: 16, backgroundColor: '#F97316', paddingHorizontal: 28, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', elevation: 5 },
+  orangeTopLine: { position: 'absolute', top: 4, left: 14, right: 14, height: 1, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.24)' },
+  orangeBottomShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '48%', backgroundColor: 'rgba(154,52,18,0.18)' },
+  orangeButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', zIndex: 2 },
+  startScanButton: { alignSelf: 'stretch', borderRadius: 18 },
+  startButtonContent: { width: '100%', paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  startButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.24)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
+  startArrow: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)' },
 
   // Validating
   statusCard: { marginTop: 16, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
