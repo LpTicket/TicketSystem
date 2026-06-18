@@ -117,6 +117,7 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
   const [seatMap, setSeatMap] = useState<VenueSection[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(false);
+  const [zonesOpen, setZonesOpen] = useState(false);
 
   useEffect(() => {
     const key = event.slug || event.id;
@@ -249,27 +250,35 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
         )}
 
         <View style={styles.purchaseCard}>
-          <View style={styles.purchaseHeader}>
-            <Text style={styles.purchaseTitle}>{t('Resumen de compra', 'Purchase Summary')}</Text>
-            <View style={styles.purchasePricePill}>
-              <Text style={styles.purchasePriceFrom}>{t('desde', 'from')} </Text>
-              <Text style={styles.purchasePriceValue}>{detail.price}</Text>
-            </View>
-          </View>
+          <Text style={styles.purchaseTitle}>{t('Resumen de compra', 'Purchase Summary')}</Text>
 
-          {seatMap.filter((s) => s.price && Number(s.price) > 0).length > 0 && (
+          {/* Collapsible zones dropdown */}
+          <TouchableOpacity
+            style={styles.zonesDropdown}
+            onPress={() => setZonesOpen((v) => !v)}
+            activeOpacity={0.82}
+          >
+            <Text style={styles.zonesDropdownText}>{t('Ver precios y zonas', 'View Prices & Zones')}</Text>
+            <Ionicons
+              name={zonesOpen ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color="rgba(226,232,240,0.70)"
+            />
+          </TouchableOpacity>
+
+          {zonesOpen && (
             <View style={styles.zonesBox}>
-              <View style={styles.zonesHeader}>
-                <Ionicons name="map-outline" size={14} color="rgba(226,232,240,0.55)" />
-                <Text style={styles.zonesLabel}>{t('Precios por zona', 'Prices by zone')}</Text>
-              </View>
-              {seatMap.filter((s) => s.price && Number(s.price) > 0).map((s) => (
-                <View key={s.id} style={styles.zoneRow}>
-                  <View style={[styles.zoneDot, { backgroundColor: s.color || '#5667FF' }]} />
-                  <Text style={styles.zoneName} numberOfLines={1}>{s.name || s.label}</Text>
-                  <Text style={styles.zonePrice}>${Number(s.price).toFixed(2)}</Text>
-                </View>
-              ))}
+              {seatMap.filter((s) => s.price && Number(s.price) > 0).length === 0 ? (
+                <Text style={styles.zonesEmpty}>{t('Sin precios configurados', 'No prices configured')}</Text>
+              ) : (
+                seatMap.filter((s) => s.price && Number(s.price) > 0).map((s) => (
+                  <View key={s.id} style={styles.zoneRow}>
+                    <View style={[styles.zoneDot, { backgroundColor: s.color || '#5667FF' }]} />
+                    <Text style={styles.zoneName} numberOfLines={1}>{s.name || s.label}</Text>
+                    <Text style={styles.zonePrice}>${Number(s.price).toFixed(2)}</Text>
+                  </View>
+                ))
+              )}
             </View>
           )}
 
@@ -279,10 +288,7 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
             <Text style={styles.buyText}>{t('COMPRAR TICKETS', 'BUY TICKETS')}</Text>
           </TouchableOpacity>
 
-          <Text style={styles.stripeNote}>
-            <Ionicons name="lock-closed-outline" size={11} color="rgba(226,232,240,0.44)" />
-            {' '}{t('Pagos seguros procesados por Stripe', 'Secure payments processed by Stripe')}
-          </Text>
+          <Text style={styles.stripeNote}>{t('Pagos seguros procesados por Stripe', 'Secure payments processed by Stripe')}</Text>
 
           {([
             { icon: 'card-outline', title: t('Pagos seguros', 'Secure payments'), sub: t('Procesado por Stripe', 'Processed by Stripe') },
@@ -405,44 +411,38 @@ const styles = StyleSheet.create({
 
   purchaseCard: {
     marginTop: 20,
-    borderRadius: 20,
+    marginHorizontal: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(249,115,22,0.22)',
-    backgroundColor: 'rgba(8,20,36,0.82)',
-    overflow: 'hidden',
+    borderColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(8,20,36,0.90)',
     padding: 18,
-    gap: 14,
-    shadowColor: '#F97316',
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 6 },
+    gap: 12,
   },
-  purchaseHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  purchaseTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
-  purchasePricePill: {
+  purchaseTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '800', marginBottom: 2 },
+  zonesDropdown: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    backgroundColor: 'rgba(249,115,22,0.12)',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(249,115,22,0.30)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 14,
+    paddingVertical: 13,
   },
-  purchasePriceFrom: { color: 'rgba(253,186,116,0.70)', fontSize: 11, fontWeight: '600' },
-  purchasePriceValue: { color: '#FDBA74', fontSize: 15, fontWeight: '800' },
+  zonesDropdownText: { color: 'rgba(226,232,240,0.85)', fontSize: 14, fontWeight: '600' },
   zonesBox: {
-    borderRadius: 14,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.09)',
     backgroundColor: 'rgba(255,255,255,0.03)',
     padding: 12,
-    gap: 8,
+    gap: 10,
   },
-  zonesHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  zonesLabel: { color: 'rgba(226,232,240,0.50)', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  zoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  zoneDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  zonesEmpty: { color: 'rgba(203,213,225,0.55)', fontSize: 13, fontWeight: '500' },
+  zoneRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  zoneDot: { width: 9, height: 9, borderRadius: 5, flexShrink: 0 },
   zoneName: { flex: 1, color: 'rgba(226,232,240,0.80)', fontSize: 13, fontWeight: '600' },
   zonePrice: { color: '#F8FAFC', fontSize: 13, fontWeight: '700' },
   buyButton: {
