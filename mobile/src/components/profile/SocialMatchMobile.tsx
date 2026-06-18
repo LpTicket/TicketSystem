@@ -83,7 +83,7 @@ const DEFAULT_PREF: Preference = {
 const PREVIEW_EVENT_ID = '__social_match_preview__';
 const PREVIEW_PREF_KEY = 'lp_social_match_preview_pref';
 
-export function SocialMatchMobile() {
+export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
   const { t } = useLanguage();
   const [eligibleEvents, setEligibleEvents] = useState<EligibleEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -413,8 +413,13 @@ export function SocialMatchMobile() {
     );
   }
 
+  const showSocial = !tab || tab === 'social';
+  const showMessages = !tab || tab === 'messages';
+
   return (
     <View>
+      {showSocial && (
+      <>
       <View style={[styles.statusCard, hasEligibleEvent && styles.statusCardActive]}>
         <View style={styles.statusIcon}>
           <FontAwesome5 name="handshake" size={22} color={hasEligibleEvent ? '#FFFFFF' : colors.orange} />
@@ -610,7 +615,11 @@ export function SocialMatchMobile() {
           ))}
         </View>
       )}
+      </>
+      )}
 
+      {showMessages && (
+      <>
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>{t('SOLICITUDES', 'REQUESTS')}</Text>
         {visibleConnections.length === 0 && (
@@ -682,6 +691,8 @@ export function SocialMatchMobile() {
             </TouchableOpacity>
           </View>
         </View>
+      )}
+      </>
       )}
     </View>
   );
