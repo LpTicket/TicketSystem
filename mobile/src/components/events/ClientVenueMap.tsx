@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import Svg, { Circle, G, Rect, Text as SvgText } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 
@@ -570,28 +571,30 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
     <View style={styles.wrap}>
       <View style={styles.topBar}>
         <View style={styles.mapHeader}>
-          <View>
+          <View style={styles.mapTitleBlock}>
             <Text style={styles.mapEyebrow}>{t('MAPA INTERACTIVO', 'INTERACTIVE MAP')}</Text>
             <Text style={styles.mapTitle}>{t('Elige tu lugar', 'Choose your spot')}</Text>
           </View>
-          <View style={styles.zoomBadge}>
-            <Text style={styles.zoomBadgeText}>{Math.round((scale / fitView.scale) * 100)}%</Text>
+          <View style={styles.controlsRow}>
+            <View style={styles.zoomBadge}>
+              <Text style={styles.zoomBadgeText}>{Math.round((scale / fitView.scale) * 100)}%</Text>
+            </View>
+            <View style={styles.controls}>
+              <TouchableOpacity style={styles.controlButton} onPress={() => zoom(-ZOOM_STEP)}>
+                <Ionicons name="remove-outline" size={19} color="rgba(226,232,240,0.85)" />
+              </TouchableOpacity>
+              <View style={styles.controlDivider} />
+              <TouchableOpacity style={styles.controlButton} onPress={() => zoom(ZOOM_STEP)}>
+                <Ionicons name="add-outline" size={19} color="rgba(226,232,240,0.85)" />
+              </TouchableOpacity>
+              <View style={styles.controlDivider} />
+              <TouchableOpacity style={styles.controlButton} onPress={resetMap}>
+                <Ionicons name="scan-outline" size={16} color="rgba(226,232,240,0.85)" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-        <View style={styles.controls}>
-          <TouchableOpacity style={styles.controlButton} onPress={() => zoom(-ZOOM_STEP)}>
-            <Text style={styles.controlText}>−</Text>
-          </TouchableOpacity>
-          <View style={styles.controlDivider} />
-          <TouchableOpacity style={styles.controlButton} onPress={() => zoom(ZOOM_STEP)}>
-            <Text style={styles.controlText}>+</Text>
-          </TouchableOpacity>
-          <View style={styles.controlDivider} />
-          <TouchableOpacity style={styles.controlButton} onPress={resetMap}>
-            <Text style={styles.controlText}>⌖</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.helpText}>{t('👆 Arrastra para mover · pellizca para zoom', '👆 Drag to pan · pinch to zoom')}</Text>
+        <Text style={styles.helpText}>{t('Arrastra · pellizca para zoom', 'Drag to pan · pinch to zoom')}</Text>
       </View>
 
       <View style={[styles.viewport, { height: viewportHeight }]} {...panResponder.panHandlers}>
@@ -723,10 +726,10 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
       </View>
 
       <View style={styles.legend}>
-        <View style={styles.legendItem}><View style={[styles.legendDot, styles.available]} /><Text style={styles.legendText}>{t('Disponible', 'Available')}</Text></View>
-        <View style={styles.legendItem}><View style={[styles.legendDot, styles.selected]} /><Text style={styles.legendText}>{t('Seleccionado', 'Selected')}</Text></View>
-        <View style={styles.legendItem}><View style={[styles.legendDot, styles.sold]} /><Text style={styles.legendText}>{t('Vendido', 'Sold')}</Text></View>
-        <View style={styles.legendItem}><View style={[styles.legendDot, styles.reserved]} /><Text style={styles.legendText}>{t('Reservado', 'Reserved')}</Text></View>
+        <View style={styles.legendItem}><View style={[styles.legendDot, styles.legendAvailable]} /><Text style={styles.legendText}>{t('Disponible', 'Available')}</Text></View>
+        <View style={styles.legendItem}><View style={[styles.legendDot, styles.legendSelected]} /><Text style={styles.legendText}>{t('Seleccionado', 'Selected')}</Text></View>
+        <View style={styles.legendItem}><View style={[styles.legendDot, styles.legendSold]} /><Text style={styles.legendText}>{t('Vendido', 'Sold')}</Text></View>
+        <View style={styles.legendItem}><View style={[styles.legendDot, styles.legendReserved]} /><Text style={styles.legendText}>{t('Reservado', 'Reserved')}</Text></View>
       </View>
     </View>
   );
@@ -742,49 +745,49 @@ const styles = StyleSheet.create({
   },
   topBar: {
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    gap: 12,
+    paddingTop: 14,
+    paddingBottom: 10,
+    gap: 8,
   },
   mapHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 14,
+    gap: 10,
   },
-  mapEyebrow: { color: colors.orange, fontSize: 10.5, fontWeight: '800', letterSpacing: 1.1 },
-  mapTitle: { color: '#F8FAFC', fontSize: 22, lineHeight: 27, fontWeight: '800', marginTop: 3 },
+  mapTitleBlock: { flex: 1 },
+  mapEyebrow: { color: colors.orange, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
+  mapTitle: { color: '#F8FAFC', fontSize: 19, lineHeight: 24, fontWeight: '800', marginTop: 2 },
+  controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   zoomBadge: {
-    minWidth: 58,
     height: 34,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: 'rgba(249,115,22,0.34)',
-    backgroundColor: 'rgba(249,115,22,0.11)',
+    backgroundColor: 'rgba(249,115,22,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
-  zoomBadgeText: { color: '#FDBA74', fontSize: 12, fontWeight: '800' },
+  zoomBadgeText: { color: '#FDBA74', fontSize: 11.5, fontWeight: '800' },
   controls: {
-    alignSelf: 'flex-end',
-    height: 42,
-    borderRadius: 13,
+    height: 38,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.035)',
+    borderColor: 'rgba(255,255,255,0.13)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  controlButton: { width: 46, height: 42, alignItems: 'center', justifyContent: 'center' },
-  controlText: { color: 'rgba(226,232,240,0.82)', fontSize: 22, fontWeight: '700' },
-  controlDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.22)' },
+  controlButton: { width: 42, height: 38, alignItems: 'center', justifyContent: 'center' },
+  controlDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.18)' },
   helpText: {
-    color: 'rgba(226,232,240,0.62)',
-    fontSize: 12,
-    fontWeight: '600',
+    color: 'rgba(226,232,240,0.40)',
+    fontSize: 11,
+    fontWeight: '500',
     textAlign: 'center',
+    letterSpacing: 0.2,
   },
   viewport: {
     marginHorizontal: 16,
@@ -948,17 +951,16 @@ const styles = StyleSheet.create({
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    borderWidth: 1.5,
   },
-  available: { backgroundColor: '#13263D' },
-  selected: { backgroundColor: colors.orange },
-  sold: { backgroundColor: '#DCE3EA' },
-  reserved: { backgroundColor: '#FFD166' },
-  legendText: { color: 'rgba(226,232,240,0.72)', fontSize: 11, fontWeight: '600' },
+  legendAvailable: { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.38)' },
+  legendSelected: { backgroundColor: colors.orange, borderColor: colors.orange },
+  legendSold: { backgroundColor: '#94A3B8', borderColor: '#94A3B8' },
+  legendReserved: { backgroundColor: '#FACC15', borderColor: '#FACC15' },
+  legendText: { color: 'rgba(226,232,240,0.65)', fontSize: 11, fontWeight: '600' },
   emptyCard: {
     borderRadius: 22,
     padding: 20,

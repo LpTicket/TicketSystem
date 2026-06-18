@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { MobileEvent } from '../types/event';
@@ -245,21 +246,58 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
           </View>
         )}
 
-        <View style={styles.priceBox}>
-          <Text style={styles.priceLabel}>{t('Desde', 'From')}</Text>
-          <Text style={styles.price}>{detail.price}</Text>
-        </View>
+        <View style={styles.purchaseCard}>
+          <View style={styles.purchaseHeader}>
+            <Text style={styles.purchaseTitle}>{t('Resumen de compra', 'Purchase Summary')}</Text>
+            <View style={styles.purchasePricePill}>
+              <Text style={styles.purchasePriceFrom}>{t('desde', 'from')} </Text>
+              <Text style={styles.purchasePriceValue}>{detail.price}</Text>
+            </View>
+          </View>
 
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.shareButton}>
-            <Text style={styles.shareText}>⌯</Text>
-          </TouchableOpacity>
+          {seatMap.filter((s) => s.price && Number(s.price) > 0).length > 0 && (
+            <View style={styles.zonesBox}>
+              <View style={styles.zonesHeader}>
+                <Ionicons name="map-outline" size={14} color="rgba(226,232,240,0.55)" />
+                <Text style={styles.zonesLabel}>{t('Precios por zona', 'Prices by zone')}</Text>
+              </View>
+              {seatMap.filter((s) => s.price && Number(s.price) > 0).map((s) => (
+                <View key={s.id} style={styles.zoneRow}>
+                  <View style={[styles.zoneDot, { backgroundColor: s.color || '#5667FF' }]} />
+                  <Text style={styles.zoneName} numberOfLines={1}>{s.name || s.label}</Text>
+                  <Text style={styles.zonePrice}>${Number(s.price).toFixed(2)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
 
-          <TouchableOpacity style={styles.buyButton} onPress={onBuy}>
+          <TouchableOpacity style={styles.buyButton} onPress={onBuy} activeOpacity={0.88}>
             <View pointerEvents="none" style={styles.orangeButtonTop} />
             <View pointerEvents="none" style={styles.orangeButtonBottom} />
             <Text style={styles.buyText}>{t('COMPRAR TICKETS', 'BUY TICKETS')}</Text>
           </TouchableOpacity>
+
+          <Text style={styles.stripeNote}>
+            <Ionicons name="lock-closed-outline" size={11} color="rgba(226,232,240,0.44)" />
+            {' '}{t('Pagos seguros procesados por Stripe', 'Secure payments processed by Stripe')}
+          </Text>
+
+          {([
+            { icon: 'card-outline', title: t('Pagos seguros', 'Secure payments'), sub: t('Procesado por Stripe', 'Processed by Stripe') },
+            { icon: 'shield-checkmark-outline', title: t('Tickets verificados', 'Verified tickets'), sub: t('Entrada digital protegida', 'Protected digital entry') },
+            { icon: 'qr-code-outline', title: t('QR único', 'Unique QR'), sub: t('Validación rápida en puerta', 'Fast door validation') },
+            { icon: 'headset-outline', title: t('Soporte disponible', 'Support available'), sub: t('Antes y después de la compra', 'Before and after purchase') },
+          ] as { icon: keyof typeof Ionicons.glyphMap; title: string; sub: string }[]).map((item) => (
+            <View key={item.title} style={styles.trustRow}>
+              <View style={styles.trustIcon}>
+                <Ionicons name={item.icon} size={18} color={colors.orange} />
+              </View>
+              <View style={styles.trustCopy}>
+                <Text style={styles.trustTitle}>{item.title}</Text>
+                <Text style={styles.trustSub}>{item.sub}</Text>
+              </View>
+            </View>
+          ))}
         </View>
       </View>
     </ScrollView>
@@ -361,41 +399,60 @@ const styles = StyleSheet.create({
   mapEmptyTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   mapEmptyText: { color: 'rgba(203,213,225,0.68)', fontSize: 13, lineHeight: 19, fontWeight: '400', marginTop: 5 },
 
-  priceBox: {
-    marginTop: 18,
-    borderRadius: 14,
-    padding: 15,
-    backgroundColor: 'rgba(8,31,51,0.72)',
+  purchaseCard: {
+    marginTop: 20,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(249,115,22,0.18)',
+    borderColor: 'rgba(249,115,22,0.22)',
+    backgroundColor: 'rgba(8,20,36,0.82)',
+    overflow: 'hidden',
+    padding: 18,
+    gap: 14,
+    shadowColor: '#F97316',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
   },
-  priceLabel: { color: 'rgba(203,213,225,0.70)', fontSize: 12, fontWeight: '700', marginBottom: 5 },
-  price: { color: '#FFFFFF', fontSize: 24, fontWeight: '700' },
-  actions: { flexDirection: 'row', gap: 12, marginTop: 18 },
-  shareButton: {
-    width: 56,
+  purchaseHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  purchaseTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
+  purchasePricePill: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(249,115,22,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(249,115,22,0.30)',
+  },
+  purchasePriceFrom: { color: 'rgba(253,186,116,0.70)', fontSize: 11, fontWeight: '600' },
+  purchasePriceValue: { color: '#FDBA74', fontSize: 15, fontWeight: '800' },
+  zonesBox: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    padding: 12,
+    gap: 8,
+  },
+  zonesHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  zonesLabel: { color: 'rgba(226,232,240,0.50)', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  zoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  zoneDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  zoneName: { flex: 1, color: 'rgba(226,232,240,0.80)', fontSize: 13, fontWeight: '600' },
+  zonePrice: { color: '#F8FAFC', fontSize: 13, fontWeight: '700' },
+  buyButton: {
     height: 56,
     borderRadius: 12,
-    backgroundColor: '#081F33',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareText: { color: '#FFFFFF', fontSize: 25, fontWeight: '700' },
-  buyButton: {
-    flex: 1,
-    height: 56,
-    borderRadius: 8,
     position: 'relative',
     overflow: 'hidden',
     backgroundColor: '#F97316',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#F97316',
-    shadowOpacity: 0.20,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
   orangeButtonTop: {
@@ -417,5 +474,33 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(154,52,18,0.22)',
     zIndex: 1,
   },
-  buyText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', letterSpacing: 0, zIndex: 3 },
+  buyText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800', letterSpacing: 0.4, zIndex: 3 },
+  stripeNote: {
+    color: 'rgba(226,232,240,0.40)',
+    fontSize: 11,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.07)',
+  },
+  trustIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(249,115,22,0.28)',
+    backgroundColor: 'rgba(249,115,22,0.09)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  trustCopy: { flex: 1 },
+  trustTitle: { color: '#F8FAFC', fontSize: 14, fontWeight: '700' },
+  trustSub: { color: 'rgba(203,213,225,0.58)', fontSize: 12, fontWeight: '400', marginTop: 1 },
 });
