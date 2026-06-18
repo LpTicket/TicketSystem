@@ -41,8 +41,8 @@ export function OrganizerAccessMobile({ items, onToggle, goTo }: Props) {
 
         <Text style={styles.sectionTitle}>{t('Accesos activos', 'Active access')}</Text>
 
-        {items.map((item) => (
-          <View key={item.id} style={styles.accessCard}>
+        {items.map((item, index) => (
+          <View key={`${item.id || item.type || 'access'}-${index}`} style={styles.accessCard}>
             <View style={styles.accessTop}>
               <View style={styles.iconBox}>
                 <Text style={styles.iconText}>{item.type.slice(0, 2).toUpperCase()}</Text>

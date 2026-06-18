@@ -13,7 +13,8 @@
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "LPTicket necesita acceso a tus fotos para cambiar tu foto de perfil.",
         "NSPhotoLibraryAddUsageDescription": "LPTicket necesita permiso para guardar imágenes cuando sea necesario.",
-        "NSCameraUsageDescription": "LPTicket necesita la cámara para escanear códigos QR de entradas."
+        "NSCameraUsageDescription": "LPTicket necesita la cámara para escanear códigos QR de entradas.",
+        "NSFaceIDUsageDescription": "LPTicket usa Face ID para que puedas iniciar sesión de forma rápida y segura."
       }
     },
     "android": {
@@ -43,6 +44,18 @@
         "expo-camera",
         {
           "cameraPermission": "LPTicket necesita la cámara para escanear códigos QR de entradas."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "LPTicket usa Face ID para que puedas iniciar sesión de forma rápida y segura."
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "LPTicket usa Face ID para proteger tu inicio de sesión."
         }
       ]
     ]

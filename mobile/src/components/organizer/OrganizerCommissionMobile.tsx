@@ -251,7 +251,7 @@ export function OrganizerCommissionMobile({
             <Text style={styles.emptySub}>{es ? 'El administrador puede crear códigos desde el panel de admin.' : 'The administrator can create codes from the admin panel.'}</Text>
           </View>
         ) : (
-          codes.map((code) => {
+          codes.map((code, index) => {
             const ownerName = code.owner
               ? `${code.owner.firstName || ''} ${code.owner.lastName || ''}`.trim() || (es ? 'Sin asignar' : 'Unassigned')
               : es ? 'Sin asignar' : 'Unassigned';
@@ -260,7 +260,7 @@ export function OrganizerCommissionMobile({
             const ownRate = Number(code.commissionFixed || 0) > 0;
 
             return (
-              <View key={code.id} style={styles.codeCard}>
+              <View key={`${code.id || code.code || 'commission-code'}-${index}`} style={styles.codeCard}>
                 {/* Creator info row */}
                 <View style={styles.codeTop}>
                   <View style={styles.codeAvatar}>
@@ -302,12 +302,12 @@ export function OrganizerCommissionMobile({
                     </TouchableOpacity>
                     {isExpanded && (
                       <View style={styles.buyerList}>
-                        {(code.orders || []).map((order) => {
+                        {(code.orders || []).map((order, orderIndex) => {
                           const buyerName = order.buyer
                             ? `${order.buyer.firstName || ''} ${order.buyer.lastName || ''}`.trim()
                             : es ? 'Comprador' : 'Buyer';
                           return (
-                            <View key={order.id} style={styles.buyerRow}>
+                            <View key={`${order.id || order.buyer?.email || 'commission-order'}-${orderIndex}`} style={styles.buyerRow}>
                               <View style={{ flex: 1 }}>
                                 <Text style={styles.buyerName} numberOfLines={1}>{buyerName}</Text>
                                 <Text style={styles.buyerEmail} numberOfLines={1}>{order.buyer?.email || '-'}</Text>

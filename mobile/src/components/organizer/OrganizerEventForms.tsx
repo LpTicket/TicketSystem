@@ -116,11 +116,11 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
         {/* Recent events list */}
         {hasEvents && (
           <View style={styles.dashboardEvents}>
-            {events.slice(0, 5).map((item) => {
+            {events.slice(0, 5).map((item, index) => {
               const pct = item.capacity > 0 ? Math.min(100, Math.round((item.sold / item.capacity) * 100)) : 0;
               return (
                 <TouchableOpacity
-                  key={item.id}
+                  key={`${item.id || item.title || 'dashboard-event'}-${index}`}
                   style={styles.dashboardEventCard}
                   activeOpacity={onOpenEvent ? 0.75 : 1}
                   onPress={onOpenEvent ? () => onOpenEvent(item.id) : undefined}
@@ -180,10 +180,10 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
         {salesByDay.length === 0 ? (
           <Text style={styles.emptyText}>{t('Aún no hay ventas en este periodo.', 'No sales in this period yet.')}</Text>
         ) : (
-          salesByDay.map((day) => {
+          salesByDay.map((day, index) => {
             const barPct = Math.max(4, (day.revenue / maxRevenue) * 100);
             return (
-              <View key={day.date} style={styles.dayRow}>
+              <View key={`${day.date}-${index}`} style={styles.dayRow}>
                 <View style={styles.dayTop}>
                   <Text style={styles.dayLabel}>{formatDayLabel(day.date, lang)}</Text>
                   <Text style={styles.dayRevenue}>${day.revenue.toFixed(2)}</Text>

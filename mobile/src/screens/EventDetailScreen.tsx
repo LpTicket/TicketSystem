@@ -264,8 +264,8 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
               {seatMap.filter((s) => s.price && Number(s.price) > 0).length === 0 ? (
                 <Text style={styles.zonesEmpty}>{t('Sin precios configurados', 'No prices configured')}</Text>
               ) : (
-                seatMap.filter((s) => s.price && Number(s.price) > 0).map((s) => (
-                  <View key={s.id} style={styles.zoneRow}>
+                seatMap.filter((s) => s.price && Number(s.price) > 0).map((s, index) => (
+                  <View key={`${s.id || s.name || 'zone'}-${index}`} style={styles.zoneRow}>
                     <View style={[styles.zoneDot, { backgroundColor: s.color || '#5667FF' }]} />
                     <Text style={styles.zoneName} numberOfLines={1}>{s.name || s.label}</Text>
                     <Text style={styles.zonePrice}>${Number(s.price).toFixed(2)}</Text>
@@ -288,8 +288,8 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
             { icon: 'shield-checkmark-outline', title: t('Tickets verificados', 'Verified tickets'), sub: t('Entrada digital protegida', 'Protected digital entry') },
             { icon: 'qr-code-outline', title: t('QR único', 'Unique QR'), sub: t('Validación rápida en puerta', 'Fast door validation') },
             { icon: 'headset-outline', title: t('Soporte disponible', 'Support available'), sub: t('Antes y después de la compra', 'Before and after purchase') },
-          ] as { icon: keyof typeof Ionicons.glyphMap; title: string; sub: string }[]).map((item) => (
-            <View key={item.title} style={styles.trustRow}>
+          ] as { icon: keyof typeof Ionicons.glyphMap; title: string; sub: string }[]).map((item, index) => (
+            <View key={`${item.title}-${index}`} style={styles.trustRow}>
               <View style={styles.trustIcon}>
                 <Ionicons name={item.icon} size={18} color={colors.orange} />
               </View>

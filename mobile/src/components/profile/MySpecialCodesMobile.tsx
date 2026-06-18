@@ -121,8 +121,8 @@ export function MySpecialCodesMobile() {
 
       <View style={styles.card}>
         <Text style={styles.cardLabel}>{t('MIS CÓDIGOS', 'MY CODES')}</Text>
-        {codes.map(c => (
-          <View key={c.id} style={styles.row}>
+        {codes.map((c, index) => (
+          <View key={`${c.id || c.code || 'code'}-${index}`} style={styles.row}>
             <View>
               <Text style={styles.codeText}>{c.code}</Text>
               <Text style={styles.codeEvent}>{c.event?.title || t('Todos los eventos', 'All events')}</Text>
@@ -166,8 +166,8 @@ export function MySpecialCodesMobile() {
           <Text style={styles.cardLabel}>{t('VENTAS GENERADAS', 'GENERATED SALES')}</Text>
           <Text style={styles.salesSub}>{stats.totalSales} {t('ventas', 'sales')} · {t('Total generado', 'Total volume')}: ${stats.totalSalesVolume.toFixed(2)}</Text>
           
-          {sales.slice(0, 5).map(s => (
-            <View key={s.id} style={styles.saleRow}>
+          {sales.slice(0, 5).map((s, index) => (
+            <View key={`${s.id || s.specialCode || 'sale'}-${index}`} style={styles.saleRow}>
               <View>
                 <Text style={styles.saleCode}>{s.specialCode}</Text>
                 <Text style={styles.saleEvent} numberOfLines={1}>{s.event?.title}</Text>

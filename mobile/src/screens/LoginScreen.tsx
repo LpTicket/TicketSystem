@@ -7,6 +7,7 @@ import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { API_URL, AuthUser } from '../services/api';
 import { login as loginRequest, register as registerRequest } from '../services/auth';
+import { getBiometricAvailability, saveBiometricLogin, signInWithBiometrics } from '../services/biometricAuth';
 import { GradientButton } from '../components/GradientButton';
 
 type Props = {
@@ -28,6 +29,9 @@ export function LoginScreen({ onSignIn }: Props) {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+  const [biometricReady, setBiometricReady] = useState(false);
+  const [hasSavedBiometricLogin, setHasSavedBiometricLogin] = useState(false);
   const [error, setError] = useState('');
 
   const isRegister = mode === 'register';
@@ -38,6 +42,13 @@ export function LoginScreen({ onSignIn }: Props) {
         if (!savedEmail) return;
         setEmail(savedEmail);
         setRememberMe(true);
+      })
+      .catch(() => {});
+
+    getBiometricAvailability()
+      .then((availability) => {
+        setBiometricReady(availability.hasHardware && availability.enrolled);
+        setHasSavedBiometricLogin(availability.hasSavedLogin);
       })
       .catch(() => {});
   }, []);
@@ -89,6 +100,8 @@ export function LoginScreen({ onSignIn }: Props) {
             lang: lang === 'en' ? 'en' : 'es',
           })
         : await loginRequest(email, password);
+      await saveBiometricLogin(email, password);
+      setHasSavedBiometricLogin(true);
       onSignIn(user);
     } catch (err: any) {
       setError(
@@ -118,11 +131,24 @@ export function LoginScreen({ onSignIn }: Props) {
     );
   };
 
-  const handleFaceId = () => {
-    Alert.alert(
-      'Face ID',
-      t('El acceso biométrico está preparado visualmente. Para activarlo de forma real hay que instalar el módulo nativo de autenticación biométrica y guardar una sesión válida.', 'Biometric access is visually prepared. To enable it for real, the native biometric authentication module must be installed and a valid session stored.'),
-    );
+  const handleFaceId = async () => {
+    setError('');
+    setBiometricLoading(true);
+    try {
+      const user = await signInWithBiometrics({
+        prompt: t('Usa Face ID para entrar a LPTicket', 'Use Face ID to enter LPTicket'),
+        cancel: t('Cancelar', 'Cancel'),
+        fallback: t('Usar código', 'Use passcode'),
+        noSavedLogin: t('Primero inicia sesión con email y contraseña para activar Face ID.', 'Sign in with email and password first to enable Face ID.'),
+        unavailable: t('Face ID no está configurado en este dispositivo.', 'Face ID is not configured on this device.'),
+        failed: t('No pudimos validar Face ID.', 'We could not verify Face ID.'),
+      });
+      onSignIn(user);
+    } catch (err: any) {
+      setError(err?.message || t('No pudimos validar Face ID.', 'We could not verify Face ID.'));
+    } finally {
+      setBiometricLoading(false);
+    }
   };
 
   return (
@@ -245,9 +271,9 @@ export function LoginScreen({ onSignIn }: Props) {
               <Text style={styles.rememberText}>{t('Recordarme', 'Remember me')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.faceButton} onPress={handleFaceId} activeOpacity={0.86}>
+            <TouchableOpacity style={[styles.faceButton, (!biometricReady || biometricLoading) && styles.faceButtonDisabled]} onPress={handleFaceId} disabled={biometricLoading} activeOpacity={0.86}>
               <Ionicons name="scan-outline" size={16} color={colors.orange} />
-              <Text style={styles.faceText}>Face ID</Text>
+              <Text style={styles.faceText}>{biometricLoading ? t('Validando', 'Checking') : hasSavedBiometricLogin ? 'Face ID' : t('Activar Face ID', 'Enable Face ID')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -455,6 +481,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+  },
+  faceButtonDisabled: {
+    opacity: 0.72,
   },
   faceText: {
     color: '#F8FAFC',

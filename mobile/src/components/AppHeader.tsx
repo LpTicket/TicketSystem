@@ -6,13 +6,13 @@ import { useLanguage } from '../i18n/LanguageContext';
 // Same asset as the web header (/logo.png): color icon + white "LPTicket" text.
 const logo = require('../../assets/logo-header.png');
 
-type Props = { onOpenMenu: () => void; onOpenScan: () => void; onGoHome: () => void };
+type Props = { onOpenMenu: () => void; onOpenScan: () => void; onGoHome: () => void; onOpenLogin?: () => void; showLoginButton?: boolean };
 
 // Mirrors the web's mobile header (max-width 1023px overrides):
 // 84px row over the dark bg with a warm orange glow on the right,
 // Compact lang pill (active = solid orange), 32px glass buttons,
 // orange hamburger icon.
-export function AppHeader({ onOpenMenu, onGoHome }: Props) {
+export function AppHeader({ onOpenMenu, onGoHome, onOpenLogin, showLoginButton = false }: Props) {
   const { lang, setLang } = useLanguage();
   const langPillX = useRef(new Animated.Value(lang === 'es' ? 0 : 39)).current;
   const logoPress = useRef(new Animated.Value(1)).current;
@@ -58,6 +58,12 @@ export function AppHeader({ onOpenMenu, onGoHome }: Props) {
             <Text style={[styles.langText, lang === 'en' && styles.langTextActive]}>EN</Text>
           </TouchableOpacity>
         </View>
+
+        {showLoginButton && (
+          <TouchableOpacity style={[styles.iconButton, styles.loginButton]} onPress={onOpenLogin} activeOpacity={0.84}>
+            <Text style={styles.loginButtonText}>{lang === 'es' ? 'Inicio' : 'Login'}</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity style={[styles.iconButton, styles.menuButton]} onPress={onOpenMenu}>
           <Ionicons name="menu-outline" size={26} color="#ff7a00" />
@@ -129,5 +135,16 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     borderColor: 'rgba(249,115,22,0.62)',
+  },
+  loginButton: {
+    width: 54,
+    borderColor: 'rgba(249,115,22,0.62)',
+    paddingHorizontal: 5,
+  },
+  loginButtonText: {
+    color: '#ff7a00',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0,
   },
 });

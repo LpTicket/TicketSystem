@@ -153,13 +153,13 @@ export function PurchaseScreen({ event, user, onBack, onPaid }: Props) {
             {selectedSeats.length === 0 ? (
               <Text style={styles.rowLabel}>{t('Toca un asiento disponible en el mapa.', 'Tap an available seat on the map.')}</Text>
             ) : (
-              selectedSeats.map((seat) => {
+              selectedSeats.map((seat, index) => {
                 const sec = sectionById[seat.sectionId || ''];
                 const label = sec?.sectionType === 'table'
                   ? `${t('Mesa', 'Table')} ${sec?.name} · ${t('Silla', 'Seat')} ${seat.seatNumber}`
                   : `${sec?.name || ''} ${seat.rowLabel || ''}${seat.seatNumber}`;
                 return (
-                  <View key={seat.id} style={styles.row}>
+                  <View key={`${seat.id || 'seat'}-${index}`} style={styles.row}>
                     <Text style={styles.rowLabel}>{label}</Text>
                     <Text style={styles.rowValue}>${seatPrice(seat, sec).toFixed(2)}</Text>
                   </View>
@@ -170,10 +170,10 @@ export function PurchaseScreen({ event, user, onBack, onPaid }: Props) {
         </>
       ) : (
         <>
-          {gaSections.map((s) => {
+          {gaSections.map((s, index) => {
             const active = s.id === gaSelected?.id;
             return (
-              <TouchableOpacity key={s.id} onPress={() => { setGaSectionId(s.id); setGaQty(1); }} style={[styles.ticketType, active && styles.ticketTypeActive]}>
+              <TouchableOpacity key={`${s.id || s.name || 'section'}-${index}`} onPress={() => { setGaSectionId(s.id); setGaQty(1); }} style={[styles.ticketType, active && styles.ticketTypeActive]}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.typeLabel}>{t('ACCESO GENERAL', 'GENERAL ACCESS')}</Text>
                   <Text style={styles.typeName}>{s.name}</Text>

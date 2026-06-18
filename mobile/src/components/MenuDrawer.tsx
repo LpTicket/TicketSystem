@@ -105,9 +105,9 @@ export function MenuDrawer({
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionLabel}>{t('PANEL ADMIN', 'ADMIN PANEL')}</Text>
               </View>
-              {adminSections.map((s) => (
+              {adminSections.map((s, index) => (
                 <Row
-                  key={s.id}
+                  key={`${s.id}-${index}`}
                   icon={s.icon}
                   label={t(s.labelEs, s.labelEn)}
                   active={adminSection === s.id}
@@ -123,9 +123,9 @@ export function MenuDrawer({
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionLabel}>{t('ORGANIZADOR', 'ORGANIZER')}</Text>
               </View>
-              {orgSections.map((s) => (
+              {orgSections.map((s, index) => (
                 <Row
-                  key={s.id}
+                  key={`${s.id}-${index}`}
                   icon={s.icon}
                   label={t(s.labelEs, s.labelEn)}
                   active={orgSection === s.id}

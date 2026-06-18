@@ -139,6 +139,7 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
   const organizerIndicatorX = useRef(new Animated.Value(0)).current;
   const organizerIndicatorWidth = useRef(new Animated.Value(118)).current;
   const tabsScrollRef = useRef<ScrollView>(null);
+  const panelScrollRef = useRef<ScrollView>(null);
   const [internalSection, setInternalSection] = useState<Section>(adminEvent ? 'details' : 'dashboard');
   const active = section ?? internalSection;
   const setActive = (s: Section) => { setInternalSection(s); onSectionChange?.(s); };
@@ -303,6 +304,10 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
     if (!isEventSection(active) && selectedEvent) setSelectedEvent(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
+
+  useEffect(() => {
+    panelScrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [active, selectedEventId]);
 
   const firstEvent = organizerEvents[0];
   const activeEvents = organizerEvents.filter((e) => e.status === 'published').length;
@@ -528,7 +533,7 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
       </View>
       )}
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, !selectedEvent && { paddingTop: 44 }]}>
+      <ScrollView ref={panelScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, !selectedEvent && { paddingTop: 44 }]}>
         {selectedEvent ? (
           <TouchableOpacity style={styles.eventBackChip} onPress={backToEvents}>
             <Text style={styles.eventBackArrow}>‹</Text>

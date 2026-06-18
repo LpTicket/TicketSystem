@@ -108,7 +108,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
         <View style={styles.ticketsBlock}>
           <Text style={styles.ticketsBlockLabel}>{t('ENTRADAS', 'TICKETS')}</Text>
           {tickets.map((tk, i) => (
-            <View key={tk.id || i} style={styles.ticketRow}>
+            <View key={`${tk.id || tk.ticketCode || 'ticket'}-${i}`} style={styles.ticketRow}>
               <View style={styles.ticketRowLeft}>
                 <Text style={styles.ticketSeat}>{seatText(tk, t)}</Text>
                 {tk.ticketCode && <Text style={styles.ticketCode}>{tk.ticketCode}</Text>}
@@ -201,11 +201,11 @@ export function OrdersMobile() {
         <View style={styles.empty}><Text style={styles.emptyText}>{t('Aún no tienes pedidos.', 'No orders yet.')}</Text></View>
       ) : (
         <>
-          {orders.map((order) => {
+          {orders.map((order, index) => {
             const badge = statusBadge(order.status, t);
             const isOpen = expandedId === order.id;
             return (
-              <View key={order.id}>
+              <View key={`${order.id || 'order'}-${index}`}>
                 <TouchableOpacity onPress={() => toggleExpand(order.id)} activeOpacity={0.78} style={styles.row}>
                   <View style={styles.rowLeft}>
                     <Text style={styles.event} numberOfLines={1}>{order.event?.title || t('Evento', 'Event')}</Text>

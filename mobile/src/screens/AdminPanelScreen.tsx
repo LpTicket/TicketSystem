@@ -259,6 +259,13 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const adminIndicatorX = useRef(new Animated.Value(0)).current;
   const adminIndicatorWidth = useRef(new Animated.Value(118)).current;
   const userRoleIndicatorX = useRef(new Animated.Value(0)).current;
+  const financialIndicatorX = useRef(new Animated.Value(0)).current;
+  const financialIndicatorWidth = useRef(new Animated.Value(62)).current;
+  const financialScrollRef = useRef<ScrollView>(null);
+  const eventFilterIndicatorX = useRef(new Animated.Value(0)).current;
+  const eventFilterIndicatorWidth = useRef(new Animated.Value(64)).current;
+  const eventFilterScrollRef = useRef<ScrollView>(null);
+  const adminScrollRef = useRef<ScrollView>(null);
   const active: Section = section ?? 'dashboard';
   const [tabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
   const [userRoleFilterWidth, setUserRoleFilterWidth] = useState(0);
@@ -277,8 +284,10 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
 
   const [adminStats, setAdminStats] = useState<AdminStats>({});
   const [adminEvents, setAdminEvents] = useState<any[]>([]);
-  const [eventFilter, setEventFilter] = useState<'all' | 'pending_approval' | 'draft' | 'published' | 'cancelled'>('all');
+  const [eventFilter, setEventFilter] = useState<'all' | 'pending_approval' | 'draft' | 'published' | 'cancelled'>('published');
   const [eventSearch, setEventSearch] = useState('');
+  const [eventFilterLayouts, setEventFilterLayouts] = useState<Record<string, { x: number; width: number }>>({});
+  const [eventFilterViewportWidth, setEventFilterViewportWidth] = useState(0);
   const [editingAdminEvent, setEditingAdminEvent] = useState<any | null>(null);
   const [adminEditTitle, setAdminEditTitle] = useState('');
   const [adminEditVenue, setAdminEditVenue] = useState('');
@@ -291,6 +300,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [analyticsRecentOpen, setAnalyticsRecentOpen] = useState(false);
   const [eventFinancials, setEventFinancials] = useState<EventFinancial[]>([]);
   const [selectedFinancialEventId, setSelectedFinancialEventId] = useState('');
+  const [financialTabLayouts, setFinancialTabLayouts] = useState<Record<string, { x: number; width: number }>>({});
+  const [financialViewportWidth, setFinancialViewportWidth] = useState(0);
   const [apiCodes, setApiCodes] = useState<ApiSpecialCode[]>([]);
   const [codesLoading, setCodesLoading] = useState(false);
   const [codesLoaded, setCodesLoaded] = useState(false);
@@ -500,6 +511,106 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     }).start();
   }, [userRoleIndex, userRoleIndicatorX, userRolePillWidth]);
 
+  const selectedFinancialKey = selectedFinancialEventId || 'global';
+  const financialOptions = [
+    { id: 'global', title: t('Global', 'Global') },
+    ...eventFinancials.map((event) => ({ id: event.id, title: event.title })),
+  ];
+  const activeFinancialIndex = Math.max(0, financialOptions.findIndex((option) => option.id === selectedFinancialKey));
+
+  useEffect(() => {
+    const layout = financialTabLayouts[selectedFinancialKey];
+    if (!layout) return;
+
+    Animated.parallel([
+      Animated.spring(financialIndicatorX, {
+        toValue: layout.x,
+        useNativeDriver: false,
+        damping: 18,
+        stiffness: 210,
+        mass: 0.68,
+      }),
+      Animated.spring(financialIndicatorWidth, {
+        toValue: layout.width,
+        useNativeDriver: false,
+        damping: 18,
+        stiffness: 210,
+        mass: 0.68,
+      }),
+    ]).start();
+
+    if (financialViewportWidth > 0) {
+      const targetX = Math.max(0, layout.x + layout.width / 2 - financialViewportWidth / 2);
+      financialScrollRef.current?.scrollTo({ x: targetX, animated: true });
+    }
+  }, [financialIndicatorWidth, financialIndicatorX, financialTabLayouts, financialViewportWidth, selectedFinancialKey]);
+
+  const selectFinancialEvent = (id: string) => {
+    setSelectedFinancialEventId(id === 'global' ? '' : id);
+    const layout = financialTabLayouts[id];
+    if (layout && financialViewportWidth > 0) {
+      const targetX = Math.max(0, layout.x + layout.width / 2 - financialViewportWidth / 2);
+      financialScrollRef.current?.scrollTo({ x: targetX, animated: true });
+    }
+  };
+
+  const stepFinancialEvent = (direction: -1 | 1) => {
+    const nextIndex = Math.max(0, Math.min(financialOptions.length - 1, activeFinancialIndex + direction));
+    const next = financialOptions[nextIndex];
+    if (next) selectFinancialEvent(next.id);
+  };
+
+  const eventFilterOptions = [
+    { key: 'all' as const, label: t('Todos', 'All') },
+    { key: 'pending_approval' as const, label: t('Por aprobar', 'Pending Approval') },
+    { key: 'draft' as const, label: t('Borradores', 'Drafts') },
+    { key: 'published' as const, label: t('Publicados', 'Published') },
+    { key: 'cancelled' as const, label: t('Rechazados', 'Rejected') },
+  ];
+  const activeEventFilterIndex = Math.max(0, eventFilterOptions.findIndex((option) => option.key === eventFilter));
+
+  useEffect(() => {
+    const layout = eventFilterLayouts[eventFilter];
+    if (!layout) return;
+
+    Animated.parallel([
+      Animated.spring(eventFilterIndicatorX, {
+        toValue: layout.x,
+        useNativeDriver: false,
+        damping: 18,
+        stiffness: 210,
+        mass: 0.68,
+      }),
+      Animated.spring(eventFilterIndicatorWidth, {
+        toValue: layout.width,
+        useNativeDriver: false,
+        damping: 18,
+        stiffness: 210,
+        mass: 0.68,
+      }),
+    ]).start();
+
+    if (eventFilterViewportWidth > 0) {
+      const targetX = Math.max(0, layout.x + layout.width / 2 - eventFilterViewportWidth / 2);
+      eventFilterScrollRef.current?.scrollTo({ x: targetX, animated: true });
+    }
+  }, [eventFilter, eventFilterIndicatorWidth, eventFilterIndicatorX, eventFilterLayouts, eventFilterViewportWidth]);
+
+  const selectEventFilter = (key: typeof eventFilter) => {
+    setEventFilter(key);
+    const layout = eventFilterLayouts[key];
+    if (layout && eventFilterViewportWidth > 0) {
+      const targetX = Math.max(0, layout.x + layout.width / 2 - eventFilterViewportWidth / 2);
+      eventFilterScrollRef.current?.scrollTo({ x: targetX, animated: true });
+    }
+  };
+
+  const stepEventFilter = (direction: -1 | 1) => {
+    const nextIndex = Math.max(0, Math.min(eventFilterOptions.length - 1, activeEventFilterIndex + direction));
+    const next = eventFilterOptions[nextIndex];
+    if (next) selectEventFilter(next.key);
+  };
+
   const [categories, setCategories] = useState<Category[]>([
     { id: '1', name: 'Concert', labelEs: 'Concierto', labelEn: 'Concert', slug: 'concierto', icon: '🎵', color: '#f97316', sortOrder: 0, active: true, featured: true },
     { id: '2', name: 'Private Event', labelEs: 'Evento Privado', labelEn: 'Private Event', slug: 'evento-privado', icon: '🎫', color: '#6366f1', sortOrder: 1, active: true, featured: true },
@@ -533,6 +644,13 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       }),
     ]).start();
   }, [active, activeSectionIndex, adminIndicatorWidth, adminIndicatorX, tabLayouts]);
+
+  useEffect(() => {
+    adminScrollRef.current?.scrollTo({ y: 0, animated: false });
+    if (active === 'events') {
+      setEventFilter('published');
+    }
+  }, [active]);
 
   // Reload events when filter changes
   useEffect(() => {
@@ -656,6 +774,24 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
 
   const slugify = (text: string) =>
     text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  const openCreateCategoryModal = () => {
+    setCategoryForm({ ...emptyCategForm });
+    setShowCreateCategory(true);
+  };
+
+  const openEditCategoryModal = (category: Category) => {
+    setEditCategoryForm({
+      labelEs: category.labelEs || category.name || '',
+      labelEn: category.labelEn || category.name || '',
+      slug: category.slug || slugify(category.labelEs || category.name || ''),
+      icon: category.icon || '🎫',
+      color: category.color || colors.orange,
+      sortOrder: category.sortOrder || 0,
+      imageData: category.imageData || '',
+    });
+    setEditingCategoryModal(category);
+  };
 
   const addCategory = async () => {
     const labelEs = categoryForm.labelEs.trim();
@@ -1234,7 +1370,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
 
   return (
     <View style={styles.root}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView ref={adminScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         {active !== 'codes' && (
           <>
             <Text style={styles.eyebrow}>{t('ADMIN', 'ADMIN')}</Text>
@@ -1293,16 +1429,94 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   <Text style={styles.formEyebrow}>{t('DESGLOSE FINANCIERO', 'FINANCIAL BREAKDOWN')}</Text>
                   <Text style={styles.panelTitle}>{t('Finanzas', 'Finances')}</Text>
                   {eventFinancials.length > 0 && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-                      <TouchableOpacity onPress={() => setSelectedFinancialEventId('')} style={[styles.finEventPill, !selectedFinancialEventId && styles.finEventPillActive]}>
-                        <Text style={[styles.finEventPillText, !selectedFinancialEventId && styles.finEventPillTextActive]}>{t('Global', 'Global')}</Text>
+                    <>
+                    <View style={styles.finTabsRow}>
+                      <TouchableOpacity
+                        style={[styles.finArrowBtn, activeFinancialIndex <= 0 && styles.finArrowBtnDisabled]}
+                        disabled={activeFinancialIndex <= 0}
+                        onPress={() => stepFinancialEvent(-1)}
+                        activeOpacity={0.65}
+                      >
+                        <Ionicons
+                          name="chevron-back"
+                          size={18}
+                          color={activeFinancialIndex <= 0 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.86)'}
+                        />
                       </TouchableOpacity>
-                      {eventFinancials.map((ev, index) => (
-                        <TouchableOpacity key={`${ev.id || ev.title || 'financial-event'}-${index}`} onPress={() => setSelectedFinancialEventId(ev.id)} style={[styles.finEventPill, selectedFinancialEventId === ev.id && styles.finEventPillActive]}>
-                          <Text style={[styles.finEventPillText, selectedFinancialEventId === ev.id && styles.finEventPillTextActive]} numberOfLines={1}>{ev.title}</Text>
-                        </TouchableOpacity>
+
+                      <View style={styles.finTabsShell} onLayout={(event) => setFinancialViewportWidth(event.nativeEvent.layout.width)}>
+                        <ScrollView
+                          ref={financialScrollRef}
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          style={styles.finTabsScroller}
+                          contentContainerStyle={styles.finTabsContent}
+                          scrollEventThrottle={16}
+                        >
+                          <Animated.View
+                            pointerEvents="none"
+                            style={[
+                              styles.finSlidingPill,
+                              {
+                                left: financialIndicatorX,
+                                width: financialIndicatorWidth,
+                              },
+                            ]}
+                          >
+                            <View style={styles.finSlidingShine} />
+                          </Animated.View>
+                          {financialOptions.map((option, index) => {
+                            const activeFinancial = option.id === selectedFinancialKey;
+                            return (
+                              <TouchableOpacity
+                                key={`${option.id || 'financial-option'}-${index}`}
+                                onPress={() => selectFinancialEvent(option.id)}
+                                onLayout={(event) => {
+                                  const { x, width } = event.nativeEvent.layout;
+                                  setFinancialTabLayouts((current) => ({ ...current, [option.id]: { x, width } }));
+                                }}
+                                style={styles.finEventPill}
+                              >
+                                <Text style={[styles.finEventPillText, activeFinancial && styles.finEventPillTextActive]} numberOfLines={1}>{option.title}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                        <LinearGradient
+                          pointerEvents="none"
+                          colors={['rgba(3,11,20,0.96)', 'rgba(3,11,20,0)']}
+                          start={{ x: 0, y: 0.5 }}
+                          end={{ x: 1, y: 0.5 }}
+                          style={[styles.finTabsFade, styles.finTabsFadeLeft]}
+                        />
+                        <LinearGradient
+                          pointerEvents="none"
+                          colors={['rgba(3,11,20,0)', 'rgba(3,11,20,0.96)']}
+                          start={{ x: 0, y: 0.5 }}
+                          end={{ x: 1, y: 0.5 }}
+                          style={[styles.finTabsFade, styles.finTabsFadeRight]}
+                        />
+                      </View>
+
+                      <TouchableOpacity
+                        style={[styles.finArrowBtn, activeFinancialIndex >= financialOptions.length - 1 && styles.finArrowBtnDisabled]}
+                        disabled={activeFinancialIndex >= financialOptions.length - 1}
+                        onPress={() => stepFinancialEvent(1)}
+                        activeOpacity={0.65}
+                      >
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color={activeFinancialIndex >= financialOptions.length - 1 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.86)'}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    <View pointerEvents="none" style={styles.finTabsDots}>
+                      {financialOptions.map((option, index) => (
+                        <View key={`${option.id || 'financial-dot'}-${index}`} style={[styles.finTabsDot, activeFinancialIndex === index && styles.finTabsDotActive]} />
                       ))}
-                    </ScrollView>
+                    </View>
+                    </>
                   )}
                   {selEv && (
                     <Text style={[styles.copy, { marginBottom: 10, marginTop: -8, fontSize: 12 }]}>
@@ -1357,19 +1571,94 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
           ) : (
             <>
             {/* Status filter tabs */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eventFilterRow} contentContainerStyle={styles.eventFilterContent}>
-              {([
-                { key: 'all', label: t('Todos', 'All') },
-                { key: 'pending_approval', label: t('Por aprobar', 'Pending Approval') },
-                { key: 'draft', label: t('Borradores', 'Drafts') },
-                { key: 'published', label: t('Publicados', 'Published') },
-                { key: 'cancelled', label: t('Rechazados', 'Rejected') },
-              ] as const).map((f) => (
-                <TouchableOpacity key={f.key} onPress={() => setEventFilter(f.key)} style={[styles.eventFilterPill, eventFilter === f.key && styles.eventFilterPillActive]}>
-                  <Text style={[styles.eventFilterText, eventFilter === f.key && styles.eventFilterTextActive]}>{f.label}</Text>
+            <View style={styles.eventFilterWrap}>
+              <View style={styles.eventFilterRow}>
+                <TouchableOpacity
+                  style={[styles.eventFilterArrowBtn, activeEventFilterIndex <= 0 && styles.eventFilterArrowBtnDisabled]}
+                  disabled={activeEventFilterIndex <= 0}
+                  onPress={() => stepEventFilter(-1)}
+                  activeOpacity={0.65}
+                >
+                  <Ionicons
+                    name="chevron-back"
+                    size={18}
+                    color={activeEventFilterIndex <= 0 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.86)'}
+                  />
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+
+                <View style={styles.eventFilterShell} onLayout={(event) => setEventFilterViewportWidth(event.nativeEvent.layout.width)}>
+                  <ScrollView
+                    ref={eventFilterScrollRef}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.eventFilterScroller}
+                    contentContainerStyle={styles.eventFilterContent}
+                    scrollEventThrottle={16}
+                  >
+                    <Animated.View
+                      pointerEvents="none"
+                      style={[
+                        styles.eventFilterSlidingPill,
+                        {
+                          left: eventFilterIndicatorX,
+                          width: eventFilterIndicatorWidth,
+                        },
+                      ]}
+                    >
+                      <View style={styles.eventFilterSlidingShine} />
+                    </Animated.View>
+                    {eventFilterOptions.map((f, index) => {
+                      const activeFilter = eventFilter === f.key;
+                      return (
+                        <TouchableOpacity
+                          key={`${f.key}-${index}`}
+                          onPress={() => selectEventFilter(f.key)}
+                          onLayout={(event) => {
+                            const { x, width } = event.nativeEvent.layout;
+                            setEventFilterLayouts((current) => ({ ...current, [f.key]: { x, width } }));
+                          }}
+                          style={styles.eventFilterPill}
+                        >
+                          <Text style={[styles.eventFilterText, activeFilter && styles.eventFilterTextActive]} numberOfLines={1}>{f.label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={['rgba(3,11,20,0.96)', 'rgba(3,11,20,0)']}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={[styles.eventFilterFade, styles.eventFilterFadeLeft]}
+                  />
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={['rgba(3,11,20,0)', 'rgba(3,11,20,0.96)']}
+                    start={{ x: 0, y: 0.5 }}
+                    end={{ x: 1, y: 0.5 }}
+                    style={[styles.eventFilterFade, styles.eventFilterFadeRight]}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.eventFilterArrowBtn, activeEventFilterIndex >= eventFilterOptions.length - 1 && styles.eventFilterArrowBtnDisabled]}
+                  disabled={activeEventFilterIndex >= eventFilterOptions.length - 1}
+                  onPress={() => stepEventFilter(1)}
+                  activeOpacity={0.65}
+                >
+                  <Ionicons
+                    name="chevron-forward"
+                    size={18}
+                    color={activeEventFilterIndex >= eventFilterOptions.length - 1 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.86)'}
+                  />
+                </TouchableOpacity>
+              </View>
+              <View pointerEvents="none" style={styles.eventFilterDots}>
+                {eventFilterOptions.map((f, index) => (
+                  <View key={`${f.key}-dot-${index}`} style={[styles.eventFilterDot, activeEventFilterIndex === index && styles.eventFilterDotActive]} />
+                ))}
+              </View>
+            </View>
 
             {/* Search */}
             <View style={styles.userSearchBox}>
@@ -1495,8 +1784,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                             </TouchableOpacity>
                           </>
                         ) : (
-                          feeConfig.sections.map((sec) => (
-                            <View key={sec.id} style={styles.inlineSectionFee}>
+                          feeConfig.sections.map((sec, index) => (
+                            <View key={`${sec.id || sec.name || 'fee-section'}-${index}`} style={styles.inlineSectionFee}>
                               <Text style={styles.inlineSectionFeeTitle}>{sec.name}</Text>
                               <View style={styles.inlineFeeRow}>
                                 <View style={styles.inlineFeeField}>
@@ -1532,8 +1821,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                       priceConfig.sections.length === 0 ? (
                         <Text style={styles.inlinePanelLoading}>{t('Sin secciones con precios.', 'No sections with prices.')}</Text>
                       ) : (
-                        priceConfig.sections.map((sec) => (
-                          <View key={sec.id} style={styles.inlineSectionFee}>
+                        priceConfig.sections.map((sec, index) => (
+                          <View key={`${sec.id || sec.name || 'price-section'}-${index}`} style={styles.inlineSectionFee}>
                             <Text style={styles.inlineSectionFeeTitle}>{sec.name}</Text>
                             <Text style={styles.inlinePanelLabel}>
                               {t('Precio actual', 'Current price')}: ${sec.price ?? '—'}
@@ -1638,10 +1927,10 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               </View>
             )}
 
-            {visibleUsers.map((user) => {
+            {visibleUsers.map((user, index) => {
               const dateStr = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
               return (
-                <TouchableOpacity key={user.id} onPress={() => openUserDetail(user)} style={styles.userCard2} activeOpacity={0.8}>
+                <TouchableOpacity key={`${user.id || user.email || 'user'}-${index}`} onPress={() => openUserDetail(user)} style={styles.userCard2} activeOpacity={0.8}>
                   {/* Top row: avatar + name + role badge */}
                   <View style={styles.userCard2Top}>
                     <View style={styles.userInitialsAvatar}>
@@ -1880,8 +2169,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 />
                 <FieldLabel label={t('Color de acento', 'Accent color')} />
                 <View style={styles.catColorGrid}>
-                  {PRESET_COLORS.map((color) => (
-                    <TouchableOpacity key={color} onPress={() => setCategoryForm((f) => ({ ...f, color }))} style={[styles.catColorSwatch, { backgroundColor: color }, categoryForm.color === color && styles.catColorSwatchSelected]} />
+                  {PRESET_COLORS.map((color, index) => (
+                    <TouchableOpacity key={`${color}-${index}`} onPress={() => setCategoryForm((f) => ({ ...f, color }))} style={[styles.catColorSwatch, { backgroundColor: color }, categoryForm.color === color && styles.catColorSwatchSelected]} />
                   ))}
                 </View>
                 <FieldLabel label={t('Vista previa:', 'Preview:')} />
@@ -1963,8 +2252,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 />
                 <FieldLabel label={t('Color de acento', 'Accent color')} />
                 <View style={styles.catColorGrid}>
-                  {PRESET_COLORS.map((color) => (
-                    <TouchableOpacity key={color} onPress={() => setEditCategoryForm((f) => ({ ...f, color }))} style={[styles.catColorSwatch, { backgroundColor: color }, editCategoryForm.color === color && styles.catColorSwatchSelected]} />
+                  {PRESET_COLORS.map((color, index) => (
+                    <TouchableOpacity key={`${color}-${index}`} onPress={() => setEditCategoryForm((f) => ({ ...f, color }))} style={[styles.catColorSwatch, { backgroundColor: color }, editCategoryForm.color === color && styles.catColorSwatchSelected]} />
                   ))}
                 </View>
                 <FieldLabel label={t('Vista previa:', 'Preview:')} />
@@ -2023,8 +2312,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 />
                 {editCodeOwnerResults.length > 0 && (
                   <View style={styles.ownerResultsList}>
-                    {editCodeOwnerResults.map((u) => (
-                      <TouchableOpacity key={u.id} onPress={() => { setEditCodeForm((f) => ({ ...f, ownerUserId: u.id, ownerName: u.name, ownerEmail: u.email })); setEditCodeOwnerQuery(`${u.name} (${u.email})`); setEditCodeOwnerResults([]); }} style={styles.ownerResultRow}>
+                    {editCodeOwnerResults.map((u, index) => (
+                      <TouchableOpacity key={`${u.id || u.email || 'edit-owner'}-${index}`} onPress={() => { setEditCodeForm((f) => ({ ...f, ownerUserId: u.id, ownerName: u.name, ownerEmail: u.email })); setEditCodeOwnerQuery(`${u.name} (${u.email})`); setEditCodeOwnerResults([]); }} style={styles.ownerResultRow}>
                         <Text style={styles.ownerResultName}>{u.name}</Text>
                         <Text style={styles.ownerResultEmail}>{u.email}</Text>
                       </TouchableOpacity>
@@ -2073,13 +2362,13 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             {/* Header row: count + NUEVA CATEGORÍA button */}
             <View style={styles.catHeaderRow}>
               <Text style={styles.catCount}>{categories.length} {t('categorías', 'categories')} — {t('los organizadores las verán al crear eventos', 'organizers see them when creating events')}</Text>
-              <GradientButton onPress={() => { setCategoryForm({ ...emptyCategForm }); setShowCreateCategory(true); }} height={44} style={styles.catNewBtn}>
+              <GradientButton onPress={openCreateCategoryModal} height={44} style={styles.catNewBtn}>
                 <Text style={styles.catNewBtnText}>{t('NUEVA\nCATEGORÍA', 'NEW\nCATEGORY')}</Text>
               </GradientButton>
             </View>
 
-            {categories.map((category) => (
-              <View key={category.id} style={styles.catCard}>
+            {categories.map((category, index) => (
+              <View key={`${category.id || category.slug || category.name || 'category'}-${index}`} style={styles.catCard}>
                 <LinearGradient
                   pointerEvents="none"
                   colors={['rgba(255,255,255,0.035)', 'rgba(255,255,255,0.010)']}
@@ -2108,7 +2397,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   </View>
                 </View>
                 <View style={styles.catCardActions}>
-                  <TouchableOpacity onPress={() => { setEditingCategoryModal(category); setEditCategoryForm({ labelEs: category.labelEs, labelEn: category.labelEn, slug: category.slug, icon: category.icon, color: category.color, sortOrder: category.sortOrder, imageData: category.imageData || '' }); }} style={styles.catActionBtn}>
+                  <TouchableOpacity onPress={() => openEditCategoryModal(category)} style={styles.catActionBtn}>
                     <Ionicons name="pencil-outline" size={17} color="#94A3B8" />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => deleteCategoryApi(category.id)} style={[styles.catActionBtn, { borderColor: 'rgba(239,68,68,0.28)' }]}>
@@ -2211,8 +2500,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 { label: t('Visitantes únicos', 'Unique visitors'), value: analyticsSummary?.uniqueVisitors ?? 0, icon: 'people-outline' as const },
                 { label: t('Eventos vistos', 'Viewed events'), value: analyticsSummary?.topEvents.length ?? 0, icon: 'flash-outline' as const },
                 { label: t('Páginas vistas', 'Viewed pages'), value: (analyticsSummary?.topPages ?? []).length, icon: 'bar-chart-outline' as const },
-              ].map((s) => (
-                <View key={s.label} style={styles.anStatCard}>
+              ].map((s, index) => (
+                <View key={`${s.label}-${index}`} style={styles.anStatCard}>
                   <View style={styles.anStatTop}>
                     <Text style={styles.anStatLabel}>{s.label}</Text>
                     <View style={styles.anStatIconBox}><Ionicons name={s.icon} size={16} color={colors.orange} /></View>
@@ -2348,8 +2637,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               </View>
               {ownerSearchResults.length > 0 && (
                 <View style={styles.ownerResultsList}>
-                  {ownerSearchResults.map((u) => (
-                    <TouchableOpacity key={u.id} onPress={() => { setSpecialCodeOwnerDraft(u.id); setOwnerSearchQuery(`${u.name} (${u.email})`); setOwnerSearchResults([]); }} style={styles.ownerResultRow}>
+                  {ownerSearchResults.map((u, index) => (
+                    <TouchableOpacity key={`${u.id || u.email || 'owner'}-${index}`} onPress={() => { setSpecialCodeOwnerDraft(u.id); setOwnerSearchQuery(`${u.name} (${u.email})`); setOwnerSearchResults([]); }} style={styles.ownerResultRow}>
                       <Text style={styles.ownerResultName}>{u.name}</Text>
                       <Text style={styles.ownerResultEmail}>{u.email}</Text>
                     </TouchableOpacity>
@@ -2531,8 +2820,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                       </View>
                       {entry.payouts && entry.payouts.length > 0 && (
                         <View style={styles.payoutHistory}>
-                          {entry.payouts.map((p) => (
-                            <Text key={p.id} style={styles.payoutHistoryItem}>
+                          {entry.payouts.map((p, index) => (
+                            <Text key={`${p.id || 'payout'}-${index}`} style={styles.payoutHistoryItem}>
                               ${Number(p.amount).toFixed(2)} · {new Date(p.paidAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}{p.note ? ` · ${p.note}` : ''}
                             </Text>
                           ))}
@@ -2588,8 +2877,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   { label: t('Audiencias', 'Audiences'), value: '0', icon: 'people-outline' as const },
                   { label: t('Campanas', 'Campaigns'), value: emailArtData || campaignName ? '1' : '0', icon: 'stats-chart-outline' as const },
                   { label: t('Clicks', 'Clicks'), value: '0', icon: 'hand-left-outline' as const },
-                ].map((s) => (
-                  <View key={s.label} style={styles.mktStatCard}>
+                ].map((s, index) => (
+                  <View key={`${s.label}-${index}`} style={styles.mktStatCard}>
                     <View style={styles.mktStatCardTop}>
                       <Text style={styles.mktStatLabel}>{s.label}</Text>
                       <View style={styles.mktStatIcon}><Ionicons name={s.icon} size={18} color={colors.orange} /></View>
@@ -3277,10 +3566,24 @@ const styles = StyleSheet.create({
   finCardLabel: { color: 'rgba(226,232,240,0.52)', fontSize: 9, fontWeight: '700', marginBottom: 6 },
   finCardValue: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
   finCardNote: { color: 'rgba(226,232,240,0.44)', fontSize: 10, fontWeight: '500' },
-  finEventPill: { height: 32, borderRadius: 99, paddingHorizontal: 14, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  finTabsRow: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
+  finArrowBtn: { width: 24, height: 40, alignItems: 'center', justifyContent: 'center' },
+  finArrowBtnDisabled: { opacity: 0.55 },
+  finTabsShell: { flex: 1, height: 40, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(3,11,20,0.86)', overflow: 'hidden' },
+  finTabsScroller: { flex: 1 },
+  finTabsContent: { minHeight: 40, alignItems: 'center', paddingHorizontal: 4, gap: 4 },
+  finTabsFade: { position: 'absolute', top: 1, bottom: 1, width: 34, zIndex: 3 },
+  finTabsFadeLeft: { left: 1 },
+  finTabsFadeRight: { right: 1 },
+  finSlidingPill: { position: 'absolute', top: 4, height: 32, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.16)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.55)', overflow: 'hidden' },
+  finSlidingShine: { position: 'absolute', top: 2, left: 10, right: 10, height: 1, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.32)' },
+  finTabsDots: { height: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: -9, marginBottom: 12 },
+  finTabsDot: { width: 4, height: 4, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.24)' },
+  finTabsDotActive: { width: 14, backgroundColor: 'rgba(249,115,22,0.72)' },
+  finEventPill: { height: 32, borderRadius: 12, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   finEventPillActive: { backgroundColor: 'rgba(249,115,22,0.14)', borderColor: 'rgba(249,115,22,0.5)' },
-  finEventPillText: { color: 'rgba(226,232,240,0.62)', fontSize: 12, fontWeight: '700' },
-  finEventPillTextActive: { color: colors.orange },
+  finEventPillText: { color: 'rgba(226,232,240,0.62)', fontSize: 12, fontWeight: '700', maxWidth: 142 },
+  finEventPillTextActive: { color: '#FFFFFF' },
 
   // Analytics day selector
   analyticsDayRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
@@ -3347,12 +3650,25 @@ const styles = StyleSheet.create({
   userModalCloseBtnText: { color: '#CBD5E1', fontSize: 14, fontWeight: '700' },
 
   // Event filter tabs
-  eventFilterRow: { marginBottom: 10 },
-  eventFilterContent: { paddingRight: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
-  eventFilterPill: { height: 38, borderRadius: 12, paddingHorizontal: 14, backgroundColor: 'rgba(3,11,20,0.86)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  eventFilterWrap: { marginBottom: 12 },
+  eventFilterRow: { height: 46, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  eventFilterArrowBtn: { width: 24, height: 40, alignItems: 'center', justifyContent: 'center' },
+  eventFilterArrowBtnDisabled: { opacity: 0.55 },
+  eventFilterShell: { flex: 1, height: 42, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(3,11,20,0.86)', overflow: 'hidden' },
+  eventFilterScroller: { flex: 1 },
+  eventFilterContent: { minHeight: 40, paddingHorizontal: 4, gap: 4, flexDirection: 'row', alignItems: 'center' },
+  eventFilterFade: { position: 'absolute', top: 1, bottom: 1, width: 34, zIndex: 3 },
+  eventFilterFadeLeft: { left: 1 },
+  eventFilterFadeRight: { right: 1 },
+  eventFilterSlidingPill: { position: 'absolute', top: 4, height: 32, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.16)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.55)', overflow: 'hidden' },
+  eventFilterSlidingShine: { position: 'absolute', top: 2, left: 10, right: 10, height: 1, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.32)' },
+  eventFilterDots: { height: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 2, marginBottom: 8 },
+  eventFilterDot: { width: 4, height: 4, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.24)' },
+  eventFilterDotActive: { width: 14, backgroundColor: 'rgba(249,115,22,0.72)' },
+  eventFilterPill: { height: 32, borderRadius: 12, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   eventFilterPillActive: { borderColor: 'rgba(255,151,45,0.62)', shadowColor: '#ff6800', shadowOpacity: 0.24, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
   eventFilterShine: { position: 'absolute', left: 10, right: 10, top: 5, height: 1 },
-  eventFilterText: { color: '#CBD5E1', fontSize: 13, fontWeight: '700', zIndex: 1 },
+  eventFilterText: { color: 'rgba(226,232,240,0.62)', fontSize: 13, fontWeight: '700', zIndex: 1, maxWidth: 142 },
   eventFilterTextActive: { color: '#FFFFFF', textShadowColor: 'rgba(0,0,0,0.24)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
 
   // Owner user search (special codes)

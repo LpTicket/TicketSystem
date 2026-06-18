@@ -264,11 +264,11 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
             <Ionicons name="albums-outline" size={20} color="#F97316" />
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectorScroll}>
-            {myEvents.map((ev) => {
+            {myEvents.map((ev, index) => {
               const badge = eventDateBadge(ev.eventDate);
               return (
                 <TouchableOpacity
-                  key={ev.id}
+                  key={`${ev.id || ev.title || 'scan-event'}-${index}`}
                   activeOpacity={0.88}
                   style={[styles.eventPickerItem, selectedEventId === ev.id && styles.eventPickerItemActive]}
                   onPress={() => setSelectedEventId(ev.id)}
@@ -454,9 +454,9 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
                   {t('— Todos los eventos —', '— All events —')}
                 </Text>
               </TouchableOpacity>
-              {myEvents.map((ev) => (
+              {myEvents.map((ev, index) => (
                 <TouchableOpacity
-                  key={ev.id}
+                  key={`${ev.id || ev.title || 'scan-dropdown-event'}-${index}`}
                   style={[styles.dropdownItem, selectedEventId === ev.id && styles.dropdownItemActive]}
                   onPress={() => { setSelectedEventId(ev.id); setDropdownOpen(false); }}
                 >
@@ -512,8 +512,8 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
             <Text style={styles.recentEmptyText}>{t('Todavía no hay escaneos en esta sesión.', 'No scans in this session yet.')}</Text>
           </View>
         ) : (
-          recentScans.map((scan) => (
-            <View key={scan.id} style={[styles.recentItem, scan.valid ? styles.recentValid : styles.recentInvalid]}>
+          recentScans.map((scan, index) => (
+            <View key={`${scan.id || scan.code || 'scan'}-${index}`} style={[styles.recentItem, scan.valid ? styles.recentValid : styles.recentInvalid]}>
               <View style={styles.recentLeft}>
                 <View style={[styles.recentMark, scan.valid ? styles.recentMarkValid : styles.recentMarkInvalid]}>
                   <Text style={styles.recentMarkText}>{scan.valid ? '✓' : '×'}</Text>

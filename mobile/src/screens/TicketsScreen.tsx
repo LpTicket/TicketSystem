@@ -149,11 +149,11 @@ export function TicketsScreen() {
           <Text style={styles.emptyCopy}>{t('Cuando compres una entrada aparecerá aquí.', 'When you buy a ticket it will appear here.')}</Text>
         </View>
       ) : (
-        visibleTickets.map((ticket) => {
+        visibleTickets.map((ticket, index) => {
           const meta = statusMeta(ticket.status, t);
           const event = ticket.event;
           return (
-            <View key={ticket.id || ticket.ticketCode} style={styles.ticketCard}>
+            <View key={`${ticket.id || ticket.ticketCode || 'ticket'}-${index}`} style={styles.ticketCard}>
               <View style={styles.ticketGlow} />
               <View style={styles.ticketTop}>
                 <View style={styles.ticketInfo}>

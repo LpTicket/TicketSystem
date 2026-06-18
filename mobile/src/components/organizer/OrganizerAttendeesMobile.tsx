@@ -215,10 +215,10 @@ export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, on
         )}
 
         {/* Buyer groups */}
-        {filteredBuyers.map((buyer) => {
+        {filteredBuyers.map((buyer, index) => {
           const expanded = expandedBuyer === buyer.email;
           return (
-            <View key={buyer.email} style={styles.buyerCard}>
+            <View key={`${buyer.email || buyer.name || 'buyer'}-${index}`} style={styles.buyerCard}>
               {/* Buyer header row */}
               <TouchableOpacity
                 style={styles.buyerTop}
@@ -254,8 +254,8 @@ export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, on
               {/* Expanded ticket list */}
               {expanded && (
                 <View style={styles.ticketList}>
-                  {buyer.tickets.map((tk) => (
-                    <View key={tk.id} style={styles.ticketRow}>
+                  {buyer.tickets.map((tk, ticketIndex) => (
+                    <View key={`${tk.id || tk.code || 'buyer-ticket'}-${ticketIndex}`} style={styles.ticketRow}>
                       <View style={styles.ticketInfo}>
                         <Text style={styles.ticketSeat}>{tk.ticket}</Text>
                         <Text style={styles.ticketCode}>{tk.code}</Text>

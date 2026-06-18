@@ -150,9 +150,9 @@ export function OrganizerBlocksMobile({ eventId, sections, onReload }: Props) {
               : 'Tap a section to manage it directly.'}
           </Text>
           <View style={styles.blockedGrid}>
-            {blockedSections.map(({ section: s, blockedSeats }) => (
+            {blockedSections.map(({ section: s, blockedSeats }, index) => (
               <TouchableOpacity
-                key={String(s.id)}
+                key={`${String(s.id || sectionTitle(s))}-${index}`}
                 onPress={() => {
                   setSelectedSectionId(String(s.id));
                   setSelectedSeats(blockedSeats.map((seat: any) => seat.id));
@@ -212,13 +212,13 @@ export function OrganizerBlocksMobile({ eventId, sections, onReload }: Props) {
           {/* Seat grid */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.seatGrid}>
-              {seats.map((seat) => {
+              {seats.map((seat, index) => {
                 const isBlocked = seat.status === 'locked' && !seat.lockExpiresAt;
                 const isSold = seat.status === 'sold';
                 const isSelected = selectedSeats.includes(seat.id);
                 return (
                   <TouchableOpacity
-                    key={seat.id}
+                    key={`${seat.id || seat.ticketCode || 'seat'}-${index}`}
                     disabled={isSold && !isSelected}
                     onPress={() => toggleSeat(seat)}
                     style={[
@@ -340,15 +340,16 @@ const styles = StyleSheet.create({
   dropdownItemPrice: { color: colors.muted, fontSize: 12, fontWeight: '600' },
 
   blockedCard: {
-    borderRadius: 18, borderWidth: 1, borderColor: 'rgba(246,198,95,0.18)',
-    backgroundColor: 'rgba(8,31,51,0.88)', padding: 14, gap: 10,
+    borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(3,11,20,0.72)', padding: 14, gap: 10,
+    shadowColor: '#000000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 8 },
   },
   blockedEyebrow: { color: colors.orange, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
   blockedSub: { color: 'rgba(148,163,184,0.8)', fontSize: 12 },
   blockedGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   blockedChip: {
-    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(246,198,95,0.16)',
-    backgroundColor: 'rgba(13,34,54,0.6)', padding: 12, minWidth: '45%', flex: 1,
+    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.11)',
+    backgroundColor: 'rgba(255,255,255,0.035)', padding: 12, minWidth: '45%', flex: 1,
   },
   blockedChipActive: { borderColor: colors.orange, backgroundColor: 'rgba(249,115,22,0.12)' },
   blockedChipRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

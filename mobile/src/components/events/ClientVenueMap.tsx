@@ -360,7 +360,7 @@ function TableSection({
 
           return (
             <G
-              key={seat.id}
+              key={`${seat.id || seat.seatNumber || 'table-seat'}-${index}`}
               onPress={() => {
                 if (unavailable && !selected) return;
                 onSeatInfo(buildSeatInfo(seat, section, selectedSeats));
@@ -410,7 +410,7 @@ function RowSeatsSection({
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      {seats.map((seat) => {
+      {seats.map((seat, index) => {
         const row = seat.rowLabel || 'A';
         const rowIndex = Math.max(0, rows.indexOf(row));
         const rowSeats = seats
@@ -428,7 +428,7 @@ function RowSeatsSection({
 
         return (
           <SeatDot
-            key={seat.id}
+            key={`${seat.id || seat.seatNumber || 'row-seat'}-${index}`}
             seat={seat}
             section={section}
             override={override}
@@ -649,7 +649,7 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
             },
           ]}
         >
-          {sections.map((section) => {
+          {sections.map((section, index) => {
             const kind = getKind(section);
             const color = sectionColor(section);
             const name = section.name || section.label || t('Sección', 'Section');
@@ -662,7 +662,7 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
 
             return (
               <TouchableOpacity
-                key={section.id}
+                key={`${section.id || section.name || 'section'}-${index}`}
                 activeOpacity={kind === 'stage' || kind === 'decor' ? 1 : 0.9}
                 disabled={kind === 'stage' || kind === 'decor'}
                 onPress={() => focusSection(section)}

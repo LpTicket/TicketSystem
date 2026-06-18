@@ -126,8 +126,8 @@ export function OrganizerAnalyticsMobile({ sales, attendees, sections, eventTitl
       </View>
 
       <View style={styles.statsGrid}>
-        {cards.map((c) => (
-          <View key={c.label} style={styles.statCard}>
+        {cards.map((c, index) => (
+          <View key={`${c.label}-${index}`} style={styles.statCard}>
             <View style={styles.statTop}>
               <Text style={styles.statLabel}>{c.label}</Text>
               <View style={styles.statIcon}><Ionicons name={c.icon} size={16} color="#F97316" /></View>
@@ -142,8 +142,8 @@ export function OrganizerAnalyticsMobile({ sales, attendees, sections, eventTitl
         <Text style={styles.cardTitle}>{es ? 'Ventas por día' : 'Sales by day'}</Text>
         <Text style={styles.cardSub}>{es ? 'Órdenes, tickets e ingresos diarios' : 'Daily orders, tickets and revenue'}</Text>
         {data.salesByDay.some((d) => d.revenue > 0) ? (
-          data.salesByDay.map((day) => (
-            <View key={day.date} style={styles.barRow}>
+          data.salesByDay.map((day, index) => (
+            <View key={`${day.date}-${index}`} style={styles.barRow}>
               <View style={styles.barHead}>
                 <Text style={styles.barLabel}>{dayLabel(day.date)}</Text>
                 <Text style={styles.barValue}>${day.revenue.toFixed(2)}</Text>
@@ -163,8 +163,8 @@ export function OrganizerAnalyticsMobile({ sales, attendees, sections, eventTitl
         <Text style={styles.cardTitle}>{es ? 'Tickets por sección' : 'Tickets by section'}</Text>
         <Text style={styles.cardSub}>{es ? 'Vendido, escaneado y pendiente por área' : 'Sold, scanned and pending by area'}</Text>
         {data.salesBySection.length > 0 ? (
-          data.salesBySection.slice(0, 8).map((sec) => (
-            <View key={sec.section} style={styles.barRow}>
+          data.salesBySection.slice(0, 8).map((sec, index) => (
+            <View key={`${sec.section || 'section'}-${index}`} style={styles.barRow}>
               <View style={styles.barHead}>
                 <Text style={styles.barLabel} numberOfLines={1}>{sectionAnalyticsLabel(sec.section, es)}</Text>
                 <Text style={styles.barValue}>{sec.tickets} tickets</Text>

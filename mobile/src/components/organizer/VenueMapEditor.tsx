@@ -352,12 +352,12 @@ export function VenueMapEditor({ eventId }: Props) {
             }}
             onResponderRelease={() => setCanvasDrag(null)}
           >
-              {items.map((item) => {
+              {items.map((item, index) => {
                 const isSelected = selectedId === item.id;
 
                 return (
                   <View
-                    key={item.id}
+                    key={`${item.id || item.name || 'map-item'}-${index}`}
                     onStartShouldSetResponder={() => true}
                     onMoveShouldSetResponder={() => true}
                     onResponderGrant={(event: GestureResponderEvent) => {

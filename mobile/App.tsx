@@ -146,7 +146,7 @@ function AppContent() {
         // 4 PRINCIPALES
         { key: 'adash',       label: t('Dashboard', 'Dashboard'),  icon: 'grid',          active: tab === 'admin' && adminSection === 'dashboard',  onPress: () => goAdminSection('dashboard') },
         { key: 'aevents',     label: t('Eventos', 'Events'),       icon: 'calendar',      active: tab === 'admin' && adminSection === 'events',     onPress: () => goAdminSection('events') },
-        { key: 'ausers',      label: t('Usuarios', 'Users'),       icon: 'people',        active: tab === 'admin' && adminSection === 'users',      onPress: () => goAdminSection('users') },
+        { key: 'ausersRight', label: t('Usuarios', 'Users'),       icon: 'people',        active: tab === 'admin' && adminSection === 'users',      onPress: () => goAdminSection('users') },
         { key: 'aprofile',    label: t('Perfil', 'Profile'),       icon: 'person-circle', active: tab === 'profile',                                 onPress: () => goToTab('profile') },
         // 3 extras RIGHT
         { key: 'aanalytics',  label: t('Analíticas', 'Analytics'), icon: 'stats-chart',   active: tab === 'admin' && adminSection === 'analytics',  onPress: () => goAdminSection('analytics') },
@@ -226,7 +226,7 @@ function AppContent() {
         <View pointerEvents="none" style={styles.appGridVertical} />
         <View pointerEvents="none" style={styles.appGridHorizontal} />
 
-        {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} onGoHome={goHome} />}
+        {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} onGoHome={goHome} onOpenLogin={() => goToTab('profile')} showLoginButton={!isLoggedIn} />}
 
         {scanOpen ? (
           <ScanScreen onBack={() => setScanOpen(false)} user={currentUser} />
@@ -309,8 +309,8 @@ function AppContent() {
                     pointerEvents="none"
                     style={[styles.navFixedSlidingLine, { transform: [{ translateX: adminNavIndicatorX }] }]}
                   />
-                  {navItems.map((item) => (
-                    <TouchableOpacity key={item.key} onPress={item.onPress} style={[styles.navItemFixed, { width: ADMIN_ITEM_W }]}>
+                  {navItems.map((item, index) => (
+                    <TouchableOpacity key={`${item.key}-${index}`} onPress={item.onPress} style={[styles.navItemFixed, { width: ADMIN_ITEM_W }]}>
                       <View style={[styles.navItemContent, styles.navItemContentAdmin]}>
                         <Ionicons
                           name={(item.active ? item.icon : `${item.icon}-outline`) as any}
@@ -340,8 +340,8 @@ function AppContent() {
               // Fixed tab bar for client / organizer
               <>
                 <Animated.View style={[styles.navSlidingLine, { transform: [{ translateX: navIndicatorX }] }]} />
-                {navItems.map((item) => (
-                  <TouchableOpacity key={item.key} onPress={item.onPress} style={styles.navItem}>
+                {navItems.map((item, index) => (
+                  <TouchableOpacity key={`${item.key}-${index}`} onPress={item.onPress} style={styles.navItem}>
                     <View style={styles.navItemContent}>
                       <Ionicons
                         name={(item.active ? item.icon : `${item.icon}-outline`) as any}

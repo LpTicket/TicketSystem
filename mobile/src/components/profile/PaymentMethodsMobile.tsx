@@ -252,8 +252,8 @@ export function PaymentMethodsMobile() {
           </View>
         )
       ) : (
-        methods.map((m) => (
-          <View key={m.id} style={styles.methodRow}>
+        methods.map((m, index) => (
+          <View key={`${m.id || 'method'}-${index}`} style={styles.methodRow}>
             <View style={styles.methodIcon}>
               <Text style={styles.methodIconText}>{m.type === 'credit_card' ? '💳' : '🏦'}</Text>
             </View>

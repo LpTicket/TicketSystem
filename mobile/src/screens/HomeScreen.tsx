@@ -317,8 +317,8 @@ export function HomeScreen({ onOpenEvent, onGoCart }: Props) {
         colors={['rgba(17,26,39,0.88)', 'rgba(7,14,23,0.94)']}
         style={StyleSheet.absoluteFill}
       />
-      {trustItems.map((item) => (
-        <View key={item.title} style={styles.trustRow}>
+      {trustItems.map((item, index) => (
+        <View key={`${item.title}-${index}`} style={styles.trustRow}>
           <View style={styles.trustIcon}>
             <Ionicons name={item.icon} size={17} color="#ff7a00" />
           </View>
@@ -410,14 +410,14 @@ export function HomeScreen({ onOpenEvent, onGoCart }: Props) {
 
         <View style={styles.categoryRow}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-            {categories.map((item) => {
+            {categories.map((item, index) => {
               const active = category === item.slug;
               const match = item.slug === 'All'
                 ? undefined
                 : events.find((e) => eventMatchesCategory(e, item.slug) && (e.imageUrl || e.bannerImageUrl));
               const img = item.imageUrl || match?.imageUrl || match?.bannerImageUrl || '';
               return (
-                <TouchableOpacity key={item.id} activeOpacity={0.85} onPress={() => handleCategoryPress(item)} style={[styles.catCard, active && styles.catCardActive]}>
+                <TouchableOpacity key={`${item.id || item.slug || item.label || 'category'}-${index}`} activeOpacity={0.85} onPress={() => handleCategoryPress(item)} style={[styles.catCard, active && styles.catCardActive]}>
                   <Animated.Image
                     source={img ? { uri: img } : fallbackEventImage}
                     style={[styles.catImage, active && styles.catImageActive, active && { transform: [{ scale: categoryImageScale }] }]}
@@ -510,8 +510,8 @@ export function HomeScreen({ onOpenEvent, onGoCart }: Props) {
         </View>
       ) : null}
 
-      {!loading && filteredEvents.map((event) => (
-        <TouchableOpacity key={event.id} style={styles.eventCard} onPress={() => onOpenEvent(event)}>
+      {!loading && filteredEvents.map((event, index) => (
+        <TouchableOpacity key={`${event.id || event.slug || event.title || 'event'}-${index}`} style={styles.eventCard} onPress={() => onOpenEvent(event)}>
           <View style={styles.eventPoster}>
             <Image source={getPosterImageSource(event)} style={styles.eventPosterImage} resizeMode="cover" />
             <View style={styles.posterShade} />
