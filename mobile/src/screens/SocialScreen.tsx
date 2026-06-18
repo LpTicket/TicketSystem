@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SocialMatchMobile } from '../components/profile/SocialMatchMobile';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -45,7 +46,24 @@ export function SocialScreen() {
       {/* Tab bar */}
       <View style={styles.tabsShell}>
         <View style={styles.tabsTrack}>
-          <Animated.View style={[styles.tabPill, { left: pillX, width: pillW }]} />
+          <Animated.View style={[styles.tabPill, { left: pillX, width: pillW }]}>
+            <LinearGradient
+              colors={['#ff8a18', '#f46c00', '#c93f00']}
+              locations={[0, 0.46, 1]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View pointerEvents="none" style={styles.tabPillShine}>
+              <LinearGradient
+                colors={['rgba(255,235,205,0)', 'rgba(255,235,205,0.85)', 'rgba(255,235,205,0)']}
+                locations={[0, 0.5, 1]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </View>
+          </Animated.View>
           {TABS.map((tab) => (
             <TouchableOpacity
               key={tab.id}
@@ -104,12 +122,15 @@ const styles = StyleSheet.create({
     top: 4,
     bottom: 4,
     borderRadius: 12,
-    backgroundColor: '#F97316',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,151,45,0.62)',
     shadowColor: '#F97316',
     shadowOpacity: 0.35,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
   },
+  tabPillShine: { position: 'absolute', left: 12, right: 12, top: 5, height: 1 },
   tabBtn: {
     flex: 1,
     alignItems: 'center',
@@ -120,7 +141,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     color: 'rgba(255,255,255,0.5)',
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.2,
   },

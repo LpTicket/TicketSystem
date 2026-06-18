@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -132,6 +133,7 @@ type AdminStats = {
 
 const PRESET_ICONS = ['🎵','🎭','🎪','😂','⚽','🎤','🧒','🎫','🎬','🏟️','🎺','🥁','🎸','🎹','🎻','🏀','🎾','🏐','🚀','🌟'];
 const PRESET_COLORS = ['#f97316','#8b5cf6','#ec4899','#eab308','#22c55e','#06b6d4','#3b82f6','#6b7280','#ef4444','#10b981','#f59e0b','#6366f1'];
+const ADMIN_USERS_LIMIT = 500;
 
 function listFrom(payload: any) {
   if (Array.isArray(payload)) return payload;
@@ -256,8 +258,10 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const { t } = useLanguage();
   const adminIndicatorX = useRef(new Animated.Value(0)).current;
   const adminIndicatorWidth = useRef(new Animated.Value(118)).current;
+  const userRoleIndicatorX = useRef(new Animated.Value(0)).current;
   const active: Section = section ?? 'dashboard';
   const [tabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
+  const [userRoleFilterWidth, setUserRoleFilterWidth] = useState(0);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [categoryDraft, setCategoryDraft] = useState('');
@@ -319,7 +323,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [usersTotal, setUsersTotal] = useState<number | null>(null);
 
   // Category form (create + edit modals)
-  const emptyCategForm = { labelEs: '', labelEn: '', icon: '🎫', color: '#6366f1', sortOrder: 0, imageData: '' as string };
+  const emptyCategForm = { labelEs: '', labelEn: '', slug: '', icon: '🎫', color: colors.orange, sortOrder: 0, imageData: '' as string };
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   const [categoryForm, setCategoryForm] = useState({ ...emptyCategForm });
   const [editingCategoryModal, setEditingCategoryModal] = useState<Category | null>(null);
@@ -359,7 +363,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     try {
       setUsersApiError('');
       const role = roleFilter !== undefined ? roleFilter : userRoleFilter;
-      const params = role ? `?role=${role}&page=1&limit=50` : '?page=1&limit=50';
+      const params = role ? `?role=${role}&page=1&limit=${ADMIN_USERS_LIMIT}` : `?page=1&limit=${ADMIN_USERS_LIMIT}`;
       const data = await apiGet<any>(`/admin/users${params}`);
       setUsers(listFrom(data).map(toAdminUser));
       setUsersTotal(typeof data?.total === 'number' ? data.total : listFrom(data).length);
@@ -417,7 +421,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     Promise.allSettled([
       apiGet<AdminStats>('/admin/stats'),
       apiGet<any>('/admin/events?page=1&limit=50'),
-      apiGet<any>('/admin/users?page=1&limit=50'),
+      apiGet<any>(`/admin/users?page=1&limit=${ADMIN_USERS_LIMIT}`),
       apiGet<any>('/categories?all=true'),
       apiGet<any>('/admin/events/financials').catch(() => ({ events: [] })),
     ]).then(([statsRes, eventsRes, usersRes, categoriesRes, finRes]) => {
@@ -473,10 +477,28 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const normalizedUserSearch = userSearchQuery.trim().toLowerCase();
   const visibleUsers = normalizedUserSearch
     ? users.filter((user) => {
-        const haystack = `${user.name} ${user.email} ${user.role} ${user.suspended ? 'suspended suspendido' : 'active activo'}`.toLowerCase();
+        const haystack = `${user.name} ${user.firstName} ${user.lastName} ${user.username} ${user.email} ${user.phone || ''} ${user.address || ''} ${user.role} ${user.suspended ? 'suspended suspendido' : 'active activo'}`.toLowerCase();
         return haystack.includes(normalizedUserSearch);
       })
     : users;
+  const userRoleTabs = [
+    { key: '', label: t('Todos', 'All') },
+    { key: 'client', label: t('Clientes', 'Clients') },
+    { key: 'admin', label: t('Admins', 'Admins') },
+  ] as const;
+  const userRoleIndex = userRoleFilter === 'client' ? 1 : userRoleFilter === 'admin' ? 2 : 0;
+  const userRolePillWidth = Math.max(0, (userRoleFilterWidth - 8) / 3);
+  const userCountDisplay = usersTotal ?? users.length;
+
+  useEffect(() => {
+    Animated.spring(userRoleIndicatorX, {
+      toValue: userRoleIndex * userRolePillWidth,
+      useNativeDriver: true,
+      damping: 20,
+      stiffness: 260,
+      mass: 0.7,
+    }).start();
+  }, [userRoleIndex, userRoleIndicatorX, userRolePillWidth]);
 
   const [categories, setCategories] = useState<Category[]>([
     { id: '1', name: 'Concert', labelEs: 'Concierto', labelEn: 'Concert', slug: 'concierto', icon: '🎵', color: '#f97316', sortOrder: 0, active: true, featured: true },
@@ -639,7 +661,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     const labelEs = categoryForm.labelEs.trim();
     const labelEn = categoryForm.labelEn.trim() || labelEs;
     if (!labelEs) return;
-    const slug = slugify(labelEs);
+    const slug = slugify(categoryForm.slug.trim() || labelEs);
     setSavingCategory(true);
     try {
       const result = await apiPost<any>('/categories', {
@@ -669,7 +691,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const saveCategoryToApi = async (id: string) => {
     const labelEs = editCategoryForm.labelEs.trim();
     const labelEn = editCategoryForm.labelEn.trim() || labelEs;
-    const slug = slugify(labelEs);
+    const slug = slugify(editCategoryForm.slug.trim() || labelEs);
     setSavingCategory(true);
     try {
       await apiPatch(`/categories/${id}`, {
@@ -1275,8 +1297,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                       <TouchableOpacity onPress={() => setSelectedFinancialEventId('')} style={[styles.finEventPill, !selectedFinancialEventId && styles.finEventPillActive]}>
                         <Text style={[styles.finEventPillText, !selectedFinancialEventId && styles.finEventPillTextActive]}>{t('Global', 'Global')}</Text>
                       </TouchableOpacity>
-                      {eventFinancials.map((ev) => (
-                        <TouchableOpacity key={ev.id} onPress={() => setSelectedFinancialEventId(ev.id)} style={[styles.finEventPill, selectedFinancialEventId === ev.id && styles.finEventPillActive]}>
+                      {eventFinancials.map((ev, index) => (
+                        <TouchableOpacity key={`${ev.id || ev.title || 'financial-event'}-${index}`} onPress={() => setSelectedFinancialEventId(ev.id)} style={[styles.finEventPill, selectedFinancialEventId === ev.id && styles.finEventPillActive]}>
                           <Text style={[styles.finEventPillText, selectedFinancialEventId === ev.id && styles.finEventPillTextActive]} numberOfLines={1}>{ev.title}</Text>
                         </TouchableOpacity>
                       ))}
@@ -1366,8 +1388,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             {adminEvents.filter((e) => !eventSearch || (e.title || '').toLowerCase().includes(eventSearch.toLowerCase())).length === 0 && (
               <PanelCard title={t('Sin eventos', 'No events')} copy={t('No hay eventos con ese filtro.', 'No events match this filter.')} />
             )}
-            {[...adminEvents].filter((e) => !eventSearch || (e.title || '').toLowerCase().includes(eventSearch.toLowerCase())).sort(sortAdminEventsBySchedule).map((item: any) => (
-              <View key={String(item.id || item.slug || adminEventTitle(item))} style={[styles.adminEventCard, isAdminEventPast(item) && styles.adminEventCardPast]}>
+            {[...adminEvents].filter((e) => !eventSearch || (e.title || '').toLowerCase().includes(eventSearch.toLowerCase())).sort(sortAdminEventsBySchedule).map((item: any, index) => (
+              <View key={`${String(item.id || item.slug || adminEventTitle(item) || 'event')}-${index}`} style={[styles.adminEventCard, isAdminEventPast(item) && styles.adminEventCardPast]}>
                 <TouchableOpacity
                   onPress={() => openAdminEventEditor(item)}
                   style={styles.adminEventEditButton}
@@ -1541,17 +1563,47 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
 
         {active === 'users' && (
           <>
-            {/* Role filter tabs */}
-            <View style={styles.userRoleFilterRow}>
-              {([
-                { key: '', label: t('Todos', 'All') },
-                { key: 'client', label: t('Clientes', 'Clients') },
-                { key: 'admin', label: t('Admins', 'Admins') },
-              ] as const).map((f) => (
-                <TouchableOpacity key={f.key} onPress={() => setUserRoleFilter(f.key)} style={[styles.eventFilterPill, userRoleFilter === f.key && styles.eventFilterPillActive]}>
-                  <Text style={[styles.eventFilterText, userRoleFilter === f.key && styles.eventFilterTextActive]}>{f.label}</Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.userFilterCard}>
+              <View style={styles.userCountCompact}>
+                <Text style={styles.userCountCompactValue}>{userCountDisplay}</Text>
+                <Text style={styles.userCountCompactLabel}>{t('usuarios', 'users')}</Text>
+              </View>
+              <View
+                style={styles.userRoleFilterShell}
+                onLayout={(event) => setUserRoleFilterWidth(event.nativeEvent.layout.width)}
+              >
+                {userRolePillWidth > 0 && (
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      styles.userRoleSlidingPill,
+                      { width: userRolePillWidth, transform: [{ translateX: userRoleIndicatorX }] },
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={['#ff8a18', '#f46c00', '#c93f00']}
+                      locations={[0, 0.46, 1]}
+                      start={{ x: 0.5, y: 0 }}
+                      end={{ x: 0.5, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <View pointerEvents="none" style={styles.userRoleSlidingShine}>
+                      <LinearGradient
+                        colors={['rgba(255,235,205,0)', 'rgba(255,235,205,0.85)', 'rgba(255,235,205,0)']}
+                        locations={[0, 0.5, 1]}
+                        start={{ x: 0, y: 0.5 }}
+                        end={{ x: 1, y: 0.5 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+                    </View>
+                  </Animated.View>
+                )}
+                {userRoleTabs.map((f) => (
+                  <TouchableOpacity key={f.key || 'all'} onPress={() => setUserRoleFilter(f.key)} style={styles.userRoleSegment}>
+                    <Text style={[styles.userRoleSegmentText, userRoleFilter === f.key && styles.userRoleSegmentTextActive]}>{f.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* Search */}
@@ -1569,10 +1621,10 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             </View>
 
             {/* Create user button */}
-            <TouchableOpacity onPress={() => setShowCreateUser(true)} style={styles.createUserBtn}>
+            <GradientButton onPress={() => setShowCreateUser(true)} height={42} style={styles.createUserBtn}>
               <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
               <Text style={styles.createUserBtnText}>{t('CREAR USUARIO', 'CREATE USER')}</Text>
-            </TouchableOpacity>
+            </GradientButton>
 
             {usersApiError ? (
               <View style={styles.userEmptyCard}>
@@ -1587,7 +1639,6 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             )}
 
             {visibleUsers.map((user) => {
-              const initials = ((user.firstName[0] || '') + (user.lastName[0] || '')).toUpperCase() || user.name.slice(0, 2).toUpperCase();
               const dateStr = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
               return (
                 <TouchableOpacity key={user.id} onPress={() => openUserDetail(user)} style={styles.userCard2} activeOpacity={0.8}>
@@ -1597,7 +1648,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                       {user.avatarUrl ? (
                         <Image source={{ uri: user.avatarUrl }} style={{ width: '100%', height: '100%', borderRadius: 999 }} resizeMode="cover" />
                       ) : (
-                        <Text style={styles.userInitialsText}>{initials}</Text>
+                        <Ionicons name="person-outline" size={19} color="rgba(248,250,252,0.82)" />
                       )}
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
@@ -1652,9 +1703,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   {selectedUser.avatarUrl ? (
                     <Image source={{ uri: selectedUser.avatarUrl }} style={{ width: '100%', height: '100%', borderRadius: 999 }} resizeMode="cover" />
                   ) : (
-                    <Text style={styles.userInitialsTextLg}>
-                      {((selectedUser.firstName[0] || '') + (selectedUser.lastName[0] || '')).toUpperCase() || selectedUser.name.slice(0, 2).toUpperCase()}
-                    </Text>
+                    <Ionicons name="person-outline" size={23} color="rgba(248,250,252,0.84)" />
                   )}
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -1784,56 +1833,71 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
         <Modal visible transparent animationType="slide" onRequestClose={() => setShowCreateCategory(false)}>
           <View style={styles.modalOverlay}>
             <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowCreateCategory(false)} activeOpacity={1} />
-            <View style={[styles.userModal, { maxHeight: '96%' }]}>
+            <View style={styles.catFormModal}>
+              <LinearGradient
+                pointerEvents="none"
+                colors={['rgba(14,35,61,0.92)', 'rgba(5,14,26,0.96)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
               <View style={styles.userModalHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.userModalName}>{t('Nueva categoría', 'New category')}</Text>
+                  <Text style={styles.userModalSub}>{t('Agrega foto, título y subtítulo', 'Add photo, title and subtitle')}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setShowCreateCategory(false)} style={styles.userModalClose}>
                   <Ionicons name="close" size={20} color="rgba(226,232,240,0.7)" />
                 </TouchableOpacity>
               </View>
-              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 10 }}>
-                <FieldLabel label={t('Nombre (ES):', 'Name (ES):')} />
-                <TextInput value={categoryForm.labelEs} onChangeText={(v) => setCategoryForm((f) => ({ ...f, labelEs: v }))} placeholder={t('ej. Concierto', 'e.g. Concert')} placeholderTextColor="#9CA3AF" style={styles.input} />
-                <FieldLabel label="Name (EN):" />
-                <TextInput value={categoryForm.labelEn} onChangeText={(v) => setCategoryForm((f) => ({ ...f, labelEn: v }))} placeholder="e.g. Concert" placeholderTextColor="#9CA3AF" style={styles.input} />
-                <FieldLabel label={t('Slug (auto-generado):', 'Slug (auto-generated):')} />
-                <TextInput value={categoryForm.labelEs ? categoryForm.labelEs.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : ''} editable={false} placeholderTextColor="#9CA3AF" style={[styles.input, { opacity: 0.5 }]} />
-                <FieldLabel label={t('Orden:', 'Order:')} />
-                <TextInput value={String(categoryForm.sortOrder)} onChangeText={(v) => setCategoryForm((f) => ({ ...f, sortOrder: Number(v) || 0 }))} keyboardType="number-pad" style={styles.input} />
-                <FieldLabel label={t('Ícono:', 'Icon:')} />
-                <View style={styles.catIconGrid}>
-                  {PRESET_ICONS.map((icon) => (
-                    <TouchableOpacity key={icon} onPress={() => setCategoryForm((f) => ({ ...f, icon }))} style={[styles.catIconPicker, categoryForm.icon === icon && { borderColor: colors.orange, backgroundColor: 'rgba(249,115,22,0.14)' }]}>
-                      <Text style={{ fontSize: 22 }}>{icon}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <View style={styles.catSelectedIconBox}>
-                  <Text style={{ fontSize: 28 }}>{categoryForm.icon}</Text>
-                </View>
-                <FieldLabel label={t('Color:', 'Color:')} />
+              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={styles.catFormContent}>
+                <FieldLabel label={t('Foto de la categoría', 'Category photo')} />
+                <TouchableOpacity onPress={() => pickCategoryImage('create')} activeOpacity={0.86} style={styles.catPhotoPicker}>
+                  {categoryForm.imageData ? (
+                    <Image source={{ uri: categoryForm.imageData }} style={styles.catPhotoPreview} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.catPhotoEmpty}>
+                      <Ionicons name="image-outline" size={30} color="rgba(255,255,255,0.45)" />
+                      <Text style={styles.catPhotoEmptyText}>{t('Subir foto', 'Upload photo')}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <FieldLabel label={t('Título', 'Title')} />
+                <TextInput
+                  value={categoryForm.labelEs}
+                  onChangeText={(v) => setCategoryForm((f) => ({ ...f, labelEs: v, labelEn: f.labelEn || v, slug: f.slug || slugify(v) }))}
+                  placeholder={t('Ej. Concierto', 'E.g. Concert')}
+                  placeholderTextColor="#6B7280"
+                  style={styles.catFormInput}
+                />
+                <FieldLabel label={t('Subtítulo', 'Subtitle')} />
+                <TextInput
+                  value={categoryForm.slug}
+                  onChangeText={(v) => setCategoryForm((f) => ({ ...f, slug: slugify(v) }))}
+                  placeholder={t('ej. concierto', 'e.g. concert')}
+                  placeholderTextColor="#6B7280"
+                  style={styles.catFormInput}
+                />
+                <FieldLabel label={t('Color de acento', 'Accent color')} />
                 <View style={styles.catColorGrid}>
                   {PRESET_COLORS.map((color) => (
                     <TouchableOpacity key={color} onPress={() => setCategoryForm((f) => ({ ...f, color }))} style={[styles.catColorSwatch, { backgroundColor: color }, categoryForm.color === color && styles.catColorSwatchSelected]} />
                   ))}
                 </View>
-                <Text style={styles.catColorHex}>{categoryForm.color}</Text>
-                <FieldLabel label={t('Imagen de la categoría (opcional):', 'Category image (optional):')} />
-                <View style={styles.catImageRow}>
-                  {categoryForm.imageData ? (
-                    <Image source={{ uri: categoryForm.imageData }} style={styles.catImageThumb} resizeMode="cover" />
-                  ) : (
-                    <View style={styles.catImageEmpty}><Ionicons name="image-outline" size={28} color="rgba(226,232,240,0.3)" /></View>
-                  )}
-                  <TouchableOpacity onPress={() => pickCategoryImage('create')} style={styles.catImagePickBtn}>
-                    <Text style={styles.catImagePickText}>{t('Subir imagen', 'Upload image')}</Text>
-                  </TouchableOpacity>
-                </View>
                 <FieldLabel label={t('Vista previa:', 'Preview:')} />
-                <View style={[styles.catPreviewPill, { backgroundColor: categoryForm.color }]}>
-                  <Text style={styles.catPreviewPillText}>{categoryForm.icon} {categoryForm.labelEs || t('Nombre', 'Name')}</Text>
+                <View style={styles.catFormPreviewCard}>
+                  <View style={[styles.catCardAccent, { backgroundColor: categoryForm.color || colors.orange }]} />
+                  <View style={[styles.catIconBox, { backgroundColor: `${categoryForm.color}22`, borderColor: `${categoryForm.color}66` }]}>
+                    {categoryForm.imageData ? (
+                      <Image source={{ uri: categoryForm.imageData }} style={styles.catCardImage} resizeMode="cover" />
+                    ) : (
+                      <Ionicons name="image-outline" size={22} color="rgba(226,232,240,0.5)" />
+                    )}
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.catCardName} numberOfLines={1}>{categoryForm.labelEs || t('Título', 'Title')}</Text>
+                    <Text style={styles.catCardSlug} numberOfLines={1}>{categoryForm.slug || t('subtítulo', 'subtitle')}</Text>
+                  </View>
                 </View>
               </ScrollView>
               <View style={[styles.userModalFooter, { gap: 10 }]}>
@@ -1852,41 +1916,71 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
         <Modal visible transparent animationType="slide" onRequestClose={() => setEditingCategoryModal(null)}>
           <View style={styles.modalOverlay}>
             <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setEditingCategoryModal(null)} activeOpacity={1} />
-            <View style={[styles.userModal, { maxHeight: '92%' }]}>
+            <View style={styles.catFormModal}>
+              <LinearGradient
+                pointerEvents="none"
+                colors={['rgba(14,35,61,0.92)', 'rgba(5,14,26,0.96)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
               <View style={styles.userModalHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.userModalName}>{editingCategoryModal.name}</Text>
-                  <Text style={styles.userModalSub}>{editingCategoryModal.slug}</Text>
+                  <Text style={styles.userModalName}>{t('Editar categoría', 'Edit category')}</Text>
+                  <Text style={styles.userModalSub}>{editingCategoryModal.name}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setEditingCategoryModal(null)} style={styles.userModalClose}>
                   <Ionicons name="close" size={20} color="rgba(226,232,240,0.7)" />
                 </TouchableOpacity>
               </View>
-              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 10 }}>
-                <FieldLabel label={t('Nombre (ES):', 'Name (ES):')} />
-                <TextInput value={editCategoryForm.labelEs} onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, labelEs: v }))} style={styles.input} />
-                <FieldLabel label="Name (EN):" />
-                <TextInput value={editCategoryForm.labelEn} onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, labelEn: v }))} style={styles.input} />
-                <FieldLabel label={t('Color:', 'Color:')} />
+              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={styles.catFormContent}>
+                <FieldLabel label={t('Foto de la categoría', 'Category photo')} />
+                <TouchableOpacity onPress={() => pickCategoryImage('edit')} activeOpacity={0.86} style={styles.catPhotoPicker}>
+                  {editCategoryForm.imageData ? (
+                    <Image source={{ uri: editCategoryForm.imageData }} style={styles.catPhotoPreview} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.catPhotoEmpty}>
+                      <Ionicons name="image-outline" size={30} color="rgba(255,255,255,0.45)" />
+                      <Text style={styles.catPhotoEmptyText}>{t('Cambiar foto', 'Change photo')}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <FieldLabel label={t('Título', 'Title')} />
+                <TextInput
+                  value={editCategoryForm.labelEs}
+                  onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, labelEs: v, labelEn: f.labelEn || v }))}
+                  placeholder={t('Ej. Concierto', 'E.g. Concert')}
+                  placeholderTextColor="#6B7280"
+                  style={styles.catFormInput}
+                />
+                <FieldLabel label={t('Subtítulo', 'Subtitle')} />
+                <TextInput
+                  value={editCategoryForm.slug}
+                  onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, slug: slugify(v) }))}
+                  placeholder={t('ej. concierto', 'e.g. concert')}
+                  placeholderTextColor="#6B7280"
+                  style={styles.catFormInput}
+                />
+                <FieldLabel label={t('Color de acento', 'Accent color')} />
                 <View style={styles.catColorGrid}>
                   {PRESET_COLORS.map((color) => (
                     <TouchableOpacity key={color} onPress={() => setEditCategoryForm((f) => ({ ...f, color }))} style={[styles.catColorSwatch, { backgroundColor: color }, editCategoryForm.color === color && styles.catColorSwatchSelected]} />
                   ))}
                 </View>
-                <View style={[styles.catColorHexBox, { backgroundColor: editCategoryForm.color }]} />
-                <Text style={styles.catColorHex}>{editCategoryForm.color}</Text>
-                <FieldLabel label={t('Imagen de la categoría:', 'Category image:')} />
-                <View style={styles.catImageRow}>
-                  {editCategoryForm.imageData ? (
-                    <Image source={{ uri: editCategoryForm.imageData }} style={styles.catImageThumb} resizeMode="cover" />
-                  ) : editingCategoryModal.imageData ? (
-                    <Image source={{ uri: editingCategoryModal.imageData }} style={styles.catImageThumb} resizeMode="cover" />
-                  ) : (
-                    <View style={styles.catImageEmpty}><Ionicons name="image-outline" size={28} color="rgba(226,232,240,0.3)" /></View>
-                  )}
-                  <TouchableOpacity onPress={() => pickCategoryImage('edit')} style={styles.catImagePickBtn}>
-                    <Text style={styles.catImagePickText}>{t('Cambiar imagen', 'Change image')}</Text>
-                  </TouchableOpacity>
+                <FieldLabel label={t('Vista previa:', 'Preview:')} />
+                <View style={styles.catFormPreviewCard}>
+                  <View style={[styles.catCardAccent, { backgroundColor: editCategoryForm.color || colors.orange }]} />
+                  <View style={[styles.catIconBox, { backgroundColor: `${editCategoryForm.color}22`, borderColor: `${editCategoryForm.color}66` }]}>
+                    {editCategoryForm.imageData ? (
+                      <Image source={{ uri: editCategoryForm.imageData }} style={styles.catCardImage} resizeMode="cover" />
+                    ) : (
+                      <Ionicons name="image-outline" size={22} color="rgba(226,232,240,0.5)" />
+                    )}
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.catCardName} numberOfLines={1}>{editCategoryForm.labelEs || t('Título', 'Title')}</Text>
+                    <Text style={styles.catCardSlug} numberOfLines={1}>{editCategoryForm.slug || t('subtítulo', 'subtitle')}</Text>
+                  </View>
                 </View>
               </ScrollView>
               <View style={[styles.userModalFooter, { gap: 10 }]}>
@@ -1949,8 +2043,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                     <TouchableOpacity onPress={() => setEditCodeForm((f) => ({ ...f, eventId: '' }))} style={[styles.codeEventPill, !editCodeForm.eventId && styles.codeEventPillActive]}>
                       <Text style={[styles.codeEventPillText, !editCodeForm.eventId && styles.codeEventPillTextActive]}>{t('Todos', 'All')}</Text>
                     </TouchableOpacity>
-                    {adminEvents.slice(0, 10).map((ev) => (
-                      <TouchableOpacity key={ev.id} onPress={() => setEditCodeForm((f) => ({ ...f, eventId: ev.id }))} style={[styles.codeEventPill, editCodeForm.eventId === ev.id && styles.codeEventPillActive]}>
+                    {adminEvents.slice(0, 10).map((ev, index) => (
+                      <TouchableOpacity key={`${ev.id || ev.slug || 'edit-code-event'}-${index}`} onPress={() => setEditCodeForm((f) => ({ ...f, eventId: ev.id }))} style={[styles.codeEventPill, editCodeForm.eventId === ev.id && styles.codeEventPillActive]}>
                         <Text style={[styles.codeEventPillText, editCodeForm.eventId === ev.id && styles.codeEventPillTextActive]} numberOfLines={1}>{adminEventTitle(ev)}</Text>
                       </TouchableOpacity>
                     ))}
@@ -1979,25 +2073,42 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             {/* Header row: count + NUEVA CATEGORÍA button */}
             <View style={styles.catHeaderRow}>
               <Text style={styles.catCount}>{categories.length} {t('categorías', 'categories')} — {t('los organizadores las verán al crear eventos', 'organizers see them when creating events')}</Text>
-              <TouchableOpacity onPress={() => { setCategoryForm({ ...emptyCategForm }); setShowCreateCategory(true); }} style={styles.catNewBtn}>
+              <GradientButton onPress={() => { setCategoryForm({ ...emptyCategForm }); setShowCreateCategory(true); }} height={44} style={styles.catNewBtn}>
                 <Text style={styles.catNewBtnText}>{t('NUEVA\nCATEGORÍA', 'NEW\nCATEGORY')}</Text>
-              </TouchableOpacity>
+              </GradientButton>
             </View>
 
             {categories.map((category) => (
               <View key={category.id} style={styles.catCard}>
+                <LinearGradient
+                  pointerEvents="none"
+                  colors={['rgba(255,255,255,0.035)', 'rgba(255,255,255,0.010)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <View pointerEvents="none" style={[styles.catCardAccent, { backgroundColor: category.color || colors.orange }]} />
                 <View style={styles.catCardLeft}>
                   <View style={[styles.catIconBox, { backgroundColor: `${category.color}22`, borderColor: `${category.color}66` }]}>
-                    <Text style={styles.catIconText}>{category.icon || '🎫'}</Text>
+                    {category.imageData ? (
+                      <Image source={{ uri: category.imageData }} style={styles.catCardImage} resizeMode="cover" />
+                    ) : (
+                      <Text style={styles.catIconText}>{category.icon?.trim() || '🎫'}</Text>
+                    )}
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.catCardName} numberOfLines={1}>{category.name}</Text>
                     <Text style={styles.catCardSlug} numberOfLines={1}>{category.slug}</Text>
-                    <StatusPill label={category.active ? t('ACTIVA', 'ACTIVE') : t('INACTIVA', 'INACTIVE')} tone={category.active ? 'green' : 'red'} compact />
+                    <View style={[styles.catStatusBadge, category.active ? styles.catStatusBadgeActive : styles.catStatusBadgeInactive]}>
+                      <View style={[styles.catStatusDot, category.active ? styles.catStatusDotActive : styles.catStatusDotInactive]} />
+                      <Text style={[styles.catStatusText, category.active ? styles.catStatusTextActive : styles.catStatusTextInactive]}>
+                        {category.active ? t('Activa', 'Active') : t('Inactiva', 'Inactive')}
+                      </Text>
+                    </View>
                   </View>
                 </View>
                 <View style={styles.catCardActions}>
-                  <TouchableOpacity onPress={() => { setEditingCategoryModal(category); setEditCategoryForm({ labelEs: category.labelEs, labelEn: category.labelEn, icon: category.icon, color: category.color, sortOrder: category.sortOrder, imageData: category.imageData || '' }); }} style={styles.catActionBtn}>
+                  <TouchableOpacity onPress={() => { setEditingCategoryModal(category); setEditCategoryForm({ labelEs: category.labelEs, labelEn: category.labelEn, slug: category.slug, icon: category.icon, color: category.color, sortOrder: category.sortOrder, imageData: category.imageData || '' }); }} style={styles.catActionBtn}>
                     <Ionicons name="pencil-outline" size={17} color="#94A3B8" />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => deleteCategoryApi(category.id)} style={[styles.catActionBtn, { borderColor: 'rgba(239,68,68,0.28)' }]}>
@@ -2120,7 +2231,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               <View style={styles.anSection}>
                 <Text style={styles.anSectionTitle}>{t('Eventos más vistos', 'Top events')}</Text>
                 {(analyticsSummary?.topEvents ?? []).slice(0, 5).map((ev, i) => (
-                  <View key={ev.eventSlug} style={styles.anRankRow}>
+                  <View key={`${ev.eventSlug || ev.eventTitle || 'top-event'}-${i}`} style={styles.anRankRow}>
                     <View style={styles.anRankNum}><Text style={styles.anRankNumText}>{i + 1}</Text></View>
                     <Text style={styles.anRankTitle} numberOfLines={1}>{ev.eventTitle || formatEventSlug(ev.eventSlug)}</Text>
                     <Text style={styles.anRankMeta}>{ev.views} {t('vistas', 'views')} · {ev.visitors} {t('visitantes', 'visitors')}</Text>
@@ -2134,7 +2245,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               <View style={styles.anSection}>
                 <Text style={styles.anSectionTitle}>{t('Páginas más vistas', 'Top pages')}</Text>
                 {(analyticsSummary?.topPages ?? []).slice(0, 5).map((page, i) => (
-                  <View key={page.path} style={styles.anRankRow}>
+                  <View key={`${page.path || 'top-page'}-${i}`} style={styles.anRankRow}>
                     <View style={styles.anRankNum}><Text style={styles.anRankNumText}>{i + 1}</Text></View>
                     <Text style={styles.anRankTitle} numberOfLines={1}>{page.path}</Text>
                     <Text style={styles.anRankMeta}>{page.views} {t('vistas', 'views')} · {page.visitors} {t('visitantes', 'visitors')}</Text>
@@ -2163,8 +2274,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                           <Text style={styles.anTableColPath}>{t('RUTA', 'PATH')}</Text>
                           <Text style={styles.anTableColEvent}>{t('EVENTO', 'EVENT')}</Text>
                         </View>
-                        {analyticsSummary!.recentViews.map((view) => (
-                          <View key={view.id} style={styles.anTableRow}>
+                        {analyticsSummary!.recentViews.map((view, i) => (
+                          <View key={`${view.id || view.path || 'recent-view'}-${i}`} style={styles.anTableRow}>
                             <Text style={styles.anTablePath} numberOfLines={1}>{view.path}</Text>
                             <Text style={styles.anTableEvent} numberOfLines={1}>{view.eventSlug ? view.eventSlug.split('-').slice(0, 3).join('-') + (view.eventSlug.split('-').length > 3 ? '...' : '') : '-'}</Text>
                           </View>
@@ -2268,8 +2379,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                     <TouchableOpacity onPress={() => setCodeEventId('')} style={[styles.codeEventPill, !codeEventId && styles.codeEventPillActive]}>
                       <Text style={[styles.codeEventPillText, !codeEventId && styles.codeEventPillTextActive]}>{t('Todos', 'All')}</Text>
                     </TouchableOpacity>
-                    {adminEvents.slice(0, 10).map((ev) => (
-                      <TouchableOpacity key={ev.id} onPress={() => setCodeEventId(ev.id)} style={[styles.codeEventPill, codeEventId === ev.id && styles.codeEventPillActive]}>
+                    {adminEvents.slice(0, 10).map((ev, index) => (
+                      <TouchableOpacity key={`${ev.id || ev.slug || 'code-event'}-${index}`} onPress={() => setCodeEventId(ev.id)} style={[styles.codeEventPill, codeEventId === ev.id && styles.codeEventPillActive]}>
                         <Text style={[styles.codeEventPillText, codeEventId === ev.id && styles.codeEventPillTextActive]} numberOfLines={1}>{adminEventTitle(ev)}</Text>
                       </TouchableOpacity>
                     ))}
@@ -2308,10 +2419,10 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               if (!term) return true;
               const ownerStr = `${item.owner?.firstName || ''} ${item.owner?.lastName || ''} ${item.owner?.email || ''}`.toLowerCase();
               return item.code.toLowerCase().includes(term) || ownerStr.includes(term) || (item.event?.title || '').toLowerCase().includes(term);
-            }).map((item) => {
+            }).map((item, index) => {
               const ownerName = [item.owner?.firstName, item.owner?.lastName].filter(Boolean).join(' ') || item.owner?.email || item.ownerUserId.slice(0, 8);
               return (
-                <View key={item.id} style={styles.codeCard2}>
+                <View key={`${item.id || item.code || 'code'}-${index}`} style={styles.codeCard2}>
                   <Text style={styles.codeCard2Label}>{t('CÓDIGO', 'CODE')}</Text>
                   <Text style={styles.codeCard2Code}>{item.code}</Text>
                   <Text style={styles.codeCard2Label}>{t('DUEÑO', 'OWNER')}</Text>
@@ -2349,12 +2460,12 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                     <Text style={styles.eventRewardsSub}>{t('Administra la recompensa base por evento cuando se usa un código de creador.', 'Manage the base reward per event when creator codes are used.')}</Text>
                   </View>
                 </View>
-                {adminEvents.map((ev) => {
+                {adminEvents.map((ev, index) => {
                   const orgName = [ev.organizer?.firstName, ev.organizer?.lastName].filter(Boolean).join(' ') || ev.organizerName || '-';
                   const current = Number(ev.creatorCommission || 0);
                   const rewardVal = eventRewards[ev.id] !== undefined ? eventRewards[ev.id] : current.toFixed(2);
                   return (
-                    <View key={ev.id} style={styles.eventRewardCard}>
+                    <View key={`${ev.id || ev.slug || 'reward-event'}-${index}`} style={styles.eventRewardCard}>
                       <Text style={styles.eventRewardFieldLabel}>{t('EVENTO', 'EVENT')}</Text>
                       <Text style={styles.eventRewardEventTitle}>{adminEventTitle(ev)}</Text>
                       <Text style={styles.eventRewardFieldLabel}>{t('ORGANIZADOR', 'ORGANIZER')}</Text>
@@ -3010,7 +3121,7 @@ const styles = StyleSheet.create({
   userCountBadge: { minWidth: 82, height: 54, borderRadius: 16, backgroundColor: 'rgba(249,115,22,0.11)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
   userCountValue: { color: '#F8FAFC', fontSize: 28, fontWeight: '800', letterSpacing: 0 },
   userSearchBox: { height: 46, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: '#030B14', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 13, marginBottom: 10 },
-  userSearchIcon: { color: colors.orange, fontSize: 18, fontWeight: '700', width: 18, textAlign: 'center' },
+  userSearchIcon: { color: colors.orange, fontSize: 27, fontWeight: '700', width: 27, textAlign: 'center' },
   userSearchInput: { flex: 1, color: '#F8FAFC', fontSize: 14, fontWeight: '600', paddingVertical: 0 },
   userEmptyCard: { backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', padding: 14, marginBottom: 10, alignItems: 'center' },
   userEmptyText: { color: 'rgba(226,232,240,0.62)', fontSize: 13, fontWeight: '600' },
@@ -3188,13 +3299,23 @@ const styles = StyleSheet.create({
 
   // User v2 cards
   userRoleFilterRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  createUserBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 42, borderRadius: 12, paddingHorizontal: 16, backgroundColor: 'rgba(10,55,90,0.8)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignSelf: 'flex-start', marginBottom: 12 },
+  userFilterCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.018)', padding: 8, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 9, overflow: 'hidden' },
+  userCountCompact: { width: 74, height: 42, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(249,115,22,0.30)', backgroundColor: 'rgba(249,115,22,0.08)', alignItems: 'center', justifyContent: 'center' },
+  userCountCompactValue: { color: '#F8FAFC', fontSize: 18, fontWeight: '900', lineHeight: 20 },
+  userCountCompactLabel: { color: 'rgba(226,232,240,0.62)', fontSize: 9.5, fontWeight: '800', lineHeight: 12 },
+  userRoleFilterShell: { flex: 1, height: 42, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: '#030B14', padding: 4, flexDirection: 'row', position: 'relative', overflow: 'hidden' },
+  userRoleSlidingPill: { position: 'absolute', left: 4, top: 4, bottom: 4, borderRadius: 999, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,151,45,0.62)', shadowColor: '#ff6800', shadowOpacity: 0.24, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+  userRoleSlidingShine: { position: 'absolute', left: 12, right: 12, top: 5, height: 1 },
+  userRoleSegment: { flex: 1, borderRadius: 999, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  userRoleSegmentText: { color: 'rgba(203,213,225,0.72)', fontSize: 12, fontWeight: '800' },
+  userRoleSegmentTextActive: { color: '#FFFFFF', textShadowColor: 'rgba(0,0,0,0.24)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
+  createUserBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, paddingHorizontal: 16, alignSelf: 'flex-start', marginBottom: 12 },
   createUserBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0 },
   userCard2: { backgroundColor: '#030B14', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 14, marginBottom: 10 },
   userCard2Top: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  userInitialsAvatar: { width: 42, height: 42, borderRadius: 999, backgroundColor: 'rgba(249,115,22,0.14)', borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.4)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  userInitialsAvatar: { width: 42, height: 42, borderRadius: 999, backgroundColor: 'rgba(248,250,252,0.055)', borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.36)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   userInitialsText: { color: colors.orange, fontSize: 14, fontWeight: '800' },
-  userInitialsAvatarLg: { width: 52, height: 52, borderRadius: 999, backgroundColor: 'rgba(249,115,22,0.14)', borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.4)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  userInitialsAvatarLg: { width: 52, height: 52, borderRadius: 999, backgroundColor: 'rgba(248,250,252,0.055)', borderWidth: 1.5, borderColor: 'rgba(249,115,22,0.36)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   userInitialsTextLg: { color: colors.orange, fontSize: 18, fontWeight: '800' },
   userCard2Name: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 2 },
   userCard2Username: { color: 'rgba(226,232,240,0.48)', fontSize: 11, fontWeight: '700' },
@@ -3228,10 +3349,11 @@ const styles = StyleSheet.create({
   // Event filter tabs
   eventFilterRow: { marginBottom: 10 },
   eventFilterContent: { paddingRight: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
-  eventFilterPill: { height: 38, borderRadius: 12, paddingHorizontal: 14, backgroundColor: 'rgba(8,31,51,0.6)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
-  eventFilterPillActive: { backgroundColor: 'rgba(249,115,22,0.9)', borderColor: 'rgba(255,151,45,0.62)' },
-  eventFilterText: { color: '#CBD5E1', fontSize: 13, fontWeight: '700' },
-  eventFilterTextActive: { color: '#FFFFFF' },
+  eventFilterPill: { height: 38, borderRadius: 12, paddingHorizontal: 14, backgroundColor: 'rgba(3,11,20,0.86)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  eventFilterPillActive: { borderColor: 'rgba(255,151,45,0.62)', shadowColor: '#ff6800', shadowOpacity: 0.24, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+  eventFilterShine: { position: 'absolute', left: 10, right: 10, top: 5, height: 1 },
+  eventFilterText: { color: '#CBD5E1', fontSize: 13, fontWeight: '700', zIndex: 1 },
+  eventFilterTextActive: { color: '#FFFFFF', textShadowColor: 'rgba(0,0,0,0.24)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
 
   // Owner user search (special codes)
   ownerSearchBox: { position: 'relative', marginBottom: 6 },
@@ -3246,18 +3368,37 @@ const styles = StyleSheet.create({
   // Categories redesign
   catHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
   catCount: { flex: 1, color: '#CBD5E1', fontSize: 14, lineHeight: 20, fontWeight: '400' },
-  catNewBtn: { backgroundColor: colors.orange, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', minWidth: 100 },
+  catNewBtn: { borderRadius: 12, paddingHorizontal: 14, alignItems: 'center', minWidth: 100 },
   catNewBtnText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900', letterSpacing: 0.5, textAlign: 'center', lineHeight: 15 },
-  catCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 12, marginBottom: 10 },
+  catCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 12, marginBottom: 10, overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
+  catCardAccent: { position: 'absolute', left: 0, top: 12, bottom: 12, width: 3, borderRadius: 999, opacity: 0.88 },
   catCardLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 0 },
-  catIconBox: { width: 48, height: 48, borderRadius: 14, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  catIconText: { fontSize: 24 },
+  catIconBox: { width: 48, height: 48, borderRadius: 14, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', shadowColor: '#ff6800', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  catCardImage: { width: '100%', height: '100%', borderRadius: 12 },
+  catIconText: { fontSize: 24, lineHeight: 28 },
   catCardName: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 2 },
-  catCardSlug: { color: 'rgba(226,232,240,0.44)', fontSize: 11, fontWeight: '500', marginBottom: 6 },
+  catCardSlug: { color: 'rgba(226,232,240,0.44)', fontSize: 11, fontWeight: '500', marginBottom: 5 },
+  catStatusBadge: { alignSelf: 'flex-start', height: 22, borderRadius: 999, borderWidth: 1, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  catStatusBadgeActive: { backgroundColor: 'rgba(16,185,129,0.10)', borderColor: 'rgba(16,185,129,0.36)' },
+  catStatusBadgeInactive: { backgroundColor: 'rgba(239,68,68,0.10)', borderColor: 'rgba(239,68,68,0.34)' },
+  catStatusDot: { width: 5, height: 5, borderRadius: 999 },
+  catStatusDotActive: { backgroundColor: '#4ADE80' },
+  catStatusDotInactive: { backgroundColor: '#FCA5A5' },
+  catStatusText: { fontSize: 10, fontWeight: '800', letterSpacing: 0 },
+  catStatusTextActive: { color: '#4ADE80' },
+  catStatusTextInactive: { color: '#FCA5A5' },
   catCardActions: { flexDirection: 'row', gap: 8 },
-  catActionBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  catActionBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.035)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
 
   // Category form (create/edit modals)
+  catFormModal: { width: '100%', maxHeight: '92%', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(125,180,255,0.18)', overflow: 'hidden', backgroundColor: 'rgba(6,18,32,0.92)' },
+  catFormContent: { padding: 20, gap: 10 },
+  catFormInput: { height: 50, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(125,180,255,0.16)', backgroundColor: 'rgba(3,11,20,0.72)', paddingHorizontal: 14, color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  catPhotoPicker: { height: 132, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(125,180,255,0.18)', backgroundColor: 'rgba(255,255,255,0.035)', overflow: 'hidden', marginBottom: 8 },
+  catPhotoPreview: { width: '100%', height: '100%' },
+  catPhotoEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.18)', borderRadius: 18 },
+  catPhotoEmptyText: { color: 'rgba(226,232,240,0.68)', fontSize: 13, fontWeight: '800' },
+  catFormPreviewCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(3,11,20,0.82)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 12, overflow: 'hidden', marginBottom: 2 },
   catIconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   catIconPicker: { width: 44, height: 44, borderRadius: 10, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
   catSelectedIconBox: { alignSelf: 'flex-start', width: 52, height: 52, borderRadius: 14, borderWidth: 2, borderColor: colors.orange, backgroundColor: 'rgba(249,115,22,0.10)', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },

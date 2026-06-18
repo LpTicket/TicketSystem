@@ -6,6 +6,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { apiDelete, apiGet, apiPost, apiPut, apiUploadImage } from '../../services/api';
+import { GradientButton } from '../GradientButton';
 
 type EligibleEvent = {
   id: string;
@@ -442,10 +443,10 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>{hasEligibleEvent ? t('EVENTO ELEGIBLE', 'ELIGIBLE EVENT') : t('ESTADO', 'STATUS')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.eventRail}>
-          {displayEvents.map((event) => {
+          {displayEvents.map((event, index) => {
             const selected = event.id === selectedEventId;
             return (
-              <TouchableOpacity key={event.id} onPress={() => hasEligibleEvent && setSelectedEventId(event.id)} style={[styles.eventChip, selected && styles.eventChipActive, !hasEligibleEvent && styles.eventChipDisabled]} activeOpacity={hasEligibleEvent ? 0.85 : 1}>
+              <TouchableOpacity key={`${event.id || 'event'}-${index}`} onPress={() => hasEligibleEvent && setSelectedEventId(event.id)} style={[styles.eventChip, selected && styles.eventChipActive, !hasEligibleEvent && styles.eventChipDisabled]} activeOpacity={hasEligibleEvent ? 0.85 : 1}>
                 <Text style={[styles.eventTitle, selected && styles.eventTitleActive]}>{event.title}</Text>
                 <Text style={[styles.eventMeta, selected && styles.eventMetaActive]}>
                   {event.eventDate ? `${formatDate(event.eventDate)}${event.venueName ? ` - ${event.venueName}` : ''}` : event.venueName}
@@ -560,9 +561,14 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
           <TextInput value={editInstagram} onChangeText={setEditInstagram} style={styles.input} placeholder="@username" placeholderTextColor="#9CA3AF" autoCapitalize="none" />
         </View>
 
-        <TouchableOpacity onPress={saveEditedPref} disabled={savingPref} style={styles.saveButton}>
-          <Text style={styles.saveText}>{savingPref ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR', 'SAVE')}</Text>
-        </TouchableOpacity>
+        <GradientButton
+          onPress={saveEditedPref}
+          disabled={savingPref}
+          height={50}
+          style={styles.saveButton}
+          textStyle={styles.saveText}
+          label={savingPref ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR', 'SAVE')}
+        />
       </View>
 
       <View style={styles.card}>
@@ -575,8 +581,8 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
 
       <View style={styles.summaryCard}>
         <Text style={styles.sectionLabel}>{t('RESUMEN', 'SUMMARY')}</Text>
-        {summary.map((item) => (
-          <Text key={item} style={styles.summaryText}>{item}</Text>
+        {summary.map((item, index) => (
+          <Text key={`${item}-${index}`} style={styles.summaryText}>{item}</Text>
         ))}
       </View>
 
@@ -586,8 +592,8 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
           {suggestions.length === 0 && (
             <Text style={styles.emptyCopy}>{t('Sin sugerencias por ahora.', 'No suggestions yet.')}</Text>
           )}
-          {suggestions.map((suggestion) => (
-            <View key={suggestion.userId} style={styles.suggestionCard}>
+          {suggestions.map((suggestion, index) => (
+            <View key={`${suggestion.userId || 'suggestion'}-${index}`} style={styles.suggestionCard}>
               <View style={styles.suggestionTop}>
                 <View style={styles.scoreBadge}><Text style={styles.scoreText}>{suggestion.score}%</Text></View>
                 <View style={styles.suggestionCopy}>
@@ -604,8 +610,8 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
               </View>
               {suggestion.sharedInterests.length > 0 && (
                 <View style={styles.tagRow}>
-                  {suggestion.sharedInterests.map((tag) => (
-                    <View key={tag} style={styles.tag}>
+                  {suggestion.sharedInterests.map((tag, tagIndex) => (
+                    <View key={`${tag}-${tagIndex}`} style={styles.tag}>
                       <Text style={styles.tagText}>{tag.replace(/_/g, ' ')}</Text>
                     </View>
                   ))}
@@ -625,8 +631,8 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
         {visibleConnections.length === 0 && (
           <Text style={styles.emptyCopy}>{t('Sin solicitudes por ahora.', 'No requests yet.')}</Text>
         )}
-        {visibleConnections.map((connection) => (
-          <View key={connection.id} style={styles.connectionCard}>
+        {visibleConnections.map((connection, index) => (
+          <View key={`${connection.id || 'connection'}-${index}`} style={styles.connectionCard}>
             <View style={styles.connectionAvatar}>
               <Text style={styles.connectionAvatarText}>{connection.otherUserName.slice(0, 2).toUpperCase()}</Text>
             </View>
@@ -671,8 +677,8 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
           </View>
 
           <View style={styles.messagesBox}>
-            {messages.map((message) => (
-              <View key={message.id} style={[styles.messageBubble, message.isMine ? styles.messageMine : styles.messageTheirs]}>
+            {messages.map((message, index) => (
+              <View key={`${message.id || 'message'}-${index}`} style={[styles.messageBubble, message.isMine ? styles.messageMine : styles.messageTheirs]}>
                 <Text style={[styles.messageText, message.isMine && styles.messageTextMine]}>{message.message}</Text>
               </View>
             ))}
@@ -926,11 +932,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   saveButton: {
-    height: 50,
     borderRadius: 16,
-    backgroundColor: colors.orange,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: 4,
   },
   saveText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '700' },
