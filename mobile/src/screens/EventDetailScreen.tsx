@@ -222,26 +222,19 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
         <Text style={styles.description}>{description}</Text>
 
 
-        <View style={styles.divider} />
-
-        <View style={styles.seatMapHeader}>
-          <Text style={styles.seatMapTitle}>{t('Selecciona tus asientos', 'Select your seats')}</Text>
-          {selectedSeats.length > 0 && (
-            <View style={styles.selectedPill}>
-              <Text style={styles.selectedPillText}>{selectedSeats.length}</Text>
-            </View>
-          )}
-        </View>
       </View>
 
-      {/* Map — full width, outside the padded panel */}
-      <ClientVenueMap
-        seatMap={seatMap}
-        selectedSeats={selectedSeats}
-        onToggleSeat={toggleSeat}
-      />
+      {/* Map section is now fully self-contained inside ClientVenueMap to match web card layout */}
 
-      <View style={[styles.panel, { marginTop: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: 0 }]}>
+      <View style={styles.mapContainer}>
+        <ClientVenueMap
+          seatMap={seatMap}
+          selectedSeats={selectedSeats}
+          onToggleSeat={toggleSeat}
+        />
+      </View>
+
+      <View style={styles.purchaseOuter}>
         {selectedSeats.length > 0 && (
           <View style={styles.selectionSummary}>
             <Text style={styles.selectionText}>{selectedSeats.length} {t('seleccionado(s)', 'selected')}</Text>
@@ -379,10 +372,8 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '700', marginBottom: 8 },
   description: { color: 'rgba(203,213,225,0.78)', fontSize: 15, lineHeight: 23, fontWeight: '400' },
 
-  seatMapHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 },
-  seatMapTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
-  selectedPill: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F97316', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 3 },
-  selectedPillText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  mapContainer: { marginHorizontal: 16, marginTop: 22, marginBottom: 10 },
+  purchaseOuter: { marginHorizontal: 16 },
   mapPanel: { borderRadius: 16, backgroundColor: 'rgba(8,31,51,0.66)', borderWidth: 1, borderColor: 'rgba(148,163,184,0.22)', padding: 14, overflow: 'hidden' },
   legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -411,7 +402,6 @@ const styles = StyleSheet.create({
 
   purchaseCard: {
     marginTop: 20,
-    marginHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.10)',

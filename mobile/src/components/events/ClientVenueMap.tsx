@@ -146,6 +146,32 @@ function buildSeatInfo(seat: ClientSeat, section: ClientVenueSection, selectedSe
   };
 }
 
+function BackgroundGrid({ width, height }: { width: number; height: number }) {
+  const vLinesLarge = Math.ceil(width / 100) + 1;
+  const hLinesLarge = Math.ceil(height / 100) + 1;
+  const vLinesSmall = Math.ceil(width / 20) + 1;
+  const hLinesSmall = Math.ceil(height / 20) + 1;
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Svg width="100%" height="100%">
+        {Array.from({ length: vLinesSmall }).map((_, i) => (
+          <Rect key={`vs-${i}`} x={i * 20} y={0} width={1} height="100%" fill="rgba(148,163,184,0.05)" />
+        ))}
+        {Array.from({ length: hLinesSmall }).map((_, i) => (
+          <Rect key={`hs-${i}`} x={0} y={i * 20} width="100%" height={1} fill="rgba(148,163,184,0.05)" />
+        ))}
+        {Array.from({ length: vLinesLarge }).map((_, i) => (
+          <Rect key={`vl-${i}`} x={i * 100} y={0} width={1} height="100%" fill="rgba(148,163,184,0.10)" />
+        ))}
+        {Array.from({ length: hLinesLarge }).map((_, i) => (
+          <Rect key={`hl-${i}`} x={0} y={i * 100} width="100%" height={1} fill="rgba(148,163,184,0.10)" />
+        ))}
+      </Svg>
+    </View>
+  );
+}
+
 function SeatDot({
   seat,
   section,
@@ -172,6 +198,7 @@ function SeatDot({
   const color = sectionColor(section);
   const reserved = String(seat.status || '').toLowerCase() === 'reserved' || override?.reserved;
   const seatBg = selected ? colors.orange : unavailable ? (reserved ? '#FACC15' : '#CBD5E1') : color;
+  const seatBorder = selected ? '#FFFFFF' : unavailable ? (reserved ? '#EAB308' : '#94A3B8') : '#FFFFFF';
 
   return (
     <TouchableOpacity
@@ -191,8 +218,8 @@ function SeatDot({
           height: size,
           borderRadius: size / 2,
           backgroundColor: seatBg,
-          borderColor: selected ? '#FFFFFF' : unavailable ? seatBg : '#FFFFFF',
-          opacity: unavailable && !selected ? 0.62 : 1,
+          borderColor: seatBorder,
+          opacity: 1,
           shadowColor: selected ? colors.orange : color,
           shadowOpacity: selected ? 0.4 : unavailable ? 0 : 0.2,
           shadowRadius: selected ? 8 : 4,
@@ -233,8 +260,8 @@ function TableSection({
   const availableSeats = seats.filter((seat) => !isSeatUnavailable(seat, overrides[seatKey(seat)] || overrides[`seat-${seat.seatNumber}`] || {}));
   const selectedCount = availableSeats.filter((seat) => isSelected(seat, selectedSeats)).length;
   const allUnavailable = seats.length > 0 && availableSeats.length === 0;
-  const tableFill = allUnavailable ? '#E5E7EB' : '#22415C';
-  const tableStroke = allUnavailable ? '#9CA3AF' : 'rgba(246,198,95,0.48)';
+  const tableFill = '#22415C';
+  const tableStroke = 'rgba(246,198,95,0.28)';
   const label = section.name || section.label || '';
   const selectTable = () => {
     const targetSeats = selectedCount > 0 ? availableSeats.filter((seat) => isSelected(seat, selectedSeats)) : availableSeats;
@@ -276,7 +303,7 @@ function TableSection({
           <SvgText
             x={width / 2}
             y={height / 2 + clamp(Math.min(width, height) * 0.055, 3, 6)}
-            fill={allUnavailable ? '#64748B' : '#F8FAFC'}
+            fill="#F8FAFC"
             fontSize={clamp(Math.min(width, height) * 0.16, 7, 13)}
             fontWeight="900"
             textAnchor="middle"
@@ -329,7 +356,7 @@ function TableSection({
           const unavailable = isSeatUnavailable(seat, override);
           const reserved = String(seat.status || '').toLowerCase() === 'reserved' || override?.reserved;
           const fill = selected ? colors.orange : unavailable ? (reserved ? '#FACC15' : '#CBD5E1') : color;
-          const stroke = selected ? '#FFFFFF' : unavailable ? fill : '#FFFFFF';
+          const stroke = selected ? '#FFFFFF' : unavailable ? (reserved ? '#EAB308' : '#94A3B8') : '#FFFFFF';
 
           return (
             <G
@@ -347,7 +374,7 @@ function TableSection({
                 fill={fill}
                 stroke={stroke}
                 strokeWidth={1.5}
-                opacity={unavailable && !selected ? 0.66 : 1}
+                opacity={1}
               />
               {override?.isWheelchair ? (
                 <SvgText x={cx} y={cy + chairRadius * 0.38} fill="#FFFFFF" fontSize={chairRadius} fontWeight="900" textAnchor="middle">♿</SvgText>
@@ -568,40 +595,68 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
     );
   }
 
-  const verticalLines = Array.from({ length: 41 }, (_, index) => index * 50);
-  const horizontalLines = Array.from({ length: 33 }, (_, index) => index * 50);
   const selectedInFocus = focusedSectionId ? selectedSeats.filter((seat) => seat.sectionId === focusedSectionId).length : 0;
 
-  return (
+    return (
     <View style={styles.wrap}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>{t('Selecciona tus asientos', 'Select your seats')}</Text>
+        {selectedSeats.length > 0 && (
+          <View style={styles.selectedPill}>
+            <Text style={styles.selectedPillText}>{selectedSeats.length}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Top Controls Row */}
+      <View style={styles.topControls}>
+        <Text style={styles.helpText}>
+          {'👆 '}{t('Arrastra para mover - pellizca para zoom', 'Drag to pan - pinch to zoom')}
+        </Text>
+        <View style={styles.controls}>
+          <TouchableOpacity style={styles.controlButton} onPress={() => zoom(-ZOOM_STEP)}>
+            <Ionicons name="search-outline" size={15} color="rgba(226,232,240,0.85)" />
+            <View style={styles.controlMinus} />
+          </TouchableOpacity>
+          <View style={styles.controlDivider} />
+          <TouchableOpacity style={styles.controlButton} onPress={() => zoom(ZOOM_STEP)}>
+            <Ionicons name="search-outline" size={15} color="rgba(226,232,240,0.85)" />
+            <View style={styles.controlPlus} />
+          </TouchableOpacity>
+          <View style={styles.controlDivider} />
+          <TouchableOpacity style={styles.controlButton} onPress={resetMap}>
+            <Ionicons name="contract-outline" size={15} color="rgba(226,232,240,0.85)" />
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <View style={[styles.viewport, { height: viewportHeight }]} {...panResponder.panHandlers}>
+        <BackgroundGrid width={viewportWidth} height={viewportHeight} />
+        
         <View
           style={[
             styles.canvas,
             {
-              left: offset.x,
-              top: offset.y,
-              width: CANVAS_WIDTH * scale,
-              height: CANVAS_HEIGHT * scale,
+              width: CANVAS_WIDTH,
+              height: CANVAS_HEIGHT,
+              transformOrigin: 'top left',
+              transform: [
+                { translateX: offset.x },
+                { translateY: offset.y },
+                { scale: scale }
+              ],
             },
           ]}
         >
-          {verticalLines.map((x) => (
-            <View key={`v-${x}`} style={[styles.gridLineV, { left: x * scale }]} />
-          ))}
-          {horizontalLines.map((y) => (
-            <View key={`h-${y}`} style={[styles.gridLineH, { top: y * scale }]} />
-          ))}
-
           {sections.map((section) => {
             const kind = getKind(section);
             const color = sectionColor(section);
             const name = section.name || section.label || t('Sección', 'Section');
-            const left = Number(section.mapX || 0) * scale;
-            const top = Number(section.mapY || 0) * scale;
-            const sectionWidth = Number(section.mapWidth || 100) * scale;
-            const sectionHeight = Number(section.mapHeight || 100) * scale;
+            const left = Number(section.mapX || 0);
+            const top = Number(section.mapY || 0);
+            const sectionWidth = Number(section.mapWidth || 100);
+            const sectionHeight = Number(section.mapHeight || 100);
             const focused = focusedSectionId === section.id;
             const dimmed = focusedSectionId && !focused && kind !== 'stage';
 
@@ -637,10 +692,10 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
                           : 'transparent',
                     borderRadius:
                       kind === 'stage'
-                        ? 18 * scale
+                        ? 18
                         : kind === 'table' && (section.tableShape || 'round') === 'round'
                           ? Math.min(sectionWidth, sectionHeight) / 2
-                          : 4 * scale,
+                          : 4,
                     transform: [{ rotate: `${Number(section.rotation || 0)}deg` }],
                     opacity: dimmed ? 0.34 : 1,
                   },
@@ -648,25 +703,25 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
               >
                 {kind === 'stage' && (
                   <>
-                    <Text style={[styles.stageName, { fontSize: clamp(13 * scale, 5, 13) }]} numberOfLines={1}>{name}</Text>
-                    <Text style={[styles.stageSub, { fontSize: clamp(9 * scale, 4, 9) }]} numberOfLines={1}>{t('ESCENARIO', 'STAGE')}</Text>
+                    <Text style={[styles.stageName, { fontSize: 13 }]} numberOfLines={1}>{name}</Text>
+                    <Text style={[styles.stageSub, { fontSize: 9 }]} numberOfLines={1}>{t('ESCENARIO', 'STAGE')}</Text>
                   </>
                 )}
 
                 {kind === 'decor' && (
-                  <Text style={[styles.decorName, { fontSize: clamp(12 * scale, 5, 12) }]} numberOfLines={1}>{name}</Text>
+                  <Text style={[styles.decorName, { fontSize: 12 }]} numberOfLines={1}>{name}</Text>
                 )}
 
                 {kind === 'standing' && (
-                  <Text style={[styles.standingName, { fontSize: clamp(12 * scale, 5, 12) }]} numberOfLines={1}>{name}</Text>
+                  <Text style={[styles.standingName, { fontSize: 12 }]} numberOfLines={1}>{name}</Text>
                 )}
 
                 {kind === 'table' && (
-                  <TableSection section={section} scale={scale} selectedSeats={selectedSeats} onToggleSeat={onToggleSeat} onSeatInfo={setActiveInfo} />
+                  <TableSection section={section} scale={1} selectedSeats={selectedSeats} onToggleSeat={onToggleSeat} onSeatInfo={setActiveInfo} />
                 )}
 
                 {kind === 'seats' && (
-                  <RowSeatsSection section={section} scale={scale} selectedSeats={selectedSeats} onToggleSeat={onToggleSeat} onSeatInfo={setActiveInfo} />
+                  <RowSeatsSection section={section} scale={1} selectedSeats={selectedSeats} onToggleSeat={onToggleSeat} onSeatInfo={setActiveInfo} />
                 )}
               </TouchableOpacity>
             );
@@ -702,27 +757,7 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
           </View>
         )}
 
-        {/* Floating controls + hint — top right, exactly like web */}
-        <View style={styles.floatingControls} pointerEvents="box-none">
-          <Text style={styles.helpText}>
-            {'👆 '}{t('Arrastra · pellizca', 'Drag to pan · Pinch to zoom')}
-          </Text>
-          <View style={styles.controls}>
-            <TouchableOpacity style={styles.controlButton} onPress={() => zoom(-ZOOM_STEP)}>
-              <Ionicons name="search-outline" size={15} color="rgba(226,232,240,0.85)" />
-              <View style={styles.controlMinus} />
-            </TouchableOpacity>
-            <View style={styles.controlDivider} />
-            <TouchableOpacity style={styles.controlButton} onPress={() => zoom(ZOOM_STEP)}>
-              <Ionicons name="search-outline" size={15} color="rgba(226,232,240,0.85)" />
-              <View style={styles.controlPlus} />
-            </TouchableOpacity>
-            <View style={styles.controlDivider} />
-            <TouchableOpacity style={styles.controlButton} onPress={resetMap}>
-              <Ionicons name="contract-outline" size={15} color="rgba(226,232,240,0.85)" />
-            </TouchableOpacity>
-          </View>
-        </View>
+        {/* Floating controls removed, they are now above the viewport */}
       </View>
 
       <View style={styles.legend}>
@@ -744,19 +779,46 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
     backgroundColor: '#0B1623',
   },
-  floatingControls: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: 6,
-    zIndex: 50,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 12,
   },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  selectedPill: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F97316',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedPillText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  topControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingBottom: 14,
+  },
+  floatingControls: {}, // Removed but kept empty to avoid breaking any other styles if missed
   helpText: {
     color: 'rgba(226,232,240,0.55)',
     fontSize: 11.5,
     fontWeight: '500',
+    flexShrink: 1,
+    marginRight: 8,
   },
   controls: {
     height: 36,
@@ -799,21 +861,6 @@ const styles = StyleSheet.create({
   },
   canvas: {
     position: 'absolute',
-    backgroundColor: '#0B1A2B',
-  },
-  gridLineV: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: 1,
-    backgroundColor: 'rgba(100,160,220,0.08)',
-  },
-  gridLineH: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(100,160,220,0.08)',
   },
   section: {
     position: 'absolute',
