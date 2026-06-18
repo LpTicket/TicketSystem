@@ -436,12 +436,11 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
     [seatMap]
   );
 
-  const viewportWidth = Math.max(280, width - 64);
-  const viewportHeight = width < 390 ? 570 : VIEWPORT_HEIGHT;
+  const viewportWidth = Math.max(280, width - 32);
 
   const fitView = useMemo(() => {
     if (!sections.length) {
-      return { scale: 0.28, offset: { x: 0, y: 0 } };
+      return { scale: 0.28, offset: { x: 0, y: 0 }, viewH: 320 };
     }
 
     const minX = Math.min(...sections.map((section) => Number(section.mapX || 0)));
@@ -451,20 +450,29 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
 
     const contentW = Math.max(1, maxX - minX);
     const contentH = Math.max(1, maxY - minY);
+
+    // Scale to fill width first, then derive an appropriate viewport height
+    const scaleByW = (viewportWidth - FIT_PADDING) / contentW;
+    const scaledH = contentH * scaleByW;
+    // Viewport height = content height + padding, capped at a reasonable max
+    const viewH = Math.min(Math.max(scaledH + FIT_PADDING * 2, 240), width < 390 ? 420 : 480);
+
     const scale = clamp(
-      Math.min((viewportWidth - FIT_PADDING) / contentW, (viewportHeight - FIT_PADDING) / contentH),
-      0.12,
-      1.05
+      Math.min(scaleByW, (viewH - FIT_PADDING) / contentH),
+      0.12, 1.05
     );
 
     return {
       scale,
+      viewH,
       offset: {
         x: viewportWidth / 2 - ((minX + maxX) / 2) * scale,
-        y: viewportHeight / 2 - ((minY + maxY) / 2) * scale,
+        y: viewH / 2 - ((minY + maxY) / 2) * scale,
       },
     };
-  }, [sections, viewportHeight, viewportWidth]);
+  }, [sections, viewportWidth, width]);
+
+  const viewportHeight = fitView.viewH;
 
   const [scale, setScale] = useState(fitView.scale);
   const [offset, setOffset] = useState(fitView.offset);
@@ -502,7 +510,7 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
     if (kind === 'stage' || kind === 'decor') return;
     const widthRaw = Number(section.mapWidth || 100);
     const heightRaw = Number(section.mapHeight || 100);
-    const targetScale = clamp(Math.min((viewportWidth * 0.72) / widthRaw, (viewportHeight * 0.58) / heightRaw), fitView.scale, MAX_ZOOM);
+    const targetScale = clamp(Math.min((viewportWidth * 0.80) / widthRaw, (viewportHeight * 0.65) / heightRaw), fitView.scale, MAX_ZOOM);
     const nextOffset = {
       x: viewportWidth / 2 - (Number(section.mapX || 0) + widthRaw / 2) * targetScale,
       y: viewportHeight / 2 - (Number(section.mapY || 0) + heightRaw / 2) * targetScale - 42,
@@ -570,31 +578,8 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
   return (
     <View style={styles.wrap}>
       <View style={styles.topBar}>
-        <View style={styles.mapHeader}>
-          <View style={styles.mapTitleBlock}>
-            <Text style={styles.mapEyebrow}>{t('MAPA INTERACTIVO', 'INTERACTIVE MAP')}</Text>
-            <Text style={styles.mapTitle}>{t('Elige tu lugar', 'Choose your spot')}</Text>
-          </View>
-          <View style={styles.controlsRow}>
-            <View style={styles.zoomBadge}>
-              <Text style={styles.zoomBadgeText}>{Math.round((scale / fitView.scale) * 100)}%</Text>
-            </View>
-            <View style={styles.controls}>
-              <TouchableOpacity style={styles.controlButton} onPress={() => zoom(-ZOOM_STEP)}>
-                <Ionicons name="remove-outline" size={19} color="rgba(226,232,240,0.85)" />
-              </TouchableOpacity>
-              <View style={styles.controlDivider} />
-              <TouchableOpacity style={styles.controlButton} onPress={() => zoom(ZOOM_STEP)}>
-                <Ionicons name="add-outline" size={19} color="rgba(226,232,240,0.85)" />
-              </TouchableOpacity>
-              <View style={styles.controlDivider} />
-              <TouchableOpacity style={styles.controlButton} onPress={resetMap}>
-                <Ionicons name="scan-outline" size={16} color="rgba(226,232,240,0.85)" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-        <Text style={styles.helpText}>{t('Arrastra · pellizca para zoom', 'Drag to pan · pinch to zoom')}</Text>
+        <Text style={styles.mapEyebrow}>{t('MAPA INTERACTIVO', 'INTERACTIVE MAP')}</Text>
+        <Text style={styles.mapTitle}>{t('Elige tu lugar', 'Choose your spot')}</Text>
       </View>
 
       <View style={[styles.viewport, { height: viewportHeight }]} {...panResponder.panHandlers}>
@@ -723,7 +708,29 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
             </View>
           </View>
         )}
+
+        {/* Floating controls overlay — top right */}
+        <View style={styles.floatingControls} pointerEvents="box-none">
+          <View style={styles.zoomBadge}>
+            <Text style={styles.zoomBadgeText}>{Math.round((scale / fitView.scale) * 100)}%</Text>
+          </View>
+          <View style={styles.controls}>
+            <TouchableOpacity style={styles.controlButton} onPress={() => zoom(-ZOOM_STEP)}>
+              <Ionicons name="remove-outline" size={17} color="rgba(226,232,240,0.90)" />
+            </TouchableOpacity>
+            <View style={styles.controlDivider} />
+            <TouchableOpacity style={styles.controlButton} onPress={() => zoom(ZOOM_STEP)}>
+              <Ionicons name="add-outline" size={17} color="rgba(226,232,240,0.90)" />
+            </TouchableOpacity>
+            <View style={styles.controlDivider} />
+            <TouchableOpacity style={styles.controlButton} onPress={resetMap}>
+              <Ionicons name="scan-outline" size={14} color="rgba(226,232,240,0.90)" />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
+
+      <Text style={styles.helpText}>{t('Arrastra · pellizca para zoom', 'Drag · pinch to zoom')}</Text>
 
       <View style={styles.legend}>
         <View style={styles.legendItem}><View style={[styles.legendDot, styles.legendAvailable]} /><Text style={styles.legendText}>{t('Disponible', 'Available')}</Text></View>
@@ -747,55 +754,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 10,
-    gap: 8,
   },
-  mapHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 10,
-  },
-  mapTitleBlock: { flex: 1 },
   mapEyebrow: { color: colors.orange, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
-  mapTitle: { color: '#F8FAFC', fontSize: 19, lineHeight: 24, fontWeight: '800', marginTop: 2 },
-  controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  mapTitle: { color: '#F8FAFC', fontSize: 22, lineHeight: 27, fontWeight: '800', marginTop: 3 },
+  floatingControls: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    zIndex: 50,
+  },
   zoomBadge: {
-    height: 34,
+    height: 30,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(249,115,22,0.34)',
-    backgroundColor: 'rgba(249,115,22,0.10)',
+    borderColor: 'rgba(249,115,22,0.36)',
+    backgroundColor: 'rgba(10,20,36,0.82)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
   },
-  zoomBadgeText: { color: '#FDBA74', fontSize: 11.5, fontWeight: '800' },
+  zoomBadgeText: { color: '#FDBA74', fontSize: 11, fontWeight: '800' },
   controls: {
-    height: 38,
-    borderRadius: 12,
+    height: 34,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.13)',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(10,20,36,0.82)',
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  controlButton: { width: 42, height: 38, alignItems: 'center', justifyContent: 'center' },
-  controlDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.18)' },
+  controlButton: { width: 36, height: 34, alignItems: 'center', justifyContent: 'center' },
+  controlDivider: { width: 1, height: 18, backgroundColor: 'rgba(255,255,255,0.16)' },
   helpText: {
-    color: 'rgba(226,232,240,0.40)',
-    fontSize: 11,
+    color: 'rgba(226,232,240,0.35)',
+    fontSize: 10.5,
     fontWeight: '500',
     textAlign: 'center',
+    paddingVertical: 6,
     letterSpacing: 0.2,
   },
   viewport: {
-    marginHorizontal: 16,
-    borderRadius: 18,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(246,198,95,0.18)',
     backgroundColor: '#0D2138',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   canvas: {
     position: 'absolute',
