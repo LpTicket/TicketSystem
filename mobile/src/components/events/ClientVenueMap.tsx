@@ -436,43 +436,40 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
     [seatMap]
   );
 
-  const viewportWidth = Math.max(280, width - 32);
+  // Full-width viewport matching web — no side margins
+  const viewportWidth = width;
+  // Fixed tall viewport like the web (content centers inside it)
+  const viewportHeight = Math.min(Math.max(width * 1.35, 440), 560);
 
   const fitView = useMemo(() => {
     if (!sections.length) {
-      return { scale: 0.28, offset: { x: 0, y: 0 }, viewH: 320 };
+      return { scale: 0.28, offset: { x: 0, y: 0 } };
     }
 
-    const minX = Math.min(...sections.map((section) => Number(section.mapX || 0)));
-    const minY = Math.min(...sections.map((section) => Number(section.mapY || 0)));
-    const maxX = Math.max(...sections.map((section) => Number(section.mapX || 0) + Number(section.mapWidth || 0)));
-    const maxY = Math.max(...sections.map((section) => Number(section.mapY || 0) + Number(section.mapHeight || 0)));
+    const minX = Math.min(...sections.map((s) => Number(s.mapX || 0)));
+    const minY = Math.min(...sections.map((s) => Number(s.mapY || 0)));
+    const maxX = Math.max(...sections.map((s) => Number(s.mapX || 0) + Number(s.mapWidth || 0)));
+    const maxY = Math.max(...sections.map((s) => Number(s.mapY || 0) + Number(s.mapHeight || 0)));
 
     const contentW = Math.max(1, maxX - minX);
     const contentH = Math.max(1, maxY - minY);
 
-    // Scale to fill width first, then derive an appropriate viewport height
-    const scaleByW = (viewportWidth - FIT_PADDING) / contentW;
-    const scaledH = contentH * scaleByW;
-    // Viewport height = content height + padding, capped at a reasonable max
-    const viewH = Math.min(Math.max(scaledH + FIT_PADDING * 2, 240), width < 390 ? 420 : 480);
-
     const scale = clamp(
-      Math.min(scaleByW, (viewH - FIT_PADDING) / contentH),
+      Math.min(
+        (viewportWidth - FIT_PADDING) / contentW,
+        (viewportHeight - FIT_PADDING) / contentH
+      ),
       0.12, 1.05
     );
 
     return {
       scale,
-      viewH,
       offset: {
         x: viewportWidth / 2 - ((minX + maxX) / 2) * scale,
-        y: viewH / 2 - ((minY + maxY) / 2) * scale,
+        y: viewportHeight / 2 - ((minY + maxY) / 2) * scale,
       },
     };
-  }, [sections, viewportWidth, width]);
-
-  const viewportHeight = fitView.viewH;
+  }, [sections, viewportWidth, viewportHeight]);
 
   const [scale, setScale] = useState(fitView.scale);
   const [offset, setOffset] = useState(fitView.offset);
@@ -577,10 +574,6 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.topBar}>
-        <Text style={styles.mapEyebrow}>{t('MAPA INTERACTIVO', 'INTERACTIVE MAP')}</Text>
-        <Text style={styles.mapTitle}>{t('Elige tu lugar', 'Choose your spot')}</Text>
-      </View>
 
       <View style={[styles.viewport, { height: viewportHeight }]} {...panResponder.panHandlers}>
         <View
@@ -709,34 +702,35 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
           </View>
         )}
 
-        {/* Floating controls overlay — top right */}
+        {/* Floating controls + hint — top right, exactly like web */}
         <View style={styles.floatingControls} pointerEvents="box-none">
-          <View style={styles.zoomBadge}>
-            <Text style={styles.zoomBadgeText}>{Math.round((scale / fitView.scale) * 100)}%</Text>
-          </View>
+          <Text style={styles.helpText}>
+            {'👆 '}{t('Arrastra · pellizca', 'Drag to pan · Pinch to zoom')}
+          </Text>
           <View style={styles.controls}>
             <TouchableOpacity style={styles.controlButton} onPress={() => zoom(-ZOOM_STEP)}>
-              <Ionicons name="remove-outline" size={17} color="rgba(226,232,240,0.90)" />
+              <Ionicons name="search-outline" size={15} color="rgba(226,232,240,0.85)" />
+              <View style={styles.controlMinus} />
             </TouchableOpacity>
             <View style={styles.controlDivider} />
             <TouchableOpacity style={styles.controlButton} onPress={() => zoom(ZOOM_STEP)}>
-              <Ionicons name="add-outline" size={17} color="rgba(226,232,240,0.90)" />
+              <Ionicons name="search-outline" size={15} color="rgba(226,232,240,0.85)" />
+              <View style={styles.controlPlus} />
             </TouchableOpacity>
             <View style={styles.controlDivider} />
             <TouchableOpacity style={styles.controlButton} onPress={resetMap}>
-              <Ionicons name="scan-outline" size={14} color="rgba(226,232,240,0.90)" />
+              <Ionicons name="contract-outline" size={15} color="rgba(226,232,240,0.85)" />
             </TouchableOpacity>
           </View>
         </View>
       </View>
 
-      <Text style={styles.helpText}>{t('Arrastra · pellizca para zoom', 'Drag · pinch to zoom')}</Text>
-
       <View style={styles.legend}>
         <View style={styles.legendItem}><View style={[styles.legendDot, styles.legendAvailable]} /><Text style={styles.legendText}>{t('Disponible', 'Available')}</Text></View>
+        <View style={styles.legendSep} />
         <View style={styles.legendItem}><View style={[styles.legendDot, styles.legendSelected]} /><Text style={styles.legendText}>{t('Seleccionado', 'Selected')}</Text></View>
+        <View style={styles.legendSep} />
         <View style={styles.legendItem}><View style={[styles.legendDot, styles.legendSold]} /><Text style={styles.legendText}>{t('Vendido', 'Sold')}</Text></View>
-        <View style={styles.legendItem}><View style={[styles.legendDot, styles.legendReserved]} /><Text style={styles.legendText}>{t('Reservado', 'Reserved')}</Text></View>
       </View>
     </View>
   );
@@ -744,85 +738,82 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
 
 const styles = StyleSheet.create({
   wrap: {
-    borderRadius: 22,
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(8,31,51,0.58)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: '#0B1623',
   },
-  topBar: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 10,
-  },
-  mapEyebrow: { color: colors.orange, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
-  mapTitle: { color: '#F8FAFC', fontSize: 22, lineHeight: 27, fontWeight: '800', marginTop: 3 },
   floatingControls: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+    top: 12,
+    right: 12,
+    flexDirection: 'column',
+    alignItems: 'flex-end',
     gap: 6,
     zIndex: 50,
   },
-  zoomBadge: {
-    height: 30,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(249,115,22,0.36)',
-    backgroundColor: 'rgba(10,20,36,0.82)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 9,
+  helpText: {
+    color: 'rgba(226,232,240,0.55)',
+    fontSize: 11.5,
+    fontWeight: '500',
   },
-  zoomBadgeText: { color: '#FDBA74', fontSize: 11, fontWeight: '800' },
   controls: {
-    height: 34,
-    borderRadius: 10,
+    height: 36,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(10,20,36,0.82)',
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(11,22,35,0.88)',
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  controlButton: { width: 36, height: 34, alignItems: 'center', justifyContent: 'center' },
-  controlDivider: { width: 1, height: 18, backgroundColor: 'rgba(255,255,255,0.16)' },
-  helpText: {
-    color: 'rgba(226,232,240,0.35)',
-    fontSize: 10.5,
-    fontWeight: '500',
-    textAlign: 'center',
-    paddingVertical: 6,
-    letterSpacing: 0.2,
+  controlButton: {
+    width: 38,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  controlMinus: {
+    position: 'absolute',
+    bottom: 9,
+    right: 7,
+    width: 7,
+    height: 1.5,
+    backgroundColor: 'rgba(226,232,240,0.85)',
+    borderRadius: 1,
+  },
+  controlPlus: {
+    position: 'absolute',
+    bottom: 9,
+    right: 7,
+    width: 7,
+    height: 7,
+    borderRadius: 0.5,
+    // drawn via borderBottom trick — use the minus bar + vertical bar
+  },
+  controlDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.18)' },
   viewport: {
     overflow: 'hidden',
-    backgroundColor: '#0D2138',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#0B1A2B',
   },
   canvas: {
     position: 'absolute',
-    backgroundColor: '#0D2138',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#0B1A2B',
   },
   gridLineV: {
     position: 'absolute',
     top: 0,
     bottom: 0,
     width: 1,
-    backgroundColor: 'rgba(255,255,255,0.075)',
+    backgroundColor: 'rgba(100,160,220,0.08)',
   },
   gridLineH: {
     position: 'absolute',
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.075)',
+    backgroundColor: 'rgba(100,160,220,0.08)',
   },
   section: {
     position: 'absolute',
@@ -950,24 +941,26 @@ const styles = StyleSheet.create({
   focusMeta: { color: 'rgba(203,213,225,0.70)', fontSize: 12, fontWeight: '700', marginTop: 3 },
   legend: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    padding: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: 'rgba(255,255,255,0.07)',
   },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendSep: { width: 1, height: 12, backgroundColor: 'rgba(255,255,255,0.15)', marginHorizontal: 4 },
   legendDot: {
-    width: 11,
-    height: 11,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     borderWidth: 1.5,
   },
-  legendAvailable: { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.38)' },
+  legendAvailable: { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.45)' },
   legendSelected: { backgroundColor: colors.orange, borderColor: colors.orange },
   legendSold: { backgroundColor: '#94A3B8', borderColor: '#94A3B8' },
-  legendReserved: { backgroundColor: '#FACC15', borderColor: '#FACC15' },
-  legendText: { color: 'rgba(226,232,240,0.65)', fontSize: 11, fontWeight: '600' },
+  legendText: { color: 'rgba(203,213,225,0.70)', fontSize: 12, fontWeight: '500' },
   emptyCard: {
     borderRadius: 22,
     padding: 20,

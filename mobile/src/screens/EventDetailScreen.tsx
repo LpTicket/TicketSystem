@@ -224,21 +224,23 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
         <View style={styles.divider} />
 
         <View style={styles.seatMapHeader}>
-          <View style={styles.seatMapHeaderCopy}>
-            <Text style={styles.sectionTitle}>{t('Selecciona tus asientos', 'Select your seats')}</Text>
-            <Text style={styles.mapSubtitle}>{t('Toca una silla disponible para agregarla a tu compra.', 'Tap an available seat to add it to your purchase.')}</Text>
-          </View>
-          <View style={styles.selectedPill}>
-            <Text style={styles.selectedPillText}>{selectedSeats.length}</Text>
-          </View>
+          <Text style={styles.seatMapTitle}>{t('Selecciona tus asientos', 'Select your seats')}</Text>
+          {selectedSeats.length > 0 && (
+            <View style={styles.selectedPill}>
+              <Text style={styles.selectedPillText}>{selectedSeats.length}</Text>
+            </View>
+          )}
         </View>
+      </View>
 
-        <ClientVenueMap
-          seatMap={seatMap}
-          selectedSeats={selectedSeats}
-          onToggleSeat={toggleSeat}
-        />
+      {/* Map — full width, outside the padded panel */}
+      <ClientVenueMap
+        seatMap={seatMap}
+        selectedSeats={selectedSeats}
+        onToggleSeat={toggleSeat}
+      />
 
+      <View style={[styles.panel, { marginTop: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTopWidth: 0 }]}>
         {selectedSeats.length > 0 && (
           <View style={styles.selectionSummary}>
             <Text style={styles.selectionText}>{selectedSeats.length} {t('seleccionado(s)', 'selected')}</Text>
@@ -316,10 +318,11 @@ function Legend({ color, label }: { color: string; label: string }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: 'transparent' },
-  content: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 130, backgroundColor: 'transparent' },
+  content: { paddingTop: 10, paddingBottom: 130, backgroundColor: 'transparent' },
   backButton: {
     alignSelf: 'flex-start',
     marginBottom: 14,
+    marginHorizontal: 16,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 9,
@@ -332,6 +335,7 @@ const styles = StyleSheet.create({
     height: 500,
     borderRadius: 16,
     overflow: 'hidden',
+    marginHorizontal: 16,
     backgroundColor: 'rgba(2,8,15,0.48)',
     borderWidth: 1,
     borderColor: 'rgba(148,163,184,0.20)',
@@ -351,6 +355,7 @@ const styles = StyleSheet.create({
   categoryText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700', letterSpacing: 0 },
   panel: {
     marginTop: 14,
+    marginHorizontal: 16,
     borderRadius: 16,
     padding: 18,
     backgroundColor: 'rgba(255,255,255,0.025)',
@@ -368,9 +373,8 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '700', marginBottom: 8 },
   description: { color: 'rgba(203,213,225,0.78)', fontSize: 15, lineHeight: 23, fontWeight: '400' },
 
-  seatMapHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 12, overflow: 'hidden' },
-  seatMapHeaderCopy: { flex: 1, paddingRight: 8 },
-  mapSubtitle: { color: 'rgba(203,213,225,0.68)', fontSize: 13, lineHeight: 19, fontWeight: '400', marginTop: 4 },
+  seatMapHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 },
+  seatMapTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
   selectedPill: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#F97316', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 3 },
   selectedPillText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   mapPanel: { borderRadius: 16, backgroundColor: 'rgba(8,31,51,0.66)', borderWidth: 1, borderColor: 'rgba(148,163,184,0.22)', padding: 14, overflow: 'hidden' },
