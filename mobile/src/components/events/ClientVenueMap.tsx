@@ -85,7 +85,7 @@ function seatBorder(seat: ClientSeat, override: any, selected: boolean) {
   const hold = s === 'locked' && seat.lockExpiresAt && new Date(seat.lockExpiresAt).getTime() > Date.now();
   if (hold) return '#eab308';
   if (isUnavailable(seat, override)) return '#94a3b8';
-  return '#ffffff';
+  return 'rgba(255,255,255,0.55)';
 }
 
 function getSeatPrice(seat: ClientSeat, section: ClientVenueSection): number {
@@ -144,7 +144,7 @@ function Chair({ seat, section, override, sel, size, cx, cy, onToggle, onInfo }:
         position: 'absolute',
         left: cx - size / 2, top: cy - size / 2,
         width: size, height: size, borderRadius: size / 2,
-        backgroundColor: bg, borderWidth: 1.5, borderColor: bd,
+        backgroundColor: bg, borderWidth: 0.8, borderColor: bd,
         transform: [{ scale: selected ? 1.25 : 1 }],
         opacity: unavail ? 0.45 : 1,
         zIndex: 20,
@@ -185,7 +185,7 @@ function TableSection({ section, sel, onToggle, onInfo, scale }: {
   const w = Number(section.mapWidth || 100) * scale;
   const h = Number(section.mapHeight || 100) * scale;
   const isRound = (section.tableShape || 'round') === 'round';
-  const chairSize = clamp(Math.min(w, h) * 0.18, 6, 16);
+  const chairSize = clamp(Math.min(w, h) * 0.18, 8, 18);
   const tableW = w * (isRound ? 0.60 : 0.70);
   const tableH = h * (isRound ? 0.60 : 0.45);
   const allUnavail = seats.length > 0 && seats.every((s) => isUnavailable(s, cfg[`seat-${s.seatNumber}`] || {}));
@@ -290,7 +290,7 @@ function RowSection({ section, sel, onToggle, onInfo, scale }: {
               top: y - size / 2 + (ov.yOffset || 0) * scale,
               width: size, height: size, borderRadius: size / 2,
               backgroundColor: seatBg(seat, ov, sectionColor(section), selected),
-              borderWidth: 1.5,
+              borderWidth: 0.8,
               borderColor: seatBorder(seat, ov, selected),
               transform: [{ scale: selected ? 1.25 : 1 }],
               opacity: unavail ? 0.45 : 1,
