@@ -14,6 +14,7 @@ type Props = {
   user?: AuthUser | null;
   onBack: () => void;
   onPaid: () => void;
+  onSelectionCountChange?: (count: number) => void;
 };
 
 const MAX_PER_TX = 10;
@@ -30,7 +31,7 @@ function seatPrice(seat: ClientSeat, section: any): number {
   return Number(section?.price || 0);
 }
 
-export function PurchaseScreen({ event, user, onBack, onPaid }: Props) {
+export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountChange }: Props) {
   const { t } = useLanguage();
   const [sections, setSections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +106,12 @@ export function PurchaseScreen({ event, user, onBack, onPaid }: Props) {
   const total = subtotal + service;
 
   const canPay = mode === 'seats' ? selectedSeats.length > 0 : mode === 'ga' ? !!gaSelected : false;
+
+  useEffect(() => {
+    const count = mode === 'seats' ? selectedSeats.length : mode === 'ga' && gaSelected ? gaQty : 0;
+    onSelectionCountChange?.(count);
+    return () => onSelectionCountChange?.(0);
+  }, [gaQty, gaSelected, mode, onSelectionCountChange, selectedSeats.length]);
 
   const pay = async () => {
     setError('');

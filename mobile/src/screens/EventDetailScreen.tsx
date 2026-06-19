@@ -13,6 +13,7 @@ type Props = {
   event: MobileEvent;
   onBack: () => void;
   onBuy: () => void;
+  onSelectionCountChange?: (count: number) => void;
 };
 
 
@@ -111,7 +112,7 @@ function mergeEvent(base: MobileEvent, data?: ApiEventDetail, lang?: string): Mo
   };
 }
 
-export function EventDetailScreen({ event, onBack, onBuy }: Props) {
+export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange }: Props) {
   const { t, lang } = useLanguage();
   const [detail, setDetail] = useState(event);
   const [seatMap, setSeatMap] = useState<VenueSection[]>([]);
@@ -169,6 +170,11 @@ export function EventDetailScreen({ event, onBack, onBuy }: Props) {
       return exists ? current.filter((item) => item.id !== seat.id) : [...current, seat];
     });
   };
+
+  useEffect(() => {
+    onSelectionCountChange?.(selectedSeats.length);
+    return () => onSelectionCountChange?.(0);
+  }, [onSelectionCountChange, selectedSeats.length]);
 
   const seatLabel = (seat: Seat) => {
     const row = seat.rowLabel && seat.rowLabel !== 'GA' ? seat.rowLabel : '';

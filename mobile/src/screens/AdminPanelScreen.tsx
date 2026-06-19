@@ -25,6 +25,7 @@ type AdminUser = {
   createdAt?: string;
 };
 type Category = { id: string; name: string; labelEs: string; labelEn: string; slug: string; icon: string; color: string; sortOrder: number; imageData?: string; active: boolean; featured: boolean };
+type MarketingRecipient = { id: string; name: string; email: string; phone?: string };
 
 type AnalyticsSummary = {
   days: number;
@@ -309,6 +310,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [commissionSummary, setCommissionSummary] = useState<CommissionEntry[]>([]);
   const [homeBanner, setHomeBanner] = useState<{ title?: string; isActive?: boolean } | null | false>(null);
   const [recipientsCount, setRecipientsCount] = useState(0);
+  const [marketingRecipients, setMarketingRecipients] = useState<MarketingRecipient[]>([]);
+  const [pushLiveEvents, setPushLiveEvents] = useState<any[]>([]);
   const [adminOrders, setAdminOrders] = useState<AdminOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
@@ -322,9 +325,19 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [emailArtFileName, setEmailArtFileName] = useState('');
   const [emailAudience, setEmailAudience] = useState<'all' | 'specify'>('all');
   const [smsMessage, setSmsMessage] = useState('');
+  const [pushTitle, setPushTitle] = useState('');
+  const [pushMessage, setPushMessage] = useState('');
+  const [pushLink, setPushLink] = useState('');
+  const [pushDestination, setPushDestination] = useState<'none' | 'event' | 'external'>('none');
+  const [pushEventId, setPushEventId] = useState('');
+  const [pushEventPickerOpen, setPushEventPickerOpen] = useState(false);
+  const [pushAudience, setPushAudience] = useState<'all' | 'user'>('all');
+  const [pushRecipientId, setPushRecipientId] = useState('');
+  const [pushRecipientPickerOpen, setPushRecipientPickerOpen] = useState(false);
+  const [pushRecipientSearch, setPushRecipientSearch] = useState('');
   const [whatsappMessage, setWhatsappMessage] = useState('');
   const [waLang, setWaLang] = useState<'es' | 'en'>('es');
-  const [sending, setSending] = useState<'' | 'email' | 'sms' | 'whatsapp'>('');
+  const [sending, setSending] = useState<'' | 'email' | 'sms' | 'push' | 'whatsapp'>('');
   const [bannerStatus, setBannerStatus] = useState<'draft' | 'active'>('draft');
   const [specialCodeOwnerDraft, setSpecialCodeOwnerDraft] = useState('');
   const [ownerSearchQuery, setOwnerSearchQuery] = useState('');
@@ -382,6 +395,33 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       setUsersApiError(err?.message || 'Could not load users');
     }
   };
+
+  const usersToMarketingRecipients = (rawUsers: any[]): MarketingRecipient[] => {
+    const seen = new Set<string>();
+    return rawUsers
+      .map((u: any) => ({
+        id: String(u.id || u._id || ''),
+        name: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.name || u.username || u.email || '',
+        email: u.email || '',
+        phone: (u.phone || '').trim(),
+      }))
+      .filter((recipient) => {
+        if (!recipient.id || seen.has(recipient.id)) return false;
+        seen.add(recipient.id);
+        return true;
+      });
+  };
+
+  const selectedPushRecipient = marketingRecipients.find((item) => item.id === pushRecipientId);
+  const filteredPushRecipients = marketingRecipients.filter((recipient) => {
+    const query = pushRecipientSearch.trim().toLowerCase();
+    if (!query) return true;
+    return `${recipient.name} ${recipient.email} ${recipient.phone || ''}`.toLowerCase().includes(query);
+  });
+  const pushDestinationEvents = [...(pushLiveEvents.length > 0 ? pushLiveEvents : adminEvents)]
+    .filter((event) => (event?.status ? event.status === 'published' : true) && !isAdminEventPast(event))
+    .sort(sortAdminEventsBySchedule);
+  const selectedPushEvent = pushDestinationEvents.find((event) => String(event.id) === pushEventId);
 
   const openUserDetail = async (u: AdminUser) => {
     setSelectedUser(u);
@@ -699,11 +739,23 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     Promise.allSettled([
       apiGet<any>('/marketing/banner/home'),
       apiGet<any[]>('/marketing/admin/recipients'),
-    ]).then(([bannerRes, recipientsRes]) => {
+      apiGet<any>('/admin/users?page=1&limit=200'),
+      apiGet<any>('/events'),
+    ]).then(([bannerRes, recipientsRes, usersRes, eventsRes]) => {
       const banner = bannerRes.status === 'fulfilled' ? (bannerRes.value || false) : false;
       setHomeBanner(banner);
       if (banner && (banner as any).imageData) setBannerStatus('active');
-      if (recipientsRes.status === 'fulfilled') setRecipientsCount((recipientsRes.value || []).length);
+      const recipients = recipientsRes.status === 'fulfilled' ? (recipientsRes.value || []) : [];
+      const adminUsers = usersRes.status === 'fulfilled' ? usersToMarketingRecipients(listFrom(usersRes.value)) : [];
+      const merged = usersToMarketingRecipients([...adminUsers, ...recipients]);
+      if (merged.length > 0 || recipientsRes.status === 'fulfilled' || usersRes.status === 'fulfilled') {
+        const nextRecipients = merged.length > 0 ? merged : recipients;
+        setRecipientsCount(nextRecipients.length);
+        setMarketingRecipients(nextRecipients);
+      }
+      if (eventsRes.status === 'fulfilled') {
+        setPushLiveEvents(listFrom(eventsRes.value));
+      }
     });
   }, [active, homeBanner]);
 
@@ -1129,6 +1181,55 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       setSmsMessage('');
     } catch (err: any) {
       Alert.alert('Error', err?.message || t('No se pudo enviar el SMS.', 'Could not send SMS.'));
+    } finally { setSending(''); }
+  };
+
+  const sendPush = async () => {
+    if (!pushTitle.trim() || !pushMessage.trim()) {
+      Alert.alert(t('Campos requeridos', 'Required fields'), t('Escribe un título y un mensaje.', 'Write a title and a message.'));
+      return;
+    }
+    if (pushAudience === 'user' && !pushRecipientId) {
+      Alert.alert(t('Usuario requerido', 'User required'), t('Selecciona un usuario para enviar la notificación.', 'Select a user to send the notification.'));
+      return;
+    }
+    if (pushDestination === 'event' && !selectedPushEvent) {
+      Alert.alert(t('Evento requerido', 'Event required'), t('Selecciona el evento que quieres abrir.', 'Select the event you want to open.'));
+      return;
+    }
+    const link = pushDestination === 'event'
+      ? `lpticket://event/${selectedPushEvent?.slug || selectedPushEvent?.id}`
+      : pushDestination === 'external'
+        ? pushLink.trim()
+        : '';
+    if (pushDestination === 'external' && link && !/^https?:\/\//i.test(link)) {
+      Alert.alert(t('Link inválido', 'Invalid link'), t('Usa un link que empiece con https://', 'Use a link that starts with https://'));
+      return;
+    }
+
+    setSending('push');
+    try {
+      const result = await apiPost<{ sent: number; failed: number; total: number; error?: string }>('/marketing/admin/push-campaign', {
+        title: pushTitle.trim(),
+        message: pushMessage.trim(),
+        audience: pushAudience,
+        userId: pushAudience === 'user' ? pushRecipientId : undefined,
+        link: link || undefined,
+      });
+      Alert.alert(
+        t('Push enviado', 'Push sent'),
+        result.error
+          ? `${t('Enviados', 'Sent')}: ${result.sent} / ${result.total}\n${result.error}`
+          : `${t('Enviados', 'Sent')}: ${result.sent} / ${result.total}`,
+      );
+      setPushTitle('');
+      setPushMessage('');
+      setPushLink('');
+      setPushEventId('');
+      setPushDestination('none');
+      setPushEventPickerOpen(false);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('No se pudo enviar la notificación push.', 'Could not send the push notification.'));
     } finally { setSending(''); }
   };
 
@@ -2411,16 +2512,6 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
 
         {active === 'marketing' && (
           <>
-            <PanelCard title={t('Marketing', 'Marketing')} eyebrow={t('CONTROL DE MARKETING', 'MARKETING CONTROL')} copy={t('Administra lo que aparece en el home, banners, destacados y promociones.', 'Manage what appears on the home page, banners, featured events and promotions.')}>
-              <View style={styles.bannerPreviewCard}>
-                <View style={styles.bannerPreviewPill}>
-                  <Text style={styles.bannerPreviewPillText}>{t('BANNER HOME', 'HOME BANNER')}</Text>
-                </View>
-                <Text style={styles.bannerPreviewTitle}>{t('Tu entrada a grandes experiencias', 'Your access to great experiences')}</Text>
-                <Text style={styles.bannerPreviewCopy}>{t('Conciertos, teatro, talleres, networking y eventos privados.', 'Concerts, theater, workshops, networking and private events.')}</Text>
-              </View>
-            </PanelCard>
-
             <PanelCard title={t('Gestión de banner', 'Banner management')} eyebrow={t('HOME', 'HOME')} copy={t('Sube la imagen del banner del home (escritorio y móvil).', 'Upload the home banner image (desktop and mobile).')}>
               <View style={styles.twoColRow}>
                 <View style={styles.col}>
@@ -2462,12 +2553,6 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               onToggle={() => setMarketingPromoEnabled(!marketingPromoEnabled)}
             />
 
-            <PanelCard title={t('Orden de aparicion', 'Display order')} eyebrow={t('ORDEN VISUAL', 'DISPLAY ORDER')} copy={t('Define el orden visual del home movil.', 'Define the visual order of the mobile home screen.')}>
-              <OrderItem index="01" title={t('Banner principal', 'Main banner')} />
-              <OrderItem index="02" title={t('Buscador', 'Search')} />
-              <OrderItem index="03" title={t('Beneficios / seguridad', 'Benefits / security')} />
-              <OrderItem index="04" title={t('Eventos destacados', 'Featured events')} />
-            </PanelCard>
           </>
         )}
         {active === 'analytics' && (
@@ -3000,6 +3085,194 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               <GradientButton label={sending === 'sms' ? t('ENVIANDO...', 'SENDING...') : t('ENVIAR SMS', 'SEND SMS')} onPress={sendSms} height={48} style={{ marginTop: 8 }} />
             </View>
 
+            {/* ─── Push Notifications ─── */}
+            <View style={styles.mktPushCard}>
+              <View style={styles.mktCardHeader}>
+                <View style={styles.mktPushIcon}>
+                  <Ionicons name="notifications-outline" size={20} color={colors.orange} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mktCardTitle}>{t('Notificaciones push', 'Push notifications')}</Text>
+                  <Text style={styles.mktCardSub}>{t('Envía avisos directos a la app, a todos o a un usuario específico.', 'Send direct app alerts to everyone or one specific user.')}</Text>
+                </View>
+              </View>
+
+              <View style={styles.mktPushModeRow}>
+                <TouchableOpacity onPress={() => setPushAudience('all')} style={[styles.mktPushModeBtn, pushAudience === 'all' && styles.mktPushModeBtnActive]} activeOpacity={0.86}>
+                  <Ionicons name="people-outline" size={14} color={pushAudience === 'all' ? colors.orange : 'rgba(226,232,240,0.5)'} />
+                  <Text style={[styles.mktPushModeText, pushAudience === 'all' && styles.mktPushModeTextActive]}>{t('Todos', 'All')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setPushAudience('user')} style={[styles.mktPushModeBtn, pushAudience === 'user' && styles.mktPushModeBtnActive]} activeOpacity={0.86}>
+                  <Ionicons name="person-outline" size={14} color={pushAudience === 'user' ? colors.orange : 'rgba(226,232,240,0.5)'} />
+                  <Text style={[styles.mktPushModeText, pushAudience === 'user' && styles.mktPushModeTextActive]}>{t('Usuario', 'User')}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {pushAudience === 'user' ? (
+                <View style={styles.mktPushPickerWrap}>
+                  <TouchableOpacity onPress={() => setPushRecipientPickerOpen((value) => !value)} style={styles.mktPushUserSelect} activeOpacity={0.86}>
+                    <View style={styles.mktPushUserSelectIcon}>
+                      <Ionicons name="person-circle-outline" size={17} color={colors.orange} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.mktPushUserSelectTitle} numberOfLines={1}>
+                        {selectedPushRecipient?.name || t('Seleccionar usuario', 'Select user')}
+                      </Text>
+                      <Text style={styles.mktPushUserSelectSub} numberOfLines={1}>
+                        {selectedPushRecipient?.email || t(`${marketingRecipients.length} usuarios disponibles`, `${marketingRecipients.length} available users`)}
+                      </Text>
+                    </View>
+                    <Ionicons name={pushRecipientPickerOpen ? 'chevron-up' : 'chevron-down'} size={16} color="rgba(226,232,240,0.58)" />
+                  </TouchableOpacity>
+                  {pushRecipientPickerOpen ? (
+                    <View style={styles.mktPushRecipientPanel}>
+                      <View style={styles.mktPushSearchBox}>
+                        <Ionicons name="search" size={16} color={colors.orange} />
+                        <TextInput
+                          value={pushRecipientSearch}
+                          onChangeText={setPushRecipientSearch}
+                          placeholder={t('Buscar usuario...', 'Search user...')}
+                          placeholderTextColor="rgba(226,232,240,0.38)"
+                          style={styles.mktPushSearchInput}
+                        />
+                        {pushRecipientSearch ? (
+                          <TouchableOpacity onPress={() => setPushRecipientSearch('')} activeOpacity={0.8}>
+                            <Ionicons name="close-circle" size={16} color="rgba(226,232,240,0.5)" />
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                      <ScrollView style={styles.mktPushRecipientList} nestedScrollEnabled showsVerticalScrollIndicator={filteredPushRecipients.length > 6}>
+                        {marketingRecipients.length === 0 ? (
+                        <View style={styles.mktPushRecipientEmpty}>
+                          <Text style={styles.mktPushRecipientEmail}>{t('No hay usuarios cargados todavía.', 'No users loaded yet.')}</Text>
+                        </View>
+                        ) : filteredPushRecipients.length === 0 ? (
+                          <View style={styles.mktPushRecipientEmpty}>
+                            <Text style={styles.mktPushRecipientEmail}>{t('No encontramos usuarios con ese texto.', 'No users match that search.')}</Text>
+                          </View>
+                        ) : filteredPushRecipients.map((recipient) => (
+                        <TouchableOpacity
+                          key={recipient.id}
+                          onPress={() => {
+                            setPushRecipientId(recipient.id);
+                            setPushRecipientPickerOpen(false);
+                            setPushRecipientSearch('');
+                          }}
+                          style={[styles.mktPushRecipientRow, pushRecipientId === recipient.id && styles.mktPushRecipientRowActive]}
+                          activeOpacity={0.86}
+                        >
+                          <View style={styles.mktPushRecipientAvatar}>
+                            <Text style={styles.mktPushRecipientAvatarText}>{(recipient.name || recipient.email || '?').trim().slice(0, 1).toUpperCase()}</Text>
+                          </View>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={styles.mktPushRecipientName} numberOfLines={1}>{recipient.name || recipient.email}</Text>
+                            <Text style={styles.mktPushRecipientEmail} numberOfLines={1}>{recipient.email}</Text>
+                          </View>
+                        </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  ) : null}
+                </View>
+              ) : (
+                <View style={styles.mktPushAudienceInfo}>
+                  <Ionicons name="radio-outline" size={15} color={colors.orange} />
+                  <Text style={styles.mktPushAudienceInfoText}>{t(`${recipientsCount} usuarios registrados`, `${recipientsCount} registered users`)}</Text>
+                </View>
+              )}
+
+              <TextInput value={pushTitle} onChangeText={setPushTitle} placeholder={t('Título de la notificación', 'Notification title')} placeholderTextColor="rgba(226,232,240,0.35)" style={styles.mktInput} maxLength={80} />
+              <TextInput value={pushMessage} onChangeText={setPushMessage} placeholder={t('Mensaje push...', 'Push message...')} placeholderTextColor="rgba(226,232,240,0.35)" multiline numberOfLines={4} maxLength={120} style={styles.mktTextArea} />
+              <Text style={styles.mktCharCount}>{pushMessage.length}/120</Text>
+              <View style={styles.mktPushDestinationRow}>
+                {([
+                  ['none', t('Sin destino', 'No destination'), 'remove-circle-outline'],
+                  ['event', t('Evento', 'Event'), 'ticket-outline'],
+                  ['external', t('Link externo', 'External link'), 'link-outline'],
+                ] as const).map(([key, label, icon]) => (
+                  <TouchableOpacity
+                    key={key}
+                    onPress={() => {
+                      setPushDestination(key);
+                      setPushEventPickerOpen(false);
+                    }}
+                    style={[styles.mktPushDestinationBtn, pushDestination === key && styles.mktPushDestinationBtnActive]}
+                    activeOpacity={0.86}
+                  >
+                    <Ionicons name={icon as any} size={13} color={pushDestination === key ? colors.orange : 'rgba(226,232,240,0.48)'} />
+                    <Text style={[styles.mktPushDestinationText, pushDestination === key && styles.mktPushDestinationTextActive]} numberOfLines={1}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {pushDestination === 'event' ? (
+                <View style={styles.mktPushLinkWrap}>
+                  <TouchableOpacity onPress={() => setPushEventPickerOpen((value) => !value)} style={styles.mktPushUserSelect} activeOpacity={0.86}>
+                    <View style={styles.mktPushUserSelectIcon}>
+                      <Ionicons name="ticket-outline" size={15} color={colors.orange} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.mktPushUserSelectTitle} numberOfLines={1}>{selectedPushEvent ? adminEventTitle(selectedPushEvent) : t('Seleccionar evento', 'Select event')}</Text>
+                      <Text style={styles.mktPushUserSelectSub} numberOfLines={1}>{selectedPushEvent ? adminEventDate(selectedPushEvent) : t('Abrirá este evento dentro de la app', 'Opens this event inside the app')}</Text>
+                    </View>
+                    <Ionicons name={pushEventPickerOpen ? 'chevron-up' : 'chevron-down'} size={16} color="rgba(226,232,240,0.58)" />
+                  </TouchableOpacity>
+                  {pushEventPickerOpen ? (
+                    <ScrollView style={styles.mktPushEventList} nestedScrollEnabled showsVerticalScrollIndicator={pushDestinationEvents.length > 5}>
+                      {pushDestinationEvents.length === 0 ? (
+                        <View style={styles.mktPushRecipientEmpty}>
+                          <Text style={styles.mktPushRecipientEmail}>{t('No hay eventos activos disponibles.', 'No active events available.')}</Text>
+                        </View>
+                      ) : pushDestinationEvents.map((event) => (
+                        <TouchableOpacity
+                          key={String(event.id || event.slug)}
+                          onPress={() => {
+                            setPushEventId(String(event.id));
+                            setPushEventPickerOpen(false);
+                          }}
+                          style={[styles.mktPushRecipientRow, pushEventId === String(event.id) && styles.mktPushRecipientRowActive]}
+                          activeOpacity={0.86}
+                        >
+                          <View style={styles.mktPushRecipientAvatar}>
+                            <Ionicons name="calendar-outline" size={14} color={colors.orange} />
+                          </View>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={styles.mktPushRecipientName} numberOfLines={1}>{adminEventTitle(event)}</Text>
+                            <Text style={styles.mktPushRecipientEmail} numberOfLines={1}>{adminEventDate(event)}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {pushDestination === 'external' ? (
+                <View style={styles.mktPushLinkBox}>
+                  <Ionicons name="link-outline" size={16} color={colors.orange} />
+                  <TextInput
+                    value={pushLink}
+                    onChangeText={setPushLink}
+                    placeholder={t('https://tu-link.com', 'https://your-link.com')}
+                    placeholderTextColor="rgba(226,232,240,0.35)"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    style={styles.mktPushLinkInput}
+                  />
+                </View>
+              ) : null}
+
+              <View style={styles.mktPushPreview}>
+                <View style={styles.mktPushPreviewIcon}><Ionicons name="ticket-outline" size={15} color={colors.orange} /></View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.mktPushPreviewTitle} numberOfLines={1}>{pushTitle || t('LPTicket', 'LPTicket')}</Text>
+                  <Text style={styles.mktPushPreviewBody} numberOfLines={2}>{pushMessage || t('Tu notificación se verá así.', 'Your notification will look like this.')}</Text>
+                </View>
+              </View>
+
+              <GradientButton label={sending === 'push' ? t('ENVIANDO...', 'SENDING...') : t('ENVIAR PUSH', 'SEND PUSH')} onPress={sendPush} height={48} style={{ marginTop: 10 }} />
+            </View>
+
             {/* ─── WhatsApp ─── */}
             <View style={styles.mktCard}>
               <View style={styles.mktCardHeader}>
@@ -3216,23 +3489,23 @@ function ActionButton({ label, muted, onPress }: { label: string; muted?: boolea
 
 function MarketingRow({ title, copy, enabled, onToggle }: { title: string; copy: string; enabled: boolean; onToggle: () => void }) {
   return (
-    <View style={styles.marketingCard}>
-      <View style={styles.cardHeader}>
-        <View style={[styles.avatar, enabled ? styles.avatarOrange : styles.avatarMuted]}>
-          <Text style={styles.avatarText}>{enabled ? 'ON' : 'OFF'}</Text>
+    <View style={[styles.marketingCard, enabled && styles.marketingCardActive]}>
+      <View style={styles.marketingRowTop}>
+        <View style={[styles.marketingStateIcon, enabled ? styles.marketingStateIconOn : styles.marketingStateIconOff]}>
+          <Text style={[styles.marketingStateIconText, enabled ? styles.marketingStateIconTextOn : styles.marketingStateIconTextOff]}>{enabled ? 'ON' : 'OFF'}</Text>
         </View>
-        <View style={styles.cardMain}>
-          <Text style={styles.cardTitle}>{title}</Text>
-          <Text style={styles.cardSub}>{copy}</Text>
+        <View style={styles.marketingRowCopy}>
+          <Text style={styles.marketingRowTitle} numberOfLines={1}>{title}</Text>
+          <Text style={styles.marketingRowSub} numberOfLines={2}>{copy}</Text>
+        </View>
+        <View style={[styles.marketingStatusMini, enabled ? styles.marketingStatusMiniOn : styles.marketingStatusMiniOff]}>
+          <Text style={[styles.marketingStatusMiniText, enabled ? styles.marketingStatusMiniTextOn : styles.marketingStatusMiniTextOff]}>{enabled ? 'ACTIVE' : 'OFF'}</Text>
         </View>
       </View>
 
-      <View style={styles.statusRow}>
-        <StatusPill label={enabled ? 'ACTIVE' : 'INACTIVE'} tone={enabled ? 'green' : 'gray'} />
-      </View>
-
-      <TouchableOpacity onPress={onToggle} style={enabled ? styles.marketingDisableButton : styles.marketingEnableButton}>
-        <Text style={enabled ? styles.marketingDisableText : styles.marketingEnableText}>{enabled ? 'DISABLE' : 'ENABLE'}</Text>
+      <TouchableOpacity onPress={onToggle} style={[styles.marketingToggleBtn, enabled ? styles.marketingToggleBtnOff : styles.marketingToggleBtnOn]} activeOpacity={0.86}>
+        {!enabled && <View pointerEvents="none" style={styles.marketingToggleGlow} />}
+        <Text style={[styles.marketingToggleText, enabled ? styles.marketingToggleTextOff : styles.marketingToggleTextOn]}>{enabled ? 'DISABLE' : 'ENABLE'}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -3482,18 +3755,33 @@ const styles = StyleSheet.create({
   listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 14, marginTop: 10 },
   dot: { width: 9, height: 9, borderRadius: 999, backgroundColor: colors.orange },
   listText: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', flex: 1 },
-  bannerPreviewCard: { backgroundColor: '#030B14', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 20, marginTop: 4 },
-  bannerPreviewPill: { alignSelf: 'flex-start', backgroundColor: 'rgba(249,115,22,0.12)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', paddingHorizontal: 12, paddingVertical: 7, marginBottom: 16 },
-  bannerPreviewPillText: { color: colors.orange, fontSize: 10, fontWeight: '700', letterSpacing: 0 },
-  bannerPreviewTitle: { color: '#F8FAFC', fontSize: 23, fontWeight: '700', lineHeight: 29, marginBottom: 8 },
-  bannerPreviewCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 14, lineHeight: 21, fontWeight: '600' },
   avatarOrange: { backgroundColor: colors.orange, borderColor: colors.orange },
   avatarMuted: { backgroundColor: 'rgba(255,255,255,0.045)', borderColor: 'rgba(255,255,255,0.14)' },
-  marketingCard: { backgroundColor: '#030B14', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 18, marginBottom: 14 },
-  marketingEnableButton: { height: 50, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
-  marketingEnableText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', letterSpacing: 0 },
-  marketingDisableButton: { height: 50, borderRadius: 14, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
-  marketingDisableText: { color: '#F8FAFC', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
+  marketingCard: { backgroundColor: 'rgba(3,11,20,0.88)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', padding: 12, marginBottom: 10 },
+  marketingCardActive: { borderColor: 'rgba(249,115,22,0.18)' },
+  marketingRowTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  marketingStateIcon: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  marketingStateIconOn: { backgroundColor: 'rgba(249,115,22,0.12)', borderColor: 'rgba(249,115,22,0.42)' },
+  marketingStateIconOff: { backgroundColor: 'rgba(255,255,255,0.035)', borderColor: 'rgba(255,255,255,0.14)' },
+  marketingStateIconText: { fontSize: 11, fontWeight: '900' },
+  marketingStateIconTextOn: { color: colors.orange },
+  marketingStateIconTextOff: { color: 'rgba(226,232,240,0.72)' },
+  marketingRowCopy: { flex: 1, minWidth: 0 },
+  marketingRowTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '900', marginBottom: 2 },
+  marketingRowSub: { color: 'rgba(226,232,240,0.56)', fontSize: 11, lineHeight: 15, fontWeight: '600' },
+  marketingStatusMini: { minWidth: 52, height: 26, borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 9 },
+  marketingStatusMiniOn: { backgroundColor: 'rgba(34,197,94,0.10)', borderColor: 'rgba(34,197,94,0.30)' },
+  marketingStatusMiniOff: { backgroundColor: 'rgba(255,255,255,0.035)', borderColor: 'rgba(255,255,255,0.12)' },
+  marketingStatusMiniText: { fontSize: 9, fontWeight: '900' },
+  marketingStatusMiniTextOn: { color: '#4ADE80' },
+  marketingStatusMiniTextOff: { color: 'rgba(226,232,240,0.56)' },
+  marketingToggleBtn: { height: 38, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  marketingToggleBtnOn: { backgroundColor: colors.orange, borderColor: 'rgba(255,255,255,0.16)' },
+  marketingToggleBtnOff: { backgroundColor: '#030B14', borderColor: 'rgba(255,255,255,0.14)' },
+  marketingToggleGlow: { position: 'absolute', top: 4, left: 18, right: 18, height: 1.5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.28)' },
+  marketingToggleText: { fontSize: 11, fontWeight: '900', letterSpacing: 0.4 },
+  marketingToggleTextOn: { color: '#FFFFFF' },
+  marketingToggleTextOff: { color: 'rgba(248,250,252,0.84)' },
   orderPremiumItem: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 14, marginTop: 10 },
   orderPremiumIndex: { width: 44, height: 44, borderRadius: 15, backgroundColor: 'rgba(249,115,22,0.12)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', alignItems: 'center', justifyContent: 'center' },
   orderPremiumIndexText: { color: colors.orange, fontSize: 13, fontWeight: '700' },
@@ -3559,7 +3847,7 @@ const styles = StyleSheet.create({
   dashMiniGrid: { flexDirection: 'row', gap: 8 },
   dashMiniStat: { flex: 1, backgroundColor: '#030B14', borderRadius: 12, borderWidth: 1, padding: 10, alignItems: 'center' },
   dashMiniValue: { fontSize: 22, fontWeight: '800', marginBottom: 2 },
-  dashMiniLabel: { color: 'rgba(226,232,240,0.58)', fontSize: 10, fontWeight: '700' },
+  dashMiniLabel: { color: 'rgba(226,232,240,0.58)', fontSize: 7, fontWeight: '700' },
   finGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   finCard: { width: '48%', backgroundColor: '#030B14', borderRadius: 14, borderWidth: 1, padding: 12 },
   finCardGreen: { borderColor: 'rgba(34,197,94,0.28)' },
@@ -3841,6 +4129,44 @@ const styles = StyleSheet.create({
   mktWaLangBtnText: { color: 'rgba(226,232,240,0.6)', fontSize: 12, fontWeight: '700' },
   mktWaLangBtnTextActive: { color: '#25D366' },
   mktWaHint: { color: 'rgba(226,232,240,0.5)', fontSize: 11, lineHeight: 17, marginBottom: 10 },
+  mktPushCard: { padding: 20, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(249,115,22,0.22)', backgroundColor: 'rgba(249,115,22,0.035)', marginBottom: 16 },
+  mktPushIcon: { width: 40, height: 40, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.36)', backgroundColor: 'rgba(249,115,22,0.1)', alignItems: 'center', justifyContent: 'center' },
+  mktPushModeRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  mktPushModeBtn: { flex: 1, minHeight: 42, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.72)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  mktPushModeBtnActive: { borderColor: 'rgba(249,115,22,0.55)', backgroundColor: 'rgba(249,115,22,0.12)' },
+  mktPushModeText: { color: 'rgba(226,232,240,0.62)', fontSize: 12, fontWeight: '800' },
+  mktPushModeTextActive: { color: colors.orange },
+  mktPushPickerWrap: { marginBottom: 10 },
+  mktPushUserSelect: { minHeight: 42, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.76)', flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 14, paddingVertical: 6 },
+  mktPushUserSelectIcon: { width: 26, height: 26, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', backgroundColor: 'rgba(249,115,22,0.08)', alignItems: 'center', justifyContent: 'center' },
+  mktPushUserSelectTitle: { color: '#F8FAFC', fontSize: 12, fontWeight: '900' },
+  mktPushUserSelectSub: { color: 'rgba(226,232,240,0.5)', fontSize: 9, fontWeight: '700', marginTop: 1 },
+  mktPushRecipientPanel: { marginTop: 8, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(3,11,20,0.78)', overflow: 'hidden' },
+  mktPushSearchBox: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.035)' },
+  mktPushSearchInput: { flex: 1, color: '#F8FAFC', fontSize: 13, fontWeight: '700', paddingVertical: 8 },
+  mktPushRecipientList: { maxHeight: 318, padding: 8 },
+  mktPushRecipientRow: { minHeight: 49, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, borderRadius: 12, borderWidth: 1, borderColor: 'transparent', marginBottom: 4 },
+  mktPushRecipientRowActive: { borderColor: 'rgba(249,115,22,0.36)', backgroundColor: 'rgba(249,115,22,0.08)' },
+  mktPushRecipientEmpty: { minHeight: 49, alignItems: 'center', justifyContent: 'center' },
+  mktPushRecipientAvatar: { width: 30, height: 30, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', backgroundColor: 'rgba(249,115,22,0.08)', alignItems: 'center', justifyContent: 'center' },
+  mktPushRecipientAvatarText: { color: colors.orange, fontSize: 12, fontWeight: '900' },
+  mktPushRecipientName: { color: '#F8FAFC', fontSize: 12, fontWeight: '800' },
+  mktPushRecipientEmail: { color: 'rgba(226,232,240,0.42)', fontSize: 10, fontWeight: '600', marginTop: 2 },
+  mktPushAudienceInfo: { minHeight: 42, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.72)', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, marginBottom: 10 },
+  mktPushAudienceInfoText: { color: 'rgba(226,232,240,0.72)', fontSize: 12, fontWeight: '700' },
+  mktPushDestinationRow: { flexDirection: 'row', gap: 7, marginBottom: 8 },
+  mktPushDestinationBtn: { flex: 1, minHeight: 38, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.72)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 7 },
+  mktPushDestinationBtnActive: { borderColor: 'rgba(249,115,22,0.5)', backgroundColor: 'rgba(249,115,22,0.1)' },
+  mktPushDestinationText: { color: 'rgba(226,232,240,0.56)', fontSize: 10, fontWeight: '800' },
+  mktPushDestinationTextActive: { color: colors.orange },
+  mktPushLinkWrap: { marginBottom: 8 },
+  mktPushEventList: { maxHeight: 270, marginTop: 8, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(3,11,20,0.78)', padding: 8 },
+  mktPushLinkBox: { minHeight: 46, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', backgroundColor: 'rgba(255,255,255,0.04)', flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 13, marginBottom: 5 },
+  mktPushLinkInput: { flex: 1, color: '#F8FAFC', fontSize: 12, fontWeight: '700', paddingVertical: 9 },
+  mktPushPreview: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.76)', marginTop: 8 },
+  mktPushPreviewIcon: { width: 32, height: 32, borderRadius: 11, borderWidth: 1, borderColor: 'rgba(249,115,22,0.32)', backgroundColor: 'rgba(249,115,22,0.08)', alignItems: 'center', justifyContent: 'center' },
+  mktPushPreviewTitle: { color: '#F8FAFC', fontSize: 13, fontWeight: '900' },
+  mktPushPreviewBody: { color: 'rgba(226,232,240,0.58)', fontSize: 11, lineHeight: 16, marginTop: 2 },
   mktWaPreview: { marginTop: 12, padding: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(37,211,102,0.2)', backgroundColor: 'rgba(37,211,102,0.04)' },
   mktWaPreviewLabel: { color: '#25D366', fontSize: 10, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 },
   mktWaBubble: { alignSelf: 'flex-start', maxWidth: '85%', padding: 12, borderRadius: 14, borderTopLeftRadius: 4, backgroundColor: '#075e54', marginBottom: 8 },

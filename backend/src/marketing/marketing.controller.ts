@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -12,6 +12,12 @@ export class MarketingController {
   @Get('banner/home')
   async getActiveHomeBanner() {
     return this.marketingService.getActiveHomeBanner();
+  }
+
+  @Post('push-token')
+  @UseGuards(AuthGuard('jwt'))
+  async registerPushToken(@Request() req: any, @Body() body: { token?: string; platform?: string }) {
+    return this.marketingService.registerPushToken(req.user.id, body);
   }
 
   @Post('admin/banner/home')
@@ -63,5 +69,12 @@ export class MarketingController {
   @Roles(UserRole.ADMIN)
   async sendWhatsappCampaign(@Body() body: { message: string; recipients?: string[]; lang?: 'es' | 'en' }) {
     return this.marketingService.sendWhatsappCampaign(body?.message, body?.recipients, body?.lang);
+  }
+
+  @Post('admin/push-campaign')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async sendPushCampaign(@Body() body: { title?: string; message?: string; audience?: 'all' | 'user'; userId?: string; link?: string }) {
+    return this.marketingService.sendPushCampaign(body);
   }
 }

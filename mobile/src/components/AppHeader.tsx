@@ -6,13 +6,13 @@ import { useLanguage } from '../i18n/LanguageContext';
 // Same asset as the web header (/logo.png): color icon + white "LPTicket" text.
 const logo = require('../../assets/logo-header.png');
 
-type Props = { onOpenMenu: () => void; onOpenScan: () => void; onGoHome: () => void; onOpenLogin?: () => void; showLoginButton?: boolean };
+type Props = { onOpenMenu: () => void; onOpenScan: () => void; onGoHome: () => void; onOpenLogin?: () => void; showLoginButton?: boolean; onGoCart?: () => void; showCartButton?: boolean; cartCount?: number };
 
 // Mirrors the web's mobile header (max-width 1023px overrides):
 // 84px row over the dark bg with a warm orange glow on the right,
 // Compact lang pill (active = solid orange), 32px glass buttons,
 // orange hamburger icon.
-export function AppHeader({ onOpenMenu, onGoHome, onOpenLogin, showLoginButton = false }: Props) {
+export function AppHeader({ onOpenMenu, onGoHome, onOpenLogin, showLoginButton = false, onGoCart, showCartButton = false, cartCount = 0 }: Props) {
   const { lang, setLang } = useLanguage();
   const langPillX = useRef(new Animated.Value(lang === 'es' ? 0 : 39)).current;
   const logoPress = useRef(new Animated.Value(1)).current;
@@ -62,6 +62,17 @@ export function AppHeader({ onOpenMenu, onGoHome, onOpenLogin, showLoginButton =
         {showLoginButton && (
           <TouchableOpacity style={[styles.iconButton, styles.loginButton]} onPress={onOpenLogin} activeOpacity={0.84}>
             <Text style={styles.loginButtonText}>{lang === 'es' ? 'Inicio' : 'Login'}</Text>
+          </TouchableOpacity>
+        )}
+
+        {showCartButton && (
+          <TouchableOpacity style={[styles.iconButton, styles.cartButton]} onPress={onGoCart} activeOpacity={0.84}>
+            <Ionicons name="cart-outline" size={21} color="#ff7a00" />
+            {cartCount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         )}
 
@@ -132,6 +143,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    position: 'relative',
   },
   menuButton: {
     borderColor: 'rgba(249,115,22,0.62)',
@@ -140,6 +152,29 @@ const styles = StyleSheet.create({
     width: 54,
     borderColor: 'rgba(249,115,22,0.62)',
     paddingHorizontal: 5,
+  },
+  cartButton: {
+    borderColor: 'rgba(249,115,22,0.62)',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#F97316',
+    borderWidth: 1,
+    borderColor: '#030B14',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '900',
+    lineHeight: 10,
   },
   loginButtonText: {
     color: '#ff7a00',

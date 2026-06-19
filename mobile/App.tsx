@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Animated, Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from './src/components/AppHeader';
@@ -29,6 +29,8 @@ import { colors } from './src/theme/colors';
 import { MobileEvent } from './src/types/event';
 import { AuthUser } from './src/services/api';
 import { logout as logoutRequest, restoreSession } from './src/services/auth';
+import { getPublicEvents } from './src/services/events';
+import { addPushNotificationResponseListener, registerDeviceForPushNotifications } from './src/services/pushNotifications';
 import { SplashVideo } from './src/components/SplashVideo';
 
 type Tab = 'events' | 'tickets' | 'scan' | 'social' | 'profile' | 'organizer' | 'admin' | 'contact' | 'about' | 'support' | 'legal' | 'aichat';
@@ -61,6 +63,7 @@ function AppContent() {
   const [checkoutInfoOpen, setCheckoutInfoOpen] = useState(false);
   const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [cartSelectionCount, setCartSelectionCount] = useState(0);
   const [loginAfterPurchase, setLoginAfterPurchase] = useState(false);
   const [viewMode, setViewMode] = useState<'client' | 'organizer' | 'admin'>('client');
   const [organizerSection, setOrganizerSection] = useState<OrgSection>('dashboard');
@@ -101,6 +104,11 @@ function AppContent() {
     });
   }, []);
 
+  useEffect(() => {
+    if (!currentUser) return;
+    registerDeviceForPushNotifications().catch(() => {});
+  }, [currentUser]);
+
   const handleLogout = () => {
     clearFlow();
     logoutRequest();
@@ -111,12 +119,47 @@ function AppContent() {
 
   const clearFlow = () => {
     setSelectedEvent(null);
+    setCartSelectionCount(0);
     setScanOpen(false);
     setPurchaseOpen(false);
     setCheckoutInfoOpen(false);
     setOrderSummaryOpen(false);
     setPaymentSuccessOpen(false);
     setLoginAfterPurchase(false);
+  };
+
+  const openPushLink = async (url: string) => {
+    const value = url.trim();
+    if (!value) return;
+
+    if (value.startsWith('lpticket://')) {
+      const path = value.replace(/^lpticket:\/\//, '').split(/[?#]/)[0];
+      const parts = path.split('/').filter(Boolean);
+      const eventKey = ['event', 'events', 'evento', 'eventos'].includes(parts[0]) ? parts[1] : '';
+
+      if (eventKey) {
+        try {
+          const events = await getPublicEvents();
+          const match = events.find((event) => event.id === eventKey || event.slug === eventKey);
+          if (match) {
+            clearFlow();
+            setViewMode('client');
+            setSelectedEvent(match);
+            setTab('events');
+            return;
+          }
+        } catch {}
+      }
+
+      if (parts[0] === 'tickets') {
+        goToTab('tickets');
+        return;
+      }
+      goHome();
+      return;
+    }
+
+    Linking.openURL(value).catch(() => {});
   };
 
   const goToTab = (nextTab: Tab) => {
@@ -217,6 +260,12 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, [adminSection, tab, viewMode, ADMIN_ITEM_W]);
 
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    addPushNotificationResponseListener(openPushLink).then((cleanup) => { unsubscribe = cleanup; });
+    return () => { unsubscribe?.(); };
+  }, []);
+
   return (
     <View style={styles.root}>
       <ScreenBackground />
@@ -226,7 +275,7 @@ function AppContent() {
         <View pointerEvents="none" style={styles.appGridVertical} />
         <View pointerEvents="none" style={styles.appGridHorizontal} />
 
-        {!scanOpen && <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} onGoHome={goHome} onOpenLogin={() => goToTab('profile')} showLoginButton={!isLoggedIn} />}
+        <AppHeader onOpenMenu={() => setMenuOpen(true)} onOpenScan={() => setScanOpen(true)} onGoHome={goHome} onOpenLogin={() => goToTab('profile')} showLoginButton={!isLoggedIn} onGoCart={() => goToTab('tickets')} showCartButton={isLoggedIn} cartCount={cartSelectionCount} />
 
         {scanOpen ? (
           <ScanScreen onBack={() => setScanOpen(false)} user={currentUser} />
@@ -239,11 +288,11 @@ function AppContent() {
         ) : selectedEvent && loginAfterPurchase ? (
           <LoginScreen onSignIn={(user) => { setCurrentUser(user); setLoginAfterPurchase(false); setPurchaseOpen(true); }} />
         ) : selectedEvent && purchaseOpen ? (
-          <PurchaseScreen event={selectedEvent} user={currentUser} onBack={() => setPurchaseOpen(false)} onPaid={() => { clearFlow(); setTab('tickets'); }} />
+          <PurchaseScreen event={selectedEvent} user={currentUser} onBack={() => setPurchaseOpen(false)} onPaid={() => { clearFlow(); setTab('tickets'); }} onSelectionCountChange={setCartSelectionCount} />
         ) : selectedEvent ? (
-          <EventDetailScreen event={selectedEvent} onBack={() => setSelectedEvent(null)} onBuy={() => { setPaymentSuccessOpen(false); setOrderSummaryOpen(false); setCheckoutInfoOpen(false); if (isLoggedIn) { setPurchaseOpen(true); } else { setLoginAfterPurchase(true); } }} />
+          <EventDetailScreen event={selectedEvent} onBack={() => { setCartSelectionCount(0); setSelectedEvent(null); }} onBuy={() => { setPaymentSuccessOpen(false); setOrderSummaryOpen(false); setCheckoutInfoOpen(false); if (isLoggedIn) { setPurchaseOpen(true); } else { setLoginAfterPurchase(true); } }} onSelectionCountChange={setCartSelectionCount} />
         ) : tab === 'events' ? (
-          <HomeScreen onOpenEvent={setSelectedEvent} onGoCart={() => goToTab('tickets')} />
+          <HomeScreen onOpenEvent={setSelectedEvent} />
         ) : tab === 'tickets' ? (
           isLoggedIn ? <TicketsScreen /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'scan' ? (
@@ -268,8 +317,7 @@ function AppContent() {
           <AiChatScreen />
         ) : null}
 
-        {!scanOpen && !purchaseOpen && !checkoutInfoOpen && !orderSummaryOpen && !paymentSuccessOpen && !loginAfterPurchase && (
-          <View style={styles.bottomNav}>
+        <View style={styles.bottomNav}>
             <View pointerEvents="none" style={styles.bottomNavBg} />
             {viewMode === 'admin' ? (
               // Scrollable tab bar for admin with arrow buttons
@@ -355,8 +403,7 @@ function AppContent() {
                 ))}
               </>
             )}
-          </View>
-        )}
+        </View>
 
         <MenuDrawer
           visible={menuOpen}

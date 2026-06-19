@@ -64,11 +64,11 @@ const styles = StyleSheet.create({
   back: { alignSelf: 'flex-start', minHeight: 38, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   backText: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
   header: {
-    borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: '#0A375A', padding: 20, alignItems: 'center', marginBottom: 16,
+    borderRadius: 24, borderWidth: 1, borderColor: 'rgba(125,211,252,0.12)',
+    backgroundColor: 'rgba(3,11,20,0.78)', padding: 20, alignItems: 'center', marginBottom: 16,
   },
   title: { color: '#FFFFFF', fontSize: 24, lineHeight: 28, fontWeight: '800', textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.4 },
-  updated: { color: 'rgba(191,219,254,0.85)', fontSize: 10, fontWeight: '800', letterSpacing: 1, marginTop: 8, textTransform: 'uppercase' },
+  updated: { color: 'rgba(226,232,240,0.62)', fontSize: 10, fontWeight: '800', letterSpacing: 1, marginTop: 8, textTransform: 'uppercase' },
   card: {
     borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
     backgroundColor: 'rgba(255,255,255,0.018)', padding: 18,

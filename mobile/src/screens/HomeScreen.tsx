@@ -22,7 +22,6 @@ const HERO_PROGRESS_DOT_WIDTH = 7;
 
 type Props = {
   onOpenEvent: (event: MobileEvent) => void;
-  onGoCart?: () => void;
 };
 
 type ApiCategory = {
@@ -93,7 +92,7 @@ function eventMatchesCategory(event: MobileEvent, categorySlug: string) {
   return [event.category, event.categoryName, event.tag].some((value) => normalizeCategory(value) === selected);
 }
 
-export function HomeScreen({ onOpenEvent, onGoCart }: Props) {
+export function HomeScreen({ onOpenEvent }: Props) {
   const { lang, t } = useLanguage();
   const { width } = useWindowDimensions();
   const [events, setEvents] = useState<MobileEvent[]>([]);
@@ -556,12 +555,6 @@ export function HomeScreen({ onOpenEvent, onGoCart }: Props) {
         <AppFooter />
       </View>
     </ScrollView>
-
-    {onGoCart && (
-      <TouchableOpacity style={styles.cartFab} onPress={onGoCart} activeOpacity={0.82}>
-        <Ionicons name="cart-outline" size={26} color="#F97316" />
-      </TouchableOpacity>
-    )}
     </View>
   );
 }
@@ -572,24 +565,6 @@ const styles = StyleSheet.create({
   orangeButtonBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '48%', backgroundColor: 'rgba(154,52,18,0.22)', zIndex: 1 },
   footerGap: { marginTop: 44 },
   root: { flex: 1 },
-  cartFab: {
-    position: 'absolute',
-    bottom: 100,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#030B14',
-    borderWidth: 1.5,
-    borderColor: '#F97316',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#F97316',
-    shadowOpacity: 0.30,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
   screen: { flex: 1, backgroundColor: 'transparent' },
   bgBaseLayer: { position: 'absolute', left: 0, right: 0, top: 0, height: 1600, backgroundColor: 'transparent' },
   bgAccentOrange: { position: 'absolute', left: -140, top: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'transparent' },

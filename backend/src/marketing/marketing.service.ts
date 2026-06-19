@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { MarketingBanner } from './marketing-banner.entity';
+import { PushToken } from './push-token.entity';
 import { User } from '../database/entities/user.entity';
 import { MailService } from '../common/services/mail.service';
 
@@ -13,6 +14,8 @@ export class MarketingService {
   constructor(
     @InjectRepository(MarketingBanner)
     private readonly bannerRepo: Repository<MarketingBanner>,
+    @InjectRepository(PushToken)
+    private readonly pushTokenRepo: Repository<PushToken>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly mailService: MailService,
@@ -40,6 +43,93 @@ export class MarketingService {
       email: u.email || '',
       phone: (u.phone || '').trim(),
     }));
+  }
+
+  async registerPushToken(userId: string, dto: { token?: string; platform?: string }) {
+    const token = String(dto?.token || '').trim();
+    if (!token || !token.startsWith('ExponentPushToken[')) {
+      throw new BadRequestException('Token push inválido');
+    }
+
+    const existing = await this.pushTokenRepo.findOne({ where: { token } });
+    const next = existing
+      ? this.pushTokenRepo.merge(existing, { userId, platform: dto.platform || existing.platform, isActive: true })
+      : this.pushTokenRepo.create({ token, userId, platform: dto.platform || 'unknown', provider: 'expo', isActive: true });
+
+    const saved = await this.pushTokenRepo.save(next);
+    return { ok: true, id: saved.id };
+  }
+
+  async sendPushCampaign(dto: {
+    title?: string;
+    message?: string;
+    audience?: 'all' | 'user';
+    userId?: string;
+    link?: string;
+    data?: Record<string, unknown>;
+  }) {
+    const title = String(dto?.title || '').trim();
+    const message = String(dto?.message || '').trim();
+    const link = String(dto?.link || '').trim();
+    if (!title || !message) throw new BadRequestException('Título y mensaje son obligatorios');
+    if (dto.audience === 'user' && !dto.userId) throw new BadRequestException('Selecciona un usuario');
+    if (link && !/^https?:\/\//i.test(link) && !/^lpticket:\/\//i.test(link)) {
+      throw new BadRequestException('Link push inválido');
+    }
+
+    const where = dto.audience === 'user'
+      ? { isActive: true, userId: dto.userId }
+      : { isActive: true };
+    const tokens = await this.pushTokenRepo.find({ where });
+    const uniqueTokens = Array.from(new Set(tokens.map((entry) => entry.token).filter(Boolean)));
+
+    if (uniqueTokens.length === 0) {
+      return { sent: 0, failed: 0, total: 0, error: 'No hay dispositivos con push activo para esta audiencia.' };
+    }
+
+    const chunks: string[][] = [];
+    for (let i = 0; i < uniqueTokens.length; i += 100) chunks.push(uniqueTokens.slice(i, i + 100));
+
+    let sent = 0;
+    let failed = 0;
+    let lastError = '';
+    const httpFetch: typeof fetch = (globalThis as any).fetch;
+
+    for (const chunk of chunks) {
+      const messages = chunk.map((to) => ({
+        to,
+        title,
+        body: message,
+        sound: 'default',
+        data: { ...(dto.data || {}), ...(link ? { url: link, link } : {}) },
+      }));
+      try {
+        const res = await httpFetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(messages),
+        });
+        const json: any = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.errors?.[0]?.message || `Expo push failed (${res.status})`);
+
+        const receipts = Array.isArray(json?.data) ? json.data : [];
+        receipts.forEach((receipt: any) => {
+          if (receipt?.status === 'ok') sent++;
+          else {
+            failed++;
+            lastError = receipt?.message || lastError;
+          }
+        });
+      } catch (e: any) {
+        failed += chunk.length;
+        lastError = e?.message || String(e);
+      }
+    }
+
+    return { sent, failed, total: uniqueTokens.length, error: failed > 0 ? lastError.slice(0, 300) : undefined };
   }
 
   /** Send an email marketing campaign — to all active users, or to an explicit

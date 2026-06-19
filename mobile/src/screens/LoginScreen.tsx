@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
@@ -34,6 +34,7 @@ export function LoginScreen({ onSignIn }: Props) {
   const [biometricReady, setBiometricReady] = useState(false);
   const [hasSavedBiometricLogin, setHasSavedBiometricLogin] = useState(false);
   const [error, setError] = useState('');
+  const autoBiometricAttempted = useRef(false);
 
   const isRegister = mode === 'register';
 
@@ -210,6 +211,26 @@ export function LoginScreen({ onSignIn }: Props) {
       setBiometricLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (
+      isRegister ||
+      autoBiometricAttempted.current ||
+      !biometricReady ||
+      !hasSavedBiometricLogin ||
+      biometricLoading ||
+      loading
+    ) {
+      return;
+    }
+
+    autoBiometricAttempted.current = true;
+    const timer = setTimeout(() => {
+      handleFaceId();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [isRegister, biometricReady, hasSavedBiometricLogin, biometricLoading, loading]);
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">

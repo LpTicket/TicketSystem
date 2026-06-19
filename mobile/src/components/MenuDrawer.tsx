@@ -6,7 +6,7 @@ import { ScreenBackground } from './ScreenBackground';
 import { ModeSelector, AppMode } from './ModeSelector';
 
 type AdminSectionId = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes';
-type OrgSectionId = 'dashboard' | 'events' | 'create';
+type OrgSectionId = 'dashboard' | 'scan' | 'events' | 'create';
 
 type Props = {
   visible: boolean;
@@ -54,6 +54,7 @@ const adminSections: { id: AdminSectionId; labelEs: string; labelEn: string; ico
 
 const orgSections: { id: OrgSectionId; labelEs: string; labelEn: string; icon: IconName }[] = [
   { id: 'dashboard', labelEs: 'Dashboard', labelEn: 'Dashboard', icon: 'grid-outline' },
+  { id: 'scan', labelEs: 'Scan', labelEn: 'Scan', icon: 'scan-outline' },
   { id: 'events', labelEs: 'Mis Eventos', labelEn: 'My Events', icon: 'calendar-outline' },
   { id: 'create', labelEs: 'Crear Evento', labelEn: 'Create Event', icon: 'add-circle-outline' },
 ];
@@ -128,8 +129,8 @@ export function MenuDrawer({
                   key={`${s.id}-${index}`}
                   icon={s.icon}
                   label={t(s.labelEs, s.labelEn)}
-                  active={orgSection === s.id}
-                  onPress={() => go(() => onGoOrgSection(s.id))}
+                  active={s.id === 'scan' ? false : orgSection === s.id}
+                  onPress={() => go(() => s.id === 'scan' ? onGoScan?.() : onGoOrgSection(s.id))}
                 />
               ))}
             </View>
