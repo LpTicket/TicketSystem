@@ -53,7 +53,7 @@ type ActiveInfo = {
 
 const MIN_ZOOM = 0.12;
 const MAX_ZOOM = 2.5;
-const ZOOM_STEP = 0.25;
+const ZOOM_STEP = 0.12;
 const FIT_PADDING = 40;
 
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
