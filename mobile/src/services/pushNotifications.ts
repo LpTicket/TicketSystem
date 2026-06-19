@@ -3,6 +3,8 @@ import { apiPost } from './api';
 
 type NotificationsModule = typeof import('expo-notifications');
 
+const EXPO_PROJECT_ID = 'a5b889a9-3ba1-44f6-8f25-b808ef14143c';
+
 let notificationsModule: NotificationsModule | null = null;
 
 async function getNotifications() {
@@ -36,7 +38,7 @@ export async function registerDeviceForPushNotifications() {
   }
   if (status !== 'granted') return null;
 
-  const tokenResult = await Notifications.getExpoPushTokenAsync();
+  const tokenResult = await Notifications.getExpoPushTokenAsync({ projectId: EXPO_PROJECT_ID });
   const token = tokenResult.data;
   if (!token) return null;
 
