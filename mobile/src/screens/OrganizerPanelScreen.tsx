@@ -533,7 +533,7 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
       </View>
       )}
 
-      <ScrollView ref={panelScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, !selectedEvent && { paddingTop: 44 }]}>
+      <ScrollView ref={panelScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, !selectedEvent && { paddingTop: 44 }]}>
         {selectedEvent ? (
           <TouchableOpacity style={styles.eventBackChip} onPress={backToEvents}>
             <Text style={styles.eventBackArrow}>‹</Text>

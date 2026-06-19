@@ -1471,7 +1471,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
 
   return (
     <View style={styles.root}>
-      <ScrollView ref={adminScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView ref={adminScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         {active !== 'codes' && (
           <>
             <Text style={styles.eyebrow}>{t('ADMIN', 'ADMIN')}</Text>
@@ -2166,6 +2166,65 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
           </View>
         </Modal>
         )}
+
+      {/* ── Edit User Modal ──────────────────────────────────────────────── */}
+      {editingUserId && (() => {
+        const eu = users.find((u) => u.id === editingUserId);
+        if (!eu) return null;
+        return (
+          <Modal visible transparent animationType="slide" onRequestClose={() => setEditingUserId(null)}>
+            <View style={styles.modalOverlay}>
+              <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setEditingUserId(null)} activeOpacity={1} />
+              <View style={[styles.userModal, { maxHeight: '85%' }]}>
+                <View style={styles.userModalHeader}>
+                  <View style={styles.userInitialsAvatarLg}>
+                    <Ionicons name="pencil-outline" size={20} color={colors.orange} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.userModalName}>{t('Editar usuario', 'Edit user')}</Text>
+                    <Text style={styles.userModalSub}>{eu.email}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setEditingUserId(null)} style={styles.userModalClose}>
+                    <Ionicons name="close" size={20} color="rgba(226,232,240,0.7)" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 10 }}>
+                  <FieldLabel label={t('Nombre completo', 'Full name')} />
+                  <TextInput
+                    value={eu.name}
+                    onChangeText={(v) => updateUser(eu.id, 'name', v)}
+                    style={styles.input}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  <FieldLabel label={t('Email', 'Email')} />
+                  <TextInput
+                    value={eu.email}
+                    onChangeText={(v) => updateUser(eu.id, 'email', v)}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    style={styles.input}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  <FieldLabel label={t('Rol', 'Role')} />
+                  <View style={styles.segmentGroup}>
+                    {(['client', 'organizer', 'admin'] as const).map((role) => (
+                      <TouchableOpacity key={role} onPress={() => updateUser(eu.id, 'role', role)} style={[styles.segment, eu.role === role && styles.segmentActive]}>
+                        <Text style={[styles.segmentText, eu.role === role && styles.segmentTextActive]}>{role}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+                <View style={[styles.userModalFooter, { gap: 10 }]}>
+                  <TouchableOpacity onPress={() => setEditingUserId(null)} style={[styles.userModalCloseBtn, { flex: 1, alignItems: 'center' }]}>
+                    <Text style={styles.userModalCloseBtnText}>{t('Cancelar', 'Cancel')}</Text>
+                  </TouchableOpacity>
+                  <GradientButton label={t('GUARDAR', 'SAVE')} onPress={() => saveUserToApi(eu.id)} height={44} style={{ flex: 1 }} />
+                </View>
+              </View>
+            </View>
+          </Modal>
+        );
+      })()}
 
       {/* ── Create User Modal ─────────────────────────────────────────────── */}
       {showCreateUser && (
@@ -3324,18 +3383,24 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   <Text style={[styles.mktStatusText, bannerStatus === 'active' ? { color: '#4ADE80' } : { color: colors.orange }]}>{bannerStatus === 'active' ? t('Publicado', 'Published') : t('Borrador', 'Draft')}</Text>
                 </View>
               </View>
-              {bannerDesktop ? (
-                <Image source={{ uri: bannerDesktop.data }} style={styles.mktBannerImg} resizeMode="cover" />
-              ) : (
-                <View style={styles.mktBannerEmpty}><Text style={styles.mktBannerEmptyText}>{t('Sin banner publicado', 'No published banner')}</Text></View>
-              )}
+              {(() => {
+                const desktopSrc = bannerDesktop?.data || (homeBanner && typeof homeBanner === 'object' && (homeBanner as any).imageData ? getImageUrl((homeBanner as any).imageData) || (homeBanner as any).imageData : null);
+                return desktopSrc ? (
+                  <Image source={{ uri: desktopSrc }} style={styles.mktBannerImg} resizeMode="cover" />
+                ) : (
+                  <View style={styles.mktBannerEmpty}><Text style={styles.mktBannerEmptyText}>{t('Sin banner publicado', 'No published banner')}</Text></View>
+                );
+              })()}
               <Text style={[styles.mktBannerPreviewEyebrow, { marginTop: 14 }]}>MOVIL</Text>
               <Text style={[styles.mktCardSub, { marginBottom: 8 }]}>{t('Formato flyer para celulares.', 'Vertical flyer for mobile devices.')}</Text>
-              {bannerMobile ? (
-                <Image source={{ uri: bannerMobile.data }} style={styles.mktBannerMobileImg} resizeMode="cover" />
-              ) : (
-                <View style={[styles.mktBannerEmpty, { aspectRatio: 3 / 4, maxWidth: 180, alignSelf: 'center' }]}><Text style={styles.mktBannerEmptyText}>{t('Sin flyer móvil', 'No mobile flyer')}</Text></View>
-              )}
+              {(() => {
+                const mobileSrc = bannerMobile?.data || (homeBanner && typeof homeBanner === 'object' && (homeBanner as any).mobileImageData ? getImageUrl((homeBanner as any).mobileImageData) || (homeBanner as any).mobileImageData : null);
+                return mobileSrc ? (
+                  <Image source={{ uri: mobileSrc }} style={styles.mktBannerMobileImg} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.mktBannerEmpty, { aspectRatio: 3 / 4, maxWidth: 180, alignSelf: 'center' }]}><Text style={styles.mktBannerEmptyText}>{t('Sin flyer móvil', 'No mobile flyer')}</Text></View>
+                );
+              })()}
             </View>
 
             {/* ─── Upload banner ─── */}

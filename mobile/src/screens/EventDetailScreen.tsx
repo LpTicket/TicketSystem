@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -34,6 +34,7 @@ type VenueSection = {
   price?: number;
   color?: string;
   type?: string;
+  capacity?: number | string;
   mapX?: number;
   mapY?: number;
   mapWidth?: number;
@@ -119,6 +120,8 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(false);
   const [zonesOpen, setZonesOpen] = useState(false);
+  const scrollRef = useRef<import('react-native').ScrollView>(null);
+  const purchaseY = useRef(0);
 
   useEffect(() => {
     const key = event.slug || event.id;
@@ -167,7 +170,11 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
 
     setSelectedSeats((current) => {
       const exists = current.some((item) => item.id === seat.id);
-      return exists ? current.filter((item) => item.id !== seat.id) : [...current, seat];
+      const next = exists ? current.filter((item) => item.id !== seat.id) : [...current, seat];
+      if (next.length > 0 && purchaseY.current > 0) {
+        setTimeout(() => scrollRef.current?.scrollTo({ y: purchaseY.current - 20, animated: true }), 120);
+      }
+      return next;
     });
   };
 
@@ -193,7 +200,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
     );
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
         <Text style={styles.backText}>{t('‹ Eventos', '‹ Events')}</Text>
       </TouchableOpacity>
@@ -240,7 +247,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
         />
       </View>
 
-      <View style={styles.purchaseOuter}>
+      <View style={styles.purchaseOuter} onLayout={(e) => { purchaseY.current = e.nativeEvent.layout.y; }}>
         {selectedSeats.length > 0 && (
           <View style={styles.selectionSummary}>
             <Text style={styles.selectionText}>{selectedSeats.length} {t('seleccionado(s)', 'selected')}</Text>
@@ -270,13 +277,23 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
               {seatMap.filter((s) => s.price && Number(s.price) > 0).length === 0 ? (
                 <Text style={styles.zonesEmpty}>{t('Sin precios configurados', 'No prices configured')}</Text>
               ) : (
-                seatMap.filter((s) => s.price && Number(s.price) > 0).map((s, index) => (
-                  <View key={`${s.id || s.name || 'zone'}-${index}`} style={styles.zoneRow}>
-                    <View style={[styles.zoneDot, { backgroundColor: s.color || '#5667FF' }]} />
-                    <Text style={styles.zoneName} numberOfLines={1}>{s.name || s.label}</Text>
-                    <Text style={styles.zonePrice}>${Number(s.price).toFixed(2)}</Text>
-                  </View>
-                ))
+                seatMap.filter((s) => s.price && Number(s.price) > 0).map((s, index) => {
+                  const rawName = s.name || s.label || '';
+                  const isTable = /^(mesa|table)\b/i.test(rawName) || /^\d+$/.test(rawName.trim());
+                  const displayName = isTable
+                    ? /^(mesa|table)\b/i.test(rawName) ? rawName : `${t('Mesa', 'Table')} ${rawName}`
+                    : rawName;
+                  const seatCount = s.seats?.length || Number(s.capacity) || 0;
+                  return (
+                    <View key={`${s.id || s.name || 'zone'}-${index}`} style={styles.zoneRow}>
+                      <View style={[styles.zoneDot, { backgroundColor: s.color || '#5667FF' }]} />
+                      <Text style={styles.zoneName} numberOfLines={1}>
+                        {displayName}{seatCount > 0 ? ` · ${seatCount} ${t('sillas', 'seats')}` : ''}
+                      </Text>
+                      <Text style={styles.zonePrice}>${Number(s.price).toFixed(2)}</Text>
+                    </View>
+                  );
+                })
               )}
             </View>
           )}

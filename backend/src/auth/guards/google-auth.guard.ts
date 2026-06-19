@@ -3,8 +3,13 @@ import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
 export class GoogleAuthGuard extends AuthGuard('google') {
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  getAuthenticateOptions(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest();
+    const isMobile = request.query?.platform === 'mobile';
+    return isMobile ? { state: 'mobile' } : {};
+  }
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const response = context.switchToHttp().getResponse();
 
     // Fastify to Express compatibility shim for Passport
@@ -13,7 +18,7 @@ export class GoogleAuthGuard extends AuthGuard('google') {
         response.raw.setHeader(name, value);
       };
     }
-    
+
     if (!response.end && response.raw) {
       response.end = (chunk: any) => {
         response.raw.end(chunk);

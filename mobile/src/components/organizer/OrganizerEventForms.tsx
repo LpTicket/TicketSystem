@@ -277,11 +277,11 @@ export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVen
         <Field label={t('Categoria', 'Category')} value={category} onChangeText={setCategory} />
 
         <View style={styles.twoCol}>
-          <Field label={t('Fecha', 'Date')} value={eventDate} onChangeText={setEventDate} compact />
-          <Field label={t('Hora', 'Time')} value={eventTime} onChangeText={setEventTime} compact />
+          <Field label={t('Fecha', 'Date')} value={eventDate} onChangeText={setEventDate} compact placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
+          <Field label={t('Hora', 'Time')} value={eventTime} onChangeText={setEventTime} compact placeholder="HH:MM" keyboardType="numbers-and-punctuation" />
         </View>
 
-        <Field label={t('Zona horaria', 'Timezone')} value={timezone} onChangeText={setTimezone} />
+        <Field label={t('Zona horaria', 'Timezone')} value={timezone} onChangeText={setTimezone} placeholder="America/Chicago" autoCapitalize="none" />
         <Field label={t('Lugar', 'Venue')} value={eventVenue} onChangeText={setEventVenue} />
         <Field label={t('Direccion', 'Address')} value={address} onChangeText={setAddress} multiline />
         <Field label={t('Max. entradas por persona/transaccion', 'Max tickets per person/transaction')} value={maxTickets} onChangeText={setMaxTickets} keyboardType="number-pad" />
@@ -391,11 +391,11 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
         <Field label={t('Categoria', 'Category')} value={category} onChangeText={setCategory} />
 
         <View style={styles.twoCol}>
-          <Field label={t('Fecha', 'Date')} value={eventDate} onChangeText={setEventDate} compact />
-          <Field label={t('Hora', 'Time')} value={eventTime} onChangeText={setEventTime} compact />
+          <Field label={t('Fecha', 'Date')} value={eventDate} onChangeText={setEventDate} compact placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
+          <Field label={t('Hora', 'Time')} value={eventTime} onChangeText={setEventTime} compact placeholder="HH:MM" keyboardType="numbers-and-punctuation" />
         </View>
 
-        <Field label={t('Zona horaria', 'Timezone')} value={timezone} onChangeText={setTimezone} />
+        <Field label={t('Zona horaria', 'Timezone')} value={timezone} onChangeText={setTimezone} placeholder="America/Chicago" autoCapitalize="none" />
         <Field label={t('Lugar', 'Venue')} value={eventVenue} onChangeText={setEventVenue} />
         <Field label={t('Direccion', 'Address')} value={address} onChangeText={setAddress} multiline />
         <Field label={t('Máx. entradas por transacción', 'Max tickets per transaction')} value={maxTickets} onChangeText={setMaxTickets} keyboardType="number-pad" />
@@ -479,14 +479,16 @@ function BannerSlider({ value, onChange }: { value: number; onChange: (v: number
   );
 }
 
-function Field(props: any) {
+function Field({ label, compact, multiline, style: _style, ...inputProps }: any) {
   return (
-    <View style={[styles.field, props.compact && styles.fieldCompact]}>
-      <Text style={styles.fieldLabel}>{props.label}</Text>
+    <View style={[styles.field, compact && styles.fieldCompact]}>
+      <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
-        {...props}
+        {...inputProps}
+        multiline={multiline}
+        editable={true}
         placeholderTextColor="#9CA3AF"
-        style={[styles.input, props.multiline && styles.textArea]}
+        style={[styles.input, multiline && styles.textArea]}
       />
     </View>
   );

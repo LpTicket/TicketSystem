@@ -288,9 +288,14 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
                     )}
                   </View>
                   <View style={styles.eventPickerMetaRow}>
-                    <Text style={[styles.eventPickerText, selectedEventId === ev.id && styles.eventPickerTextActive]} numberOfLines={2}>
-                      {ev.title}
-                    </Text>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={[styles.eventPickerText, selectedEventId === ev.id && styles.eventPickerTextActive]} numberOfLines={2}>
+                        {ev.title}
+                      </Text>
+                      <Text style={styles.eventPickerDate} numberOfLines={1}>
+                        {badge ? `${badge.month} ${badge.day}` : (ev.eventDate ? ev.eventDate.slice(0, 10) : t('Sin fecha', 'No date'))}
+                      </Text>
+                    </View>
                     {badge && (
                       <View style={[styles.eventDateBadge, selectedEventId === ev.id && styles.eventDateBadgeActive]}>
                         <Text style={styles.eventDateDay}>{badge.day}</Text>
@@ -595,8 +600,9 @@ const styles = StyleSheet.create({
   eventThumbFallback: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.08)' },
   selectedCheck: { position: 'absolute', right: 5, top: 5, width: 20, height: 20, borderRadius: 10, backgroundColor: '#F97316', borderWidth: 1, borderColor: 'rgba(255,255,255,0.64)', alignItems: 'center', justifyContent: 'center' },
   eventPickerMetaRow: { width: '100%', minHeight: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
-  eventPickerText: { flex: 1, minWidth: 0, color: 'rgba(226,232,240,0.72)', fontSize: 11, lineHeight: 14, fontWeight: '700', textAlign: 'left' },
+  eventPickerText: { minWidth: 0, color: 'rgba(226,232,240,0.72)', fontSize: 11, lineHeight: 14, fontWeight: '700', textAlign: 'left' },
   eventPickerTextActive: { color: '#FFFFFF' },
+  eventPickerDate: { color: 'rgba(249,115,22,0.75)', fontSize: 9.5, fontWeight: '600', marginTop: 2 },
   eventDateBadge: { width: 32, height: 32, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(249,115,22,0.30)', backgroundColor: 'rgba(249,115,22,0.10)', alignItems: 'center', justifyContent: 'center' },
   eventDateBadgeActive: { borderColor: 'rgba(249,115,22,0.72)', backgroundColor: 'rgba(249,115,22,0.20)' },
   eventDateDay: { color: '#FFFFFF', fontSize: 13, lineHeight: 15, fontWeight: '700' },

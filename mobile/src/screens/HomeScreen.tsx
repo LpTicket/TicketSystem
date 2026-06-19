@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image, Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Image, Keyboard, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Polygon } from 'react-native-svg';
@@ -536,13 +536,21 @@ export function HomeScreen({ onOpenEvent }: Props) {
               <Text style={styles.price}>{t('Desde', 'From')} {event.price}</Text>
             </View>
             <View style={styles.ctaRow}>
-              <TouchableOpacity style={styles.shareButton}><SharePointIcon /></TouchableOpacity>
+              <TouchableOpacity
+                style={styles.shareButton}
+                onPress={() => Share.share({
+                  title: event.title,
+                  message: `${event.title} — ${event.date}\n${event.venue}\n\nhttps://lpticket.com/events/${event.slug || event.id}`,
+                })}
+              >
+                <SharePointIcon />
+              </TouchableOpacity>
               <GradientButton
                 onPress={() => onOpenEvent(event)}
                 height={56}
                 style={styles.buyButton}
                 textStyle={styles.buyText}
-                label={t('COMPRAR TICKETS', 'BUY TICKETS')}
+                label={t('VER EVENTO', 'VIEW EVENT')}
               />
             </View>
           </View>

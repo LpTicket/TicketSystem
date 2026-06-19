@@ -554,34 +554,35 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      // Don't claim on touch-start — let parent ScrollView get single-finger scroll.
+      // Only take over when 2+ fingers are detected (pinch/2-finger pan).
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt) => evt.nativeEvent.touches.length >= 2,
       onPanResponderGrant: (event) => {
         const touches = event.nativeEvent.touches;
         const distance =
           touches.length >= 2
             ? Math.hypot(touches[0].pageX - touches[1].pageX, touches[0].pageY - touches[1].pageY)
             : 0;
-
         gestureStart.current = { x: viewRef.current.offset.x, y: viewRef.current.offset.y, scale: viewRef.current.scale, distance };
       },
       onPanResponderMove: (event, gesture) => {
         const touches = event.nativeEvent.touches;
-
-        if (touches.length >= 2 && gestureStart.current.distance > 0) {
+        if (touches.length >= 2) {
           const distance = Math.hypot(touches[0].pageX - touches[1].pageX, touches[0].pageY - touches[1].pageY);
-          const nextScale = clamp(gestureStart.current.scale * (distance / gestureStart.current.distance), fitScaleRef.current, MAX_ZOOM);
-          setScale(nextScale);
-          viewRef.current.scale = nextScale;
-          return;
+          if (gestureStart.current.distance > 0) {
+            const nextScale = clamp(gestureStart.current.scale * (distance / gestureStart.current.distance), fitScaleRef.current, MAX_ZOOM);
+            setScale(nextScale);
+            viewRef.current.scale = nextScale;
+          }
+          // Also pan the map with the midpoint movement while pinching
+          const nextOffset = {
+            x: gestureStart.current.x + gesture.dx,
+            y: gestureStart.current.y + gesture.dy,
+          };
+          setOffset(nextOffset);
+          viewRef.current.offset = nextOffset;
         }
-
-        const nextOffset = {
-          x: gestureStart.current.x + gesture.dx,
-          y: gestureStart.current.y + gesture.dy,
-        };
-        setOffset(nextOffset);
-        viewRef.current.offset = nextOffset;
       },
     })
   ).current;
@@ -612,7 +613,7 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
       {/* Top Controls Row */}
       <View style={styles.topControls}>
         <Text style={styles.helpText}>
-          {'👆 '}{t('Arrastra para mover - pellizca para zoom', 'Drag to pan - pinch to zoom')}
+          {'✌️ '}{t('2 dedos para mover · pellizca para zoom', '2 fingers to pan · pinch to zoom')}
         </Text>
         <View style={styles.controls}>
           <TouchableOpacity style={styles.controlButton} onPress={() => zoom(-ZOOM_STEP)}>
@@ -633,18 +634,18 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
 
       <View style={[styles.viewport, { height: viewportHeight }]} {...panResponder.panHandlers}>
         <BackgroundGrid width={viewportWidth} height={viewportHeight} />
-        
+
         <View
           style={[
             styles.canvas,
             {
               width: CANVAS_WIDTH,
               height: CANVAS_HEIGHT,
-              transformOrigin: 'top left',
+              // RN has no transformOrigin — simulate top-left scaling by adjusting translate
               transform: [
-                { translateX: offset.x },
-                { translateY: offset.y },
-                { scale: scale }
+                { translateX: offset.x + (CANVAS_WIDTH / 2) * (scale - 1) },
+                { translateY: offset.y + (CANVAS_HEIGHT / 2) * (scale - 1) },
+                { scale },
               ],
             },
           ]}
