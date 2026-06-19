@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { User, UserRole } from '../database/entities';
 import { RegisterDto, LoginDto, UpdateProfileDto } from './dto/auth.dto';
 import { ConfigService } from '@nestjs/config';
@@ -116,6 +117,64 @@ export class AuthService {
 
   async validateUser(userId: string): Promise<User | null> {
     return this.userRepo.findOne({ where: { id: userId, isActive: true } });
+  }
+
+  async refreshSession(refreshToken: string) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(refreshToken, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET') || 'fallback-refresh-secret-for-production-please-change-it',
+      });
+    } catch {
+      throw new UnauthorizedException('Refresh token inválido o expirado');
+    }
+
+    const user = await this.userRepo.findOne({ where: { id: payload.sub, isActive: true } });
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+    return this.generateTokens(user);
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.userRepo.findOne({ where: { email } });
+    // Always return success to avoid email enumeration
+    if (!user) return { success: true };
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await this.userRepo.update(user.id, {
+      resetPasswordToken: tokenHash,
+      resetPasswordExpires: expiresAt,
+    } as any);
+
+    const appUrl = (this.configService.get<string>('APP_URL') || 'https://www.lpticket.com').replace(/\/$/, '');
+    const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
+
+    await this.mailService.sendPasswordResetEmail(user.email, user.firstName, resetUrl).catch(() => {});
+    return { success: true };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await this.userRepo.findOne({
+      where: { resetPasswordToken: tokenHash } as any,
+    });
+
+    if (!user) throw new BadRequestException('Token inválido o ya utilizado');
+    const expires = (user as any).resetPasswordExpires as Date | null;
+    if (!expires || new Date() > expires) {
+      throw new BadRequestException('El token ha expirado. Solicita uno nuevo.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.userRepo.update(user.id, {
+      passwordHash,
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+    } as any);
+
+    return { success: true };
   }
 
   private generateTokens(user: User) {

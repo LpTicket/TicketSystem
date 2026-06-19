@@ -115,3 +115,24 @@ export async function logout(): Promise<void> {
     /* ignore */
   }
 }
+
+/** Calls backend to send a password-reset email. Always resolves (never throws). */
+export async function forgotPassword(email: string): Promise<void> {
+  await apiPost('/auth/forgot-password', { email: email.trim() });
+}
+
+/** Exchanges a refreshToken for a fresh token pair. */
+export async function refreshSession(refreshToken: string): Promise<AuthUser> {
+  const data = await apiPost<AuthResponse>('/auth/refresh', { refreshToken });
+  setAuthTokens(data.accessToken, data.refreshToken);
+  try {
+    await AsyncStorage.multiSet([
+      [TOKENS_KEY, JSON.stringify({ accessToken: data.accessToken, refreshToken: data.refreshToken })],
+      [USER_KEY, JSON.stringify(data.user)],
+    ]);
+  } catch {
+    /* storage unavailable */
+  }
+  return data.user;
+}
+

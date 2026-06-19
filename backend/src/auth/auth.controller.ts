@@ -18,7 +18,7 @@ import { FileInterceptor } from '@nest-lab/fastify-multer';
 import { memoryStorage } from 'multer';
 import { AuthService } from './auth.service';
 import { StorageService } from '../common/services/storage.service';
-import { RegisterDto, LoginDto, UpdateProfileDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, UpdateProfileDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -38,6 +38,21 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @Post('refresh')
+  refreshSession(@Body('refreshToken') refreshToken: string) {
+    return this.authService.refreshSession(refreshToken);
+  }
+
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.token, dto.password);
+  }
+
   @UseGuards(AuthGuard('jwt'))
   @Get('profile')
   getProfile(@Request() req: any) {
@@ -48,6 +63,7 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   async googleAuth(@Request() req: any) {
     // This initiates the Google OAuth flow
+    // Pass ?platform=mobile to get a deep link redirect back
   }
 
   @Get('google/callback')
@@ -55,24 +71,26 @@ export class AuthController {
   async googleAuthRedirect(@Request() req: any, @Res() res: any) {
     try {
       const result = await this.authService.validateOAuthUser(req.user);
-      
-      // Support both variable names
-      const frontendUrl = 
-        this.configService.get('FRONTEND_URL') || 
-        this.configService.get('APP_URL') || 
+      const frontendUrl =
+        this.configService.get('FRONTEND_URL') ||
+        this.configService.get('APP_URL') ||
         'https://ticketsystem-jzgf.onrender.com';
-        
-      const redirectUrl = `${frontendUrl}/login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`;
-      
-      console.log('Redirecting to:', redirectUrl);
-      
-      // Use Fastify direct redirect
+
+      // If the OAuth flow was initiated from the mobile app (?platform=mobile
+      // or state contains "mobile"), redirect to the deep link scheme instead.
+      const state = req.query?.state || '';
+      const isMobile = state.includes('mobile') || req.query?.platform === 'mobile';
+
+      const redirectUrl = isMobile
+        ? `lpticket://login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`
+        : `${frontendUrl}/login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`;
+
       return res.status(302).redirect(redirectUrl);
     } catch (error) {
       console.error('Error in Google Redirect:', error);
-      const frontendUrl = 
-        this.configService.get('FRONTEND_URL') || 
-        this.configService.get('APP_URL') || 
+      const frontendUrl =
+        this.configService.get('FRONTEND_URL') ||
+        this.configService.get('APP_URL') ||
         'https://ticketsystem-jzgf.onrender.com';
       return res.status(302).redirect(`${frontendUrl}/login?error=auth_failed`);
     }
@@ -89,12 +107,18 @@ export class AuthController {
   async facebookAuthRedirect(@Request() req: any, @Res() res: any) {
     try {
       const result = await this.authService.validateOAuthUser(req.user);
-      const frontendUrl = 
-        this.configService.get('APP_URL') || 
-        this.configService.get('FRONTEND_URL') || 
+      const frontendUrl =
+        this.configService.get('APP_URL') ||
+        this.configService.get('FRONTEND_URL') ||
         'https://ticketsystem-jzgf.onrender.com';
-        
-      const redirectUrl = `${frontendUrl}/login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`;
+
+      const state = req.query?.state || '';
+      const isMobile = state.includes('mobile') || req.query?.platform === 'mobile';
+
+      const redirectUrl = isMobile
+        ? `lpticket://login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`
+        : `${frontendUrl}/login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`;
+
       return res.status(302).redirect(redirectUrl);
     } catch (error) {
       console.error('Error in Facebook Redirect:', error);

@@ -757,4 +757,81 @@ export class MailService {
     }
   }
 
+  /** Branded password reset email. Never throws. */
+  async sendPasswordResetEmail(to: string, firstName?: string, resetUrl?: string) {
+    if (!to || !resetUrl) return;
+    const appUrl = this.getAppUrl();
+    const year = new Date().getFullYear();
+    const name = String(firstName || '').trim();
+
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark light" />
+</head>
+<body style="margin:0;padding:0;background:#0a1420;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a1420;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#0b1622;border-radius:16px;overflow:hidden;border:1px solid rgba(249,115,22,0.20);">
+          <tr>
+            <td align="center" style="background:#0A375A;padding:24px;">
+              <img src="${appUrl}/logo-email-orange.png" alt="LPTicket" width="190" style="display:block;width:190px;max-width:190px;height:auto;border:0;" />
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:34px 28px 10px;">
+              <p style="margin:0 0 6px;color:#9fb2c6;font-size:15px;font-family:'Helvetica Neue',Arial,sans-serif;">${name ? `Hola ${name}, ` : 'Hola, '}recibimos tu solicitud.</p>
+              <h1 style="margin:0 0 14px;color:#ffffff;font-size:22px;font-weight:800;font-family:'Helvetica Neue',Arial,sans-serif;">Recuperar contraseña</h1>
+              <p style="margin:0 auto 26px;color:#9fb2c6;font-size:14px;line-height:1.6;max-width:460px;font-family:'Helvetica Neue',Arial,sans-serif;">
+                Haz clic en el botón de abajo para establecer una nueva contraseña. Este enlace expira en <strong style="color:#f97316;">1 hora</strong>.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:0 28px 30px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="border-radius:12px;background:linear-gradient(180deg,#ff8a18,#f46c00);box-shadow:0 8px 22px rgba(249,115,22,0.35);">
+                    <a href="${resetUrl}" target="_blank" style="display:inline-block;padding:14px 38px;color:#ffffff;font-size:15px;font-weight:800;text-decoration:none;font-family:'Helvetica Neue',Arial,sans-serif;letter-spacing:0.3px;">Restablecer contraseña</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:0 28px 30px;">
+              <p style="margin:0;color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;line-height:1.5;">
+                Si no solicitaste este cambio, ignora este correo. Tu contraseña no cambiará.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="background:#08111c;padding:20px 28px;border-top:1px solid rgba(255,255,255,0.05);">
+              <p style="margin:0 0 4px;color:#f97316;font-size:12px;font-weight:900;font-family:'Helvetica Neue',Arial,sans-serif;">lpticket.com</p>
+              <p style="margin:0;color:#475569;font-size:11px;font-family:'Helvetica Neue',Arial,sans-serif;">© ${year} LPTicket · Tus tickets. Tus eventos.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+    try {
+      await this.transporter.sendMail({
+        from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
+        to,
+        subject: '🔐 Recupera tu contraseña — LPTicket',
+        html,
+      });
+    } catch (e: any) {
+      console.error('Password reset email failed:', e?.message || e);
+    }
+  }
+
 }

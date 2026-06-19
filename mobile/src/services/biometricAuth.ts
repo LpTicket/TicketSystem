@@ -1,14 +1,11 @@
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
-import { login, logout } from './auth';
-import { AuthUser } from './api';
+import { apiPost, AuthUser, AuthResponse, setAuthTokens } from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BIOMETRIC_CREDENTIALS_KEY = 'lp_biometric_credentials';
-
-type StoredCredentials = {
-  email: string;
-  password: string;
-};
+const BIOMETRIC_TOKEN_KEY = 'lp_biometric_refresh_token';
+const TOKENS_KEY = 'lp_auth_tokens';
+const USER_KEY = 'lp_auth_user';
 
 export async function getBiometricAvailability() {
   try {
@@ -16,7 +13,7 @@ export async function getBiometricAvailability() {
       LocalAuthentication.hasHardwareAsync(),
       LocalAuthentication.isEnrolledAsync(),
       LocalAuthentication.supportedAuthenticationTypesAsync(),
-      SecureStore.getItemAsync(BIOMETRIC_CREDENTIALS_KEY),
+      SecureStore.getItemAsync(BIOMETRIC_TOKEN_KEY),
     ]);
 
     return {
@@ -35,13 +32,12 @@ export async function getBiometricAvailability() {
   }
 }
 
-export async function saveBiometricLogin(email: string, password: string) {
-  const credentials: StoredCredentials = {
-    email: email.trim(),
-    password,
-  };
-
-  await SecureStore.setItemAsync(BIOMETRIC_CREDENTIALS_KEY, JSON.stringify(credentials), {
+/**
+ * Saves the refresh token (NOT the password) into SecureStore for later
+ * biometric login. Called right after a successful email/password login.
+ */
+export async function saveBiometricLogin(refreshToken: string) {
+  await SecureStore.setItemAsync(BIOMETRIC_TOKEN_KEY, refreshToken, {
     keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
   });
 }
@@ -74,16 +70,32 @@ export async function signInWithBiometrics(copy: {
     throw new Error(copy.failed);
   }
 
-  const raw = await SecureStore.getItemAsync(BIOMETRIC_CREDENTIALS_KEY);
-  if (!raw) {
+  const storedRefreshToken = await SecureStore.getItemAsync(BIOMETRIC_TOKEN_KEY);
+  if (!storedRefreshToken) {
     throw new Error(copy.noSavedLogin);
   }
 
-  const credentials = JSON.parse(raw) as StoredCredentials;
-  return login(credentials.email, credentials.password);
+  // Exchange the refreshToken for new tokens — never exposes the user password
+  const data = await apiPost<AuthResponse>('/auth/refresh', { refreshToken: storedRefreshToken });
+  setAuthTokens(data.accessToken, data.refreshToken);
+
+  // Persist new tokens
+  try {
+    await AsyncStorage.multiSet([
+      [TOKENS_KEY, JSON.stringify({ accessToken: data.accessToken, refreshToken: data.refreshToken })],
+      [USER_KEY, JSON.stringify(data.user)],
+    ]);
+    // Keep SecureStore up to date with the latest refresh token
+    await SecureStore.setItemAsync(BIOMETRIC_TOKEN_KEY, data.refreshToken, {
+      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+    });
+  } catch {
+    /* storage unavailable */
+  }
+
+  return data.user;
 }
 
 export async function clearBiometricLogin() {
-  await SecureStore.deleteItemAsync(BIOMETRIC_CREDENTIALS_KEY);
-  await logout();
+  await SecureStore.deleteItemAsync(BIOMETRIC_TOKEN_KEY);
 }

@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
-import { API_URL, AuthUser } from '../services/api';
-import { login as loginRequest, register as registerRequest } from '../services/auth';
+import { API_URL, AuthUser, setAuthTokens } from '../services/api';
+import { login as loginRequest, register as registerRequest, forgotPassword as forgotPasswordRequest, refreshSession } from '../services/auth';
 import { getBiometricAvailability, saveBiometricLogin, signInWithBiometrics } from '../services/biometricAuth';
 import { GradientButton } from '../components/GradientButton';
 
@@ -100,8 +101,16 @@ export function LoginScreen({ onSignIn }: Props) {
             lang: lang === 'en' ? 'en' : 'es',
           })
         : await loginRequest(email, password);
-      await saveBiometricLogin(email, password);
-      setHasSavedBiometricLogin(true);
+      // Store the refreshToken (not the password) for future biometric logins
+      if (!isRegister) {
+        const TOKENS_KEY = 'lp_auth_tokens';
+        const raw = await AsyncStorage.getItem(TOKENS_KEY).catch(() => null);
+        const tokens = raw ? JSON.parse(raw) : null;
+        if (tokens?.refreshToken) {
+          await saveBiometricLogin(tokens.refreshToken);
+          setHasSavedBiometricLogin(true);
+        }
+      }
       onSignIn(user);
     } catch (err: any) {
       setError(
@@ -116,18 +125,69 @@ export function LoginScreen({ onSignIn }: Props) {
   };
 
   const openSocialLogin = async (provider: 'google' | 'facebook') => {
-    const url = `${API_URL}/auth/${provider}`;
+    // Build the OAuth URL with ?platform=mobile so the backend knows to
+    // redirect back to the lpticket:// deep link instead of the web app.
+    const redirectUri = Linking.createURL('login/success');
+    const url = `${API_URL}/auth/${provider}?platform=mobile&redirectUri=${encodeURIComponent(redirectUri)}`;
     try {
-      await WebBrowser.openBrowserAsync(url);
+      const result = await WebBrowser.openAuthSessionAsync(url, redirectUri);
+      if (result.type === 'success' && result.url) {
+        const parsed = Linking.parse(result.url);
+        const token = parsed.queryParams?.token as string | undefined;
+        const refreshToken = parsed.queryParams?.refreshToken as string | undefined;
+        if (token && refreshToken) {
+          // Exchange for a fresh session via the refresh endpoint
+          const user = await refreshSession(refreshToken);
+          onSignIn(user);
+        }
+      }
     } catch {
-      Alert.alert(t('No se pudo abrir', 'Could not open'), t('Inténtalo nuevamente en unos segundos.', 'Please try again in a few seconds.'));
+      Alert.alert(
+        t('No se pudo abrir', 'Could not open'),
+        t('Inténtalo nuevamente en unos segundos.', 'Please try again in a few seconds.'),
+      );
     }
   };
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
+    // Ask for the email first
     Alert.alert(
       t('Recuperar contraseña', 'Recover password'),
-      t('La recuperación de contraseña móvil quedará conectada cuando el backend active este flujo. Por ahora puedes cambiarla desde tu perfil si tienes sesión iniciada.', 'Mobile password recovery will be connected when the backend enables this flow. For now, you can change it from your profile if you are signed in.'),
+      t(
+        'Ingresa tu email para recibir un enlace de recuperación.',
+        'Enter your email to receive a recovery link.',
+      ),
+      [
+        { text: t('Cancelar', 'Cancel'), style: 'cancel' },
+        {
+          text: t('Enviar', 'Send'),
+          onPress: async () => {
+            const target = email.trim();
+            if (!target) {
+              Alert.alert(
+                t('Email requerido', 'Email required'),
+                t('Escribe tu email en el campo de arriba primero.', 'Write your email in the field above first.'),
+              );
+              return;
+            }
+            try {
+              await forgotPasswordRequest(target);
+              Alert.alert(
+                t('¡Listo!', 'Done!'),
+                t(
+                  'Si existe una cuenta con ese email, recibirás un enlace en los próximos minutos.',
+                  'If an account exists with that email, you will receive a link within the next few minutes.',
+                ),
+              );
+            } catch {
+              Alert.alert(
+                t('Error', 'Error'),
+                t('No pudimos procesar tu solicitud. Intenta de nuevo.', 'We could not process your request. Please try again.'),
+              );
+            }
+          },
+        },
+      ],
     );
   };
 
