@@ -744,7 +744,18 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     ]).then(([bannerRes, recipientsRes, usersRes, eventsRes]) => {
       const banner = bannerRes.status === 'fulfilled' ? (bannerRes.value || false) : false;
       setHomeBanner(banner);
-      if (banner && (banner as any).imageData) setBannerStatus('active');
+      if (banner && (banner as any).imageData) {
+        setBannerStatus('active');
+        // Populate preview with the already-published banner so user can see it
+        const imgData = (banner as any).imageData;
+        const imgUrl = imgData.startsWith('data:') ? imgData : getImageUrl(imgData) || imgData;
+        setBannerDesktop({ data: imgUrl, name: (banner as any).fileName || 'banner-desktop' });
+        const mobileData = (banner as any).mobileImageData;
+        if (mobileData) {
+          const mobileUrl = mobileData.startsWith('data:') ? mobileData : getImageUrl(mobileData) || mobileData;
+          setBannerMobile({ data: mobileUrl, name: (banner as any).mobileFileName || 'banner-mobile' });
+        }
+      }
       const recipients = recipientsRes.status === 'fulfilled' ? (recipientsRes.value || []) : [];
       const adminUsers = usersRes.status === 'fulfilled' ? usersToMarketingRecipients(listFrom(usersRes.value)) : [];
       const merged = usersToMarketingRecipients([...adminUsers, ...recipients]);
@@ -1452,11 +1463,27 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     }
   };
 
-  const openAdminEventEditor = (event: any) => {
+  const openAdminEventEditor = async (event: any) => {
+    // Set basic data immediately so the editor opens fast
     setEditingAdminEvent(event);
     setAdminEditTitle(adminEventTitle(event));
     setAdminEditVenue(adminEventVenue(event));
     setAdminEditStatus(event?.status === 'draft' ? 'draft' : 'published');
+    // Then load full event details in background and replace the stub
+    const eventId = event?.id || event?.slug;
+    if (eventId) {
+      try {
+        const full = await apiGet<any>(`/events/${eventId}`);
+        if (full && full.id) {
+          setEditingAdminEvent(full);
+          setAdminEditTitle(full.title || adminEventTitle(event));
+          setAdminEditVenue(full.venueName || full.venue || adminEventVenue(event));
+          setAdminEditStatus(full.status === 'draft' ? 'draft' : 'published');
+        }
+      } catch {
+        /* keep the list data already shown */
+      }
+    }
   };
 
   const closeAdminEventEditor = async () => {
@@ -2299,7 +2326,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   <Ionicons name="close" size={20} color="rgba(226,232,240,0.7)" />
                 </TouchableOpacity>
               </View>
-              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={styles.catFormContent}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={styles.catFormContent}>
                 <FieldLabel label={t('Foto de la categoría', 'Category photo')} />
                 <TouchableOpacity onPress={() => pickCategoryImage('create')} activeOpacity={0.86} style={styles.catPhotoPicker}>
                   {categoryForm.imageData ? (
@@ -2382,7 +2409,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   <Ionicons name="close" size={20} color="rgba(226,232,240,0.7)" />
                 </TouchableOpacity>
               </View>
-              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={styles.catFormContent}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={styles.catFormContent}>
                 <FieldLabel label={t('Foto de la categoría', 'Category photo')} />
                 <TouchableOpacity onPress={() => pickCategoryImage('edit')} activeOpacity={0.86} style={styles.catPhotoPicker}>
                   {editCategoryForm.imageData ? (

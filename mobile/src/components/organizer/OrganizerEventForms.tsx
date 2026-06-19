@@ -145,7 +145,7 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
                     <View style={styles.dashboardEventRight}>
                       <View style={[styles.eventPill, item.status === 'published' ? styles.eventPillActive : styles.eventPillDraft]}>
                         <Text style={[styles.eventPillText, item.status === 'published' ? styles.eventPillActiveText : styles.eventPillDraftText]}>
-                          {item.status === 'published' ? t('PUB', 'PUB') : t('BDRDR', 'DRAFT')}
+                          {item.status === 'published' ? t('PUB', 'PUB') : t('BORRA.', 'DRAFT')}
                         </Text>
                       </View>
                       {onOpenEvent && <Ionicons name="chevron-forward" size={14} color="rgba(249,115,22,0.6)" style={{ marginTop: 6 }} />}

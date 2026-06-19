@@ -554,10 +554,16 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
 
   const panResponder = useRef(
     PanResponder.create({
-      // Don't claim on touch-start — let parent ScrollView get single-finger scroll.
-      // Only take over when 2+ fingers are detected (pinch/2-finger pan).
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (evt) => evt.nativeEvent.touches.length >= 2,
+      onMoveShouldSetPanResponder: (evt, gesture) => {
+        const touches = evt.nativeEvent.touches;
+        if (touches.length >= 2) return true;
+        // Single finger: claim only when horizontal movement dominates (map pan),
+        // so vertical swipes still scroll the parent ScrollView.
+        const dx = Math.abs(gesture.dx);
+        const dy = Math.abs(gesture.dy);
+        return dx > 6 && dx > dy * 1.5;
+      },
       onPanResponderGrant: (event) => {
         const touches = event.nativeEvent.touches;
         const distance =
@@ -575,7 +581,14 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
             setScale(nextScale);
             viewRef.current.scale = nextScale;
           }
-          // Also pan the map with the midpoint movement while pinching
+          const nextOffset = {
+            x: gestureStart.current.x + gesture.dx,
+            y: gestureStart.current.y + gesture.dy,
+          };
+          setOffset(nextOffset);
+          viewRef.current.offset = nextOffset;
+        } else {
+          // Single-finger pan — move map in both axes
           const nextOffset = {
             x: gestureStart.current.x + gesture.dx,
             y: gestureStart.current.y + gesture.dy,
@@ -613,7 +626,7 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
       {/* Top Controls Row */}
       <View style={styles.topControls}>
         <Text style={styles.helpText}>
-          {'✌️ '}{t('2 dedos para mover · pellizca para zoom', '2 fingers to pan · pinch to zoom')}
+          {'👆 '}{t('1 dedo para mover · pellizca para zoom', '1 finger to pan · pinch to zoom')}
         </Text>
         <View style={styles.controls}>
           <TouchableOpacity style={styles.controlButton} onPress={() => zoom(-ZOOM_STEP)}>
