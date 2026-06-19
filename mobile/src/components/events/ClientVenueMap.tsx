@@ -677,8 +677,8 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
             return (
               <TouchableOpacity
                 key={`${section.id || section.name || 'section'}-${index}`}
-                activeOpacity={kind === 'stage' || kind === 'decor' ? 1 : 0.9}
-                disabled={kind === 'stage' || kind === 'decor'}
+                activeOpacity={kind === 'stage' || kind === 'decor' || kind === 'table' || kind === 'seats' ? 1 : 0.9}
+                disabled={kind === 'stage' || kind === 'decor' || kind === 'table' || kind === 'seats'}
                 onPress={() => focusSection(section)}
                 style={[
                   styles.section,
@@ -731,11 +731,11 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
                 )}
 
                 {kind === 'table' && (
-                  <TableSection section={section} scale={1} selectedSeats={selectedSeats} onToggleSeat={onToggleSeat} onSeatInfo={setActiveInfo} />
+                  <TableSection section={section} scale={1} selectedSeats={selectedSeats} onToggleSeat={onToggleSeat} onSeatInfo={(info) => { setFocusedSectionId(null); setActiveInfo(info); }} />
                 )}
 
                 {kind === 'seats' && (
-                  <RowSeatsSection section={section} scale={1} selectedSeats={selectedSeats} onToggleSeat={onToggleSeat} onSeatInfo={setActiveInfo} />
+                  <RowSeatsSection section={section} scale={1} selectedSeats={selectedSeats} onToggleSeat={onToggleSeat} onSeatInfo={(info) => { setFocusedSectionId(null); setActiveInfo(info); }} />
                 )}
               </TouchableOpacity>
             );
