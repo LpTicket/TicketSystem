@@ -200,11 +200,13 @@ function SeatDot({
   const seatBg = selected ? colors.orange : unavailable ? (reserved ? '#FACC15' : '#CBD5E1') : color;
   const seatBorder = selected ? '#FFFFFF' : unavailable ? (reserved ? '#EAB308' : '#94A3B8') : '#FFFFFF';
 
+  const hitPad = Math.max(8, size * 1.5);
   return (
     <TouchableOpacity
       key={seat.id}
       disabled={unavailable && !selected}
       activeOpacity={0.82}
+      hitSlop={{ top: hitPad, bottom: hitPad, left: hitPad, right: hitPad }}
       onPress={() => {
         onSeatInfo(buildSeatInfo(seat, section, selectedSeats));
         onToggleSeat(seat);
@@ -251,7 +253,7 @@ function TableSection({
   const height = Number(section.mapHeight || 100) * scale;
   const color = sectionColor(section);
   const isRound = (section.tableShape || 'round') === 'round';
-  const chairSize = clamp(Math.min(width, height) * 0.18, 5, 16);
+  const chairSize = clamp(Math.min(width, height) * 0.22, 8, 22);
   const chairRadius = chairSize / 2;
   const centerW = width * (isRound ? 0.60 : 0.70);
   const centerH = height * (isRound ? 0.60 : 0.45);
@@ -421,7 +423,7 @@ function RowSeatsSection({
         const override = overrides[seatKey(seat)] || {};
         if (override.disabled) return null;
 
-        const size = clamp(((Number(section.mapWidth || 100) - 24) / count - 2) * scale, 5, 14);
+        const size = clamp(((Number(section.mapWidth || 100) - 24) / count - 2) * scale, 8, 18);
         const x = count > 1 ? 12 * scale + seatIndex * ((width - 24 * scale) / (count - 1)) : width / 2;
         const t = count > 1 ? (seatIndex - (count - 1) / 2) / ((count - 1) / 2) : 0;
         const y = 16 * scale + rowIndex * baseSpacingY + curve * (t * t - 1);
@@ -678,8 +680,8 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
               <TouchableOpacity
                 key={`${section.id || section.name || 'section'}-${index}`}
                 activeOpacity={kind === 'stage' || kind === 'decor' || kind === 'table' || kind === 'seats' ? 1 : 0.9}
-                disabled={kind === 'stage' || kind === 'decor' || kind === 'table' || kind === 'seats'}
-                onPress={() => focusSection(section)}
+                disabled={kind === 'stage' || kind === 'decor'}
+                onPress={() => { if (kind !== 'table' && kind !== 'seats') focusSection(section); }}
                 style={[
                   styles.section,
                   kind === 'stage' && styles.stageSection,
