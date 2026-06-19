@@ -171,7 +171,7 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
         </View>
       ) : mode === 'seats' ? (
         <>
-          <ClientVenueMap seatMap={sections} selectedSeats={selectedSeats} onToggleSeat={toggleSeat} />
+          <ClientVenueMap seatMap={sections} selectedSeats={selectedSeats} onToggleSeat={toggleSeat} defaultViewX={(event as any).defaultViewX} defaultViewY={(event as any).defaultViewY} defaultViewZoom={(event as any).defaultViewZoom} />
 
           <View style={styles.summary}>
             <View style={styles.summaryHeader}>

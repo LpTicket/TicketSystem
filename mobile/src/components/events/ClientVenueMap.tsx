@@ -38,6 +38,9 @@ type Props = {
   seatMap: ClientVenueSection[];
   selectedSeats: ClientSeat[];
   onToggleSeat: (seat: ClientSeat) => void;
+  defaultViewX?: number;
+  defaultViewY?: number;
+  defaultViewZoom?: number;
 };
 
 type ActiveInfo = {
@@ -314,7 +317,7 @@ function RowSection({ section, sel, onToggle, onInfo, scale }: {
 }
 
 // ─── Main map ────────────────────────────────────────────────────────────────
-export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) {
+export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, defaultViewX, defaultViewY, defaultViewZoom }: Props) {
   const { t } = useLanguage();
   const { width: screenW } = useWindowDimensions();
 
@@ -328,9 +331,16 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
 
   const viewportH = Math.min(Math.max(screenW * 1.25, 420), 560);
 
-  // Fit-view: same math as web getFitView
+  // Fit-view: use organizer's saved defaultView if present, otherwise auto-fit like web
   const fitView = useMemo(() => {
     if (!sections.length) return { zoom: 1, pan: { x: 0, y: 0 } };
+
+    // If organizer saved a default view, use it (same as web defaultViewX/Y/Zoom props)
+    if (typeof defaultViewZoom === 'number' && typeof defaultViewX === 'number' && typeof defaultViewY === 'number') {
+      return { zoom: defaultViewZoom, pan: { x: defaultViewX, y: defaultViewY } };
+    }
+
+    // Auto fit-to-content (mirrors web getFitView)
     const minX = Math.min(...sections.map((s) => Number(s.mapX || 0)));
     const minY = Math.min(...sections.map((s) => Number(s.mapY || 0)));
     const maxX = Math.max(...sections.map((s) => Number(s.mapX || 0) + Number(s.mapWidth || 0)));
@@ -348,7 +358,7 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
         y: viewportH / 2 - ((minY + maxY) / 2) * z,
       },
     };
-  }, [sections, screenW, viewportH]);
+  }, [sections, screenW, viewportH, defaultViewX, defaultViewY, defaultViewZoom]);
 
   const [zoom, setZoom] = useState(fitView.zoom);
   const [pan, setPan] = useState(fitView.pan);
@@ -370,10 +380,23 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) 
     setActiveSection(null);
   };
 
+  // Zoom from viewport center — same math as web zoomIn/zoomOut
   const zoomBy = (delta: number) => {
-    const next = clamp(viewRef.current.zoom + delta, fitView.zoom, MAX_ZOOM);
-    viewRef.current.zoom = next;
-    setZoom(next);
+    const oldZ = viewRef.current.zoom;
+    const newZ = clamp(oldZ + delta, fitView.zoom, MAX_ZOOM);
+    if (newZ === oldZ) return;
+    const mx = screenW / 2;
+    const my = viewportH / 2;
+    const ratio = newZ / oldZ;
+    const newPan = {
+      x: mx - (mx - viewRef.current.pan.x) * ratio,
+      y: my - (my - viewRef.current.pan.y) * ratio,
+    };
+    // When zooming back to fit-view level, snap to exact fit pan
+    const finalPan = newZ <= fitView.zoom + 0.001 ? fitView.pan : newPan;
+    viewRef.current = { zoom: newZ, pan: finalPan };
+    setZoom(newZ);
+    setPan(finalPan);
   };
 
   // Touch: same logic as web onTouchStart/onTouchMove

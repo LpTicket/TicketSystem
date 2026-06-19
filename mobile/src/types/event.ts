@@ -20,4 +20,7 @@ export type MobileEvent = {
   venueAddress?: string;
   imageUrl?: string;
   bannerImageUrl?: string;
+  defaultViewX?: number;
+  defaultViewY?: number;
+  defaultViewZoom?: number;
 };
