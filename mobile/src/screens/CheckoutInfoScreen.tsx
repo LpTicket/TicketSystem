@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
@@ -8,6 +8,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser } from '../services/api';
 import { createCheckout, unlockSeats } from '../services/orders';
 import { ClientSeat } from '../components/events/ClientVenueMap';
+import { ReservationTimer } from '../components/events/ReservationTimer';
 
 type Props = {
   event: any;
@@ -30,6 +31,27 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
   const [code, setCode]           = useState('');
   const [paying, setPaying]       = useState(false);
   const [error, setError]         = useState('');
+  const [reservationAddedAt, setReservationAddedAt] = useState<number | null>(null);
+
+  // Read addedAt from the stored cart to drive the real countdown
+  useEffect(() => {
+    if (!event?.id) return;
+    AsyncStorage.getItem(`selectedSeats_${event.id}`).then((raw) => {
+      if (!raw) return;
+      try {
+        const parsed: any[] = JSON.parse(raw);
+        const ts = parsed.find((s) => s.addedAt)?.addedAt;
+        if (ts) setReservationAddedAt(ts);
+      } catch {}
+    });
+  }, [event?.id]);
+
+  const formatEventDate = (val?: string) => {
+    if (!val) return '';
+    try {
+      return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(val));
+    } catch { return val; }
+  };
 
   const seatCount  = seats.length;
   const gaTotal    = gaSection ? gaSection.price * gaQty : 0;
@@ -86,6 +108,18 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={st.content} keyboardShouldPersistTaps="handled">
 
+        {/* Reservation countdown timer */}
+        {reservationAddedAt != null && (
+          <ReservationTimer
+            addedAt={reservationAddedAt}
+            onExpire={async () => {
+              try { await unlockSeats(); } catch {}
+              try { await AsyncStorage.removeItem(`selectedSeats_${event.id}`); await AsyncStorage.removeItem('lp_active_cart_event'); } catch {}
+              onBack();
+            }}
+          />
+        )}
+
         {/* Event card */}
         <View style={st.eventCard}>
           <Text style={st.eventTitle}>{event?.title}</Text>
@@ -95,10 +129,10 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
               <Text style={st.eventMeta}>{event.venue || event.venueName}{event.address || event.venueAddress ? ` — ${event.address || event.venueAddress}` : ''}</Text>
             </View>
           )}
-          {!!event?.date && (
+          {!!(event?.date || event?.eventDate) && (
             <View style={st.eventRow}>
               <Ionicons name="calendar-outline" size={13} color={colors.orange} />
-              <Text style={st.eventMeta}>{event.date}</Text>
+              <Text style={st.eventMeta}>{event.date || formatEventDate(event.eventDate)}</Text>
             </View>
           )}
         </View>
