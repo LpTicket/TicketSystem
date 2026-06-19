@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -380,23 +380,45 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, defaultVi
     setActiveSection(null);
   };
 
-  // Zoom from viewport center — same math as web zoomIn/zoomOut
+  const animatingRef = useRef(false);
+
+  // Animated zoom from viewport center — mimics web CSS transition 0.15s cubic-bezier
   const zoomBy = (delta: number) => {
+    if (animatingRef.current) return;
     const oldZ = viewRef.current.zoom;
     const newZ = clamp(oldZ + delta, fitView.zoom, MAX_ZOOM);
     if (newZ === oldZ) return;
     const mx = screenW / 2;
     const my = viewportH / 2;
     const ratio = newZ / oldZ;
-    const newPan = {
+    const newPanRaw = {
       x: mx - (mx - viewRef.current.pan.x) * ratio,
       y: my - (my - viewRef.current.pan.y) * ratio,
     };
-    // When zooming back to fit-view level, snap to exact fit pan
-    const finalPan = newZ <= fitView.zoom + 0.001 ? fitView.pan : newPan;
-    viewRef.current = { zoom: newZ, pan: finalPan };
-    setZoom(newZ);
-    setPan(finalPan);
+    const finalPan = newZ <= fitView.zoom + 0.001 ? fitView.pan : newPanRaw;
+
+    // Animate zoom and pan together in small steps — same feel as web transition
+    const startZ = oldZ;
+    const startPan = { ...viewRef.current.pan };
+    const anim = new Animated.Value(0);
+    animatingRef.current = true;
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start(() => { animatingRef.current = false; });
+
+    anim.addListener(({ value }) => {
+      const z = startZ + (newZ - startZ) * value;
+      const p = {
+        x: startPan.x + (finalPan.x - startPan.x) * value,
+        y: startPan.y + (finalPan.y - startPan.y) * value,
+      };
+      viewRef.current = { zoom: z, pan: p };
+      setZoom(z);
+      setPan(p);
+    });
   };
 
   // Touch: same logic as web onTouchStart/onTouchMove
