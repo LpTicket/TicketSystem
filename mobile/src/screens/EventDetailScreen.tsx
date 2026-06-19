@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { MobileEvent } from '../types/event';
 import { apiGet, getImageUrl } from '../services/api';
-import { ClientVenueMap } from '../components/events/ClientVenueMap';
 
 const fallbackImage = require('../../assets/demo-concert.png');
 
@@ -13,19 +12,8 @@ type Props = {
   event: MobileEvent;
   onBack: () => void;
   onBuy: () => void;
-  onSelectionCountChange?: (count: number) => void;
 };
 
-
-type SeatStatus = 'available' | 'sold' | 'locked' | 'reserved' | string;
-
-type Seat = {
-  id: string;
-  sectionId?: string;
-  rowLabel?: string;
-  seatNumber?: string | number;
-  status?: SeatStatus;
-};
 
 type VenueSection = {
   id: string;
@@ -33,13 +21,10 @@ type VenueSection = {
   label?: string;
   price?: number;
   color?: string;
-  type?: string;
   capacity?: number | string;
-  mapX?: number;
-  mapY?: number;
-  mapWidth?: number;
-  mapHeight?: number;
-  seats?: Seat[];
+  rows?: number;
+  seatsPerRow?: number;
+  seats?: { id: string }[];
 };
 
 type ApiEventDetail = {
@@ -113,15 +98,12 @@ function mergeEvent(base: MobileEvent, data?: ApiEventDetail, lang?: string): Mo
   };
 }
 
-export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange }: Props) {
+export function EventDetailScreen({ event, onBack, onBuy }: Props) {
   const { t, lang } = useLanguage();
   const [detail, setDetail] = useState(event);
   const [seatMap, setSeatMap] = useState<VenueSection[]>([]);
-  const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState(false);
   const [zonesOpen, setZonesOpen] = useState(false);
-  const scrollRef = useRef<import('react-native').ScrollView>(null);
-  const purchaseY = useRef(0);
 
   useEffect(() => {
     const key = event.slug || event.id;
@@ -164,35 +146,6 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
   }, [detail.imageUrl, detail.bannerImageUrl]);
 
 
-  const toggleSeat = (seat: Seat) => {
-    const status = String(seat.status || 'available').toLowerCase();
-    if (status !== 'available') return;
-
-    setSelectedSeats((current) => {
-      const exists = current.some((item) => item.id === seat.id);
-      const next = exists ? current.filter((item) => item.id !== seat.id) : [...current, seat];
-      if (next.length > 0 && purchaseY.current > 0) {
-        setTimeout(() => scrollRef.current?.scrollTo({ y: purchaseY.current - 20, animated: true }), 120);
-      }
-      return next;
-    });
-  };
-
-  useEffect(() => {
-    onSelectionCountChange?.(selectedSeats.length);
-    return () => onSelectionCountChange?.(0);
-  }, [onSelectionCountChange, selectedSeats.length]);
-
-  const seatLabel = (seat: Seat) => {
-    const row = seat.rowLabel && seat.rowLabel !== 'GA' ? seat.rowLabel : '';
-    return [row, seat.seatNumber].filter(Boolean).join('-') || 'GA';
-  };
-
-  const selectedTotal = selectedSeats.reduce((sum, seat) => {
-    const section = seatMap.find((item) => item.id === seat.sectionId);
-    return sum + Number(section?.price || detail.minPrice || 0);
-  }, 0);
-
   const description = detail.description?.trim()
     || t(
       'Vive una experiencia segura con compra rápida, tickets digitales y acceso por código QR.',
@@ -200,7 +153,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
     );
 
   return (
-    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
         <Text style={styles.backText}>{t('‹ Eventos', '‹ Events')}</Text>
       </TouchableOpacity>
@@ -237,23 +190,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
 
       </View>
 
-      {/* Map section is now fully self-contained inside ClientVenueMap to match web card layout */}
-
-      <View style={styles.mapContainer}>
-        <ClientVenueMap
-          seatMap={seatMap}
-          selectedSeats={selectedSeats}
-          onToggleSeat={toggleSeat}
-        />
-      </View>
-
-      <View style={styles.purchaseOuter} onLayout={(e) => { purchaseY.current = e.nativeEvent.layout.y; }}>
-        {selectedSeats.length > 0 && (
-          <View style={styles.selectionSummary}>
-            <Text style={styles.selectionText}>{selectedSeats.length} {t('seleccionado(s)', 'selected')}</Text>
-            <Text style={styles.selectionTotal}>${selectedTotal.toFixed(2)}</Text>
-          </View>
-        )}
+      <View style={styles.purchaseOuter}>
 
         <View style={styles.purchaseCard}>
           <Text style={styles.purchaseTitle}>{t('Resumen de compra', 'Purchase Summary')}</Text>

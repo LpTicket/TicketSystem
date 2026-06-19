@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
@@ -128,7 +128,7 @@ export function LoginScreen({ onSignIn }: Props) {
   const openSocialLogin = async (provider: 'google' | 'facebook') => {
     // Build the OAuth URL with ?platform=mobile so the backend knows to
     // redirect back to the lpticket:// deep link instead of the web app.
-    const redirectUri = Linking.createURL('login/success');
+    const redirectUri = Platform.OS === 'web' ? Linking.createURL('login/success') : 'lpticket://login/success';
     const url = `${API_URL}/auth/${provider}?platform=mobile&redirectUri=${encodeURIComponent(redirectUri)}`;
     try {
       const result = await WebBrowser.openAuthSessionAsync(url, redirectUri);

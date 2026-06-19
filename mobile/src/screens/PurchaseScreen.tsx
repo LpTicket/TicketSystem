@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { MobileEvent } from '../types/event';
@@ -136,19 +137,36 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity onPress={onBack} style={styles.backButton}>
-        <Text style={styles.backText}>‹ {t('Evento', 'Event')}</Text>
-      </TouchableOpacity>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      {/* Header */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={18} color={colors.textMuted} />
+          <Text style={styles.backText}>{t('Evento', 'Event')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.shareBtn}
+          onPress={() => Share.share({ title: event.title, message: `${event.title}\nhttps://lpticket.com/events/${event.slug || event.id}` })}
+        >
+          <Ionicons name="share-social-outline" size={18} color={colors.orange} />
+        </TouchableOpacity>
+      </View>
 
-      <Text style={styles.eyebrow}>{t('CHECKOUT', 'CHECKOUT')}</Text>
-      <Text style={styles.title}>{mode === 'seats' ? t('Elige tus asientos', 'Pick your seats') : t('Selecciona tus tickets', 'Select your tickets')}</Text>
-      <Text style={styles.subtitle}>{event.title}</Text>
+      {/* Event identity */}
+      <View style={styles.eventHero}>
+        <Text style={styles.eyebrow}>{t('CHECKOUT · COMPRA SEGURA', 'CHECKOUT · SECURE PURCHASE')}</Text>
+        <Text style={styles.title}>{event.title}</Text>
+        {!!event.date && <Text style={styles.subtitle}>{event.date}{event.venue ? ` · ${event.venue}` : ''}</Text>}
+      </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={colors.orange} /></View>
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.orange} size="large" />
+          <Text style={styles.loadingText}>{t('Cargando disponibilidad...', 'Loading availability...')}</Text>
+        </View>
       ) : mode === 'none' ? (
         <View style={styles.notice}>
+          <Ionicons name="ticket-outline" size={28} color="#FDBA74" style={{ marginBottom: 10 }} />
           <Text style={styles.noticeText}>{t('Este evento aún no tiene entradas disponibles.', 'This event has no tickets available yet.')}</Text>
         </View>
       ) : mode === 'seats' ? (
@@ -156,18 +174,27 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
           <ClientVenueMap seatMap={sections} selectedSeats={selectedSeats} onToggleSeat={toggleSeat} />
 
           <View style={styles.summary}>
-            <Text style={styles.summaryTitle}>{t('Asientos seleccionados', 'Selected seats')} ({selectedSeats.length})</Text>
+            <View style={styles.summaryHeader}>
+              <Text style={styles.summaryTitle}>{t('Asientos seleccionados', 'Selected seats')}</Text>
+              <View style={styles.countBadge}><Text style={styles.countBadgeText}>{selectedSeats.length}</Text></View>
+            </View>
             {selectedSeats.length === 0 ? (
-              <Text style={styles.rowLabel}>{t('Toca un asiento disponible en el mapa.', 'Tap an available seat on the map.')}</Text>
+              <View style={styles.emptySeats}>
+                <Ionicons name="hand-left-outline" size={20} color="rgba(249,115,22,0.55)" />
+                <Text style={styles.emptySeatsText}>{t('Toca un asiento en el mapa para seleccionarlo.', 'Tap a seat on the map to select it.')}</Text>
+              </View>
             ) : (
               selectedSeats.map((seat, index) => {
                 const sec = sectionById[seat.sectionId || ''];
                 const label = sec?.sectionType === 'table'
                   ? `${t('Mesa', 'Table')} ${sec?.name} · ${t('Silla', 'Seat')} ${seat.seatNumber}`
-                  : `${sec?.name || ''} ${seat.rowLabel || ''}${seat.seatNumber}`;
+                  : `${sec?.name || ''} ${seat.rowLabel ? ` ${seat.rowLabel}` : ''}${seat.seatNumber ? `-${seat.seatNumber}` : ''}`.trim();
                 return (
                   <View key={`${seat.id || 'seat'}-${index}`} style={styles.row}>
-                    <Text style={styles.rowLabel}>{label}</Text>
+                    <View style={styles.rowLeft}>
+                      <View style={styles.seatDot} />
+                      <Text style={styles.rowLabel}>{label}</Text>
+                    </View>
                     <Text style={styles.rowValue}>${seatPrice(seat, sec).toFixed(2)}</Text>
                   </View>
                 );
@@ -178,15 +205,18 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
       ) : (
         <>
           {gaSections.map((s, index) => {
-            const active = s.id === gaSelected?.id;
+            const isActive = s.id === gaSelected?.id;
             return (
-              <TouchableOpacity key={`${s.id || s.name || 'section'}-${index}`} onPress={() => { setGaSectionId(s.id); setGaQty(1); }} style={[styles.ticketType, active && styles.ticketTypeActive]}>
+              <TouchableOpacity key={`${s.id || s.name || 'section'}-${index}`} onPress={() => { setGaSectionId(s.id); setGaQty(1); }} style={[styles.ticketType, isActive && styles.ticketTypeActive]}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.typeLabel}>{t('ACCESO GENERAL', 'GENERAL ACCESS')}</Text>
                   <Text style={styles.typeName}>{s.name}</Text>
                   <Text style={styles.typeMeta}>{s.available} {t('disponibles', 'available')}</Text>
                 </View>
-                <Text style={styles.typePrice}>${s.price.toFixed(2)}</Text>
+                <View style={styles.typePriceCol}>
+                  <Text style={styles.typePrice}>${s.price.toFixed(2)}</Text>
+                  <Text style={styles.typePriceSub}>{t('por persona', 'per person')}</Text>
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -194,9 +224,13 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
           <View style={styles.qtyCard}>
             <Text style={styles.qtyLabel}>{t('Cantidad', 'Quantity')}</Text>
             <View style={styles.qtyControls}>
-              <TouchableOpacity style={styles.qtyButton} onPress={() => setGaQty(Math.max(1, gaQty - 1))}><Text style={styles.qtyButtonText}>−</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.qtyButton} onPress={() => setGaQty(Math.max(1, gaQty - 1))}>
+                <Text style={styles.qtyButtonText}>−</Text>
+              </TouchableOpacity>
               <Text style={styles.qtyValue}>{gaQty}</Text>
-              <TouchableOpacity style={styles.qtyButton} onPress={() => setGaQty(Math.min(gaMax, gaQty + 1))}><Text style={styles.qtyButtonText}>＋</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.qtyButton} onPress={() => setGaQty(Math.min(gaMax, gaQty + 1))}>
+                <Text style={styles.qtyButtonText}>+</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </>
@@ -204,20 +238,49 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
 
       {!loading && mode !== 'none' && (
         <>
+          {/* Order summary card */}
           <View style={styles.summary}>
             <Text style={styles.summaryTitle}>{t('Resumen de orden', 'Order summary')}</Text>
-            <View style={styles.row}><Text style={styles.rowLabel}>{t('Subtotal', 'Subtotal')}</Text><Text style={styles.rowValue}>${subtotal.toFixed(2)}</Text></View>
-            <View style={styles.row}><Text style={styles.rowLabel}>{t('Cargo de servicio', 'Service fee')}</Text><Text style={styles.rowValue}>${service.toFixed(2)}</Text></View>
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>{t('Subtotal', 'Subtotal')}</Text>
+              <Text style={styles.rowValue}>${subtotal.toFixed(2)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>{t('Cargo por servicio', 'Service fee')}</Text>
+              <Text style={styles.rowValue}>${service.toFixed(2)}</Text>
+            </View>
             <View style={styles.divider} />
-            <View style={styles.row}><Text style={styles.totalLabel}>{t('Total', 'Total')}</Text><Text style={styles.totalValue}>${total.toFixed(2)}</Text></View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>{t('Total', 'Total')}</Text>
+              <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+            </View>
           </View>
 
-          {!!error && <Text style={styles.error}>{error}</Text>}
+          {!!error && (
+            <View style={styles.errorCard}>
+              <Ionicons name="alert-circle-outline" size={16} color="#FCA5A5" />
+              <Text style={styles.error}>{error}</Text>
+            </View>
+          )}
 
-          <TouchableOpacity style={[styles.continueButton, (!canPay || paying) && { opacity: 0.5 }]} onPress={pay} disabled={!canPay || paying}>
-            <Text style={styles.continueText}>{paying ? t('ABRIENDO PAGO...', 'OPENING PAYMENT...') : t('PAGAR CON TARJETA', 'PAY WITH CARD')}</Text>
+          {/* Pay button */}
+          <TouchableOpacity style={[styles.payButton, (!canPay || paying) && styles.payButtonDisabled]} onPress={pay} disabled={!canPay || paying} activeOpacity={0.88}>
+            <View pointerEvents="none" style={styles.payButtonShine} />
+            {paying ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Ionicons name="card-outline" size={19} color="#FFFFFF" />
+            )}
+            <Text style={styles.payText}>
+              {paying ? t('PROCESANDO...', 'PROCESSING...') : canPay ? `${t('PAGAR', 'PAY')} $${total.toFixed(2)}` : t('SELECCIONA TUS ASIENTOS', 'SELECT YOUR SEATS')}
+            </Text>
           </TouchableOpacity>
-          <Text style={styles.secureNote}>{t('Pago seguro procesado por Stripe.', 'Secure payment processed by Stripe.')}</Text>
+
+          {/* Trust row */}
+          <View style={styles.trustRow}>
+            <Ionicons name="lock-closed-outline" size={13} color="rgba(134,239,172,0.7)" />
+            <Text style={styles.secureNote}>{t('Pago 100% seguro · Procesado por Stripe', '100% secure payment · Powered by Stripe')}</Text>
+          </View>
         </>
       )}
     </ScrollView>
@@ -227,36 +290,63 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.screen },
   content: { padding: 18, paddingTop: 10, paddingBottom: 140 },
-  center: { paddingVertical: 60, alignItems: 'center' },
-  notice: { marginTop: 18, backgroundColor: 'rgba(249,115,22,0.10)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)', borderRadius: 16, padding: 16 },
-  noticeText: { color: '#FDBA74', fontSize: 14, lineHeight: 20, fontWeight: '600' },
-  backButton: { alignSelf: 'flex-start', backgroundColor: colors.cardSoft, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: colors.cardBorder },
+  // Header
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  backButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.cardSoft, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: colors.cardBorder },
   backText: { color: colors.textMuted, fontWeight: '700', fontSize: 14 },
-  eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 0, fontWeight: '700', marginTop: 22 },
-  title: { color: colors.textPrimary, fontSize: 30, lineHeight: 34, fontWeight: '700', marginTop: 12 },
-  subtitle: { color: colors.textMuted, fontSize: 15, lineHeight: 22, fontWeight: '400', marginTop: 8, marginBottom: 18 },
+  shareBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(249,115,22,0.10)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', alignItems: 'center', justifyContent: 'center' },
+  // Event hero
+  eventHero: { marginBottom: 18 },
+  eyebrow: { color: colors.orange, fontSize: 11, letterSpacing: 0, fontWeight: '700', marginTop: 18, marginBottom: 6 },
+  title: { color: colors.textPrimary, fontSize: 26, lineHeight: 30, fontWeight: '900' },
+  subtitle: { color: colors.textMuted, fontSize: 13, lineHeight: 18, fontWeight: '500', marginTop: 6 },
+  // Loading/empty
+  center: { paddingVertical: 60, alignItems: 'center', gap: 14 },
+  loadingText: { color: colors.textMuted, fontSize: 14, fontWeight: '500' },
+  notice: { marginTop: 18, backgroundColor: 'rgba(249,115,22,0.08)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', borderRadius: 20, padding: 24, alignItems: 'center' },
+  noticeText: { color: '#FDBA74', fontSize: 14, lineHeight: 20, fontWeight: '600', textAlign: 'center' },
+  // GA ticket type cards
   ticketType: { backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.goldBorder, padding: 18, flexDirection: 'row', justifyContent: 'space-between', gap: 16, marginBottom: 12, alignItems: 'center' },
-  ticketTypeActive: { borderColor: colors.orange, borderWidth: 2 },
-  typeLabel: { color: colors.orange, fontSize: 11, fontWeight: '700', letterSpacing: 0 },
-  typeName: { color: colors.textPrimary, fontSize: 19, fontWeight: '700', marginTop: 8 },
-  typeMeta: { color: colors.textMuted, fontSize: 13, fontWeight: '400', marginTop: 6 },
-  typePrice: { color: colors.textPrimary, fontSize: 20, fontWeight: '700' },
+  ticketTypeActive: { borderColor: colors.orange, borderWidth: 2, backgroundColor: 'rgba(249,115,22,0.06)' },
+  typeLabel: { color: colors.orange, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  typeName: { color: colors.textPrimary, fontSize: 18, fontWeight: '800', marginTop: 6 },
+  typeMeta: { color: colors.textMuted, fontSize: 12, fontWeight: '500', marginTop: 4 },
+  typePriceCol: { alignItems: 'flex-end' },
+  typePrice: { color: colors.textPrimary, fontSize: 22, fontWeight: '900' },
+  typePriceSub: { color: colors.textMuted, fontSize: 11, fontWeight: '500', marginTop: 2 },
+  // Qty card
   qtyCard: { marginTop: 4, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.goldBorder, padding: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  qtyLabel: { color: colors.textPrimary, fontSize: 17, fontWeight: '700' },
-  qtyControls: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  qtyButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.cardSoft, alignItems: 'center', justifyContent: 'center' },
-  qtyButtonText: { color: colors.textPrimary, fontSize: 22, fontWeight: '700' },
-  qtyValue: { color: colors.textPrimary, fontSize: 22, fontWeight: '700', minWidth: 24, textAlign: 'center' },
-  summary: { marginTop: 16, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.goldBorder, padding: 18 },
-  summaryTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: 14 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, gap: 12 },
+  qtyLabel: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
+  qtyControls: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  qtyButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(249,115,22,0.12)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)', alignItems: 'center', justifyContent: 'center' },
+  qtyButtonText: { color: colors.orange, fontSize: 22, fontWeight: '900', lineHeight: 26 },
+  qtyValue: { color: colors.textPrimary, fontSize: 24, fontWeight: '900', minWidth: 30, textAlign: 'center' },
+  // Summary card
+  summary: { marginTop: 16, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', padding: 18 },
+  summaryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  summaryTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '800' },
+  countBadge: { minWidth: 26, height: 26, borderRadius: 13, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  countBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
+  emptySeats: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  emptySeatsText: { color: colors.textMuted, fontSize: 13, fontWeight: '500', flex: 1 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 12 },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  seatDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.orange },
   rowLabel: { color: colors.textMuted, fontSize: 14, fontWeight: '500', flex: 1 },
   rowValue: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: 8 },
-  totalLabel: { color: colors.textPrimary, fontSize: 18, fontWeight: '700' },
-  totalValue: { color: colors.orange, fontSize: 22, fontWeight: '700' },
-  error: { color: '#FCA5A5', fontSize: 13, marginTop: 14, fontWeight: '600' },
-  continueButton: { marginTop: 18, height: 56, borderRadius: 10, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
-  continueText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', letterSpacing: 0 },
-  secureNote: { color: colors.textFaint, fontSize: 12, textAlign: 'center', marginTop: 10, fontWeight: '500' },
+  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 10 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel: { color: colors.textPrimary, fontSize: 17, fontWeight: '800' },
+  totalValue: { color: colors.orange, fontSize: 26, fontWeight: '900' },
+  // Error
+  errorCard: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, backgroundColor: 'rgba(252,165,165,0.08)', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(252,165,165,0.2)' },
+  error: { color: '#FCA5A5', fontSize: 13, fontWeight: '600', flex: 1 },
+  // Pay button
+  payButton: { marginTop: 22, height: 60, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 10, overflow: 'hidden', shadowColor: colors.orange, shadowOpacity: 0.38, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
+  payButtonDisabled: { opacity: 0.45 },
+  payButtonShine: { position: 'absolute', top: 4, left: 20, right: 20, height: 1.5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.28)' },
+  payText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', letterSpacing: 0.2 },
+  // Trust
+  trustRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12 },
+  secureNote: { color: 'rgba(134,239,172,0.6)', fontSize: 11, fontWeight: '600' },
 });

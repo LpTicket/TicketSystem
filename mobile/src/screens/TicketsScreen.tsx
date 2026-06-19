@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Linking, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../i18n/LanguageContext';
 import { API_URL, apiGet, apiPost } from '../services/api';
 import { TicketCardSkeleton } from '../components/Skeleton';
@@ -200,6 +201,14 @@ export function TicketsScreen() {
                   label={resending === ticket.ticketCode ? t('ENVIANDO...', 'SENDING...') : t('REENVIAR AL CORREO', 'RESEND EMAIL')}
                   onPress={() => resendEmail(ticket.ticketCode)}
                 />
+                <ActionButton
+                  label={t('COMPARTIR', 'SHARE')}
+                  icon="share-social-outline"
+                  onPress={() => Share.share({
+                    title: event?.title || t('Mi ticket', 'My ticket'),
+                    message: `🎟 ${event?.title || t('Evento', 'Event')}\n${event?.venueName ? `📍 ${event.venueName}\n` : ''}${t('Código', 'Code')}: ${ticket.ticketCode}\n${ticketVerifyUrl(ticket.ticketCode)}`,
+                  })}
+                />
               </View>
             </View>
           );
@@ -218,9 +227,10 @@ function Detail({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function ActionButton({ label, primary, onPress }: { label: string; primary?: boolean; onPress: () => void }) {
+function ActionButton({ label, primary, icon, onPress }: { label: string; primary?: boolean; icon?: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
   return (
     <TouchableOpacity onPress={onPress} style={[styles.actionButton, primary && styles.actionButtonPrimary]}>
+      {icon && <Ionicons name={icon} size={13} color={primary ? '#FFFFFF' : 'rgba(226,232,240,0.7)'} />}
       <Text style={[styles.actionText, primary && styles.actionTextPrimary]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -282,7 +292,7 @@ const styles = StyleSheet.create({
   ticketLine: { flex: 1, borderTopWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(226,232,240,0.22)' },
   ticketNotchRight: { width: 18, height: 36, borderTopLeftRadius: 999, borderBottomLeftRadius: 999, backgroundColor: '#030B14', borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.14)' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
-  actionButton: { width: '48%', minHeight: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 10 },
+  actionButton: { width: '48%', minHeight: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 10 },
   actionButtonPrimary: { backgroundColor: '#F97316', borderColor: '#FB923C' },
   actionText: { color: '#F8FAFC', fontSize: 11, fontWeight: '700', letterSpacing: 0, textAlign: 'center' },
   actionTextPrimary: { color: '#FFFFFF' },
