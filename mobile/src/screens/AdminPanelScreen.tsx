@@ -2181,7 +2181,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
 
               {/* Footer */}
               <View style={styles.userModalFooter}>
-                <TouchableOpacity onPress={() => { setSelectedUser(null); setEditingUserId(selectedUser.id); }} style={styles.userModalEditBtn}>
+                <TouchableOpacity onPress={() => { const uid = selectedUser.id; setSelectedUser(null); setTimeout(() => setEditingUserId(uid), 320); }} style={styles.userModalEditBtn}>
                   <Ionicons name="pencil-outline" size={15} color={colors.orange} />
                   <Text style={styles.userModalEditBtnText}>{t('Editar perfil', 'Edit Profile')}</Text>
                 </TouchableOpacity>

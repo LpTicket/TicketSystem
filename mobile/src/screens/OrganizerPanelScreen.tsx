@@ -263,6 +263,19 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
       .catch(() => {});
   }, [selectedEventId]);
 
+  // Full event detail (all fields: description, eventTimezone, venueAddress, etc.)
+  // The list endpoints only return summary fields, so we fetch the full object
+  // once per selected event to feed the Details editor.
+  const [fullEventData, setFullEventData] = useState<any | null>(adminEvent || null);
+  useEffect(() => {
+    if (!selectedEventId) { setFullEventData(adminEvent || null); return; }
+    let mounted = true;
+    apiGet<any>(`/events/${selectedEventId}`)
+      .then((data) => { if (mounted && data?.id) setFullEventData(data); })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, [selectedEventId]);
+
   // Load sales + sections (seatmap) for the selected event — feeds Analytics,
   // Overview and Blocks (mirror of the web editor's loadEvent).
   const [eventSales, setEventSales] = useState<any | null>(null);
@@ -603,7 +616,7 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
             setEventStatus={setEventStatus}
             goTo={setActive}
             selectedEventId={selectedEventId}
-            event={selectedEvent ? rawEventsById[selectedEvent.id] : adminEvent}
+            event={fullEventData}
           />
         )}
 
@@ -628,7 +641,7 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
             onResend={handleResendAttendee}
             goTo={setActive}
             eventId={selectedEventId}
-            event={selectedEvent ? rawEventsById[selectedEvent.id] : adminEvent}
+            event={fullEventData}
             eventTitle={selectedEvent?.title ?? adminEvent?.title}
             sales={eventSales}
           />

@@ -283,7 +283,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
                   const displayName = isTable
                     ? /^(mesa|table)\b/i.test(rawName) ? rawName : `${t('Mesa', 'Table')} ${rawName}`
                     : rawName;
-                  const seatCount = s.seats?.length || Number(s.capacity) || 0;
+                  const seatCount = s.seats?.length || Number((s as any).capacity) || (Number((s as any).rows || 0) * Number((s as any).seatsPerRow || 0)) || 0;
                   return (
                     <View key={`${s.id || s.name || 'zone'}-${index}`} style={styles.zoneRow}>
                       <View style={[styles.zoneDot, { backgroundColor: s.color || '#5667FF' }]} />

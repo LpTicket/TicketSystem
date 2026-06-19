@@ -37,9 +37,15 @@ export async function getBiometricAvailability() {
  * biometric login. Called right after a successful email/password login.
  */
 export async function saveBiometricLogin(refreshToken: string) {
-  await SecureStore.setItemAsync(BIOMETRIC_TOKEN_KEY, refreshToken, {
-    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-  });
+  try {
+    // keychainAccessible is iOS/Android only — web falls back to localStorage
+    await SecureStore.setItemAsync(BIOMETRIC_TOKEN_KEY, refreshToken, {
+      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+    } as any);
+  } catch {
+    // Fallback for web where the option is unsupported
+    await SecureStore.setItemAsync(BIOMETRIC_TOKEN_KEY, refreshToken);
+  }
 }
 
 export async function signInWithBiometrics(copy: {
@@ -86,9 +92,13 @@ export async function signInWithBiometrics(copy: {
       [USER_KEY, JSON.stringify(data.user)],
     ]);
     // Keep SecureStore up to date with the latest refresh token
-    await SecureStore.setItemAsync(BIOMETRIC_TOKEN_KEY, data.refreshToken, {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    });
+    try {
+      await SecureStore.setItemAsync(BIOMETRIC_TOKEN_KEY, data.refreshToken, {
+        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      } as any);
+    } catch {
+      await SecureStore.setItemAsync(BIOMETRIC_TOKEN_KEY, data.refreshToken);
+    }
   } catch {
     /* storage unavailable */
   }
