@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import Svg, { Circle, G, Rect, Text as SvgText } from 'react-native-svg';
+import { useMemo, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -41,14 +40,7 @@ type Props = {
   onToggleSeat: (seat: ClientSeat) => void;
 };
 
-const CANVAS_WIDTH = 2000;
-const CANVAS_HEIGHT = 1600;
-const VIEWPORT_HEIGHT = 640;
-const FIT_PADDING = 54;
-const MAX_ZOOM = 2.6;
-const ZOOM_STEP = 0.22;
-
-type SeatInfo = {
+type ActiveInfo = {
   title: string;
   subtitle: string;
   status: string;
@@ -56,50 +48,54 @@ type SeatInfo = {
   tone: 'available' | 'selected' | 'sold' | 'reserved';
 };
 
-function parseSeatConfig(raw?: string | null) {
+const MIN_ZOOM = 0.12;
+const MAX_ZOOM = 2.5;
+const ZOOM_STEP = 0.25;
+const FIT_PADDING = 48;
+const CANVAS_W = 2000;
+const CANVAS_H = 1600;
+
+function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
+
+function parseCfg(raw?: string | null): Record<string, any> {
   if (!raw) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(raw); } catch { return {}; }
 }
 
-function seatKey(seat: ClientSeat) {
-  return seat.rowLabel ? `${seat.rowLabel}-${seat.seatNumber}` : `seat-${seat.seatNumber || seat.id}`;
+function isUnavailable(seat: ClientSeat, override: any) {
+  const s = String(seat.status || 'available').toLowerCase();
+  const expired = s === 'locked' && seat.lockExpiresAt && new Date(seat.lockExpiresAt).getTime() <= Date.now();
+  return !expired && (s === 'sold' || s === 'reserved' || s === 'locked' || !!override?.reserved || !!override?.sold || !!override?.locked);
 }
 
-function getKind(section: ClientVenueSection) {
-  const raw = `${section.sectionType || section.type || section.name || section.label || ''}`.toLowerCase();
-  if (raw.includes('stage') || raw.includes('pantalla') || raw.includes('escenario')) return 'stage';
-  if (raw.includes('decor') || raw.includes('general area') || raw.includes('entrada')) return 'decor';
-  if (raw.includes('standing')) return 'standing';
-  if (raw.includes('table') || raw.includes('mesa')) return 'table';
-  if (/^\d+$/.test(`${section.name || section.label || ''}`.trim())) return 'table';
-  return 'seats';
+function isSelected(seat: ClientSeat, sel: ClientSeat[]) {
+  return sel.some((s) => s.id === seat.id);
 }
 
-function sectionColor(section: ClientVenueSection) {
-  const name = `${section.name || section.label || ''}`.toLowerCase();
-  if (section.color) return section.color;
-  if (name.includes('bar')) return '#F97316';
-  if (name.includes('general')) return '#E8554F';
-  if (name.includes('pantalla')) return '#58C783';
-  return '#5667FF';
+function seatBg(seat: ClientSeat, override: any, color: string, selected: boolean) {
+  if (selected) return '#f97316';
+  const s = String(seat.status || 'available').toLowerCase();
+  const hold = s === 'locked' && seat.lockExpiresAt && new Date(seat.lockExpiresAt).getTime() > Date.now();
+  if (hold) return '#facc15';
+  if (isUnavailable(seat, override)) return '#cbd5e1';
+  return color || '#5667ff';
 }
 
-function isSeatUnavailable(seat: ClientSeat, override: any) {
-  const status = String(seat.status || 'available').toLowerCase();
-  const lockedExpired = status === 'locked' && seat.lockExpiresAt && new Date(seat.lockExpiresAt).getTime() <= Date.now();
-  return !lockedExpired && (status === 'sold' || status === 'reserved' || status === 'locked' || override?.reserved || override?.sold || override?.locked);
+function seatBorder(seat: ClientSeat, override: any, selected: boolean) {
+  if (selected) return '#ffffff';
+  const s = String(seat.status || 'available').toLowerCase();
+  const hold = s === 'locked' && seat.lockExpiresAt && new Date(seat.lockExpiresAt).getTime() > Date.now();
+  if (hold) return '#eab308';
+  if (isUnavailable(seat, override)) return '#94a3b8';
+  return '#ffffff';
 }
 
-function isSelected(seat: ClientSeat, selectedSeats: ClientSeat[]) {
-  return selectedSeats.some((item) => item.id === seat.id);
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
+function getSeatPrice(seat: ClientSeat, section: ClientVenueSection): number {
+  const cfg = parseCfg(section.seatsConfig);
+  const key = seat.rowLabel && seat.rowLabel !== 'GA' ? `${seat.rowLabel}-${seat.seatNumber}` : `seat-${seat.seatNumber}`;
+  const ov = cfg[key];
+  if (ov?.price !== undefined && ov.price !== null) return Number(ov.price);
+  return Number(section.price || 0);
 }
 
 function tableLabel(name?: string | null, es = true) {
@@ -109,337 +105,223 @@ function tableLabel(name?: string | null, es = true) {
   return /^(mesa|table)\b/i.test(raw) ? raw : `${word} ${raw}`;
 }
 
-function seatPrice(seat: ClientSeat, section: ClientVenueSection) {
-  const overrides = parseSeatConfig(section.seatsConfig);
-  const override = overrides[seatKey(seat)] || overrides[`seat-${seat.seatNumber}`] || {};
-  return Number(override?.price ?? section.price ?? 0);
+function getKind(section: ClientVenueSection) {
+  const raw = `${section.sectionType || section.type || ''}`.toLowerCase();
+  if (raw === 'stage') return 'stage';
+  if (raw === 'decor') return 'decor';
+  if (raw === 'standing') return 'standing';
+  if (raw === 'table') return 'table';
+  const name = `${section.name || section.label || ''}`.toLowerCase();
+  if (name.includes('stage') || name.includes('escenario') || name.includes('pantalla')) return 'stage';
+  if (name.includes('decor') || name.includes('general area') || name.includes('entrada')) return 'decor';
+  if (name.includes('standing')) return 'standing';
+  if (name.includes('table') || name.includes('mesa')) return 'table';
+  if (/^\d+$/.test(`${section.name || section.label || ''}`.trim())) return 'table';
+  return 'seats';
 }
 
-function seatTitle(seat: ClientSeat, section: ClientVenueSection, es = true) {
-  const kind = getKind(section);
-  if (kind === 'table') {
-    return `${tableLabel(section.name || section.label, es)} · ${es ? 'Silla' : 'Seat'} ${seat.seatNumber || ''}`.trim();
-  }
-  const row = seat.rowLabel && seat.rowLabel !== 'GA' ? `${seat.rowLabel}-` : '';
-  return `${section.name || section.label || (es ? 'Seccion' : 'Section')} ${row}${seat.seatNumber || ''}`.trim();
+function sectionColor(section: ClientVenueSection) {
+  if (section.color) return section.color;
+  const name = `${section.name || section.label || ''}`.toLowerCase();
+  if (name.includes('bar')) return '#F97316';
+  if (name.includes('general')) return '#E8554F';
+  if (name.includes('pantalla')) return '#58C783';
+  return '#5667FF';
 }
 
-function buildSeatInfo(seat: ClientSeat, section: ClientVenueSection, selectedSeats: ClientSeat[], es = true): SeatInfo {
-  const overrides = parseSeatConfig(section.seatsConfig);
-  const override = overrides[seatKey(seat)] || overrides[`seat-${seat.seatNumber}`] || {};
-  const selected = isSelected(seat, selectedSeats);
-  const unavailable = isSeatUnavailable(seat, override);
-  const statusRaw = String(seat.status || 'available').toLowerCase();
-  const reserved = statusRaw === 'reserved' || override?.reserved;
-  return {
-    title: seatTitle(seat, section, es),
-    subtitle: section.name || section.label || '',
-    status: selected
-      ? (es ? 'Seleccionado' : 'Selected')
-      : reserved
-        ? (es ? 'Reservado' : 'Reserved')
-        : unavailable
-          ? (es ? 'No disponible' : 'Unavailable')
-          : (es ? 'Disponible' : 'Available'),
-    price: seatPrice(seat, section),
-    tone: selected ? 'selected' : reserved ? 'reserved' : unavailable ? 'sold' : 'available',
-  };
-}
-
-function BackgroundGrid({ width, height }: { width: number; height: number }) {
-  const vLinesLarge = Math.ceil(width / 100) + 1;
-  const hLinesLarge = Math.ceil(height / 100) + 1;
-  const vLinesSmall = Math.ceil(width / 20) + 1;
-  const hLinesSmall = Math.ceil(height / 20) + 1;
-
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Svg width="100%" height="100%">
-        {Array.from({ length: vLinesSmall }).map((_, i) => (
-          <Rect key={`vs-${i}`} x={i * 20} y={0} width={1} height="100%" fill="rgba(148,163,184,0.05)" />
-        ))}
-        {Array.from({ length: hLinesSmall }).map((_, i) => (
-          <Rect key={`hs-${i}`} x={0} y={i * 20} width="100%" height={1} fill="rgba(148,163,184,0.05)" />
-        ))}
-        {Array.from({ length: vLinesLarge }).map((_, i) => (
-          <Rect key={`vl-${i}`} x={i * 100} y={0} width={1} height="100%" fill="rgba(148,163,184,0.10)" />
-        ))}
-        {Array.from({ length: hLinesLarge }).map((_, i) => (
-          <Rect key={`hl-${i}`} x={0} y={i * 100} width="100%" height={1} fill="rgba(148,163,184,0.10)" />
-        ))}
-      </Svg>
-    </View>
-  );
-}
-
-function SeatDot({
-  seat,
-  section,
-  override,
-  selectedSeats,
-  onToggleSeat,
-  onSeatInfo,
-  x,
-  y,
-  size,
+// ─── Chair component for tables ─────────────────────────────────────────────
+function Chair({
+  seat, section, override, sel, size, style, onToggle, onInfo,
 }: {
-  seat: ClientSeat;
-  section: ClientVenueSection;
-  override: any;
-  selectedSeats: ClientSeat[];
-  onToggleSeat: (seat: ClientSeat) => void;
-  onSeatInfo: (info: SeatInfo) => void;
-  x: number;
-  y: number;
-  size: number;
+  seat: ClientSeat; section: ClientVenueSection; override: any;
+  sel: ClientSeat[]; size: number;
+  style: any;
+  onToggle: (s: ClientSeat) => void;
+  onInfo: (info: ActiveInfo) => void;
 }) {
-  const selected = isSelected(seat, selectedSeats);
-  const unavailable = isSeatUnavailable(seat, override);
-  const color = sectionColor(section);
-  const reserved = String(seat.status || '').toLowerCase() === 'reserved' || override?.reserved;
-  const seatBg = selected ? colors.orange : unavailable ? (reserved ? '#FACC15' : '#CBD5E1') : color;
-  const seatBorder = selected ? '#FFFFFF' : unavailable ? (reserved ? '#EAB308' : '#94A3B8') : '#FFFFFF';
-
-  const hitPad = Math.max(8, size * 1.5);
+  const selected = isSelected(seat, sel);
+  const unavail = isUnavailable(seat, override) && !selected;
+  const bg = seatBg(seat, override, sectionColor(section), selected);
+  const bd = seatBorder(seat, override, selected);
   return (
     <TouchableOpacity
-      key={seat.id}
-      disabled={unavailable && !selected}
-      activeOpacity={0.82}
-      hitSlop={{ top: hitPad, bottom: hitPad, left: hitPad, right: hitPad }}
+      style={[style, {
+        width: size, height: size, borderRadius: size / 2,
+        backgroundColor: bg, borderWidth: 1.5, borderColor: bd,
+        alignItems: 'center', justifyContent: 'center',
+        transform: [{ scale: selected ? 1.2 : 1 }],
+        opacity: unavail ? 0.5 : 1,
+      }]}
+      disabled={unavail}
+      activeOpacity={0.75}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       onPress={() => {
-        onSeatInfo(buildSeatInfo(seat, section, selectedSeats));
-        onToggleSeat(seat);
+        onInfo({
+          title: section.sectionType === 'table'
+            ? `${tableLabel(section.name)} · ${seat.seatNumber}`
+            : `${section.name || ''} ${seat.rowLabel || ''}${seat.seatNumber ? `-${seat.seatNumber}` : ''}`.trim(),
+          subtitle: section.name || '',
+          status: selected ? 'Seleccionado' : isUnavailable(seat, override) ? 'No disponible' : 'Disponible',
+          price: getSeatPrice(seat, section),
+          tone: selected ? 'selected' : isUnavailable(seat, override) ? 'sold' : 'available',
+        });
+        if (section.tablePurchaseMode === 'whole') {
+          const allSeats = section.seats || [];
+          const anySel = allSeats.some((s) => isSelected(s, sel));
+          const cfg = parseCfg(section.seatsConfig);
+          const toToggle = anySel
+            ? allSeats.filter((s) => isSelected(s, sel))
+            : allSeats.filter((s) => !isUnavailable(s, cfg[`seat-${s.seatNumber}`] || {}));
+          toToggle.forEach(onToggle);
+        } else {
+          onToggle(seat);
+        }
       }}
-      style={[
-        styles.seatDot,
-        {
-          left: x,
-          top: y,
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: seatBg,
-          borderColor: seatBorder,
-          opacity: 1,
-          shadowColor: selected ? colors.orange : color,
-          shadowOpacity: selected ? 0.4 : unavailable ? 0 : 0.2,
-          shadowRadius: selected ? 8 : 4,
-          transform: [{ scale: selected ? 1.16 : 1 }],
-        },
-      ]}
-    >
-      {override?.isWheelchair ? <Text style={[styles.wheelchair, { fontSize: clamp(size * 0.52, 6, 10) }]}>♿</Text> : null}
-    </TouchableOpacity>
+    />
   );
 }
 
-function TableSection({
-  section,
-  scale,
-  selectedSeats,
-  onToggleSeat,
-  onSeatInfo,
-}: {
-  section: ClientVenueSection;
-  scale: number;
-  selectedSeats: ClientSeat[];
-  onToggleSeat: (seat: ClientSeat) => void;
-  onSeatInfo: (info: SeatInfo) => void;
+// ─── Table section ───────────────────────────────────────────────────────────
+function TableSection({ section, sel, onToggle, onInfo }: {
+  section: ClientVenueSection; sel: ClientSeat[];
+  onToggle: (s: ClientSeat) => void; onInfo: (i: ActiveInfo) => void;
 }) {
   const seats = section.seats || [];
-  const overrides = parseSeatConfig(section.seatsConfig);
-  const width = Number(section.mapWidth || 100) * scale;
-  const height = Number(section.mapHeight || 100) * scale;
-  const color = sectionColor(section);
+  const cfg = parseCfg(section.seatsConfig);
+  const w = Number(section.mapWidth || 100);
+  const h = Number(section.mapHeight || 100);
   const isRound = (section.tableShape || 'round') === 'round';
-  const chairSize = clamp(Math.min(width, height) * 0.22, 8, 22);
-  const chairRadius = chairSize / 2;
-  const centerW = width * (isRound ? 0.60 : 0.70);
-  const centerH = height * (isRound ? 0.60 : 0.45);
-  const centerX = width / 2 - centerW / 2;
-  const centerY = height / 2 - centerH / 2;
-  const availableSeats = seats.filter((seat) => !isSeatUnavailable(seat, overrides[seatKey(seat)] || overrides[`seat-${seat.seatNumber}`] || {}));
-  const selectedCount = availableSeats.filter((seat) => isSelected(seat, selectedSeats)).length;
-  const allUnavailable = seats.length > 0 && availableSeats.length === 0;
-  const tableFill = '#22415C';
-  const tableStroke = 'rgba(246,198,95,0.28)';
-  const label = section.name || section.label || '';
-  const selectTable = () => {
-    const targetSeats = selectedCount > 0 ? availableSeats.filter((seat) => isSelected(seat, selectedSeats)) : availableSeats;
-    onSeatInfo({
-      title: tableLabel(label),
-      subtitle: `${availableSeats.length} sillas disponibles`,
-      status: selectedCount > 0 ? 'Seleccionada' : allUnavailable ? 'No disponible' : 'Disponible',
-      price: Number(section.price || 0),
-      tone: selectedCount > 0 ? 'selected' : allUnavailable ? 'sold' : 'available',
-    });
-    targetSeats.forEach(onToggleSeat);
-  };
+  const chairSize = clamp(Math.min(w, h) * 0.20, 9, 20);
+  const tableW = w * (isRound ? 0.60 : 0.70);
+  const tableH = h * (isRound ? 0.60 : 0.45);
+  const allUnavail = seats.length > 0 && seats.every((s) => {
+    const ov = cfg[`seat-${s.seatNumber}`] || {};
+    return isUnavailable(s, ov);
+  });
+  const anySel = seats.some((s) => isSelected(s, sel));
 
   return (
-    <View style={StyleSheet.absoluteFill}>
-      <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
-        <G onPress={allUnavailable ? undefined : selectTable}>
-          {isRound ? (
-            <Circle
-              cx={width / 2}
-              cy={height / 2}
-              r={Math.min(centerW, centerH) / 2}
-              fill={tableFill}
-              stroke={tableStroke}
-              strokeWidth={1.4}
-            />
-          ) : (
-            <Rect
-              x={centerX}
-              y={centerY}
-              width={centerW}
-              height={centerH}
-              rx={Math.max(3, Math.min(centerW, centerH) * 0.08)}
-              fill={tableFill}
-              stroke={tableStroke}
-              strokeWidth={1.4}
-            />
-          )}
-          <SvgText
-            x={width / 2}
-            y={height / 2 + clamp(Math.min(width, height) * 0.055, 3, 6)}
-            fill="#F8FAFC"
-            fontSize={clamp(Math.min(width, height) * 0.16, 7, 13)}
-            fontWeight="900"
-            textAnchor="middle"
-          >
-            {label}
-          </SvgText>
-        </G>
+    <View style={{ width: w, height: h }}>
+      {/* Table body */}
+      <View style={{
+        position: 'absolute',
+        left: (w - tableW) / 2, top: (h - tableH) / 2,
+        width: tableW, height: tableH,
+        borderRadius: isRound ? tableW / 2 : 6,
+        backgroundColor: '#22415C',
+        borderWidth: 1, borderColor: 'rgba(246,198,95,0.28)',
+        alignItems: 'center', justifyContent: 'center',
+        opacity: allUnavail ? 0.5 : 1,
+      }}>
+        <Text style={{ color: '#F8FAFC', fontSize: clamp(Math.min(w, h) * 0.12, 6, 11), fontWeight: '900', textAlign: 'center' }}>
+          {section.name || section.label || ''}
+        </Text>
+        {anySel && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#f97316', marginTop: 2 }} />}
+      </View>
 
-        {seats.map((seat, index) => {
-          const override = overrides[seatKey(seat)] || overrides[`seat-${seat.seatNumber}`] || {};
-          if (override.disabled) return null;
-
-          let cx = width / 2;
-          let cy = height / 2;
-
-          if (isRound) {
-            const angle = (index * Math.PI * 2) / Math.max(1, seats.length) - Math.PI / 2;
-            const radius = Math.min(width, height) * 0.43;
-            cx = width / 2 + Math.cos(angle) * radius;
-            cy = height / 2 + Math.sin(angle) * radius;
-          } else {
-            const count = Math.max(1, seats.length);
+      {/* Chairs — positioned around the table using same % math as web */}
+      {isRound
+        ? seats.map((seat, i) => {
+            if ((cfg[`seat-${seat.seatNumber}`] || {}).disabled) return null;
+            const ov = cfg[`seat-${seat.seatNumber}`] || {};
+            const angle = (i * 360) / seats.length;
+            const rad = (angle * Math.PI) / 180;
+            const cx = w / 2 + (w * 0.50) * Math.sin(rad) - chairSize / 2 + (ov.xOffset || 0);
+            const cy = h / 2 - (h * 0.50) * Math.cos(rad) - chairSize / 2 + (ov.yOffset || 0);
+            return (
+              <Chair key={seat.id} seat={seat} section={section} override={ov}
+                sel={sel} size={chairSize}
+                style={{ position: 'absolute', left: cx, top: cy }}
+                onToggle={onToggle} onInfo={onInfo}
+              />
+            );
+          })
+        : (() => {
+            const count = seats.length;
             const perimeter = 2 * (1 + 0.55);
             const step = perimeter / count;
-            const pos = index * step;
-            let xPct = 50;
-            let yPct = 50;
-
-            if (pos < 1) {
-              xPct = 15 + pos * 70;
-              yPct = 12;
-            } else if (pos < 1.55) {
-              xPct = 88;
-              yPct = 15 + ((pos - 1) / 0.55) * 70;
-            } else if (pos < 2.55) {
-              xPct = 85 - (pos - 1.55) * 70;
-              yPct = 88;
-            } else {
-              xPct = 12;
-              yPct = 85 - ((pos - 2.55) / 0.55) * 70;
-            }
-
-            cx = (xPct / 100) * width;
-            cy = (yPct / 100) * height;
-          }
-
-          cx += Number(override.xOffset || 0) * scale;
-          cy += Number(override.yOffset || 0) * scale;
-          const selected = isSelected(seat, selectedSeats);
-          const unavailable = isSeatUnavailable(seat, override);
-          const reserved = String(seat.status || '').toLowerCase() === 'reserved' || override?.reserved;
-          const fill = selected ? colors.orange : unavailable ? (reserved ? '#FACC15' : '#CBD5E1') : color;
-          const stroke = selected ? '#FFFFFF' : unavailable ? (reserved ? '#EAB308' : '#94A3B8') : '#FFFFFF';
-
-          return (
-            <G
-              key={`${seat.id || seat.seatNumber || 'table-seat'}-${index}`}
-              onPress={() => {
-                if (unavailable && !selected) return;
-                onSeatInfo(buildSeatInfo(seat, section, selectedSeats));
-                onToggleSeat(seat);
-              }}
-            >
-              <Circle
-                cx={cx}
-                cy={cy}
-                r={selected ? chairRadius * 1.18 : chairRadius}
-                fill={fill}
-                stroke={stroke}
-                strokeWidth={1.5}
-                opacity={1}
-              />
-              {override?.isWheelchair ? (
-                <SvgText x={cx} y={cy + chairRadius * 0.38} fill="#FFFFFF" fontSize={chairRadius} fontWeight="900" textAnchor="middle">♿</SvgText>
-              ) : null}
-            </G>
-          );
-        })}
-      </Svg>
+            return seats.map((seat, i) => {
+              if ((cfg[`seat-${seat.seatNumber}`] || {}).disabled) return null;
+              const ov = cfg[`seat-${seat.seatNumber}`] || {};
+              const pos = i * step;
+              let xPct = 50, yPct = 50;
+              if (pos < 1)            { xPct = 15 + pos * 70;              yPct = 12; }
+              else if (pos < 1.55)    { xPct = 88;                         yPct = 15 + ((pos - 1) / 0.55) * 70; }
+              else if (pos < 2.55)    { xPct = 85 - (pos - 1.55) * 70;    yPct = 88; }
+              else                    { xPct = 12;                          yPct = 85 - ((pos - 2.55) / 0.55) * 70; }
+              const cx = (w * xPct / 100) - chairSize / 2 + (ov.xOffset || 0);
+              const cy = (h * yPct / 100) - chairSize / 2 + (ov.yOffset || 0);
+              return (
+                <Chair key={seat.id} seat={seat} section={section} override={ov}
+                  sel={sel} size={chairSize}
+                  style={{ position: 'absolute', left: cx, top: cy }}
+                  onToggle={onToggle} onInfo={onInfo}
+                />
+              );
+            });
+          })()
+      }
     </View>
   );
 }
 
-function RowSeatsSection({
-  section,
-  scale,
-  selectedSeats,
-  onToggleSeat,
-  onSeatInfo,
-}: {
-  section: ClientVenueSection;
-  scale: number;
-  selectedSeats: ClientSeat[];
-  onToggleSeat: (seat: ClientSeat) => void;
-  onSeatInfo: (info: SeatInfo) => void;
+// ─── Row-seats section ───────────────────────────────────────────────────────
+function RowSection({ section, sel, onToggle, onInfo }: {
+  section: ClientVenueSection; sel: ClientSeat[];
+  onToggle: (s: ClientSeat) => void; onInfo: (i: ActiveInfo) => void;
 }) {
   const seats = section.seats || [];
-  const overrides = parseSeatConfig(section.seatsConfig);
-  const width = Number(section.mapWidth || 100) * scale;
-  const height = Number(section.mapHeight || 100) * scale;
-  const rows = Array.from(new Set(seats.map((seat) => seat.rowLabel || 'A'))).sort();
-  const curve = Number(section.curve || 0) * scale;
-  const baseSpacingY = rows.length > 1 ? (height - 32 * scale) / (rows.length - 1) : 0;
+  const cfg = parseCfg(section.seatsConfig);
+  const w = Number(section.mapWidth || 100);
+  const h = Number(section.mapHeight || 100);
+  const curve = Number(section.curve || 0);
+  const rows = Array.from(new Set(seats.map((s) => s.rowLabel || 'A'))).sort();
+  const baseSpacingY = rows.length > 1 ? (h - 32) / (rows.length - 1) : 0;
 
   return (
-    <View style={StyleSheet.absoluteFill}>
-      {seats.map((seat, index) => {
-        const row = seat.rowLabel || 'A';
-        const rowIndex = Math.max(0, rows.indexOf(row));
-        const rowSeats = seats
-          .filter((item) => (item.rowLabel || 'A') === row)
+    <View style={{ width: w, height: h }}>
+      {seats.map((seat) => {
+        const key = `${seat.rowLabel || 'A'}-${seat.seatNumber}`;
+        const ov = cfg[key] || {};
+        if (ov.disabled) return null;
+        const rIdx = Math.max(0, rows.indexOf(seat.rowLabel || 'A'));
+        const rowSeats = seats.filter((s) => (s.rowLabel || 'A') === (seat.rowLabel || 'A'))
           .sort((a, b) => Number(a.seatNumber || 0) - Number(b.seatNumber || 0));
-        const seatIndex = Math.max(0, rowSeats.findIndex((item) => item.id === seat.id));
+        const sIdx = rowSeats.findIndex((s) => s.id === seat.id);
         const count = Math.max(1, rowSeats.length);
-        const override = overrides[seatKey(seat)] || {};
-        if (override.disabled) return null;
-
-        const size = clamp(((Number(section.mapWidth || 100) - 24) / count - 2) * scale, 8, 18);
-        const x = count > 1 ? 12 * scale + seatIndex * ((width - 24 * scale) / (count - 1)) : width / 2;
-        const t = count > 1 ? (seatIndex - (count - 1) / 2) / ((count - 1) / 2) : 0;
-        const y = 16 * scale + rowIndex * baseSpacingY + curve * (t * t - 1);
-
+        const t = count > 1 ? (sIdx - (count - 1) / 2) / ((count - 1) / 2) : 0;
+        const size = clamp((w - 24) / count - 2, 9, 18);
+        const x = count > 1 ? 12 + sIdx * ((w - 24) / (count - 1)) : w / 2;
+        const y = 16 + rIdx * baseSpacingY + curve * (t * t - 1);
+        const selected = isSelected(seat, sel);
+        const unavail = isUnavailable(seat, ov) && !selected;
+        const bg = seatBg(seat, ov, sectionColor(section), selected);
+        const bd = seatBorder(seat, ov, selected);
         return (
-          <SeatDot
-            key={`${seat.id || seat.seatNumber || 'row-seat'}-${index}`}
-            seat={seat}
-            section={section}
-            override={override}
-            selectedSeats={selectedSeats}
-            onToggleSeat={onToggleSeat}
-            onSeatInfo={onSeatInfo}
-            x={x - size / 2 + Number(override.xOffset || 0) * scale}
-            y={y - size / 2 + Number(override.yOffset || 0) * scale}
-            size={size}
+          <TouchableOpacity
+            key={seat.id}
+            disabled={unavail}
+            activeOpacity={0.75}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{
+              position: 'absolute',
+              left: x - size / 2 + (ov.xOffset || 0),
+              top: y - size / 2 + (ov.yOffset || 0),
+              width: size, height: size, borderRadius: size / 2,
+              backgroundColor: bg, borderWidth: 1.5, borderColor: bd,
+              transform: [{ scale: selected ? 1.2 : 1 }],
+              opacity: unavail ? 0.45 : 1,
+            }}
+            onPress={() => {
+              onInfo({
+                title: `${section.name || ''} ${seat.rowLabel || ''}${seat.seatNumber ? `-${seat.seatNumber}` : ''}`.trim(),
+                subtitle: section.name || '',
+                status: selected ? 'Seleccionado' : isUnavailable(seat, ov) ? 'No disponible' : 'Disponible',
+                price: getSeatPrice(seat, section),
+                tone: selected ? 'selected' : isUnavailable(seat, ov) ? 'sold' : 'available',
+              });
+              onToggle(seat);
+            }}
           />
         );
       })}
@@ -447,590 +329,376 @@ function RowSeatsSection({
   );
 }
 
+// ─── Main map component ──────────────────────────────────────────────────────
 export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat }: Props) {
   const { t } = useLanguage();
-  const { width } = useWindowDimensions();
-  const [activeInfo, setActiveInfo] = useState<SeatInfo | null>(null);
-  const [focusedSectionId, setFocusedSectionId] = useState<string | null>(null);
+  const { width: screenW } = useWindowDimensions();
 
   const sections = useMemo(
-    () =>
-      seatMap.filter(
-        (section) =>
-          Number.isFinite(Number(section.mapX)) &&
-          Number.isFinite(Number(section.mapY)) &&
-          Number(section.mapWidth || 0) > 0 &&
-          Number(section.mapHeight || 0) > 0
-      ),
-    [seatMap]
+    () => seatMap.filter(
+      (s) => Number.isFinite(Number(s.mapX)) && Number.isFinite(Number(s.mapY))
+        && Number(s.mapWidth || 0) > 0 && Number(s.mapHeight || 0) > 0,
+    ),
+    [seatMap],
   );
 
-  // Full-width viewport matching web — no side margins
-  const viewportWidth = width;
-  // Fixed tall viewport like the web (content centers inside it)
-  const viewportHeight = Math.min(Math.max(width * 1.35, 440), 560);
+  const viewportH = Math.min(Math.max(screenW * 1.2, 420), 540);
 
+  // Fit-view calculation (mirrors web getFitView)
   const fitView = useMemo(() => {
-    if (!sections.length) {
-      return { scale: 0.28, offset: { x: 0, y: 0 } };
-    }
-
+    if (!sections.length) return { zoom: 0.28, pan: { x: 0, y: 0 } };
     const minX = Math.min(...sections.map((s) => Number(s.mapX || 0)));
     const minY = Math.min(...sections.map((s) => Number(s.mapY || 0)));
     const maxX = Math.max(...sections.map((s) => Number(s.mapX || 0) + Number(s.mapWidth || 0)));
     const maxY = Math.max(...sections.map((s) => Number(s.mapY || 0) + Number(s.mapHeight || 0)));
-
+    const cw = screenW, ch = viewportH;
     const contentW = Math.max(1, maxX - minX);
     const contentH = Math.max(1, maxY - minY);
-
-    const scale = clamp(
-      Math.min(
-        (viewportWidth - FIT_PADDING) / contentW,
-        (viewportHeight - FIT_PADDING) / contentH
-      ),
-      0.12, 1.05
-    );
-
+    const z = clamp(Math.min((cw - FIT_PADDING * 2) / contentW, (ch - FIT_PADDING * 2) / contentH), MIN_ZOOM, MAX_ZOOM);
     return {
-      scale,
-      offset: {
-        x: viewportWidth / 2 - ((minX + maxX) / 2) * scale,
-        y: viewportHeight / 2 - ((minY + maxY) / 2) * scale,
+      zoom: z,
+      pan: {
+        x: cw / 2 - ((minX + maxX) / 2) * z,
+        y: ch / 2 - ((minY + maxY) / 2) * z,
       },
     };
-  }, [sections, viewportWidth, viewportHeight]);
+  }, [sections, screenW, viewportH]);
 
-  const [scale, setScale] = useState(fitView.scale);
-  const [offset, setOffset] = useState(fitView.offset);
-  const gestureStart = useRef({ x: fitView.offset.x, y: fitView.offset.y, scale: fitView.scale, distance: 0 });
-  const viewRef = useRef({ scale: fitView.scale, offset: fitView.offset });
-  const fitScaleRef = useRef(fitView.scale);
+  const [zoom, setZoom] = useState(fitView.zoom);
+  const [pan, setPan] = useState(fitView.pan);
+  const [activeInfo, setActiveInfo] = useState<ActiveInfo | null>(null);
 
-  useEffect(() => {
-    setScale(fitView.scale);
-    setOffset(fitView.offset);
-    setFocusedSectionId(null);
-    gestureStart.current = { x: fitView.offset.x, y: fitView.offset.y, scale: fitView.scale, distance: 0 };
-    viewRef.current = { scale: fitView.scale, offset: fitView.offset };
-    fitScaleRef.current = fitView.scale;
-  }, [fitView]);
-
-  const zoom = (amount: number) => {
-    setScale((current) => {
-      const next = clamp(current + amount, fitView.scale, MAX_ZOOM);
-      viewRef.current.scale = next;
-      return next;
-    });
-  };
+  // Touch state refs (mirrors web touchStart ref)
+  const touchRef = useRef({
+    x: 0, y: 0, panX: 0, panY: 0,
+    isPinch: false, pinchDist: 0, pinchZoom: 1,
+    pinchCx: 0, pinchCy: 0, moved: false,
+  });
+  const viewRef = useRef({ zoom: fitView.zoom, pan: fitView.pan });
+  const fitZoomRef = useRef(fitView.zoom);
 
   const resetMap = () => {
-    setScale(fitView.scale);
-    setOffset(fitView.offset);
-    setFocusedSectionId(null);
+    setZoom(fitView.zoom);
+    setPan(fitView.pan);
     setActiveInfo(null);
-    viewRef.current = { scale: fitView.scale, offset: fitView.offset };
+    viewRef.current = { zoom: fitView.zoom, pan: fitView.pan };
   };
+
+  const zoomBy = (delta: number) => {
+    const next = clamp(viewRef.current.zoom + delta, fitZoomRef.current, MAX_ZOOM);
+    viewRef.current.zoom = next;
+    setZoom(next);
+  };
+
+  // Touch handlers — mirrors web onTouchStart/onTouchMove exactly
+  const onTouchStart = (e: any) => {
+    const touches = e.nativeEvent.touches;
+    if (touches.length >= 2) {
+      const t1 = touches[0], t2 = touches[1];
+      const dist = Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY);
+      touchRef.current = {
+        x: 0, y: 0, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y,
+        isPinch: true, pinchDist: dist, pinchZoom: viewRef.current.zoom,
+        pinchCx: (t1.pageX + t2.pageX) / 2, pinchCy: (t1.pageY + t2.pageY) / 2,
+        moved: false,
+      };
+    } else {
+      const t = touches[0];
+      touchRef.current = {
+        x: t.pageX, y: t.pageY, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y,
+        isPinch: false, pinchDist: 0, pinchZoom: viewRef.current.zoom,
+        pinchCx: 0, pinchCy: 0, moved: false,
+      };
+    }
+  };
+
+  const onTouchMove = (e: any) => {
+    const touches = e.nativeEvent.touches;
+    touchRef.current.moved = true;
+    if (touchRef.current.isPinch && touches.length >= 2) {
+      const t1 = touches[0], t2 = touches[1];
+      const dist = Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY);
+      if (touchRef.current.pinchDist === 0) return;
+      const factor = dist / touchRef.current.pinchDist;
+      const oldZ = touchRef.current.pinchZoom;
+      const newZ = clamp(oldZ * factor, fitZoomRef.current, MAX_ZOOM);
+      const ratio = newZ / oldZ;
+      const mx = touchRef.current.pinchCx;
+      const my = touchRef.current.pinchCy;
+      const newPan = {
+        x: mx - (mx - touchRef.current.panX) * ratio,
+        y: my - (my - touchRef.current.panY) * ratio,
+      };
+      viewRef.current = { zoom: newZ, pan: newPan };
+      setZoom(newZ);
+      setPan(newPan);
+    } else if (!touchRef.current.isPinch && touches.length === 1) {
+      const t = touches[0];
+      const newPan = {
+        x: touchRef.current.panX + (t.pageX - touchRef.current.x),
+        y: touchRef.current.panY + (t.pageY - touchRef.current.y),
+      };
+      viewRef.current.pan = newPan;
+      setPan(newPan);
+    }
+  };
+
+  const [activeSection, setActiveSection] = useState<string | null>(null);
 
   const focusSection = (section: ClientVenueSection) => {
-    const kind = getKind(section);
-    if (kind === 'stage' || kind === 'decor') return;
-    const widthRaw = Number(section.mapWidth || 100);
-    const heightRaw = Number(section.mapHeight || 100);
-    const targetScale = clamp(Math.min((viewportWidth * 0.80) / widthRaw, (viewportHeight * 0.65) / heightRaw), fitView.scale, MAX_ZOOM);
-    const nextOffset = {
-      x: viewportWidth / 2 - (Number(section.mapX || 0) + widthRaw / 2) * targetScale,
-      y: viewportHeight / 2 - (Number(section.mapY || 0) + heightRaw / 2) * targetScale - 42,
+    if (activeSection === section.id) { setActiveSection(null); resetMap(); return; }
+    setActiveSection(section.id);
+    const sw = screenW, sh = viewportH;
+    const tw = Number(section.mapWidth || 100);
+    const th = Number(section.mapHeight || 100);
+    const targetZ = clamp(Math.min((sw * 0.85) / tw, (sh * 0.75) / th), fitZoomRef.current, MAX_ZOOM);
+    const newPan = {
+      x: sw / 2 - (Number(section.mapX || 0) + tw / 2) * targetZ,
+      y: sh / 2 - (Number(section.mapY || 0) + th / 2) * targetZ - 40,
     };
-    setFocusedSectionId(section.id);
-    setScale(targetScale);
-    setOffset(nextOffset);
-    setActiveInfo({
-      title: section.name || section.label || t('Sección', 'Section'),
-      subtitle: kind === 'standing' ? t('Acceso general', 'General admission') : `${section.seats?.length || 0} ${t('asientos', 'seats')}`,
-      status: t('Selecciona en el mapa', 'Select on map'),
-      price: Number(section.price || 0),
-      tone: 'available',
-    });
-    viewRef.current = { scale: targetScale, offset: nextOffset };
+    viewRef.current = { zoom: targetZ, pan: newPan };
+    setZoom(targetZ);
+    setPan(newPan);
   };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (evt, gesture) => {
-        const touches = evt.nativeEvent.touches;
-        if (touches.length >= 2) return true;
-        // Single finger: claim only when horizontal movement dominates (map pan),
-        // so vertical swipes still scroll the parent ScrollView.
-        const dx = Math.abs(gesture.dx);
-        const dy = Math.abs(gesture.dy);
-        return dx > 6 && dx > dy * 1.5;
-      },
-      onPanResponderGrant: (event) => {
-        const touches = event.nativeEvent.touches;
-        const distance =
-          touches.length >= 2
-            ? Math.hypot(touches[0].pageX - touches[1].pageX, touches[0].pageY - touches[1].pageY)
-            : 0;
-        gestureStart.current = { x: viewRef.current.offset.x, y: viewRef.current.offset.y, scale: viewRef.current.scale, distance };
-      },
-      onPanResponderMove: (event, gesture) => {
-        const touches = event.nativeEvent.touches;
-        if (touches.length >= 2) {
-          const distance = Math.hypot(touches[0].pageX - touches[1].pageX, touches[0].pageY - touches[1].pageY);
-          if (gestureStart.current.distance > 0) {
-            const nextScale = clamp(gestureStart.current.scale * (distance / gestureStart.current.distance), fitScaleRef.current, MAX_ZOOM);
-            setScale(nextScale);
-            viewRef.current.scale = nextScale;
-          }
-          const nextOffset = {
-            x: gestureStart.current.x + gesture.dx,
-            y: gestureStart.current.y + gesture.dy,
-          };
-          setOffset(nextOffset);
-          viewRef.current.offset = nextOffset;
-        } else {
-          // Single-finger pan — move map in both axes
-          const nextOffset = {
-            x: gestureStart.current.x + gesture.dx,
-            y: gestureStart.current.y + gesture.dy,
-          };
-          setOffset(nextOffset);
-          viewRef.current.offset = nextOffset;
-        }
-      },
-    })
-  ).current;
 
   if (!sections.length) {
     return (
-      <View style={styles.emptyCard}>
-        <Text style={styles.emptyTitle}>{t('Mapa visual no disponible', 'Visual map unavailable')}</Text>
-        <Text style={styles.emptyCopy}>{t('Este evento todavía no tiene un mapa visual publicado.', 'This event does not have a published visual map yet.')}</Text>
+      <View style={s.emptyCard}>
+        <Ionicons name="map-outline" size={28} color="rgba(249,115,22,0.5)" style={{ marginBottom: 8 }} />
+        <Text style={s.emptyTitle}>{t('Mapa visual no disponible', 'Visual map unavailable')}</Text>
+        <Text style={s.emptyCopy}>{t('Este evento no tiene un mapa publicado.', 'This event has no published map.')}</Text>
       </View>
     );
   }
 
-  const selectedInFocus = focusedSectionId ? selectedSeats.filter((seat) => seat.sectionId === focusedSectionId).length : 0;
+  const toneColor = (tone: ActiveInfo['tone']) =>
+    tone === 'selected' ? '#f97316' : tone === 'sold' ? '#94a3b8' : tone === 'reserved' ? '#facc15' : '#86efac';
 
-    return (
-    <View style={styles.wrap}>
+  return (
+    <View style={s.wrap}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('Selecciona tus asientos', 'Select your seats')}</Text>
-        {selectedSeats.length > 0 && (
-          <View style={styles.selectedPill}>
-            <Text style={styles.selectedPillText}>{selectedSeats.length}</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Top Controls Row */}
-      <View style={styles.topControls}>
-        <Text style={styles.helpText}>
-          {'👆 '}{t('1 dedo para mover · pellizca para zoom', '1 finger to pan · pinch to zoom')}
-        </Text>
-        <View style={styles.controls}>
-          <TouchableOpacity style={styles.controlButton} onPress={() => zoom(-ZOOM_STEP)}>
-            <Ionicons name="search-outline" size={15} color="rgba(226,232,240,0.85)" />
-            <View style={styles.controlMinus} />
+      <View style={s.header}>
+        <Text style={s.headerTitle}>{t('Selecciona tus asientos', 'Select your seats')}</Text>
+        <View style={s.controls}>
+          <TouchableOpacity style={s.ctrlBtn} onPress={() => zoomBy(-ZOOM_STEP)}>
+            <Ionicons name="search-outline" size={14} color="rgba(226,232,240,0.85)" />
+            <View style={s.ctrlMinus} />
           </TouchableOpacity>
-          <View style={styles.controlDivider} />
-          <TouchableOpacity style={styles.controlButton} onPress={() => zoom(ZOOM_STEP)}>
-            <Ionicons name="search-outline" size={15} color="rgba(226,232,240,0.85)" />
-            <View style={styles.controlPlus} />
+          <View style={s.ctrlDivider} />
+          <TouchableOpacity style={s.ctrlBtn} onPress={() => zoomBy(ZOOM_STEP)}>
+            <Ionicons name="search-outline" size={14} color="rgba(226,232,240,0.85)" />
+            <View style={s.ctrlPlus} />
           </TouchableOpacity>
-          <View style={styles.controlDivider} />
-          <TouchableOpacity style={styles.controlButton} onPress={resetMap}>
-            <Ionicons name="contract-outline" size={15} color="rgba(226,232,240,0.85)" />
+          <View style={s.ctrlDivider} />
+          <TouchableOpacity style={s.ctrlBtn} onPress={resetMap}>
+            <Ionicons name="contract-outline" size={14} color="rgba(226,232,240,0.85)" />
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={[styles.viewport, { height: viewportHeight }]} {...panResponder.panHandlers}>
-        <BackgroundGrid width={viewportWidth} height={viewportHeight} />
+      <Text style={s.hint}>{'👆 '}{t('1 dedo para mover · pellizca para zoom', '1 finger to pan · pinch to zoom')}</Text>
 
+      {/* Viewport */}
+      <View
+        style={[s.viewport, { height: viewportH }]}
+        onStartShouldSetResponder={() => true}
+        onResponderGrant={onTouchStart}
+        onResponderMove={onTouchMove}
+        onResponderRelease={() => { touchRef.current.moved = false; }}
+      >
+        {/* Grid */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <View style={s.gridLarge} />
+          <View style={s.gridSmall} />
+        </View>
+
+        {/* Canvas — same transform as web: translate then scale from origin 0,0 */}
         <View
-          style={[
-            styles.canvas,
-            {
-              width: CANVAS_WIDTH,
-              height: CANVAS_HEIGHT,
-              // RN has no transformOrigin — simulate top-left scaling by adjusting translate
-              transform: [
-                { translateX: offset.x + (CANVAS_WIDTH / 2) * (scale - 1) },
-                { translateY: offset.y + (CANVAS_HEIGHT / 2) * (scale - 1) },
-                { scale },
-              ],
-            },
-          ]}
+          style={[s.canvas, {
+            width: CANVAS_W,
+            height: CANVAS_H,
+            transform: [
+              { translateX: pan.x + (CANVAS_W / 2) * (zoom - 1) },
+              { translateY: pan.y + (CANVAS_H / 2) * (zoom - 1) },
+              { scale: zoom },
+            ],
+          }]}
+          pointerEvents="box-none"
         >
-          {sections.map((section, index) => {
+          {sections.map((section) => {
             const kind = getKind(section);
-            const color = sectionColor(section);
-            const name = section.name || section.label || t('Sección', 'Section');
             const left = Number(section.mapX || 0);
             const top = Number(section.mapY || 0);
-            const sectionWidth = Number(section.mapWidth || 100);
-            const sectionHeight = Number(section.mapHeight || 100);
-            const focused = focusedSectionId === section.id;
-            const dimmed = focusedSectionId && !focused && kind !== 'stage';
+            const w = Number(section.mapWidth || 100);
+            const h = Number(section.mapHeight || 100);
+            const color = sectionColor(section);
+            const isInteractive = kind !== 'stage' && kind !== 'decor';
+            const isFocusable = kind === 'standing';
+
+            const bg = kind === 'stage' ? '#0F172A'
+              : kind === 'standing' ? (selectedSeats.some((s) => s.sectionId === section.id) ? '#f97316' : color)
+              : kind === 'decor' ? (color || '#f8fafc')
+              : 'transparent';
 
             return (
               <TouchableOpacity
-                key={`${section.id || section.name || 'section'}-${index}`}
-                activeOpacity={kind === 'stage' || kind === 'decor' || kind === 'table' || kind === 'seats' ? 1 : 0.9}
-                disabled={kind === 'stage' || kind === 'decor'}
-                onPress={() => { if (kind !== 'table' && kind !== 'seats') focusSection(section); }}
-                style={[
-                  styles.section,
-                  kind === 'stage' && styles.stageSection,
-                  kind === 'decor' && styles.decorSection,
-                  kind === 'standing' && styles.standingSection,
-                  focused && styles.focusedSection,
-                  {
-                    left,
-                    top,
-                    width: sectionWidth,
-                    height: sectionHeight,
-                    borderColor: kind === 'table' || kind === 'seats' ? 'transparent' : color,
-                    borderWidth:
-                      kind === 'table' || kind === 'seats'
-                        ? 0
-                        : kind === 'decor'
-                          ? 1
-                          : 2,
-                    backgroundColor:
-                      kind === 'stage'
-                        ? '#0F172A'
-                        : kind === 'standing' || kind === 'decor'
-                          ? color
-                          : 'transparent',
-                    borderRadius:
-                      kind === 'stage'
-                        ? 18
-                        : kind === 'table' && (section.tableShape || 'round') === 'round'
-                          ? Math.min(sectionWidth, sectionHeight) / 2
-                          : 4,
-                    transform: [{ rotate: `${Number(section.rotation || 0)}deg` }],
-                    opacity: dimmed ? 0.34 : 1,
-                  },
-                ]}
+                key={section.id}
+                activeOpacity={isInteractive ? (isFocusable ? 0.8 : 1) : 1}
+                disabled={!isInteractive}
+                onPress={isFocusable ? () => focusSection(section) : undefined}
+                style={{
+                  position: 'absolute', left, top, width: w, height: h,
+                  backgroundColor: bg,
+                  borderRadius: kind === 'stage' ? 18 : kind === 'standing' ? 8 : kind === 'table' && (section.tableShape || 'round') === 'round' ? Math.min(w, h) / 2 : 4,
+                  borderWidth: kind === 'stage' ? 2.5 : kind === 'standing' ? 2 : kind === 'decor' ? 1 : 0,
+                  borderColor: kind === 'stage' ? '#3b82f6' : kind === 'standing' ? color : kind === 'decor' ? '#cbd5e1' : 'transparent',
+                  transform: [{ rotate: `${Number(section.rotation || 0)}deg` }],
+                  alignItems: 'center', justifyContent: 'center',
+                  overflow: 'visible',
+                  zIndex: kind === 'stage' ? 5 : 10,
+                }}
               >
                 {kind === 'stage' && (
                   <>
-                    <Text style={[styles.stageName, { fontSize: 13 }]} numberOfLines={1}>{name}</Text>
-                    <Text style={[styles.stageSub, { fontSize: 9 }]} numberOfLines={1}>{t('ESCENARIO', 'STAGE')}</Text>
+                    <Text style={s.stageLabel}>{section.name}</Text>
+                    <Text style={s.stageSub}>{t('ESCENARIO', 'STAGE')}</Text>
                   </>
                 )}
-
                 {kind === 'decor' && (
-                  <Text style={[styles.decorName, { fontSize: 12 }]} numberOfLines={1}>{name}</Text>
+                  <Text style={s.decorLabel} numberOfLines={2}>{section.name}</Text>
                 )}
-
                 {kind === 'standing' && (
-                  <Text style={[styles.standingName, { fontSize: 12 }]} numberOfLines={1}>{name}</Text>
+                  <Text style={s.standingLabel} numberOfLines={1}>{section.name}</Text>
                 )}
-
                 {kind === 'table' && (
-                  <TableSection section={section} scale={1} selectedSeats={selectedSeats} onToggleSeat={onToggleSeat} onSeatInfo={(info) => { setFocusedSectionId(null); setActiveInfo(info); }} />
+                  <TableSection section={section} sel={selectedSeats} onToggle={onToggleSeat}
+                    onInfo={(info) => { setActiveSection(null); setActiveInfo(info); }}
+                  />
                 )}
-
                 {kind === 'seats' && (
-                  <RowSeatsSection section={section} scale={1} selectedSeats={selectedSeats} onToggleSeat={onToggleSeat} onSeatInfo={(info) => { setFocusedSectionId(null); setActiveInfo(info); }} />
+                  <RowSection section={section} sel={selectedSeats} onToggle={onToggleSeat}
+                    onInfo={(info) => { setActiveSection(null); setActiveInfo(info); }}
+                  />
                 )}
               </TouchableOpacity>
             );
           })}
         </View>
 
+        {/* Info tooltip */}
         {activeInfo && (
-          <View style={styles.infoCard} pointerEvents="none">
-            <View style={styles.infoTop}>
-              <View style={styles.infoTextBlock}>
-                <Text style={styles.infoTitle} numberOfLines={1}>{activeInfo.title}</Text>
-                <Text style={styles.infoSubtitle} numberOfLines={1}>{activeInfo.subtitle}</Text>
+          <View style={s.infoCard} pointerEvents="none">
+            <Text style={s.infoTitle} numberOfLines={1}>{activeInfo.title}</Text>
+            {!!activeInfo.subtitle && <Text style={s.infoSub} numberOfLines={1}>{activeInfo.subtitle}</Text>}
+            <View style={s.infoBottom}>
+              <View style={[s.infoStatus, { backgroundColor: `${toneColor(activeInfo.tone)}22` }]}>
+                <Text style={[s.infoStatusText, { color: toneColor(activeInfo.tone) }]}>{activeInfo.status}</Text>
               </View>
-              <Text style={styles.infoPrice}>${activeInfo.price.toFixed(2)}</Text>
-            </View>
-            <View style={[styles.infoStatus, styles[`infoStatus_${activeInfo.tone}` as const]]}>
-              <Text style={[styles.infoStatusText, styles[`infoStatusText_${activeInfo.tone}` as const]]}>{activeInfo.status}</Text>
+              <Text style={s.infoPrice}>${activeInfo.price.toFixed(2)}</Text>
             </View>
           </View>
         )}
 
-        {focusedSectionId && (
-          <View style={styles.focusBar}>
-            <TouchableOpacity style={styles.focusBack} onPress={resetMap}>
-              <Text style={styles.focusBackText}>‹</Text>
-            </TouchableOpacity>
-            <View style={styles.focusCopy}>
-              <Text style={styles.focusTitle} numberOfLines={1}>
-                {sections.find((section) => section.id === focusedSectionId)?.name || t('Sección', 'Section')}
-              </Text>
-              <Text style={styles.focusMeta}>{selectedInFocus} {t('seleccionado(s)', 'selected')}</Text>
+        {/* Bottom toolbar when standing section is focused */}
+        {activeSection && (() => {
+          const sec = sections.find((s) => s.id === activeSection);
+          if (!sec || getKind(sec) !== 'standing') return null;
+          const cap = Math.max(0, Number(sec.capacity) || 0);
+          const sold = (sec.seats || []).filter((s) => s.status === 'sold' || (s.status === 'locked' && !s.lockExpiresAt)).length;
+          const remaining = cap > 0 ? Math.max(0, cap - sold) : 10;
+          const current = selectedSeats.filter((s) => s.sectionId === sec.id);
+          return (
+            <View style={s.toolbar}>
+              <TouchableOpacity style={s.toolbarBack} onPress={() => { setActiveSection(null); resetMap(); }}>
+                <Ionicons name="arrow-back" size={18} color="#fff" />
+              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <Text style={s.toolbarName}>{sec.name}</Text>
+                <Text style={s.toolbarSub}>{remaining} {t('disponibles', 'available')}</Text>
+              </View>
+              <View style={s.qtyRow}>
+                <TouchableOpacity style={s.qtyBtn} onPress={() => {
+                  if (current.length > 0) onToggleSeat(current[current.length - 1]);
+                  if (current.length <= 1) setActiveSection(null);
+                }}>
+                  <Text style={s.qtyBtnText}>－</Text>
+                </TouchableOpacity>
+                <Text style={s.qtyVal}>{current.length}</Text>
+                <TouchableOpacity style={[s.qtyBtn, s.qtyBtnOrange]} onPress={() => {
+                  if (current.length < Math.min(10, remaining)) {
+                    onToggleSeat({
+                      id: `standing-${sec.id}-${current.length + 1}-${Date.now()}`,
+                      sectionId: sec.id,
+                      rowLabel: 'GA',
+                      seatNumber: current.length + 1,
+                      status: 'available',
+                    });
+                  }
+                }}>
+                  <Text style={s.qtyBtnText}>＋</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
-
-        {/* Floating controls removed, they are now above the viewport */}
+          );
+        })()}
       </View>
 
-      <View style={styles.legend}>
-        <View style={styles.legendItem}><View style={[styles.legendDot, styles.legendAvailable]} /><Text style={styles.legendText}>{t('Disponible', 'Available')}</Text></View>
-        <View style={styles.legendSep} />
-        <View style={styles.legendItem}><View style={[styles.legendDot, styles.legendSelected]} /><Text style={styles.legendText}>{t('Seleccionado', 'Selected')}</Text></View>
-        <View style={styles.legendSep} />
-        <View style={styles.legendItem}><View style={[styles.legendDot, styles.legendSold]} /><Text style={styles.legendText}>{t('Vendido', 'Sold')}</Text></View>
+      {/* Legend */}
+      <View style={s.legend}>
+        {([
+          { color: '#ffffff', label: t('Disponible', 'Available') },
+          { color: '#f97316', label: t('Seleccionado', 'Selected') },
+          { color: '#cbd5e1', label: t('Vendido', 'Sold') },
+        ] as { color: string; label: string }[]).map((item) => (
+          <View key={item.label} style={s.legendItem}>
+            <View style={[s.legendDot, { backgroundColor: item.color, borderWidth: item.color === '#ffffff' ? 1 : 0, borderColor: '#94a3b8' }]} />
+            <Text style={s.legendText}>{item.label}</Text>
+          </View>
+        ))}
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: '#0B1623',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 12,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  selectedPill: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F97316',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectedPillText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  topControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingBottom: 14,
-  },
-  floatingControls: {}, // Removed but kept empty to avoid breaking any other styles if missed
-  helpText: {
-    color: 'rgba(226,232,240,0.55)',
-    fontSize: 11.5,
-    fontWeight: '500',
-    flexShrink: 1,
-    marginRight: 8,
-  },
-  controls: {
-    height: 36,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(11,22,35,0.88)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  controlButton: {
-    width: 38,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  controlMinus: {
-    position: 'absolute',
-    bottom: 9,
-    right: 7,
-    width: 7,
-    height: 1.5,
-    backgroundColor: 'rgba(226,232,240,0.85)',
-    borderRadius: 1,
-  },
-  controlPlus: {
-    position: 'absolute',
-    bottom: 9,
-    right: 7,
-    width: 7,
-    height: 7,
-    borderRadius: 0.5,
-    // drawn via borderBottom trick — use the minus bar + vertical bar
-  },
-  controlDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.18)' },
-  viewport: {
-    overflow: 'hidden',
-    backgroundColor: '#0B1A2B',
-  },
-  canvas: {
-    position: 'absolute',
-  },
-  section: {
-    position: 'absolute',
-    borderWidth: 2,
-    overflow: 'visible',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  focusedSection: {
-    borderWidth: 2.6,
-    shadowColor: colors.orange,
-    shadowOpacity: 0.55,
-    shadowRadius: 16,
-    zIndex: 40,
-  },
-  stageSection: {
-    borderWidth: 2,
-    borderColor: '#3B82F6',
-    shadowColor: '#3B82F6',
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-  },
-  decorSection: {
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  standingSection: {
-    borderWidth: 2,
-  },
-  stageName: {
-    color: '#60A5FA',
-    fontWeight: '700',
-    letterSpacing: 0,
-  },
-  stageSub: {
-    color: '#94A3B8',
-    fontWeight: '700',
-    letterSpacing: 0,
-    marginTop: 1,
-  },
-  decorName: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    letterSpacing: 0,
-  },
-  standingName: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    letterSpacing: 0,
-  },
-  tableCore: {
-    position: 'absolute',
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-    backgroundColor: '#22415C',
-    shadowColor: '#000000',
-    shadowOpacity: 0.24,
-    shadowRadius: 8,
-  },
-  tableLabel: {
-    color: '#F8FAFC',
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  seatDot: {
-    position: 'absolute',
-    borderWidth: 1.5,
-    zIndex: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 2 },
-  },
-  wheelchair: { color: '#FFFFFF', fontWeight: '900' },
-  infoCard: {
-    position: 'absolute',
-    left: 18,
-    right: 18,
-    top: 18,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(246,198,95,0.24)',
-    backgroundColor: 'rgba(8,31,51,0.94)',
-    padding: 13,
-    shadowColor: '#000000',
-    shadowOpacity: 0.34,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-  },
-  infoTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
-  infoTextBlock: { flex: 1 },
-  infoTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
-  infoSubtitle: { color: 'rgba(203,213,225,0.74)', fontSize: 11.5, fontWeight: '700', marginTop: 3 },
-  infoPrice: { color: colors.orange, fontSize: 15, fontWeight: '900' },
-  infoStatus: { alignSelf: 'flex-start', borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5, marginTop: 10 },
-  infoStatus_available: { backgroundColor: 'rgba(34,197,94,0.12)', borderColor: 'rgba(34,197,94,0.28)' },
-  infoStatus_selected: { backgroundColor: 'rgba(249,115,22,0.14)', borderColor: 'rgba(249,115,22,0.36)' },
-  infoStatus_sold: { backgroundColor: 'rgba(148,163,184,0.14)', borderColor: 'rgba(148,163,184,0.25)' },
-  infoStatus_reserved: { backgroundColor: 'rgba(250,204,21,0.14)', borderColor: 'rgba(250,204,21,0.34)' },
-  infoStatusText: { fontSize: 10.5, fontWeight: '900' },
-  infoStatusText_available: { color: '#86EFAC' },
-  infoStatusText_selected: { color: '#FDBA74' },
-  infoStatusText_sold: { color: '#CBD5E1' },
-  infoStatusText_reserved: { color: '#FDE68A' },
-  focusBar: {
-    position: 'absolute',
-    left: 14,
-    right: 14,
-    bottom: 14,
-    minHeight: 62,
-    borderRadius: 20,
-    backgroundColor: 'rgba(15,23,42,0.96)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    gap: 12,
-  },
-  focusBack: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
-  focusBackText: { color: '#FFFFFF', fontSize: 28, fontWeight: '700', marginTop: -2 },
-  focusCopy: { flex: 1 },
-  focusTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
-  focusMeta: { color: 'rgba(203,213,225,0.70)', fontSize: 12, fontWeight: '700', marginTop: 3 },
-  legend: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.07)',
-  },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendSep: { width: 1, height: 12, backgroundColor: 'rgba(255,255,255,0.15)', marginHorizontal: 4 },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 1.5,
-  },
-  legendAvailable: { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.45)' },
-  legendSelected: { backgroundColor: colors.orange, borderColor: colors.orange },
-  legendSold: { backgroundColor: '#94A3B8', borderColor: '#94A3B8' },
-  legendText: { color: 'rgba(203,213,225,0.70)', fontSize: 12, fontWeight: '500' },
-  emptyCard: {
-    borderRadius: 22,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.035)',
-  },
-  emptyTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
-  emptyCopy: { color: 'rgba(226,232,240,0.72)', fontSize: 13, lineHeight: 20, marginTop: 8 },
+const s = StyleSheet.create({
+  wrap: { borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: '#0d1f33' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4 },
+  headerTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '800' },
+  hint: { color: 'rgba(226,232,240,0.45)', fontSize: 10, fontWeight: '500', paddingHorizontal: 14, paddingBottom: 6 },
+  controls: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
+  ctrlBtn: { width: 34, height: 32, alignItems: 'center', justifyContent: 'center' },
+  ctrlDivider: { width: 1, height: 18, backgroundColor: 'rgba(255,255,255,0.12)' },
+  ctrlMinus: { position: 'absolute', width: 7, height: 1.5, backgroundColor: 'rgba(226,232,240,0.85)', bottom: 8, right: 6 },
+  ctrlPlus: { position: 'absolute', width: 7, height: 1.5, backgroundColor: 'rgba(226,232,240,0.85)', bottom: 8, right: 6 },
+  viewport: { position: 'relative', overflow: 'hidden', backgroundColor: '#0d2138' },
+  gridLarge: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  gridSmall: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  canvas: { position: 'absolute', top: 0, left: 0 },
+  emptyCard: { borderRadius: 20, padding: 28, backgroundColor: 'rgba(255,255,255,0.018)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', alignItems: 'center' },
+  emptyTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  emptyCopy: { color: 'rgba(226,232,240,0.55)', fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 6 },
+  stageLabel: { color: '#60a5fa', fontSize: 11, fontWeight: '800', letterSpacing: 3, textTransform: 'uppercase' },
+  stageSub: { color: '#94a3b8', fontSize: 7, fontWeight: '700', letterSpacing: 2, textTransform: 'uppercase', marginTop: 1 },
+  decorLabel: { color: '#1e293b', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', textAlign: 'center' },
+  standingLabel: { color: '#ffffff', fontSize: 9, fontWeight: '800', textTransform: 'uppercase', textAlign: 'center' },
+  infoCard: { position: 'absolute', bottom: 52, left: 12, right: 12, backgroundColor: 'rgba(11,34,54,0.96)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(246,198,95,0.20)', padding: 12, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12 },
+  infoTitle: { color: '#ffffff', fontSize: 13, fontWeight: '900' },
+  infoSub: { color: '#94a3b8', fontSize: 11, fontWeight: '600', marginTop: 1 },
+  infoBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  infoStatus: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  infoStatusText: { fontSize: 10, fontWeight: '800' },
+  infoPrice: { color: '#F97316', fontSize: 15, fontWeight: '900' },
+  toolbar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#1e2228', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 12 },
+  toolbarBack: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+  toolbarName: { color: '#ffffff', fontSize: 14, fontWeight: '800' },
+  toolbarSub: { color: '#94a3b8', fontSize: 11, fontWeight: '500' },
+  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 16, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  qtyBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+  qtyBtnOrange: { backgroundColor: colors.orange },
+  qtyBtnText: { color: '#ffffff', fontSize: 16, fontWeight: '900', lineHeight: 20 },
+  qtyVal: { color: '#ffffff', fontSize: 18, fontWeight: '900', minWidth: 24, textAlign: 'center' },
+  legend: { flexDirection: 'row', justifyContent: 'center', gap: 18, paddingVertical: 10, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { color: 'rgba(203,213,225,0.70)', fontSize: 11, fontWeight: '600' },
 });
