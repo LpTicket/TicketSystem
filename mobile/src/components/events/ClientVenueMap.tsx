@@ -57,6 +57,7 @@ const MIN_ZOOM = 0.12;
 const MAX_ZOOM = 2.5;
 const ZOOM_STEP = 0.12;
 const FIT_PADDING = 40;
+const MAP_EDGE_PADDING = 48;
 const CANVAS_W = 2000;
 const CANVAS_H = 1600;
 
@@ -320,26 +321,34 @@ const StaticGrid = memo(function StaticGrid({ width, height }: { width: number; 
 export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleSeats, defaultViewX, defaultViewY, defaultViewZoom, onScrollLock }: Props) {
   const { t } = useLanguage();
   const { width: screenW } = useWindowDimensions();
+  const [viewportW, setViewportW] = useState(screenW);
 
   const sections = useMemo(
     () => seatMap.filter((s) => Number.isFinite(Number(s.mapX)) && Number.isFinite(Number(s.mapY)) && Number(s.mapWidth || 0) > 0 && Number(s.mapHeight || 0) > 0),
     [seatMap],
   );
 
-  const viewportH = Math.min(Math.max(screenW * 1.25, 420), 560);
+  const viewportH = Math.min(Math.max(viewportW * 1.25, 420), 560);
+
+  const contentBounds = useMemo(() => {
+    if (!sections.length) return { minX: 0, minY: 0, maxX: CANVAS_W, maxY: CANVAS_H };
+    return {
+      minX: Math.min(...sections.map((s) => Number(s.mapX || 0))),
+      minY: Math.min(...sections.map((s) => Number(s.mapY || 0))),
+      maxX: Math.max(...sections.map((s) => Number(s.mapX || 0) + Number(s.mapWidth || 0))),
+      maxY: Math.max(...sections.map((s) => Number(s.mapY || 0) + Number(s.mapHeight || 0))),
+    };
+  }, [sections]);
 
   const fitView = useMemo(() => {
     if (!sections.length) return { zoom: 1, pan: { x: 0, y: 0 } };
     if (typeof defaultViewZoom === 'number' && typeof defaultViewX === 'number' && typeof defaultViewY === 'number') {
       return { zoom: defaultViewZoom, pan: { x: defaultViewX, y: defaultViewY } };
     }
-    const minX = Math.min(...sections.map((s) => Number(s.mapX || 0)));
-    const minY = Math.min(...sections.map((s) => Number(s.mapY || 0)));
-    const maxX = Math.max(...sections.map((s) => Number(s.mapX || 0) + Number(s.mapWidth || 0)));
-    const maxY = Math.max(...sections.map((s) => Number(s.mapY || 0) + Number(s.mapHeight || 0)));
-    const z = clamp(Math.min((screenW - FIT_PADDING * 2) / Math.max(1, maxX - minX), (viewportH - FIT_PADDING * 2) / Math.max(1, maxY - minY)), MIN_ZOOM, MAX_ZOOM);
-    return { zoom: z, pan: { x: screenW / 2 - ((minX + maxX) / 2) * z, y: viewportH / 2 - ((minY + maxY) / 2) * z } };
-  }, [sections, screenW, viewportH, defaultViewX, defaultViewY, defaultViewZoom]);
+    const { minX, minY, maxX, maxY } = contentBounds;
+    const z = clamp(Math.min((viewportW - FIT_PADDING * 2) / Math.max(1, maxX - minX), (viewportH - FIT_PADDING * 2) / Math.max(1, maxY - minY)), MIN_ZOOM, MAX_ZOOM);
+    return { zoom: z, pan: { x: viewportW / 2 - ((minX + maxX) / 2) * z, y: viewportH / 2 - ((minY + maxY) / 2) * z } };
+  }, [sections, viewportW, viewportH, contentBounds, defaultViewX, defaultViewY, defaultViewZoom]);
 
   // Animated values — canvas moves on the UI thread, no JS re-render per frame
   const animZoom = useRef(new Animated.Value(fitView.zoom)).current;
@@ -371,11 +380,28 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
     }
   }, [fitView]);
 
+  const clampPan = (z: number, p: { x: number; y: number }) => {
+    const { minX, minY, maxX, maxY } = contentBounds;
+    const centerX = viewportW / 2 - ((minX + maxX) / 2) * z;
+    const centerY = viewportH / 2 - ((minY + maxY) / 2) * z;
+
+    const minPanX = viewportW - MAP_EDGE_PADDING - maxX * z;
+    const maxPanX = MAP_EDGE_PADDING - minX * z;
+    const minPanY = viewportH - MAP_EDGE_PADDING - maxY * z;
+    const maxPanY = MAP_EDGE_PADDING - minY * z;
+
+    return {
+      x: minPanX <= maxPanX ? clamp(p.x, minPanX, maxPanX) : centerX,
+      y: minPanY <= maxPanY ? clamp(p.y, minPanY, maxPanY) : centerY,
+    };
+  };
+
   const syncAnimated = (z: number, p: { x: number; y: number }) => {
+    const safePan = clampPan(z, p);
     animZoom.setValue(z);
-    animPanX.setValue(p.x);
-    animPanY.setValue(p.y);
-    viewRef.current = { zoom: z, pan: p };
+    animPanX.setValue(safePan.x);
+    animPanY.setValue(safePan.y);
+    viewRef.current = { zoom: z, pan: safePan };
   };
 
   const animatingRef = useRef(false);
@@ -383,11 +409,12 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
   const animateTo = (newZ: number, newP: { x: number; y: number }, duration = 200) => {
     if (animatingRef.current) return;
     animatingRef.current = true;
-    viewRef.current = { zoom: newZ, pan: newP };
+    const safePan = clampPan(newZ, newP);
+    viewRef.current = { zoom: newZ, pan: safePan };
     Animated.parallel([
       Animated.timing(animZoom, { toValue: newZ, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-      Animated.timing(animPanX, { toValue: newP.x, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-      Animated.timing(animPanY, { toValue: newP.y, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(animPanX, { toValue: safePan.x, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(animPanY, { toValue: safePan.y, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
     ]).start(() => { animatingRef.current = false; });
   };
 
@@ -400,17 +427,36 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
     const newZ = clamp(oldZ + delta, fitView.zoom, MAX_ZOOM);
     if (newZ === oldZ) return;
     // Keep the visible center fixed during zoom
-    const contentCx = (screenW / 2 - viewRef.current.pan.x) / oldZ;
+    const contentCx = (viewportW / 2 - viewRef.current.pan.x) / oldZ;
     const contentCy = (viewportH / 2 - viewRef.current.pan.y) / oldZ;
     const newP = newZ <= fitView.zoom + 0.001 ? fitView.pan : {
-      x: screenW / 2 - contentCx * newZ,
+      x: viewportW / 2 - contentCx * newZ,
       y: viewportH / 2 - contentCy * newZ,
     };
     animateTo(newZ, newP);
   };
 
   // Touch — direct sync (no animation during drag/pinch)
-  const touchRef = useRef({ x: 0, y: 0, panX: 0, panY: 0, isPinch: false, pinchDist: 0, pinchZoom: 1, pinchCx: 0, pinchCy: 0 });
+  const touchRef = useRef({ x: 0, y: 0, panX: 0, panY: 0, isPinch: false, pinchDist: 0, pinchZoom: 1, pinchCx: 0, pinchCy: 0, moved: false });
+  const responderStartRef = useRef({ x: 0, y: 0 });
+
+  const rememberResponderStart = (e: any) => {
+    const touches = e.nativeEvent.touches || [];
+    const t = touches[0];
+    responderStartRef.current = { x: t?.pageX || 0, y: t?.pageY || 0 };
+    onScrollLock?.(true);
+    return true;
+  };
+
+  const shouldCaptureMove = (e: any) => {
+    const touches = e.nativeEvent.touches || [];
+    if (touches.length >= 2) return true;
+    const t = touches[0];
+    if (!t) return false;
+    const dx = Math.abs((t.pageX || 0) - responderStartRef.current.x);
+    const dy = Math.abs((t.pageY || 0) - responderStartRef.current.y);
+    return dx > 1 || dy > 1;
+  };
 
   const onTouchStart = (e: any) => {
     if (animatingRef.current) return;
@@ -418,14 +464,31 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
     const touches = e.nativeEvent.touches;
     if (touches.length >= 2) {
       const t1 = touches[0], t2 = touches[1];
-      touchRef.current = { x: 0, y: 0, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: true, pinchDist: Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY), pinchZoom: viewRef.current.zoom, pinchCx: (t1.pageX + t2.pageX) / 2, pinchCy: (t1.pageY + t2.pageY) / 2 };
+      touchRef.current = {
+        x: 0,
+        y: 0,
+        panX: viewRef.current.pan.x,
+        panY: viewRef.current.pan.y,
+        isPinch: true,
+        pinchDist: Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY),
+        pinchZoom: viewRef.current.zoom,
+        pinchCx: ((t1.locationX ?? t1.pageX) + (t2.locationX ?? t2.pageX)) / 2,
+        pinchCy: ((t1.locationY ?? t1.pageY) + (t2.locationY ?? t2.pageY)) / 2,
+        moved: false,
+      };
     } else {
       const t = touches[0];
-      touchRef.current = { x: t.pageX, y: t.pageY, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: false, pinchDist: 0, pinchZoom: viewRef.current.zoom, pinchCx: 0, pinchCy: 0 };
+      touchRef.current = { x: t.locationX ?? t.pageX, y: t.locationY ?? t.pageY, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: false, pinchDist: 0, pinchZoom: viewRef.current.zoom, pinchCx: 0, pinchCy: 0, moved: false };
     }
   };
 
-  const onTouchEnd = () => { onScrollLock?.(false); };
+  const releaseScrollLock = () => { onScrollLock?.(false); };
+  const onTouchEnd = (e?: any) => {
+    if (!touchRef.current.moved && e?.nativeEvent) {
+      handleMapTap(e.nativeEvent.locationX, e.nativeEvent.locationY);
+    }
+    releaseScrollLock();
+  };
 
   const onTouchMove = (e: any) => {
     const touches = e.nativeEvent.touches;
@@ -433,13 +496,17 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
       const t1 = touches[0], t2 = touches[1];
       const dist = Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY);
       if (!touchRef.current.pinchDist) return;
+      if (Math.abs(dist - touchRef.current.pinchDist) > 1) touchRef.current.moved = true;
       const newZ = clamp(touchRef.current.pinchZoom * (dist / touchRef.current.pinchDist), fitView.zoom, MAX_ZOOM);
       const ratio = newZ / touchRef.current.pinchZoom;
       const newP = { x: touchRef.current.pinchCx - (touchRef.current.pinchCx - touchRef.current.panX) * ratio, y: touchRef.current.pinchCy - (touchRef.current.pinchCy - touchRef.current.panY) * ratio };
       syncAnimated(newZ, newP);
     } else if (!touchRef.current.isPinch && touches.length === 1) {
       const t = touches[0];
-      const newP = { x: touchRef.current.panX + (t.pageX - touchRef.current.x), y: touchRef.current.panY + (t.pageY - touchRef.current.y) };
+      const dx = (t.locationX ?? t.pageX) - touchRef.current.x;
+      const dy = (t.locationY ?? t.pageY) - touchRef.current.y;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) touchRef.current.moved = true;
+      const newP = { x: touchRef.current.panX + dx, y: touchRef.current.panY + dy };
       syncAnimated(viewRef.current.zoom, newP);
     }
   };
@@ -458,8 +525,77 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
     if (activeSection === section.id) { setActiveSection(null); resetMap(); return; }
     setActiveSection(section.id!);
     const tw = Number(section.mapWidth || 100), th = Number(section.mapHeight || 100);
-    const targetZ = clamp(Math.min((screenW * 0.85) / tw, (viewportH * 0.75) / th), fitView.zoom, MAX_ZOOM);
-    animateTo(targetZ, { x: screenW / 2 - (Number(section.mapX || 0) + tw / 2) * targetZ, y: viewportH / 2 - (Number(section.mapY || 0) + th / 2) * targetZ - 40 });
+    const targetZ = clamp(Math.min((viewportW * 0.85) / tw, (viewportH * 0.75) / th), fitView.zoom, MAX_ZOOM);
+    animateTo(targetZ, { x: viewportW / 2 - (Number(section.mapX || 0) + tw / 2) * targetZ, y: viewportH / 2 - (Number(section.mapY || 0) + th / 2) * targetZ - 40 });
+  };
+
+  const handleMapTap = (x: number, y: number) => {
+    const z = viewRef.current.zoom || 1;
+    const mapX = (x - viewRef.current.pan.x) / z;
+    const mapY = (y - viewRef.current.pan.y) / z;
+
+    for (let i = sections.length - 1; i >= 0; i -= 1) {
+      const section = sections[i];
+      const kind = getKind(section);
+      if (kind === 'stage' || kind === 'decor') continue;
+
+      const left = Number(section.mapX || 0);
+      const top = Number(section.mapY || 0);
+      const w = Number(section.mapWidth || 100);
+      const h = Number(section.mapHeight || 100);
+      const lx = mapX - left;
+      const ly = mapY - top;
+      if (lx < 0 || ly < 0 || lx > w || ly > h) continue;
+
+      if (kind === 'standing') {
+        focusSection(section);
+        return;
+      }
+
+      if (kind === 'table') {
+        const cfg = parseCfg(section.seatsConfig);
+        const available = (section.seats || []).filter((s) => !isUnavailable(s, cfg[`seat-${s.seatNumber}`] || {}));
+        if (available.length) {
+          if (onToggleSeats) onToggleSeats(available);
+          else onToggleSeat(available[0]);
+        }
+        return;
+      }
+
+      if (kind === 'seats') {
+        const seats = section.seats || [];
+        const cfg = parseCfg(section.seatsConfig);
+        const rows = Array.from(new Set(seats.map((s) => s.rowLabel || 'A'))).sort();
+        const baseSpacingY = rows.length > 1 ? (h - 32) / (rows.length - 1) : 0;
+        let nearestSeat: ClientSeat | null = null;
+        let nearestDist = Infinity;
+
+        seats.forEach((seat) => {
+          const key = `${seat.rowLabel || 'A'}-${seat.seatNumber}`;
+          const ov = cfg[key] || {};
+          if (ov.disabled || isUnavailable(seat, ov)) return;
+
+          const rIdx = Math.max(0, rows.indexOf(seat.rowLabel || 'A'));
+          const rowSeats = seats.filter((s) => (s.rowLabel || 'A') === (seat.rowLabel || 'A'))
+            .sort((a, b) => Number(a.seatNumber || 0) - Number(b.seatNumber || 0));
+          const sIdx = rowSeats.findIndex((s) => s.id === seat.id);
+          const count = Math.max(1, rowSeats.length);
+          const t = count > 1 ? (sIdx - (count - 1) / 2) / ((count - 1) / 2) : 0;
+          const size = clamp((w - 24) / count - 2, 5, 14);
+          const sx = (count > 1 ? 12 + sIdx * ((w - 24) / (count - 1)) : w / 2) + (ov.xOffset || 0);
+          const sy = 16 + rIdx * baseSpacingY + Number(section.curve || 0) * (t * t - 1) + (ov.yOffset || 0);
+          const dist = Math.hypot(lx - sx, ly - sy);
+          const hit = Math.max(12, size * 1.8);
+          if (dist <= hit && dist < nearestDist) {
+            nearestSeat = seat;
+            nearestDist = dist;
+          }
+        });
+
+        if (nearestSeat) onToggleSeat(nearestSeat);
+        return;
+      }
+    }
   };
 
   if (!sections.length) {
@@ -513,6 +649,15 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
 
       <View
         style={[st.viewport, { height: viewportH }]}
+        onLayout={(e) => {
+          const nextW = e.nativeEvent.layout.width;
+          if (nextW > 0 && Math.abs(nextW - viewportW) > 1) setViewportW(nextW);
+        }}
+        onStartShouldSetResponderCapture={rememberResponderStart}
+        onMoveShouldSetResponderCapture={shouldCaptureMove}
+        onTouchStart={rememberResponderStart}
+        onTouchEnd={releaseScrollLock}
+        onTouchCancel={releaseScrollLock}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
         onResponderGrant={onTouchStart}
@@ -539,7 +684,7 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
         </View>
 
         {/* Animated canvas — sections at their map coords, transform handles pan+zoom */}
-        <Animated.View style={canvasStyle} pointerEvents="box-none">
+        <Animated.View style={canvasStyle} pointerEvents="none">
           {sections.map((section) => {
             const kind = getKind(section);
             const left = Number(section.mapX || 0);
@@ -554,24 +699,18 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
               : kind === 'standing' ? (selectedSeats.some((s) => s.sectionId === section.id) ? '#f97316' : color)
               : kind === 'decor' ? (color || '#f8fafc')
               : 'transparent';
-
-            return (
-              <TouchableOpacity
-                key={section.id}
-                activeOpacity={isInteractive && isFocusable ? 0.8 : 1}
-                disabled={!isInteractive}
-                onPress={isFocusable ? () => focusSection(section) : undefined}
-                style={{
-                  position: 'absolute', left, top, width: w, height: h,
-                  backgroundColor: bg,
-                  borderRadius: kind === 'stage' ? 18 : kind === 'standing' ? 8 : kind === 'table' && (section.tableShape || 'round') === 'round' ? Math.min(w, h) / 2 : 4,
-                  borderWidth: kind === 'stage' ? 2 : kind === 'standing' ? 2 : kind === 'decor' ? 1 : 0,
-                  borderColor: kind === 'stage' ? '#3b82f6' : kind === 'standing' ? color : '#cbd5e1',
-                  transform: [{ rotate: `${Number(section.rotation || 0)}deg` }],
-                  alignItems: 'center', justifyContent: 'center',
-                  overflow: 'visible', zIndex: kind === 'stage' ? 5 : 10,
-                }}
-              >
+            const sectionStyle = {
+              position: 'absolute' as const, left, top, width: w, height: h,
+              backgroundColor: bg,
+              borderRadius: kind === 'stage' ? 18 : kind === 'standing' ? 8 : kind === 'table' && (section.tableShape || 'round') === 'round' ? Math.min(w, h) / 2 : 4,
+              borderWidth: kind === 'stage' ? 2 : kind === 'standing' ? 2 : kind === 'decor' ? 1 : 0,
+              borderColor: kind === 'stage' ? '#3b82f6' : kind === 'standing' ? color : '#cbd5e1',
+              transform: [{ rotate: `${Number(section.rotation || 0)}deg` }],
+              alignItems: 'center' as const, justifyContent: 'center' as const,
+              overflow: 'visible' as const, zIndex: kind === 'stage' ? 5 : 10,
+            };
+            const content = (
+              <>
                 {kind === 'stage' && <>
                   <Text style={st.stageLabel} numberOfLines={1}>{section.name}</Text>
                   <Text style={st.stageSub}>{t('ESCENARIO', 'STAGE')}</Text>
@@ -586,7 +725,22 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
                   <RowSection section={section} sel={selectedSeats} onToggle={onToggleSeat}
                     onInfo={(info) => { setActiveSection(null); showInfo(info); }} />
                 )}
+              </>
+            );
+
+            return isFocusable ? (
+              <TouchableOpacity
+                key={section.id}
+                activeOpacity={0.8}
+                onPress={() => focusSection(section)}
+                style={sectionStyle}
+              >
+                {content}
               </TouchableOpacity>
+            ) : (
+              <View key={section.id} style={sectionStyle} pointerEvents={isInteractive ? 'box-none' : 'none'}>
+                {content}
+              </View>
             );
           })}
         </Animated.View>

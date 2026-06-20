@@ -19,6 +19,7 @@ type Props = {
   onSelectionCountChange?: (count: number) => void;
   isLoggedIn?: boolean;
   onRequestLogin?: () => void;
+  cartSyncToken?: number;
 };
 
 type ApiEventDetail = {
@@ -98,7 +99,7 @@ function seatPrice(seat: ClientSeat, section: ClientVenueSection): number {
 
 const MAX_PER_TX = 10;
 
-export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange, isLoggedIn, onRequestLogin }: Props) {
+export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange, isLoggedIn, onRequestLogin, cartSyncToken = 0 }: Props) {
   const { t, lang } = useLanguage();
   const [detail, setDetail] = useState(event);
   const [sections, setSections] = useState<ClientVenueSection[]>([]);
@@ -142,20 +143,31 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
   // Keep eventIdRef in sync so callbacks can read it without stale closure
   useEffect(() => { eventIdRef.current = detail.id || event.id; }, [detail.id, event.id]);
 
-  // Restore cart from AsyncStorage on mount (same 10-min expiry as web)
+  // Restore cart from AsyncStorage on mount and whenever the global cart changes.
   useEffect(() => {
     const eid = event.id;
     if (!eid) return;
     AsyncStorage.getItem(`selectedSeats_${eid}`).then((raw) => {
-      if (!raw) return;
+      if (!raw) {
+        setSelectedSeats([]);
+        setGaQty(1);
+        setGaSectionId('');
+        return;
+      }
       try {
         const parsed: any[] = JSON.parse(raw);
         const valid = parsed.filter((s) => !s.addedAt || (Date.now() - s.addedAt < 10 * 60 * 1000));
-        if (valid.length > 0) setSelectedSeats(valid);
-        else AsyncStorage.removeItem(`selectedSeats_${eid}`);
+        if (valid.length > 0) {
+          setSelectedSeats(valid);
+        } else {
+          setSelectedSeats([]);
+          setGaQty(1);
+          setGaSectionId('');
+          AsyncStorage.removeItem(`selectedSeats_${eid}`);
+        }
       } catch {}
     });
-  }, [event.id]);
+  }, [event.id, cartSyncToken]);
 
   // Persist cart to AsyncStorage on every selection change (same as web's localStorage)
   useEffect(() => {

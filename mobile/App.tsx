@@ -33,10 +33,19 @@ import { MobileEvent } from './src/types/event';
 import { AuthUser } from './src/services/api';
 import { logout as logoutRequest, restoreSession } from './src/services/auth';
 import { getPublicEvents } from './src/services/events';
+import { unlockSeats } from './src/services/orders';
 import { addPushNotificationResponseListener, registerDeviceForPushNotifications } from './src/services/pushNotifications';
 import { SplashVideo } from './src/components/SplashVideo';
 
 type Tab = 'events' | 'tickets' | 'scan' | 'employeeScan' | 'employeeDoorSale' | 'doorSale' | 'social' | 'profile' | 'organizer' | 'admin' | 'contact' | 'about' | 'support' | 'legal' | 'aichat';
+type AuthReturnState = {
+  tab: Tab;
+  selectedEvent?: MobileEvent | null;
+  viewMode: 'client' | 'organizer' | 'admin';
+  organizerSection: OrgSection;
+  adminSection: AdminSection;
+  checkoutInfoOpen?: boolean;
+};
 const NAV_LINE_WIDTH = 22;
 const NAV_LINE_TOP = 10;
 const ADMIN_NAV_LINE_TOP = NAV_LINE_TOP + 5;
@@ -73,9 +82,11 @@ function AppContent() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cartSubtotal, setCartSubtotal] = useState(0);
   const [cartTotal, setCartTotal] = useState(0);
+  const [cartSyncToken, setCartSyncToken] = useState(0);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
   const [loginAfterPurchase, setLoginAfterPurchase] = useState(false);
+  const [authReturn, setAuthReturn] = useState<AuthReturnState | null>(null);
   const [viewMode, setViewMode] = useState<'client' | 'organizer' | 'admin'>('client');
   const [organizerSection, setOrganizerSection] = useState<OrgSection>('dashboard');
   const [adminSection, setAdminSection] = useState<AdminSection>('dashboard');
@@ -138,8 +149,38 @@ function AppContent() {
         await AsyncStorage.setItem(`selectedSeats_${eid}`, JSON.stringify(remaining));
       }
       await loadCartFromStorage(eid);
+      setCartSyncToken((token) => token + 1);
+      if (remaining.length === 0) {
+        setPreSelectedSeats([]);
+        setPreSelectedGa(undefined);
+        setPreSelectedGaQty(1);
+        setCheckoutInfoOpen(false);
+        setOrderSummaryOpen(false);
+        setCartDrawerOpen(false);
+        try { await unlockSeats(); } catch {}
+      }
     } catch {}
   }, [selectedEvent?.id, loadCartFromStorage]);
+
+  const clearTicketSelection = useCallback(async (eventId?: string) => {
+    try {
+      const eid = eventId || selectedEvent?.id || (await AsyncStorage.getItem('lp_active_cart_event')) || '';
+      if (eid) await AsyncStorage.removeItem(`selectedSeats_${eid}`);
+      await AsyncStorage.removeItem('lp_active_cart_event');
+      try { await unlockSeats(); } catch {}
+    } catch {}
+    setCartItems([]);
+    setCartSubtotal(0);
+    setCartTotal(0);
+    setCartSelectionCount(0);
+    setPreSelectedSeats([]);
+    setPreSelectedGa(undefined);
+    setPreSelectedGaQty(1);
+    setCheckoutInfoOpen(false);
+    setOrderSummaryOpen(false);
+    setCartDrawerOpen(false);
+    setCartSyncToken((token) => token + 1);
+  }, [selectedEvent?.id]);
 
   const setMode = (mode: 'client' | 'organizer' | 'admin') => {
     setViewMode(mode);
@@ -241,6 +282,7 @@ function AppContent() {
     setOrderSummaryOpen(false);
     setPaymentSuccessOpen(false);
     setLoginAfterPurchase(false);
+    setAuthReturn(null);
   };
 
   const openPushLink = async (url: string) => {
@@ -277,7 +319,51 @@ function AppContent() {
     Linking.openURL(value).catch(() => {});
   };
 
+  const protectedTabs = new Set<Tab>(['tickets', 'employeeScan', 'employeeDoorSale', 'doorSale', 'social', 'profile', 'organizer', 'admin']);
+
+  const rememberCurrentPlaceForLogin = (override?: Partial<AuthReturnState>) => {
+    setAuthReturn({
+      tab,
+      selectedEvent,
+      viewMode,
+      organizerSection,
+      adminSection,
+      checkoutInfoOpen,
+      ...override,
+    });
+  };
+
+  const handleSignIn = (user: AuthUser) => {
+    setCurrentUser(user);
+    if (!authReturn) return;
+    setViewMode(authReturn.viewMode);
+    setOrganizerSection(authReturn.organizerSection);
+    setAdminSection(authReturn.adminSection);
+    setSelectedEvent(authReturn.selectedEvent || null);
+    setCheckoutInfoOpen(!!authReturn.checkoutInfoOpen);
+    setTab(authReturn.tab);
+    setAuthReturn(null);
+  };
+
+  const requestLoginFromCurrentPlace = (override?: Partial<AuthReturnState>) => {
+    rememberCurrentPlaceForLogin(override);
+  };
+
   const goToTab = (nextTab: Tab) => {
+    if (!isLoggedIn && protectedTabs.has(nextTab)) {
+      const returnState: AuthReturnState = {
+        tab: nextTab,
+        selectedEvent: null,
+        viewMode,
+        organizerSection,
+        adminSection,
+        checkoutInfoOpen: false,
+      };
+      clearFlow();
+      setAuthReturn(returnState);
+      setTab(nextTab);
+      return;
+    }
     clearFlow();
     setTab(nextTab);
   };
@@ -394,36 +480,38 @@ function AppContent() {
 
         {scanOpen ? (
           <ScanScreen onBack={() => setScanOpen(false)} user={currentUser} />
+        ) : authReturn ? (
+          <LoginScreen onSignIn={handleSignIn} />
         ) : selectedEvent && paymentSuccessOpen ? (
           <PaymentSuccessScreen event={selectedEvent} user={currentUser} onViewTickets={() => { clearFlow(); setTab('tickets'); }} onHome={() => { clearFlow(); setTab('events'); }} />
         ) : selectedEvent && orderSummaryOpen ? (
           <OrderSummaryScreen event={selectedEvent} user={currentUser} onBack={() => { setOrderSummaryOpen(false); setCheckoutInfoOpen(true); }} onPay={() => { setOrderSummaryOpen(false); setPaymentSuccessOpen(true); }} />
         ) : selectedEvent && checkoutInfoOpen ? (
-          <CheckoutInfoScreen event={selectedEvent} user={currentUser} onBack={() => setCheckoutInfoOpen(false)} onPaid={() => { clearFlow(); setTab('tickets'); }} seats={preSelectedSeats} gaSection={preSelectedGa} gaQty={preSelectedGaQty} />
+          <CheckoutInfoScreen event={selectedEvent} user={currentUser} onBack={() => clearTicketSelection(selectedEvent.id)} onPaid={() => { clearFlow(); setTab('tickets'); }} seats={preSelectedSeats} gaSection={preSelectedGa} gaQty={preSelectedGaQty} />
         ) : selectedEvent && loginAfterPurchase ? (
           <LoginScreen onSignIn={(user) => { setCurrentUser(user); setLoginAfterPurchase(false); setCheckoutInfoOpen(true); }} />
         ) : selectedEvent ? (
-          <EventDetailScreen event={selectedEvent} onBack={() => { setCartSelectionCount(0); setSelectedEvent(null); }} onSelectionCountChange={setCartSelectionCount} isLoggedIn={isLoggedIn} onRequestLogin={() => goToTab('profile')} onBuy={(seats, ga, gaQty) => { setPreSelectedSeats(seats); setPreSelectedGa(ga); setPreSelectedGaQty(gaQty ?? 1); if (isLoggedIn) { setCheckoutInfoOpen(true); } else { setLoginAfterPurchase(true); } }} />
+          <EventDetailScreen event={selectedEvent} cartSyncToken={cartSyncToken} onBack={async () => { await clearTicketSelection(selectedEvent.id); setSelectedEvent(null); }} onSelectionCountChange={setCartSelectionCount} isLoggedIn={isLoggedIn} onRequestLogin={() => requestLoginFromCurrentPlace({ tab: 'events', selectedEvent, viewMode: 'client', checkoutInfoOpen: false })} onBuy={(seats, ga, gaQty) => { setPreSelectedSeats(seats); setPreSelectedGa(ga); setPreSelectedGaQty(gaQty ?? 1); if (isLoggedIn) { setCheckoutInfoOpen(true); } else { setLoginAfterPurchase(true); } }} />
         ) : tab === 'events' ? (
           <HomeScreen onOpenEvent={setSelectedEvent} />
         ) : tab === 'tickets' ? (
-          isLoggedIn ? <TicketsScreen /> : <LoginScreen onSignIn={setCurrentUser} />
+          isLoggedIn ? <TicketsScreen /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'scan' ? (
           <ScanScreen onBack={() => goToTab('events')} user={currentUser} />
         ) : tab === 'employeeScan' ? (
-          isLoggedIn ? <EmployeeScanAccessScreen user={currentUser} onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={setCurrentUser} />
+          isLoggedIn ? <EmployeeScanAccessScreen user={currentUser} onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'employeeDoorSale' ? (
-          isLoggedIn ? <DoorSaleScreen user={currentUser} eventSource="employee" onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={setCurrentUser} />
+          isLoggedIn ? <DoorSaleScreen user={currentUser} eventSource="employee" onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'doorSale' ? (
-          isLoggedIn ? <DoorSaleScreen user={currentUser} onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={setCurrentUser} />
+          isLoggedIn ? <DoorSaleScreen user={currentUser} onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'social' ? (
-          isLoggedIn ? <SocialScreen /> : <LoginScreen onSignIn={setCurrentUser} />
+          isLoggedIn ? <SocialScreen /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'profile' ? (
-          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} canOrganize={canOrganize} canAdmin={canAdmin} viewMode={viewMode} onSetMode={(mode) => setViewMode(mode)} /> : <LoginScreen onSignIn={setCurrentUser} />
+          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} canOrganize={canOrganize} canAdmin={canAdmin} viewMode={viewMode} onSetMode={(mode) => setViewMode(mode)} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'organizer' ? (
-          isLoggedIn ? <OrganizerPanelScreen section={organizerSection} onSectionChange={setOrganizerSection} /> : <LoginScreen onSignIn={setCurrentUser} />
+          isLoggedIn ? <OrganizerPanelScreen section={organizerSection} onSectionChange={setOrganizerSection} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'admin' ? (
-          canAdmin ? <AdminPanelScreen section={adminSection} onSectionChange={setAdminSection} /> : <LoginScreen onSignIn={setCurrentUser} />
+          canAdmin ? <AdminPanelScreen section={adminSection} onSectionChange={setAdminSection} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'contact' ? (
           <ContactScreen user={currentUser} onBack={() => goToTab('events')} />
         ) : tab === 'about' ? (

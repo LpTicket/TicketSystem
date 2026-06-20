@@ -13,7 +13,7 @@ import { ReservationTimer } from '../components/events/ReservationTimer';
 type Props = {
   event: any;
   user?: AuthUser | null;
-  onBack: () => void;
+  onBack: () => void | Promise<void>;
   onPaid: () => void;
   seats?: ClientSeat[];
   gaSection?: { id: string; name: string; price: number };
@@ -63,6 +63,15 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
 
   const canContinue = !!email.trim();
 
+  const cancelReservation = async () => {
+    try { await unlockSeats(); } catch {}
+    try {
+      await AsyncStorage.removeItem(`selectedSeats_${event.id}`);
+      await AsyncStorage.removeItem('lp_active_cart_event');
+    } catch {}
+    await onBack();
+  };
+
   const pay = async () => {
     if (!canContinue) return;
     setError('');
@@ -97,7 +106,7 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
     <View style={st.root}>
       {/* Header */}
       <View style={st.header}>
-        <TouchableOpacity onPress={onBack} style={st.backBtn}>
+        <TouchableOpacity onPress={cancelReservation} style={st.backBtn}>
           <Ionicons name="arrow-back" size={18} color="rgba(226,232,240,0.8)" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
@@ -112,11 +121,7 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
         {reservationAddedAt != null && (
           <ReservationTimer
             addedAt={reservationAddedAt}
-            onExpire={async () => {
-              try { await unlockSeats(); } catch {}
-              try { await AsyncStorage.removeItem(`selectedSeats_${event.id}`); await AsyncStorage.removeItem('lp_active_cart_event'); } catch {}
-              onBack();
-            }}
+            onExpire={cancelReservation}
           />
         )}
 
@@ -197,7 +202,7 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
           }
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={async () => { try { await unlockSeats(); } catch {} onBack(); }} style={st.deleteLink}>
+        <TouchableOpacity onPress={cancelReservation} style={st.deleteLink}>
           <Text style={st.deleteLinkText}>{t('Cancelar reserva', 'Delete reservation')}</Text>
         </TouchableOpacity>
 
