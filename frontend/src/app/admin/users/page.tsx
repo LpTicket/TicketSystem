@@ -60,6 +60,8 @@ export default function AdminUsersPage() {
   const [createAddress, setCreateAddress] = useState('');
   const [creatingLoading, setCreatingLoading] = useState(false);
 
+  const closeUserModal = () => { setSelectedUser(null); setIsEditing(false); };
+
   const handleSelectUser = async (u: User, startEditing: boolean = false) => {
     setSelectedUser(u);
     setIsEditing(startEditing);
@@ -459,7 +461,7 @@ export default function AdminUsersPage() {
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-gray-950/40 backdrop-blur-md transition-opacity"
-            onClick={() => setSelectedUser(null)}
+            onClick={closeUserModal}
           />
           
           {/* Centered Modal Panel */}
@@ -475,8 +477,8 @@ export default function AdminUsersPage() {
                   <p className="text-xs text-gray-500 mt-0.5">@{selectedUser.username} · {selectedUser.role.toUpperCase()}</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setSelectedUser(null)}
+              <button
+                onClick={closeUserModal}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 <HiOutlineX className="w-5 h-5" />
@@ -664,7 +666,7 @@ export default function AdminUsersPage() {
                     {lang === 'es' ? 'Editar Datos' : 'Edit Profile'}
                   </button>
                   <button
-                    onClick={() => setSelectedUser(null)}
+                    onClick={closeUserModal}
                     className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gray-900 text-white hover:bg-gray-800 transition-all shadow-sm cursor-pointer"
                   >
                     {lang === 'es' ? 'Cerrar' : 'Close'}
