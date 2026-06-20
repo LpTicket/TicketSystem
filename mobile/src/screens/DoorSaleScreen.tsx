@@ -316,7 +316,7 @@ export function DoorSaleScreen({ user, onBack }: Props) {
           <Text style={styles.qrTitle}>{t('QR listo para pagar', 'QR ready to pay')}</Text>
           <Text style={styles.qrCopy}>{t('El cliente escanea este código y paga con Apple Pay o tarjeta.', 'Customer scans this code and pays with Apple Pay or card.')}</Text>
           <Image source={{ uri: checkout.qrData }} style={styles.qrImage} resizeMode="contain" />
-          <GradientButton label={t('ABRIR LINK DE PAGO', 'OPEN PAYMENT LINK')} height={48} onPress={() => WebBrowser.openBrowserAsync(checkout.url)} style={{ marginTop: 12 }} />
+          <GradientButton label={t('ABRIR LINK DE PAGO', 'OPEN PAYMENT LINK')} height={48} onPress={() => WebBrowser.openBrowserAsync(checkout.url)} style={{ marginTop: 12, alignSelf: 'stretch' }} />
           <TouchableOpacity style={styles.shareButton} onPress={() => Share.share({ message: checkout.url })}>
             <Ionicons name="share-outline" size={16} color="#F97316" />
             <Text style={styles.shareText}>{t('Compartir link', 'Share link')}</Text>
