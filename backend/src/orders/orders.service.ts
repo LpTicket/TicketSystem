@@ -214,7 +214,7 @@ export class OrdersService {
         }] : []),
       ],
       mode: 'payment',
-      expires_at: Math.floor(Date.now() / 1000) + (15 * 60),
+      expires_at: Math.floor(Date.now() / 1000) + (45 * 60),
       success_url: `${appUrl.replace(/\/$/, '')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl.replace(/\/$/, '')}/checkout/cancel`,
       metadata: {
