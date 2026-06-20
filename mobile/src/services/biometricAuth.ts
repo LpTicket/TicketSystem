@@ -1,4 +1,5 @@
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { apiPost, AuthUser, AuthResponse, setAuthTokens } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,29 +8,26 @@ const BIOMETRIC_TOKEN_KEY = 'lp_biometric_refresh_token';
 const TOKENS_KEY = 'lp_auth_tokens';
 const USER_KEY = 'lp_auth_user';
 
-// expo-secure-store is not supported on web — use AsyncStorage as fallback
+// On web, expo-secure-store methods exist but throw — fall back to AsyncStorage
 async function secureGet(key: string): Promise<string | null> {
   if (Platform.OS === 'web') return AsyncStorage.getItem(key);
-  const { default: SecureStore } = await import('expo-secure-store');
-  return SecureStore.getItemAsync(key);
+  try { return await SecureStore.getItemAsync(key); } catch { return AsyncStorage.getItem(key); }
 }
 
 async function secureSet(key: string, value: string): Promise<void> {
   if (Platform.OS === 'web') { await AsyncStorage.setItem(key, value); return; }
-  const { default: SecureStore } = await import('expo-secure-store');
   try {
     await SecureStore.setItemAsync(key, value, {
-      keychainAccessible: (SecureStore as any).WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
     });
   } catch {
-    await SecureStore.setItemAsync(key, value);
+    try { await SecureStore.setItemAsync(key, value); } catch { await AsyncStorage.setItem(key, value); }
   }
 }
 
 async function secureDelete(key: string): Promise<void> {
   if (Platform.OS === 'web') { await AsyncStorage.removeItem(key); return; }
-  const { default: SecureStore } = await import('expo-secure-store');
-  await SecureStore.deleteItemAsync(key);
+  try { await SecureStore.deleteItemAsync(key); } catch { await AsyncStorage.removeItem(key); }
 }
 
 export async function getBiometricAvailability() {
