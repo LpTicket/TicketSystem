@@ -51,6 +51,76 @@ export class OrdersController {
     );
   }
 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Get('door-sale/preview')
+  previewDoorSale(
+    @Query() query: { eventId: string; amount: string; quantity?: string; sectionId?: string },
+    @Request() req: any,
+  ) {
+    return this.ordersService.previewDoorSale(
+      req.user,
+      query.eventId,
+      Number(query.amount || 0),
+      query.quantity ? parseInt(query.quantity, 10) : 1,
+      query.sectionId,
+    );
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Post('door-sale/checkout')
+  createDoorSaleCheckout(
+    @Body() body: { eventId: string; amount: number; quantity?: number; sectionId?: string; buyerEmail?: string; buyerName?: string },
+    @Request() req: any,
+  ) {
+    return this.ordersService.createDoorSaleCheckout(
+      req.user,
+      body.eventId,
+      Number(body.amount || 0),
+      body.quantity || 1,
+      body.sectionId,
+      body.buyerEmail,
+      body.buyerName,
+    );
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Post('terminal/connection-token')
+  createTerminalConnectionToken(@Request() req: any) {
+    return this.ordersService.createTerminalConnectionToken(req.user);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Post('door-sale/tap-to-pay-intent')
+  createDoorSaleTapToPayIntent(
+    @Body() body: { eventId: string; amount: number; quantity?: number },
+    @Request() req: any,
+  ) {
+    return this.ordersService.createDoorSaleTapToPayIntent(
+      req.user,
+      body.eventId,
+      Number(body.amount || 0),
+      body.quantity || 1,
+    );
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Post('door-sale/tap-to-pay-complete')
+  completeDoorSaleTapToPay(
+    @Body() body: { orderId: string; paymentIntentId: string },
+    @Request() req: any,
+  ) {
+    return this.ordersService.completeDoorSaleTapToPay(
+      req.user,
+      body.orderId,
+      body.paymentIntentId,
+    );
+  }
+
   @Post('webhook')
   async handleWebhook(
     @Req() req: any,

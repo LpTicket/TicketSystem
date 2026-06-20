@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, MoreThanOrEqual, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Event, EventStatus, ScannerAccess, ScannerAccessStatus, User, UserRole } from '../database/entities';
 import { OrdersService } from '../orders/orders.service';
 
@@ -36,17 +36,29 @@ export class ScannerAccessService {
 
   async searchEvents(q: string) {
     const search = String(q || '').trim();
-    if (search.length < 2) return [];
-    const where = [
-      { status: EventStatus.PUBLISHED, publicVisible: true, eventDate: MoreThanOrEqual(new Date()), title: ILike(`%${search}%`) },
-      { status: EventStatus.PUBLISHED, publicVisible: true, eventDate: MoreThanOrEqual(new Date()), venueName: ILike(`%${search}%`) },
-    ];
-    return this.eventRepo.find({
-      where,
-      order: { eventDate: 'ASC' },
-      take: 12,
-      select: ['id', 'title', 'slug', 'eventDate', 'status', 'venueName', 'imageUrl', 'bannerImageUrl', 'organizerId'],
-    });
+    if (search.length < 1) return [];
+    return this.eventRepo
+      .createQueryBuilder('event')
+      .select([
+        'event.id',
+        'event.title',
+        'event.slug',
+        'event.eventDate',
+        'event.status',
+        'event.venueName',
+        'event.imageUrl',
+        'event.bannerImageUrl',
+        'event.organizerId',
+      ])
+      .where('event.status = :status', { status: EventStatus.PUBLISHED })
+      .andWhere('event.publicVisible = :publicVisible', { publicVisible: true })
+      .andWhere('event.eventDate >= :today', { today: new Date() })
+      .andWhere('(event.title ILIKE :contains OR event.venueName ILIKE :contains)', { contains: `%${search}%` })
+      .orderBy('CASE WHEN event.title ILIKE :starts THEN 0 ELSE 1 END', 'ASC')
+      .addOrderBy('event.eventDate', 'ASC')
+      .setParameter('starts', `${search}%`)
+      .take(12)
+      .getMany();
   }
 
   async requestAccess(eventId: string, userId: string) {

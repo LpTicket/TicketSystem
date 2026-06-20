@@ -83,6 +83,354 @@ export class OrdersService {
     return defaultPrice;
   }
 
+  private async ensureCanSellAtDoor(user: any, eventId: string) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    if (user.role !== 'admin' && event.organizerId !== user.id) {
+      throw new ForbiddenException('You do not have permission to sell tickets for this event');
+    }
+    return event;
+  }
+
+  private calculateDoorSaleFees(event: Event, amount: number, quantity: number, section?: VenueSection | null) {
+    const safeQuantity = Math.max(1, Math.min(Number(quantity) || 1, event.maxTicketsPerTransaction || 10));
+    const unitPrice = Math.max(0, Math.round(Number(amount || 0) * 100) / 100);
+    if (unitPrice <= 0) throw new BadRequestException('Ingresa un monto válido.');
+
+    const servicePercent = section?.serviceFeePercent !== null && section?.serviceFeePercent !== undefined
+      ? Number(section.serviceFeePercent)
+      : (event.serviceFeePercent !== null && event.serviceFeePercent !== undefined ? Number(event.serviceFeePercent) : 0.12);
+    const serviceFixed = section?.serviceFeeFixedPerTicket !== null && section?.serviceFeeFixedPerTicket !== undefined
+      ? Number(section.serviceFeeFixedPerTicket)
+      : (event.serviceFeeFixedPerTicket !== null && event.serviceFeeFixedPerTicket !== undefined ? Number(event.serviceFeeFixedPerTicket) : 0);
+    const processingPercent = section?.processingFeePercent !== null && section?.processingFeePercent !== undefined
+      ? Number(section.processingFeePercent)
+      : (event.processingFeePercent !== null && event.processingFeePercent !== undefined ? Number(event.processingFeePercent) : 0.029);
+    const processingFixed = section?.processingFeeFixedPerTicket !== null && section?.processingFeeFixedPerTicket !== undefined
+      ? Number(section.processingFeeFixedPerTicket)
+      : (event.processingFeeFixedPerTicket !== null && event.processingFeeFixedPerTicket !== undefined ? Number(event.processingFeeFixedPerTicket) : 0.30);
+
+    const baseTotal = Math.round(unitPrice * safeQuantity * 100) / 100;
+    const lpFee = Math.round(((unitPrice * servicePercent + serviceFixed) * safeQuantity) * 100) / 100;
+    const processingFee = Math.round(((unitPrice * processingPercent + processingFixed) * safeQuantity) * 100) / 100;
+    const total = Math.round((baseTotal + lpFee + processingFee) * 100) / 100;
+
+    return { unitPrice, quantity: safeQuantity, baseTotal, lpFee, processingFee, total };
+  }
+
+  async previewDoorSale(user: any, eventId: string, amount: number, quantity = 1, sectionId?: string) {
+    const event = await this.ensureCanSellAtDoor(user, eventId);
+    const section = sectionId ? await this.sectionRepo.findOne({ where: { id: sectionId, eventId } }) : null;
+    if (sectionId && !section) throw new NotFoundException('Section not found');
+    const invoice = this.calculateDoorSaleFees(event, amount, quantity, section);
+    return {
+      ...invoice,
+      section: section ? { id: section.id, name: section.name, type: section.sectionType } : null,
+      event: {
+        id: event.id,
+        title: event.title,
+        venueName: event.venueName,
+        eventDate: event.eventDate,
+        currency: event.currency || 'USD',
+      },
+    };
+  }
+
+  async createDoorSaleCheckout(
+    user: any,
+    eventId: string,
+    amount: number,
+    quantity = 1,
+    sectionId?: string,
+    buyerEmail?: string,
+    buyerName?: string,
+  ) {
+    const event = await this.ensureCanSellAtDoor(user, eventId);
+    const section = sectionId ? await this.sectionRepo.findOne({ where: { id: sectionId, eventId } }) : null;
+    if (sectionId && !section) throw new NotFoundException('Section not found');
+    const invoice = this.calculateDoorSaleFees(event, amount, quantity, section);
+
+    const checkoutBuyerEmail = buyerEmail?.trim();
+    const checkoutBuyerName = buyerName?.trim();
+    if (checkoutBuyerEmail) {
+      if (!isValidEmailFormat(checkoutBuyerEmail)) {
+        throw new BadRequestException('El correo no es válido. Revísalo antes de pagar.');
+      }
+      const suggestion = suggestEmailFix(checkoutBuyerEmail);
+      if (suggestion) throw new BadRequestException(`Revisa tu correo: ¿quisiste decir ${suggestion}?`);
+    }
+
+    const seatsInfo = Array.from({ length: invoice.quantity }, (_, index) => ({
+      seatId: '',
+      sectionId: section?.id || null,
+      sectionName: section?.name || 'Entrada en puerta',
+      sectionType: section?.sectionType || 'general',
+      rowLabel: 'GA',
+      seatNumber: index + 1,
+      price: invoice.unitPrice,
+    }));
+
+    const order = await this.orderRepo.save(this.orderRepo.create({
+      userId: user.id,
+      eventId,
+      subtotal: invoice.baseTotal,
+      lpFee: invoice.lpFee,
+      processingFee: invoice.processingFee,
+      total: invoice.total,
+      status: OrderStatus.PENDING,
+      ticketCount: invoice.quantity,
+      seatsData: JSON.stringify(seatsInfo),
+    }));
+
+    const rawAppUrl = this.configService.get('APP_URL');
+    const appUrl = rawAppUrl && !rawAppUrl.includes('localhost')
+      ? (rawAppUrl.startsWith('http') ? rawAppUrl : `https://${rawAppUrl}`)
+      : 'https://ticketsystem-jzgf.onrender.com';
+    const currency = (event.currency || 'USD').toLowerCase();
+    const saleName = section?.name || 'Entrada en puerta';
+
+    const session = await this.stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      ...(checkoutBuyerEmail ? { customer_email: checkoutBuyerEmail } : {}),
+      line_items: [
+        {
+          price_data: {
+            currency,
+            product_data: {
+              name: `LPTicket - ${event.title}`,
+              description: `${invoice.quantity} x ${saleName} · Venta en puerta`,
+            },
+            unit_amount: Math.round(invoice.baseTotal * 100),
+          },
+          quantity: 1,
+        },
+        ...(invoice.lpFee > 0 ? [{
+          price_data: { currency, product_data: { name: 'Cargo por servicio LPTicket' }, unit_amount: Math.round(invoice.lpFee * 100) },
+          quantity: 1,
+        }] : []),
+        ...(invoice.processingFee > 0 ? [{
+          price_data: { currency, product_data: { name: 'Tarifa de procesamiento' }, unit_amount: Math.round(invoice.processingFee * 100) },
+          quantity: 1,
+        }] : []),
+      ],
+      mode: 'payment',
+      expires_at: Math.floor(Date.now() / 1000) + (15 * 60),
+      success_url: `${appUrl.replace(/\/$/, '')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl.replace(/\/$/, '')}/checkout/cancel`,
+      metadata: {
+        orderId: order.id,
+        userId: user.id,
+        eventId,
+        buyerEmail: checkoutBuyerEmail || '',
+        buyerName: checkoutBuyerName || '',
+        source: 'door_sale',
+      },
+    });
+
+    await this.orderRepo.update(order.id, { stripeSessionId: session.id });
+    const qrData = await QRCode.toDataURL(session.url);
+    return {
+      sessionId: session.id,
+      url: session.url,
+      qrData,
+      invoice,
+      event: {
+        id: event.id,
+        title: event.title,
+        venueName: event.venueName,
+        eventDate: event.eventDate,
+        currency: event.currency || 'USD',
+      },
+      section: section ? { id: section.id, name: section.name, type: section.sectionType } : null,
+    };
+  }
+
+  async createTerminalConnectionToken(user: any) {
+    if (!user?.id) throw new ForbiddenException('Authentication required');
+    if (!this.stripe) throw new BadRequestException('Stripe not configured');
+    const token = await this.stripe.terminal.connectionTokens.create();
+    return { secret: token.secret };
+  }
+
+  private async getTerminalLocationId() {
+    const configured = this.configService.get('STRIPE_TERMINAL_LOCATION_ID');
+    if (configured) return configured;
+    if (!this.stripe) throw new BadRequestException('Stripe not configured');
+    const locations = await this.stripe.terminal.locations.list({ limit: 1 });
+    const locationId = locations?.data?.[0]?.id;
+    if (!locationId) {
+      throw new BadRequestException('Configura STRIPE_TERMINAL_LOCATION_ID en Stripe/Railway antes de usar Tap to Pay.');
+    }
+    return locationId;
+  }
+
+  async createDoorSaleTapToPayIntent(user: any, eventId: string, amount: number, quantity = 1) {
+    if (!this.stripe) throw new BadRequestException('Stripe not configured');
+    const event = await this.ensureCanSellAtDoor(user, eventId);
+    const invoice = this.calculateDoorSaleFees(event, amount, quantity, null);
+    const seatsInfo = Array.from({ length: invoice.quantity }, (_, index) => ({
+      seatId: '',
+      sectionId: null,
+      sectionName: 'Entrada en puerta',
+      sectionType: 'general',
+      rowLabel: 'GA',
+      seatNumber: index + 1,
+      price: invoice.unitPrice,
+    }));
+
+    const order = await this.orderRepo.save(this.orderRepo.create({
+      userId: user.id,
+      eventId,
+      subtotal: invoice.baseTotal,
+      lpFee: invoice.lpFee,
+      processingFee: invoice.processingFee,
+      total: invoice.total,
+      status: OrderStatus.PENDING,
+      ticketCount: invoice.quantity,
+      seatsData: JSON.stringify(seatsInfo),
+    }));
+
+    const currency = (event.currency || 'USD').toLowerCase();
+    const paymentIntent = await this.stripe.paymentIntents.create({
+      amount: Math.round(invoice.total * 100),
+      currency,
+      payment_method_types: ['card_present'],
+      capture_method: 'automatic',
+      description: `LPTicket - ${event.title} · Entrada en puerta`,
+      metadata: {
+        orderId: order.id,
+        userId: user.id,
+        eventId,
+        source: 'door_sale_tap_to_pay',
+      },
+    });
+
+    await this.orderRepo.update(order.id, { stripePaymentIntent: paymentIntent.id });
+    return {
+      orderId: order.id,
+      paymentIntentId: paymentIntent.id,
+      clientSecret: paymentIntent.client_secret,
+      locationId: await this.getTerminalLocationId(),
+      invoice,
+      event: {
+        id: event.id,
+        title: event.title,
+        venueName: event.venueName,
+        eventDate: event.eventDate,
+        currency: event.currency || 'USD',
+      },
+    };
+  }
+
+  async completeDoorSaleTapToPay(user: any, orderId: string, paymentIntentId: string) {
+    if (!this.stripe) throw new BadRequestException('Stripe not configured');
+    const order = await this.orderRepo.findOne({ where: { id: orderId }, relations: ['event'] });
+    if (!order) throw new NotFoundException('Order not found');
+    if (user.role !== 'admin' && order.event.organizerId !== user.id) {
+      throw new ForbiddenException('You do not have permission to complete this order');
+    }
+    if (order.stripePaymentIntent && order.stripePaymentIntent !== paymentIntentId) {
+      throw new BadRequestException('PaymentIntent does not match this order');
+    }
+
+    const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+    if (paymentIntent.metadata?.orderId !== orderId) {
+      throw new BadRequestException('PaymentIntent metadata does not match this order');
+    }
+    if (paymentIntent.status === 'requires_capture') {
+      await this.stripe.paymentIntents.capture(paymentIntentId);
+    } else if (paymentIntent.status !== 'succeeded') {
+      throw new BadRequestException(`Payment is not complete: ${paymentIntent.status}`);
+    }
+
+    await this.finalizePaidOrder(orderId, paymentIntentId);
+    return { success: true, orderId };
+  }
+
+  private async finalizePaidOrder(orderId: string, stripePaymentIntent?: string, buyerEmail?: string, buyerName?: string) {
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (!order) return [];
+    const existingTickets = await this.ticketRepo.count({ where: { orderId } });
+    if (order.status === OrderStatus.PAID && existingTickets > 0) return this.ticketRepo.find({ where: { orderId } });
+    if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.PAID) return [];
+
+    await this.orderRepo.update(orderId, {
+      status: OrderStatus.PAID,
+      stripePaymentIntent: stripePaymentIntent || order.stripePaymentIntent,
+      paidAt: new Date(),
+    });
+
+    const seatsInfo = JSON.parse(order.seatsData || '[]');
+    const createdTickets: any[] = [];
+    for (const seatInfo of seatsInfo) {
+      const ticketCode = nanoid(12).toUpperCase();
+      const appUrl = this.configService.get('APP_URL');
+      const qrData = await QRCode.toDataURL(`${appUrl}/verify/${ticketCode}`);
+
+      let validSeatId: string | null = seatInfo.seatId || null;
+      if (validSeatId) {
+        const seatExists = await this.seatRepo.findOne({ where: { id: validSeatId }, select: ['id'] });
+        if (!seatExists) validSeatId = null;
+      }
+
+      const ticket = this.ticketRepo.create({
+        ticketCode,
+        orderId,
+        eventId: order.eventId,
+        userId: order.userId,
+        seatId: validSeatId,
+        sectionId: seatInfo.sectionId,
+        sectionName: seatInfo.sectionName,
+        rowLabel: seatInfo.rowLabel,
+        seatNumber: seatInfo.seatNumber,
+        qrData,
+        price: seatInfo.price,
+        status: TicketStatus.ACTIVE,
+      });
+      const savedTicket = await this.ticketRepo.save(ticket);
+      createdTickets.push(savedTicket);
+
+      if (seatInfo.seatId) {
+        await this.seatRepo.update(seatInfo.seatId, {
+          status: SeatStatus.SOLD,
+          lockedBy: null as any,
+          lockExpiresAt: null as any,
+        });
+      }
+    }
+
+    try {
+      const fullOrder = await this.orderRepo.findOne({
+        where: { id: orderId },
+        relations: ['user', 'event', 'event.organizer'],
+      });
+      if (fullOrder && fullOrder.user && createdTickets.length > 0) {
+        await this.mailService.sendTicketEmail(
+          buyerEmail || fullOrder.user.email,
+          buyerName || fullOrder.user.firstName,
+          fullOrder.event.title,
+          createdTickets,
+          {
+            venueName: fullOrder.event.venueName,
+            venueAddress: fullOrder.event.venueAddress,
+            eventDate: fullOrder.event.eventDate?.toString(),
+            eventTimezone: fullOrder.event.eventTimezone,
+            currency: fullOrder.event.currency || 'USD',
+            subtotal: Number(fullOrder.subtotal || 0),
+            lpFee: Number(fullOrder.lpFee || 0),
+            processingFee: Number(fullOrder.processingFee || 0),
+            total: Number(fullOrder.total || 0),
+            organizerEmail: fullOrder.event.organizer?.email || null,
+          },
+        );
+      }
+    } catch (err) {
+      console.error('Error in post-payment email:', err);
+    }
+
+    return createdTickets;
+  }
+
   /**
    * Main entry point for creating a Stripe Checkout Session.
    * Handles:
@@ -536,94 +884,13 @@ export class OrdersService {
       if (!orderId) return;
 
       const order = await this.orderRepo.findOne({ where: { id: orderId } });
-      // Allow re-entry if PAID but no tickets were created (partial failure)
       if (!order) return;
-      const existingTickets = await this.ticketRepo.count({ where: { orderId } });
-      if (order.status === OrderStatus.PAID && existingTickets > 0) return;
-      if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.PAID) return;
-
-      // Finalize order status
-      await this.orderRepo.update(orderId, {
-        status: OrderStatus.PAID,
-        stripePaymentIntent: session.payment_intent as string,
-        paidAt: new Date(),
-      });
-
-      const seatsInfo = JSON.parse(order.seatsData || '[]');
-      const createdTickets: any[] = [];
-
-      // Issue individual tickets for each seat
-      for (const seatInfo of seatsInfo) {
-        const ticketCode = nanoid(12).toUpperCase();
-        const appUrl = this.configService.get('APP_URL');
-        // Generate QR code for entry validation
-        const qrData = await QRCode.toDataURL(`${appUrl}/verify/${ticketCode}`);
-
-        // Guard against FK violation if seat was deleted after purchase
-        let validSeatId: string | null = seatInfo.seatId || null;
-        if (validSeatId) {
-          const seatExists = await this.seatRepo.findOne({ where: { id: validSeatId }, select: ['id'] });
-          if (!seatExists) validSeatId = null;
-        }
-
-        const ticket = this.ticketRepo.create({
-          ticketCode,
-          orderId,
-          eventId: order.eventId,
-          userId: order.userId,
-          seatId: validSeatId,
-          sectionId: seatInfo.sectionId,
-          sectionName: seatInfo.sectionName,
-          rowLabel: seatInfo.rowLabel,
-          seatNumber: seatInfo.seatNumber,
-          qrData,
-          price: seatInfo.price,
-          status: TicketStatus.ACTIVE,
-        });
-        const savedTicket = await this.ticketRepo.save(ticket);
-        createdTickets.push(savedTicket);
-
-        // Permanently occupy the seat in the venue
-        if (seatInfo.seatId) {
-          await this.seatRepo.update(seatInfo.seatId, {
-            status: SeatStatus.SOLD,
-            lockedBy: null as any,
-            lockExpiresAt: null as any,
-          });
-        }
-      }
-
-      // Send Email with QR codes
-      try {
-        const fullOrder = await this.orderRepo.findOne({
-          where: { id: orderId },
-          relations: ['user', 'event', 'event.organizer'],
-        });
-        if (fullOrder && fullOrder.user) {
-          const buyerEmail = session.customer_details?.email || session.metadata?.buyerEmail || fullOrder.user.email;
-          const buyerName = session.customer_details?.name || session.metadata?.buyerName || fullOrder.user.firstName;
-          await this.mailService.sendTicketEmail(
-            buyerEmail,
-            buyerName,
-            fullOrder.event.title,
-            createdTickets,
-            {
-              venueName: fullOrder.event.venueName,
-              venueAddress: fullOrder.event.venueAddress,
-              eventDate: fullOrder.event.eventDate?.toString(),
-              eventTimezone: fullOrder.event.eventTimezone,
-              currency: fullOrder.event.currency || 'USD',
-              subtotal: Number(fullOrder.subtotal || 0),
-              lpFee: Number(fullOrder.lpFee || 0),
-              processingFee: Number(fullOrder.processingFee || 0),
-              total: Number(fullOrder.total || 0),
-              organizerEmail: fullOrder.event.organizer?.email || null,
-            },
-          );
-        }
-      } catch (err) {
-        console.error('Error in post-payment email:', err);
-      }
+      await this.finalizePaidOrder(
+        orderId,
+        session.payment_intent as string,
+        session.customer_details?.email || session.metadata?.buyerEmail,
+        session.customer_details?.name || session.metadata?.buyerName,
+      );
     }
   }
 

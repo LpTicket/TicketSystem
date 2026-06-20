@@ -6,7 +6,8 @@ import { ScreenBackground } from './ScreenBackground';
 import { ModeSelector, AppMode } from './ModeSelector';
 
 type AdminSectionId = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes';
-type OrgSectionId = 'dashboard' | 'scan' | 'events' | 'create';
+type OrgPanelSectionId = 'dashboard' | 'events' | 'create';
+type OrgSectionId = OrgPanelSectionId | 'scan' | 'doorSale';
 
 type Props = {
   visible: boolean;
@@ -17,6 +18,7 @@ type Props = {
   onGoProfile?: () => void;
   onGoScan?: () => void;
   onGoEmployeeScan?: () => void;
+  onGoDoorSale?: () => void;
   onGoAiChat?: () => void;
   onGoSocialMatch?: () => void;
   onGoCart?: () => void;
@@ -37,7 +39,7 @@ type Props = {
   onGoAdminSection?: (section: AdminSectionId) => void;
   // Organizer panel section navigation
   orgSection?: OrgSectionId;
-  onGoOrgSection?: (section: OrgSectionId) => void;
+  onGoOrgSection?: (section: OrgPanelSectionId | 'scan') => void;
 };
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -56,13 +58,14 @@ const adminSections: { id: AdminSectionId; labelEs: string; labelEn: string; ico
 const orgSections: { id: OrgSectionId; labelEs: string; labelEn: string; icon: IconName }[] = [
   { id: 'dashboard', labelEs: 'Dashboard', labelEn: 'Dashboard', icon: 'grid-outline' },
   { id: 'scan', labelEs: 'Scan', labelEn: 'Scan', icon: 'scan-outline' },
+  { id: 'doorSale', labelEs: 'Venta en puerta', labelEn: 'Door sale', icon: 'card-outline' },
   { id: 'events', labelEs: 'Mis Eventos', labelEn: 'My Events', icon: 'calendar-outline' },
   { id: 'create', labelEs: 'Crear Evento', labelEn: 'Create Event', icon: 'add-circle-outline' },
 ];
 
 export function MenuDrawer({
   visible, onClose, onGoEvents, onGoHome, onGoTickets, onGoProfile, onGoScan, onGoAiChat,
-  onGoEmployeeScan, onGoSocialMatch, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onGoLegal, onLogout,
+  onGoEmployeeScan, onGoDoorSale, onGoSocialMatch, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onGoLegal, onLogout,
   isLoggedIn, canOrganize, canAdmin, viewMode = 'client', onSetMode,
   adminSection, onGoAdminSection,
   orgSection, onGoOrgSection,
@@ -106,7 +109,7 @@ export function MenuDrawer({
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionLabel}>{t('ACCESO EN PUERTA', 'DOOR ACCESS')}</Text>
               </View>
-              <Row icon="scan-outline" label={t('Scan entradas', 'Ticket scan')} onPress={() => go(onGoEmployeeScan)} />
+              <Row icon="scan-outline" label={t('Scan entradas empleados', 'Staff ticket scan')} onPress={() => go(onGoEmployeeScan)} />
             </View>
           )}
 
@@ -139,8 +142,14 @@ export function MenuDrawer({
                   key={`${s.id}-${index}`}
                   icon={s.icon}
                   label={t(s.labelEs, s.labelEn)}
-                  active={s.id === 'scan' ? false : orgSection === s.id}
-                  onPress={() => go(() => s.id === 'scan' ? onGoScan?.() : onGoOrgSection(s.id))}
+                  active={s.id === 'scan' || s.id === 'doorSale' ? false : orgSection === s.id}
+                  onPress={() => go(() => (
+                    s.id === 'scan'
+                      ? onGoScan?.()
+                      : s.id === 'doorSale'
+                        ? onGoDoorSale?.()
+                        : onGoOrgSection(s.id)
+                  ))}
                 />
               ))}
             </View>

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLanguage } from '../i18n/LanguageContext';
+import { GradientButton } from '../components/GradientButton';
 import { AuthUser } from '../services/api';
 import {
   ScannerAccessEvent,
@@ -80,7 +81,7 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
 
   const searchEvents = async () => {
     const clean = query.trim();
-    if (clean.length < 2) {
+    if (clean.length < 1) {
       setSearchResults([]);
       return;
     }
@@ -95,6 +96,23 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
       setSearching(false);
     }
   };
+
+  useEffect(() => {
+    const clean = query.trim();
+    if (clean.length < 1) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const timer = setTimeout(() => {
+      searchScannerAccessEvents(clean)
+        .then(setSearchResults)
+        .catch((err: any) => setError(err?.message || t('No se pudo buscar eventos.', 'Could not search events.')))
+        .finally(() => setSearching(false));
+    }, 260);
+    return () => clearTimeout(timer);
+  }, [query, t]);
 
   const sendRequest = async (event: ScannerAccessEvent) => {
     setRequestingEventId(event.id);
@@ -197,9 +215,9 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
             returnKeyType="search"
             onSubmitEditing={searchEvents}
           />
-          <TouchableOpacity style={styles.searchButton} onPress={searchEvents} activeOpacity={0.8}>
+          <GradientButton height={56} style={styles.searchButton} onPress={searchEvents}>
             {searching ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.searchButtonText}>{t('BUSCAR', 'SEARCH')}</Text>}
-          </TouchableOpacity>
+          </GradientButton>
         </View>
 
         {searchResults.map((event, index) => {
@@ -270,9 +288,9 @@ function EventAccessCard({
           </View>
         )}
       </View>
-      <TouchableOpacity style={[styles.actionButton, disabled && styles.actionButtonDisabled]} disabled={disabled || loading} onPress={onPress} activeOpacity={0.82}>
+      <GradientButton height={42} style={disabled ? [styles.actionButton, styles.actionButtonDisabled] : styles.actionButton} disabled={disabled || loading} onPress={onPress}>
         {loading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={[styles.actionText, disabled && styles.actionTextDisabled]}>{actionLabel}</Text>}
-      </TouchableOpacity>
+      </GradientButton>
     </View>
   );
 }
@@ -316,12 +334,12 @@ const styles = StyleSheet.create({
   statusPending: { backgroundColor: 'rgba(249,115,22,0.82)' },
   statusRejected: { backgroundColor: 'rgba(239,68,68,0.82)' },
   statusText: { color: '#FFFFFF', fontSize: 8, fontWeight: '900' },
-  actionButton: { minWidth: 86, minHeight: 42, borderRadius: 14, backgroundColor: '#F97316', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  actionButton: { minWidth: 86, borderRadius: 14, paddingHorizontal: 10 },
   actionButtonDisabled: { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   actionText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
   actionTextDisabled: { color: 'rgba(226,232,240,0.42)' },
   searchBox: { minHeight: 56, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 14, marginTop: 12 },
   searchInput: { flex: 1, minWidth: 0, color: '#FFFFFF', fontSize: 14, fontWeight: '700', outlineStyle: 'none' as any },
-  searchButton: { alignSelf: 'stretch', minWidth: 78, borderTopRightRadius: 16, borderBottomRightRadius: 16, backgroundColor: '#F97316', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  searchButton: { alignSelf: 'stretch', minWidth: 78, borderTopRightRadius: 16, borderBottomRightRadius: 16, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, paddingHorizontal: 12 },
   searchButtonText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
 });

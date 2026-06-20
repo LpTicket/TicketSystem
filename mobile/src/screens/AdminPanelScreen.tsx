@@ -434,6 +434,11 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     finally { setLoadingTickets(false); }
   };
 
+  const openEditUser = (userId: string) => {
+    setSelectedUser(null);
+    setEditingUserId(String(userId));
+  };
+
   // ── Create user (admin) ────────────────────────────────────────────────────
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [cuForm, setCuForm] = useState({ firstName: '', lastName: '', username: '', email: '', password: '', phone: '', role: 'client' as 'client' | 'organizer' | 'admin' });
@@ -2093,7 +2098,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                       <Text style={styles.userRoleDropdownText}>{user.role === 'admin' ? 'Admin' : user.role === 'organizer' ? 'Organizer' : 'Client'}</Text>
                       <Ionicons name="chevron-down" size={12} color="rgba(226,232,240,0.5)" />
                     </View>
-                    <TouchableOpacity onPress={(e) => { e.stopPropagation(); openUserDetail(user); }} style={styles.userActionIcon}>
+                    <TouchableOpacity onPress={(e) => { e.stopPropagation(); openEditUser(user.id); }} style={styles.userActionIcon}>
                       <Ionicons name="pencil-outline" size={18} color="#94A3B8" />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={(e) => { e.stopPropagation(); toggleUserActiveApi(user.id); }} style={[styles.userActionIcon, { borderColor: user.suspended ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)' }]}>
@@ -2181,7 +2186,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
 
               {/* Footer */}
               <View style={styles.userModalFooter}>
-                <TouchableOpacity onPress={() => { const uid = String(selectedUser.id); setSelectedUser(null); setTimeout(() => setEditingUserId(uid), 320); }} style={styles.userModalEditBtn}>
+                <TouchableOpacity onPress={() => openEditUser(selectedUser.id)} style={styles.userModalEditBtn}>
                   <Ionicons name="pencil-outline" size={15} color={colors.orange} />
                   <Text style={styles.userModalEditBtnText}>{t('Editar perfil', 'Edit Profile')}</Text>
                 </TouchableOpacity>
