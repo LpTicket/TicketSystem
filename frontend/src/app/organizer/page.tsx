@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
 import { parseSafeDate, formatDateInTimezone } from '@/lib/dateUtils';
@@ -32,11 +32,8 @@ export default function OrganizerDashboard() {
     salesByDay: [] as { date: string; orders: number; tickets: number; revenue: number }[],
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async (showLoading = false) => {
+    if (showLoading) setLoading(true);
     try {
       // Fetch organizer events and aggregated stats in parallel via dedicated
       // endpoints (1 DB query each) instead of N+1 requests per event.
@@ -67,7 +64,25 @@ export default function OrganizerDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData(true);
+  }, [loadData]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') loadData(false);
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    const timer = window.setInterval(refresh, 30000);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+      window.clearInterval(timer);
+    };
+  }, [loadData]);
 
   const dateFnsLocale = lang === 'es' ? es : enUS;
 

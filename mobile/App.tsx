@@ -90,8 +90,12 @@ function AppContent() {
   const [viewMode, setViewMode] = useState<'client' | 'organizer' | 'admin'>('client');
   const [organizerSection, setOrganizerSection] = useState<OrgSection>('dashboard');
   const [adminSection, setAdminSection] = useState<AdminSection>('dashboard');
+  const [salesRefreshKey, setSalesRefreshKey] = useState(0);
   const [legalDoc, setLegalDoc] = useState<LegalKey>('terms');
   const goToLegal = (key: LegalKey) => { setLegalDoc(key); goToTab('legal'); };
+  const notifyDoorSaleCompleted = useCallback(() => {
+    setSalesRefreshKey((key) => key + 1);
+  }, []);
 
   // Read cart from AsyncStorage — mirrors web localStorage(`selectedSeats_${eventId}`)
   const loadCartFromStorage = useCallback(async (eventId?: string) => {
@@ -501,15 +505,15 @@ function AppContent() {
         ) : tab === 'employeeScan' ? (
           isLoggedIn ? <EmployeeScanAccessScreen user={currentUser} onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'employeeDoorSale' ? (
-          isLoggedIn ? <DoorSaleScreen user={currentUser} eventSource="employee" onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={handleSignIn} />
+          isLoggedIn ? <DoorSaleScreen user={currentUser} eventSource="employee" onBack={() => goToTab('events')} onSaleCompleted={notifyDoorSaleCompleted} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'doorSale' ? (
-          isLoggedIn ? <DoorSaleScreen user={currentUser} onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={handleSignIn} />
+          isLoggedIn ? <DoorSaleScreen user={currentUser} onBack={() => goToTab('events')} onSaleCompleted={notifyDoorSaleCompleted} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'social' ? (
           isLoggedIn ? <SocialScreen /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'profile' ? (
           isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} canOrganize={canOrganize} canAdmin={canAdmin} viewMode={viewMode} onSetMode={(mode) => setViewMode(mode)} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'organizer' ? (
-          isLoggedIn ? <OrganizerPanelScreen section={organizerSection} onSectionChange={setOrganizerSection} /> : <LoginScreen onSignIn={handleSignIn} />
+          isLoggedIn ? <OrganizerPanelScreen section={organizerSection} onSectionChange={setOrganizerSection} refreshKey={salesRefreshKey} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'admin' ? (
           canAdmin ? <AdminPanelScreen section={adminSection} onSectionChange={setAdminSection} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'contact' ? (

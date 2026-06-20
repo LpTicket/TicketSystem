@@ -105,7 +105,7 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(`${API_URL}${cleanPath}`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: JSON.stringify(body === undefined ? {} : body),
   });
 
   if (!response.ok) {

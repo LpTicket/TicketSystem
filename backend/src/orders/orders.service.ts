@@ -961,6 +961,23 @@ export class OrdersService {
         session.customer_details?.name || session.metadata?.buyerName,
       );
     }
+
+    if (event.type === 'payment_intent.succeeded') {
+      const paymentIntent = event.data.object as any;
+      await this.finalizePaidPaymentIntent(paymentIntent);
+    }
+  }
+
+  private async finalizePaidPaymentIntent(paymentIntent: any) {
+    const orderId = paymentIntent?.metadata?.orderId;
+    if (!orderId) return;
+
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (!order) return;
+    if (order.stripePaymentIntent && order.stripePaymentIntent !== paymentIntent.id) return;
+    if (paymentIntent.status !== 'succeeded') return;
+
+    await this.finalizePaidOrder(orderId, paymentIntent.id);
   }
 
   /**
@@ -1004,6 +1021,17 @@ export class OrdersService {
     for (const order of staleOrders) {
       try {
         let session: any = null;
+
+        if (order.stripePaymentIntent && !order.stripeSessionId) {
+          const paymentIntent = await this.stripe.paymentIntents.retrieve(order.stripePaymentIntent);
+          if (paymentIntent.status === 'requires_capture') {
+            const captured = await this.stripe.paymentIntents.capture(order.stripePaymentIntent);
+            await this.finalizePaidPaymentIntent(captured);
+          } else if (paymentIntent.status === 'succeeded') {
+            await this.finalizePaidPaymentIntent(paymentIntent);
+          }
+          continue;
+        }
 
         if (order.stripeSessionId) {
           // Fast path: retrieve the exact session by stored ID

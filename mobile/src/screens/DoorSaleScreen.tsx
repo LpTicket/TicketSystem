@@ -12,6 +12,7 @@ import { runDoorSaleTapToPay } from '../services/tapToPay';
 type Props = {
   user?: AuthUser | null;
   onBack: () => void;
+  onSaleCompleted?: () => void;
   eventSource?: 'organizer' | 'employee';
   assignedEvents?: DoorEvent[];
   initialSelectedEventId?: string;
@@ -27,6 +28,8 @@ type DoorEvent = {
 };
 
 type PaymentMethod = 'qr' | 'link' | 'tap';
+
+const DEFAULT_DOOR_SALE_AMOUNT = '20';
 
 function listFrom(payload: any): any[] {
   if (Array.isArray(payload)) return payload;
@@ -46,11 +49,31 @@ function fmtDate(value?: string) {
   }
 }
 
-export function DoorSaleScreen({ user, onBack, eventSource = 'organizer', assignedEvents, initialSelectedEventId }: Props) {
+function normalizeDoorEvent(event: any): DoorEvent {
+  return {
+    id: String(event.id),
+    title: event.title || 'Evento',
+    eventDate: event.eventDate || undefined,
+    venueName: event.venueName || event.venue || undefined,
+    imageUrl: getImageUrl(event.imageUrl || event.bannerImageUrl),
+    status: event.status || 'published',
+  };
+}
+
+function mergeDoorEvents(...groups: DoorEvent[][]): DoorEvent[] {
+  const byId = new Map<string, DoorEvent>();
+  groups.flat().forEach((event) => {
+    if (!event?.id) return;
+    byId.set(event.id, { ...byId.get(event.id), ...event });
+  });
+  return Array.from(byId.values());
+}
+
+export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'organizer', assignedEvents, initialSelectedEventId }: Props) {
   const { t } = useLanguage();
   const [events, setEvents] = useState<DoorEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
-  const [amount, setAmount] = useState('20');
+  const [amount, setAmount] = useState(DEFAULT_DOOR_SALE_AMOUNT);
   const [quantity, setQuantity] = useState(1);
   const [preview, setPreview] = useState<DoorSalePreview | null>(null);
   const [checkout, setCheckout] = useState<DoorSaleCheckout | null>(null);
@@ -80,29 +103,26 @@ export function DoorSaleScreen({ user, onBack, eventSource = 'organizer', assign
     const loadEvents = async () => {
       if (assignedEvents?.length) return assignedEvents;
       if (eventSource === 'employee') {
-        const grants = await getMyScannerAccess();
-        return grants
-          .filter((grant) => grant.status === 'approved')
-          .map((grant) => ({
-            id: grant.event.id,
-            title: grant.event.title || 'Evento',
-            eventDate: grant.event.eventDate || undefined,
-            venueName: grant.event.venueName || undefined,
-            imageUrl: getImageUrl(grant.event.imageUrl || grant.event.bannerImageUrl),
-            status: grant.event.status || 'published',
-          }));
+        const [approvedResult, ownResult] = await Promise.allSettled([
+          getMyScannerAccess(),
+          apiGet<any>('/events/mine/list'),
+        ]);
+        const approvedEvents = approvedResult.status === 'fulfilled'
+          ? approvedResult.value
+            .filter((grant) => grant.status === 'approved')
+            .map((grant) => normalizeDoorEvent(grant.event))
+          : [];
+        const ownEvents = ownResult.status === 'fulfilled'
+          ? listFrom(ownResult.value)
+            .filter((event) => (event.status || 'published') === 'published')
+            .map(normalizeDoorEvent)
+          : [];
+        return mergeDoorEvents(ownEvents, approvedEvents);
       }
       const data = await apiGet<any>('/events/mine/list');
       return listFrom(data)
         .filter((event) => (event.status || 'published') === 'published')
-        .map((event) => ({
-          id: String(event.id),
-          title: event.title || 'Evento',
-          eventDate: event.eventDate,
-          venueName: event.venueName || event.venue,
-          imageUrl: getImageUrl(event.imageUrl || event.bannerImageUrl),
-          status: event.status,
-        }));
+        .map(normalizeDoorEvent);
     };
 
     loadEvents()
@@ -163,6 +183,13 @@ export function DoorSaleScreen({ user, onBack, eventSource = 'organizer', assign
       ? t('CREAR LINK DE PAGO', 'CREATE PAYMENT LINK')
       : t('COBRAR CON TAP TO PAY', 'CHARGE WITH TAP TO PAY');
 
+  const resetSaleForm = () => {
+    setAmount(DEFAULT_DOOR_SALE_AMOUNT);
+    setQuantity(1);
+    setCheckout(null);
+    setTapStatus('');
+  };
+
   const makeCheckout = async () => {
     if (!selectedEventId || Number(amount || 0) <= 0 || creating) return;
     setCreating(true);
@@ -177,7 +204,8 @@ export function DoorSaleScreen({ user, onBack, eventSource = 'organizer', assign
           merchantDisplayName: selectedEvent?.title || 'LPTicket',
           onStatus: setTapStatus,
         });
-        setCheckout(null);
+        resetSaleForm();
+        onSaleCompleted?.();
         return;
       }
 

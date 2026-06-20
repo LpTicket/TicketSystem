@@ -139,9 +139,9 @@ const GLOBAL_SECTIONS: Section[] = ['dashboard', 'events', 'create'];
 const EVENT_SECTIONS: Section[] = ['analytics', 'details', 'overview', 'attendees', 'map', 'blocks', 'commission', 'rewards'];
 const isEventSection = (s: Section) => EVENT_SECTIONS.includes(s);
 
-type PanelProps = { section?: Section; onSectionChange?: (s: Section) => void; adminEvent?: any; onAdminBack?: () => void };
+type PanelProps = { section?: Section; onSectionChange?: (s: Section) => void; adminEvent?: any; onAdminBack?: () => void; refreshKey?: number };
 
-export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onAdminBack }: PanelProps = {}) {
+export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onAdminBack, refreshKey = 0 }: PanelProps = {}) {
   const { t } = useLanguage();
   const organizerIndicatorX = useRef(new Animated.Value(0)).current;
   const organizerIndicatorWidth = useRef(new Animated.Value(118)).current;
@@ -189,45 +189,37 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
   // In admin mode: always show event sections; otherwise depend on selectedEvent
   const visibleSections = (selectedEvent || adminEvent) ? EVENT_SECTIONS : GLOBAL_SECTIONS;
 
-  useEffect(() => {
-    let mounted = true;
+  const reloadOrganizerSummary = useCallback(async () => {
+    try {
+      const data = await apiGet<any>('/events/mine/list');
+      const raw = listFrom(data);
 
-    async function loadOrganizerEvents() {
-      try {
-        const data = await apiGet<any>('/events/mine/list');
-        if (!mounted) return;
-        const raw = listFrom(data);
+      const byId: Record<string, any> = {};
+      raw.forEach((e: any) => { if (e?.id) byId[String(e.id)] = e; });
+      setRawEventsById(byId);
+      const items = raw.map(toOrganizerEvent);
+      setOrganizerEvents(items);
+      setOrganizerEventsError('');
 
-        const byId: Record<string, any> = {};
-        raw.forEach((e: any) => { if (e?.id) byId[String(e.id)] = e; });
-        setRawEventsById(byId);
-        const items = raw.map(toOrganizerEvent);
-        setOrganizerEvents(items);
-        setOrganizerEventsError('');
-
-        const first = items[0];
-        if (first) {
-          setEventTitle(first.title);
-          setEventVenue(first.venue);
-          setEventStatus(first.status);
-        }
-      } catch {
-        if (mounted) setOrganizerEventsError(t('No se pudieron cargar los eventos.', 'Could not load events.'));
+      const first = items[0];
+      if (first && !selectedEvent && !adminEvent) {
+        setEventTitle(first.title);
+        setEventVenue(first.venue);
+        setEventStatus(first.status);
       }
+    } catch {
+      setOrganizerEventsError(t('No se pudieron cargar los eventos.', 'Could not load events.'));
     }
 
-    loadOrganizerEvents();
+    try {
+      const data = await apiGet<OrganizerStats>('/orders/organizer/stats');
+      setOrganizerStats(data || {});
+    } catch {}
+  }, [adminEvent, selectedEvent, t]);
 
-    apiGet<OrganizerStats>('/orders/organizer/stats')
-      .then((data) => {
-        if (mounted) setOrganizerStats(data || {});
-      })
-      .catch(() => {});
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  useEffect(() => {
+    reloadOrganizerSummary();
+  }, [reloadOrganizerSummary]);
 
   const [attendees, setAttendees] = useState<MobileAttendee[]>([]);
   // Raw attendee rows (status 'used'/'active'/'cancelled', sectionName, seats)
@@ -332,6 +324,19 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
     }
   }, [selectedEventId]);
   useEffect(() => { reloadEventData(); }, [reloadEventData]);
+
+  useEffect(() => {
+    if (!refreshKey) return;
+    reloadOrganizerSummary();
+    reloadEventData();
+  }, [refreshKey, reloadOrganizerSummary, reloadEventData]);
+
+  useEffect(() => {
+    if (active === 'dashboard' || active === 'analytics' || active === 'attendees' || active === 'events') {
+      reloadOrganizerSummary();
+      reloadEventData();
+    }
+  }, [active, reloadOrganizerSummary, reloadEventData]);
 
   const reloadScannerRequests = useCallback(async () => {
     if (!selectedEventId) { setScannerRequests([]); return; }
