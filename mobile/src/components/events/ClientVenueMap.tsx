@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
@@ -291,7 +291,7 @@ function RowSection({ section, sel, onToggle, onInfo }: {
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────
-export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleSeats, defaultViewX, defaultViewY, defaultViewZoom }: Props) {
+export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleSeats, defaultViewX, defaultViewY, defaultViewZoom }: Props) {
   const { t } = useLanguage();
   const { width: screenW } = useWindowDimensions();
 
@@ -326,18 +326,15 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleS
   const halfCanvasH = useRef(new Animated.Value(CANVAS_H / 2)).current;
   const negOne = useRef(new Animated.Value(-1)).current;
 
-  // JS-readable state (used for touch math and section positioning)
+  // viewRef is the single source of truth for pan/zoom math — no React state
+  // so drag/pinch never trigger re-renders and the canvas never jumps
   const viewRef = useRef({ zoom: fitView.zoom, pan: fitView.pan });
-  const [zoom, setZoom] = useState(fitView.zoom);
-  const [pan, setPan] = useState(fitView.pan);
 
   const syncAnimated = (z: number, p: { x: number; y: number }) => {
     animZoom.setValue(z);
     animPanX.setValue(p.x);
     animPanY.setValue(p.y);
     viewRef.current = { zoom: z, pan: p };
-    setZoom(z);
-    setPan(p);
   };
 
   const animatingRef = useRef(false);
@@ -346,8 +343,6 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleS
     if (animatingRef.current) return;
     animatingRef.current = true;
     viewRef.current = { zoom: newZ, pan: newP };
-    setZoom(newZ);
-    setPan(newP);
     Animated.parallel([
       Animated.timing(animZoom, { toValue: newZ, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
       Animated.timing(animPanX, { toValue: newP.x, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
@@ -479,25 +474,6 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleS
         onResponderMove={onTouchMove}
         onResponderRelease={() => {}}
       >
-        {/* Grid */}
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          {Array.from({ length: Math.ceil(screenW / 20) + 4 }).map((_, i) => {
-            const x = ((pan.x % 20) + 20) % 20 + (i - 1) * 20;
-            return <View key={`vs${i}`} style={{ position: 'absolute', left: x, top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(148,163,184,0.07)' }} />;
-          })}
-          {Array.from({ length: Math.ceil(viewportH / 20) + 4 }).map((_, i) => {
-            const y = ((pan.y % 20) + 20) % 20 + (i - 1) * 20;
-            return <View key={`hs${i}`} style={{ position: 'absolute', top: y, left: 0, right: 0, height: 1, backgroundColor: 'rgba(148,163,184,0.07)' }} />;
-          })}
-          {Array.from({ length: Math.ceil(screenW / 100) + 4 }).map((_, i) => {
-            const x = ((pan.x % 100) + 100) % 100 + (i - 1) * 100;
-            return <View key={`vl${i}`} style={{ position: 'absolute', left: x, top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(148,163,184,0.12)' }} />;
-          })}
-          {Array.from({ length: Math.ceil(viewportH / 100) + 4 }).map((_, i) => {
-            const y = ((pan.y % 100) + 100) % 100 + (i - 1) * 100;
-            return <View key={`hl${i}`} style={{ position: 'absolute', top: y, left: 0, right: 0, height: 1, backgroundColor: 'rgba(148,163,184,0.12)' }} />;
-          })}
-        </View>
 
         {/* Animated canvas — sections at their map coords, transform handles pan+zoom */}
         <Animated.View style={canvasStyle} pointerEvents="box-none">
@@ -614,7 +590,7 @@ export function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleS
       </View>
     </View>
   );
-}
+});
 
 const st = StyleSheet.create({
   wrap: { borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: '#0d1f33' },

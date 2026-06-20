@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -226,16 +226,16 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
 
   useEffect(() => { onSelectionCountChange?.(selectionCount); }, [selectionCount, onSelectionCountChange]);
 
-  const toggleSeat = (seat: ClientSeat) => {
+  const toggleSeat = useCallback((seat: ClientSeat) => {
     setSelectedSeats((cur) => {
       const exists = cur.some((s) => s.id === seat.id);
       if (exists) return cur.filter((s) => s.id !== seat.id);
       if (cur.length >= MAX_PER_TX) return cur;
       return [...cur, seat];
     });
-  };
+  }, []);
 
-  const toggleSeats = (seats: ClientSeat[]) => {
+  const toggleSeats = useCallback((seats: ClientSeat[]) => {
     setSelectedSeats((cur) => {
       const anySelected = seats.some((s) => cur.some((c) => c.id === s.id));
       if (anySelected) {
@@ -245,7 +245,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
       const toAdd = seats.filter((s) => !cur.some((c) => c.id === s.id));
       return [...cur, ...toAdd.slice(0, MAX_PER_TX - cur.length)];
     });
-  };
+  }, []);
 
   const imageSource = useMemo(() => {
     const img = detail.imageUrl || detail.bannerImageUrl;
