@@ -284,7 +284,9 @@ export function HomeScreen({ onOpenEvent }: Props) {
     };
 
     if (nextImageUrl) {
-      Image.prefetch(nextImageUrl).finally(startTransition);
+      Image.prefetch(nextImageUrl)
+        .catch(() => false)
+        .finally(startTransition);
     } else {
       startTransition();
     }
