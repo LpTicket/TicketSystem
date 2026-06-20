@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenBackground } from '../components/ScreenBackground';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -14,6 +14,8 @@ export function AiChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Initial greeting
@@ -29,6 +31,23 @@ export function AiChatScreen() {
       ]);
     }
   }, [lang, messages.length]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates?.height || 0);
+      setKeyboardOpen(true);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+      setKeyboardOpen(false);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -71,8 +90,7 @@ export function AiChatScreen() {
   return (
     <KeyboardAvoidingView 
       style={styles.keyboardAvoid} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+      behavior={undefined}
     >
       <View style={[styles.screenWrap, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
         <ScreenBackground />
@@ -95,8 +113,12 @@ export function AiChatScreen() {
         <ScrollView
           ref={scrollViewRef}
           style={styles.chatArea}
-          contentContainerStyle={styles.chatContent}
+          contentContainerStyle={[
+            styles.chatContent,
+            { paddingBottom: keyboardOpen ? 108 : 190 },
+          ]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           onContentSizeChange={scrollToBottom}
         >
           {messages.map((m, i) => (
@@ -133,7 +155,14 @@ export function AiChatScreen() {
         </ScrollView>
 
         {/* Input */}
-        <View style={styles.inputArea}>
+        <View style={[
+          styles.inputArea,
+          {
+            bottom: Platform.OS === 'ios'
+              ? (keyboardOpen ? Math.max(0, keyboardHeight - 2) : 86)
+              : (keyboardOpen ? keyboardHeight : 70),
+          },
+        ]}>
           <TextInput
             style={styles.input}
             value={input}
@@ -185,7 +214,7 @@ const styles = StyleSheet.create({
   statusText: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
   
   chatArea: { flex: 1 },
-  chatContent: { padding: 16, paddingBottom: 100 },
+  chatContent: { padding: 16 },
   
   messageRow: { flexDirection: 'row', marginBottom: 16, alignItems: 'flex-end' },
   messageRowUser: { justifyContent: 'flex-end' },
@@ -206,28 +235,41 @@ const styles = StyleSheet.create({
   loadingText: { color: 'rgba(255,255,255,0.6)', fontSize: 20, lineHeight: 20, marginTop: -8 },
 
   inputArea: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 30,
     flexDirection: 'row',
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 100 : 80,
-    backgroundColor: 'rgba(3,11,20,0.8)',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 12,
+    backgroundColor: 'rgba(3,11,20,0.94)',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: 'rgba(255,255,255,0.10)',
+    shadowColor: '#000000',
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: -6 },
+    elevation: 10,
   },
   input: {
     flex: 1,
-    height: 48,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    minHeight: 46,
+    maxHeight: 96,
+    backgroundColor: '#030B14',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 24,
-    paddingHorizontal: 20,
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
     color: colors.white,
     fontSize: 15,
   },
   sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 46,
+    height: 46,
+    borderRadius: 18,
     backgroundColor: colors.orange,
     alignItems: 'center',
     justifyContent: 'center',

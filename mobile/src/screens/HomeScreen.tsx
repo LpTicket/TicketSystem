@@ -112,6 +112,8 @@ export function HomeScreen({ onOpenEvent }: Props) {
   const categoryFrameX = useRef(new Animated.Value(0)).current;
   const heroFade = useRef(new Animated.Value(1)).current;
   const heroProgressX = useRef(new Animated.Value(0)).current;
+  const eventSearchPlaceholder = t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...') || (lang === 'es' ? 'Conciertos, teatro, talleres...' : 'Concerts, theater, workshops...');
+  const placeSearchPlaceholder = t('Ciudad o venue', 'City or venue') || (lang === 'es' ? 'Ciudad o venue' : 'City or venue');
 
   const trustItems: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string }[] = [
     { icon: 'card-outline', title: t('Pagos seguros', 'Secure payments'), subtitle: t('Procesado por Stripe.', 'Processed by Stripe') },
@@ -392,14 +394,14 @@ export function HomeScreen({ onOpenEvent }: Props) {
           <Text style={styles.fieldLabel}>{t('BUSCAR EVENTO', 'SEARCH EVENT')}</Text>
           <View style={styles.fieldRow}>
             <Ionicons name="search" size={18} color="#ff7a00" />
-            <TextInput value={query} onChangeText={setQuery} placeholder={t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...')} placeholderTextColor="rgba(248,250,252,0.62)" style={styles.fieldInput} />
+            <TextInput key={`home-query-${lang}`} value={query} onChangeText={setQuery} placeholder={eventSearchPlaceholder} placeholderTextColor="rgba(248,250,252,0.62)" style={styles.fieldInput} />
           </View>
         </View>
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t('LUGAR', 'PLACE')}</Text>
           <View style={styles.fieldRow}>
             <Ionicons name="location-outline" size={18} color="#ff7a00" />
-            <TextInput value={place} onChangeText={setPlace} placeholder={t('Ciudad o venue', 'City or venue')} placeholderTextColor="rgba(248,250,252,0.62)" style={styles.fieldInput} />
+            <TextInput key={`home-place-${lang}`} value={place} onChangeText={setPlace} placeholder={placeSearchPlaceholder} placeholderTextColor="rgba(248,250,252,0.62)" style={styles.fieldInput} />
           </View>
         </View>
         <GradientButton
