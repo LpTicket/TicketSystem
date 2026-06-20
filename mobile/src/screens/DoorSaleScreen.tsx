@@ -6,11 +6,15 @@ import { GradientButton } from '../components/GradientButton';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser, apiGet, getImageUrl } from '../services/api';
 import { createDoorSaleCheckout, DoorSaleCheckout, DoorSalePreview, previewDoorSale } from '../services/doorSales';
+import { getMyScannerAccess } from '../services/scannerAccess';
 import { runDoorSaleTapToPay } from '../services/tapToPay';
 
 type Props = {
   user?: AuthUser | null;
   onBack: () => void;
+  eventSource?: 'organizer' | 'employee';
+  assignedEvents?: DoorEvent[];
+  initialSelectedEventId?: string;
 };
 
 type DoorEvent = {
@@ -42,7 +46,7 @@ function fmtDate(value?: string) {
   }
 }
 
-export function DoorSaleScreen({ user, onBack }: Props) {
+export function DoorSaleScreen({ user, onBack, eventSource = 'organizer', assignedEvents, initialSelectedEventId }: Props) {
   const { t } = useLanguage();
   const [events, setEvents] = useState<DoorEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -73,25 +77,47 @@ export function DoorSaleScreen({ user, onBack }: Props) {
 
   useEffect(() => {
     let mounted = true;
-    apiGet<any>('/events/mine/list')
-      .then((data) => {
-        if (!mounted) return;
-        const items = listFrom(data)
-          .filter((event) => (event.status || 'published') === 'published')
-          .map((event) => ({
-            id: String(event.id),
-            title: event.title || 'Evento',
-            eventDate: event.eventDate,
-            venueName: event.venueName || event.venue,
-            imageUrl: getImageUrl(event.imageUrl || event.bannerImageUrl),
-            status: event.status,
+    const loadEvents = async () => {
+      if (assignedEvents?.length) return assignedEvents;
+      if (eventSource === 'employee') {
+        const grants = await getMyScannerAccess();
+        return grants
+          .filter((grant) => grant.status === 'approved')
+          .map((grant) => ({
+            id: grant.event.id,
+            title: grant.event.title || 'Evento',
+            eventDate: grant.event.eventDate || undefined,
+            venueName: grant.event.venueName || undefined,
+            imageUrl: getImageUrl(grant.event.imageUrl || grant.event.bannerImageUrl),
+            status: grant.event.status || 'published',
           }));
+      }
+      const data = await apiGet<any>('/events/mine/list');
+      return listFrom(data)
+        .filter((event) => (event.status || 'published') === 'published')
+        .map((event) => ({
+          id: String(event.id),
+          title: event.title || 'Evento',
+          eventDate: event.eventDate,
+          venueName: event.venueName || event.venue,
+          imageUrl: getImageUrl(event.imageUrl || event.bannerImageUrl),
+          status: event.status,
+        }));
+    };
+
+    loadEvents()
+      .then((items) => {
+        if (!mounted) return;
         setEvents(items);
-        setSelectedEventId((current) => current || items[0]?.id || '');
+        setSelectedEventId((current) => current || initialSelectedEventId || items[0]?.id || '');
       })
-      .catch((err: any) => setError(err?.message || t('No se pudieron cargar tus eventos.', 'Could not load your events.')));
+      .catch((err: any) => setError(err?.message || (
+        eventSource === 'employee'
+          ? t('No se pudieron cargar tus eventos aprobados.', 'Could not load your approved events.')
+          : t('No se pudieron cargar tus eventos.', 'Could not load your events.')
+      )));
     return () => { mounted = false; };
-  }, [t]);
+  }, [assignedEvents, eventSource, initialSelectedEventId, t]);
 
   useEffect(() => {
     setCheckout(null);
@@ -225,7 +251,13 @@ export function DoorSaleScreen({ user, onBack }: Props) {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        {filteredEvents.length === 0 ? (
+        {events.length === 0 && eventSource === 'employee' ? (
+          <View style={styles.emptySearch}>
+            <Ionicons name="lock-closed-outline" size={22} color="rgba(249,115,22,0.58)" />
+            <Text style={styles.emptySearchText}>{t('Todavía no tienes eventos aprobados para venta en puerta.', 'You do not have approved door sale events yet.')}</Text>
+          </View>
+        ) : null}
+        {filteredEvents.length === 0 && !(events.length === 0 && eventSource === 'employee') ? (
           <View style={styles.emptySearch}>
             <Ionicons name="calendar-clear-outline" size={22} color="rgba(249,115,22,0.58)" />
             <Text style={styles.emptySearchText}>{t('No encontramos eventos con esa búsqueda.', 'No events match that search.')}</Text>

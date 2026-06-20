@@ -36,7 +36,7 @@ import { getPublicEvents } from './src/services/events';
 import { addPushNotificationResponseListener, registerDeviceForPushNotifications } from './src/services/pushNotifications';
 import { SplashVideo } from './src/components/SplashVideo';
 
-type Tab = 'events' | 'tickets' | 'scan' | 'employeeScan' | 'doorSale' | 'social' | 'profile' | 'organizer' | 'admin' | 'contact' | 'about' | 'support' | 'legal' | 'aichat';
+type Tab = 'events' | 'tickets' | 'scan' | 'employeeScan' | 'employeeDoorSale' | 'doorSale' | 'social' | 'profile' | 'organizer' | 'admin' | 'contact' | 'about' | 'support' | 'legal' | 'aichat';
 const NAV_LINE_WIDTH = 22;
 const NAV_LINE_TOP = 10;
 const ADMIN_NAV_LINE_TOP = NAV_LINE_TOP + 5;
@@ -412,6 +412,8 @@ function AppContent() {
           <ScanScreen onBack={() => goToTab('events')} user={currentUser} />
         ) : tab === 'employeeScan' ? (
           isLoggedIn ? <EmployeeScanAccessScreen user={currentUser} onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={setCurrentUser} />
+        ) : tab === 'employeeDoorSale' ? (
+          isLoggedIn ? <DoorSaleScreen user={currentUser} eventSource="employee" onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'doorSale' ? (
           isLoggedIn ? <DoorSaleScreen user={currentUser} onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={setCurrentUser} />
         ) : tab === 'social' ? (
@@ -604,6 +606,7 @@ function AppContent() {
           onGoAdmin={() => goToTab('admin')}
           onGoScan={() => { clearFlow(); setScanOpen(true); }}
           onGoEmployeeScan={() => goToTab('employeeScan')}
+          onGoEmployeeDoorSale={() => goToTab('employeeDoorSale')}
           onGoDoorSale={() => goToTab('doorSale')}
           onGoAiChat={() => goToTab('aichat')}
           onGoSocialMatch={() => goToTab('social')}

@@ -11,6 +11,7 @@ import {
   requestScannerAccess,
   searchScannerAccessEvents,
 } from '../services/scannerAccess';
+import { DoorSaleScreen } from './DoorSaleScreen';
 import { ScanScreen, ScannerEvent } from './ScanScreen';
 
 type Props = {
@@ -49,6 +50,7 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
   const [searchResults, setSearchResults] = useState<ScannerAccessEvent[]>([]);
   const [requestingEventId, setRequestingEventId] = useState<string | null>(null);
   const [activeScanEvent, setActiveScanEvent] = useState<ScannerAccessEvent | null>(null);
+  const [activeDoorSaleEvent, setActiveDoorSaleEvent] = useState<ScannerAccessEvent | null>(null);
 
   const approved = useMemo(() => accessList.filter((item) => item.status === 'approved'), [accessList]);
   const pending = useMemo(() => accessList.filter((item) => item.status === 'pending'), [accessList]);
@@ -144,6 +146,25 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
     );
   }
 
+  if (activeDoorSaleEvent) {
+    return (
+      <DoorSaleScreen
+        user={user}
+        eventSource="employee"
+        assignedEvents={[{
+          id: activeDoorSaleEvent.id,
+          title: activeDoorSaleEvent.title,
+          eventDate: activeDoorSaleEvent.eventDate || undefined,
+          venueName: activeDoorSaleEvent.venueName || undefined,
+          imageUrl: activeDoorSaleEvent.imageUrl || activeDoorSaleEvent.bannerImageUrl || undefined,
+          status: activeDoorSaleEvent.status || undefined,
+        }]}
+        initialSelectedEventId={activeDoorSaleEvent.id}
+        onBack={() => setActiveDoorSaleEvent(null)}
+      />
+    );
+  }
+
   return (
     <ScrollView
       style={styles.screen}
@@ -197,6 +218,8 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
               status="approved"
               actionLabel={t('ABRIR SCAN', 'OPEN SCAN')}
               onPress={() => setActiveScanEvent(item.event)}
+              secondaryActionLabel={t('VENTA EN PUERTA', 'DOOR SALE')}
+              onSecondaryPress={() => setActiveDoorSaleEvent(item.event)}
             />
           ))
         )}
@@ -258,6 +281,8 @@ function EventAccessCard({
   disabled,
   loading,
   onPress,
+  secondaryActionLabel,
+  onSecondaryPress,
 }: {
   event: ScannerAccessEvent;
   status?: 'approved' | 'pending' | 'rejected';
@@ -265,6 +290,8 @@ function EventAccessCard({
   disabled?: boolean;
   loading?: boolean;
   onPress?: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryPress?: () => void;
 }) {
   const tone = status === 'approved' ? styles.statusApproved : status === 'rejected' ? styles.statusRejected : styles.statusPending;
   const icon = status === 'approved' ? 'checkmark-circle-outline' : status === 'rejected' ? 'close-circle-outline' : 'time-outline';
@@ -288,9 +315,17 @@ function EventAccessCard({
           </View>
         )}
       </View>
-      <GradientButton height={42} style={disabled ? [styles.actionButton, styles.actionButtonDisabled] : styles.actionButton} disabled={disabled || loading} onPress={onPress}>
-        {loading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={[styles.actionText, disabled && styles.actionTextDisabled]}>{actionLabel}</Text>}
-      </GradientButton>
+      <View style={styles.actionsColumn}>
+        <GradientButton height={42} style={disabled ? [styles.actionButton, styles.actionButtonDisabled] : styles.actionButton} disabled={disabled || loading} onPress={onPress}>
+          {loading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={[styles.actionText, disabled && styles.actionTextDisabled]}>{actionLabel}</Text>}
+        </GradientButton>
+        {secondaryActionLabel && !disabled ? (
+          <TouchableOpacity style={styles.secondaryActionButton} onPress={onSecondaryPress} activeOpacity={0.78}>
+            <Ionicons name="card-outline" size={13} color="#F97316" />
+            <Text style={styles.secondaryActionText}>{secondaryActionLabel}</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -334,10 +369,13 @@ const styles = StyleSheet.create({
   statusPending: { backgroundColor: 'rgba(249,115,22,0.82)' },
   statusRejected: { backgroundColor: 'rgba(239,68,68,0.82)' },
   statusText: { color: '#FFFFFF', fontSize: 8, fontWeight: '900' },
+  actionsColumn: { width: 104, gap: 7 },
   actionButton: { minWidth: 86, borderRadius: 14, paddingHorizontal: 10 },
   actionButtonDisabled: { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   actionText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
   actionTextDisabled: { color: 'rgba(226,232,240,0.42)' },
+  secondaryActionButton: { minHeight: 34, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(249,115,22,0.32)', backgroundColor: 'rgba(249,115,22,0.08)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, flexDirection: 'row', gap: 5 },
+  secondaryActionText: { color: '#F97316', fontSize: 8, fontWeight: '900', textAlign: 'center' },
   searchBox: { minHeight: 56, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 14, marginTop: 12 },
   searchInput: { flex: 1, minWidth: 0, color: '#FFFFFF', fontSize: 14, fontWeight: '700', outlineStyle: 'none' as any },
   searchButton: { alignSelf: 'stretch', minWidth: 78, borderTopRightRadius: 16, borderBottomRightRadius: 16, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, paddingHorizontal: 12 },

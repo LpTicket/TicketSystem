@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
-import { Order, Ticket, Seat, Event, VenueSection, SpecialCode } from '../database/entities';
+import { Order, Ticket, Seat, Event, VenueSection, SpecialCode, ScannerAccess } from '../database/entities';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, Ticket, Seat, Event, VenueSection, SpecialCode])],
+  imports: [TypeOrmModule.forFeature([Order, Ticket, Seat, Event, VenueSection, SpecialCode, ScannerAccess])],
   controllers: [OrdersController],
   providers: [OrdersService],
   exports: [OrdersService],

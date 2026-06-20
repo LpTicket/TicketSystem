@@ -5,7 +5,7 @@ import { In, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require('stripe');
-import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, VenueSection, SpecialCode } from '../database/entities';
+import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, VenueSection, SpecialCode, ScannerAccess, ScannerAccessStatus, UserRole } from '../database/entities';
 import { nanoid } from 'nanoid';
 import * as QRCode from 'qrcode';
 import { MailService } from '../common/services/mail.service';
@@ -40,6 +40,8 @@ export class OrdersService {
     private readonly sectionRepo: Repository<VenueSection>,
     @InjectRepository(SpecialCode)
     private readonly specialCodeRepo: Repository<SpecialCode>,
+    @InjectRepository(ScannerAccess)
+    private readonly scannerAccessRepo: Repository<ScannerAccess>,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
   ) {
@@ -86,7 +88,13 @@ export class OrdersService {
   private async ensureCanSellAtDoor(user: any, eventId: string) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    if (user.role !== 'admin' && event.organizerId !== user.id) {
+    if (user.role === UserRole.ADMIN || event.organizerId === user.id) {
+      return event;
+    }
+    const access = await this.scannerAccessRepo.findOne({
+      where: { eventId, userId: user.id, status: ScannerAccessStatus.APPROVED },
+    });
+    if (!access) {
       throw new ForbiddenException('You do not have permission to sell tickets for this event');
     }
     return event;
@@ -379,7 +387,15 @@ export class OrdersService {
     if (!this.stripe) throw new BadRequestException('Stripe not configured');
     const order = await this.orderRepo.findOne({ where: { id: orderId }, relations: ['event'] });
     if (!order) throw new NotFoundException('Order not found');
-    if (user.role !== 'admin' && order.event.organizerId !== user.id) {
+    if (user.role !== UserRole.ADMIN && order.event.organizerId !== user.id) {
+      const access = await this.scannerAccessRepo.findOne({
+        where: { eventId: order.eventId, userId: user.id, status: ScannerAccessStatus.APPROVED },
+      });
+      if (!access) {
+        throw new ForbiddenException('You do not have permission to complete this order');
+      }
+    }
+    if (user.role !== UserRole.ADMIN && order.event.organizerId !== user.id && order.userId !== user.id) {
       throw new ForbiddenException('You do not have permission to complete this order');
     }
     if (order.stripePaymentIntent && order.stripePaymentIntent !== paymentIntentId) {

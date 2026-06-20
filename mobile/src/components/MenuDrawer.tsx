@@ -18,6 +18,7 @@ type Props = {
   onGoProfile?: () => void;
   onGoScan?: () => void;
   onGoEmployeeScan?: () => void;
+  onGoEmployeeDoorSale?: () => void;
   onGoDoorSale?: () => void;
   onGoAiChat?: () => void;
   onGoSocialMatch?: () => void;
@@ -65,7 +66,7 @@ const orgSections: { id: OrgSectionId; labelEs: string; labelEn: string; icon: I
 
 export function MenuDrawer({
   visible, onClose, onGoEvents, onGoHome, onGoTickets, onGoProfile, onGoScan, onGoAiChat,
-  onGoEmployeeScan, onGoDoorSale, onGoSocialMatch, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onGoLegal, onLogout,
+  onGoEmployeeScan, onGoEmployeeDoorSale, onGoDoorSale, onGoSocialMatch, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onGoLegal, onLogout,
   isLoggedIn, canOrganize, canAdmin, viewMode = 'client', onSetMode,
   adminSection, onGoAdminSection,
   orgSection, onGoOrgSection,
@@ -110,6 +111,7 @@ export function MenuDrawer({
                 <Text style={styles.sectionLabel}>{t('ACCESO EN PUERTA', 'DOOR ACCESS')}</Text>
               </View>
               <Row icon="scan-outline" label={t('Scan entradas empleados', 'Staff ticket scan')} onPress={() => go(onGoEmployeeScan)} />
+              <Row icon="card-outline" label={t('Venta en puerta empleados', 'Staff door sale')} onPress={() => go(onGoEmployeeDoorSale || onGoEmployeeScan)} />
             </View>
           )}
 
