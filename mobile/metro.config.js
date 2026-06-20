@@ -16,6 +16,20 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       type: 'sourceFile',
     };
   }
+  if (
+    moduleName === '../../package.json' &&
+    context.originModulePath.includes(
+      `${path.sep}@stripe${path.sep}stripe-terminal-react-native${path.sep}lib${path.sep}commonjs${path.sep}`,
+    )
+  ) {
+    return {
+      filePath: path.resolve(
+        __dirname,
+        'node_modules/@stripe/stripe-terminal-react-native/package.json',
+      ),
+      type: 'sourceFile',
+    };
+  }
   return context.resolveRequest(context, moduleName, platform);
 };
 
