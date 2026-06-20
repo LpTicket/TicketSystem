@@ -3126,27 +3126,29 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 </View>
                 <View style={styles.mktPreviewMailBadge}><Text style={styles.mktPreviewMailText}>{t('Correo', 'Mail')}</Text></View>
               </View>
-              <View style={styles.mktEmailPreview}>
-                {/* Logo */}
-                <View style={styles.mktPreviewLogoRow}>
-                  <View style={styles.mktPreviewLogo}>
-                    <Text style={styles.mktPreviewLogoText}>≡LP LPTicket</Text>
+              {/* Outer gray shell — matches web's bg-slate-100 wrapper */}
+              <View style={styles.mktEmailShell}>
+                {/* Inner white card — matches web's bg-white border shadow card */}
+                <View style={styles.mktEmailPreview}>
+                  {/* Logo */}
+                  <View style={styles.mktPreviewLogoRow}>
+                    <Image source={require('../../assets/logo-header.png')} style={styles.mktPreviewLogoImg} resizeMode="contain" />
                   </View>
-                </View>
-                {/* Art */}
-                {emailArtData ? (
-                  <Image source={{ uri: emailArtData }} style={styles.mktPreviewArt} resizeMode="contain" />
-                ) : (
-                  <View style={styles.mktPreviewArtEmpty}>
-                    <Ionicons name="image-outline" size={38} color="rgba(226,232,240,0.25)" />
-                    <Text style={styles.mktPreviewArtText}>{t('Tu arte de Photoshop aparecerá aquí', 'Your Photoshop art will appear here')}</Text>
+                  {/* Art */}
+                  {emailArtData ? (
+                    <Image source={{ uri: emailArtData }} style={styles.mktPreviewArt} resizeMode="contain" />
+                  ) : (
+                    <View style={styles.mktPreviewArtEmpty}>
+                      <Ionicons name="image-outline" size={44} color="#CBD5E1" />
+                      <Text style={styles.mktPreviewArtText}>{t('Tu arte de Photoshop aparecerá aquí', 'Your Photoshop art will appear here')}</Text>
+                    </View>
+                  )}
+                  {/* Body */}
+                  <View style={styles.mktPreviewBody}>
+                    <Text style={styles.mktPreviewBodyTitle}>{campaignName || t('Titulo opcional de campaña', 'Optional campaign title')}</Text>
+                    <Text style={styles.mktPreviewBodyCopy}>{campaignPreheader || t('Texto breve opcional para acompañar la imagen principal del email.', 'Optional brief text to accompany the main email image.')}</Text>
+                    <View style={styles.mktPreviewBtn}><Text style={styles.mktPreviewBtnText}>{campaignLink ? t('VER DETALLES', 'VIEW DETAILS') : t('VER EVENTO', 'VIEW EVENT')}</Text></View>
                   </View>
-                )}
-                {/* Body */}
-                <View style={styles.mktPreviewBody}>
-                  <Text style={styles.mktPreviewBodyTitle}>{campaignName || t('Titulo opcional de campaña', 'Optional campaign title')}</Text>
-                  <Text style={styles.mktPreviewBodyCopy}>{campaignPreheader || t('Texto breve opcional para acompañar la imagen principal del email.', 'Optional brief text to accompany the main email image.')}</Text>
-                  <View style={styles.mktPreviewBtn}><Text style={styles.mktPreviewBtnText}>{campaignLink ? t('VER DETALLES', 'VIEW DETAILS') : t('VER EVENTO', 'VIEW EVENT')}</Text></View>
                 </View>
               </View>
             </View>
@@ -4202,18 +4204,18 @@ const styles = StyleSheet.create({
   mktPreviewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
   mktPreviewMailBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.06)' },
   mktPreviewMailText: { color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
-  mktEmailPreview: { borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#0a1628', overflow: 'hidden' },
-  mktPreviewLogoRow: { padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)', alignItems: 'center' },
-  mktPreviewLogo: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)', backgroundColor: 'rgba(249,115,22,0.06)' },
-  mktPreviewLogoText: { color: '#F97316', fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
-  mktPreviewArt: { width: '100%', height: 140 },
-  mktPreviewArtEmpty: { height: 120, alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.03)' },
-  mktPreviewArtText: { color: 'rgba(226,232,240,0.3)', fontSize: 12, textAlign: 'center' },
-  mktPreviewBody: { padding: 16, gap: 8 },
-  mktPreviewBodyTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '800' },
-  mktPreviewBodyCopy: { color: 'rgba(226,232,240,0.65)', fontSize: 12, lineHeight: 18 },
-  mktPreviewBtn: { marginTop: 8, paddingVertical: 12, borderRadius: 12, backgroundColor: '#F97316', alignItems: 'center' },
-  mktPreviewBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800', letterSpacing: 0.6 },
+  mktEmailShell: { borderRadius: 24, backgroundColor: '#E2E8F0', padding: 12, marginTop: 12 },
+  mktEmailPreview: { borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  mktPreviewLogoRow: { padding: 20, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  mktPreviewLogoImg: { height: 36, width: 140 },
+  mktPreviewArt: { width: '100%', height: 180 },
+  mktPreviewArtEmpty: { height: 200, marginHorizontal: 16, marginBottom: 8, borderRadius: 16, borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed', backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  mktPreviewArtText: { color: '#94A3B8', fontSize: 13, fontWeight: '700', textAlign: 'center', paddingHorizontal: 20 },
+  mktPreviewBody: { padding: 20, gap: 10, alignItems: 'center' },
+  mktPreviewBodyTitle: { color: '#0A375A', fontSize: 18, fontWeight: '900', textAlign: 'center' },
+  mktPreviewBodyCopy: { color: '#64748B', fontSize: 13, lineHeight: 20, textAlign: 'center', maxWidth: 280 },
+  mktPreviewBtn: { marginTop: 8, paddingVertical: 14, paddingHorizontal: 28, borderRadius: 12, backgroundColor: '#F97316', alignItems: 'center' },
+  mktPreviewBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800', letterSpacing: 0.8 },
   mktWaLangRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   mktWaLangLabel: { color: 'rgba(226,232,240,0.65)', fontSize: 12, fontWeight: '700' },
   mktWaLangBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14' },
