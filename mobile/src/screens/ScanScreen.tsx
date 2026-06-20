@@ -6,7 +6,14 @@ import { GradientButton } from '../components/GradientButton';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser, apiGet, apiPost, getImageUrl } from '../services/api';
 
-type Props = { onBack: () => void; user?: AuthUser | null };
+type Props = {
+  onBack: () => void;
+  user?: AuthUser | null;
+  mode?: 'organizer' | 'employee';
+  assignedEvents?: ScannerEvent[];
+  initialSelectedEventId?: string | null;
+  lockEventSelection?: boolean;
+};
 
 function fmtDate(iso?: string | null) {
   if (!iso) return '';
@@ -43,7 +50,7 @@ type ValidateResult = {
   eventStats?: EventStats;
 };
 
-type MyEvent = {
+export type ScannerEvent = {
   id: string;
   title: string;
   eventDate?: string | null;
@@ -93,7 +100,7 @@ function eventTime(value?: string | null) {
   return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
 }
 
-export function ScanScreen({ onBack: _onBack, user }: Props) {
+export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assignedEvents, initialSelectedEventId, lockEventSelection }: Props) {
   const { t } = useLanguage();
   const [permission, requestPermission] = useCameraPermissions();
 
@@ -105,7 +112,7 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
   const [sessionStats, setSessionStats] = useState({ total: 0, approved: 0, denied: 0 });
 
   // Event selector + server stats
-  const [myEvents, setMyEvents] = useState<MyEvent[]>([]);
+  const [myEvents, setMyEvents] = useState<ScannerEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [eventStats, setEventStats] = useState<EventStats | null>(null);
@@ -117,6 +124,21 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
 
   useEffect(() => {
     if (!user) return;
+    if (assignedEvents) {
+      const filtered = assignedEvents
+        .filter((e) => (e.status || 'published') === 'published')
+        .filter((e) => isActiveEvent(e.eventDate))
+        .sort((a, b) => eventTime(a.eventDate) - eventTime(b.eventDate));
+      setMyEvents(filtered);
+      setSelectedEventId((current) => (
+        initialSelectedEventId && filtered.some((event) => event.id === initialSelectedEventId)
+          ? initialSelectedEventId
+          : current && filtered.some((event) => event.id === current)
+            ? current
+            : filtered[0]?.id || null
+      ));
+      return;
+    }
     apiGet<any>('/events/mine/list')
       .then((data) => {
         const filtered = listFrom(data)
@@ -139,7 +161,7 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
         ));
       })
       .catch(() => {});
-  }, [t, user]);
+  }, [assignedEvents, initialSelectedEventId, t, user]);
 
   useEffect(() => {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -188,10 +210,18 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
   const validateCode = useCallback(async (code: string) => {
     const clean = code.trim().toUpperCase();
     if (!clean) return;
+    if (mode === 'employee' && !selectedEventId) {
+      setScanResult({ valid: false, message: t('Selecciona un evento aprobado antes de escanear.', 'Select an approved event before scanning.') });
+      setScanState('denied');
+      return;
+    }
     setScanState('validating');
     setScanResult(null);
     try {
-      const res = await apiPost<ValidateResult>(`/orders/ticket/${clean}/validate`, {});
+      const path = mode === 'employee' && selectedEventId
+        ? `/scanner-access/events/${selectedEventId}/ticket/${clean}/validate`
+        : `/orders/ticket/${clean}/validate`;
+      const res = await apiPost<ValidateResult>(path, mode === 'employee' ? { eventId: selectedEventId } : {});
       setScanResult(res);
       if (res.eventStats) setEventStats(res.eventStats);
       registerScan(res, clean);
@@ -202,7 +232,7 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
       registerScan(res, clean);
       setScanState('denied');
     }
-  }, [registerScan]);
+  }, [mode, registerScan, selectedEventId, t]);
 
   const resetScanner = () => {
     setManualCode('');
@@ -243,9 +273,14 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
 
       {/* ── Top row: EVENT MODE + SOUND ── */}
       <View style={styles.topRow}>
+        {mode === 'employee' && (
+          <TouchableOpacity style={styles.backButton} onPress={_onBack} activeOpacity={0.78}>
+            <Ionicons name="chevron-back" size={18} color="#F8FAFC" />
+          </TouchableOpacity>
+        )}
         <View style={styles.eventModeBadge}>
           <Ionicons name="qr-code-outline" size={14} color="#F97316" />
-          <Text style={styles.eventModeText}>{t('MODO EVENTO', 'EVENT MODE')}</Text>
+          <Text style={styles.eventModeText}>{mode === 'employee' ? t('SCAN EMPLEADO', 'STAFF SCAN') : t('MODO EVENTO', 'EVENT MODE')}</Text>
         </View>
         <TouchableOpacity onPress={() => setSoundEnabled((v) => !v)} style={[styles.soundChip, soundEnabled && styles.soundChipActive]}>
           <Text style={[styles.soundChipText, soundEnabled && styles.soundChipTextActive]}>
@@ -255,9 +290,11 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
       </View>
 
       {/* ── Title ── */}
-      <Text style={styles.title}>{t('Scanner de puerta', 'Door scanner')}</Text>
+      <Text style={styles.title}>{mode === 'employee' ? t('Scan entradas', 'Ticket scan') : t('Scanner de puerta', 'Door scanner')}</Text>
       <Text style={styles.subtitle}>
-        {t('Validación rápida con cámara, vibración, sonido y conteo en vivo.', 'Fast validation with camera, vibration, sound and live counts.')}
+        {mode === 'employee'
+          ? t('Solo puedes validar entradas de eventos aprobados por el organizador.', 'You can only validate tickets for events approved by the organizer.')
+          : t('Validación rápida con cámara, vibración, sonido y conteo en vivo.', 'Fast validation with camera, vibration, sound and live counts.')}
       </Text>
 
       {/* Event selector */}
@@ -278,7 +315,7 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
                   key={`${ev.id || ev.title || 'scan-event'}-${index}`}
                   activeOpacity={0.88}
                   style={[styles.eventPickerItem, selectedEventId === ev.id && styles.eventPickerItemActive]}
-                  onPress={() => setSelectedEventId(ev.id)}
+                  onPress={() => !lockEventSelection && setSelectedEventId(ev.id)}
                 >
                   <View style={styles.eventThumb}>
                     {ev.imageUrl || ev.bannerImageUrl ? (
@@ -446,7 +483,7 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
       )}
 
       {/* ── Event selector (dropdown) ── */}
-      {myEvents.length > 0 && (
+      {myEvents.length > 0 && !lockEventSelection && (
         <View style={styles.eventSection}>
           <Text style={styles.eventEyebrow}>{t('EVENTO', 'EVENT')}</Text>
           <TouchableOpacity
@@ -591,6 +628,7 @@ const styles = StyleSheet.create({
 
   // Top row
   topRow: { marginTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  backButton: { width: 38, height: 38, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', alignItems: 'center', justifyContent: 'center' },
   eventModeBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
     height: 38, borderRadius: 14, paddingHorizontal: 14,

@@ -1,17 +1,32 @@
 import { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiPost } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { GradientButton } from '../GradientButton';
+import { ScannerAccessGrant } from '../../services/scannerAccess';
 
 type Props = {
   eventId?: string;
   sections: any[];
   onReload?: () => void | Promise<void>;
+  scannerRequests?: ScannerAccessGrant[];
+  scannerRequestsLoading?: boolean;
+  onApproveScannerRequest?: (id: string) => void | Promise<void>;
+  onRejectScannerRequest?: (id: string) => void | Promise<void>;
+  onRevokeScannerRequest?: (id: string) => void | Promise<void>;
 };
 
-export function OrganizerBlocksMobile({ eventId, sections, onReload }: Props) {
+export function OrganizerBlocksMobile({
+  eventId,
+  sections,
+  onReload,
+  scannerRequests = [],
+  scannerRequestsLoading,
+  onApproveScannerRequest,
+  onRejectScannerRequest,
+  onRevokeScannerRequest,
+}: Props) {
   const { t, lang } = useLanguage();
   const es = lang === 'es';
   const [selectedSectionId, setSelectedSectionId] = useState<string>('');
@@ -97,9 +112,62 @@ export function OrganizerBlocksMobile({ eventId, sections, onReload }: Props) {
         <Text style={styles.title}>{es ? 'Bloqueos e Invitaciones Gratis' : 'Blocks & Free Invitations'}</Text>
         <Text style={styles.subtitle}>
           {es
-            ? 'Selecciona una sección para bloquear mesas/sillas o enviar cortesías gratis'
-            : 'Select a section to block seats or tables or send free complimentary tickets'}
+            ? 'Aprueba empleados para scan, bloquea mesas/sillas o envía cortesías gratis'
+            : 'Approve scan staff, block seats or tables, or send free complimentary tickets'}
         </Text>
+      </View>
+
+      <View style={styles.scannerAccessCard}>
+        <View style={styles.scannerAccessHeader}>
+          <View>
+            <Text style={styles.scannerAccessEyebrow}>{es ? 'EMPLEADOS DE SCAN' : 'SCAN STAFF'}</Text>
+            <Text style={styles.scannerAccessTitle}>{es ? 'Solicitudes para escanear' : 'Scanner access requests'}</Text>
+          </View>
+          {scannerRequestsLoading ? <ActivityIndicator color="#F97316" /> : <Ionicons name="people-outline" size={20} color="#F97316" />}
+        </View>
+        {scannerRequests.length === 0 ? (
+          <View style={styles.scannerEmpty}>
+            <Text style={styles.scannerEmptyText}>{es ? 'Aún no hay solicitudes para este evento.' : 'No requests for this event yet.'}</Text>
+          </View>
+        ) : (
+          scannerRequests.map((request, index) => {
+            const employeeName = [request.user?.firstName, request.user?.lastName].filter(Boolean).join(' ') || request.user?.email || (es ? 'Empleado' : 'Staff member');
+            const pending = request.status === 'pending';
+            const approved = request.status === 'approved';
+            return (
+              <View key={`${request.id}-${index}`} style={styles.scannerRequestRow}>
+                <View style={styles.scannerAvatar}>
+                  <Text style={styles.scannerAvatarText}>{employeeName.slice(0, 2).toUpperCase()}</Text>
+                </View>
+                <View style={styles.scannerRequestMain}>
+                  <Text style={styles.scannerRequestName} numberOfLines={1}>{employeeName}</Text>
+                  <Text style={styles.scannerRequestEmail} numberOfLines={1}>{request.user?.email || '-'}</Text>
+                  <View style={[styles.scannerStatus, approved ? styles.scannerStatusApproved : pending ? styles.scannerStatusPending : styles.scannerStatusRejected]}>
+                    <Text style={styles.scannerStatusText}>
+                      {approved ? (es ? 'APROBADO' : 'APPROVED') : pending ? (es ? 'PENDIENTE' : 'PENDING') : request.status.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.scannerActions}>
+                  {pending ? (
+                    <>
+                      <TouchableOpacity style={styles.scannerApproveBtn} onPress={() => onApproveScannerRequest?.(request.id)}>
+                        <Ionicons name="checkmark" size={15} color="#FFFFFF" />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.scannerRejectBtn} onPress={() => onRejectScannerRequest?.(request.id)}>
+                        <Ionicons name="close" size={15} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </>
+                  ) : approved ? (
+                    <TouchableOpacity style={styles.scannerRevokeBtn} onPress={() => onRevokeScannerRequest?.(request.id)}>
+                      <Text style={styles.scannerRevokeText}>{es ? 'REVOCAR' : 'REVOKE'}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+            );
+          })
+        )}
       </View>
 
       {/* Section dropdown */}
@@ -316,6 +384,28 @@ const styles = StyleSheet.create({
   header: { gap: 4 },
   title: { color: colors.text, fontSize: 18, fontWeight: '800' },
   subtitle: { color: colors.muted, fontSize: 12, lineHeight: 18 },
+  scannerAccessCard: { borderWidth: 1, borderColor: colors.border, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.035)', padding: 14 },
+  scannerAccessHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 },
+  scannerAccessEyebrow: { color: colors.orange, fontSize: 10, fontWeight: '900', letterSpacing: 0.7 },
+  scannerAccessTitle: { color: colors.text, fontSize: 17, fontWeight: '800', marginTop: 4 },
+  scannerEmpty: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', borderStyle: 'dashed', backgroundColor: '#030B14', padding: 18, alignItems: 'center' },
+  scannerEmptyText: { color: colors.muted, fontSize: 12, textAlign: 'center' },
+  scannerRequestRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', borderRadius: 16, backgroundColor: '#030B14', padding: 10, marginTop: 8 },
+  scannerAvatar: { width: 42, height: 42, borderRadius: 14, backgroundColor: 'rgba(249,115,22,0.18)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', alignItems: 'center', justifyContent: 'center' },
+  scannerAvatarText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
+  scannerRequestMain: { flex: 1, minWidth: 0 },
+  scannerRequestName: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  scannerRequestEmail: { color: colors.muted, fontSize: 11, marginTop: 2 },
+  scannerStatus: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3, marginTop: 6 },
+  scannerStatusApproved: { backgroundColor: 'rgba(16,185,129,0.80)' },
+  scannerStatusPending: { backgroundColor: 'rgba(249,115,22,0.82)' },
+  scannerStatusRejected: { backgroundColor: 'rgba(239,68,68,0.78)' },
+  scannerStatusText: { color: '#FFFFFF', fontSize: 8, fontWeight: '900' },
+  scannerActions: { flexDirection: 'row', gap: 7 },
+  scannerApproveBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#10B981', alignItems: 'center', justifyContent: 'center' },
+  scannerRejectBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center' },
+  scannerRevokeBtn: { minHeight: 36, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.32)', backgroundColor: 'rgba(239,68,68,0.10)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 9 },
+  scannerRevokeText: { color: '#FCA5A5', fontSize: 9, fontWeight: '900' },
 
   dropdown: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
 import { join } from 'path';
-import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod } from './entities';
+import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, ScannerAccess } from './entities';
 
 dotenv.config({ path: join(__dirname, '../../.env') });
 
@@ -13,7 +13,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || 'ticketsystemdb',
-  entities: [User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod],
+  entities: [User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, ScannerAccess],
   synchronize: false,
   logging: false,
 });

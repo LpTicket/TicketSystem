@@ -16,6 +16,7 @@ type Props = {
   onGoTickets?: () => void;
   onGoProfile?: () => void;
   onGoScan?: () => void;
+  onGoEmployeeScan?: () => void;
   onGoAiChat?: () => void;
   onGoSocialMatch?: () => void;
   onGoCart?: () => void;
@@ -61,7 +62,7 @@ const orgSections: { id: OrgSectionId; labelEs: string; labelEn: string; icon: I
 
 export function MenuDrawer({
   visible, onClose, onGoEvents, onGoHome, onGoTickets, onGoProfile, onGoScan, onGoAiChat,
-  onGoSocialMatch, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onGoLegal, onLogout,
+  onGoEmployeeScan, onGoSocialMatch, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onGoLegal, onLogout,
   isLoggedIn, canOrganize, canAdmin, viewMode = 'client', onSetMode,
   adminSection, onGoAdminSection,
   orgSection, onGoOrgSection,
@@ -98,6 +99,15 @@ export function MenuDrawer({
           {/* Mode selector — Client / Organizer (+ Admin) */}
           {canOrganize && onSetMode && (
             <ModeSelector mode={viewMode} canAdmin={canAdmin} onChange={onSetMode} />
+          )}
+
+          {isLoggedIn && onGoEmployeeScan && (
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionLabel}>{t('ACCESO EN PUERTA', 'DOOR ACCESS')}</Text>
+              </View>
+              <Row icon="scan-outline" label={t('Scan entradas', 'Ticket scan')} onPress={() => go(onGoEmployeeScan)} />
+            </View>
           )}
 
           {/* Admin quick-access sections */}

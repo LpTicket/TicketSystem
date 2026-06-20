@@ -20,6 +20,8 @@ import { MarketingBanner } from './marketing/marketing-banner.entity';
 import { PushToken } from './marketing/push-token.entity';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AnalyticsPageView } from './analytics/analytics-page-view.entity';
+import { ScannerAccessModule } from './scanner-access/scanner-access.module';
+import { ScannerAccess } from './database/entities';
 
 @Module({
   imports: [
@@ -39,7 +41,7 @@ import { AnalyticsPageView } from './analytics/analytics-page-view.entity';
             password: config.get<string>('DB_PASSWORD'),
             database: config.get<string>('DB_NAME'),
           }),
-          entities: [MarketingBanner, PushToken, AnalyticsPageView, User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout],
+          entities: [MarketingBanner, PushToken, AnalyticsPageView, User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout, ScannerAccess],
           synchronize: true,
           logging: false,
           ssl: isProd ? { rejectUnauthorized: false } : false,
@@ -60,6 +62,7 @@ import { AnalyticsPageView } from './analytics/analytics-page-view.entity';
     SpecialCodesModule,
     MarketingModule,
     AnalyticsModule,
+    ScannerAccessModule,
   ],
 })
 export class AppModule {}

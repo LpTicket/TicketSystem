@@ -917,11 +917,15 @@ export class OrdersService {
     };
   }
 
-  async validateTicket(code: string, user: any) {
+  async validateTicket(code: string, user: any, options?: { eventId?: string; allowScannerAccess?: boolean }) {
     const ticket = await this.getTicketByCode(code);
+
+    if (options?.eventId && ticket.eventId !== options.eventId) {
+      throw new ForbiddenException('This ticket does not belong to the selected event');
+    }
     
-    // Authorization: Only admins or the event's organizer can scan
-    if (user.role !== 'admin' && ticket.event.organizerId !== user.id) {
+    // Authorization: admins, event organizer, or a pre-approved scanner access flow.
+    if (!options?.allowScannerAccess && user.role !== 'admin' && ticket.event.organizerId !== user.id) {
       throw new ForbiddenException('You do not have permission to validate tickets for this event');
     }
 

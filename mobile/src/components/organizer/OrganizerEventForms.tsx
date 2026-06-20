@@ -436,6 +436,8 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
                     value={pickerDate}
                     mode="date"
                     display="spinner"
+                    textColor="#F8FAFC"
+                    accentColor="#F97316"
                     onChange={(_, d) => {
                       if (d) {
                         setPickerDate(d);
@@ -475,6 +477,8 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
                     value={pickerDate}
                     mode="time"
                     display="spinner"
+                    textColor="#F8FAFC"
+                    accentColor="#F97316"
                     onChange={(_, d) => {
                       if (d) {
                         setPickerDate(d);
@@ -796,7 +800,7 @@ const styles = StyleSheet.create({
   datePickerBtn: { flexDirection: 'row', alignItems: 'center', minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 14, marginBottom: 14 },
   datePickerText: { color: colors.textPrimary, fontSize: 15, fontWeight: '600', flex: 1 },
   pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  pickerModal: { backgroundColor: '#0b1e35', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 32 },
+  pickerModal: { backgroundColor: '#030B14', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0, borderColor: 'rgba(255,255,255,0.14)', paddingBottom: 32 },
   pickerDone: { alignItems: 'center', paddingVertical: 16 },
   pickerDoneText: { color: '#f97316', fontSize: 16, fontWeight: '700' },
   input: { minHeight: 56, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 16, color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
