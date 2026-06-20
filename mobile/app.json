@@ -15,7 +15,9 @@
         "NSPhotoLibraryUsageDescription": "LPTicket necesita acceso a tus fotos para cambiar tu foto de perfil.",
         "NSPhotoLibraryAddUsageDescription": "LPTicket necesita permiso para guardar imágenes cuando sea necesario.",
         "NSCameraUsageDescription": "LPTicket necesita la cámara para escanear códigos QR de entradas.",
-        "NSFaceIDUsageDescription": "LPTicket usa Face ID para que puedas iniciar sesión de forma rápida y segura."
+        "NSFaceIDUsageDescription": "LPTicket usa Face ID para que puedas iniciar sesión de forma rápida y segura.",
+        "NSLocationWhenInUseUsageDescription": "LPTicket necesita ubicación mientras usas la app para habilitar pagos presenciales seguros con Stripe Terminal.",
+        "NSBluetoothAlwaysUsageDescription": "LPTicket usa Bluetooth para conectar lectores de pago compatibles cuando vendas entradas en puerta."
       }
     },
     "android": {
