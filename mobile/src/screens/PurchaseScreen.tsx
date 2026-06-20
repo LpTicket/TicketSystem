@@ -14,6 +14,8 @@ export type CartItem = {
   label: string;
   price: number;
   seatId: string;
+  sectionId?: string;
+  sectionType?: string;
 };
 
 type Props = {

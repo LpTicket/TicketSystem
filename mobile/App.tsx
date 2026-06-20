@@ -97,6 +97,8 @@ function AppContent() {
       if (valid.length === 0) { AsyncStorage.removeItem(`selectedSeats_${eid}`); setCartItems([]); setCartSubtotal(0); setCartTotal(0); setCartSelectionCount(0); return; }
       const items: CartItem[] = valid.map((s: any) => ({
         seatId: s.id,
+        sectionId: s.sectionId || '',
+        sectionType: s.sectionType || '',
         label: s.sectionType === 'table'
           ? `Mesa ${s.sectionName || ''} · Silla ${s.seatNumber}`
           : `${s.sectionName || ''} ${s.rowLabel || ''}${s.seatNumber ? `-${s.seatNumber}` : ''}`.trim(),
@@ -115,6 +117,27 @@ function AppContent() {
       setCartLoading(false);
     }
   }, [selectedEvent?.id]);
+
+  const removeFromCart = useCallback(async (item: CartItem) => {
+    try {
+      const eid = selectedEvent?.id || (await AsyncStorage.getItem('lp_active_cart_event')) || '';
+      if (!eid) return;
+      const raw = await AsyncStorage.getItem(`selectedSeats_${eid}`);
+      if (!raw) return;
+      const parsed: any[] = JSON.parse(raw);
+      // For table seats remove all seats of that section; for regular seats remove by id
+      const remaining = item.sectionType === 'table'
+        ? parsed.filter((s) => s.sectionId !== item.sectionId)
+        : parsed.filter((s) => s.id !== item.seatId);
+      if (remaining.length === 0) {
+        await AsyncStorage.removeItem(`selectedSeats_${eid}`);
+        await AsyncStorage.removeItem('lp_active_cart_event');
+      } else {
+        await AsyncStorage.setItem(`selectedSeats_${eid}`, JSON.stringify(remaining));
+      }
+      await loadCartFromStorage(eid);
+    } catch {}
+  }, [selectedEvent?.id, loadCartFromStorage]);
 
   const setMode = (mode: 'client' | 'organizer' | 'admin') => {
     setViewMode(mode);
@@ -512,13 +535,40 @@ function AppContent() {
             ) : (
               <>
                 <ScrollView style={cartSt.list} showsVerticalScrollIndicator={false}>
-                  {cartItems.map((item, i) => (
-                    <View key={`${item.seatId}-${i}`} style={cartSt.row}>
-                      <View style={cartSt.dot} />
-                      <Text style={cartSt.rowLabel} numberOfLines={1}>{item.label}</Text>
-                      <Text style={cartSt.rowPrice}>${item.price.toFixed(2)}</Text>
-                    </View>
-                  ))}
+                  {(() => {
+                    // Collapse table seats into one row per table section
+                    const seen = new Set<string>();
+                    const rows: { item: CartItem; totalPrice: number; chairs: number }[] = [];
+                    cartItems.forEach((item) => {
+                      if (item.sectionType === 'table' && item.sectionId) {
+                        if (seen.has(item.sectionId)) {
+                          const r = rows.find((r) => r.item.sectionId === item.sectionId);
+                          if (r) { r.totalPrice += item.price; r.chairs++; }
+                        } else {
+                          seen.add(item.sectionId);
+                          // Label: "Mesa 17 · 5 sillas"
+                          const tableName = item.label.replace(/·.*/, '').trim();
+                          rows.push({ item: { ...item, label: tableName }, totalPrice: item.price, chairs: 1 });
+                        }
+                      } else {
+                        rows.push({ item, totalPrice: item.price, chairs: 1 });
+                      }
+                    });
+                    return rows.map((row, i) => (
+                      <View key={`${row.item.seatId}-${i}`} style={cartSt.row}>
+                        <View style={cartSt.dot} />
+                        <Text style={cartSt.rowLabel} numberOfLines={1}>
+                          {row.item.sectionType === 'table' && row.chairs > 1
+                            ? `${row.item.label} · ${row.chairs} ${t('sillas', 'chairs')}`
+                            : row.item.label}
+                        </Text>
+                        <Text style={cartSt.rowPrice}>${row.totalPrice.toFixed(2)}</Text>
+                        <TouchableOpacity onPress={() => removeFromCart(row.item)} style={cartSt.removeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Ionicons name="close" size={14} color="rgba(248,113,113,0.85)" />
+                        </TouchableOpacity>
+                      </View>
+                    ));
+                  })()}
                 </ScrollView>
                 <View style={cartSt.divider} />
                 <View style={cartSt.totalRow}>
@@ -802,6 +852,7 @@ const cartSt = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#f97316', flexShrink: 0 },
   rowLabel: { color: 'rgba(226,232,240,0.85)', fontSize: 13, fontWeight: '600', flex: 1 },
   rowPrice: { color: '#F8FAFC', fontSize: 14, fontWeight: '800' },
+  removeBtn: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(248,113,113,0.12)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginHorizontal: 20, marginVertical: 12 },
   totalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 },
   subtotalText: { color: 'rgba(226,232,240,0.65)', fontSize: 12, fontWeight: '600' },
