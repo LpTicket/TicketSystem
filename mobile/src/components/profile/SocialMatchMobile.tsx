@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { apiDelete, apiGet, apiPost, apiPut, apiUploadImage } from '../../services/api';
+import { apiDelete, apiGet, apiPost, apiPut } from '../../services/api';
 import { GradientButton } from '../GradientButton';
 
 type EligibleEvent = {
@@ -296,7 +296,7 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.86 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.82, base64: true });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
 
@@ -307,11 +307,11 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
 
     setUploadingPhoto(true);
     try {
-      const upload = await apiUploadImage<{ photos: string[] }>(
-        `/social-match/events/${selectedEventId}/photos`,
-        { uri: asset.uri, fileName: asset.fileName, mimeType: asset.mimeType },
-        'photo',
-      );
+      if (!asset.base64) throw new Error(t('No se pudo preparar la foto.', 'Could not prepare the photo.'));
+      const mimeType = asset.mimeType || 'image/jpeg';
+      const upload = await apiPost<{ photos: string[] }>(`/social-match/events/${selectedEventId}/photos/base64`, {
+        photoDataUrl: `data:${mimeType};base64,${asset.base64}`,
+      });
       setPrefMap((prev) => ({ ...prev, [selectedEventId]: { ...currentPref, eventId: selectedEventId, photos: upload.photos || [] } }));
     } catch (err: any) {
       Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo subir la foto.', 'Could not upload photo.'));

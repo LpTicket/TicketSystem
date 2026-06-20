@@ -98,6 +98,15 @@ export class SocialMatchController {
     return this.socialMatchService.uploadPhoto(req.user.id, eventId, base64Url);
   }
 
+  @Post('events/:eventId/photos/base64')
+  async uploadPhotoBase64(
+    @Request() req: any,
+    @Param('eventId') eventId: string,
+    @Body() dto: { photoDataUrl?: string },
+  ) {
+    return this.socialMatchService.uploadPhoto(req.user.id, eventId, dto.photoDataUrl || '');
+  }
+
   @Delete('events/:eventId/photos/:index')
   deletePhoto(@Request() req: any, @Param('eventId') eventId: string, @Param('index') index: string) {
     return this.socialMatchService.deletePhoto(req.user.id, eventId, parseInt(index, 10));
