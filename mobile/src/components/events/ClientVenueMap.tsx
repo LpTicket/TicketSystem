@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Platform, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -290,6 +290,31 @@ function RowSection({ section, sel, onToggle, onInfo }: {
   );
 }
 
+// ─── StaticGrid ──────────────────────────────────────────────────────────────
+// Rendered once; props never change during gestures so no re-render cost.
+const StaticGrid = memo(function StaticGrid({ width, height }: { width: number; height: number }) {
+  const cols100 = Math.ceil(width / 100) + 1;
+  const rows100 = Math.ceil(height / 100) + 1;
+  const cols20  = Math.ceil(width / 20)  + 1;
+  const rows20  = Math.ceil(height / 20) + 1;
+  return (
+    <>
+      {Array.from({ length: cols100 }, (_, i) => (
+        <View key={`c100-${i}`} style={{ position: 'absolute', left: i * 100, top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(148,163,184,0.10)' }} />
+      ))}
+      {Array.from({ length: rows100 }, (_, i) => (
+        <View key={`r100-${i}`} style={{ position: 'absolute', top: i * 100, left: 0, right: 0, height: 1, backgroundColor: 'rgba(148,163,184,0.10)' }} />
+      ))}
+      {Array.from({ length: cols20 }, (_, i) => (
+        <View key={`c20-${i}`} style={{ position: 'absolute', left: i * 20, top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(148,163,184,0.05)' }} />
+      ))}
+      {Array.from({ length: rows20 }, (_, i) => (
+        <View key={`r20-${i}`} style={{ position: 'absolute', top: i * 20, left: 0, right: 0, height: 1, backgroundColor: 'rgba(148,163,184,0.05)' }} />
+      ))}
+    </>
+  );
+});
+
 // ─── Main ────────────────────────────────────────────────────────────────────
 export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleSeats, defaultViewX, defaultViewY, defaultViewZoom }: Props) {
   const { t } = useLanguage();
@@ -489,6 +514,23 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
         onResponderMove={onTouchMove}
         onResponderRelease={() => {}}
       >
+        {/* Static grid background — matches web's CSS linear-gradient pattern */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          {Platform.OS === 'web' ? (
+            <View style={[StyleSheet.absoluteFill, {
+              // @ts-ignore — web-only CSS backgroundImage
+              backgroundImage: [
+                'linear-gradient(rgba(148,163,184,0.10) 1px, transparent 1px)',
+                'linear-gradient(90deg, rgba(148,163,184,0.10) 1px, transparent 1px)',
+                'linear-gradient(rgba(148,163,184,0.05) 1px, transparent 1px)',
+                'linear-gradient(90deg, rgba(148,163,184,0.05) 1px, transparent 1px)',
+              ].join(', '),
+              backgroundSize: '100px 100px, 100px 100px, 20px 20px, 20px 20px',
+            } as any]} />
+          ) : (
+            <StaticGrid width={screenW} height={viewportH} />
+          )}
+        </View>
 
         {/* Animated canvas — sections at their map coords, transform handles pan+zoom */}
         <Animated.View style={canvasStyle} pointerEvents="box-none">
