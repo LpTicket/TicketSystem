@@ -42,6 +42,7 @@ type Props = {
   defaultViewX?: number;
   defaultViewY?: number;
   defaultViewZoom?: number;
+  onScrollLock?: (locked: boolean) => void;
 };
 
 type ActiveInfo = {
@@ -316,7 +317,7 @@ const StaticGrid = memo(function StaticGrid({ width, height }: { width: number; 
 });
 
 // ─── Main ────────────────────────────────────────────────────────────────────
-export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleSeats, defaultViewX, defaultViewY, defaultViewZoom }: Props) {
+export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleSeats, defaultViewX, defaultViewY, defaultViewZoom, onScrollLock }: Props) {
   const { t } = useLanguage();
   const { width: screenW } = useWindowDimensions();
 
@@ -413,6 +414,7 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
 
   const onTouchStart = (e: any) => {
     if (animatingRef.current) return;
+    onScrollLock?.(true);
     const touches = e.nativeEvent.touches;
     if (touches.length >= 2) {
       const t1 = touches[0], t2 = touches[1];
@@ -422,6 +424,8 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
       touchRef.current = { x: t.pageX, y: t.pageY, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: false, pinchDist: 0, pinchZoom: viewRef.current.zoom, pinchCx: 0, pinchCy: 0 };
     }
   };
+
+  const onTouchEnd = () => { onScrollLock?.(false); };
 
   const onTouchMove = (e: any) => {
     const touches = e.nativeEvent.touches;
@@ -510,9 +514,11 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
       <View
         style={[st.viewport, { height: viewportH }]}
         onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
         onResponderGrant={onTouchStart}
         onResponderMove={onTouchMove}
-        onResponderRelease={() => {}}
+        onResponderRelease={onTouchEnd}
+        onResponderTerminate={onTouchEnd}
       >
         {/* Static grid background — matches web's CSS linear-gradient pattern */}
         <View style={StyleSheet.absoluteFill} pointerEvents="none">

@@ -104,6 +104,8 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
   const [sections, setSections] = useState<ClientVenueSection[]>([]);
   const [loading, setLoading] = useState(false);
   const [mapLoading, setMapLoading] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+  const scrollRef = useRef<any>(null);
 
   // Seat selection state (lives here, mirroring web behavior)
   const [selectedSeats, setSelectedSeats] = useState<ClientSeat[]>([]);
@@ -262,7 +264,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
   );
 
   return (
-    <ScrollView style={st.screen} contentContainerStyle={st.content} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} style={st.screen} contentContainerStyle={st.content} showsVerticalScrollIndicator={false} scrollEnabled={scrollEnabled}>
       {/* Back + share row */}
       <View style={st.topRow}>
         <TouchableOpacity onPress={onBack} style={st.backButton}>
@@ -316,6 +318,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
             defaultViewX={(detail as any).defaultViewX}
             defaultViewY={(detail as any).defaultViewY}
             defaultViewZoom={(detail as any).defaultViewZoom}
+            onScrollLock={(locked) => setScrollEnabled(!locked)}
           />
         </View>
       ) : mode === 'ga' ? (
