@@ -55,8 +55,21 @@ export function DoorSaleScreen({ user, onBack }: Props) {
   const [error, setError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('qr');
   const [tapStatus, setTapStatus] = useState('');
+  const [eventQuery, setEventQuery] = useState('');
 
   const selectedEvent = useMemo(() => events.find((event) => event.id === selectedEventId), [events, selectedEventId]);
+  const filteredEvents = useMemo(() => {
+    const query = eventQuery.trim().toLowerCase();
+    if (!query) return events;
+    return events.filter((event) => {
+      const text = [
+        event.title,
+        event.venueName,
+        fmtDate(event.eventDate),
+      ].filter(Boolean).join(' ').toLowerCase();
+      return text.includes(query);
+    });
+  }, [events, eventQuery]);
 
   useEffect(() => {
     let mounted = true;
@@ -83,6 +96,13 @@ export function DoorSaleScreen({ user, onBack }: Props) {
   useEffect(() => {
     setCheckout(null);
   }, [selectedEventId]);
+
+  useEffect(() => {
+    if (!eventQuery.trim()) return;
+    if (filteredEvents.length === 1 && filteredEvents[0].id !== selectedEventId) {
+      setSelectedEventId(filteredEvents[0].id);
+    }
+  }, [eventQuery, filteredEvents, selectedEventId]);
 
   useEffect(() => {
     const value = Number(amount || 0);
@@ -172,8 +192,25 @@ export function DoorSaleScreen({ user, onBack }: Props) {
 
       <View style={styles.section}>
         <Text style={styles.eyebrow}>{t('EVENTO', 'EVENT')}</Text>
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={17} color="rgba(226,232,240,0.55)" />
+          <TextInput
+            value={eventQuery}
+            onChangeText={setEventQuery}
+            placeholder={t('Buscar evento', 'Search event')}
+            placeholderTextColor="rgba(226,232,240,0.42)"
+            style={styles.searchInput}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {eventQuery ? (
+            <TouchableOpacity onPress={() => setEventQuery('')} style={styles.clearSearchButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close" size={14} color="rgba(226,232,240,0.65)" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.eventScroll}>
-          {events.map((event, index) => (
+          {filteredEvents.map((event, index) => (
             <TouchableOpacity
               key={`${event.id}-${index}`}
               style={[styles.eventCard, selectedEventId === event.id && styles.eventCardActive]}
@@ -188,6 +225,12 @@ export function DoorSaleScreen({ user, onBack }: Props) {
             </TouchableOpacity>
           ))}
         </ScrollView>
+        {filteredEvents.length === 0 ? (
+          <View style={styles.emptySearch}>
+            <Ionicons name="calendar-clear-outline" size={22} color="rgba(249,115,22,0.58)" />
+            <Text style={styles.emptySearchText}>{t('No encontramos eventos con esa búsqueda.', 'No events match that search.')}</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.keypadCard}>
@@ -340,6 +383,9 @@ const styles = StyleSheet.create({
   noticeText: { flex: 1, color: '#FDBA74', fontSize: 12, lineHeight: 17, fontWeight: '700' },
   section: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.018)', padding: 14 },
   eyebrow: { color: '#F97316', fontSize: 10, fontWeight: '900', letterSpacing: 0.7 },
+  searchBox: { height: 46, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: '#030B14', paddingHorizontal: 12, marginTop: 12 },
+  searchInput: { flex: 1, color: '#F8FAFC', fontSize: 14, fontWeight: '700', outlineStyle: 'none' as any },
+  clearSearchButton: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
   eventScroll: { marginTop: 12 },
   eventCard: { width: 132, minHeight: 150, marginRight: 10, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: '#030B14', padding: 9 },
   eventCardActive: { borderColor: 'rgba(249,115,22,0.72)', backgroundColor: 'rgba(249,115,22,0.10)' },
@@ -347,6 +393,8 @@ const styles = StyleSheet.create({
   eventImage: { width: '100%', height: '100%' },
   eventTitle: { color: '#F8FAFC', fontSize: 12, lineHeight: 15, fontWeight: '800', marginTop: 8 },
   eventMeta: { color: 'rgba(249,115,22,0.78)', fontSize: 10, fontWeight: '700', marginTop: 4 },
+  emptySearch: { minHeight: 78, alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: '#030B14', marginTop: 12, padding: 12 },
+  emptySearchText: { color: 'rgba(226,232,240,0.58)', fontSize: 12, fontWeight: '700', textAlign: 'center' },
   chipScroll: { marginTop: 12 },
   sectionChip: { width: 128, minHeight: 66, marginRight: 9, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: '#030B14', padding: 11, justifyContent: 'center' },
   sectionChipActive: { borderColor: 'rgba(249,115,22,0.72)', backgroundColor: 'rgba(249,115,22,0.10)' },
