@@ -469,17 +469,28 @@ export function ScanScreen({ onBack: _onBack, user }: Props) {
                   {t('— Todos los eventos —', '— All events —')}
                 </Text>
               </TouchableOpacity>
-              {myEvents.map((ev, index) => (
-                <TouchableOpacity
-                  key={`${ev.id || ev.title || 'scan-dropdown-event'}-${index}`}
-                  style={[styles.dropdownItem, selectedEventId === ev.id && styles.dropdownItemActive]}
-                  onPress={() => { setSelectedEventId(ev.id); setDropdownOpen(false); }}
-                >
-                  <Text style={[styles.dropdownItemText, selectedEventId === ev.id && styles.dropdownItemTextActive]} numberOfLines={1}>
-                    {ev.title}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {myEvents.map((ev, index) => {
+                const badge = eventDateBadge(ev.eventDate);
+                const dateLabel = badge
+                  ? `${badge.month} ${badge.day}`
+                  : ev.eventDate ? ev.eventDate.slice(0, 10) : null;
+                return (
+                  <TouchableOpacity
+                    key={`${ev.id || ev.title || 'scan-dropdown-event'}-${index}`}
+                    style={[styles.dropdownItem, selectedEventId === ev.id && styles.dropdownItemActive]}
+                    onPress={() => { setSelectedEventId(ev.id); setDropdownOpen(false); }}
+                  >
+                    <Text style={[styles.dropdownItemText, selectedEventId === ev.id && styles.dropdownItemTextActive]} numberOfLines={1}>
+                      {ev.title}
+                    </Text>
+                    {!!dateLabel && (
+                      <Text style={[styles.dropdownItemDate, selectedEventId === ev.id && styles.dropdownItemDateActive]}>
+                        {dateLabel}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
           {/* Server stats inline when event selected */}
@@ -702,10 +713,12 @@ const styles = StyleSheet.create({
   eventDropdownText: { color: '#F8FAFC', fontSize: 14, fontWeight: '700', flex: 1, marginRight: 8 },
   eventDropdownPlaceholder: { color: 'rgba(148,163,184,0.7)', fontWeight: '400' },
   dropdownList: { marginTop: 6, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', overflow: 'hidden' },
-  dropdownItem: { height: 46, paddingHorizontal: 16, justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  dropdownItem: { minHeight: 46, paddingHorizontal: 16, paddingVertical: 10, justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   dropdownItemActive: { backgroundColor: 'rgba(249,115,22,0.12)' },
   dropdownItemText: { color: 'rgba(226,232,240,0.8)', fontSize: 13, fontWeight: '600' },
   dropdownItemTextActive: { color: '#F97316', fontWeight: '700' },
+  dropdownItemDate: { color: 'rgba(148,163,184,0.6)', fontSize: 10, fontWeight: '600', marginTop: 2 },
+  dropdownItemDateActive: { color: 'rgba(249,115,22,0.75)' },
   serverStats: {
     flexDirection: 'row', gap: 8, marginTop: 10,
   },
