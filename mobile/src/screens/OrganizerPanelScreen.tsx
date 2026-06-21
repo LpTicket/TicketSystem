@@ -15,6 +15,13 @@ import { OrganizerOverviewMobile } from '../components/organizer/OrganizerOvervi
 import { OrganizerCommissionMobile } from '../components/organizer/OrganizerCommissionMobile';
 import { OrganizerBlocksMobile } from '../components/organizer/OrganizerBlocksMobile';
 import { apiGet, apiPatch, apiPost, getImageUrl } from '../services/api';
+import {
+  ScannerAccessGrant,
+  approveScannerAccessRequest,
+  getOrganizerScannerAccessRequests,
+  rejectScannerAccessRequest,
+  revokeScannerAccessRequest,
+} from '../services/scannerAccess';
 
 export type Section = 'dashboard' | 'events' | 'create' | 'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'commission' | 'rewards' | 'scan';
 
@@ -298,6 +305,8 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
   // Overview and Blocks (mirror of the web editor's loadEvent).
   const [eventSales, setEventSales] = useState<any | null>(null);
   const [eventSections, setEventSections] = useState<any[]>([]);
+  const [scannerRequests, setScannerRequests] = useState<ScannerAccessGrant[]>([]);
+  const [scannerRequestsLoading, setScannerRequestsLoading] = useState(false);
   const reloadEventData = useCallback(async () => {
     if (!selectedEventId) { setEventSales(null); setEventSections([]); return; }
     try {
@@ -328,6 +337,20 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
       reloadEventData();
     }
   }, [active, reloadOrganizerSummary, reloadEventData]);
+
+  const reloadScannerRequests = useCallback(async () => {
+    if (!selectedEventId) { setScannerRequests([]); return; }
+    setScannerRequestsLoading(true);
+    try {
+      const requests = await getOrganizerScannerAccessRequests(selectedEventId);
+      setScannerRequests(requests);
+    } catch {
+      setScannerRequests([]);
+    } finally {
+      setScannerRequestsLoading(false);
+    }
+  }, [selectedEventId]);
+  useEffect(() => { reloadScannerRequests(); }, [reloadScannerRequests]);
 
   // Lazy load reward stats when visiting the rewards section.
   useEffect(() => {
@@ -472,6 +495,19 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
       Alert.alert(t('Enviado', 'Sent'), t('Ticket reenviado al comprador.', 'Ticket resent to buyer.'));
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Could not resend ticket');
+    }
+  };
+
+  const decideScannerRequest = async (id: string, action: 'approve' | 'reject' | 'revoke') => {
+    try {
+      const updated = action === 'approve'
+        ? await approveScannerAccessRequest(id)
+        : action === 'reject'
+          ? await rejectScannerAccessRequest(id)
+          : await revokeScannerAccessRequest(id);
+      setScannerRequests((current) => current.map((item) => item.id === id ? updated : item));
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('No se pudo actualizar el permiso de scan', 'Could not update scanner access'));
     }
   };
 
@@ -686,6 +722,11 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
             eventId={selectedEventId}
             sections={eventSections}
             onReload={reloadEventData}
+            scannerRequests={scannerRequests}
+            scannerRequestsLoading={scannerRequestsLoading}
+            onApproveScannerRequest={(id) => decideScannerRequest(id, 'approve')}
+            onRejectScannerRequest={(id) => decideScannerRequest(id, 'reject')}
+            onRevokeScannerRequest={(id) => decideScannerRequest(id, 'revoke')}
           />
         )}
 

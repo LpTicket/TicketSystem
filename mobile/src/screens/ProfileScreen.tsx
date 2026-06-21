@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
-import { AppMode } from '../components/ModeSelector';
+import { ModeSelector, AppMode } from '../components/ModeSelector';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser } from '../services/api';
 import { updateProfile as updateProfileRequest } from '../services/auth';
@@ -126,6 +126,14 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
 
   return (
     <ScrollView style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+
+      {canOrganize && onSetMode && (
+        <View style={styles.modeSelectorWrap}>
+          <Text style={styles.modeSelectorLabel}>{t('CAMBIAR MODO', 'SWITCH MODE')}</Text>
+          <ModeSelector mode={viewMode} canAdmin={canAdmin} onChange={onSetMode} />
+        </View>
+      )}
+
       {activeTab === 'account' && <AccountMobile user={user} onUserUpdated={onUserUpdated} tabs={tabs} />}
 
       {activeTab === 'payments' && (
@@ -207,6 +215,8 @@ function ActionRow({ badge, title, subtitle, action }: { badge: string; title: s
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
   content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 132 },
+  modeSelectorWrap: { marginBottom: 16 },
+  modeSelectorLabel: { color: colors.orange, fontSize: 11, letterSpacing: 1, fontWeight: '800', marginBottom: 8, marginLeft: 2 },
   hero: {
     backgroundColor: 'rgba(255,255,255,0.025)',
     borderRadius: 24,

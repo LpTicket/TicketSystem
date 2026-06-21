@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Animated, Easing, StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Platform, Keyboard } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, Platform, KeyboardAvoidingView, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenBackground } from '../components/ScreenBackground';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -8,12 +8,6 @@ import { colors } from '../theme/colors';
 
 type Message = { role: 'user' | 'assistant'; content: string };
 
-const INPUT_CLOSED_BOTTOM = 60;
-const INPUT_KEYBOARD_GAP = 34;
-const INPUT_BAR_HEIGHT = 60;
-const BOTTOM_NAV_CLEARANCE = INPUT_CLOSED_BOTTOM;
-const KEYBOARD_CORNER_FILL = 64;
-
 export function AiChatScreen() {
   const { t, lang } = useLanguage();
   const es = lang === 'es';
@@ -21,7 +15,7 @@ export function AiChatScreen() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const inputBottom = useRef(new Animated.Value(INPUT_CLOSED_BOTTOM)).current;
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Initial greeting
@@ -39,30 +33,21 @@ export function AiChatScreen() {
   }, [lang, messages.length]);
 
   useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillChangeFrame' : 'keyboardDidShow';
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const moveComposer = (toValue: number, duration?: number) => {
-      Animated.timing(inputBottom, {
-        toValue,
-        duration: duration ?? 250,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
-    };
     const showSub = Keyboard.addListener(showEvent, (event) => {
-      const nextHeight = Math.max(0, event.endCoordinates?.height || 0);
-      moveComposer(Math.max(0, nextHeight - INPUT_KEYBOARD_GAP), event.duration);
-      setKeyboardOpen(nextHeight > 0);
+      setKeyboardHeight(event.endCoordinates?.height || 0);
+      setKeyboardOpen(true);
     });
-    const hideSub = Keyboard.addListener(hideEvent, (event) => {
-      moveComposer(INPUT_CLOSED_BOTTOM, event.duration);
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
       setKeyboardOpen(false);
     });
     return () => {
       showSub.remove();
       hideSub.remove();
     };
-  }, [inputBottom]);
+  }, []);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -103,6 +88,10 @@ export function AiChatScreen() {
   };
 
   return (
+    <KeyboardAvoidingView 
+      style={styles.keyboardAvoid} 
+      behavior={undefined}
+    >
       <View style={[styles.screenWrap, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
         <ScreenBackground />
         
@@ -126,11 +115,7 @@ export function AiChatScreen() {
           style={styles.chatArea}
           contentContainerStyle={[
             styles.chatContent,
-            {
-              paddingBottom: keyboardOpen
-                ? INPUT_BAR_HEIGHT + INPUT_KEYBOARD_GAP + 8
-                : INPUT_BAR_HEIGHT + BOTTOM_NAV_CLEARANCE + 10,
-            },
+            { paddingBottom: keyboardOpen ? 108 : 190 },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -170,11 +155,14 @@ export function AiChatScreen() {
         </ScrollView>
 
         {/* Input */}
-        <Animated.View style={[
+        <View style={[
           styles.inputArea,
-          { bottom: inputBottom },
+          {
+            bottom: Platform.OS === 'ios'
+              ? (keyboardOpen ? Math.max(0, keyboardHeight - 2) : 86)
+              : (keyboardOpen ? keyboardHeight : 70),
+          },
         ]}>
-          {keyboardOpen && <View pointerEvents="none" style={styles.keyboardCornerFill} />}
           <TextInput
             style={styles.input}
             value={input}
@@ -192,12 +180,14 @@ export function AiChatScreen() {
           >
             <Ionicons name="send" size={16} color={colors.white} />
           </TouchableOpacity>
-        </Animated.View>
+        </View>
       </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoid: { flex: 1 },
   screenWrap: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
@@ -251,46 +241,39 @@ const styles = StyleSheet.create({
     zIndex: 30,
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: INPUT_BAR_HEIGHT,
-    paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 6,
-    backgroundColor: 'rgba(17,18,20,0.98)',
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 12,
+    backgroundColor: 'rgba(3,11,20,0.94)',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: 'rgba(255,255,255,0.10)',
     shadowColor: '#000000',
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: -6 },
     elevation: 10,
-  },
-  keyboardCornerFill: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: -KEYBOARD_CORNER_FILL,
-    height: KEYBOARD_CORNER_FILL + 2,
-    backgroundColor: 'rgba(17,18,20,0.98)',
   },
   input: {
     flex: 1,
-    height: 44,
-    backgroundColor: '#2C2C2E',
-    borderWidth: 0,
-    borderRadius: 22,
+    minHeight: 46,
+    maxHeight: 96,
+    backgroundColor: '#030B14',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 18,
     paddingHorizontal: 16,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
     color: colors.white,
     fontSize: 15,
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#2C2C2E',
+    width: 46,
+    height: 46,
+    borderRadius: 18,
+    backgroundColor: colors.orange,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 10,
+    marginLeft: 12,
   },
-  sendButtonDisabled: { opacity: 0.45 },
+  sendButtonDisabled: { opacity: 0.5, backgroundColor: 'rgba(255,255,255,0.1)' },
 });
