@@ -24,7 +24,7 @@ type AdminUser = {
   avatarUrl?: string;
   createdAt?: string;
 };
-type Category = { id: string; name: string; labelEs: string; labelEn: string; subtitleEs?: string; subtitleEn?: string; slug: string; icon: string; color: string; sortOrder: number; imageData?: string; active: boolean; featured: boolean };
+type Category = { id: string; name: string; labelEs: string; labelEn: string; slug: string; icon: string; color: string; sortOrder: number; imageData?: string; active: boolean; featured: boolean };
 type MarketingRecipient = { id: string; name: string; email: string; phone?: string };
 
 type AnalyticsSummary = {
@@ -347,7 +347,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [usersTotal, setUsersTotal] = useState<number | null>(null);
 
   // Category form (create + edit modals)
-  const emptyCategForm = { labelEs: '', labelEn: '', subtitleEs: '', subtitleEn: '', slug: '', icon: '🎫', color: colors.orange, sortOrder: 0, imageData: '' as string };
+  const emptyCategForm = { labelEs: '', labelEn: '', slug: '', icon: '🎫', color: colors.orange, sortOrder: 0, imageData: '' as string };
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   const [categoryForm, setCategoryForm] = useState({ ...emptyCategForm });
   const [editingCategoryModal, setEditingCategoryModal] = useState<Category | null>(null);
@@ -502,8 +502,6 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
           name: category.labelEs || category.name || category.label || 'Category',
           labelEs: category.labelEs || category.name || '',
           labelEn: category.labelEn || category.name || '',
-          subtitleEs: category.subtitleEs || '',
-          subtitleEn: category.subtitleEn || '',
           slug: category.slug || '',
           icon: category.icon || '🎫',
           color: category.color || '#6366f1',
@@ -659,10 +657,10 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   };
 
   const [categories, setCategories] = useState<Category[]>([
-    { id: '1', name: 'Concert', labelEs: 'Concierto', labelEn: 'Concert', subtitleEs: '', subtitleEn: '', slug: 'concierto', icon: '🎵', color: '#f97316', sortOrder: 0, active: true, featured: true },
-    { id: '2', name: 'Private Event', labelEs: 'Evento Privado', labelEn: 'Private Event', subtitleEs: '', subtitleEn: '', slug: 'evento-privado', icon: '🎫', color: '#6366f1', sortOrder: 1, active: true, featured: true },
-    { id: '3', name: 'Theater', labelEs: 'Teatro', labelEn: 'Theater', subtitleEs: '', subtitleEn: '', slug: 'teatro', icon: '🎭', color: '#8b5cf6', sortOrder: 2, active: true, featured: false },
-    { id: '4', name: 'Workshop', labelEs: 'Taller', labelEn: 'Workshop', subtitleEs: '', subtitleEn: '', slug: 'taller', icon: '🎪', color: '#6b7280', sortOrder: 3, active: false, featured: false },
+    { id: '1', name: 'Concert', labelEs: 'Concierto', labelEn: 'Concert', slug: 'concierto', icon: '🎵', color: '#f97316', sortOrder: 0, active: true, featured: true },
+    { id: '2', name: 'Private Event', labelEs: 'Evento Privado', labelEn: 'Private Event', slug: 'evento-privado', icon: '🎫', color: '#6366f1', sortOrder: 1, active: true, featured: true },
+    { id: '3', name: 'Theater', labelEs: 'Teatro', labelEn: 'Theater', slug: 'teatro', icon: '🎭', color: '#8b5cf6', sortOrder: 2, active: true, featured: false },
+    { id: '4', name: 'Workshop', labelEs: 'Taller', labelEn: 'Workshop', slug: 'taller', icon: '🎪', color: '#6b7280', sortOrder: 3, active: false, featured: false },
   ]);
 
   const firstEvent = adminEvents[0];
@@ -854,8 +852,6 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     setEditCategoryForm({
       labelEs: category.labelEs || category.name || '',
       labelEn: category.labelEn || category.name || '',
-      subtitleEs: category.subtitleEs || '',
-      subtitleEn: category.subtitleEn || '',
       slug: category.slug || slugify(category.labelEs || category.name || ''),
       icon: category.icon || '🎫',
       color: category.color || colors.orange,
@@ -868,14 +864,12 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const addCategory = async () => {
     const labelEs = categoryForm.labelEs.trim();
     const labelEn = categoryForm.labelEn.trim() || labelEs;
-    const subtitleEs = categoryForm.subtitleEs.trim();
-    const subtitleEn = categoryForm.subtitleEn.trim() || subtitleEs;
     if (!labelEs) return;
     const slug = slugify(categoryForm.slug.trim() || labelEs);
     setSavingCategory(true);
     try {
       const result = await apiPost<any>('/categories', {
-        slug, labelEs, labelEn, subtitleEs, subtitleEn,
+        slug, labelEs, labelEn,
         icon: categoryForm.icon,
         color: categoryForm.color,
         sortOrder: Number(categoryForm.sortOrder) || 0,
@@ -883,7 +877,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       });
       setCategories((current) => [...current, {
         id: String(result.id || Date.now()),
-        name: labelEs, labelEs, labelEn, subtitleEs, subtitleEn,
+        name: labelEs, labelEs, labelEn,
         slug: result.slug || slug,
         icon: result.icon || categoryForm.icon,
         color: result.color || categoryForm.color,
@@ -901,13 +895,11 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const saveCategoryToApi = async (id: string) => {
     const labelEs = editCategoryForm.labelEs.trim();
     const labelEn = editCategoryForm.labelEn.trim() || labelEs;
-    const subtitleEs = editCategoryForm.subtitleEs.trim();
-    const subtitleEn = editCategoryForm.subtitleEn.trim() || subtitleEs;
     const slug = slugify(editCategoryForm.slug.trim() || labelEs);
     setSavingCategory(true);
     try {
       await apiPatch(`/categories/${id}`, {
-        slug, labelEs, labelEn, subtitleEs, subtitleEn,
+        slug, labelEs, labelEn,
         icon: editCategoryForm.icon,
         color: editCategoryForm.color,
         sortOrder: Number(editCategoryForm.sortOrder) || 0,
@@ -915,7 +907,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
         ...(editCategoryForm.imageData ? { imageData: editCategoryForm.imageData } : {}),
       });
       setCategories((current) => current.map((c) => c.id === id ? {
-        ...c, name: labelEs, labelEs, labelEn, subtitleEs, subtitleEn, slug,
+        ...c, name: labelEs, labelEs, labelEn, slug,
         icon: editCategoryForm.icon,
         color: editCategoryForm.color,
         sortOrder: Number(editCategoryForm.sortOrder) || 0,
@@ -2361,14 +2353,6 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 />
                 <FieldLabel label={t('Subtítulo', 'Subtitle')} />
                 <TextInput
-                  value={categoryForm.subtitleEs}
-                  onChangeText={(v) => setCategoryForm((f) => ({ ...f, subtitleEs: v, subtitleEn: f.subtitleEn || v }))}
-                  placeholder={t('Ej. Música en vivo', 'E.g. Live music')}
-                  placeholderTextColor="#6B7280"
-                  style={styles.catFormInput}
-                />
-                <FieldLabel label={t('Slug interno', 'Internal slug')} />
-                <TextInput
                   value={categoryForm.slug}
                   onChangeText={(v) => setCategoryForm((f) => ({ ...f, slug: slugify(v) }))}
                   placeholder={t('ej. concierto', 'e.g. concert')}
@@ -2393,7 +2377,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.catCardName} numberOfLines={1}>{categoryForm.labelEs || t('Título', 'Title')}</Text>
-                    <Text style={styles.catCardSlug} numberOfLines={1}>{categoryForm.subtitleEs || categoryForm.slug || t('subtítulo', 'subtitle')}</Text>
+                    <Text style={styles.catCardSlug} numberOfLines={1}>{categoryForm.slug || t('subtítulo', 'subtitle')}</Text>
                   </View>
                 </View>
               </ScrollView>
@@ -2452,14 +2436,6 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 />
                 <FieldLabel label={t('Subtítulo', 'Subtitle')} />
                 <TextInput
-                  value={editCategoryForm.subtitleEs}
-                  onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, subtitleEs: v, subtitleEn: f.subtitleEn || v }))}
-                  placeholder={t('Ej. Música en vivo', 'E.g. Live music')}
-                  placeholderTextColor="#6B7280"
-                  style={styles.catFormInput}
-                />
-                <FieldLabel label={t('Slug interno', 'Internal slug')} />
-                <TextInput
                   value={editCategoryForm.slug}
                   onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, slug: slugify(v) }))}
                   placeholder={t('ej. concierto', 'e.g. concert')}
@@ -2484,7 +2460,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.catCardName} numberOfLines={1}>{editCategoryForm.labelEs || t('Título', 'Title')}</Text>
-                    <Text style={styles.catCardSlug} numberOfLines={1}>{editCategoryForm.subtitleEs || editCategoryForm.slug || t('subtítulo', 'subtitle')}</Text>
+                    <Text style={styles.catCardSlug} numberOfLines={1}>{editCategoryForm.slug || t('subtítulo', 'subtitle')}</Text>
                   </View>
                 </View>
               </ScrollView>
@@ -2603,7 +2579,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.catCardName} numberOfLines={1}>{category.name}</Text>
-                    <Text style={styles.catCardSlug} numberOfLines={1}>{category.subtitleEs || category.slug}</Text>
+                    <Text style={styles.catCardSlug} numberOfLines={1}>{category.slug}</Text>
                     <View style={[styles.catStatusBadge, category.active ? styles.catStatusBadgeActive : styles.catStatusBadgeInactive]}>
                       <View style={[styles.catStatusDot, category.active ? styles.catStatusDotActive : styles.catStatusDotInactive]} />
                       <Text style={[styles.catStatusText, category.active ? styles.catStatusTextActive : styles.catStatusTextInactive]}>
@@ -4118,7 +4094,7 @@ const styles = StyleSheet.create({
   catActionBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.035)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
 
   // Category form (create/edit modals)
-  catFormModal: { width: '100%', height: '92%', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(125,180,255,0.18)', overflow: 'hidden', backgroundColor: 'rgba(6,18,32,0.92)' },
+  catFormModal: { width: '100%', maxHeight: '92%', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(125,180,255,0.18)', overflow: 'hidden', backgroundColor: 'rgba(6,18,32,0.92)' },
   catFormContent: { padding: 20, gap: 10 },
   catFormInput: { height: 50, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(125,180,255,0.16)', backgroundColor: 'rgba(3,11,20,0.72)', paddingHorizontal: 14, color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 4 },
   catPhotoPicker: { height: 132, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(125,180,255,0.18)', backgroundColor: 'rgba(255,255,255,0.035)', overflow: 'hidden', marginBottom: 8 },

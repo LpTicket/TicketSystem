@@ -29,8 +29,6 @@ type ApiCategory = {
   slug?: string;
   labelEs?: string;
   labelEn?: string;
-  subtitleEs?: string | null;
-  subtitleEn?: string | null;
   imageData?: string | null;
   imageUrl?: string | null;
   isActive?: boolean;
@@ -40,7 +38,6 @@ type HomeCategory = {
   id: string;
   slug: string;
   label: string;
-  subtitle: string;
   imageUrl: string;
 };
 
@@ -140,9 +137,6 @@ export function HomeScreen({ onOpenEvent }: Props) {
       id: item.id || item.slug || item.labelEs || item.labelEn || 'category',
       slug: item.slug || item.labelEs || item.labelEn || 'category',
       label: lang === 'es' ? item.labelEs || item.labelEn || item.slug || '' : item.labelEn || item.labelEs || item.slug || '',
-      subtitle: lang === 'es'
-        ? item.subtitleEs || item.subtitleEn || categoryDesc(item.slug || item.labelEs || '', t)
-        : item.subtitleEn || item.subtitleEs || categoryDesc(item.slug || item.labelEn || '', t),
       imageUrl: getImageUrl(item.imageUrl || item.imageData || ''),
     }));
 
@@ -151,7 +145,6 @@ export function HomeScreen({ onOpenEvent }: Props) {
         id: 'all',
         slug: 'All',
         label: t('Todos', 'All'),
-        subtitle: categoryDesc('All', t),
         imageUrl: getImageUrl(allCategory?.imageUrl || allCategory?.imageData || ''),
       },
       ...liveCategories,
@@ -461,7 +454,7 @@ export function HomeScreen({ onOpenEvent }: Props) {
                   )}
                   <View style={styles.catContent}>
                     <Text style={styles.catTitle} numberOfLines={2}>{item.label}</Text>
-                    <Text style={styles.catDesc} numberOfLines={1}>{item.subtitle || categoryDesc(item.slug, t)}</Text>
+                    <Text style={styles.catDesc} numberOfLines={1}>{categoryDesc(item.slug, t)}</Text>
                   </View>
                 </TouchableOpacity>
               );
