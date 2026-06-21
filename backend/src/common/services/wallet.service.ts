@@ -83,24 +83,47 @@ export class WalletService {
     return readUrl(`${publicApiBaseUrl}/${image}`);
   }
 
-  private async getAppleWalletStripBuffers(ticket: any, walletAssetDir: string) {
-    const fallback = {
+  private async getAppleWalletImageBuffers(ticket: any, walletAssetDir: string) {
+    const sharp = require('sharp');
+    const fallbackLogo = readFileSync(join(walletAssetDir, 'logo@2x.png'));
+    const fallback = async () => ({
       strip: readFileSync(join(walletAssetDir, 'strip.png')),
       strip2x: readFileSync(join(walletAssetDir, 'strip@2x.png')),
-    };
+      background: await sharp(fallbackLogo).resize(375, 480, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } }).png().toBuffer(),
+      background2x: await sharp(fallbackLogo).resize(750, 960, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } }).png().toBuffer(),
+    });
 
     try {
       const imageBuffer = await this.readEventImageBuffer(ticket.event?.bannerImageUrl || ticket.event?.imageUrl);
-      if (!imageBuffer) return fallback;
+      if (!imageBuffer) return fallback();
 
-      const sharp = require('sharp');
+      const buildFilledImage = async (width: number, height: number) => {
+        const background = await sharp(imageBuffer)
+          .resize(width, height, { fit: 'cover', position: 'center' })
+          .blur(18)
+          .modulate({ brightness: 0.72 })
+          .png()
+          .toBuffer();
+        const foreground = await sharp(imageBuffer)
+          .resize(width, height, { fit: 'contain' })
+          .png()
+          .toBuffer();
+
+        return sharp(background)
+          .composite([{ input: foreground, gravity: 'center' }])
+          .png()
+          .toBuffer();
+      };
+
       return {
-        strip: await sharp(imageBuffer).resize(375, 98, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } }).png().toBuffer(),
-        strip2x: await sharp(imageBuffer).resize(750, 196, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } }).png().toBuffer(),
+        strip: await buildFilledImage(375, 98),
+        strip2x: await buildFilledImage(750, 196),
+        background: await buildFilledImage(375, 480),
+        background2x: await buildFilledImage(750, 960),
       };
     } catch (err) {
-      console.warn('[WalletService] Could not build event Apple Wallet banner. Using fallback.', err);
-      return fallback;
+      console.warn('[WalletService] Could not build event Apple Wallet images. Using fallback.', err);
+      return fallback();
     }
   }
 
@@ -174,6 +197,9 @@ export class WalletService {
           serialNumber: ticket.ticketCode,
           description: ticket.event?.title || 'LPTicket',
           logoText: 'LPTicket',
+          eventLogoText: 'LPTicket',
+          preferredStyleSchemes: ['posterEventTicket', 'eventTicket'],
+          useAutomaticColors: true,
           foregroundColor: 'rgb(5,33,82)',
           backgroundColor: 'rgb(255,255,255)',
           labelColor: 'rgb(255,138,38)',
@@ -190,9 +216,11 @@ export class WalletService {
       pass.addBuffer('icon@2x.png', readFileSync(join(walletAssetDir, 'icon@2x.png')));
       pass.addBuffer('logo.png', readFileSync(join(walletAssetDir, 'logo.png')));
       pass.addBuffer('logo@2x.png', readFileSync(join(walletAssetDir, 'logo@2x.png')));
-      const walletStrip = await this.getAppleWalletStripBuffers(ticket, walletAssetDir);
-      pass.addBuffer('strip.png', walletStrip.strip);
-      pass.addBuffer('strip@2x.png', walletStrip.strip2x);
+      const walletImages = await this.getAppleWalletImageBuffers(ticket, walletAssetDir);
+      pass.addBuffer('strip.png', walletImages.strip);
+      pass.addBuffer('strip@2x.png', walletImages.strip2x);
+      pass.addBuffer('background.png', walletImages.background);
+      pass.addBuffer('background@2x.png', walletImages.background2x);
 
       pass.secondaryFields.push(
         {
