@@ -1,14 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Image, Keyboard, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLanguage } from '../i18n/LanguageContext';
 import { GradientButton } from '../components/GradientButton';
-import { AuthUser } from '../services/api';
+import { AuthUser, apiGet } from '../services/api';
 import {
   ScannerAccessEvent,
   ScannerAccessGrant,
+  approveScannerAccessRequest,
   getMyScannerAccess,
+  getOrganizerScannerAccessRequests,
+  rejectScannerAccessRequest,
   requestScannerAccess,
+  revokeScannerAccessRequest,
   searchScannerAccessEvents,
 } from '../services/scannerAccess';
 import { DoorSaleScreen } from './DoorSaleScreen';
@@ -39,8 +43,14 @@ function toScannerEvent(event: ScannerAccessEvent): ScannerEvent {
   };
 }
 
+function listFrom(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  return payload?.data || payload?.events || payload?.items || [];
+}
+
 export function EmployeeScanAccessScreen({ user, onBack }: Props) {
   const { t } = useLanguage();
+  const scrollRef = useRef<ScrollView>(null);
   const [accessList, setAccessList] = useState<ScannerAccessGrant[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -51,11 +61,28 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
   const [requestingEventId, setRequestingEventId] = useState<string | null>(null);
   const [activeScanEvent, setActiveScanEvent] = useState<ScannerAccessEvent | null>(null);
   const [activeDoorSaleEvent, setActiveDoorSaleEvent] = useState<ScannerAccessEvent | null>(null);
+  const [organizerRequests, setOrganizerRequests] = useState<ScannerAccessGrant[]>([]);
+  const [organizerRequestsLoading, setOrganizerRequestsLoading] = useState(false);
+  const [canManageScannerRequests, setCanManageScannerRequests] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const approved = useMemo(() => accessList.filter((item) => item.status === 'approved'), [accessList]);
   const pending = useMemo(() => accessList.filter((item) => item.status === 'pending'), [accessList]);
   const rejected = useMemo(() => accessList.filter((item) => item.status === 'rejected'), [accessList]);
   const knownEventIds = useMemo(() => new Set(accessList.map((item) => item.event.id)), [accessList]);
+  const organizerRequestsByEvent = useMemo(() => {
+    const groups: { event: ScannerAccessEvent; requests: ScannerAccessGrant[] }[] = [];
+    organizerRequests.forEach((request) => {
+      const eventId = request.event.id;
+      let group = groups.find((item) => item.event.id === eventId);
+      if (!group) {
+        group = { event: request.event, requests: [] };
+        groups.push(group);
+      }
+      group.requests.push(request);
+    });
+    return groups;
+  }, [organizerRequests]);
 
   const loadAccess = useCallback(async (quiet = false) => {
     if (!user) return;
@@ -71,14 +98,67 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
     }
   }, [t, user]);
 
+  const loadOrganizerRequests = useCallback(async (quiet = false) => {
+    if (!user) return;
+    if (!quiet) setOrganizerRequestsLoading(true);
+    try {
+      let hasOrganizerEvents = user.role === 'admin';
+      if (!hasOrganizerEvents) {
+        const mine = await apiGet<any>('/events/mine/list');
+        hasOrganizerEvents = listFrom(mine).length > 0;
+      }
+      if (!hasOrganizerEvents) {
+        setCanManageScannerRequests(false);
+        setOrganizerRequests([]);
+        return;
+      }
+      const requests = await getOrganizerScannerAccessRequests();
+      setOrganizerRequests(requests);
+      setCanManageScannerRequests(true);
+    } catch {
+      setCanManageScannerRequests(false);
+      setOrganizerRequests([]);
+    } finally {
+      if (!quiet) setOrganizerRequestsLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     loadAccess();
-  }, [loadAccess]);
+    loadOrganizerRequests();
+  }, [loadAccess, loadOrganizerRequests]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setKeyboardHeight(Math.max(0, event.endCoordinates?.height || 0));
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const refresh = async () => {
     setRefreshing(true);
-    await loadAccess(true);
+    await Promise.all([loadAccess(true), loadOrganizerRequests(true)]);
     setRefreshing(false);
+  };
+
+  const decideOrganizerRequest = async (id: string, action: 'approve' | 'reject' | 'revoke') => {
+    setError('');
+    try {
+      const updated = action === 'approve'
+        ? await approveScannerAccessRequest(id)
+        : action === 'reject'
+          ? await rejectScannerAccessRequest(id)
+          : await revokeScannerAccessRequest(id);
+      setOrganizerRequests((current) => current.map((item) => item.id === id ? updated : item));
+    } catch (err: any) {
+      setError(err?.message || t('No se pudo actualizar el permiso de scan.', 'Could not update scanner access.'));
+    }
   };
 
   const searchEvents = async () => {
@@ -167,8 +247,9 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.screen}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, keyboardHeight > 0 && { paddingBottom: keyboardHeight + 20 }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor="#F97316" />}
@@ -194,6 +275,42 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
           <Text style={styles.noticeDangerText}>{error}</Text>
         </View>
       ) : null}
+
+      {canManageScannerRequests && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.eyebrow}>{t('ORGANIZADOR', 'ORGANIZER')}</Text>
+              <Text style={styles.sectionTitle}>{t('Empleados para scan', 'Scan staff')}</Text>
+            </View>
+            {organizerRequestsLoading ? <ActivityIndicator color="#F97316" /> : <Ionicons name="people-outline" size={20} color="#F97316" />}
+          </View>
+
+          {organizerRequestsByEvent.length === 0 ? (
+            <EmptyCard
+              icon="people-outline"
+              title={t('Sin solicitudes todavía', 'No requests yet')}
+              copy={t('Cuando un empleado solicite acceso para tus eventos, aparecerá aquí.', 'When a staff member requests access to your events, it will appear here.')}
+            />
+          ) : (
+            organizerRequestsByEvent.map((group) => (
+              <View key={group.event.id} style={styles.organizerEventGroup}>
+                <Text style={styles.organizerEventTitle} numberOfLines={2}>{group.event.title}</Text>
+                <Text style={styles.organizerEventMeta} numberOfLines={1}>{[fmtDate(group.event.eventDate), group.event.venueName].filter(Boolean).join(' · ')}</Text>
+                {group.requests.map((request, index) => (
+                  <ScannerRequestRow
+                    key={`${request.id}-${index}`}
+                    request={request}
+                    onApprove={() => decideOrganizerRequest(request.id, 'approve')}
+                    onReject={() => decideOrganizerRequest(request.id, 'reject')}
+                    onRevoke={() => decideOrganizerRequest(request.id, 'revoke')}
+                  />
+                ))}
+              </View>
+            ))
+          )}
+        </View>
+      )}
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -237,6 +354,7 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
             style={styles.searchInput}
             returnKeyType="search"
             onSubmitEditing={searchEvents}
+            onFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 180)}
           />
           <GradientButton height={56} style={styles.searchButton} onPress={searchEvents}>
             {searching ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.searchButtonText}>{t('BUSCAR', 'SEARCH')}</Text>}
@@ -271,6 +389,59 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
         </View>
       )}
     </ScrollView>
+  );
+}
+
+function ScannerRequestRow({
+  request,
+  onApprove,
+  onReject,
+  onRevoke,
+}: {
+  request: ScannerAccessGrant;
+  onApprove: () => void;
+  onReject: () => void;
+  onRevoke: () => void;
+}) {
+  const employeeName = [request.user?.firstName, request.user?.lastName].filter(Boolean).join(' ') || request.user?.email || 'Empleado';
+  const avatarUrl = request.user?.avatarUrl || '';
+  const pending = request.status === 'pending';
+  const approved = request.status === 'approved';
+  const rejected = request.status === 'rejected';
+
+  return (
+    <View style={styles.scannerRequestRow}>
+      <View style={styles.scannerAvatar}>
+        {avatarUrl ? (
+          <Image source={{ uri: avatarUrl }} style={styles.scannerAvatarImage} />
+        ) : (
+          <Text style={styles.scannerAvatarText}>{employeeName.slice(0, 2).toUpperCase()}</Text>
+        )}
+      </View>
+      <View style={styles.scannerRequestMain}>
+        <Text style={styles.scannerRequestName} numberOfLines={1}>{employeeName}</Text>
+        <Text style={styles.scannerRequestEmail} numberOfLines={1}>{request.user?.email || '-'}</Text>
+        <View style={[styles.scannerStatus, approved ? styles.scannerStatusApproved : pending ? styles.scannerStatusPending : styles.scannerStatusRejected]}>
+          <Text style={styles.scannerStatusText}>{approved ? 'APROBADO' : pending ? 'PENDIENTE' : rejected ? 'RECHAZADO' : request.status.toUpperCase()}</Text>
+        </View>
+      </View>
+      <View style={styles.scannerActions}>
+        {pending ? (
+          <>
+            <TouchableOpacity style={styles.scannerApproveBtn} onPress={onApprove}>
+              <Ionicons name="checkmark" size={15} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.scannerRejectBtn} onPress={onReject}>
+              <Ionicons name="close" size={15} color="#FFFFFF" />
+            </TouchableOpacity>
+          </>
+        ) : approved ? (
+          <TouchableOpacity style={styles.scannerRevokeBtn} onPress={onRevoke}>
+            <Text style={styles.scannerRevokeText}>REVOCAR</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
@@ -376,6 +547,26 @@ const styles = StyleSheet.create({
   actionTextDisabled: { color: 'rgba(226,232,240,0.42)' },
   secondaryActionButton: { minHeight: 34, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(249,115,22,0.32)', backgroundColor: 'rgba(249,115,22,0.08)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, flexDirection: 'row', gap: 5 },
   secondaryActionText: { color: '#F97316', fontSize: 8, fontWeight: '900', textAlign: 'center' },
+  organizerEventGroup: { borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: '#030B14', padding: 12, marginTop: 10 },
+  organizerEventTitle: { color: '#F8FAFC', fontSize: 15, lineHeight: 19, fontWeight: '900' },
+  organizerEventMeta: { color: 'rgba(226,232,240,0.46)', fontSize: 11, marginTop: 4, marginBottom: 8 },
+  scannerRequestRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.025)', padding: 10, marginTop: 8 },
+  scannerAvatar: { width: 42, height: 42, borderRadius: 21, overflow: 'hidden', backgroundColor: 'rgba(249,115,22,0.18)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', alignItems: 'center', justifyContent: 'center' },
+  scannerAvatarImage: { width: '100%', height: '100%' },
+  scannerAvatarText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
+  scannerRequestMain: { flex: 1, minWidth: 0 },
+  scannerRequestName: { color: '#F8FAFC', fontSize: 13, fontWeight: '800' },
+  scannerRequestEmail: { color: 'rgba(226,232,240,0.52)', fontSize: 11, marginTop: 2 },
+  scannerStatus: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3, marginTop: 6 },
+  scannerStatusApproved: { backgroundColor: 'rgba(16,185,129,0.80)' },
+  scannerStatusPending: { backgroundColor: 'rgba(249,115,22,0.82)' },
+  scannerStatusRejected: { backgroundColor: 'rgba(239,68,68,0.78)' },
+  scannerStatusText: { color: '#FFFFFF', fontSize: 8, fontWeight: '900' },
+  scannerActions: { flexDirection: 'row', gap: 7 },
+  scannerApproveBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#10B981', alignItems: 'center', justifyContent: 'center' },
+  scannerRejectBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center' },
+  scannerRevokeBtn: { minHeight: 36, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.32)', backgroundColor: 'rgba(239,68,68,0.10)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 9 },
+  scannerRevokeText: { color: '#FCA5A5', fontSize: 9, fontWeight: '900' },
   searchBox: { minHeight: 56, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 14, marginTop: 12 },
   searchInput: { flex: 1, minWidth: 0, color: '#FFFFFF', fontSize: 14, fontWeight: '700', outlineStyle: 'none' as any },
   searchButton: { alignSelf: 'stretch', minWidth: 78, borderTopRightRadius: 16, borderBottomRightRadius: 16, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, paddingHorizontal: 12 },

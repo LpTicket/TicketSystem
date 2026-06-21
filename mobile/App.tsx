@@ -70,6 +70,7 @@ function AppContent() {
   const [tab, setTab] = useState<Tab>('events');
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [employeeScanBackToMenu, setEmployeeScanBackToMenu] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [preSelectedSeats, setPreSelectedSeats] = useState<any[]>([]);
@@ -354,6 +355,7 @@ function AppContent() {
   };
 
   const goToTab = (nextTab: Tab) => {
+    if (nextTab !== 'employeeScan') setEmployeeScanBackToMenu(false);
     if (!isLoggedIn && protectedTabs.has(nextTab)) {
       const returnState: AuthReturnState = {
         tab: nextTab,
@@ -370,6 +372,19 @@ function AppContent() {
     }
     clearFlow();
     setTab(nextTab);
+  };
+
+  const goToEmployeeScanFromMenu = () => {
+    setEmployeeScanBackToMenu(true);
+    goToTab('employeeScan');
+  };
+
+  const handleEmployeeScanBack = () => {
+    if (employeeScanBackToMenu) {
+      setMenuOpen(true);
+      return;
+    }
+    goToTab('events');
   };
 
   const goHome = () => {
@@ -503,7 +518,7 @@ function AppContent() {
         ) : tab === 'scan' ? (
           <ScanScreen onBack={() => goToTab('events')} user={currentUser} />
         ) : tab === 'employeeScan' ? (
-          isLoggedIn ? <EmployeeScanAccessScreen user={currentUser} onBack={() => goToTab('events')} /> : <LoginScreen onSignIn={handleSignIn} />
+          isLoggedIn ? <EmployeeScanAccessScreen user={currentUser} onBack={handleEmployeeScanBack} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'employeeDoorSale' ? (
           isLoggedIn ? <DoorSaleScreen user={currentUser} eventSource="employee" onBack={() => goToTab('events')} onSaleCompleted={notifyDoorSaleCompleted} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'doorSale' ? (
@@ -697,7 +712,7 @@ function AppContent() {
           onGoOrganizer={() => { setViewMode('organizer'); goToTab('organizer'); }}
           onGoAdmin={() => goToTab('admin')}
           onGoScan={() => { clearFlow(); setScanOpen(true); }}
-          onGoEmployeeScan={() => goToTab('employeeScan')}
+          onGoEmployeeScan={goToEmployeeScanFromMenu}
           onGoEmployeeDoorSale={() => goToTab('employeeDoorSale')}
           onGoDoorSale={() => goToTab('doorSale')}
           onGoAiChat={() => goToTab('aichat')}

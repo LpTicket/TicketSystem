@@ -5,11 +5,12 @@
     "scheme": "lpticket",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.jpg",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
       "bundleIdentifier": "com.inhoustontexas.lpticket",
       "buildNumber": "14",
+      "icon": "./assets/icon.png",
       "supportsTablet": true,
       "entitlements": {
         "com.apple.developer.proximity-reader.payment.acceptance": true

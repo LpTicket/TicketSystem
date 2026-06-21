@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, Share, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -101,6 +101,7 @@ const MAX_PER_TX = 10;
 
 export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange, isLoggedIn, onRequestLogin, cartSyncToken = 0 }: Props) {
   const { t, lang } = useLanguage();
+  const { width } = useWindowDimensions();
   const [detail, setDetail] = useState(event);
   const [sections, setSections] = useState<ClientVenueSection[]>([]);
   const [loading, setLoading] = useState(false);
@@ -270,6 +271,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
     const img = detail.imageUrl || detail.bannerImageUrl;
     return img ? { uri: img } : fallbackImage;
   }, [detail.imageUrl, detail.bannerImageUrl]);
+  const heroHeight = Math.round((width - 32) * 4 / 3);
 
   const description = detail.description?.trim() || t(
     'Vive una experiencia segura con compra rápida, tickets digitales y acceso por código QR.',
@@ -310,9 +312,9 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
       </View>
 
       {/* Hero image */}
-      <View style={st.hero}>
+      <View style={[st.hero, { height: heroHeight }]}>
         <Image source={imageSource} style={st.heroImage} resizeMode="cover" />
-        <View style={st.heroBadge}><Text style={st.heroBadgeText}>{detail.tag}</Text></View>
+        <View style={st.heroBadge}><Text style={st.heroBadgeText}>● {detail.tag}</Text></View>
       </View>
 
       {/* Event info */}
@@ -541,10 +543,10 @@ const st = StyleSheet.create({
   backButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.035)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
   backText: { color: 'rgba(226,232,240,0.85)', fontWeight: '700', fontSize: 14 },
   shareBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(249,115,22,0.10)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', alignItems: 'center', justifyContent: 'center' },
-  hero: { height: 220, borderRadius: 16, overflow: 'hidden', marginHorizontal: 16, marginBottom: 14, backgroundColor: 'rgba(2,8,15,0.48)', borderWidth: 1, borderColor: 'rgba(148,163,184,0.20)' },
+  hero: { alignSelf: 'stretch', borderRadius: 16, overflow: 'hidden', marginHorizontal: 16, marginBottom: 14, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(148,163,184,0.20)' },
   heroImage: { width: '100%', height: '100%' },
-  heroBadge: { position: 'absolute', top: 12, left: 12, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: 'rgba(3,11,20,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
-  heroBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  heroBadge: { position: 'absolute', top: 12, left: 12, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: 'rgba(16,185,129,0.18)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.46)', shadowColor: '#10B981', shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  heroBadgeText: { color: '#D1FAE5', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
   panel: { marginHorizontal: 16, borderRadius: 16, padding: 18, backgroundColor: 'rgba(255,255,255,0.025)', borderWidth: 1, borderColor: 'rgba(148,163,184,0.18)', marginBottom: 14 },
   eyebrow: { color: colors.orange, fontSize: 11, fontWeight: '700', marginBottom: 6 },
   title: { color: '#FFFFFF', fontSize: 26, fontWeight: '900', lineHeight: 31, marginBottom: 14 },
