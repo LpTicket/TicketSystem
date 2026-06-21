@@ -146,6 +146,7 @@ export class WalletService {
 
       const venueName = ticket.event?.venueName || 'LP Ticket';
       const venueAddress = ticket.event?.venueAddress || venueName;
+      const eventTitle = ticket.event?.title || 'LPTicket Event';
       const buyerName = [
         ticket.user?.firstName,
         ticket.user?.lastName,
@@ -172,7 +173,7 @@ export class WalletService {
           teamIdentifier,
           organizationName: 'LPTicket',
           serialNumber: ticket.ticketCode,
-          description: ticket.event?.title || 'LPTicket',
+          description: eventTitle,
           foregroundColor: 'rgb(255,255,255)',
           backgroundColor: 'rgb(3,24,64)',
           labelColor: 'rgb(255,138,38)',
@@ -208,6 +209,11 @@ export class WalletService {
 
       pass.auxiliaryFields.push(
         {
+          key: 'event',
+          label: 'EVENT',
+          value: eventTitle,
+        },
+        {
           key: 'section',
           label: 'ZONE',
           value: ticket.sectionName || 'General',
@@ -216,6 +222,11 @@ export class WalletService {
           key: 'venue',
           label: 'VENUE',
           value: [venueName, venueAddress].filter(Boolean).join(' - '),
+        },
+        {
+          key: 'buyer',
+          label: 'BUYER',
+          value: buyerName,
         },
       );
 
