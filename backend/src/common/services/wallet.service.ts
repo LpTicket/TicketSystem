@@ -194,6 +194,12 @@ export class WalletService {
       pass.addBuffer('strip.png', walletStrip.strip);
       pass.addBuffer('strip@2x.png', walletStrip.strip2x);
 
+      pass.primaryFields.push({
+        key: 'event',
+        label: 'EVENT',
+        value: eventTitle,
+      });
+
       pass.secondaryFields.push(
         {
           key: 'date',
@@ -205,14 +211,14 @@ export class WalletService {
           label: 'TIME',
           value: formattedTime,
         },
+        {
+          key: 'buyer',
+          label: 'BUYER',
+          value: buyerName,
+        },
       );
 
       pass.auxiliaryFields.push(
-        {
-          key: 'event',
-          label: 'EVENT',
-          value: eventTitle,
-        },
         {
           key: 'section',
           label: 'ZONE',
@@ -221,12 +227,7 @@ export class WalletService {
         {
           key: 'venue',
           label: 'VENUE',
-          value: [venueName, venueAddress].filter(Boolean).join(' - '),
-        },
-        {
-          key: 'buyer',
-          label: 'BUYER',
-          value: buyerName,
+          value: venueName,
         },
       );
 
