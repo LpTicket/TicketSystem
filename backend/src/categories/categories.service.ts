@@ -61,6 +61,15 @@ export class CategoriesService implements OnModuleInit {
       );
     } catch { /* ignore */ }
 
+    try {
+      await this.dataSource.query(
+        `ALTER TABLE event_categories ADD COLUMN IF NOT EXISTS "subtitleEs" VARCHAR(120)`,
+      );
+      await this.dataSource.query(
+        `ALTER TABLE event_categories ADD COLUMN IF NOT EXISTS "subtitleEn" VARCHAR(120)`,
+      );
+    } catch { /* ignore */ }
+
     // Seed system categories only on a fresh install (empty table).
     const count = await this.categoryRepo.count();
     if (count === 0) {
@@ -91,6 +100,7 @@ export class CategoriesService implements OnModuleInit {
    */
   async create(dto: {
     slug: string; labelEs: string; labelEn: string;
+    subtitleEs?: string; subtitleEn?: string;
     icon?: string; color?: string; sortOrder?: number; imageData?: string | null;
   }) {
     const existing = await this.categoryRepo.findOne({ where: { slug: dto.slug } });
@@ -101,6 +111,7 @@ export class CategoriesService implements OnModuleInit {
 
   async update(id: string, dto: Partial<{
     slug: string; labelEs: string; labelEn: string;
+    subtitleEs: string; subtitleEn: string;
     icon: string; color: string; sortOrder: number; isActive: boolean; imageData: string | null;
   }>) {
     const cat = await this.findOne(id);
