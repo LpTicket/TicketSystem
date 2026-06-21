@@ -1,31 +1,20 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiPost } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { GradientButton } from '../GradientButton';
-import { ScannerAccessGrant } from '../../services/scannerAccess';
 
 type Props = {
   eventId?: string;
   sections: any[];
   onReload?: () => void | Promise<void>;
-  scannerRequests?: ScannerAccessGrant[];
-  scannerRequestsLoading?: boolean;
-  onApproveScannerRequest?: (id: string) => void | Promise<void>;
-  onRejectScannerRequest?: (id: string) => void | Promise<void>;
-  onRevokeScannerRequest?: (id: string) => void | Promise<void>;
 };
 
 export function OrganizerBlocksMobile({
   eventId,
   sections,
   onReload,
-  scannerRequests = [],
-  scannerRequestsLoading,
-  onApproveScannerRequest,
-  onRejectScannerRequest,
-  onRevokeScannerRequest,
 }: Props) {
   const { t, lang } = useLanguage();
   const es = lang === 'es';
@@ -112,62 +101,9 @@ export function OrganizerBlocksMobile({
         <Text style={styles.title}>{es ? 'Bloqueos e Invitaciones Gratis' : 'Blocks & Free Invitations'}</Text>
         <Text style={styles.subtitle}>
           {es
-            ? 'Aprueba empleados para scan, bloquea mesas/sillas o envía cortesías gratis'
-            : 'Approve scan staff, block seats or tables, or send free complimentary tickets'}
+            ? 'Bloquea mesas/sillas o envía cortesías gratis'
+            : 'Block seats or tables, or send free complimentary tickets'}
         </Text>
-      </View>
-
-      <View style={styles.scannerAccessCard}>
-        <View style={styles.scannerAccessHeader}>
-          <View>
-            <Text style={styles.scannerAccessEyebrow}>{es ? 'EMPLEADOS DE SCAN' : 'SCAN STAFF'}</Text>
-            <Text style={styles.scannerAccessTitle}>{es ? 'Solicitudes para escanear' : 'Scanner access requests'}</Text>
-          </View>
-          {scannerRequestsLoading ? <ActivityIndicator color="#F97316" /> : <Ionicons name="people-outline" size={20} color="#F97316" />}
-        </View>
-        {scannerRequests.length === 0 ? (
-          <View style={styles.scannerEmpty}>
-            <Text style={styles.scannerEmptyText}>{es ? 'Aún no hay solicitudes para este evento.' : 'No requests for this event yet.'}</Text>
-          </View>
-        ) : (
-          scannerRequests.map((request, index) => {
-            const employeeName = [request.user?.firstName, request.user?.lastName].filter(Boolean).join(' ') || request.user?.email || (es ? 'Empleado' : 'Staff member');
-            const pending = request.status === 'pending';
-            const approved = request.status === 'approved';
-            return (
-              <View key={`${request.id}-${index}`} style={styles.scannerRequestRow}>
-                <View style={styles.scannerAvatar}>
-                  <Text style={styles.scannerAvatarText}>{employeeName.slice(0, 2).toUpperCase()}</Text>
-                </View>
-                <View style={styles.scannerRequestMain}>
-                  <Text style={styles.scannerRequestName} numberOfLines={1}>{employeeName}</Text>
-                  <Text style={styles.scannerRequestEmail} numberOfLines={1}>{request.user?.email || '-'}</Text>
-                  <View style={[styles.scannerStatus, approved ? styles.scannerStatusApproved : pending ? styles.scannerStatusPending : styles.scannerStatusRejected]}>
-                    <Text style={styles.scannerStatusText}>
-                      {approved ? (es ? 'APROBADO' : 'APPROVED') : pending ? (es ? 'PENDIENTE' : 'PENDING') : request.status.toUpperCase()}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.scannerActions}>
-                  {pending ? (
-                    <>
-                      <TouchableOpacity style={styles.scannerApproveBtn} onPress={() => onApproveScannerRequest?.(request.id)}>
-                        <Ionicons name="checkmark" size={15} color="#FFFFFF" />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.scannerRejectBtn} onPress={() => onRejectScannerRequest?.(request.id)}>
-                        <Ionicons name="close" size={15} color="#FFFFFF" />
-                      </TouchableOpacity>
-                    </>
-                  ) : approved ? (
-                    <TouchableOpacity style={styles.scannerRevokeBtn} onPress={() => onRevokeScannerRequest?.(request.id)}>
-                      <Text style={styles.scannerRevokeText}>{es ? 'REVOCAR' : 'REVOKE'}</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              </View>
-            );
-          })
-        )}
       </View>
 
       {/* Section dropdown */}

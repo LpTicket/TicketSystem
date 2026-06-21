@@ -526,7 +526,25 @@ export function HomeScreen({ onOpenEvent }: Props) {
             <Image source={getPosterImageSource(event)} style={styles.eventPosterImage} resizeMode="cover" />
             <View style={styles.posterShade} />
             <View style={styles.privateBadge}><Text style={styles.privateBadgeText}>● {event.tag}</Text></View>
-            <View style={styles.featuredBadge}><Text style={styles.featuredText}>{t('DESTACADO', 'FEATURED')}</Text></View>
+            <View style={styles.featuredBadge}>
+              <LinearGradient
+                colors={['#ff8a18', '#f46c00', '#c93f00']}
+                locations={[0, 0.46, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View pointerEvents="none" style={styles.featuredShine}>
+                <LinearGradient
+                  colors={['rgba(255,235,205,0)', 'rgba(255,235,205,0.85)', 'rgba(255,235,205,0)']}
+                  locations={[0, 0.5, 1]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={StyleSheet.absoluteFill}
+                />
+              </View>
+              <Text style={styles.featuredText}>{t('DESTACADO', 'FEATURED')}</Text>
+            </View>
           </View>
           <View style={styles.eventInfo}>
             <Text style={styles.eventName} numberOfLines={2}>{event.title}</Text>
@@ -619,7 +637,7 @@ const styles = StyleSheet.create({
   catImageActive: { opacity: 0.9 },
   catShine: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 4 },
   catContent: { position: 'absolute', left: 8, right: 8, bottom: 8, gap: 3, zIndex: 5 },
-  catTitle: { color: '#FFFFFF', fontSize: 11.5, fontWeight: '900', lineHeight: 13, minHeight: 26 },
+  catTitle: { color: '#FFFFFF', fontSize: 8.5, fontWeight: '900', lineHeight: 10.5, minHeight: 21 },
   catDesc: { color: 'rgba(255,255,255,0.76)', fontSize: 9, fontWeight: '700', lineHeight: 11 },
   emptyEvents: { marginHorizontal: 16, marginTop: 24, padding: 22, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   emptyEventsText: { color: 'rgba(226,232,240,0.72)', fontSize: 15, textAlign: 'center', lineHeight: 22 },
@@ -653,10 +671,11 @@ const styles = StyleSheet.create({
   eventPoster: { width: '100%', aspectRatio: 3 / 4, position: 'relative', backgroundColor: 'rgba(255,255,255,0.012)' },
   eventPosterImage: { width: '100%', height: '100%' },
   posterShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(5,24,44,0.12)' },
-  privateBadge: { position: 'absolute', top: 16, left: 14, backgroundColor: 'rgba(3,11,20,0.72)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, paddingVertical: 8 },
-  privateBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
-  featuredBadge: { position: 'absolute', top: 16, right: 14, backgroundColor: colors.orange, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9, shadowColor: colors.orange, shadowOpacity: 0.34, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
-  featuredText: { color: colors.white, fontSize: 12, fontWeight: '600', letterSpacing: 1.2 },
+  privateBadge: { position: 'absolute', top: 16, left: 14, backgroundColor: 'rgba(16,185,129,0.18)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(16,185,129,0.46)', paddingHorizontal: 12, paddingVertical: 8, shadowColor: '#10B981', shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  privateBadgeText: { color: '#D1FAE5', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
+  featuredBadge: { position: 'absolute', top: 16, right: 14, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,151,45,0.62)', shadowColor: '#ff6800', shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
+  featuredShine: { position: 'absolute', left: 10, right: 10, top: 5, height: 1 },
+  featuredText: { color: colors.white, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textShadowColor: 'rgba(0,0,0,0.24)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
   plusBadge: { position: 'absolute', top: 76, right: 24, width: 48, height: 48, borderRadius: 24, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   plusText: { color: '#8B1E24', fontSize: 20, fontWeight: '800' },
   mockPosterText: { position: 'absolute', left: 18, right: 18, bottom: 34, alignItems: 'center' },

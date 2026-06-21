@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Alert, Image, Linking, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { useLanguage } from '../i18n/LanguageContext';
 import { API_URL, apiGet, apiPost } from '../services/api';
 import { TicketCardSkeleton } from '../components/Skeleton';
+import { GradientButton } from '../components/GradientButton';
 
 type TicketStatus = 'active' | 'used' | 'cancelled' | string;
 
@@ -70,6 +72,10 @@ function ticketVerifyUrl(code: string) {
 
 function ticketApiUrl(code: string, path: string) {
   return `${API_URL.replace(/\/$/, '')}/orders/ticket/${code}/${path}`;
+}
+
+function openAppleWallet(url: string) {
+  WebBrowser.openBrowserAsync(url).catch(() => openUrl(url));
 }
 
 export function TicketsScreen() {
@@ -195,7 +201,7 @@ export function TicketsScreen() {
 
               <View style={styles.actions}>
                 <ActionButton label={t('VER TICKET', 'VIEW TICKET')} primary onPress={() => openUrl(ticketVerifyUrl(ticket.ticketCode))} />
-                <ActionButton label="APPLE WALLET" onPress={() => openUrl(ticketApiUrl(ticket.ticketCode, 'apple-wallet'))} />
+                <ActionButton label="APPLE WALLET" onPress={() => openAppleWallet(ticketApiUrl(ticket.ticketCode, 'apple-wallet'))} />
                 <ActionButton label="GOOGLE WALLET" onPress={() => openGoogleWallet(ticket.ticketCode)} />
                 <ActionButton
                   label={resending === ticket.ticketCode ? t('ENVIANDO...', 'SENDING...') : t('REENVIAR AL CORREO', 'RESEND EMAIL')}
@@ -228,10 +234,21 @@ function Detail({ label, value }: { label: string; value?: string | null }) {
 }
 
 function ActionButton({ label, primary, icon, onPress }: { label: string; primary?: boolean; icon?: keyof typeof Ionicons.glyphMap; onPress: () => void }) {
+  if (primary) {
+    return (
+      <GradientButton onPress={onPress} height={48} style={styles.actionButtonPrimary}>
+        <View style={styles.actionButtonPrimaryContent}>
+          {icon && <Ionicons name={icon} size={13} color="#FFFFFF" />}
+          <Text style={[styles.actionText, styles.actionTextPrimary]}>{label}</Text>
+        </View>
+      </GradientButton>
+    );
+  }
+
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.actionButton, primary && styles.actionButtonPrimary]}>
-      {icon && <Ionicons name={icon} size={13} color={primary ? '#FFFFFF' : 'rgba(226,232,240,0.7)'} />}
-      <Text style={[styles.actionText, primary && styles.actionTextPrimary]}>{label}</Text>
+    <TouchableOpacity onPress={onPress} style={styles.actionButton}>
+      {icon && <Ionicons name={icon} size={13} color="rgba(226,232,240,0.7)" />}
+      <Text style={styles.actionText}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -293,7 +310,8 @@ const styles = StyleSheet.create({
   ticketNotchRight: { width: 18, height: 36, borderTopLeftRadius: 999, borderBottomLeftRadius: 999, backgroundColor: '#030B14', borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.14)' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   actionButton: { width: '48%', minHeight: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 10 },
-  actionButtonPrimary: { backgroundColor: '#F97316', borderColor: '#FB923C' },
+  actionButtonPrimary: { width: '48%', borderRadius: 14 },
+  actionButtonPrimaryContent: { alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5, paddingHorizontal: 10 },
   actionText: { color: '#F8FAFC', fontSize: 11, fontWeight: '700', letterSpacing: 0, textAlign: 'center' },
   actionTextPrimary: { color: '#FFFFFF' },
 });

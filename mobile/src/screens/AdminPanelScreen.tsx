@@ -271,6 +271,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [tabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
   const [userRoleFilterWidth, setUserRoleFilterWidth] = useState(0);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editUserPassword, setEditUserPassword] = useState('');
+  const [editUserPasswordConfirm, setEditUserPasswordConfirm] = useState('');
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [categoryDraft, setCategoryDraft] = useState('');
   const [marketingBannerEnabled, setMarketingBannerEnabled] = useState(true);
@@ -436,18 +438,27 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
 
   const openEditUser = (userId: string) => {
     setSelectedUser(null);
+    setEditUserPassword('');
+    setEditUserPasswordConfirm('');
     setEditingUserId(String(userId));
   };
 
   // ── Create user (admin) ────────────────────────────────────────────────────
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [cuForm, setCuForm] = useState({ firstName: '', lastName: '', username: '', email: '', password: '', phone: '', role: 'client' as 'client' | 'organizer' | 'admin' });
+  const [cuPasswordConfirm, setCuPasswordConfirm] = useState('');
   const [creatingUser, setCreatingUser] = useState(false);
   const setCu = (k: keyof typeof cuForm, v: string) => setCuForm((f) => ({ ...f, [k]: v }));
   const createUserApi = async () => {
     if (!cuForm.firstName.trim() || !cuForm.lastName.trim() || !cuForm.username.trim() || !cuForm.email.trim()) {
       Alert.alert(t('Faltan datos', 'Missing info'), t('Nombre, apellido, usuario y correo son requeridos.', 'First name, last name, username and email are required.'));
       return;
+    }
+    if (cuForm.password.trim() || cuPasswordConfirm.trim()) {
+      if (cuForm.password !== cuPasswordConfirm) {
+        Alert.alert(t('Contraseñas no coinciden', 'Passwords do not match'), t('La contraseña y la confirmación deben ser iguales.', 'The password and confirmation must match.'));
+        return;
+      }
     }
     setCreatingUser(true);
     try {
@@ -463,6 +474,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       Alert.alert(t('Listo', 'Done'), t('Usuario creado.', 'User created.'));
       setShowCreateUser(false);
       setCuForm({ firstName: '', lastName: '', username: '', email: '', password: '', phone: '', role: 'client' });
+      setCuPasswordConfirm('');
       await loadUsers();
     } catch (err: any) {
       Alert.alert('Error', err?.message || t('No se pudo crear el usuario', 'Could not create user'));
@@ -781,17 +793,44 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   // ── User actions ───────────────────────────────────────────────────────────
 
   const updateUser = (id: string, key: keyof AdminUser, value: string | boolean) => {
-    setUsers((current) => current.map((user) => user.id === id ? { ...user, [key]: value } : user));
+    setUsers((current) => current.map((user) => {
+      if (user.id !== id) return user;
+      const next = { ...user, [key]: value };
+      if (key === 'firstName' || key === 'lastName') {
+        next.name = [next.firstName, next.lastName].filter(Boolean).join(' ').trim() || next.username || next.email;
+      }
+      return next;
+    }));
   };
 
   const saveUserToApi = async (id: string) => {
     const user = users.find((u) => u.id === id);
     if (!user) return;
-    const [firstName, ...rest] = user.name.split(' ');
+    if (!user.firstName.trim() || !user.lastName.trim() || !user.email.trim()) {
+      Alert.alert(t('Faltan datos', 'Missing info'), t('Nombre, apellido y correo son requeridos.', 'First name, last name and email are required.'));
+      return;
+    }
+    if (editUserPassword.trim() || editUserPasswordConfirm.trim()) {
+      if (editUserPassword !== editUserPasswordConfirm) {
+        Alert.alert(t('Contraseñas no coinciden', 'Passwords do not match'), t('La nueva contraseña y la confirmación deben ser iguales.', 'The new password and confirmation must match.'));
+        return;
+      }
+    }
     try {
-      await apiPatch(`/admin/users/${id}`, { firstName, lastName: rest.join(' '), email: user.email });
+      const payload: any = {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone || '',
+        address: user.address || '',
+      };
+      if (editUserPassword.trim()) payload.password = editUserPassword;
+      await apiPatch(`/admin/users/${id}`, payload);
       await apiPatch(`/admin/users/${id}/role`, { role: user.role });
+      setEditUserPassword('');
+      setEditUserPasswordConfirm('');
       setEditingUserId(null);
+      await loadUsers();
     } catch {
       Alert.alert(t('Error', 'Error'), t('No se pudo guardar el usuario.', 'Could not save user.'));
     }
@@ -2054,6 +2093,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             <GradientButton onPress={() => setShowCreateUser(true)} height={42} style={styles.createUserBtn}>
               <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
               <Text style={styles.createUserBtnText}>{t('CREAR USUARIO', 'CREATE USER')}</Text>
+              <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
             </GradientButton>
 
             {usersApiError ? (
@@ -2215,7 +2255,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
           <Modal visible transparent animationType="slide" onRequestClose={() => setEditingUserId(null)}>
             <View style={styles.modalOverlay}>
               <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setEditingUserId(null)} activeOpacity={1} />
-              <View style={[styles.userModal, { maxHeight: '85%' }]}>
+              <View style={[styles.userModal, styles.userEditModal]}>
                 <View style={styles.userModalHeader}>
                   <View style={styles.userInitialsAvatarLg}>
                     <Ionicons name="pencil-outline" size={20} color={colors.orange} />
@@ -2229,13 +2269,26 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   </TouchableOpacity>
                 </View>
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 10 }}>
-                  <FieldLabel label={t('Nombre completo', 'Full name')} />
-                  <TextInput
-                    value={eu.name}
-                    onChangeText={(v) => updateUser(eu.id, 'name', v)}
-                    style={styles.input}
-                    placeholderTextColor="#9CA3AF"
-                  />
+                  <View style={styles.twoColRow}>
+                    <View style={styles.col}>
+                      <FieldLabel label={t('Nombre', 'First name')} />
+                      <TextInput
+                        value={eu.firstName}
+                        onChangeText={(v) => updateUser(eu.id, 'firstName', v)}
+                        style={styles.input}
+                        placeholderTextColor="#9CA3AF"
+                      />
+                    </View>
+                    <View style={styles.col}>
+                      <FieldLabel label={t('Apellido', 'Last name')} />
+                      <TextInput
+                        value={eu.lastName}
+                        onChangeText={(v) => updateUser(eu.id, 'lastName', v)}
+                        style={styles.input}
+                        placeholderTextColor="#9CA3AF"
+                      />
+                    </View>
+                  </View>
                   <FieldLabel label={t('Email', 'Email')} />
                   <TextInput
                     value={eu.email}
@@ -2243,6 +2296,39 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                     autoCapitalize="none"
                     keyboardType="email-address"
                     style={styles.input}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  <FieldLabel label={t('Teléfono', 'Phone')} />
+                  <TextInput
+                    value={eu.phone || ''}
+                    onChangeText={(v) => updateUser(eu.id, 'phone', v)}
+                    keyboardType="phone-pad"
+                    style={styles.input}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  <FieldLabel label={t('Dirección', 'Address')} />
+                  <TextInput
+                    value={eu.address || ''}
+                    onChangeText={(v) => updateUser(eu.id, 'address', v)}
+                    style={styles.input}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  <FieldLabel label={t('Nueva contraseña (opcional)', 'New password (optional)')} />
+                  <TextInput
+                    value={editUserPassword}
+                    onChangeText={setEditUserPassword}
+                    secureTextEntry
+                    style={styles.input}
+                    placeholder={t('Dejar en blanco para no cambiar', 'Leave blank to keep current')}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  <FieldLabel label={t('Repetir contraseña', 'Repeat password')} />
+                  <TextInput
+                    value={editUserPasswordConfirm}
+                    onChangeText={setEditUserPasswordConfirm}
+                    secureTextEntry
+                    style={styles.input}
+                    placeholder={t('Repite la nueva contraseña', 'Repeat the new password')}
                     placeholderTextColor="#9CA3AF"
                   />
                   <FieldLabel label={t('Rol', 'Role')} />
@@ -2255,10 +2341,15 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   </View>
                 </ScrollView>
                 <View style={[styles.userModalFooter, { gap: 10 }]}>
-                  <TouchableOpacity onPress={() => setEditingUserId(null)} style={[styles.userModalCloseBtn, { flex: 1, alignItems: 'center' }]}>
+                  <TouchableOpacity onPress={() => setEditingUserId(null)} style={[styles.userModalCloseBtn, styles.userModalSecondaryBtn]}>
                     <Text style={styles.userModalCloseBtnText}>{t('Cancelar', 'Cancel')}</Text>
                   </TouchableOpacity>
-                  <GradientButton label={t('GUARDAR', 'SAVE')} onPress={() => saveUserToApi(eu.id)} height={44} style={{ flex: 1 }} />
+                  <GradientButton onPress={() => saveUserToApi(eu.id)} height={44} style={styles.userModalPrimaryBtn}>
+                    <View style={styles.userModalPrimaryContent}>
+                      <Text style={styles.userModalPrimaryText}>{t('GUARDAR', 'SAVE')}</Text>
+                      <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+                    </View>
+                  </GradientButton>
                 </View>
               </View>
             </View>
@@ -2270,8 +2361,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       {showCreateUser && (
         <Modal visible transparent animationType="slide" onRequestClose={() => setShowCreateUser(false)}>
           <View style={styles.modalOverlay}>
-            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowCreateUser(false)} activeOpacity={1} />
-            <View style={[styles.userModal, { maxHeight: '92%' }]}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => { setShowCreateUser(false); setCuPasswordConfirm(''); }} activeOpacity={1} />
+            <View style={[styles.userModal, styles.userCreateModal]}>
               <View style={styles.userModalHeader}>
                 <View style={[styles.userInitialsAvatarLg, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
                   <Ionicons name="person-add-outline" size={22} color={colors.orange} />
@@ -2280,7 +2371,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   <Text style={styles.userModalName}>{t('Nuevo usuario', 'New user')}</Text>
                   <Text style={styles.userModalSub}>{t('Crea una cuenta manualmente', 'Create an account manually')}</Text>
                 </View>
-                <TouchableOpacity onPress={() => setShowCreateUser(false)} style={styles.userModalClose}>
+                <TouchableOpacity onPress={() => { setShowCreateUser(false); setCuPasswordConfirm(''); }} style={styles.userModalClose}>
                   <Ionicons name="close" size={20} color="rgba(226,232,240,0.7)" />
                 </TouchableOpacity>
               </View>
@@ -2297,6 +2388,15 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 <TextInput value={cuForm.phone} onChangeText={(v) => setCu('phone', v)} keyboardType="phone-pad" style={styles.input} />
                 <FieldLabel label={t('Contraseña (opcional)', 'Password (optional)')} />
                 <TextInput value={cuForm.password} onChangeText={(v) => setCu('password', v)} secureTextEntry style={styles.input} />
+                <FieldLabel label={t('Repetir contraseña', 'Repeat password')} />
+                <TextInput
+                  value={cuPasswordConfirm}
+                  onChangeText={setCuPasswordConfirm}
+                  secureTextEntry
+                  style={styles.input}
+                  placeholder={t('Repite la contraseña', 'Repeat the password')}
+                  placeholderTextColor="#9CA3AF"
+                />
                 <FieldLabel label={t('Rol', 'Role')} />
                 <View style={styles.segmentGroup}>
                   {(['client', 'organizer', 'admin'] as const).map((role) => (
@@ -2307,10 +2407,15 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 </View>
               </ScrollView>
               <View style={[styles.userModalFooter, { justifyContent: 'flex-end', gap: 10 }]}>
-                <TouchableOpacity onPress={() => setShowCreateUser(false)} style={styles.userModalCloseBtn}>
+                <TouchableOpacity onPress={() => { setShowCreateUser(false); setCuPasswordConfirm(''); }} style={[styles.userModalCloseBtn, styles.userModalSecondaryBtn]}>
                   <Text style={styles.userModalCloseBtnText}>{t('Cancelar', 'Cancel')}</Text>
                 </TouchableOpacity>
-                <GradientButton label={creatingUser ? t('CREANDO...', 'CREATING...') : t('CREAR USUARIO', 'CREATE USER')} onPress={createUserApi} height={44} style={{ flex: 1 }} />
+                <GradientButton onPress={createUserApi} height={44} style={styles.userModalPrimaryBtn}>
+                  <View style={styles.userModalPrimaryContent}>
+                    <Text style={styles.userModalPrimaryText}>{creatingUser ? t('CREANDO...', 'CREATING...') : t('CREAR USUARIO', 'CREATE USER')}</Text>
+                    <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+                  </View>
+                </GradientButton>
               </View>
             </View>
           </View>
@@ -3168,7 +3273,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                     <Image source={{ uri: emailArtData }} style={styles.mktPreviewArt} resizeMode="contain" />
                   ) : (
                     <View style={styles.mktPreviewArtEmpty}>
-                      <Ionicons name="image-outline" size={44} color="#CBD5E1" />
+                      <Ionicons name="image-outline" size={44} color="rgba(248,250,252,0.72)" />
                       <Text style={styles.mktPreviewArtText}>{t('Tu arte de Photoshop aparecerá aquí', 'Your Photoshop art will appear here')}</Text>
                     </View>
                   )}
@@ -4043,21 +4148,27 @@ const styles = StyleSheet.create({
   userActionIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
 
   // User detail modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(3,11,20,0.72)', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  userModal: { width: '100%', maxHeight: '88%', backgroundColor: '#0d1f33', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' },
-  userModalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.10)' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(3,11,20,0.62)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  userModal: { width: '100%', maxHeight: '88%', backgroundColor: 'rgba(3,11,20,0.92)', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
+  userEditModal: { height: '85%' },
+  userCreateModal: { height: '92%' },
+  userModalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.018)' },
   userModalName: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 2 },
   userModalSub: { color: 'rgba(226,232,240,0.52)', fontSize: 11, fontWeight: '600' },
   userModalClose: { width: 34, height: 34, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
   userModalSectionLabel: { color: 'rgba(226,232,240,0.44)', fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 10 },
-  userModalInfoCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', padding: 14, gap: 12 },
+  userModalInfoCard: { backgroundColor: 'rgba(255,255,255,0.026)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', padding: 14, gap: 12 },
   userModalInfoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   userModalInfoText: { color: '#CBD5E1', fontSize: 13, fontWeight: '500', flex: 1 },
   userModalEmptyText: { color: 'rgba(226,232,240,0.44)', fontSize: 13, fontWeight: '400', textAlign: 'center', paddingVertical: 8 },
-  userModalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
+  userModalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.014)' },
   userModalEditBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   userModalEditBtnText: { color: colors.orange, fontSize: 14, fontWeight: '700' },
   userModalCloseBtn: { height: 40, paddingHorizontal: 20, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  userModalSecondaryBtn: { flex: 0.82, height: 44, borderRadius: 10, backgroundColor: 'rgba(3,11,20,0.88)', borderColor: 'rgba(255,255,255,0.14)' },
+  userModalPrimaryBtn: { flex: 1.18, borderRadius: 10 },
+  userModalPrimaryContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  userModalPrimaryText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0, textShadowColor: 'rgba(0,0,0,0.24)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
   userModalCloseBtnText: { color: '#CBD5E1', fontSize: 14, fontWeight: '700' },
 
   // Event filter tabs
@@ -4233,16 +4344,16 @@ const styles = StyleSheet.create({
   mktPreviewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
   mktPreviewMailBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.06)' },
   mktPreviewMailText: { color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
-  mktEmailShell: { borderRadius: 24, backgroundColor: '#E2E8F0', padding: 12, marginTop: 12 },
-  mktEmailPreview: { borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-  mktPreviewLogoRow: { padding: 20, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  mktEmailShell: { borderRadius: 24, backgroundColor: 'rgba(3,11,20,0.36)', padding: 12, marginTop: 12, borderWidth: 1, borderColor: 'rgba(125,180,255,0.10)' },
+  mktEmailPreview: { borderRadius: 20, borderWidth: 1, borderColor: 'rgba(125,180,255,0.14)', backgroundColor: 'rgba(3,11,20,0.48)', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+  mktPreviewLogoRow: { padding: 20, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)', backgroundColor: 'rgba(255,255,255,0.018)' },
   mktPreviewLogoImg: { height: 36, width: 140 },
   mktPreviewArt: { width: '100%', height: 180 },
-  mktPreviewArtEmpty: { height: 200, marginHorizontal: 16, marginBottom: 8, borderRadius: 16, borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed', backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  mktPreviewArtText: { color: '#94A3B8', fontSize: 13, fontWeight: '700', textAlign: 'center', paddingHorizontal: 20 },
-  mktPreviewBody: { padding: 20, gap: 10, alignItems: 'center' },
-  mktPreviewBodyTitle: { color: '#0A375A', fontSize: 18, fontWeight: '900', textAlign: 'center' },
-  mktPreviewBodyCopy: { color: '#64748B', fontSize: 13, lineHeight: 20, textAlign: 'center', maxWidth: 280 },
+  mktPreviewArtEmpty: { height: 200, marginHorizontal: 16, marginBottom: 8, borderRadius: 16, borderWidth: 2, borderColor: 'rgba(125,180,255,0.16)', borderStyle: 'dashed', backgroundColor: 'rgba(3,11,20,0.30)', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  mktPreviewArtText: { color: 'rgba(248,250,252,0.78)', fontSize: 13, fontWeight: '700', textAlign: 'center', paddingHorizontal: 20 },
+  mktPreviewBody: { padding: 20, gap: 10, alignItems: 'center', backgroundColor: 'rgba(3,11,20,0.34)' },
+  mktPreviewBodyTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '900', textAlign: 'center' },
+  mktPreviewBodyCopy: { color: 'rgba(248,250,252,0.78)', fontSize: 13, lineHeight: 20, textAlign: 'center', maxWidth: 280 },
   mktPreviewBtn: { marginTop: 8, paddingVertical: 14, paddingHorizontal: 28, borderRadius: 12, backgroundColor: '#F97316', alignItems: 'center' },
   mktPreviewBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800', letterSpacing: 0.8 },
   mktWaLangRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
