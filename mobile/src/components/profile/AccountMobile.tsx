@@ -87,17 +87,20 @@ export function AccountMobile({ user, onUserUpdated, tabs, showSections = true }
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.86,
+      base64: true,
     });
     if (result.canceled || !result.assets?.length) return;
 
     const asset = result.assets[0];
+    if (!asset.base64) {
+      Alert.alert(t('Error', 'Error'), t('No se pudo preparar la foto seleccionada.', 'Could not prepare the selected photo.'));
+      return;
+    }
+
     setUploadingAvatar(true);
     try {
-      const updated = await uploadAvatarRequest({
-        uri: asset.uri,
-        fileName: asset.fileName,
-        mimeType: asset.mimeType,
-      });
+      const mimeType = asset.mimeType || 'image/jpeg';
+      const updated = await uploadAvatarRequest(`data:${mimeType};base64,${asset.base64}`);
       onUserUpdated?.(updated);
     } catch (err: any) {
       Alert.alert(
