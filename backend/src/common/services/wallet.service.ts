@@ -87,6 +87,7 @@ export class WalletService {
 
       const venueName = ticket.event?.venueName || 'LP Ticket';
       const venueAddress = ticket.event?.venueAddress || venueName;
+      const eventTitle = ticket.event?.title || 'LPTicket Event';
       const buyerName = [
         ticket.user?.firstName,
         ticket.user?.lastName,
@@ -113,11 +114,11 @@ export class WalletService {
           teamIdentifier,
           organizationName: 'LPTicket',
           serialNumber: ticket.ticketCode,
-          description: ticket.event?.title || 'LPTicket',
+          description: eventTitle,
           logoText: 'LPTicket',
-          foregroundColor: 'rgb(5,33,82)',
-          backgroundColor: 'rgb(255,255,255)',
-          labelColor: 'rgb(255,138,38)',
+          foregroundColor: 'rgb(248,250,252)',
+          backgroundColor: 'rgb(3,11,20)',
+          labelColor: 'rgb(255,138,24)',
           barcode: barcodePayload,
           barcodes: [barcodePayload],
         }
@@ -133,9 +134,9 @@ export class WalletService {
       pass.addBuffer('logo@2x.png', readFileSync(join(walletAssetDir, 'logo@2x.png')));
 
       pass.primaryFields.push({
-        key: 'buyer',
-        label: 'BUYER',
-        value: buyerName,
+        key: 'event',
+        label: 'EVENT',
+        value: eventTitle,
       });
 
       pass.secondaryFields.push(
@@ -160,7 +161,12 @@ export class WalletService {
         {
           key: 'venue',
           label: 'VENUE',
-          value: [venueName, venueAddress].filter(Boolean).join(' - '),
+          value: venueName,
+        },
+        {
+          key: 'buyer',
+          label: 'BUYER',
+          value: buyerName,
         },
       );
 
