@@ -22,6 +22,15 @@ import { join } from 'path';
 export class WalletService {
   constructor(private readonly configService: ConfigService) {}
 
+  private getPublicApiBaseUrl() {
+    const rawApiUrl = this.configService.get<string>('API_URL');
+    const fallbackApiUrl = 'https://ticketsystembackend.up.railway.app';
+    const baseUrl = rawApiUrl && !rawApiUrl.includes('localhost')
+      ? (rawApiUrl.startsWith('http') ? rawApiUrl : `https://${rawApiUrl}`)
+      : fallbackApiUrl;
+    return baseUrl.replace(/\/$/, '').replace(/\/api$/, '');
+  }
+
   private readAppleCredential(valueKeys: string[], pathKey: string): Buffer | null {
     const rawValue = valueKeys
       .map((key) => this.configService.get<string>(key))
@@ -43,6 +52,56 @@ export class WalletService {
     }
 
     return null;
+  }
+
+  private async readEventImageBuffer(image?: string | null): Promise<Buffer | null> {
+    if (!image) return null;
+
+    const dataMatch = image.match(/^data:([^;]+);base64,(.+)$/);
+    if (dataMatch) return Buffer.from(dataMatch[2], 'base64');
+
+    const publicApiBaseUrl = this.getPublicApiBaseUrl();
+    const readUrl = async (url: string) => {
+      const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      if (!res.ok) throw new Error(`Image request failed: ${res.status}`);
+      return Buffer.from(await res.arrayBuffer());
+    };
+
+    if (image.startsWith('http://') || image.startsWith('https://')) {
+      return readUrl(image);
+    }
+
+    if (image.startsWith('/')) {
+      const cleanPath = image.replace(/^\//, '');
+      const filePath = join(process.cwd(), cleanPath);
+      if (existsSync(filePath)) return readFileSync(filePath);
+      return readUrl(`${publicApiBaseUrl}${image}`);
+    }
+
+    const filePath = join(process.cwd(), image);
+    if (existsSync(filePath)) return readFileSync(filePath);
+    return readUrl(`${publicApiBaseUrl}/${image}`);
+  }
+
+  private async getAppleWalletStripBuffers(ticket: any, walletAssetDir: string) {
+    const fallback = {
+      strip: readFileSync(join(walletAssetDir, 'strip.png')),
+      strip2x: readFileSync(join(walletAssetDir, 'strip@2x.png')),
+    };
+
+    try {
+      const imageBuffer = await this.readEventImageBuffer(ticket.event?.bannerImageUrl || ticket.event?.imageUrl);
+      if (!imageBuffer) return fallback;
+
+      const sharp = require('sharp');
+      return {
+        strip: await sharp(imageBuffer).resize(375, 98, { fit: 'cover', position: 'center' }).png().toBuffer(),
+        strip2x: await sharp(imageBuffer).resize(750, 196, { fit: 'cover', position: 'center' }).png().toBuffer(),
+      };
+    } catch (err) {
+      console.warn('[WalletService] Could not build event Apple Wallet banner. Using fallback.', err);
+      return fallback;
+    }
   }
 
   // ── APPLE WALLET ────────────────────────────────────────────────────────────
@@ -131,6 +190,9 @@ export class WalletService {
       pass.addBuffer('icon@2x.png', readFileSync(join(walletAssetDir, 'icon@2x.png')));
       pass.addBuffer('logo.png', readFileSync(join(walletAssetDir, 'logo.png')));
       pass.addBuffer('logo@2x.png', readFileSync(join(walletAssetDir, 'logo@2x.png')));
+      const walletStrip = await this.getAppleWalletStripBuffers(ticket, walletAssetDir);
+      pass.addBuffer('strip.png', walletStrip.strip);
+      pass.addBuffer('strip@2x.png', walletStrip.strip2x);
 
       pass.primaryFields.push({
         key: 'buyer',
