@@ -14,6 +14,8 @@ class CreateCategoryDto {
   @IsString() @Length(1, 50) slug: string;
   @IsString() @Length(1, 100) labelEs: string;
   @IsString() @Length(1, 100) labelEn: string;
+  @IsOptional() @IsString() @Length(0, 120) subtitleEs?: string;
+  @IsOptional() @IsString() @Length(0, 120) subtitleEn?: string;
   @IsOptional() @IsString() icon?: string;
   @IsOptional() @IsString() color?: string;
   @IsOptional() @IsNumber() @Type(() => Number) sortOrder?: number;
@@ -24,6 +26,8 @@ class UpdateCategoryDto {
   @IsOptional() @IsString() @Length(1, 50) slug?: string;
   @IsOptional() @IsString() @Length(1, 100) labelEs?: string;
   @IsOptional() @IsString() @Length(1, 100) labelEn?: string;
+  @IsOptional() @IsString() @Length(0, 120) subtitleEs?: string;
+  @IsOptional() @IsString() @Length(0, 120) subtitleEn?: string;
   @IsOptional() @IsString() icon?: string;
   @IsOptional() @IsString() color?: string;
   @IsOptional() @IsNumber() @Type(() => Number) sortOrder?: number;
