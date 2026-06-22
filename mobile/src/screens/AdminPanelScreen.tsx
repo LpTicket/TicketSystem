@@ -8,6 +8,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { apiDelete, apiGet, apiPatch, apiPost, getImageUrl } from '../services/api';
 import { GradientButton } from '../components/GradientButton';
 import { OrganizerPanelScreen } from './OrganizerPanelScreen';
+import { OrganizerAnalyticsMobile } from '../components/organizer/OrganizerAnalyticsMobile';
 
 export type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes';
 type AdminUser = {
@@ -47,6 +48,15 @@ type EventFinancial = {
   lpticketProfit: number;
   ticketsSold: number;
   orders: number;
+};
+
+type AnalyticsEventTarget = {
+  id?: string;
+  slug?: string;
+  title: string;
+  imageUrl?: string;
+  venue?: string;
+  date?: string;
 };
 
 type ApiSpecialCode = {
@@ -226,6 +236,10 @@ function adminEventImage(event: any) {
   return getImageUrl(event?.imageUrl || event?.bannerImageUrl || event?.imageData || event?.mobileImageData);
 }
 
+function adminEventSlug(event: any) {
+  return String(event?.slug || event?.eventSlug || '').trim();
+}
+
 function toAdminUser(user: any): AdminUser {
   return {
     id: String(user.id || user._id || user.email),
@@ -255,7 +269,7 @@ const sections: { id: Section; label: string }[] = [
 
 type AdminProps = { section?: Section; onSectionChange?: (s: Section) => void };
 
-export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }: AdminProps = {}) {
+export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) {
   const { t } = useLanguage();
   const adminIndicatorX = useRef(new Animated.Value(0)).current;
   const adminIndicatorWidth = useRef(new Animated.Value(118)).current;
@@ -301,6 +315,11 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsRecentOpen, setAnalyticsRecentOpen] = useState(false);
+  const [selectedAnalyticsEvent, setSelectedAnalyticsEvent] = useState<AnalyticsEventTarget | null>(null);
+  const [selectedAnalyticsSales, setSelectedAnalyticsSales] = useState<any | null>(null);
+  const [selectedAnalyticsAttendees, setSelectedAnalyticsAttendees] = useState<any[]>([]);
+  const [selectedAnalyticsSections, setSelectedAnalyticsSections] = useState<any[]>([]);
+  const [selectedAnalyticsLoading, setSelectedAnalyticsLoading] = useState(false);
   const [eventFinancials, setEventFinancials] = useState<EventFinancial[]>([]);
   const [selectedFinancialEventId, setSelectedFinancialEventId] = useState('');
   const [financialTabLayouts, setFinancialTabLayouts] = useState<Record<string, { x: number; width: number }>>({});
@@ -723,13 +742,50 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   // Lazy-load analytics when that section is first opened or days changes
   useEffect(() => {
     if (active !== 'analytics' || analyticsLoading) return;
+    if (selectedAnalyticsEvent && !selectedAnalyticsEvent.slug) {
+      setAnalyticsSummary({ days: analyticsDays, totalViews: 0, uniqueVisitors: 0, topEvents: [], topPages: [], daily: [], recentViews: [] });
+      return;
+    }
     setAnalyticsLoading(true);
     setAnalyticsSummary(null);
-    apiGet<AnalyticsSummary>(`/analytics/summary?days=${analyticsDays}`)
+    const eventParam = selectedAnalyticsEvent?.slug ? `&eventSlug=${encodeURIComponent(selectedAnalyticsEvent.slug)}` : '';
+    apiGet<AnalyticsSummary>(`/analytics/summary?days=${analyticsDays}${eventParam}`)
       .then(setAnalyticsSummary)
       .catch(() => {})
       .finally(() => setAnalyticsLoading(false));
-  }, [active, analyticsDays]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active, analyticsDays, selectedAnalyticsEvent?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const eventId = selectedAnalyticsEvent?.id;
+    if (active !== 'analytics' || !eventId) {
+      setSelectedAnalyticsSales(null);
+      setSelectedAnalyticsAttendees([]);
+      setSelectedAnalyticsSections([]);
+      return;
+    }
+
+    let mounted = true;
+    setSelectedAnalyticsLoading(true);
+    Promise.all([
+      apiGet<any>(`/orders/event/${eventId}/sales`).catch(() => null),
+      apiGet<any>(`/orders/event/${eventId}/attendees`).catch(() => []),
+      apiGet<any[]>(`/events/${eventId}/seatmap`)
+        .catch(() => apiGet<any[]>(`/events/${eventId}/sections`).catch(() => [])),
+    ])
+      .then(([sales, attendees, sections]) => {
+        if (!mounted) return;
+        setSelectedAnalyticsSales(sales || null);
+        setSelectedAnalyticsAttendees(listFrom(attendees));
+        setSelectedAnalyticsSections(Array.isArray(sections) ? sections : []);
+      })
+      .finally(() => {
+        if (mounted) setSelectedAnalyticsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [active, selectedAnalyticsEvent?.id]);
 
   // Lazy-load special codes when that section is first opened
   useEffect(() => {
@@ -1538,6 +1594,25 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     }
   };
 
+  const openEventAnalytics = (event: any) => {
+    setSelectedAnalyticsEvent({
+      id: event?.id ? String(event.id) : undefined,
+      slug: adminEventSlug(event),
+      title: adminEventTitle(event),
+      imageUrl: adminEventImage(event),
+      venue: adminEventVenue(event),
+      date: adminEventDate(event),
+    });
+    onSectionChange?.('analytics');
+    setTimeout(() => adminScrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
+  };
+
+  const backToAdminEventsFromAnalytics = () => {
+    setSelectedAnalyticsEvent(null);
+    onSectionChange?.('events');
+    setTimeout(() => adminScrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
+  };
+
   const closeAdminEventEditor = async () => {
     setEditingAdminEvent(null);
     try {
@@ -1547,6 +1622,19 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       /* keep current list */
     }
   };
+
+  const selectedAnalyticsFinancial = selectedAnalyticsEvent
+    ? eventFinancials.find((event) => event.id === selectedAnalyticsEvent.id)
+    : undefined;
+  const selectedAnalyticsPaidOrders = ((selectedAnalyticsSales?.orders || []) as any[])
+    .filter((order) => Number(order.subtotal ?? order.total ?? 0) > 0);
+  const selectedAnalyticsPaidTickets = selectedAnalyticsPaidOrders.reduce((sum, order) => {
+    const tickets = Array.isArray(order.tickets) ? order.tickets : [];
+    if (tickets.length > 0) {
+      return sum + tickets.filter((ticket: any) => Number(ticket.price ?? order.subtotal ?? order.total ?? 0) > 0).length;
+    }
+    return sum + Number(order.ticketCount || 0);
+  }, 0);
 
   return (
     <View style={styles.root}>
@@ -1867,7 +1955,12 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   <Ionicons name="pencil" size={15} color="#F97316" />
                 </TouchableOpacity>
                 <View style={styles.adminEventTop}>
-                  <View style={styles.adminEventPosterWrap}>
+                  <TouchableOpacity
+                    onPress={() => openEventAnalytics(item)}
+                    style={styles.adminEventPosterWrap}
+                    activeOpacity={0.86}
+                    accessibilityLabel={t('Ver estadísticas del evento', 'View event analytics')}
+                  >
                     {adminEventImage(item) ? (
                       <Image source={{ uri: adminEventImage(item) }} style={styles.adminEventPoster} resizeMode="cover" />
                     ) : (
@@ -1875,7 +1968,10 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                         <Text style={styles.adminEventPosterText}>EVENT</Text>
                       </View>
                     )}
-                  </View>
+                    <View style={styles.adminEventStatsTab}>
+                      <Ionicons name="stats-chart" size={13} color="#FFFFFF" />
+                    </View>
+                  </TouchableOpacity>
 
                   <View style={styles.adminEventMain}>
                     <Text style={styles.adminEventEyebrow}>{(item.status || 'EVENT').toUpperCase()}</Text>
@@ -2459,7 +2555,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 <FieldLabel label={t('Título', 'Title')} />
                 <TextInput
                   value={categoryForm.labelEs}
-                  onChangeText={(v) => setCategoryForm((f) => ({ ...f, labelEs: v, labelEn: f.labelEn || v, slug: f.slug || slugify(v) }))}
+                  onChangeText={(v) => setCategoryForm((f) => ({ ...f, labelEs: v, labelEn: v, slug: f.slug || slugify(v) }))}
                   placeholder={t('Ej. Concierto', 'E.g. Concert')}
                   placeholderTextColor="#6B7280"
                   style={styles.catFormInput}
@@ -2467,7 +2563,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 <FieldLabel label={t('Subtítulo', 'Subtitle')} />
                 <TextInput
                   value={categoryForm.subtitleEs}
-                  onChangeText={(v) => setCategoryForm((f) => ({ ...f, subtitleEs: v, subtitleEn: f.subtitleEn || v }))}
+                  onChangeText={(v) => setCategoryForm((f) => ({ ...f, subtitleEs: v, subtitleEn: v }))}
                   placeholder={t('Ej. Música en vivo', 'E.g. Live music')}
                   placeholderTextColor="#6B7280"
                   style={styles.catFormInput}
@@ -2550,7 +2646,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 <FieldLabel label={t('Título', 'Title')} />
                 <TextInput
                   value={editCategoryForm.labelEs}
-                  onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, labelEs: v, labelEn: f.labelEn || v }))}
+                  onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, labelEs: v, labelEn: v }))}
                   placeholder={t('Ej. Concierto', 'E.g. Concert')}
                   placeholderTextColor="#6B7280"
                   style={styles.catFormInput}
@@ -2558,7 +2654,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 <FieldLabel label={t('Subtítulo', 'Subtitle')} />
                 <TextInput
                   value={editCategoryForm.subtitleEs}
-                  onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, subtitleEs: v, subtitleEn: f.subtitleEn || v }))}
+                  onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, subtitleEs: v, subtitleEn: v }))}
                   placeholder={t('Ej. Música en vivo', 'E.g. Live music')}
                   placeholderTextColor="#6B7280"
                   style={styles.catFormInput}
@@ -2779,9 +2875,19 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
           <>
             {/* ─── Header ─── */}
             <View style={styles.anHeader}>
+              {selectedAnalyticsEvent && (
+                <TouchableOpacity
+                  onPress={backToAdminEventsFromAnalytics}
+                  style={styles.anBackBtn}
+                  activeOpacity={0.84}
+                  accessibilityLabel={t('Volver a eventos', 'Back to events')}
+                >
+                  <Ionicons name="chevron-back" size={19} color="#F97316" />
+                </TouchableOpacity>
+              )}
               <View style={{ flex: 1 }}>
-                <Text style={styles.anTitle}>{t('Analíticas', 'Analytics')}</Text>
-                <Text style={styles.anSubtitle}>{t('Visitas del sitio y eventos más vistos', 'Site visits and most viewed events')}</Text>
+                <Text style={styles.anTitle}>{selectedAnalyticsEvent ? t('Analíticas del evento', 'Event analytics') : t('Analíticas', 'Analytics')}</Text>
+                <Text style={styles.anSubtitle}>{selectedAnalyticsEvent?.title || t('Visitas del sitio y eventos más vistos', 'Site visits and most viewed events')}</Text>
               </View>
               <TouchableOpacity
                 onPress={() => {
@@ -2798,14 +2904,41 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               </TouchableOpacity>
             </View>
 
+            {selectedAnalyticsEvent && (
+              <View style={styles.anSelectedEventCard}>
+                <View style={styles.anSelectedImageWrap}>
+                  {selectedAnalyticsEvent.imageUrl ? (
+                    <Image source={{ uri: selectedAnalyticsEvent.imageUrl }} style={styles.anSelectedImage} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.anSelectedImageFallback}>
+                      <Ionicons name="calendar-outline" size={24} color="rgba(249,115,22,0.75)" />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.anSelectedCopy}>
+                  <Text style={styles.anSelectedEyebrow}>{t('EVENTO SELECCIONADO', 'SELECTED EVENT')}</Text>
+                  <Text style={styles.anSelectedTitle} numberOfLines={2}>{selectedAnalyticsEvent.title}</Text>
+                  <Text style={styles.anSelectedMeta} numberOfLines={1}>{selectedAnalyticsEvent.date || selectedAnalyticsEvent.venue || selectedAnalyticsEvent.slug}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setSelectedAnalyticsEvent(null)} style={styles.anSelectedClear}>
+                  <Ionicons name="close" size={16} color="rgba(226,232,240,0.72)" />
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* ─── Stat cards 2-col grid ─── */}
             <View style={styles.anStatGrid}>
-              {[
+              {(selectedAnalyticsEvent ? [
+                { label: t('Vistas del evento', 'Event views'), value: analyticsSummary?.totalViews ?? 0, icon: 'eye-outline' as const },
+                { label: t('Visitantes', 'Visitors'), value: analyticsSummary?.uniqueVisitors ?? 0, icon: 'people-outline' as const },
+                { label: t('Actividad reciente', 'Recent activity'), value: analyticsSummary?.recentViews.length ?? 0, icon: 'flash-outline' as const },
+                { label: t('Páginas vistas', 'Viewed pages'), value: analyticsSummary?.topPages.length ?? 0, icon: 'bar-chart-outline' as const },
+              ] : [
                 { label: t('Vistas totales', 'Total views'), value: analyticsSummary?.totalViews ?? 0, icon: 'eye-outline' as const },
                 { label: t('Visitantes únicos', 'Unique visitors'), value: analyticsSummary?.uniqueVisitors ?? 0, icon: 'people-outline' as const },
                 { label: t('Eventos vistos', 'Viewed events'), value: analyticsSummary?.topEvents.length ?? 0, icon: 'flash-outline' as const },
                 { label: t('Páginas vistas', 'Viewed pages'), value: (analyticsSummary?.topPages ?? []).length, icon: 'bar-chart-outline' as const },
-              ].map((s, index) => (
+              ]).map((s, index) => (
                 <View key={`${s.label}-${index}`} style={styles.anStatCard}>
                   <View style={styles.anStatTop}>
                     <Text style={styles.anStatLabel}>{s.label}</Text>
@@ -2816,12 +2949,44 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               ))}
             </View>
 
+            {selectedAnalyticsEvent && (
+              <>
+                <View style={styles.anStatGrid}>
+                  {[
+                    { label: t('Facturado total', 'Total charged'), value: `$${Number(selectedAnalyticsFinancial?.totalCharged ?? selectedAnalyticsSales?.totalRevenue ?? 0).toFixed(2)}`, icon: 'card-outline' as const },
+                    { label: t('Ingresos entradas', 'Ticket sales'), value: `$${Number(selectedAnalyticsFinancial?.ticketSales ?? selectedAnalyticsSales?.totalRevenue ?? 0).toFixed(2)}`, icon: 'cash-outline' as const },
+                    { label: t('Órdenes', 'Orders'), value: selectedAnalyticsPaidOrders.length || selectedAnalyticsFinancial?.orders || 0, icon: 'receipt-outline' as const },
+                    { label: t('Tickets vendidos', 'Tickets sold'), value: selectedAnalyticsPaidTickets || 0, icon: 'ticket-outline' as const },
+                  ].map((s, index) => (
+                    <View key={`${s.label}-${index}`} style={styles.anStatCard}>
+                      <View style={styles.anStatTop}>
+                        <Text style={styles.anStatLabel}>{s.label}</Text>
+                        <View style={styles.anStatIconBox}><Ionicons name={s.icon} size={16} color={colors.orange} /></View>
+                      </View>
+                      <Text style={styles.anStatValue}>{typeof s.value === 'number' && s.value >= 1000 ? `${(s.value / 1000).toFixed(1)}k` : String(s.value)}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {selectedAnalyticsLoading ? (
+                  <View style={styles.anStatCard}><Text style={styles.anStatLabel}>{t('Cargando analítica del evento...', 'Loading event analytics...')}</Text></View>
+                ) : (
+                  <OrganizerAnalyticsMobile
+                    sales={selectedAnalyticsSales}
+                    attendees={selectedAnalyticsAttendees}
+                    sections={selectedAnalyticsSections}
+                    eventTitle={selectedAnalyticsEvent.title}
+                  />
+                )}
+              </>
+            )}
+
             {analyticsLoading && (
               <View style={styles.anStatCard}><Text style={styles.anStatLabel}>{t('Cargando...', 'Loading...')}</Text></View>
             )}
 
             {/* ─── Top events ─── */}
-            {(analyticsSummary?.topEvents ?? []).length > 0 && (
+            {!selectedAnalyticsEvent && (analyticsSummary?.topEvents ?? []).length > 0 && (
               <View style={styles.anSection}>
                 <Text style={styles.anSectionTitle}>{t('Eventos más vistos', 'Top events')}</Text>
                 {(analyticsSummary?.topEvents ?? []).slice(0, 5).map((ev, i) => (
@@ -2835,7 +3000,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             )}
 
             {/* ─── Top pages ─── */}
-            {(analyticsSummary?.topPages ?? []).length > 0 && (
+            {!selectedAnalyticsEvent && (analyticsSummary?.topPages ?? []).length > 0 && (
               <View style={styles.anSection}>
                 <Text style={styles.anSectionTitle}>{t('Páginas más vistas', 'Top pages')}</Text>
                 {(analyticsSummary?.topPages ?? []).slice(0, 5).map((page, i) => (
@@ -2849,7 +3014,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             )}
 
             {/* ─── Recent activity ─── */}
-            {(analyticsSummary?.recentViews ?? []).length > 0 && (
+            {!selectedAnalyticsEvent && (analyticsSummary?.recentViews ?? []).length > 0 && (
               <View style={styles.anSection}>
                 <TouchableOpacity onPress={() => setAnalyticsRecentOpen((v) => !v)} style={styles.anRecentHeader}>
                   <View style={{ flex: 1 }}>
@@ -3869,6 +4034,7 @@ const styles = StyleSheet.create({
   adminEventPoster: { width: '100%', height: '100%' },
   adminEventPosterFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.08)' },
   adminEventPosterText: { color: colors.orange, fontSize: 9, fontWeight: '700', letterSpacing: 0 },
+  adminEventStatsTab: { position: 'absolute', right: 5, bottom: 5, width: 28, height: 28, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', backgroundColor: 'rgba(249,115,22,0.92)', alignItems: 'center', justifyContent: 'center', shadowColor: '#F97316', shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
   adminEventMain: { flex: 1, minWidth: 0, paddingRight: 34 },
   adminEventEyebrow: { color: colors.orange, fontSize: 10, fontWeight: '700', letterSpacing: 0, marginBottom: 4 },
   adminEventTitle: { color: '#F8FAFC', fontSize: 17, lineHeight: 21, fontWeight: '700', marginBottom: 5 },
@@ -4433,10 +4599,20 @@ const styles = StyleSheet.create({
 
   // ── Analytics redesign ────────────────────────────────────────────────────
   anHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
+  anBackBtn: { width: 40, height: 40, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', backgroundColor: 'rgba(249,115,22,0.10)', alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   anTitle: { color: '#F8FAFC', fontSize: 26, fontWeight: '800', marginBottom: 4 },
   anSubtitle: { color: 'rgba(226,232,240,0.55)', fontSize: 13, fontWeight: '500' },
   anDayBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.04)', marginTop: 4 },
   anDayBtnText: { color: '#F8FAFC', fontSize: 13, fontWeight: '600' },
+  anSelectedEventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(249,115,22,0.24)', backgroundColor: 'rgba(249,115,22,0.075)', marginBottom: 12 },
+  anSelectedImageWrap: { width: 58, height: 72, borderRadius: 13, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.75)' },
+  anSelectedImage: { width: '100%', height: '100%' },
+  anSelectedImageFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.08)' },
+  anSelectedCopy: { flex: 1, minWidth: 0 },
+  anSelectedEyebrow: { color: colors.orange, fontSize: 10, fontWeight: '900', letterSpacing: 0.6, marginBottom: 3 },
+  anSelectedTitle: { color: '#F8FAFC', fontSize: 15, lineHeight: 19, fontWeight: '800' },
+  anSelectedMeta: { color: 'rgba(226,232,240,0.52)', fontSize: 12, fontWeight: '600', marginTop: 4 },
+  anSelectedClear: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.045)', alignItems: 'center', justifyContent: 'center' },
   anStatGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
   anStatCard: { flex: 1, minWidth: '47%', padding: 16, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.018)' },
   anStatTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },

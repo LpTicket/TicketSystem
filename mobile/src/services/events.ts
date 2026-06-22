@@ -24,16 +24,18 @@ type ApiEvent = {
   isFeatured?: boolean;
 };
 
-function formatEventDate(value?: string) {
+function formatEventDate(value?: string, timeZone?: string) {
   if (!value) return 'Date coming soon';
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
   return `${date.toLocaleDateString('en-US', {
+    ...(timeZone ? { timeZone } : {}),
     month: '2-digit',
     day: '2-digit',
   })} at ${date.toLocaleTimeString('en-US', {
+    ...(timeZone ? { timeZone } : {}),
     hour: '2-digit',
     minute: '2-digit',
   })}`;
@@ -99,7 +101,7 @@ export async function getPublicEvents(): Promise<MobileEvent[]> {
       id: event.id,
       slug: event.slug,
       title: event.title,
-      date: formatEventDate(event.eventDate),
+      date: formatEventDate(event.eventDate, event.eventTimezone),
       venue: event.venueName || 'Venue coming soon',
       address: event.venueAddress || '',
       price: `${price.toFixed(2)} ${currency}`,

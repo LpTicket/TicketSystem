@@ -17,6 +17,7 @@ type AccountForm = {
   phone: string;
   address: string;
   password: string;
+  confirmPassword: string;
 };
 
 type Props = {
@@ -39,6 +40,7 @@ export function AccountMobile({ user, onUserUpdated, tabs, showSections = true }
     phone: user.phone || '',
     address: '',
     password: '',
+    confirmPassword: '',
   });
 
   const initials = `${account.firstName[0] || ''}${account.lastName[0] || ''}`.toUpperCase();
@@ -49,6 +51,14 @@ export function AccountMobile({ user, onUserUpdated, tabs, showSections = true }
   };
 
   const save = async () => {
+    if (account.password && account.password !== account.confirmPassword) {
+      Alert.alert(
+        t('Contraseñas distintas', 'Passwords do not match'),
+        t('Revisa que la nueva contraseña y repetir contraseña sean iguales.', 'Make sure the new password and confirm password match.'),
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       const updated = await updateProfileRequest({
@@ -61,7 +71,7 @@ export function AccountMobile({ user, onUserUpdated, tabs, showSections = true }
         ...(account.password ? { password: account.password } : {}),
       });
       onUserUpdated?.(updated);
-      setAccount((c) => ({ ...c, password: '' }));
+      setAccount((c) => ({ ...c, password: '', confirmPassword: '' }));
       setEditing(false);
     } catch {
       /* keep editing on error */
@@ -194,6 +204,7 @@ export function AccountMobile({ user, onUserUpdated, tabs, showSections = true }
                 <Field label={t('Teléfono', 'Phone')} value={account.phone} onChangeText={(value: string) => update('phone', value)} keyboardType="phone-pad" />
                 <Field label={t('Dirección', 'Address')} value={account.address} onChangeText={(value: string) => update('address', value)} multiline />
                 <Field label={t('Nueva contraseña opcional', 'New password optional')} value={account.password} onChangeText={(value: string) => update('password', value)} secureTextEntry placeholder="******" />
+                <Field label={t('Repetir contraseña', 'Confirm password')} value={account.confirmPassword} onChangeText={(value: string) => update('confirmPassword', value)} secureTextEntry placeholder="******" />
 
                 <TouchableOpacity style={[styles.saveButton, saving && { opacity: 0.6 }]} onPress={save} disabled={saving}>
                   <Text style={styles.saveText}>{saving ? t('GUARDANDO...', 'SAVING...') : t('GUARDAR CAMBIOS', 'SAVE CHANGES')}</Text>
@@ -209,31 +220,6 @@ export function AccountMobile({ user, onUserUpdated, tabs, showSections = true }
                 <InfoRow label={t('Dirección', 'Address')} value={account.address} />
               </View>
             )}
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.eyebrow}>{t('SEGURIDAD', 'SECURITY')}</Text>
-            <Text style={styles.title}>{t('Acceso de cuenta', 'Account access')}</Text>
-
-            <View style={styles.securityRow}>
-              <View>
-                <Text style={styles.securityTitle}>{t('Email verificado', 'Email verified')}</Text>
-                <Text style={styles.securityCopy}>{t('Usado para tickets, recibos y recuperación de cuenta.', 'Used for tickets, receipts and account recovery.')}</Text>
-              </View>
-              <View style={styles.statusPill}>
-                <Text style={styles.statusText}>{t('ACTIVO', 'ACTIVE')}</Text>
-              </View>
-            </View>
-
-            <View style={styles.securityRow}>
-              <View>
-                <Text style={styles.securityTitle}>{t('Contraseña', 'Password')}</Text>
-                <Text style={styles.securityCopy}>{t('Actualízala desde el modo de edición cuando sea necesario.', 'Update it from edit mode when needed.')}</Text>
-              </View>
-              <View style={styles.softPill}>
-                <Text style={styles.softPillText}>{t('LISTO', 'READY')}</Text>
-              </View>
-            </View>
           </View>
         </>
       )}
@@ -393,22 +379,4 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   saveText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '700' },
-  securityRow: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: '#030B14',
-    padding: 14,
-    marginTop: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 14,
-    alignItems: 'center',
-  },
-  securityTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 3 },
-  securityCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '400', lineHeight: 19, maxWidth: 220 },
-  statusPill: { backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, paddingVertical: 8 },
-  statusText: { color: '#F8FAFC', fontSize: 11, letterSpacing: 0, fontWeight: '700' },
-  softPill: { backgroundColor: '#030B14', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, paddingVertical: 8 },
-  softPillText: { color: '#F8FAFC', fontSize: 11, letterSpacing: 0, fontWeight: '700' },
 });

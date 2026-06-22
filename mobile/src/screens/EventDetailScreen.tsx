@@ -47,10 +47,11 @@ type ApiEventDetail = {
   defaultViewZoom?: number;
 };
 
-function formatDate(value?: string, lang?: string) {
+function formatDate(value?: string, lang?: string, timeZone?: string) {
   if (!value) return '';
   try {
     return new Intl.DateTimeFormat(lang === 'es' ? 'es-US' : 'en-US', {
+      ...(timeZone ? { timeZone } : {}),
       weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
     }).format(new Date(value));
   } catch { return value; }
@@ -67,7 +68,7 @@ function mergeEvent(base: MobileEvent, data?: ApiEventDetail, lang?: string): Mo
     id: data.id || base.id,
     slug: data.slug || base.slug,
     title: data.title || base.title,
-    date: formatDate(data.eventDate, lang) || base.date,
+    date: formatDate(data.eventDate, lang, data.eventTimezone || base.eventTimezone) || base.date,
     venue: data.venueName || base.venue,
     address: data.venueAddress || base.address,
     price: `${price.toFixed(2)} ${currency}`,
@@ -310,6 +311,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
           <Ionicons name="share-social-outline" size={18} color={colors.orange} />
         </TouchableOpacity>
       </View>
+      <Text style={st.pageTitle}>{t('Detalle del evento', 'Event detail')}</Text>
 
       {/* Hero image */}
       <View style={[st.hero, { height: heroHeight }]}>
@@ -543,13 +545,14 @@ const st = StyleSheet.create({
   backButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.035)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
   backText: { color: 'rgba(226,232,240,0.85)', fontWeight: '700', fontSize: 14 },
   shareBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(249,115,22,0.10)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', alignItems: 'center', justifyContent: 'center' },
+  pageTitle: { color: '#FFFFFF', fontSize: 30, fontWeight: '700', lineHeight: 36, marginHorizontal: 16, marginBottom: 12 },
   hero: { alignSelf: 'stretch', borderRadius: 16, overflow: 'hidden', marginHorizontal: 16, marginBottom: 14, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(148,163,184,0.20)' },
   heroImage: { width: '100%', height: '100%' },
   heroBadge: { position: 'absolute', top: 12, left: 12, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: 'rgba(16,185,129,0.18)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.46)', shadowColor: '#10B981', shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   heroBadgeText: { color: '#D1FAE5', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
   panel: { marginHorizontal: 16, borderRadius: 16, padding: 18, backgroundColor: 'rgba(255,255,255,0.025)', borderWidth: 1, borderColor: 'rgba(148,163,184,0.18)', marginBottom: 14 },
   eyebrow: { color: colors.orange, fontSize: 11, fontWeight: '700', marginBottom: 6 },
-  title: { color: '#FFFFFF', fontSize: 26, fontWeight: '900', lineHeight: 31, marginBottom: 14 },
+  title: { color: '#FFFFFF', fontSize: 26, fontWeight: '700', lineHeight: 31, marginBottom: 14 },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 8 },
   infoIcon: { marginTop: 2, flexShrink: 0 },
   infoText: { color: 'rgba(255,255,255,0.86)', fontSize: 14, lineHeight: 20, fontWeight: '600', flex: 1 },
@@ -574,7 +577,7 @@ const st = StyleSheet.create({
   qtyBtnText: { color: colors.orange, fontSize: 20, fontWeight: '900', lineHeight: 24 },
   qtyVal: { color: colors.textPrimary, fontSize: 22, fontWeight: '900', minWidth: 28, textAlign: 'center' },
   purchaseCard: { marginHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(8,20,36,0.90)', padding: 18, gap: 10 },
-  purchaseTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '900', marginBottom: 4 },
+  purchaseTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '700', marginBottom: 4 },
   seatsList: { gap: 8 },
   seatsLabel: { color: 'rgba(203,213,225,0.55)', fontSize: 11, fontWeight: '700', letterSpacing: 0.3, marginBottom: 2 },
   seatRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },

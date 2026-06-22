@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Override with EXPO_PUBLIC_API_URL (e.g. http://192.168.x.x:3001/api for local dev).
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'https://ticketsystembackend.up.railway.app/api').replace(/\/$/, '');
 const TOKENS_KEY = 'lp_auth_tokens';
+const REQUEST_TIMEOUT_MS = 15000;
+const GET_RETRY_DELAYS_MS = [600, 1400];
 
 let accessToken = '';
 let refreshToken = '';
@@ -63,6 +65,70 @@ function authHeaders(extra?: Record<string, string>) {
   };
 }
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function persistTokens(tokens: { accessToken: string; refreshToken: string }) {
+  accessToken = tokens.accessToken || '';
+  refreshToken = tokens.refreshToken || '';
+  try {
+    await AsyncStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));
+  } catch {
+    /* ignore */
+  }
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function refreshAuthTokens() {
+  await ensureAuthTokens();
+  if (!refreshToken) return false;
+  try {
+    const response = await fetchWithTimeout(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!response.ok) return false;
+    const data = await response.json();
+    if (!data?.accessToken || !data?.refreshToken) return false;
+    await persistTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function requestWithAuth(url: string, options: RequestInit = {}, retryAuth = true) {
+  await ensureAuthTokens();
+  let response = await fetchWithTimeout(url, options);
+  if (response.status === 401 && retryAuth) {
+    const refreshed = await refreshAuthTokens();
+    if (refreshed) {
+      response = await fetchWithTimeout(url, {
+        ...options,
+        headers: authHeaders(options.headers as Record<string, string> | undefined),
+      });
+    }
+  }
+  return response;
+}
+
+async function readJsonResponse<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
 export function getImageUrl(url: string | null | undefined): string {
   if (!url) return '';
 
@@ -87,22 +153,35 @@ export async function apiGet<T>(path: string, params?: Record<string, any>): Pro
       .join('&');
     if (qs) url += `?${qs}`;
   }
-  await ensureAuthTokens();
-  const response = await fetch(url, { headers: authHeaders() });
+  let response: Response | null = null;
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= GET_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      response = await requestWithAuth(url, { headers: authHeaders() });
+      if (response.ok || (response.status >= 400 && response.status < 500)) break;
+    } catch (err) {
+      lastError = err;
+    }
+    const delay = GET_RETRY_DELAYS_MS[attempt];
+    if (delay) await wait(delay);
+  }
+
+  if (!response) {
+    throw lastError instanceof Error ? lastError : new Error('API request failed');
+  }
 
   if (!response.ok) {
     throw new Error(`API request failed: ${response.status}`);
   }
 
-  return response.json() as Promise<T>;
+  return readJsonResponse<T>(response);
 }
 
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  await ensureAuthTokens();
-  const response = await fetch(`${API_URL}${cleanPath}`, {
+  const response = await requestWithAuth(`${API_URL}${cleanPath}`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body === undefined ? {} : body),
@@ -117,16 +196,14 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
     throw new Error(message);
   }
 
-  const text = await response.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  return readJsonResponse<T>(response);
 }
 
 export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  await ensureAuthTokens();
-  const response = await fetch(`${API_URL}${cleanPath}`, {
+  const response = await requestWithAuth(`${API_URL}${cleanPath}`, {
     method: 'PATCH',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -136,15 +213,14 @@ export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
     throw new Error(`API request failed: ${response.status}`);
   }
 
-  return response.json() as Promise<T>;
+  return readJsonResponse<T>(response);
 }
 
 export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
   if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  await ensureAuthTokens();
-  const response = await fetch(`${API_URL}${cleanPath}`, {
+  const response = await requestWithAuth(`${API_URL}${cleanPath}`, {
     method: 'PUT',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -154,8 +230,7 @@ export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
     throw new Error(`API request failed: ${response.status}`);
   }
 
-  const text = await response.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  return readJsonResponse<T>(response);
 }
 
 export type PickedImage = { uri: string; fileName?: string | null; mimeType?: string | null };
@@ -173,15 +248,14 @@ export async function apiUploadImage<T>(path: string, image: PickedImage, field 
 
   if (typeof window !== 'undefined' && image.uri.startsWith('blob:')) {
     // Web: the picker hands back a blob: URL — materialize it into a Blob.
-    const blob = await (await fetch(image.uri)).blob();
+    const blob = await (await fetchWithTimeout(image.uri)).blob();
     form.append(field, blob, name);
   } else {
     // Native: React Native FormData accepts the file descriptor object.
     form.append(field, { uri: image.uri, name, type } as any);
   }
 
-  await ensureAuthTokens();
-  const response = await fetch(`${API_URL}${cleanPath}`, {
+  const response = await requestWithAuth(`${API_URL}${cleanPath}`, {
     method: 'POST',
     headers: authHeaders(),
     body: form,
@@ -196,16 +270,14 @@ export async function apiUploadImage<T>(path: string, image: PickedImage, field 
     throw new Error(message);
   }
 
-  const text = await response.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  return readJsonResponse<T>(response);
 }
 
 export async function apiDelete<T = void>(path: string): Promise<T> {
   if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  await ensureAuthTokens();
-  const response = await fetch(`${API_URL}${cleanPath}`, {
+  const response = await requestWithAuth(`${API_URL}${cleanPath}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });
@@ -214,6 +286,5 @@ export async function apiDelete<T = void>(path: string): Promise<T> {
     throw new Error(`API request failed: ${response.status}`);
   }
 
-  const text = await response.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  return readJsonResponse<T>(response);
 }

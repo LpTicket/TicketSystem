@@ -1,9 +1,9 @@
 import { useMemo, useEffect, useRef, useState } from 'react';
-import { Alert, Image, Modal, PanResponder, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Modal, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { apiDelete, apiPatch, apiPost, apiUploadImage, getImageUrl } from '../../services/api';
+import { apiDelete, apiGet, apiPatch, apiPost, apiUploadImage, getImageUrl } from '../../services/api';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { GradientButton } from '../GradientButton';
@@ -39,6 +39,7 @@ type DashboardEvent = {
 };
 
 type SalesByDayItem = { date: string; orders: number; tickets: number; revenue: number };
+type EventCategoryOption = { id?: string; slug?: string; labelEs?: string; labelEn?: string; color?: string; icon?: string; isActive?: boolean };
 
 type DashboardProps = Pick<SharedProps, 'eventTitle' | 'eventVenue' | 'eventStatus' | 'goTo'> & {
   eventDateLabel?: string;
@@ -48,6 +49,65 @@ type DashboardProps = Pick<SharedProps, 'eventTitle' | 'eventVenue' | 'eventStat
   salesByDay?: SalesByDayItem[];
   onOpenEvent?: (eventId: string) => void;
 };
+
+function timeZoneOffsetMinutes(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const asUTC = Date.UTC(
+    Number(values.year),
+    Number(values.month) - 1,
+    Number(values.day),
+    Number(values.hour),
+    Number(values.minute),
+    Number(values.second),
+  );
+  return (asUTC - date.getTime()) / 60000;
+}
+
+function zonedDateTimeToIso(dateValue: string, timeValue: string, timeZone: string) {
+  const [year, month, day] = dateValue.split('-').map(Number);
+  const [hour, minute] = timeValue.split(':').map(Number);
+  if (!year || !month || !day || Number.isNaN(hour) || Number.isNaN(minute)) {
+    return `${dateValue}T${timeValue}:00`;
+  }
+
+  const wallTimeUTC = Date.UTC(year, month - 1, day, hour, minute, 0);
+  let offset = timeZoneOffsetMinutes(new Date(wallTimeUTC), timeZone);
+  let utcTime = wallTimeUTC - offset * 60000;
+  const adjustedOffset = timeZoneOffsetMinutes(new Date(utcTime), timeZone);
+  if (adjustedOffset !== offset) {
+    utcTime = wallTimeUTC - adjustedOffset * 60000;
+  }
+  return new Date(utcTime).toISOString();
+}
+
+function eventDatePartsInTimeZone(value: string, timeZone: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    date: `${values.year}-${values.month}-${values.day}`,
+    time: `${values.hour}:${values.minute}`,
+  };
+}
 
 function formatDayLabel(dateStr: string, lang: string) {
   try {
@@ -226,16 +286,40 @@ export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, 
 }
 
 export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVenue, setEventVenue, goTo, onEventCreated }: SharedProps) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [description, setDescription] = useState('Drink, sing, dance. Evento privado con compra segura y acceso digital.');
-  const [category, setCategory] = useState('Private Event');
+  const [category, setCategory] = useState('');
+  const [categories, setCategories] = useState<EventCategoryOption[]>([]);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [address, setAddress] = useState('23501 Cinco Ranch Blvd, Katy, TX 77494');
   const [eventDate, setEventDate] = useState('2026-06-25');
   const [eventTime, setEventTime] = useState('19:00');
+  const [pickerDate, setPickerDate] = useState<Date>(new Date('2026-06-25T19:00:00'));
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [timezone, setTimezone] = useState('America/Chicago');
   const [maxTickets, setMaxTickets] = useState('8');
   const [saving, setSaving] = useState(false);
   const [createdId, setCreatedId] = useState<string | undefined>();
+  const selectedCategory = categories.find((item) => item.slug === category);
+  const categoryLabel = selectedCategory
+    ? (lang === 'es' ? selectedCategory.labelEs || selectedCategory.labelEn : selectedCategory.labelEn || selectedCategory.labelEs) || selectedCategory.slug
+    : category || t('Selecciona una categoría', 'Select a category');
+
+  useEffect(() => {
+    let mounted = true;
+    apiGet<EventCategoryOption[]>('/categories')
+      .then((items) => {
+        if (!mounted) return;
+        const activeItems = Array.isArray(items) ? items.filter((item) => item.isActive !== false) : [];
+        setCategories(activeItems);
+        if (activeItems[0]?.slug) setCategory((current) => current || activeItems[0].slug || '');
+      })
+      .catch(() => {
+        if (mounted) setCategories([]);
+      });
+    return () => { mounted = false; };
+  }, []);
 
   const saveDraft = async () => {
     if (saving) return;
@@ -245,7 +329,7 @@ export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVen
         title: eventTitle,
         description,
         category,
-        eventDate: `${eventDate}T${eventTime}:00`,
+        eventDate: zonedDateTimeToIso(eventDate, eventTime, timezone || 'America/Chicago'),
         timezone: timezone || 'America/Chicago',
         venueName: eventVenue,
         venueAddress: address,
@@ -275,12 +359,153 @@ export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVen
 
         <Field label={t('Titulo del evento', 'Event title')} value={eventTitle} onChangeText={setEventTitle} />
         <Field label={t('Descripcion', 'Description')} value={description} onChangeText={setDescription} multiline />
-        <Field label={t('Categoria', 'Category')} value={category} onChangeText={setCategory} />
+        <Text style={styles.fieldLabel}>{t('Categoria', 'Category')}</Text>
+        <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowCategoryPicker(true)}>
+          <Ionicons name="pricetag-outline" size={16} color="#f97316" style={{ marginRight: 6 }} />
+          <Text style={styles.datePickerText}>{categoryLabel}</Text>
+          <Ionicons name="chevron-down" size={16} color="rgba(226,232,240,0.55)" />
+        </TouchableOpacity>
+
+        {showCategoryPicker && (
+          <Modal transparent animationType="fade" onRequestClose={() => setShowCategoryPicker(false)}>
+            <View style={styles.pickerOverlay}>
+              <View style={styles.pickerModal}>
+                <View style={styles.categoryPickerHeader}>
+                  <Text style={styles.categoryPickerTitle}>{t('Seleccionar categoría', 'Select category')}</Text>
+                  <TouchableOpacity onPress={() => setShowCategoryPicker(false)} style={styles.categoryPickerClose}>
+                    <Ionicons name="close" size={20} color="rgba(226,232,240,0.75)" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.categoryPickerList} contentContainerStyle={styles.categoryPickerContent} showsVerticalScrollIndicator={false}>
+                  {categories.length === 0 ? (
+                    <Text style={styles.categoryPickerEmpty}>{t('No hay categorías disponibles.', 'No categories available.')}</Text>
+                  ) : categories.map((item, index) => {
+                    const label = (lang === 'es' ? item.labelEs || item.labelEn : item.labelEn || item.labelEs) || item.slug || t('Categoría', 'Category');
+                    const active = item.slug === category;
+                    return (
+                      <TouchableOpacity
+                        key={`${item.id || item.slug || label}-${index}`}
+                        style={[styles.categoryOption, active && styles.categoryOptionActive]}
+                        onPress={() => {
+                          if (item.slug) setCategory(item.slug);
+                          setShowCategoryPicker(false);
+                        }}
+                      >
+                        <View style={[styles.categoryOptionIcon, { borderColor: `${item.color || '#F97316'}66`, backgroundColor: `${item.color || '#F97316'}18` }]}>
+                          <Text style={styles.categoryOptionIconText}>{item.icon || '•'}</Text>
+                        </View>
+                        <Text style={[styles.categoryOptionText, active && styles.categoryOptionTextActive]}>{label}</Text>
+                        {active && <Ionicons name="checkmark-circle" size={19} color="#F97316" />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                <TouchableOpacity style={styles.pickerDone} onPress={() => setShowCategoryPicker(false)}>
+                  <Text style={styles.pickerDoneText}>{t('Listo', 'Done')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        )}
 
         <View style={styles.twoCol}>
-          <Field label={t('Fecha', 'Date')} value={eventDate} onChangeText={setEventDate} compact placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
-          <Field label={t('Hora', 'Time')} value={eventTime} onChangeText={setEventTime} compact placeholder="HH:MM" keyboardType="numbers-and-punctuation" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>{t('Fecha', 'Date')}</Text>
+            <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowDatePicker(true)}>
+              <Ionicons name="calendar-outline" size={16} color="#f97316" style={{ marginRight: 6 }} />
+              <Text style={styles.datePickerText}>{eventDate || 'YYYY-MM-DD'}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>{t('Hora', 'Time')}</Text>
+            <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowTimePicker(true)}>
+              <Ionicons name="time-outline" size={16} color="#f97316" style={{ marginRight: 6 }} />
+              <Text style={styles.datePickerText}>{eventTime || 'HH:MM'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {showDatePicker && (
+          Platform.OS === 'ios' ? (
+            <Modal transparent animationType="fade" onRequestClose={() => setShowDatePicker(false)}>
+              <View style={styles.pickerOverlay}>
+                <View style={styles.pickerModal}>
+                  <DateTimePicker
+                    value={pickerDate}
+                    mode="date"
+                    display="spinner"
+                    textColor="#F8FAFC"
+                    accentColor="#F97316"
+                    onChange={(_, d) => {
+                      if (d) {
+                        setPickerDate(d);
+                        setEventDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+                      }
+                    }}
+                    style={{ width: '100%' }}
+                  />
+                  <TouchableOpacity style={styles.pickerDone} onPress={() => setShowDatePicker(false)}>
+                    <Text style={styles.pickerDoneText}>{t('Listo', 'Done')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+          ) : (
+            <DateTimePicker
+              value={pickerDate}
+              mode="date"
+              display="default"
+              onChange={(_, d) => {
+                setShowDatePicker(false);
+                if (d) {
+                  setPickerDate(d);
+                  setEventDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+                }
+              }}
+            />
+          )
+        )}
+
+        {showTimePicker && (
+          Platform.OS === 'ios' ? (
+            <Modal transparent animationType="fade" onRequestClose={() => setShowTimePicker(false)}>
+              <View style={styles.pickerOverlay}>
+                <View style={styles.pickerModal}>
+                  <DateTimePicker
+                    value={pickerDate}
+                    mode="time"
+                    display="spinner"
+                    textColor="#F8FAFC"
+                    accentColor="#F97316"
+                    onChange={(_, d) => {
+                      if (d) {
+                        setPickerDate(d);
+                        setEventTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+                      }
+                    }}
+                    style={{ width: '100%' }}
+                  />
+                  <TouchableOpacity style={styles.pickerDone} onPress={() => setShowTimePicker(false)}>
+                    <Text style={styles.pickerDoneText}>{t('Listo', 'Done')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+          ) : (
+            <DateTimePicker
+              value={pickerDate}
+              mode="time"
+              display="default"
+              onChange={(_, d) => {
+                setShowTimePicker(false);
+                if (d) {
+                  setPickerDate(d);
+                  setEventTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+                }
+              }}
+            />
+          )
+        )}
 
         <Field label={t('Zona horaria', 'Timezone')} value={timezone} onChangeText={setTimezone} placeholder="America/Chicago" autoCapitalize="none" />
         <Field label={t('Lugar', 'Venue')} value={eventVenue} onChangeText={setEventVenue} />
@@ -302,9 +527,11 @@ export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVen
 }
 
 export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, setEventVenue, eventStatus, setEventStatus, goTo, selectedEventId, event }: SharedProps) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [categories, setCategories] = useState<EventCategoryOption[]>([]);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [address, setAddress] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
@@ -315,6 +542,23 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
   const [maxTickets, setMaxTickets] = useState('10');
   const [focalY, setFocalY] = useState(50); // 0 = top, 50 = center, 100 = bottom
   const [saving, setSaving] = useState(false);
+  const selectedCategory = categories.find((item) => item.slug === category);
+  const categoryLabel = selectedCategory
+    ? (lang === 'es' ? selectedCategory.labelEs || selectedCategory.labelEn : selectedCategory.labelEn || selectedCategory.labelEs) || selectedCategory.slug
+    : category || t('Selecciona una categoría', 'Select a category');
+
+  useEffect(() => {
+    let mounted = true;
+    apiGet<EventCategoryOption[]>('/categories')
+      .then((items) => {
+        if (!mounted) return;
+        setCategories(Array.isArray(items) ? items.filter((item) => item.isActive !== false) : []);
+      })
+      .catch(() => {
+        if (mounted) setCategories([]);
+      });
+    return () => { mounted = false; };
+  }, []);
 
   // Populate from the real event (mirrors the web editor's loadEvent).
   useEffect(() => {
@@ -337,18 +581,16 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
     } else {
       setFocalY(50);
     }
-    setTimezone(event.eventTimezone || event.timezone || 'America/Chicago');
+    const eventTimeZone = event.eventTimezone || event.timezone || 'America/Chicago';
+    setTimezone(eventTimeZone);
     if (event.eventDate) {
-      // eventDate may arrive as ISO string with or without timezone offset.
-      // Normalise to local-time by stripping trailing Z/offset so the Date
-      // constructor treats it as local (avoids midnight UTC → wrong date in
-      // timezones behind UTC).
-      const raw = String(event.eventDate);
-      const localStr = raw.replace(/Z$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
-      const d = new Date(localStr);
+      const zoned = eventDatePartsInTimeZone(String(event.eventDate), eventTimeZone);
+      const d = new Date(event.eventDate);
       if (!Number.isNaN(d.getTime())) {
-        setEventDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-        setEventTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+        if (zoned) {
+          setEventDate(zoned.date);
+          setEventTime(zoned.time);
+        }
         setPickerDate(d);
       }
     }
@@ -362,13 +604,12 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
         title: eventTitle,
         description,
         category,
-        eventDate: `${eventDate}T${eventTime}:00`,
+        eventDate: zonedDateTimeToIso(eventDate, eventTime, timezone || 'America/Chicago'),
         eventTimezone: timezone || 'America/Chicago',
         venueName: eventVenue,
         venueAddress: address,
         hasSeatMap: true,
         bannerPosition: focalY <= 20 ? 'top' : focalY >= 80 ? 'bottom' : 'center',
-        bannerPositionY: focalY,
         maxTicketsPerTransaction: Number(maxTickets) || 10,
       });
       goTo('events');
@@ -408,7 +649,54 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
 
         <Field label={t('Título', 'Title')} value={eventTitle} onChangeText={setEventTitle} />
         <Field label={t('Descripcion', 'Description')} value={description} onChangeText={setDescription} multiline />
-        <Field label={t('Categoria', 'Category')} value={category} onChangeText={setCategory} />
+        <Text style={styles.fieldLabel}>{t('Categoria', 'Category')}</Text>
+        <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowCategoryPicker(true)}>
+          <Ionicons name="pricetag-outline" size={16} color="#f97316" style={{ marginRight: 6 }} />
+          <Text style={styles.datePickerText}>{categoryLabel}</Text>
+          <Ionicons name="chevron-down" size={16} color="rgba(226,232,240,0.55)" />
+        </TouchableOpacity>
+
+        {showCategoryPicker && (
+          <Modal transparent animationType="fade" onRequestClose={() => setShowCategoryPicker(false)}>
+            <View style={styles.pickerOverlay}>
+              <View style={styles.pickerModal}>
+                <View style={styles.categoryPickerHeader}>
+                  <Text style={styles.categoryPickerTitle}>{t('Seleccionar categoría', 'Select category')}</Text>
+                  <TouchableOpacity onPress={() => setShowCategoryPicker(false)} style={styles.categoryPickerClose}>
+                    <Ionicons name="close" size={20} color="rgba(226,232,240,0.75)" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.categoryPickerList} contentContainerStyle={styles.categoryPickerContent} showsVerticalScrollIndicator={false}>
+                  {categories.length === 0 ? (
+                    <Text style={styles.categoryPickerEmpty}>{t('No hay categorías disponibles.', 'No categories available.')}</Text>
+                  ) : categories.map((item, index) => {
+                    const label = (lang === 'es' ? item.labelEs || item.labelEn : item.labelEn || item.labelEs) || item.slug || t('Categoría', 'Category');
+                    const active = item.slug === category;
+                    return (
+                      <TouchableOpacity
+                        key={`${item.id || item.slug || label}-${index}`}
+                        style={[styles.categoryOption, active && styles.categoryOptionActive]}
+                        onPress={() => {
+                          if (item.slug) setCategory(item.slug);
+                          setShowCategoryPicker(false);
+                        }}
+                      >
+                        <View style={[styles.categoryOptionIcon, { borderColor: `${item.color || '#F97316'}66`, backgroundColor: `${item.color || '#F97316'}18` }]}>
+                          <Text style={styles.categoryOptionIconText}>{item.icon || '•'}</Text>
+                        </View>
+                        <Text style={[styles.categoryOptionText, active && styles.categoryOptionTextActive]}>{label}</Text>
+                        {active && <Ionicons name="checkmark-circle" size={19} color="#F97316" />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                <TouchableOpacity style={styles.pickerDone} onPress={() => setShowCategoryPicker(false)}>
+                  <Text style={styles.pickerDoneText}>{t('Listo', 'Done')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        )}
 
         <View style={styles.twoCol}>
           <View style={{ flex: 1 }}>
@@ -803,6 +1091,18 @@ const styles = StyleSheet.create({
   pickerModal: { backgroundColor: '#030B14', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0, borderColor: 'rgba(255,255,255,0.14)', paddingBottom: 32 },
   pickerDone: { alignItems: 'center', paddingVertical: 16 },
   pickerDoneText: { color: '#f97316', fontSize: 16, fontWeight: '700' },
+  categoryPickerHeader: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.10)' },
+  categoryPickerTitle: { color: '#F8FAFC', fontSize: 17, fontWeight: '700' },
+  categoryPickerClose: { width: 36, height: 36, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  categoryPickerList: { maxHeight: 360 },
+  categoryPickerContent: { padding: 14, gap: 9 },
+  categoryPickerEmpty: { color: 'rgba(226,232,240,0.56)', fontSize: 14, textAlign: 'center', paddingVertical: 22 },
+  categoryOption: { minHeight: 54, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.035)', flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 12 },
+  categoryOptionActive: { borderColor: 'rgba(249,115,22,0.48)', backgroundColor: 'rgba(249,115,22,0.10)' },
+  categoryOptionIcon: { width: 34, height: 34, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.10)' },
+  categoryOptionIconText: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
+  categoryOptionText: { flex: 1, color: 'rgba(226,232,240,0.84)', fontSize: 15, fontWeight: '700' },
+  categoryOptionTextActive: { color: '#FFFFFF' },
   input: { minHeight: 56, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', paddingHorizontal: 16, color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
   textArea: { minHeight: 96, paddingTop: 14, textAlignVertical: 'top' },
   twoCol: { flexDirection: 'row', gap: 12 },

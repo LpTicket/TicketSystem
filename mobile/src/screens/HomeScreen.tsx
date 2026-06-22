@@ -102,8 +102,6 @@ export function HomeScreen({ onOpenEvent }: Props) {
   const [loading, setLoading] = useState(true);
   const [realCategories, setRealCategories] = useState<ApiCategory[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
-  const [previousHeroIndex, setPreviousHeroIndex] = useState<number | null>(null);
-  const [heroTransitionReady, setHeroTransitionReady] = useState(false);
   const [query, setQuery] = useState('');
   const [place, setPlace] = useState('');
   const [category, setCategory] = useState('All');
@@ -113,8 +111,6 @@ export function HomeScreen({ onOpenEvent }: Props) {
   const categoryShine = useRef(new Animated.Value(0)).current;
   const categoryImageScale = useRef(new Animated.Value(1.12)).current;
   const categoryFrameX = useRef(new Animated.Value(0)).current;
-  const heroFade = useRef(new Animated.Value(1)).current;
-  const heroProgressX = useRef(new Animated.Value(0)).current;
   const eventSearchPlaceholder = t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...') || (lang === 'es' ? 'Conciertos, teatro, talleres...' : 'Concerts, theater, workshops...');
   const placeSearchPlaceholder = t('Ciudad o venue', 'City or venue') || (lang === 'es' ? 'Ciudad o venue' : 'City or venue');
 
@@ -128,7 +124,6 @@ export function HomeScreen({ onOpenEvent }: Props) {
   const heroEvents = useMemo(() => events.filter((event) => event.bannerImageUrl || event.imageUrl), [events]);
   const safeHeroLength = Math.max(heroEvents.length, 1);
   const heroEvent = heroEvents[heroIndex % safeHeroLength] || events[0];
-  const previousHeroEvent = previousHeroIndex !== null ? heroEvents[previousHeroIndex % safeHeroLength] || events[0] : undefined;
   const heroHeight = Math.max(120, Math.round((width - 32) / 2.63));
   const heroProgressTrackWidth = HERO_PROGRESS_ACTIVE_WIDTH + (safeHeroLength - 1) * HERO_PROGRESS_STEP;
   const heroProgressWidth = Math.max(78, heroProgressTrackWidth + 16);
@@ -176,16 +171,6 @@ export function HomeScreen({ onOpenEvent }: Props) {
       useNativeDriver: true,
     }).start();
   }, [activeCategoryIndex, categoryFrameX]);
-
-  useEffect(() => {
-    Animated.spring(heroProgressX, {
-      toValue: (heroIndex % safeHeroLength) * HERO_PROGRESS_STEP,
-      damping: 20,
-      stiffness: 130,
-      mass: 0.85,
-      useNativeDriver: true,
-    }).start();
-  }, [heroIndex, heroProgressX, safeHeroLength]);
 
   const playCategoryShine = (item: string) => {
     categoryShine.stopAnimation();
@@ -284,35 +269,15 @@ export function HomeScreen({ onOpenEvent }: Props) {
     const nextEvent = heroEvents[normalizedIndex];
     const nextImageUrl = getHeroImageUrl(nextEvent);
 
-    const startTransition = () => {
-      heroFade.stopAnimation();
-      setPreviousHeroIndex(heroIndex);
-      setHeroTransitionReady(false);
-      heroFade.setValue(0);
-      setHeroIndex(normalizedIndex);
-    };
+    const showNextHero = () => setHeroIndex(normalizedIndex);
 
     if (nextImageUrl) {
       Image.prefetch(nextImageUrl)
         .catch(() => false)
-        .finally(startTransition);
+        .finally(showNextHero);
     } else {
-      startTransition();
+      showNextHero();
     }
-  };
-
-  const finishHeroImageLoad = () => {
-    if (previousHeroIndex === null || heroTransitionReady) return;
-
-    setHeroTransitionReady(true);
-    Animated.timing(heroFade, {
-      toValue: 1,
-      duration: 950,
-      easing: Easing.inOut(Easing.cubic),
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) setPreviousHeroIndex(null);
-    });
   };
 
   const goNextHero = () => {
@@ -350,15 +315,10 @@ export function HomeScreen({ onOpenEvent }: Props) {
       <View pointerEvents="none" style={styles.bgGridA} />
       <View pointerEvents="none" style={styles.bgGridB} />
       <View style={[styles.heroWrap, { height: heroHeight }]}>
-        {previousHeroEvent && (
-          <Image source={getHeroImageSource(previousHeroEvent)} style={[styles.heroImage, !getHeroImageUrl(previousHeroEvent) && styles.heroFallbackLogo]} resizeMode="contain" />
-        )}
-        <Animated.Image
+        <Image
           source={getHeroImageSource(heroEvent)}
-          style={[styles.heroImage, !getHeroImageUrl(heroEvent) && styles.heroFallbackLogo, previousHeroEvent && styles.heroImageLayer, { opacity: previousHeroEvent ? heroFade : 1 }]}
+          style={[styles.heroImage, !getHeroImageUrl(heroEvent) && styles.heroFallbackLogo]}
           resizeMode="contain"
-          onLoad={finishHeroImageLoad}
-          onError={finishHeroImageLoad}
         />
       </View>
 
@@ -368,14 +328,18 @@ export function HomeScreen({ onOpenEvent }: Props) {
         </TouchableOpacity>
         <View style={[styles.heroProgressRail, { width: heroProgressWidth }]}>
           <View style={[styles.heroProgressTrack, { width: heroProgressTrackWidth }]}>
-            <Animated.View pointerEvents="none" style={[styles.heroProgressNodeActive, { transform: [{ translateX: heroProgressX }] }]} />
             {Array.from({ length: safeHeroLength }).map((_, index) => (
               <TouchableOpacity
                 key={index}
-                activeOpacity={0.8}
+                activeOpacity={1}
                 onPress={() => changeHero(index)}
-                style={[styles.heroProgressNode, { left: index * HERO_PROGRESS_STEP + (HERO_PROGRESS_ACTIVE_WIDTH - HERO_PROGRESS_DOT_WIDTH) / 2 }]}
-              />
+                style={[styles.heroProgressHitTarget, { left: index * HERO_PROGRESS_STEP - 4 }]}
+              >
+                <View style={[
+                  styles.heroProgressNode,
+                  heroIndex % safeHeroLength === index && styles.heroProgressNodeActive,
+                ]} />
+              </TouchableOpacity>
             ))}
           </View>
         </View>
@@ -612,13 +576,13 @@ const styles = StyleSheet.create({
   heroWrap: { alignSelf: 'stretch', marginHorizontal: 16, marginTop: 0, marginBottom: 10, overflow: 'hidden', backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 18, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.30, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
   heroImage: { width: '100%', height: '100%', backgroundColor: 'transparent' },
   heroFallbackLogo: { transform: [{ scale: 0.88 }] },
-  heroImageLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   heroControls: { alignSelf: 'center', minHeight: 38, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.82)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 8, marginBottom: 12, shadowColor: '#000000', shadowOpacity: 0.24, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
   heroControlButton: { width: 30, height: 30, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(249,115,22,0.38)', backgroundColor: 'rgba(249,115,22,0.12)', alignItems: 'center', justifyContent: 'center' },
   heroProgressRail: { minWidth: 78, height: 30, borderRadius: 999, paddingHorizontal: 8, backgroundColor: 'rgba(255,255,255,0.045)', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' },
   heroProgressTrack: { height: 30, position: 'relative' },
-  heroProgressNode: { position: 'absolute', top: 11.5, width: HERO_PROGRESS_DOT_WIDTH, height: HERO_PROGRESS_DOT_WIDTH, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.32)', zIndex: 1 },
-  heroProgressNodeActive: { position: 'absolute', left: 0, top: 11.5, width: HERO_PROGRESS_ACTIVE_WIDTH, height: 7, borderRadius: 999, backgroundColor: '#F97316', shadowColor: '#F97316', shadowOpacity: 0.55, shadowRadius: 8, shadowOffset: { width: 0, height: 0 }, zIndex: 2 },
+  heroProgressNode: { width: HERO_PROGRESS_DOT_WIDTH, height: HERO_PROGRESS_DOT_WIDTH, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.32)' },
+  heroProgressNodeActive: { width: HERO_PROGRESS_ACTIVE_WIDTH, height: 7, backgroundColor: '#F97316' },
+  heroProgressHitTarget: { position: 'absolute', top: 5, width: HERO_PROGRESS_ACTIVE_WIDTH + 8, height: 20, borderRadius: 999, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   heroAgeBadge: { position: 'absolute', top: 12, right: 12, minWidth: 34, height: 34, borderRadius: 17, paddingHorizontal: 7, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center' },
   heroAgeText: { color: '#0A375A', fontSize: 12, fontWeight: '900' },
   searchPanel: { marginHorizontal: 16, marginTop: 0, zIndex: 20, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.018)', padding: 16, gap: 12, overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 5 },

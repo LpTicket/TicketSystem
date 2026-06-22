@@ -25,6 +25,7 @@ type OrganizerApiEvent = {
   venueName?: string;
   venueAddress?: string;
   eventDate?: string;
+  eventTimezone?: string;
   category?: string;
   categoryName?: string;
   status?: string;
@@ -40,6 +41,9 @@ type OrganizerApiEvent = {
   imageUrl?: string | null;
   bannerImageUrl?: string | null;
   minPrice?: number;
+  sections?: any[];
+  seatMap?: any[];
+  seatmap?: any[];
 };
 
 type OrganizerStats = {
@@ -88,13 +92,29 @@ function money(value: any) {
   return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function formatEventDate(value?: string) {
+function formatEventDate(value?: string, timeZone?: string) {
   if (!value) return 'Date coming soon';
   try {
-    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
+    return new Intl.DateTimeFormat('en-US', { ...(timeZone ? { timeZone } : {}), month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
   } catch {
     return value;
   }
+}
+
+function sectionsFrom(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  return payload?.sections || payload?.data || [];
+}
+
+function capacityFromSections(sections: any[]) {
+  return sections.reduce((sum, section) => {
+    const type = String(section?.sectionType || '').toLowerCase();
+    if (type === 'stage' || type === 'decor') return sum;
+    if (type === 'standing') return sum + (Number(section.capacity) || 0);
+    const realSeats = Array.isArray(section?.seats) ? section.seats.length : 0;
+    if (realSeats > 0) return sum + realSeats;
+    return sum + Number(section?.rows || 0) * Number(section?.seatsPerRow || 0);
+  }, 0);
 }
 
 function toOrganizerEvent(event: OrganizerApiEvent, index: number): {
@@ -103,14 +123,15 @@ function toOrganizerEvent(event: OrganizerApiEvent, index: number): {
   status: 'draft' | 'published' | 'cancelled'; imageUrl: string; minPrice?: number;
   creatorCommission?: number; pendingCreatorCommission?: number | null;
 } {
-  const capacity = Number(event.capacity || event.totalCapacity || 0);
+  const mapCapacity = capacityFromSections(sectionsFrom(event.sections || event.seatMap || event.seatmap));
+  const capacity = Number(event.capacity || event.totalCapacity || mapCapacity || 0);
   const sold = Number(event.soldTickets || event.ticketsSold || 0);
   const revenueAmount = Number(event.totalRevenue || event.revenue || 0);
   return {
     id: String(event.id || index),
     title: event.title || 'Evento',
     venue: event.venueName || event.venueAddress || 'Venue',
-    date: formatEventDate(event.eventDate),
+    date: formatEventDate(event.eventDate, event.eventTimezone),
     eventDate: event.eventDate || '',
     time: '',
     category: event.categoryName || event.category || 'Event',
@@ -126,6 +147,7 @@ function toOrganizerEvent(event: OrganizerApiEvent, index: number): {
     pendingCreatorCommission: event.pendingCreatorCommission ?? null,
   };
 }
+type OrganizerMobileEvent = ReturnType<typeof toOrganizerEvent>;
 
 // Global sections (always available) vs event sections (only after picking an event).
 const GLOBAL_SECTIONS: Section[] = ['dashboard', 'events', 'create'];
@@ -153,19 +175,19 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
   const [eventVenue, setEventVenue] = useState(adminEvent?.venueName || adminEvent?.venue || 'Ambriza');
   const [eventStatus, setEventStatus] = useState<'draft' | 'published' | 'cancelled'>(adminEvent?.status === 'draft' ? 'draft' : adminEvent?.status === 'cancelled' ? 'cancelled' : 'published');
   const [accessItems, setAccessItems] = useState<{ id: string; title: string; type: string; status: string }[]>([]);
-  const [organizerEvents, setOrganizerEvents] = useState<ReturnType<typeof toOrganizerEvent>[]>([]);
+  const [organizerEvents, setOrganizerEvents] = useState<OrganizerMobileEvent[]>([]);
   const [organizerEventsError, setOrganizerEventsError] = useState('');
   const [rawEventsById, setRawEventsById] = useState<Record<string, any>>({});
   const [organizerStats, setOrganizerStats] = useState<OrganizerStats>({});
   // The event the organizer is currently managing (null = global view).
-  const [selectedEvent, setSelectedEvent] = useState<ReturnType<typeof toOrganizerEvent> | null>(
+  const [selectedEvent, setSelectedEvent] = useState<OrganizerMobileEvent | null>(
     adminEvent ? toOrganizerEvent(adminEvent, 0) : null
   );
   const [rewardStats, setRewardStats] = useState<{ balance: number; activeCodes: number; totalPaid: number; pending: number } | null>(null);
   const [rewardStatsLoaded, setRewardStatsLoaded] = useState(false);
 
   // Open a specific event in one of its sections.
-  const openEvent = (ev: ReturnType<typeof toOrganizerEvent>, toSection: Section) => {
+  const openEvent = (ev: OrganizerMobileEvent, toSection: Section) => {
     setSelectedEvent(ev);
     setEventTitle(ev.title);
     setEventVenue(ev.venue);
@@ -190,9 +212,37 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
       const byId: Record<string, any> = {};
       raw.forEach((e: any) => { if (e?.id) byId[String(e.id)] = e; });
       setRawEventsById(byId);
-      const items = raw.map(toOrganizerEvent);
+      const items: OrganizerMobileEvent[] = raw.map(toOrganizerEvent);
       setOrganizerEvents(items);
       setOrganizerEventsError('');
+
+      const missingCapacity = items.filter((item) => item.capacity <= 0 && item.id);
+      if (missingCapacity.length > 0) {
+        Promise.all(
+          missingCapacity.map(async (item) => {
+            try {
+              const seatmap = await apiGet<any>(`/events/${item.id}/seatmap`);
+              return { id: item.id, capacity: capacityFromSections(sectionsFrom(seatmap)) };
+            } catch {
+              try {
+                const sections = await apiGet<any>(`/events/${item.id}/sections`);
+                return { id: item.id, capacity: capacityFromSections(sectionsFrom(sections)) };
+              } catch {
+                return { id: item.id, capacity: 0 };
+              }
+            }
+          }),
+        ).then((capacities: { id: string; capacity: number }[]) => {
+          const byId = capacities.reduce<Record<string, number>>((acc, item: { id: string; capacity: number }) => {
+            if (item.capacity > 0) acc[item.id] = item.capacity;
+            return acc;
+          }, {});
+          if (Object.keys(byId).length === 0) return;
+          setOrganizerEvents((prev) => prev.map((event) => (
+            byId[event.id] ? { ...event, capacity: byId[event.id] } : event
+          )));
+        });
+      }
 
       const first = items[0];
       if (first && !selectedEvent && !adminEvent) {
