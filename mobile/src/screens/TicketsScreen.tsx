@@ -7,6 +7,8 @@ import { API_URL, apiGet, apiPost } from '../services/api';
 import { TicketCardSkeleton } from '../components/Skeleton';
 import { GradientButton } from '../components/GradientButton';
 
+const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://www.lpticket.com').replace(/\/$/, '');
+
 type TicketStatus = 'active' | 'used' | 'cancelled' | string;
 
 type MobileTicket = {
@@ -66,8 +68,7 @@ function openUrl(url?: string | null) {
 }
 
 function ticketVerifyUrl(code: string) {
-  const base = API_URL.replace(/\/api\/?$/, '');
-  return `${base}/verify/${code}`;
+  return `${SITE_URL}/verify/${code}`;
 }
 
 function ticketApiUrl(code: string, path: string) {
