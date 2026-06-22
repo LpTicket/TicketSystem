@@ -109,7 +109,7 @@ export default function AdminMarketingPage() {
   ) => {
     const q = pickerSearch[channel].toLowerCase();
     const list = recipientsList.filter(
-      (u) => u[field] && (u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.phone.includes(q)),
+      (u) => u[field] && (u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || (u.phone || '').includes(q)),
     );
     return (
       <div className="mt-2 rounded-xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-3">

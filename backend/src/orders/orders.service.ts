@@ -1503,7 +1503,7 @@ export class OrdersService {
    * Creates a dummy PAID order with $0 total and sends QR tickets to recipient.
    */
   async issueFreeTickets(eventId: string, seatIds: string[], email: string, name: string, organizerId: string) {
-    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    const event = await this.eventRepo.findOne({ where: { id: eventId }, relations: ['organizer'] });
     if (!event) throw new NotFoundException('Event not found');
     
     // Permission validation
@@ -1583,16 +1583,31 @@ export class OrdersService {
       createdTickets.push(savedTicket);
     }
 
-    // Send the invitations via email
+    // Send the invitations via email to the recipient
+    const ticketEmailParams = {
+      venueName: event.venueName,
+      venueAddress: event.venueAddress,
+      eventDate: event.eventDate?.toString(),
+      eventTimezone: event.eventTimezone,
+    };
     try {
-      await this.mailService.sendTicketEmail(email, name, event.title, createdTickets, {
-        venueName: event.venueName,
-        venueAddress: event.venueAddress,
-        eventDate: event.eventDate?.toString(),
-        eventTimezone: event.eventTimezone,
-      });
+      await this.mailService.sendTicketEmail(email, name, event.title, createdTickets, ticketEmailParams);
     } catch (e) {
       console.error('Error sending free ticket email:', e);
+    }
+
+    // Send a copy to the organizer
+    const organizerEmail = (event as any).organizer?.email;
+    if (organizerEmail && organizerEmail !== email) {
+      try {
+        const organizerName = [(event as any).organizer?.firstName, (event as any).organizer?.lastName].filter(Boolean).join(' ') || 'Organizador';
+        await this.mailService.sendTicketEmail(organizerEmail, organizerName, event.title, createdTickets, {
+          ...ticketEmailParams,
+          note: `Copia de las entradas enviadas a ${name} (${email})`,
+        } as any);
+      } catch (e) {
+        console.error('Error sending organizer copy email:', e);
+      }
     }
 
     return { success: true, count: createdTickets.length, tickets: createdTickets };

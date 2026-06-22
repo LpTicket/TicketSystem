@@ -177,10 +177,17 @@ export class EventsService {
       order: { sortOrder: 'ASC' },
     });
 
-    // Replace base64 image URLs with og-image route paths so the API response
-    // stays small and the frontend can build proper meta tags
+    const categoryEntity = event.category
+      ? await this.eventRepo.manager.findOne(EventCategoryEntity, { where: { slug: event.category } })
+      : null;
+
     const cleaned = this.routeBase64EventImages(event);
-    return { ...cleaned, sections };
+    return {
+      ...cleaned,
+      categoryName: categoryEntity?.labelEs || event.category,
+      categoryNameEn: categoryEntity?.labelEn || event.category,
+      sections,
+    };
   }
 
   async findById(id: string) {
@@ -425,11 +432,22 @@ export class EventsService {
       },
     ]));
 
-    return events.map((event) => ({
-      ...this.routeBase64EventImages(event),
-      soldTickets: statsByEventId.get(event.id)?.soldTickets || 0,
-      totalRevenue: statsByEventId.get(event.id)?.totalRevenue || 0,
-    }));
+    const slugs = [...new Set(events.map((e) => e.category).filter(Boolean))];
+    const categoryEntities = slugs.length
+      ? await this.eventRepo.manager.find(EventCategoryEntity, { where: slugs.map((s) => ({ slug: s })) })
+      : [];
+    const catBySlug = new Map(categoryEntities.map((c) => [c.slug, c]));
+
+    return events.map((event) => {
+      const cat = catBySlug.get(event.category);
+      return {
+        ...this.routeBase64EventImages(event),
+        soldTickets: statsByEventId.get(event.id)?.soldTickets || 0,
+        totalRevenue: statsByEventId.get(event.id)?.totalRevenue || 0,
+        categoryName: cat?.labelEs || event.category,
+        categoryNameEn: cat?.labelEn || event.category,
+      };
+    });
   }
 
   // --- Seat Map & Inventory Management ---

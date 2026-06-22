@@ -36,6 +36,7 @@ type ApiEventDetail = {
   currency?: string;
   category?: string;
   categoryName?: string;
+  categoryNameEn?: string;
   tag?: string;
   ageRestriction?: string;
   imageUrl?: string;
@@ -71,7 +72,7 @@ function mergeEvent(base: MobileEvent, data?: ApiEventDetail, lang?: string): Mo
     venue: data.venueName || base.venue,
     address: data.venueAddress || base.address,
     price: `${price.toFixed(2)} ${currency}`,
-    tag: data.tag || data.categoryName || data.category || base.tag,
+    tag: data.tag || (lang === 'es' ? (data.categoryName || data.category) : (data.categoryNameEn || data.categoryName || data.category)) || base.tag,
     age: data.ageRestriction || base.age,
     description: data.description || base.description,
     currency,
