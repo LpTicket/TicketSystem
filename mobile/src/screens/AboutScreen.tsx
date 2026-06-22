@@ -90,11 +90,11 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
   content: { padding: 18, paddingTop: 10, paddingBottom: 120 },
   back: { alignSelf: 'flex-start', marginBottom: 14 },
-  backText: { color: '#CBD5E1', fontSize: 15, fontWeight: '700' },
+  backText: { color: '#CBD5E1', fontSize: 15, fontWeight: '600' },
   hero: { alignItems: 'center', marginBottom: 22, marginTop: 0, gap: 14 },
   pill: { backgroundColor: 'rgba(249,115,22,0.12)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 },
-  pillText: { color: '#F97316', fontSize: 11, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase' },
-  title: { color: '#FFFFFF', fontSize: 32, lineHeight: 36, fontWeight: '900', textAlign: 'center' },
+  pillText: { color: '#F97316', fontSize: 11, fontWeight: '600', letterSpacing: 1.4, textTransform: 'uppercase' },
+  title: { color: '#FFFFFF', fontSize: 32, lineHeight: 36, fontWeight: '600', textAlign: 'center' },
   subtitle: { color: 'rgba(203,213,225,0.78)', fontSize: 15, lineHeight: 23, textAlign: 'center' },
   card: {
     backgroundColor: 'rgba(255,255,255,0.018)',
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
   },
-  cardHeading: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', marginBottom: 14 },
+  cardHeading: { color: '#FFFFFF', fontSize: 22, fontWeight: '600', marginBottom: 14 },
   paragraph: { color: 'rgba(203,213,225,0.82)', fontSize: 15, lineHeight: 24, marginBottom: 14 },
   paragraphLast: { marginBottom: 0 },
   ctaCard: {
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
   },
-  ctaTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '900', marginBottom: 6, lineHeight: 23 },
+  ctaTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '600', marginBottom: 6, lineHeight: 23 },
   ctaCopy: { color: 'rgba(203,213,225,0.7)', fontSize: 14, lineHeight: 20, marginBottom: 16 },
   ctaButton: { alignSelf: 'flex-start', paddingHorizontal: 26 },
 });

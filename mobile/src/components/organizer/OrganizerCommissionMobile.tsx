@@ -150,7 +150,7 @@ export function OrganizerCommissionMobile({
             <View style={styles.statusDotGreen} />
             <Text style={styles.statusBadgeText}>
               {es ? 'Activa:' : 'Active:'}{' '}
-              <Text style={{ fontWeight: '800' }}>${activeReward.toFixed(2)}</Text>
+              <Text style={{ fontWeight: '600' }}>${activeReward.toFixed(2)}</Text>
               {' '}{es ? 'por entrada' : 'per ticket'}
             </Text>
           </View>
@@ -160,7 +160,7 @@ export function OrganizerCommissionMobile({
             <View style={[styles.statusDotGreen, { backgroundColor: '#F59E0B' }]} />
             <Text style={[styles.statusBadgeText, { color: '#92400E' }]}>
               {es ? 'Pendiente:' : 'Pending:'}{' '}
-              <Text style={{ fontWeight: '800' }}>${Number(pendingCommission).toFixed(2)}</Text>
+              <Text style={{ fontWeight: '600' }}>${Number(pendingCommission).toFixed(2)}</Text>
               {' '}{es ? 'por entrada' : 'per ticket'}
             </Text>
           </View>
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(249,115,22,0.14)',
   },
-  headerTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  headerTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
   headerCopy: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
 
   card: {
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)',
     backgroundColor: 'rgba(255,255,255,0.03)', paddingHorizontal: 16, paddingVertical: 12,
   },
-  cardEyebrow: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.9, textTransform: 'uppercase' },
+  cardEyebrow: { color: colors.muted, fontSize: 10, fontWeight: '600', letterSpacing: 0.9, textTransform: 'uppercase' },
   cardSub: { color: 'rgba(148,163,184,0.65)', fontSize: 11, marginTop: 2 },
 
   statusBadge: {
@@ -420,20 +420,20 @@ const styles = StyleSheet.create({
   },
   modeBtn: { paddingHorizontal: 10, paddingVertical: 8, backgroundColor: colors.darkBg },
   modeBtnActive: { backgroundColor: '#F8FAFC' },
-  modeBtnText: { color: colors.muted, fontSize: 11, fontWeight: '700' },
+  modeBtnText: { color: colors.muted, fontSize: 11, fontWeight: '600' },
   modeBtnTextActive: { color: '#030B14' },
   inputWrap: {
     flex: 1, flexDirection: 'row', alignItems: 'center',
     borderWidth: 1, borderColor: colors.border, borderRadius: 10,
     backgroundColor: colors.darkBg, paddingHorizontal: 10,
   },
-  inputPrefix: { color: colors.orange, fontSize: 14, fontWeight: '800', marginRight: 4 },
+  inputPrefix: { color: colors.orange, fontSize: 14, fontWeight: '600', marginRight: 4 },
   rewardInput: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600', paddingVertical: 8 },
   requestBtn: {
     height: 38, paddingHorizontal: 14, borderRadius: 10,
     backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center',
   },
-  requestBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  requestBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 
   previewBox: {
     marginHorizontal: 16, marginBottom: 14,
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.darkBg, overflow: 'hidden',
   },
   previewTitle: {
-    color: colors.muted, fontSize: 9, fontWeight: '800', letterSpacing: 0.8,
+    color: colors.muted, fontSize: 9, fontWeight: '600', letterSpacing: 0.8,
     paddingHorizontal: 12, paddingVertical: 8,
     borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
   },
@@ -451,9 +451,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)',
   },
   previewDot: { width: 10, height: 10, borderRadius: 5 },
-  previewName: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  previewName: { color: colors.text, fontSize: 12, fontWeight: '600' },
   previewPrice: { color: colors.muted, fontSize: 10 },
-  previewEarning: { color: '#34D399', fontSize: 13, fontWeight: '800' },
+  previewEarning: { color: '#34D399', fontSize: 13, fontWeight: '600' },
   previewPct: { color: colors.muted, fontSize: 10 },
 
   creatorsHeader: {
@@ -475,10 +475,10 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 11,
     backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center',
   },
-  codeAvatarText: { color: colors.muted, fontSize: 14, fontWeight: '700' },
-  codeName: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  codeAvatarText: { color: colors.muted, fontSize: 14, fontWeight: '600' },
+  codeName: { color: colors.text, fontSize: 13, fontWeight: '600' },
   codeText: { color: colors.muted, fontSize: 11, fontFamily: 'monospace', marginTop: 2 },
-  codeRate: { color: '#34D399', fontSize: 15, fontWeight: '800' },
+  codeRate: { color: '#34D399', fontSize: 15, fontWeight: '600' },
   codeRateLabel: { color: colors.muted, fontSize: 10, marginTop: 2 },
 
   statsRow: { flexDirection: 'row', gap: 8 },
@@ -486,15 +486,15 @@ const styles = StyleSheet.create({
     flex: 1, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.04)',
     paddingHorizontal: 12, paddingVertical: 10, gap: 4,
   },
-  statLabel: { color: colors.muted, fontSize: 9, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
-  statValue: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  statLabel: { color: colors.muted, fontSize: 9, fontWeight: '600', letterSpacing: 0.6, textTransform: 'uppercase' },
+  statValue: { color: colors.text, fontSize: 15, fontWeight: '600' },
 
   expandBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.05)',
     paddingVertical: 8, gap: 6,
   },
-  expandBtnText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
+  expandBtnText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
 
   buyerList: {
     borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
@@ -505,11 +505,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)',
   },
-  buyerName: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  buyerName: { color: colors.text, fontSize: 12, fontWeight: '600' },
   buyerEmail: { color: colors.muted, fontSize: 10, marginTop: 2 },
   buyerStats: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  buyerStatLabel: { color: colors.muted, fontSize: 8, fontWeight: '800', letterSpacing: 0.5 },
-  buyerStatValue: { color: colors.text, fontSize: 12, fontWeight: '800' },
+  buyerStatLabel: { color: colors.muted, fontSize: 8, fontWeight: '600', letterSpacing: 0.5 },
+  buyerStatValue: { color: colors.text, fontSize: 12, fontWeight: '600' },
 
   codeInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   codeInputWrap: {
@@ -517,11 +517,11 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, borderRadius: 10,
     backgroundColor: colors.darkBg, paddingHorizontal: 10,
   },
-  codeInputPrefix: { color: colors.orange, fontSize: 13, fontWeight: '800', marginRight: 4 },
+  codeInputPrefix: { color: colors.orange, fontSize: 13, fontWeight: '600', marginRight: 4 },
   codeInput: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '600', paddingVertical: 9 },
   codeSaveBtn: {
     height: 40, paddingHorizontal: 16, borderRadius: 10,
     backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center',
   },
-  codeSaveBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  codeSaveBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 });

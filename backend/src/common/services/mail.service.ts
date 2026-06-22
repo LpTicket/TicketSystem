@@ -528,7 +528,7 @@ export class MailService {
 
     const facebookUrl = 'https://www.facebook.com/profile.php?id=61590380706527';
     const instagramUrl = 'https://www.instagram.com/lpticket';
-    const whatsappUrl = 'https://wa.me/18323790809';
+    const whatsappUrl = 'https://wa.me/12816256383';
     const websiteUrl = 'https://www.lpticket.com';
 
     const attachments: nodemailer.SendMailOptions['attachments'] = [

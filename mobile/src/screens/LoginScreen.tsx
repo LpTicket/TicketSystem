@@ -454,13 +454,13 @@ const styles = StyleSheet.create({
     color: colors.orange,
     fontSize: 11,
     letterSpacing: 0,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: 7,
   },
   title: {
     color: '#FFFFFF',
     fontSize: 32,
-    fontWeight: '800',
+    fontWeight: '600',
     marginBottom: 7,
     textAlign: 'center',
   },
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
     color: 'rgba(203,213,225,0.78)',
     fontSize: 16,
     lineHeight: 22,
-    fontWeight: '700',
+    fontWeight: '600',
     textAlign: 'center',
   },
   copyAccent: {
@@ -493,12 +493,12 @@ const styles = StyleSheet.create({
   label: {
     color: '#CBD5E1',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   forgotText: {
     color: colors.orange,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   inputWrap: {
     minHeight: 52,
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
   rememberText: {
     color: 'rgba(226,232,240,0.74)',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   faceButton: {
     height: 30,
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
   faceText: {
     color: '#F8FAFC',
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   button: {
     borderRadius: 10,
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     letterSpacing: 0,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   dividerRow: {
     flexDirection: 'row',
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   dividerText: {
     color: 'rgba(226,232,240,0.48)',
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: 0,
   },
   socialGrid: {
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   socialText: {
     color: '#F8FAFC',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   secondaryButton: {
     height: 50,
@@ -638,6 +638,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     letterSpacing: 0,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     color: 'rgba(255,255,255,0.5)',
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: 0.2,
   },
   tabLabelActive: {
@@ -162,14 +162,14 @@ const styles = StyleSheet.create({
     color: '#F97316',
     fontSize: 12,
     letterSpacing: 0,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: 8,
   },
   title: {
     color: '#FFFFFF',
     fontSize: 30,
     lineHeight: 34,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   subtitle: {
     color: 'rgba(226,232,240,0.66)',

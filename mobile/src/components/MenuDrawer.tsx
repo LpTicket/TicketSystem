@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
   modeRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  modeRowText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  modeRowText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
   card: {
     padding: 8,
     borderRadius: 24,
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
   },
   rowText: { color: 'rgba(248,250,252,0.80)', fontSize: 15, fontWeight: '600' },
-  rowTextActive: { color: '#F97316', fontWeight: '700' },
+  rowTextActive: { color: '#F97316', fontWeight: '600' },
   rowTextDanger: { color: '#ff5a45' },
   rowActiveDot: {
     marginLeft: 'auto',
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     color: '#F97316',
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },

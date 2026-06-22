@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   socialText: {
     color: 'rgba(255,255,255,0.82)',
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   footerLine: {
     height: 1,
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   footerHead: {
     color: 'rgba(255,255,255,0.90)',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: 0,
     marginBottom: 6,
   },

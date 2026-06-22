@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 16,
   },
-  cardLabel: { color: '#F97316', fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginBottom: 12 },
+  cardLabel: { color: '#F97316', fontSize: 11, fontWeight: '600', letterSpacing: 0.8, marginBottom: 12 },
   empty: { paddingVertical: 24, alignItems: 'center' },
   emptyText: { color: 'rgba(226,232,240,0.6)', fontSize: 14 },
   row: {
@@ -265,17 +265,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', gap: 12,
   },
   rowLeft: { flex: 1, minWidth: 0 },
-  event: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 3 },
+  event: { color: '#F8FAFC', fontSize: 15, fontWeight: '600', marginBottom: 3 },
   meta: { color: 'rgba(226,232,240,0.6)', fontSize: 12 },
   rowRight: { alignItems: 'flex-end', gap: 6 },
-  total: { color: '#F8FAFC', fontSize: 15, fontWeight: '800' },
+  total: { color: '#F8FAFC', fontSize: 15, fontWeight: '600' },
   badge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999, borderWidth: 1 },
-  badgeText: { fontSize: 10, fontWeight: '800' },
+  badgeText: { fontSize: 10, fontWeight: '600' },
   loadMore: {
     marginTop: 12, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(249,115,22,0.12)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.4)',
   },
-  loadMoreText: { color: '#F97316', fontSize: 13, fontWeight: '800' },
+  loadMoreText: { color: '#F97316', fontSize: 13, fontWeight: '600' },
 
   // Receipt detail
   receipt: {
@@ -290,32 +290,32 @@ const styles = StyleSheet.create({
   detailError: { color: 'rgba(226,232,240,0.5)', fontSize: 12, padding: 14, textAlign: 'center' },
 
   receiptHeader: { padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
-  receiptEyebrow: { color: '#F97316', fontSize: 9, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
-  receiptEvent: { color: '#F8FAFC', fontSize: 16, fontWeight: '800', lineHeight: 20 },
+  receiptEyebrow: { color: '#F97316', fontSize: 9, fontWeight: '600', letterSpacing: 1, marginBottom: 4 },
+  receiptEvent: { color: '#F8FAFC', fontSize: 16, fontWeight: '600', lineHeight: 20 },
   receiptMeta: { color: 'rgba(226,232,240,0.6)', fontSize: 11, fontWeight: '400', marginTop: 3 },
   receiptOrderId: { color: 'rgba(226,232,240,0.36)', fontSize: 10, fontFamily: 'monospace', marginTop: 6 },
 
   ticketsBlock: { padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
-  ticketsBlockLabel: { color: '#94A3B8', fontSize: 9, fontWeight: '800', letterSpacing: 1, marginBottom: 8 },
+  ticketsBlockLabel: { color: '#94A3B8', fontSize: 9, fontWeight: '600', letterSpacing: 1, marginBottom: 8 },
   ticketRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', gap: 10,
   },
   ticketRowLeft: { flex: 1, minWidth: 0 },
-  ticketSeat: { color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
+  ticketSeat: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
   ticketCode: { color: 'rgba(226,232,240,0.44)', fontSize: 10, fontFamily: 'monospace', marginTop: 2 },
-  ticketPrice: { color: '#F8FAFC', fontSize: 13, fontWeight: '700' },
+  ticketPrice: { color: '#F8FAFC', fontSize: 13, fontWeight: '600' },
 
   feesBlock: { padding: 14 },
   feeRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
   feeLabel: { color: 'rgba(226,232,240,0.7)', fontSize: 12, fontWeight: '400' },
-  feeValue: { color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
+  feeValue: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
   totalRow: {
     flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8,
     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)', marginTop: 4,
   },
-  totalLabel: { color: '#F8FAFC', fontSize: 14, fontWeight: '800' },
-  totalValue: { color: '#F97316', fontSize: 16, fontWeight: '800' },
+  totalLabel: { color: '#F8FAFC', fontSize: 14, fontWeight: '600' },
+  totalValue: { color: '#F97316', fontSize: 16, fontWeight: '600' },
 
   receiptFooter: {
     color: 'rgba(226,232,240,0.3)', fontSize: 10, fontWeight: '400',

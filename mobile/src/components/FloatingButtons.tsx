@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
   },
-  floatText: { color: colors.navy, fontSize: 28, fontWeight: '700' },
+  floatText: { color: colors.navy, fontSize: 28, fontWeight: '600' },
   chatFloat: { left: 20, bottom: 34 },
   mailFloat: { right: 20, bottom: 126 },
   cartFloat: { right: 20, bottom: 34 },

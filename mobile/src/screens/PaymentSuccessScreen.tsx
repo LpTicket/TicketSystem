@@ -77,19 +77,19 @@ const styles = StyleSheet.create({
   check: {
     color: '#10b981',
     fontSize: 40,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   eyebrow: {
     color: colors.orange,
     fontSize: 12,
     letterSpacing: 0,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: 8,
   },
   title: {
     color: colors.textPrimary,
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: '600',
     textAlign: 'center',
     marginBottom: 10,
   },
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 24,
     letterSpacing: 0,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   ticketInfo: {
     flex: 1,
@@ -134,13 +134,13 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
     fontSize: 11,
     letterSpacing: 0,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: 6,
   },
   eventTitle: {
     color: colors.textPrimary,
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: 6,
   },
   eventMeta: {
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     letterSpacing: 0,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   secondaryButton: {
     width: '100%',
@@ -176,6 +176,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 13,
     letterSpacing: 0,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

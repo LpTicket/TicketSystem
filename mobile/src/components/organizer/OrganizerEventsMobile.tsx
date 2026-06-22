@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   },
   noticeEmoji: { fontSize: 18, marginTop: 1 },
   noticeCopy: { flex: 1 },
-  noticeTitle: { color: 'rgba(252,211,77,0.9)', fontSize: 13, fontWeight: '700', marginBottom: 4 },
+  noticeTitle: { color: 'rgba(252,211,77,0.9)', fontSize: 13, fontWeight: '600', marginBottom: 4 },
   noticeText: { color: 'rgba(252,211,77,0.65)', fontSize: 12, lineHeight: 17, fontWeight: '500' },
 
   // Header card
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  emptyTitle: { color: '#F8FAFC', fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  emptyTitle: { color: '#F8FAFC', fontSize: 17, fontWeight: '600', textAlign: 'center' },
   emptyCopy: { color: 'rgba(226,232,240,0.66)', fontSize: 14, lineHeight: 20, textAlign: 'center' },
   topCard: {
     backgroundColor: 'rgba(255,255,255,0.018)',
@@ -459,11 +459,11 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
   },
-  eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 0, fontWeight: '700', marginBottom: 8 },
-  title: { color: '#F8FAFC', fontSize: 26, fontWeight: '700', marginBottom: 8 },
+  eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 0, fontWeight: '600', marginBottom: 8 },
+  title: { color: '#F8FAFC', fontSize: 26, fontWeight: '600', marginBottom: 8 },
   copy: { color: 'rgba(226,232,240,0.64)', fontSize: 14, lineHeight: 21, fontWeight: '400', marginBottom: 16 },
   createButton: { borderRadius: 16 },
-  createText: { color: '#FFFFFF', fontSize: 13, letterSpacing: 0, fontWeight: '700' },
+  createText: { color: '#FFFFFF', fontSize: 13, letterSpacing: 0, fontWeight: '600' },
 
   // Filter chips
   filterWrap: { marginBottom: 10 },
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   filterChipActive: {},
-  filterChipText: { color: 'rgba(226,232,240,0.62)', fontSize: 12, fontWeight: '700', maxWidth: 112 },
+  filterChipText: { color: 'rgba(226,232,240,0.62)', fontSize: 12, fontWeight: '600', maxWidth: 112 },
   filterChipTextActive: { color: '#FFFFFF' },
 
   // Search
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
   },
   flyer: { width: '100%', height: '100%' },
   flyerFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.08)' },
-  flyerFallbackText: { color: colors.orange, fontSize: 9, fontWeight: '700' },
+  flyerFallbackText: { color: colors.orange, fontSize: 9, fontWeight: '600' },
   eventMain: { flex: 1, minWidth: 0 },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 7 },
   statusBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5, borderWidth: 1 },
@@ -544,20 +544,20 @@ const styles = StyleSheet.create({
   statusCancelledText: { color: '#FCA5A5' },
   scheduleActive: { backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.30)' },
   schedulePast: { backgroundColor: 'rgba(148,163,184,0.10)', borderColor: 'rgba(148,163,184,0.24)' },
-  statusText: { fontSize: 9, letterSpacing: 0, fontWeight: '700' },
+  statusText: { fontSize: 9, letterSpacing: 0, fontWeight: '600' },
   statusPublishedText: { color: '#4ADE80' },
   statusDraftText: { color: '#CBD5E1' },
   scheduleActiveText: { color: '#FCA5A5' },
   schedulePastText: { color: 'rgba(203,213,225,0.72)' },
   categoryBadge: { backgroundColor: '#030B14', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(249,115,22,0.26)', paddingHorizontal: 8, paddingVertical: 5 },
-  categoryText: { color: colors.orange, fontSize: 9, fontWeight: '700' },
-  eventTitle: { color: '#F8FAFC', fontSize: 17, fontWeight: '700', lineHeight: 21, marginBottom: 5 },
+  categoryText: { color: colors.orange, fontSize: 9, fontWeight: '600' },
+  eventTitle: { color: '#F8FAFC', fontSize: 17, fontWeight: '600', lineHeight: 21, marginBottom: 5 },
   eventMeta: { color: 'rgba(226,232,240,0.62)', fontSize: 12, lineHeight: 17, fontWeight: '400' },
 
   // Stats
   statsRow: { flexDirection: 'row', gap: 7, marginBottom: 10 },
   miniStat: { flex: 1, backgroundColor: '#030B14', borderRadius: 11, paddingVertical: 9, paddingHorizontal: 6, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  miniValue: { color: '#F8FAFC', fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  miniValue: { color: '#F8FAFC', fontSize: 14, fontWeight: '600', textAlign: 'center' },
   miniLabel: { color: 'rgba(226,232,240,0.58)', fontSize: 10, fontWeight: '500', textAlign: 'center', marginTop: 2 },
   progressTrack: { height: 7, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.10)', overflow: 'hidden', marginBottom: 10 },
   progressFill: { height: '100%', backgroundColor: colors.orange },
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
   // Actions row
   actions: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   editBtn: { flex: 1, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  editBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
+  editBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600', letterSpacing: 0 },
   downloadBtn: {
     width: 43,
     height: 43,
@@ -587,5 +587,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  publishText: { color: colors.orange, fontSize: 11, fontWeight: '700' },
+  publishText: { color: colors.orange, fontSize: 11, fontWeight: '600' },
 });

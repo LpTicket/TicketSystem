@@ -130,6 +130,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     zIndex: 1,
   },
-  segText: { color: 'rgba(255,255,255,0.62)', fontSize: 13, fontWeight: '800' },
+  segText: { color: 'rgba(255,255,255,0.62)', fontSize: 13, fontWeight: '600' },
   segTextActive: { color: '#FFFFFF' },
 });

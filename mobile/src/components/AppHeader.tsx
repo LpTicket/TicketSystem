@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   },
   langText: {
     color: 'rgba(255,255,255,0.68)',
-    fontWeight: '800',
+    fontWeight: '600',
     fontSize: 12,
   },
   langTextActive: {
@@ -173,13 +173,13 @@ const styles = StyleSheet.create({
   cartBadgeText: {
     color: '#FFFFFF',
     fontSize: 8,
-    fontWeight: '900',
+    fontWeight: '600',
     lineHeight: 10,
   },
   loginButtonText: {
     color: '#ff7a00',
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '600',
     letterSpacing: 0,
   },
 });

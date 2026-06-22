@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   skipText: {
     color: 'rgba(248,250,252,0.9)',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: 0.5,
   },
 });

@@ -85,7 +85,7 @@ const st = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   label: { color: 'rgba(226,232,240,0.70)', fontSize: 11, fontWeight: '600' },
-  countdown: { fontSize: 20, fontWeight: '900', marginTop: 1 },
+  countdown: { fontSize: 20, fontWeight: '600', marginTop: 1 },
   barTrack: { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.10)', overflow: 'hidden' },
   barFill: { height: '100%', borderRadius: 2 },
 });

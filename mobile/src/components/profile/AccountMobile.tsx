@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImage: { width: '100%', height: '100%' },
-  avatarText: { color: '#F8FAFC', fontSize: 30, fontWeight: '700' },
+  avatarText: { color: '#F8FAFC', fontSize: 30, fontWeight: '600' },
   cameraButton: {
     position: 'absolute',
     right: -2,
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
   },
   cameraButtonDisabled: { opacity: 0.66 },
-  name: { color: '#FFFFFF', fontSize: 26, fontWeight: '700', marginBottom: 5 },
+  name: { color: '#FFFFFF', fontSize: 26, fontWeight: '600', marginBottom: 5 },
   role: { color: '#cbd5e1', fontSize: 12, letterSpacing: 0, fontWeight: '400', marginBottom: 14 },
   heroStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, width: '100%', justifyContent: 'center' },
   heroStat: {
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   },
   heroStatTop: { width: '31%' },
   heroStatBottom: { width: '47.5%' },
-  heroStatValue: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  heroStatValue: { color: '#FFFFFF', fontSize: 14, fontWeight: '600', textAlign: 'center' },
   heroStatLabel: { color: '#cbd5e1', fontSize: 9, fontWeight: '400', textAlign: 'center', marginTop: 2 },
   card: {
     backgroundColor: 'rgba(255,255,255,0.018)',
@@ -326,15 +326,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 14 },
-  eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 0, fontWeight: '700', marginBottom: 7 },
-  title: { color: '#F8FAFC', fontSize: 24, fontWeight: '700' },
+  eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 0, fontWeight: '600', marginBottom: 7 },
+  title: { color: '#F8FAFC', fontSize: 24, fontWeight: '600' },
   editSmall: {
     height: 42,
     paddingHorizontal: 18,
     borderRadius: 14,
     justifyContent: 'center',
   },
-  editSmallText: { color: '#FFFFFF', fontSize: 12, letterSpacing: 0, fontWeight: '700' },
+  editSmallText: { color: '#FFFFFF', fontSize: 12, letterSpacing: 0, fontWeight: '600' },
   cancelSmall: {
     height: 42,
     paddingHorizontal: 18,
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.14)',
     justifyContent: 'center',
   },
-  cancelSmallText: { color: '#F8FAFC', fontSize: 12, letterSpacing: 0, fontWeight: '700' },
+  cancelSmallText: { color: '#F8FAFC', fontSize: 12, letterSpacing: 0, fontWeight: '600' },
   infoRow: {
     borderRadius: 16,
     borderWidth: 1,
@@ -354,8 +354,8 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     marginBottom: 10,
   },
-  infoLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 12, letterSpacing: 0, fontWeight: '700', marginBottom: 5 },
-  infoValue: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', lineHeight: 22 },
+  infoLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 12, letterSpacing: 0, fontWeight: '600', marginBottom: 5 },
+  infoValue: { color: '#F8FAFC', fontSize: 16, fontWeight: '600', lineHeight: 22 },
   field: { gap: 7, marginBottom: 14 },
   inputLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '400' },
   input: {
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     color: '#F8FAFC',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   textArea: { minHeight: 92, paddingTop: 14, textAlignVertical: 'top' },
   saveButton: {
@@ -378,5 +378,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 4,
   },
-  saveText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '700' },
+  saveText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '600' },
 });

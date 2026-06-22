@@ -218,10 +218,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  headerTitle: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  headerTitle: { color: colors.white, fontSize: 16, fontWeight: '600' },
   statusRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E', marginRight: 4 },
-  statusText: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  statusText: { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: '600', letterSpacing: 1 },
   
   chatArea: { flex: 1 },
   chatContent: { padding: 16 },
