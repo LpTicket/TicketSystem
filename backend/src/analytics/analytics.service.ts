@@ -70,49 +70,64 @@ export class AnalyticsService {
     return { ok: true };
   }
 
-  async getSummary(days = 7) {
+  async getSummary(days = 7, eventSlug?: string) {
     const safeDays = Math.min(Math.max(Number(days) || 7, 1), 90);
     const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000);
+    const cleanEventSlug = this.cleanText(eventSlug, 120);
+    const baseWhere = cleanEventSlug
+      ? { createdAt: MoreThanOrEqual(since), eventSlug: cleanEventSlug }
+      : { createdAt: MoreThanOrEqual(since) };
+
+    const uniqueVisitorsQuery = this.pageViewRepo
+      .createQueryBuilder('view')
+      .select('COUNT(DISTINCT view."visitorId")', 'count')
+      .where('view."createdAt" >= :since', { since });
+    if (cleanEventSlug) uniqueVisitorsQuery.andWhere('view."eventSlug" = :eventSlug', { eventSlug: cleanEventSlug });
+
+    const topEventsQuery = this.pageViewRepo
+      .createQueryBuilder('view')
+      .select('view."eventSlug"', 'eventSlug')
+      .addSelect('COUNT(*)', 'views')
+      .addSelect('COUNT(DISTINCT view."visitorId")', 'visitors')
+      .where('view."createdAt" >= :since', { since })
+      .andWhere('view."eventSlug" IS NOT NULL');
+    if (cleanEventSlug) topEventsQuery.andWhere('view."eventSlug" = :eventSlug', { eventSlug: cleanEventSlug });
+
+    const topPagesQuery = this.pageViewRepo
+      .createQueryBuilder('view')
+      .select('view.path', 'path')
+      .addSelect('COUNT(*)', 'views')
+      .addSelect('COUNT(DISTINCT view."visitorId")', 'visitors')
+      .where('view."createdAt" >= :since', { since });
+    if (cleanEventSlug) topPagesQuery.andWhere('view."eventSlug" = :eventSlug', { eventSlug: cleanEventSlug });
+
+    const dailyQuery = this.pageViewRepo
+      .createQueryBuilder('view')
+      .select(`TO_CHAR(view."createdAt", 'YYYY-MM-DD')`, 'date')
+      .addSelect('COUNT(*)', 'views')
+      .addSelect('COUNT(DISTINCT view."visitorId")', 'visitors')
+      .where('view."createdAt" >= :since', { since });
+    if (cleanEventSlug) dailyQuery.andWhere('view."eventSlug" = :eventSlug', { eventSlug: cleanEventSlug });
 
     const [totalViews, uniqueVisitors, topEvents, topPages, recentViews, dailyRows] = await Promise.all([
-      this.pageViewRepo.count({ where: { createdAt: MoreThanOrEqual(since) } }),
-      this.pageViewRepo
-        .createQueryBuilder('view')
-        .select('COUNT(DISTINCT view."visitorId")', 'count')
-        .where('view."createdAt" >= :since', { since })
-        .getRawOne(),
-      this.pageViewRepo
-        .createQueryBuilder('view')
-        .select('view."eventSlug"', 'eventSlug')
-        .addSelect('COUNT(*)', 'views')
-        .addSelect('COUNT(DISTINCT view."visitorId")', 'visitors')
-        .where('view."createdAt" >= :since', { since })
-        .andWhere('view."eventSlug" IS NOT NULL')
+      this.pageViewRepo.count({ where: baseWhere }),
+      uniqueVisitorsQuery.getRawOne(),
+      topEventsQuery
         .groupBy('view."eventSlug"')
         .orderBy('COUNT(*)', 'DESC')
         .limit(10)
         .getRawMany(),
-      this.pageViewRepo
-        .createQueryBuilder('view')
-        .select('view.path', 'path')
-        .addSelect('COUNT(*)', 'views')
-        .addSelect('COUNT(DISTINCT view."visitorId")', 'visitors')
-        .where('view."createdAt" >= :since', { since })
+      topPagesQuery
         .groupBy('view.path')
         .orderBy('COUNT(*)', 'DESC')
         .limit(10)
         .getRawMany(),
       this.pageViewRepo.find({
-        where: { createdAt: MoreThanOrEqual(since) },
+        where: baseWhere,
         order: { createdAt: 'DESC' },
         take: 25,
       }),
-      this.pageViewRepo
-        .createQueryBuilder('view')
-        .select(`TO_CHAR(view."createdAt", 'YYYY-MM-DD')`, 'date')
-        .addSelect('COUNT(*)', 'views')
-        .addSelect('COUNT(DISTINCT view."visitorId")', 'visitors')
-        .where('view."createdAt" >= :since', { since })
+      dailyQuery
         .groupBy(`TO_CHAR(view."createdAt", 'YYYY-MM-DD')`)
         .orderBy('date', 'ASC')
         .getRawMany(),

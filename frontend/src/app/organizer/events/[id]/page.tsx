@@ -1044,8 +1044,17 @@ export default function EventDetailPage() {
   const salesOrders = ((sales?.orders || []) as any[]);
   const complimentaryOrders = salesOrders.filter((order: any) => Number(order.total || 0) === 0 && Number(order.ticketCount || 0) > 0);
   const totalRevenue = Number(sales?.totalRevenue || 0);
-  const totalOrders = Number(sales?.totalOrders || salesOrders.length || 0);
-  const totalTickets = Number(sales?.totalTickets || attendees.length || 0);
+  const paidOrders = salesOrders.filter((order: any) => Number(order.subtotal ?? order.total ?? 0) > 0);
+  const totalOrders = paidOrders.length;
+  const issuedTickets = Math.max(Number(sales?.totalTickets || 0), attendees.length);
+  const paidTickets = salesOrders.reduce((sum: number, order: any) => {
+    const orderTotal = Number(order.subtotal ?? order.total ?? 0);
+    const tickets = Array.isArray(order.tickets) ? order.tickets : [];
+    if (tickets.length > 0) {
+      return sum + tickets.filter((ticket: any) => Number(ticket.price ?? orderTotal) > 0).length;
+    }
+    return sum + (orderTotal > 0 ? Number(order.ticketCount || 0) : 0);
+  }, 0);
 
   // Map each sold seat to its buyer name so the seat map can show it on hover.
   const seatBuyers = attendees.reduce<Record<string, string>>((map, a) => {
@@ -1064,27 +1073,32 @@ export default function EventDetailPage() {
   const scannedTickets = attendees.filter((a) => a.status === 'used').length;
   const pendingTickets = attendees.filter((a) => a.status === 'active').length;
   const cancelledTickets = attendees.filter((a) => a.status === 'cancelled').length;
-  const totalEventCapacity = sections.reduce((sum, section) => {
+  const sectionCapacityStats = sections.reduce((acc, section) => {
     const sectionType = String(section.sectionType || '').toLowerCase();
 
     if (sectionType === 'stage' || sectionType === 'decor') {
-      return sum;
+      return acc;
     }
 
+    const lockedSeats = Array.isArray(section.seats)
+      ? section.seats.filter((seat: any) => String(seat.status || '').toLowerCase() === 'locked').length
+      : 0;
+    const nextLocked = acc.lockedSeats + lockedSeats;
+
     if (sectionType === 'standing') {
-      return sum + (Number(section.capacity) || 100);
+      return { capacity: acc.capacity + (Number(section.capacity) || 100), lockedSeats: nextLocked };
     }
 
     const realSeatCount = Array.isArray(section.seats) ? section.seats.length : 0;
-    if (realSeatCount > 0) {
-      return sum + realSeatCount;
-    }
-
-    return sum + (Number(section.rows || 0) * Number(section.seatsPerRow || 0));
-  }, 0);
-  const remainingEventCapacity = Math.max(totalEventCapacity - totalTickets, 0);
+    const capacity = realSeatCount > 0 ? realSeatCount : Number(section.rows || 0) * Number(section.seatsPerRow || 0);
+    return { capacity: acc.capacity + capacity, lockedSeats: nextLocked };
+  }, { capacity: 0, lockedSeats: 0 });
+  const totalEventCapacity = sectionCapacityStats.capacity;
+  const unpaidIssuedTickets = Math.max(issuedTickets - paidTickets, 0);
+  const blockedTickets = unpaidIssuedTickets + sectionCapacityStats.lockedSeats;
+  const remainingEventCapacity = Math.max(totalEventCapacity - paidTickets - blockedTickets, 0);
   const averageOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-  const scanRate = totalTickets > 0 ? Math.round((scannedTickets / totalTickets) * 100) : 0;
+  const scanRate = issuedTickets > 0 ? Math.round((scannedTickets / issuedTickets) * 100) : 0;
   const formatSectionAnalyticsLabel = (sectionName: string) => {
     const cleanName = String(sectionName || '').trim();
     if (/^\d+$/.test(cleanName)) return lang === 'es' ? `Mesa ${cleanName}` : `Table ${cleanName}`;
@@ -1092,12 +1106,16 @@ export default function EventDetailPage() {
   };
   const analyticsTimezone = event.eventTimezone || 'America/Chicago';
 
-  const rawSalesByDay = salesOrders.reduce<Record<string, { date: string; orders: number; tickets: number; revenue: number }>>((acc, order) => {
+  const rawSalesByDay = paidOrders.reduce<Record<string, { date: string; orders: number; tickets: number; revenue: number }>>((acc, order) => {
     const key = getDateKeyInTimezone(order.paidAt || order.createdAt, analyticsTimezone);
     if (!key) return acc;
     if (!acc[key]) acc[key] = { date: key, orders: 0, tickets: 0, revenue: 0 };
+    const tickets = Array.isArray(order.tickets) ? order.tickets : [];
+    const paidTicketsInOrder = tickets.length > 0
+      ? tickets.filter((ticket: any) => Number(ticket.price ?? order.subtotal ?? order.total ?? 0) > 0).length
+      : Number(order.ticketCount || 0);
     acc[key].orders += 1;
-    acc[key].tickets += Number(order.ticketCount || 0);
+    acc[key].tickets += paidTicketsInOrder;
     acc[key].revenue += Number(order.subtotal ?? order.total ?? 0);
     return acc;
   }, {});
@@ -1130,7 +1148,9 @@ export default function EventDetailPage() {
       [lang === 'es' ? 'Métrica' : 'Metric', lang === 'es' ? 'Valor' : 'Value'],
       [lang === 'es' ? 'Ingresos por entradas' : 'Ticket revenue', totalRevenue.toFixed(2)],
       [lang === 'es' ? 'Órdenes' : 'Orders', String(totalOrders)],
-      [lang === 'es' ? 'Tickets vendidos' : 'Tickets sold', String(totalTickets)],
+      [lang === 'es' ? 'Tickets vendidos pagados' : 'Paid tickets sold', String(paidTickets)],
+      [lang === 'es' ? 'Tickets bloqueados / sin ingreso' : 'Blocked / no-revenue tickets', String(blockedTickets)],
+      [lang === 'es' ? 'Tickets emitidos' : 'Issued tickets', String(issuedTickets)],
       [lang === 'es' ? 'Tickets escaneados' : 'Scanned tickets', String(scannedTickets)],
       [lang === 'es' ? 'Asistentes pendientes' : 'Pending attendees', String(pendingTickets)],
       [lang === 'es' ? 'Cancelados' : 'Cancelled', String(cancelledTickets)],
@@ -1309,7 +1329,7 @@ export default function EventDetailPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
               {[
                 {
                   label: lang === 'es' ? 'Ingresos por entradas' : 'Ticket revenue',
@@ -1319,9 +1339,15 @@ export default function EventDetailPage() {
                 },
                 {
                   label: lang === 'es' ? 'Tickets vendidos' : 'Tickets sold',
-                  value: String(totalTickets),
-                  note: `$${averageOrder.toFixed(2)} ${lang === 'es' ? 'promedio/orden' : 'avg/order'}`,
+                  value: String(paidTickets),
+                  note: `$${averageOrder.toFixed(2)} ${lang === 'es' ? 'promedio/orden · pagados' : 'avg/order · paid'}`,
                   icon: HiOutlineTicket,
+                },
+                {
+                  label: lang === 'es' ? 'Tickets bloqueados' : 'Blocked tickets',
+                  value: String(blockedTickets),
+                  note: lang === 'es' ? 'Sin ingreso recibido' : 'No revenue received',
+                  icon: HiOutlineBan,
                 },
                 {
                   label: lang === 'es' ? 'Entrada escaneada' : 'Entry scanned',

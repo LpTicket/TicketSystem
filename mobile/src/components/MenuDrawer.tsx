@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Animated, Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, SafeAreaView } from 'react-native';
+import { Animated, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ScreenBackground } from './ScreenBackground';
@@ -85,8 +85,9 @@ export function MenuDrawer({
     go(onGoHome || onGoEvents);
   };
 
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <SafeAreaView style={[styles.panel, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
         <ScreenBackground />
         <View style={styles.container}>
@@ -99,12 +100,14 @@ export function MenuDrawer({
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* Mode selector — Client / Organizer (+ Admin) */}
-          {canOrganize && onSetMode && (
+        {/* Mode selector — Client / Organizer (+ Admin) */}
+        {canOrganize && onSetMode && (
+          <View style={styles.modeSelectorWrap}>
             <ModeSelector mode={viewMode} canAdmin={canAdmin} onChange={onSetMode} />
-          )}
+          </View>
+        )}
 
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {isLoggedIn && onGoEmployeeScan && (
             <View style={styles.card}>
               <View style={styles.sectionHeader}>
@@ -200,7 +203,6 @@ export function MenuDrawer({
         </ScrollView>
         </View>
       </SafeAreaView>
-    </Modal>
   );
 }
 
@@ -216,8 +218,14 @@ function Row({ label, onPress, icon, danger, featured, active }: { label: string
 
 const styles = StyleSheet.create({
   panel: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: '#030B14',
+    zIndex: 35,
+    elevation: 35,
   },
   container: {
     flex: 1,
@@ -230,7 +238,8 @@ const styles = StyleSheet.create({
     width: 38, height: 38, borderRadius: 14, borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', alignItems: 'center', justifyContent: 'center',
   },
-  scroll: { paddingBottom: 40, gap: 16 },
+  modeSelectorWrap: { marginBottom: 16 },
+  scroll: { paddingBottom: 70, gap: 16 },
   modeRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -159,6 +159,7 @@ export function OrdersMobile() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const load = async (nextPage: number) => {
     try {
@@ -185,6 +186,8 @@ export function OrdersMobile() {
   };
 
   const toggleExpand = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
+  const visibleOrders = showAll ? orders : orders.slice(0, 5);
+  const canViewMore = !showAll && (orders.length > 5 || page < pages);
 
   return (
     <View style={styles.card}>
@@ -201,7 +204,7 @@ export function OrdersMobile() {
         <View style={styles.empty}><Text style={styles.emptyText}>{t('Aún no tienes pedidos.', 'No orders yet.')}</Text></View>
       ) : (
         <>
-          {orders.map((order, index) => {
+          {visibleOrders.map((order, index) => {
             const badge = statusBadge(order.status, t);
             const isOpen = expandedId === order.id;
             return (
@@ -226,7 +229,13 @@ export function OrdersMobile() {
             );
           })}
 
-          {page < pages && (
+          {canViewMore && (
+            <TouchableOpacity onPress={() => setShowAll(true)} style={styles.loadMore}>
+              <Text style={styles.loadMoreText}>{t('Ver más', 'View more')}</Text>
+            </TouchableOpacity>
+          )}
+
+          {showAll && page < pages && (
             <TouchableOpacity onPress={loadMore} disabled={loadingMore} style={styles.loadMore}>
               <Text style={styles.loadMoreText}>
                 {loadingMore ? t('Cargando...', 'Loading...') : `${t('Cargar más', 'Load more')} (${page}/${pages})`}

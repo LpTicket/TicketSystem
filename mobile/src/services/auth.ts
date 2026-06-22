@@ -3,10 +3,8 @@ import {
   apiGet,
   apiPatch,
   apiPost,
-  apiUploadImage,
   AuthResponse,
   AuthUser,
-  PickedImage,
   clearAuthTokens,
   setAuthTokens,
 } from './api';
@@ -74,8 +72,8 @@ export async function updateProfile(
   return user;
 }
 
-export async function uploadAvatar(image: PickedImage): Promise<AuthUser> {
-  const user = await apiUploadImage<AuthUser>('/auth/profile/avatar', image, 'avatar');
+export async function uploadAvatar(imageData: string): Promise<AuthUser> {
+  const user = await apiPost<AuthUser>('/auth/profile/avatar/base64', { imageData });
   try {
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
   } catch {
@@ -135,4 +133,3 @@ export async function refreshSession(refreshToken: string): Promise<AuthUser> {
   }
   return data.user;
 }
-

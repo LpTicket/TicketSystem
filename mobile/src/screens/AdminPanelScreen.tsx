@@ -8,6 +8,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { apiDelete, apiGet, apiPatch, apiPost, getImageUrl } from '../services/api';
 import { GradientButton } from '../components/GradientButton';
 import { OrganizerPanelScreen } from './OrganizerPanelScreen';
+import { OrganizerAnalyticsMobile } from '../components/organizer/OrganizerAnalyticsMobile';
 
 export type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes';
 type AdminUser = {
@@ -24,7 +25,7 @@ type AdminUser = {
   avatarUrl?: string;
   createdAt?: string;
 };
-type Category = { id: string; name: string; labelEs: string; labelEn: string; slug: string; icon: string; color: string; sortOrder: number; imageData?: string; active: boolean; featured: boolean };
+type Category = { id: string; name: string; labelEs: string; labelEn: string; subtitleEs?: string; subtitleEn?: string; slug: string; icon: string; color: string; sortOrder: number; imageData?: string; active: boolean; featured: boolean };
 type MarketingRecipient = { id: string; name: string; email: string; phone?: string };
 
 type AnalyticsSummary = {
@@ -47,6 +48,15 @@ type EventFinancial = {
   lpticketProfit: number;
   ticketsSold: number;
   orders: number;
+};
+
+type AnalyticsEventTarget = {
+  id?: string;
+  slug?: string;
+  title: string;
+  imageUrl?: string;
+  venue?: string;
+  date?: string;
 };
 
 type ApiSpecialCode = {
@@ -226,6 +236,10 @@ function adminEventImage(event: any) {
   return getImageUrl(event?.imageUrl || event?.bannerImageUrl || event?.imageData || event?.mobileImageData);
 }
 
+function adminEventSlug(event: any) {
+  return String(event?.slug || event?.eventSlug || '').trim();
+}
+
 function toAdminUser(user: any): AdminUser {
   return {
     id: String(user.id || user._id || user.email),
@@ -255,7 +269,7 @@ const sections: { id: Section; label: string }[] = [
 
 type AdminProps = { section?: Section; onSectionChange?: (s: Section) => void };
 
-export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }: AdminProps = {}) {
+export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) {
   const { t } = useLanguage();
   const adminIndicatorX = useRef(new Animated.Value(0)).current;
   const adminIndicatorWidth = useRef(new Animated.Value(118)).current;
@@ -271,6 +285,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [tabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
   const [userRoleFilterWidth, setUserRoleFilterWidth] = useState(0);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editUserPassword, setEditUserPassword] = useState('');
+  const [editUserPasswordConfirm, setEditUserPasswordConfirm] = useState('');
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [categoryDraft, setCategoryDraft] = useState('');
   const [marketingBannerEnabled, setMarketingBannerEnabled] = useState(true);
@@ -299,6 +315,11 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsRecentOpen, setAnalyticsRecentOpen] = useState(false);
+  const [selectedAnalyticsEvent, setSelectedAnalyticsEvent] = useState<AnalyticsEventTarget | null>(null);
+  const [selectedAnalyticsSales, setSelectedAnalyticsSales] = useState<any | null>(null);
+  const [selectedAnalyticsAttendees, setSelectedAnalyticsAttendees] = useState<any[]>([]);
+  const [selectedAnalyticsSections, setSelectedAnalyticsSections] = useState<any[]>([]);
+  const [selectedAnalyticsLoading, setSelectedAnalyticsLoading] = useState(false);
   const [eventFinancials, setEventFinancials] = useState<EventFinancial[]>([]);
   const [selectedFinancialEventId, setSelectedFinancialEventId] = useState('');
   const [financialTabLayouts, setFinancialTabLayouts] = useState<Record<string, { x: number; width: number }>>({});
@@ -347,7 +368,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const [usersTotal, setUsersTotal] = useState<number | null>(null);
 
   // Category form (create + edit modals)
-  const emptyCategForm = { labelEs: '', labelEn: '', slug: '', icon: '🎫', color: colors.orange, sortOrder: 0, imageData: '' as string };
+  const emptyCategForm = { labelEs: '', labelEn: '', subtitleEs: '', subtitleEn: '', slug: '', icon: '🎫', color: colors.orange, sortOrder: 0, imageData: '' as string };
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   const [categoryForm, setCategoryForm] = useState({ ...emptyCategForm });
   const [editingCategoryModal, setEditingCategoryModal] = useState<Category | null>(null);
@@ -436,18 +457,27 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
 
   const openEditUser = (userId: string) => {
     setSelectedUser(null);
+    setEditUserPassword('');
+    setEditUserPasswordConfirm('');
     setEditingUserId(String(userId));
   };
 
   // ── Create user (admin) ────────────────────────────────────────────────────
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [cuForm, setCuForm] = useState({ firstName: '', lastName: '', username: '', email: '', password: '', phone: '', role: 'client' as 'client' | 'organizer' | 'admin' });
+  const [cuPasswordConfirm, setCuPasswordConfirm] = useState('');
   const [creatingUser, setCreatingUser] = useState(false);
   const setCu = (k: keyof typeof cuForm, v: string) => setCuForm((f) => ({ ...f, [k]: v }));
   const createUserApi = async () => {
     if (!cuForm.firstName.trim() || !cuForm.lastName.trim() || !cuForm.username.trim() || !cuForm.email.trim()) {
       Alert.alert(t('Faltan datos', 'Missing info'), t('Nombre, apellido, usuario y correo son requeridos.', 'First name, last name, username and email are required.'));
       return;
+    }
+    if (cuForm.password.trim() || cuPasswordConfirm.trim()) {
+      if (cuForm.password !== cuPasswordConfirm) {
+        Alert.alert(t('Contraseñas no coinciden', 'Passwords do not match'), t('La contraseña y la confirmación deben ser iguales.', 'The password and confirmation must match.'));
+        return;
+      }
     }
     setCreatingUser(true);
     try {
@@ -463,6 +493,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       Alert.alert(t('Listo', 'Done'), t('Usuario creado.', 'User created.'));
       setShowCreateUser(false);
       setCuForm({ firstName: '', lastName: '', username: '', email: '', password: '', phone: '', role: 'client' });
+      setCuPasswordConfirm('');
       await loadUsers();
     } catch (err: any) {
       Alert.alert('Error', err?.message || t('No se pudo crear el usuario', 'Could not create user'));
@@ -502,6 +533,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
           name: category.labelEs || category.name || category.label || 'Category',
           labelEs: category.labelEs || category.name || '',
           labelEn: category.labelEn || category.name || '',
+          subtitleEs: category.subtitleEs || '',
+          subtitleEn: category.subtitleEn || '',
           slug: category.slug || '',
           icon: category.icon || '🎫',
           color: category.color || '#6366f1',
@@ -657,10 +690,10 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   };
 
   const [categories, setCategories] = useState<Category[]>([
-    { id: '1', name: 'Concert', labelEs: 'Concierto', labelEn: 'Concert', slug: 'concierto', icon: '🎵', color: '#f97316', sortOrder: 0, active: true, featured: true },
-    { id: '2', name: 'Private Event', labelEs: 'Evento Privado', labelEn: 'Private Event', slug: 'evento-privado', icon: '🎫', color: '#6366f1', sortOrder: 1, active: true, featured: true },
-    { id: '3', name: 'Theater', labelEs: 'Teatro', labelEn: 'Theater', slug: 'teatro', icon: '🎭', color: '#8b5cf6', sortOrder: 2, active: true, featured: false },
-    { id: '4', name: 'Workshop', labelEs: 'Taller', labelEn: 'Workshop', slug: 'taller', icon: '🎪', color: '#6b7280', sortOrder: 3, active: false, featured: false },
+    { id: '1', name: 'Concert', labelEs: 'Concierto', labelEn: 'Concert', subtitleEs: '', subtitleEn: '', slug: 'concierto', icon: '🎵', color: '#f97316', sortOrder: 0, active: true, featured: true },
+    { id: '2', name: 'Private Event', labelEs: 'Evento Privado', labelEn: 'Private Event', subtitleEs: '', subtitleEn: '', slug: 'evento-privado', icon: '🎫', color: '#6366f1', sortOrder: 1, active: true, featured: true },
+    { id: '3', name: 'Theater', labelEs: 'Teatro', labelEn: 'Theater', subtitleEs: '', subtitleEn: '', slug: 'teatro', icon: '🎭', color: '#8b5cf6', sortOrder: 2, active: true, featured: false },
+    { id: '4', name: 'Workshop', labelEs: 'Taller', labelEn: 'Workshop', subtitleEs: '', subtitleEn: '', slug: 'taller', icon: '🎪', color: '#6b7280', sortOrder: 3, active: false, featured: false },
   ]);
 
   const firstEvent = adminEvents[0];
@@ -709,13 +742,50 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   // Lazy-load analytics when that section is first opened or days changes
   useEffect(() => {
     if (active !== 'analytics' || analyticsLoading) return;
+    if (selectedAnalyticsEvent && !selectedAnalyticsEvent.slug) {
+      setAnalyticsSummary({ days: analyticsDays, totalViews: 0, uniqueVisitors: 0, topEvents: [], topPages: [], daily: [], recentViews: [] });
+      return;
+    }
     setAnalyticsLoading(true);
     setAnalyticsSummary(null);
-    apiGet<AnalyticsSummary>(`/analytics/summary?days=${analyticsDays}`)
+    const eventParam = selectedAnalyticsEvent?.slug ? `&eventSlug=${encodeURIComponent(selectedAnalyticsEvent.slug)}` : '';
+    apiGet<AnalyticsSummary>(`/analytics/summary?days=${analyticsDays}${eventParam}`)
       .then(setAnalyticsSummary)
       .catch(() => {})
       .finally(() => setAnalyticsLoading(false));
-  }, [active, analyticsDays]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active, analyticsDays, selectedAnalyticsEvent?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const eventId = selectedAnalyticsEvent?.id;
+    if (active !== 'analytics' || !eventId) {
+      setSelectedAnalyticsSales(null);
+      setSelectedAnalyticsAttendees([]);
+      setSelectedAnalyticsSections([]);
+      return;
+    }
+
+    let mounted = true;
+    setSelectedAnalyticsLoading(true);
+    Promise.all([
+      apiGet<any>(`/orders/event/${eventId}/sales`).catch(() => null),
+      apiGet<any>(`/orders/event/${eventId}/attendees`).catch(() => []),
+      apiGet<any[]>(`/events/${eventId}/seatmap`)
+        .catch(() => apiGet<any[]>(`/events/${eventId}/sections`).catch(() => [])),
+    ])
+      .then(([sales, attendees, sections]) => {
+        if (!mounted) return;
+        setSelectedAnalyticsSales(sales || null);
+        setSelectedAnalyticsAttendees(listFrom(attendees));
+        setSelectedAnalyticsSections(Array.isArray(sections) ? sections : []);
+      })
+      .finally(() => {
+        if (mounted) setSelectedAnalyticsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [active, selectedAnalyticsEvent?.id]);
 
   // Lazy-load special codes when that section is first opened
   useEffect(() => {
@@ -779,17 +849,44 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   // ── User actions ───────────────────────────────────────────────────────────
 
   const updateUser = (id: string, key: keyof AdminUser, value: string | boolean) => {
-    setUsers((current) => current.map((user) => user.id === id ? { ...user, [key]: value } : user));
+    setUsers((current) => current.map((user) => {
+      if (user.id !== id) return user;
+      const next = { ...user, [key]: value };
+      if (key === 'firstName' || key === 'lastName') {
+        next.name = [next.firstName, next.lastName].filter(Boolean).join(' ').trim() || next.username || next.email;
+      }
+      return next;
+    }));
   };
 
   const saveUserToApi = async (id: string) => {
     const user = users.find((u) => u.id === id);
     if (!user) return;
-    const [firstName, ...rest] = user.name.split(' ');
+    if (!user.firstName.trim() || !user.lastName.trim() || !user.email.trim()) {
+      Alert.alert(t('Faltan datos', 'Missing info'), t('Nombre, apellido y correo son requeridos.', 'First name, last name and email are required.'));
+      return;
+    }
+    if (editUserPassword.trim() || editUserPasswordConfirm.trim()) {
+      if (editUserPassword !== editUserPasswordConfirm) {
+        Alert.alert(t('Contraseñas no coinciden', 'Passwords do not match'), t('La nueva contraseña y la confirmación deben ser iguales.', 'The new password and confirmation must match.'));
+        return;
+      }
+    }
     try {
-      await apiPatch(`/admin/users/${id}`, { firstName, lastName: rest.join(' '), email: user.email });
+      const payload: any = {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone || '',
+        address: user.address || '',
+      };
+      if (editUserPassword.trim()) payload.password = editUserPassword;
+      await apiPatch(`/admin/users/${id}`, payload);
       await apiPatch(`/admin/users/${id}/role`, { role: user.role });
+      setEditUserPassword('');
+      setEditUserPasswordConfirm('');
       setEditingUserId(null);
+      await loadUsers();
     } catch {
       Alert.alert(t('Error', 'Error'), t('No se pudo guardar el usuario.', 'Could not save user.'));
     }
@@ -852,6 +949,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     setEditCategoryForm({
       labelEs: category.labelEs || category.name || '',
       labelEn: category.labelEn || category.name || '',
+      subtitleEs: category.subtitleEs || '',
+      subtitleEn: category.subtitleEn || '',
       slug: category.slug || slugify(category.labelEs || category.name || ''),
       icon: category.icon || '🎫',
       color: category.color || colors.orange,
@@ -864,12 +963,14 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const addCategory = async () => {
     const labelEs = categoryForm.labelEs.trim();
     const labelEn = categoryForm.labelEn.trim() || labelEs;
+    const subtitleEs = categoryForm.subtitleEs.trim();
+    const subtitleEn = categoryForm.subtitleEn.trim() || subtitleEs;
     if (!labelEs) return;
     const slug = slugify(categoryForm.slug.trim() || labelEs);
     setSavingCategory(true);
     try {
       const result = await apiPost<any>('/categories', {
-        slug, labelEs, labelEn,
+        slug, labelEs, labelEn, subtitleEs, subtitleEn,
         icon: categoryForm.icon,
         color: categoryForm.color,
         sortOrder: Number(categoryForm.sortOrder) || 0,
@@ -877,7 +978,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       });
       setCategories((current) => [...current, {
         id: String(result.id || Date.now()),
-        name: labelEs, labelEs, labelEn,
+        name: labelEs, labelEs, labelEn, subtitleEs, subtitleEn,
         slug: result.slug || slug,
         icon: result.icon || categoryForm.icon,
         color: result.color || categoryForm.color,
@@ -895,11 +996,13 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
   const saveCategoryToApi = async (id: string) => {
     const labelEs = editCategoryForm.labelEs.trim();
     const labelEn = editCategoryForm.labelEn.trim() || labelEs;
+    const subtitleEs = editCategoryForm.subtitleEs.trim();
+    const subtitleEn = editCategoryForm.subtitleEn.trim() || subtitleEs;
     const slug = slugify(editCategoryForm.slug.trim() || labelEs);
     setSavingCategory(true);
     try {
       await apiPatch(`/categories/${id}`, {
-        slug, labelEs, labelEn,
+        slug, labelEs, labelEn, subtitleEs, subtitleEn,
         icon: editCategoryForm.icon,
         color: editCategoryForm.color,
         sortOrder: Number(editCategoryForm.sortOrder) || 0,
@@ -907,7 +1010,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
         ...(editCategoryForm.imageData ? { imageData: editCategoryForm.imageData } : {}),
       });
       setCategories((current) => current.map((c) => c.id === id ? {
-        ...c, name: labelEs, labelEs, labelEn, slug,
+        ...c, name: labelEs, labelEs, labelEn, subtitleEs, subtitleEn, slug,
         icon: editCategoryForm.icon,
         color: editCategoryForm.color,
         sortOrder: Number(editCategoryForm.sortOrder) || 0,
@@ -1491,6 +1594,25 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
     }
   };
 
+  const openEventAnalytics = (event: any) => {
+    setSelectedAnalyticsEvent({
+      id: event?.id ? String(event.id) : undefined,
+      slug: adminEventSlug(event),
+      title: adminEventTitle(event),
+      imageUrl: adminEventImage(event),
+      venue: adminEventVenue(event),
+      date: adminEventDate(event),
+    });
+    onSectionChange?.('analytics');
+    setTimeout(() => adminScrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
+  };
+
+  const backToAdminEventsFromAnalytics = () => {
+    setSelectedAnalyticsEvent(null);
+    onSectionChange?.('events');
+    setTimeout(() => adminScrollRef.current?.scrollTo({ y: 0, animated: false }), 0);
+  };
+
   const closeAdminEventEditor = async () => {
     setEditingAdminEvent(null);
     try {
@@ -1500,6 +1622,19 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       /* keep current list */
     }
   };
+
+  const selectedAnalyticsFinancial = selectedAnalyticsEvent
+    ? eventFinancials.find((event) => event.id === selectedAnalyticsEvent.id)
+    : undefined;
+  const selectedAnalyticsPaidOrders = ((selectedAnalyticsSales?.orders || []) as any[])
+    .filter((order) => Number(order.subtotal ?? order.total ?? 0) > 0);
+  const selectedAnalyticsPaidTickets = selectedAnalyticsPaidOrders.reduce((sum, order) => {
+    const tickets = Array.isArray(order.tickets) ? order.tickets : [];
+    if (tickets.length > 0) {
+      return sum + tickets.filter((ticket: any) => Number(ticket.price ?? order.subtotal ?? order.total ?? 0) > 0).length;
+    }
+    return sum + Number(order.ticketCount || 0);
+  }, 0);
 
   return (
     <View style={styles.root}>
@@ -1820,7 +1955,12 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   <Ionicons name="pencil" size={15} color="#F97316" />
                 </TouchableOpacity>
                 <View style={styles.adminEventTop}>
-                  <View style={styles.adminEventPosterWrap}>
+                  <TouchableOpacity
+                    onPress={() => openEventAnalytics(item)}
+                    style={styles.adminEventPosterWrap}
+                    activeOpacity={0.86}
+                    accessibilityLabel={t('Ver estadísticas del evento', 'View event analytics')}
+                  >
                     {adminEventImage(item) ? (
                       <Image source={{ uri: adminEventImage(item) }} style={styles.adminEventPoster} resizeMode="cover" />
                     ) : (
@@ -1828,7 +1968,10 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                         <Text style={styles.adminEventPosterText}>EVENT</Text>
                       </View>
                     )}
-                  </View>
+                    <View style={styles.adminEventStatsTab}>
+                      <Ionicons name="stats-chart" size={13} color="#FFFFFF" />
+                    </View>
+                  </TouchableOpacity>
 
                   <View style={styles.adminEventMain}>
                     <Text style={styles.adminEventEyebrow}>{(item.status || 'EVENT').toUpperCase()}</Text>
@@ -2046,6 +2189,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             <GradientButton onPress={() => setShowCreateUser(true)} height={42} style={styles.createUserBtn}>
               <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
               <Text style={styles.createUserBtnText}>{t('CREAR USUARIO', 'CREATE USER')}</Text>
+              <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
             </GradientButton>
 
             {usersApiError ? (
@@ -2207,7 +2351,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
           <Modal visible transparent animationType="slide" onRequestClose={() => setEditingUserId(null)}>
             <View style={styles.modalOverlay}>
               <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setEditingUserId(null)} activeOpacity={1} />
-              <View style={[styles.userModal, { maxHeight: '85%' }]}>
+              <View style={[styles.userModal, styles.userEditModal]}>
                 <View style={styles.userModalHeader}>
                   <View style={styles.userInitialsAvatarLg}>
                     <Ionicons name="pencil-outline" size={20} color={colors.orange} />
@@ -2221,13 +2365,26 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   </TouchableOpacity>
                 </View>
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 10 }}>
-                  <FieldLabel label={t('Nombre completo', 'Full name')} />
-                  <TextInput
-                    value={eu.name}
-                    onChangeText={(v) => updateUser(eu.id, 'name', v)}
-                    style={styles.input}
-                    placeholderTextColor="#9CA3AF"
-                  />
+                  <View style={styles.twoColRow}>
+                    <View style={styles.col}>
+                      <FieldLabel label={t('Nombre', 'First name')} />
+                      <TextInput
+                        value={eu.firstName}
+                        onChangeText={(v) => updateUser(eu.id, 'firstName', v)}
+                        style={styles.input}
+                        placeholderTextColor="#9CA3AF"
+                      />
+                    </View>
+                    <View style={styles.col}>
+                      <FieldLabel label={t('Apellido', 'Last name')} />
+                      <TextInput
+                        value={eu.lastName}
+                        onChangeText={(v) => updateUser(eu.id, 'lastName', v)}
+                        style={styles.input}
+                        placeholderTextColor="#9CA3AF"
+                      />
+                    </View>
+                  </View>
                   <FieldLabel label={t('Email', 'Email')} />
                   <TextInput
                     value={eu.email}
@@ -2235,6 +2392,39 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                     autoCapitalize="none"
                     keyboardType="email-address"
                     style={styles.input}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  <FieldLabel label={t('Teléfono', 'Phone')} />
+                  <TextInput
+                    value={eu.phone || ''}
+                    onChangeText={(v) => updateUser(eu.id, 'phone', v)}
+                    keyboardType="phone-pad"
+                    style={styles.input}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  <FieldLabel label={t('Dirección', 'Address')} />
+                  <TextInput
+                    value={eu.address || ''}
+                    onChangeText={(v) => updateUser(eu.id, 'address', v)}
+                    style={styles.input}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  <FieldLabel label={t('Nueva contraseña (opcional)', 'New password (optional)')} />
+                  <TextInput
+                    value={editUserPassword}
+                    onChangeText={setEditUserPassword}
+                    secureTextEntry
+                    style={styles.input}
+                    placeholder={t('Dejar en blanco para no cambiar', 'Leave blank to keep current')}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  <FieldLabel label={t('Repetir contraseña', 'Repeat password')} />
+                  <TextInput
+                    value={editUserPasswordConfirm}
+                    onChangeText={setEditUserPasswordConfirm}
+                    secureTextEntry
+                    style={styles.input}
+                    placeholder={t('Repite la nueva contraseña', 'Repeat the new password')}
                     placeholderTextColor="#9CA3AF"
                   />
                   <FieldLabel label={t('Rol', 'Role')} />
@@ -2247,10 +2437,15 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   </View>
                 </ScrollView>
                 <View style={[styles.userModalFooter, { gap: 10 }]}>
-                  <TouchableOpacity onPress={() => setEditingUserId(null)} style={[styles.userModalCloseBtn, { flex: 1, alignItems: 'center' }]}>
+                  <TouchableOpacity onPress={() => setEditingUserId(null)} style={[styles.userModalCloseBtn, styles.userModalSecondaryBtn]}>
                     <Text style={styles.userModalCloseBtnText}>{t('Cancelar', 'Cancel')}</Text>
                   </TouchableOpacity>
-                  <GradientButton label={t('GUARDAR', 'SAVE')} onPress={() => saveUserToApi(eu.id)} height={44} style={{ flex: 1 }} />
+                  <GradientButton onPress={() => saveUserToApi(eu.id)} height={44} style={styles.userModalPrimaryBtn}>
+                    <View style={styles.userModalPrimaryContent}>
+                      <Text style={styles.userModalPrimaryText}>{t('GUARDAR', 'SAVE')}</Text>
+                      <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+                    </View>
+                  </GradientButton>
                 </View>
               </View>
             </View>
@@ -2262,8 +2457,8 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
       {showCreateUser && (
         <Modal visible transparent animationType="slide" onRequestClose={() => setShowCreateUser(false)}>
           <View style={styles.modalOverlay}>
-            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowCreateUser(false)} activeOpacity={1} />
-            <View style={[styles.userModal, { maxHeight: '92%' }]}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => { setShowCreateUser(false); setCuPasswordConfirm(''); }} activeOpacity={1} />
+            <View style={[styles.userModal, styles.userCreateModal]}>
               <View style={styles.userModalHeader}>
                 <View style={[styles.userInitialsAvatarLg, { backgroundColor: 'rgba(249,115,22,0.12)' }]}>
                   <Ionicons name="person-add-outline" size={22} color={colors.orange} />
@@ -2272,7 +2467,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   <Text style={styles.userModalName}>{t('Nuevo usuario', 'New user')}</Text>
                   <Text style={styles.userModalSub}>{t('Crea una cuenta manualmente', 'Create an account manually')}</Text>
                 </View>
-                <TouchableOpacity onPress={() => setShowCreateUser(false)} style={styles.userModalClose}>
+                <TouchableOpacity onPress={() => { setShowCreateUser(false); setCuPasswordConfirm(''); }} style={styles.userModalClose}>
                   <Ionicons name="close" size={20} color="rgba(226,232,240,0.7)" />
                 </TouchableOpacity>
               </View>
@@ -2289,6 +2484,15 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 <TextInput value={cuForm.phone} onChangeText={(v) => setCu('phone', v)} keyboardType="phone-pad" style={styles.input} />
                 <FieldLabel label={t('Contraseña (opcional)', 'Password (optional)')} />
                 <TextInput value={cuForm.password} onChangeText={(v) => setCu('password', v)} secureTextEntry style={styles.input} />
+                <FieldLabel label={t('Repetir contraseña', 'Repeat password')} />
+                <TextInput
+                  value={cuPasswordConfirm}
+                  onChangeText={setCuPasswordConfirm}
+                  secureTextEntry
+                  style={styles.input}
+                  placeholder={t('Repite la contraseña', 'Repeat the password')}
+                  placeholderTextColor="#9CA3AF"
+                />
                 <FieldLabel label={t('Rol', 'Role')} />
                 <View style={styles.segmentGroup}>
                   {(['client', 'organizer', 'admin'] as const).map((role) => (
@@ -2299,10 +2503,15 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 </View>
               </ScrollView>
               <View style={[styles.userModalFooter, { justifyContent: 'flex-end', gap: 10 }]}>
-                <TouchableOpacity onPress={() => setShowCreateUser(false)} style={styles.userModalCloseBtn}>
+                <TouchableOpacity onPress={() => { setShowCreateUser(false); setCuPasswordConfirm(''); }} style={[styles.userModalCloseBtn, styles.userModalSecondaryBtn]}>
                   <Text style={styles.userModalCloseBtnText}>{t('Cancelar', 'Cancel')}</Text>
                 </TouchableOpacity>
-                <GradientButton label={creatingUser ? t('CREANDO...', 'CREATING...') : t('CREAR USUARIO', 'CREATE USER')} onPress={createUserApi} height={44} style={{ flex: 1 }} />
+                <GradientButton onPress={createUserApi} height={44} style={styles.userModalPrimaryBtn}>
+                  <View style={styles.userModalPrimaryContent}>
+                    <Text style={styles.userModalPrimaryText}>{creatingUser ? t('CREANDO...', 'CREATING...') : t('CREAR USUARIO', 'CREATE USER')}</Text>
+                    <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+                  </View>
+                </GradientButton>
               </View>
             </View>
           </View>
@@ -2346,12 +2555,20 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 <FieldLabel label={t('Título', 'Title')} />
                 <TextInput
                   value={categoryForm.labelEs}
-                  onChangeText={(v) => setCategoryForm((f) => ({ ...f, labelEs: v, labelEn: f.labelEn || v, slug: f.slug || slugify(v) }))}
+                  onChangeText={(v) => setCategoryForm((f) => ({ ...f, labelEs: v, labelEn: v, slug: f.slug || slugify(v) }))}
                   placeholder={t('Ej. Concierto', 'E.g. Concert')}
                   placeholderTextColor="#6B7280"
                   style={styles.catFormInput}
                 />
                 <FieldLabel label={t('Subtítulo', 'Subtitle')} />
+                <TextInput
+                  value={categoryForm.subtitleEs}
+                  onChangeText={(v) => setCategoryForm((f) => ({ ...f, subtitleEs: v, subtitleEn: v }))}
+                  placeholder={t('Ej. Música en vivo', 'E.g. Live music')}
+                  placeholderTextColor="#6B7280"
+                  style={styles.catFormInput}
+                />
+                <FieldLabel label={t('Slug interno', 'Internal slug')} />
                 <TextInput
                   value={categoryForm.slug}
                   onChangeText={(v) => setCategoryForm((f) => ({ ...f, slug: slugify(v) }))}
@@ -2377,7 +2594,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.catCardName} numberOfLines={1}>{categoryForm.labelEs || t('Título', 'Title')}</Text>
-                    <Text style={styles.catCardSlug} numberOfLines={1}>{categoryForm.slug || t('subtítulo', 'subtitle')}</Text>
+                    <Text style={styles.catCardSlug} numberOfLines={1}>{categoryForm.subtitleEs || categoryForm.slug || t('subtítulo', 'subtitle')}</Text>
                   </View>
                 </View>
               </ScrollView>
@@ -2429,12 +2646,20 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                 <FieldLabel label={t('Título', 'Title')} />
                 <TextInput
                   value={editCategoryForm.labelEs}
-                  onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, labelEs: v, labelEn: f.labelEn || v }))}
+                  onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, labelEs: v, labelEn: v }))}
                   placeholder={t('Ej. Concierto', 'E.g. Concert')}
                   placeholderTextColor="#6B7280"
                   style={styles.catFormInput}
                 />
                 <FieldLabel label={t('Subtítulo', 'Subtitle')} />
+                <TextInput
+                  value={editCategoryForm.subtitleEs}
+                  onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, subtitleEs: v, subtitleEn: v }))}
+                  placeholder={t('Ej. Música en vivo', 'E.g. Live music')}
+                  placeholderTextColor="#6B7280"
+                  style={styles.catFormInput}
+                />
+                <FieldLabel label={t('Slug interno', 'Internal slug')} />
                 <TextInput
                   value={editCategoryForm.slug}
                   onChangeText={(v) => setEditCategoryForm((f) => ({ ...f, slug: slugify(v) }))}
@@ -2460,7 +2685,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.catCardName} numberOfLines={1}>{editCategoryForm.labelEs || t('Título', 'Title')}</Text>
-                    <Text style={styles.catCardSlug} numberOfLines={1}>{editCategoryForm.slug || t('subtítulo', 'subtitle')}</Text>
+                    <Text style={styles.catCardSlug} numberOfLines={1}>{editCategoryForm.subtitleEs || editCategoryForm.slug || t('subtítulo', 'subtitle')}</Text>
                   </View>
                 </View>
               </ScrollView>
@@ -2579,7 +2804,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.catCardName} numberOfLines={1}>{category.name}</Text>
-                    <Text style={styles.catCardSlug} numberOfLines={1}>{category.slug}</Text>
+                    <Text style={styles.catCardSlug} numberOfLines={1}>{category.subtitleEs || category.slug}</Text>
                     <View style={[styles.catStatusBadge, category.active ? styles.catStatusBadgeActive : styles.catStatusBadgeInactive]}>
                       <View style={[styles.catStatusDot, category.active ? styles.catStatusDotActive : styles.catStatusDotInactive]} />
                       <Text style={[styles.catStatusText, category.active ? styles.catStatusTextActive : styles.catStatusTextInactive]}>
@@ -2650,9 +2875,19 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
           <>
             {/* ─── Header ─── */}
             <View style={styles.anHeader}>
+              {selectedAnalyticsEvent && (
+                <TouchableOpacity
+                  onPress={backToAdminEventsFromAnalytics}
+                  style={styles.anBackBtn}
+                  activeOpacity={0.84}
+                  accessibilityLabel={t('Volver a eventos', 'Back to events')}
+                >
+                  <Ionicons name="chevron-back" size={19} color="#F97316" />
+                </TouchableOpacity>
+              )}
               <View style={{ flex: 1 }}>
-                <Text style={styles.anTitle}>{t('Analíticas', 'Analytics')}</Text>
-                <Text style={styles.anSubtitle}>{t('Visitas del sitio y eventos más vistos', 'Site visits and most viewed events')}</Text>
+                <Text style={styles.anTitle}>{selectedAnalyticsEvent ? t('Analíticas del evento', 'Event analytics') : t('Analíticas', 'Analytics')}</Text>
+                <Text style={styles.anSubtitle}>{selectedAnalyticsEvent?.title || t('Visitas del sitio y eventos más vistos', 'Site visits and most viewed events')}</Text>
               </View>
               <TouchableOpacity
                 onPress={() => {
@@ -2669,14 +2904,41 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               </TouchableOpacity>
             </View>
 
+            {selectedAnalyticsEvent && (
+              <View style={styles.anSelectedEventCard}>
+                <View style={styles.anSelectedImageWrap}>
+                  {selectedAnalyticsEvent.imageUrl ? (
+                    <Image source={{ uri: selectedAnalyticsEvent.imageUrl }} style={styles.anSelectedImage} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.anSelectedImageFallback}>
+                      <Ionicons name="calendar-outline" size={24} color="rgba(249,115,22,0.75)" />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.anSelectedCopy}>
+                  <Text style={styles.anSelectedEyebrow}>{t('EVENTO SELECCIONADO', 'SELECTED EVENT')}</Text>
+                  <Text style={styles.anSelectedTitle} numberOfLines={2}>{selectedAnalyticsEvent.title}</Text>
+                  <Text style={styles.anSelectedMeta} numberOfLines={1}>{selectedAnalyticsEvent.date || selectedAnalyticsEvent.venue || selectedAnalyticsEvent.slug}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setSelectedAnalyticsEvent(null)} style={styles.anSelectedClear}>
+                  <Ionicons name="close" size={16} color="rgba(226,232,240,0.72)" />
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* ─── Stat cards 2-col grid ─── */}
             <View style={styles.anStatGrid}>
-              {[
+              {(selectedAnalyticsEvent ? [
+                { label: t('Vistas del evento', 'Event views'), value: analyticsSummary?.totalViews ?? 0, icon: 'eye-outline' as const },
+                { label: t('Visitantes', 'Visitors'), value: analyticsSummary?.uniqueVisitors ?? 0, icon: 'people-outline' as const },
+                { label: t('Actividad reciente', 'Recent activity'), value: analyticsSummary?.recentViews.length ?? 0, icon: 'flash-outline' as const },
+                { label: t('Páginas vistas', 'Viewed pages'), value: analyticsSummary?.topPages.length ?? 0, icon: 'bar-chart-outline' as const },
+              ] : [
                 { label: t('Vistas totales', 'Total views'), value: analyticsSummary?.totalViews ?? 0, icon: 'eye-outline' as const },
                 { label: t('Visitantes únicos', 'Unique visitors'), value: analyticsSummary?.uniqueVisitors ?? 0, icon: 'people-outline' as const },
                 { label: t('Eventos vistos', 'Viewed events'), value: analyticsSummary?.topEvents.length ?? 0, icon: 'flash-outline' as const },
                 { label: t('Páginas vistas', 'Viewed pages'), value: (analyticsSummary?.topPages ?? []).length, icon: 'bar-chart-outline' as const },
-              ].map((s, index) => (
+              ]).map((s, index) => (
                 <View key={`${s.label}-${index}`} style={styles.anStatCard}>
                   <View style={styles.anStatTop}>
                     <Text style={styles.anStatLabel}>{s.label}</Text>
@@ -2687,12 +2949,44 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
               ))}
             </View>
 
+            {selectedAnalyticsEvent && (
+              <>
+                <View style={styles.anStatGrid}>
+                  {[
+                    { label: t('Facturado total', 'Total charged'), value: `$${Number(selectedAnalyticsFinancial?.totalCharged ?? selectedAnalyticsSales?.totalRevenue ?? 0).toFixed(2)}`, icon: 'card-outline' as const },
+                    { label: t('Ingresos entradas', 'Ticket sales'), value: `$${Number(selectedAnalyticsFinancial?.ticketSales ?? selectedAnalyticsSales?.totalRevenue ?? 0).toFixed(2)}`, icon: 'cash-outline' as const },
+                    { label: t('Órdenes', 'Orders'), value: selectedAnalyticsPaidOrders.length || selectedAnalyticsFinancial?.orders || 0, icon: 'receipt-outline' as const },
+                    { label: t('Tickets vendidos', 'Tickets sold'), value: selectedAnalyticsPaidTickets || 0, icon: 'ticket-outline' as const },
+                  ].map((s, index) => (
+                    <View key={`${s.label}-${index}`} style={styles.anStatCard}>
+                      <View style={styles.anStatTop}>
+                        <Text style={styles.anStatLabel}>{s.label}</Text>
+                        <View style={styles.anStatIconBox}><Ionicons name={s.icon} size={16} color={colors.orange} /></View>
+                      </View>
+                      <Text style={styles.anStatValue}>{typeof s.value === 'number' && s.value >= 1000 ? `${(s.value / 1000).toFixed(1)}k` : String(s.value)}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {selectedAnalyticsLoading ? (
+                  <View style={styles.anStatCard}><Text style={styles.anStatLabel}>{t('Cargando analítica del evento...', 'Loading event analytics...')}</Text></View>
+                ) : (
+                  <OrganizerAnalyticsMobile
+                    sales={selectedAnalyticsSales}
+                    attendees={selectedAnalyticsAttendees}
+                    sections={selectedAnalyticsSections}
+                    eventTitle={selectedAnalyticsEvent.title}
+                  />
+                )}
+              </>
+            )}
+
             {analyticsLoading && (
               <View style={styles.anStatCard}><Text style={styles.anStatLabel}>{t('Cargando...', 'Loading...')}</Text></View>
             )}
 
             {/* ─── Top events ─── */}
-            {(analyticsSummary?.topEvents ?? []).length > 0 && (
+            {!selectedAnalyticsEvent && (analyticsSummary?.topEvents ?? []).length > 0 && (
               <View style={styles.anSection}>
                 <Text style={styles.anSectionTitle}>{t('Eventos más vistos', 'Top events')}</Text>
                 {(analyticsSummary?.topEvents ?? []).slice(0, 5).map((ev, i) => (
@@ -2706,7 +3000,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             )}
 
             {/* ─── Top pages ─── */}
-            {(analyticsSummary?.topPages ?? []).length > 0 && (
+            {!selectedAnalyticsEvent && (analyticsSummary?.topPages ?? []).length > 0 && (
               <View style={styles.anSection}>
                 <Text style={styles.anSectionTitle}>{t('Páginas más vistas', 'Top pages')}</Text>
                 {(analyticsSummary?.topPages ?? []).slice(0, 5).map((page, i) => (
@@ -2720,7 +3014,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
             )}
 
             {/* ─── Recent activity ─── */}
-            {(analyticsSummary?.recentViews ?? []).length > 0 && (
+            {!selectedAnalyticsEvent && (analyticsSummary?.recentViews ?? []).length > 0 && (
               <View style={styles.anSection}>
                 <TouchableOpacity onPress={() => setAnalyticsRecentOpen((v) => !v)} style={styles.anRecentHeader}>
                   <View style={{ flex: 1 }}>
@@ -3144,7 +3438,7 @@ export function AdminPanelScreen({ section, onSectionChange: _onSectionChange }:
                     <Image source={{ uri: emailArtData }} style={styles.mktPreviewArt} resizeMode="contain" />
                   ) : (
                     <View style={styles.mktPreviewArtEmpty}>
-                      <Ionicons name="image-outline" size={44} color="#CBD5E1" />
+                      <Ionicons name="image-outline" size={44} color="rgba(248,250,252,0.72)" />
                       <Text style={styles.mktPreviewArtText}>{t('Tu arte de Photoshop aparecerá aquí', 'Your Photoshop art will appear here')}</Text>
                     </View>
                   )}
@@ -3740,6 +4034,7 @@ const styles = StyleSheet.create({
   adminEventPoster: { width: '100%', height: '100%' },
   adminEventPosterFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.08)' },
   adminEventPosterText: { color: colors.orange, fontSize: 9, fontWeight: '700', letterSpacing: 0 },
+  adminEventStatsTab: { position: 'absolute', right: 5, bottom: 5, width: 28, height: 28, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.34)', backgroundColor: 'rgba(249,115,22,0.92)', alignItems: 'center', justifyContent: 'center', shadowColor: '#F97316', shadowOpacity: 0.28, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
   adminEventMain: { flex: 1, minWidth: 0, paddingRight: 34 },
   adminEventEyebrow: { color: colors.orange, fontSize: 10, fontWeight: '700', letterSpacing: 0, marginBottom: 4 },
   adminEventTitle: { color: '#F8FAFC', fontSize: 17, lineHeight: 21, fontWeight: '700', marginBottom: 5 },
@@ -4019,21 +4314,27 @@ const styles = StyleSheet.create({
   userActionIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
 
   // User detail modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(3,11,20,0.72)', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  userModal: { width: '100%', maxHeight: '88%', backgroundColor: '#0d1f33', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' },
-  userModalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.10)' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(3,11,20,0.62)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  userModal: { width: '100%', maxHeight: '88%', backgroundColor: 'rgba(3,11,20,0.92)', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
+  userEditModal: { height: '85%' },
+  userCreateModal: { height: '92%' },
+  userModalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.018)' },
   userModalName: { color: '#F8FAFC', fontSize: 16, fontWeight: '700', marginBottom: 2 },
   userModalSub: { color: 'rgba(226,232,240,0.52)', fontSize: 11, fontWeight: '600' },
   userModalClose: { width: 34, height: 34, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center' },
   userModalSectionLabel: { color: 'rgba(226,232,240,0.44)', fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 10 },
-  userModalInfoCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', padding: 14, gap: 12 },
+  userModalInfoCard: { backgroundColor: 'rgba(255,255,255,0.026)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)', padding: 14, gap: 12 },
   userModalInfoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   userModalInfoText: { color: '#CBD5E1', fontSize: 13, fontWeight: '500', flex: 1 },
   userModalEmptyText: { color: 'rgba(226,232,240,0.44)', fontSize: 13, fontWeight: '400', textAlign: 'center', paddingVertical: 8 },
-  userModalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
+  userModalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(255,255,255,0.014)' },
   userModalEditBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   userModalEditBtnText: { color: colors.orange, fontSize: 14, fontWeight: '700' },
   userModalCloseBtn: { height: 40, paddingHorizontal: 20, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  userModalSecondaryBtn: { flex: 0.82, height: 44, borderRadius: 10, backgroundColor: 'rgba(3,11,20,0.88)', borderColor: 'rgba(255,255,255,0.14)' },
+  userModalPrimaryBtn: { flex: 1.18, borderRadius: 10 },
+  userModalPrimaryContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  userModalPrimaryText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0, textShadowColor: 'rgba(0,0,0,0.24)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
   userModalCloseBtnText: { color: '#CBD5E1', fontSize: 14, fontWeight: '700' },
 
   // Event filter tabs
@@ -4094,7 +4395,7 @@ const styles = StyleSheet.create({
   catActionBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.035)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
 
   // Category form (create/edit modals)
-  catFormModal: { width: '100%', maxHeight: '92%', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(125,180,255,0.18)', overflow: 'hidden', backgroundColor: 'rgba(6,18,32,0.92)' },
+  catFormModal: { width: '100%', height: '92%', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(125,180,255,0.18)', overflow: 'hidden', backgroundColor: 'rgba(6,18,32,0.92)' },
   catFormContent: { padding: 20, gap: 10 },
   catFormInput: { height: 50, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(125,180,255,0.16)', backgroundColor: 'rgba(3,11,20,0.72)', paddingHorizontal: 14, color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 4 },
   catPhotoPicker: { height: 132, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(125,180,255,0.18)', backgroundColor: 'rgba(255,255,255,0.035)', overflow: 'hidden', marginBottom: 8 },
@@ -4209,16 +4510,16 @@ const styles = StyleSheet.create({
   mktPreviewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
   mktPreviewMailBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.06)' },
   mktPreviewMailText: { color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
-  mktEmailShell: { borderRadius: 24, backgroundColor: '#E2E8F0', padding: 12, marginTop: 12 },
-  mktEmailPreview: { borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFFFFF', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-  mktPreviewLogoRow: { padding: 20, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  mktEmailShell: { borderRadius: 24, backgroundColor: 'rgba(3,11,20,0.36)', padding: 12, marginTop: 12, borderWidth: 1, borderColor: 'rgba(125,180,255,0.10)' },
+  mktEmailPreview: { borderRadius: 20, borderWidth: 1, borderColor: 'rgba(125,180,255,0.14)', backgroundColor: 'rgba(3,11,20,0.48)', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+  mktPreviewLogoRow: { padding: 20, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)', backgroundColor: 'rgba(255,255,255,0.018)' },
   mktPreviewLogoImg: { height: 36, width: 140 },
   mktPreviewArt: { width: '100%', height: 180 },
-  mktPreviewArtEmpty: { height: 200, marginHorizontal: 16, marginBottom: 8, borderRadius: 16, borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed', backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  mktPreviewArtText: { color: '#94A3B8', fontSize: 13, fontWeight: '700', textAlign: 'center', paddingHorizontal: 20 },
-  mktPreviewBody: { padding: 20, gap: 10, alignItems: 'center' },
-  mktPreviewBodyTitle: { color: '#0A375A', fontSize: 18, fontWeight: '900', textAlign: 'center' },
-  mktPreviewBodyCopy: { color: '#64748B', fontSize: 13, lineHeight: 20, textAlign: 'center', maxWidth: 280 },
+  mktPreviewArtEmpty: { height: 200, marginHorizontal: 16, marginBottom: 8, borderRadius: 16, borderWidth: 2, borderColor: 'rgba(125,180,255,0.16)', borderStyle: 'dashed', backgroundColor: 'rgba(3,11,20,0.30)', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  mktPreviewArtText: { color: 'rgba(248,250,252,0.78)', fontSize: 13, fontWeight: '700', textAlign: 'center', paddingHorizontal: 20 },
+  mktPreviewBody: { padding: 20, gap: 10, alignItems: 'center', backgroundColor: 'rgba(3,11,20,0.34)' },
+  mktPreviewBodyTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '900', textAlign: 'center' },
+  mktPreviewBodyCopy: { color: 'rgba(248,250,252,0.78)', fontSize: 13, lineHeight: 20, textAlign: 'center', maxWidth: 280 },
   mktPreviewBtn: { marginTop: 8, paddingVertical: 14, paddingHorizontal: 28, borderRadius: 12, backgroundColor: '#F97316', alignItems: 'center' },
   mktPreviewBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800', letterSpacing: 0.8 },
   mktWaLangRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
@@ -4298,10 +4599,20 @@ const styles = StyleSheet.create({
 
   // ── Analytics redesign ────────────────────────────────────────────────────
   anHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
+  anBackBtn: { width: 40, height: 40, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', backgroundColor: 'rgba(249,115,22,0.10)', alignItems: 'center', justifyContent: 'center', marginTop: 2 },
   anTitle: { color: '#F8FAFC', fontSize: 26, fontWeight: '800', marginBottom: 4 },
   anSubtitle: { color: 'rgba(226,232,240,0.55)', fontSize: 13, fontWeight: '500' },
   anDayBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.04)', marginTop: 4 },
   anDayBtnText: { color: '#F8FAFC', fontSize: 13, fontWeight: '600' },
+  anSelectedEventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(249,115,22,0.24)', backgroundColor: 'rgba(249,115,22,0.075)', marginBottom: 12 },
+  anSelectedImageWrap: { width: 58, height: 72, borderRadius: 13, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.75)' },
+  anSelectedImage: { width: '100%', height: '100%' },
+  anSelectedImageFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.08)' },
+  anSelectedCopy: { flex: 1, minWidth: 0 },
+  anSelectedEyebrow: { color: colors.orange, fontSize: 10, fontWeight: '900', letterSpacing: 0.6, marginBottom: 3 },
+  anSelectedTitle: { color: '#F8FAFC', fontSize: 15, lineHeight: 19, fontWeight: '800' },
+  anSelectedMeta: { color: 'rgba(226,232,240,0.52)', fontSize: 12, fontWeight: '600', marginTop: 4 },
+  anSelectedClear: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.045)', alignItems: 'center', justifyContent: 'center' },
   anStatGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
   anStatCard: { flex: 1, minWidth: '47%', padding: 16, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.018)' },
   anStatTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },

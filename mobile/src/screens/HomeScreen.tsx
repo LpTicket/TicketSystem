@@ -29,6 +29,8 @@ type ApiCategory = {
   slug?: string;
   labelEs?: string;
   labelEn?: string;
+  subtitleEs?: string | null;
+  subtitleEn?: string | null;
   imageData?: string | null;
   imageUrl?: string | null;
   isActive?: boolean;
@@ -38,6 +40,7 @@ type HomeCategory = {
   id: string;
   slug: string;
   label: string;
+  subtitle: string;
   imageUrl: string;
 };
 
@@ -99,8 +102,6 @@ export function HomeScreen({ onOpenEvent }: Props) {
   const [loading, setLoading] = useState(true);
   const [realCategories, setRealCategories] = useState<ApiCategory[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
-  const [previousHeroIndex, setPreviousHeroIndex] = useState<number | null>(null);
-  const [heroTransitionReady, setHeroTransitionReady] = useState(false);
   const [query, setQuery] = useState('');
   const [place, setPlace] = useState('');
   const [category, setCategory] = useState('All');
@@ -110,8 +111,8 @@ export function HomeScreen({ onOpenEvent }: Props) {
   const categoryShine = useRef(new Animated.Value(0)).current;
   const categoryImageScale = useRef(new Animated.Value(1.12)).current;
   const categoryFrameX = useRef(new Animated.Value(0)).current;
-  const heroFade = useRef(new Animated.Value(1)).current;
-  const heroProgressX = useRef(new Animated.Value(0)).current;
+  const eventSearchPlaceholder = t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...') || (lang === 'es' ? 'Conciertos, teatro, talleres...' : 'Concerts, theater, workshops...');
+  const placeSearchPlaceholder = t('Ciudad o venue', 'City or venue') || (lang === 'es' ? 'Ciudad o venue' : 'City or venue');
 
   const trustItems: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string }[] = [
     { icon: 'card-outline', title: t('Pagos seguros', 'Secure payments'), subtitle: t('Procesado por Stripe.', 'Processed by Stripe') },
@@ -123,7 +124,6 @@ export function HomeScreen({ onOpenEvent }: Props) {
   const heroEvents = useMemo(() => events.filter((event) => event.bannerImageUrl || event.imageUrl), [events]);
   const safeHeroLength = Math.max(heroEvents.length, 1);
   const heroEvent = heroEvents[heroIndex % safeHeroLength] || events[0];
-  const previousHeroEvent = previousHeroIndex !== null ? heroEvents[previousHeroIndex % safeHeroLength] || events[0] : undefined;
   const heroHeight = Math.max(120, Math.round((width - 32) / 2.63));
   const heroProgressTrackWidth = HERO_PROGRESS_ACTIVE_WIDTH + (safeHeroLength - 1) * HERO_PROGRESS_STEP;
   const heroProgressWidth = Math.max(78, heroProgressTrackWidth + 16);
@@ -135,6 +135,9 @@ export function HomeScreen({ onOpenEvent }: Props) {
       id: item.id || item.slug || item.labelEs || item.labelEn || 'category',
       slug: item.slug || item.labelEs || item.labelEn || 'category',
       label: lang === 'es' ? item.labelEs || item.labelEn || item.slug || '' : item.labelEn || item.labelEs || item.slug || '',
+      subtitle: lang === 'es'
+        ? item.subtitleEs || item.subtitleEn || categoryDesc(item.slug || item.labelEs || '', t)
+        : item.subtitleEn || item.subtitleEs || categoryDesc(item.slug || item.labelEn || '', t),
       imageUrl: getImageUrl(item.imageUrl || item.imageData || ''),
     }));
 
@@ -143,6 +146,7 @@ export function HomeScreen({ onOpenEvent }: Props) {
         id: 'all',
         slug: 'All',
         label: t('Todos', 'All'),
+        subtitle: categoryDesc('All', t),
         imageUrl: getImageUrl(allCategory?.imageUrl || allCategory?.imageData || ''),
       },
       ...liveCategories,
@@ -167,16 +171,6 @@ export function HomeScreen({ onOpenEvent }: Props) {
       useNativeDriver: true,
     }).start();
   }, [activeCategoryIndex, categoryFrameX]);
-
-  useEffect(() => {
-    Animated.spring(heroProgressX, {
-      toValue: (heroIndex % safeHeroLength) * HERO_PROGRESS_STEP,
-      damping: 20,
-      stiffness: 130,
-      mass: 0.85,
-      useNativeDriver: true,
-    }).start();
-  }, [heroIndex, heroProgressX, safeHeroLength]);
 
   const playCategoryShine = (item: string) => {
     categoryShine.stopAnimation();
@@ -275,35 +269,15 @@ export function HomeScreen({ onOpenEvent }: Props) {
     const nextEvent = heroEvents[normalizedIndex];
     const nextImageUrl = getHeroImageUrl(nextEvent);
 
-    const startTransition = () => {
-      heroFade.stopAnimation();
-      setPreviousHeroIndex(heroIndex);
-      setHeroTransitionReady(false);
-      heroFade.setValue(0);
-      setHeroIndex(normalizedIndex);
-    };
+    const showNextHero = () => setHeroIndex(normalizedIndex);
 
     if (nextImageUrl) {
       Image.prefetch(nextImageUrl)
         .catch(() => false)
-        .finally(startTransition);
+        .finally(showNextHero);
     } else {
-      startTransition();
+      showNextHero();
     }
-  };
-
-  const finishHeroImageLoad = () => {
-    if (previousHeroIndex === null || heroTransitionReady) return;
-
-    setHeroTransitionReady(true);
-    Animated.timing(heroFade, {
-      toValue: 1,
-      duration: 950,
-      easing: Easing.inOut(Easing.cubic),
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) setPreviousHeroIndex(null);
-    });
   };
 
   const goNextHero = () => {
@@ -341,15 +315,10 @@ export function HomeScreen({ onOpenEvent }: Props) {
       <View pointerEvents="none" style={styles.bgGridA} />
       <View pointerEvents="none" style={styles.bgGridB} />
       <View style={[styles.heroWrap, { height: heroHeight }]}>
-        {previousHeroEvent && (
-          <Image source={getHeroImageSource(previousHeroEvent)} style={[styles.heroImage, !getHeroImageUrl(previousHeroEvent) && styles.heroFallbackLogo]} resizeMode="contain" />
-        )}
-        <Animated.Image
+        <Image
           source={getHeroImageSource(heroEvent)}
-          style={[styles.heroImage, !getHeroImageUrl(heroEvent) && styles.heroFallbackLogo, previousHeroEvent && styles.heroImageLayer, { opacity: previousHeroEvent ? heroFade : 1 }]}
+          style={[styles.heroImage, !getHeroImageUrl(heroEvent) && styles.heroFallbackLogo]}
           resizeMode="contain"
-          onLoad={finishHeroImageLoad}
-          onError={finishHeroImageLoad}
         />
       </View>
 
@@ -359,14 +328,18 @@ export function HomeScreen({ onOpenEvent }: Props) {
         </TouchableOpacity>
         <View style={[styles.heroProgressRail, { width: heroProgressWidth }]}>
           <View style={[styles.heroProgressTrack, { width: heroProgressTrackWidth }]}>
-            <Animated.View pointerEvents="none" style={[styles.heroProgressNodeActive, { transform: [{ translateX: heroProgressX }] }]} />
             {Array.from({ length: safeHeroLength }).map((_, index) => (
               <TouchableOpacity
                 key={index}
-                activeOpacity={0.8}
+                activeOpacity={1}
                 onPress={() => changeHero(index)}
-                style={[styles.heroProgressNode, { left: index * HERO_PROGRESS_STEP + (HERO_PROGRESS_ACTIVE_WIDTH - HERO_PROGRESS_DOT_WIDTH) / 2 }]}
-              />
+                style={[styles.heroProgressHitTarget, { left: index * HERO_PROGRESS_STEP - 4 }]}
+              >
+                <View style={[
+                  styles.heroProgressNode,
+                  heroIndex % safeHeroLength === index && styles.heroProgressNodeActive,
+                ]} />
+              </TouchableOpacity>
             ))}
           </View>
         </View>
@@ -392,14 +365,14 @@ export function HomeScreen({ onOpenEvent }: Props) {
           <Text style={styles.fieldLabel}>{t('BUSCAR EVENTO', 'SEARCH EVENT')}</Text>
           <View style={styles.fieldRow}>
             <Ionicons name="search" size={18} color="#ff7a00" />
-            <TextInput value={query} onChangeText={setQuery} placeholder={t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...')} placeholderTextColor="rgba(248,250,252,0.62)" style={styles.fieldInput} />
+            <TextInput key={`home-query-${lang}`} value={query} onChangeText={setQuery} placeholder={eventSearchPlaceholder} placeholderTextColor="rgba(248,250,252,0.62)" style={styles.fieldInput} />
           </View>
         </View>
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t('LUGAR', 'PLACE')}</Text>
           <View style={styles.fieldRow}>
             <Ionicons name="location-outline" size={18} color="#ff7a00" />
-            <TextInput value={place} onChangeText={setPlace} placeholder={t('Ciudad o venue', 'City or venue')} placeholderTextColor="rgba(248,250,252,0.62)" style={styles.fieldInput} />
+            <TextInput key={`home-place-${lang}`} value={place} onChangeText={setPlace} placeholder={placeSearchPlaceholder} placeholderTextColor="rgba(248,250,252,0.62)" style={styles.fieldInput} />
           </View>
         </View>
         <GradientButton
@@ -452,7 +425,7 @@ export function HomeScreen({ onOpenEvent }: Props) {
                   )}
                   <View style={styles.catContent}>
                     <Text style={styles.catTitle} numberOfLines={2}>{item.label}</Text>
-                    <Text style={styles.catDesc} numberOfLines={1}>{categoryDesc(item.slug, t)}</Text>
+                    <Text style={styles.catDesc} numberOfLines={1}>{item.subtitle || categoryDesc(item.slug, t)}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -517,7 +490,25 @@ export function HomeScreen({ onOpenEvent }: Props) {
             <Image source={getPosterImageSource(event)} style={styles.eventPosterImage} resizeMode="cover" />
             <View style={styles.posterShade} />
             <View style={styles.privateBadge}><Text style={styles.privateBadgeText}>● {event.tag}</Text></View>
-            <View style={styles.featuredBadge}><Text style={styles.featuredText}>{t('DESTACADO', 'FEATURED')}</Text></View>
+            <View style={styles.featuredBadge}>
+              <LinearGradient
+                colors={['#ff8a18', '#f46c00', '#c93f00']}
+                locations={[0, 0.46, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View pointerEvents="none" style={styles.featuredShine}>
+                <LinearGradient
+                  colors={['rgba(255,235,205,0)', 'rgba(255,235,205,0.85)', 'rgba(255,235,205,0)']}
+                  locations={[0, 0.5, 1]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={StyleSheet.absoluteFill}
+                />
+              </View>
+              <Text style={styles.featuredText}>{t('DESTACADO', 'FEATURED')}</Text>
+            </View>
           </View>
           <View style={styles.eventInfo}>
             <Text style={styles.eventName} numberOfLines={2}>{event.title}</Text>
@@ -585,13 +576,13 @@ const styles = StyleSheet.create({
   heroWrap: { alignSelf: 'stretch', marginHorizontal: 16, marginTop: 0, marginBottom: 10, overflow: 'hidden', backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 18, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.30, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
   heroImage: { width: '100%', height: '100%', backgroundColor: 'transparent' },
   heroFallbackLogo: { transform: [{ scale: 0.88 }] },
-  heroImageLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   heroControls: { alignSelf: 'center', minHeight: 38, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.82)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 8, marginBottom: 12, shadowColor: '#000000', shadowOpacity: 0.24, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
   heroControlButton: { width: 30, height: 30, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(249,115,22,0.38)', backgroundColor: 'rgba(249,115,22,0.12)', alignItems: 'center', justifyContent: 'center' },
   heroProgressRail: { minWidth: 78, height: 30, borderRadius: 999, paddingHorizontal: 8, backgroundColor: 'rgba(255,255,255,0.045)', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' },
   heroProgressTrack: { height: 30, position: 'relative' },
-  heroProgressNode: { position: 'absolute', top: 11.5, width: HERO_PROGRESS_DOT_WIDTH, height: HERO_PROGRESS_DOT_WIDTH, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.32)', zIndex: 1 },
-  heroProgressNodeActive: { position: 'absolute', left: 0, top: 11.5, width: HERO_PROGRESS_ACTIVE_WIDTH, height: 7, borderRadius: 999, backgroundColor: '#F97316', shadowColor: '#F97316', shadowOpacity: 0.55, shadowRadius: 8, shadowOffset: { width: 0, height: 0 }, zIndex: 2 },
+  heroProgressNode: { width: HERO_PROGRESS_DOT_WIDTH, height: HERO_PROGRESS_DOT_WIDTH, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.32)' },
+  heroProgressNodeActive: { width: HERO_PROGRESS_ACTIVE_WIDTH, height: 7, backgroundColor: '#F97316' },
+  heroProgressHitTarget: { position: 'absolute', top: 5, width: HERO_PROGRESS_ACTIVE_WIDTH + 8, height: 20, borderRadius: 999, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   heroAgeBadge: { position: 'absolute', top: 12, right: 12, minWidth: 34, height: 34, borderRadius: 17, paddingHorizontal: 7, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center' },
   heroAgeText: { color: '#0A375A', fontSize: 12, fontWeight: '900' },
   searchPanel: { marginHorizontal: 16, marginTop: 0, zIndex: 20, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.018)', padding: 16, gap: 12, overflow: 'hidden', shadowColor: '#000000', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
@@ -610,7 +601,7 @@ const styles = StyleSheet.create({
   catImageActive: { opacity: 0.9 },
   catShine: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 4 },
   catContent: { position: 'absolute', left: 8, right: 8, bottom: 8, gap: 3, zIndex: 5 },
-  catTitle: { color: '#FFFFFF', fontSize: 11.5, fontWeight: '900', lineHeight: 13, minHeight: 26 },
+  catTitle: { color: '#FFFFFF', fontSize: 8.5, fontWeight: '900', lineHeight: 10.5, minHeight: 21 },
   catDesc: { color: 'rgba(255,255,255,0.76)', fontSize: 9, fontWeight: '700', lineHeight: 11 },
   emptyEvents: { marginHorizontal: 16, marginTop: 24, padding: 22, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   emptyEventsText: { color: 'rgba(226,232,240,0.72)', fontSize: 15, textAlign: 'center', lineHeight: 22 },
@@ -644,10 +635,11 @@ const styles = StyleSheet.create({
   eventPoster: { width: '100%', aspectRatio: 3 / 4, position: 'relative', backgroundColor: 'rgba(255,255,255,0.012)' },
   eventPosterImage: { width: '100%', height: '100%' },
   posterShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(5,24,44,0.12)' },
-  privateBadge: { position: 'absolute', top: 16, left: 14, backgroundColor: 'rgba(3,11,20,0.72)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, paddingVertical: 8 },
-  privateBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
-  featuredBadge: { position: 'absolute', top: 16, right: 14, backgroundColor: colors.orange, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9, shadowColor: colors.orange, shadowOpacity: 0.34, shadowRadius: 14, shadowOffset: { width: 0, height: 8 } },
-  featuredText: { color: colors.white, fontSize: 12, fontWeight: '600', letterSpacing: 1.2 },
+  privateBadge: { position: 'absolute', top: 16, left: 14, backgroundColor: 'rgba(16,185,129,0.18)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(16,185,129,0.46)', paddingHorizontal: 12, paddingVertical: 8, shadowColor: '#10B981', shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  privateBadgeText: { color: '#D1FAE5', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
+  featuredBadge: { position: 'absolute', top: 16, right: 14, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,151,45,0.62)', shadowColor: '#ff6800', shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
+  featuredShine: { position: 'absolute', left: 10, right: 10, top: 5, height: 1 },
+  featuredText: { color: colors.white, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textShadowColor: 'rgba(0,0,0,0.24)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
   plusBadge: { position: 'absolute', top: 76, right: 24, width: 48, height: 48, borderRadius: 24, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   plusText: { color: '#8B1E24', fontSize: 20, fontWeight: '800' },
   mockPosterText: { position: 'absolute', left: 18, right: 18, bottom: 34, alignItems: 'center' },

@@ -48,11 +48,18 @@ function normalizeEvent(event: any): ScannerAccessEvent {
 
 function normalizeGrant(item: any): ScannerAccessGrant {
   const event = item.event || item;
+  const user = item.user
+    ? {
+        ...item.user,
+        avatarUrl: getImageUrl(item.user.avatarUrl),
+      }
+    : undefined;
+
   return {
     id: String(item.id || `${event.id}-${item.status || 'approved'}`),
     status: (item.status || 'approved') as ScannerAccessStatus,
     event: normalizeEvent(event),
-    user: item.user,
+    user,
     requestedAt: item.requestedAt || item.createdAt,
     approvedAt: item.approvedAt,
     rejectedAt: item.rejectedAt,

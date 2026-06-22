@@ -85,7 +85,7 @@ const PREVIEW_EVENT_ID = '__social_match_preview__';
 const PREVIEW_PREF_KEY = 'lp_social_match_preview_pref';
 
 export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [eligibleEvents, setEligibleEvents] = useState<EligibleEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [prefMap, setPrefMap] = useState<Record<string, Preference>>({});
@@ -112,6 +112,8 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
   const visibleConnections = connections.filter((c) => c.status === 'PENDING' || c.status === 'ACCEPTED');
   const selectedEvent = eligibleEvents.find((e) => e.id === selectedEventId);
   const myPhotos = (currentPref.photos || []).filter(Boolean);
+  const industryPlaceholder = t('Música, finanzas, bienes raíces...', 'Music, finance, real estate...') || (lang === 'es' ? 'Música, finanzas, bienes raíces...' : 'Music, finance, real estate...');
+  const messagePlaceholder = t('Escribe un mensaje...', 'Write a message...') || (lang === 'es' ? 'Escribe un mensaje...' : 'Write a message...');
   const previewEvent: EligibleEvent = {
     id: PREVIEW_EVENT_ID,
     title: t('Compra requerida', 'Purchase required'),
@@ -226,8 +228,8 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
     }
   };
 
-  const savePref = async (updates: Partial<Preference>) => {
-    if (!selectedEventId || savingPref) return;
+  const savePref = async (updates: Partial<Preference>, showSavedMessage = false) => {
+    if (!selectedEventId || savingPref) return false;
     const base = prefMap[selectedEventId] ?? DEFAULT_PREF;
     const merged = {
       ...base,
@@ -241,7 +243,8 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
       try {
         await AsyncStorage.setItem(PREVIEW_PREF_KEY, JSON.stringify(merged));
       } catch {}
-      return;
+      if (showSavedMessage) Alert.alert(t('Guardado', 'Saved'));
+      return true;
     }
 
     setSavingPref(true);
@@ -263,16 +266,19 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
         setSuggestions([]);
         setLoadedSuggestionsFor('');
       }
+      if (showSavedMessage) Alert.alert(t('Guardado', 'Saved'));
+      return true;
     } catch (err: any) {
       setPrefMap((prev) => ({ ...prev, [selectedEventId]: base }));
       Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo guardar', 'Could not save preferences'));
+      return false;
     } finally {
       setSavingPref(false);
     }
   };
 
   const saveEditedPref = () => {
-    savePref({ interests: editInterests, industry: editIndustry || null, instagram: editInstagram || null });
+    savePref({ interests: editInterests, industry: editIndustry || null, instagram: editInstagram || null }, true);
   };
 
   const savePreviewPhotos = async (photos: string[]) => {
@@ -553,12 +559,12 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>{t('Industria o área', 'Industry or field')}</Text>
-          <TextInput value={editIndustry} onChangeText={setEditIndustry} style={styles.input} placeholder={t('Música, finanzas, bienes raíces...', 'Music, finance, real estate...')} placeholderTextColor="#9CA3AF" />
+          <TextInput key={`social-industry-${lang}`} value={editIndustry} onChangeText={setEditIndustry} style={styles.input} placeholder={industryPlaceholder} placeholderTextColor="#9CA3AF" />
         </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>{t('Instagram opcional', 'Optional Instagram')}</Text>
-          <TextInput value={editInstagram} onChangeText={setEditInstagram} style={styles.input} placeholder="@username" placeholderTextColor="#9CA3AF" autoCapitalize="none" />
+          <TextInput key={`social-instagram-${lang}`} value={editInstagram} onChangeText={setEditInstagram} style={styles.input} placeholder="@username" placeholderTextColor="#9CA3AF" autoCapitalize="none" />
         </View>
 
         <GradientButton
@@ -686,10 +692,11 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
 
           <View style={styles.chatComposer}>
             <TextInput
+              key={`social-message-${lang}`}
               value={chatDraft}
               onChangeText={setChatDraft}
               style={styles.chatInput}
-              placeholder={t('Escribe un mensaje...', 'Write a message...')}
+              placeholder={messagePlaceholder}
               placeholderTextColor="#9CA3AF"
             />
             <TouchableOpacity onPress={handleSendMessage} disabled={sendingMsg} style={[styles.sendButton, sendingMsg && { opacity: 0.6 }]}>
@@ -743,10 +750,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroIconText: { color: '#F8FAFC', fontSize: 17, fontWeight: '700' },
+  heroIconText: { color: '#F8FAFC', fontSize: 17, fontWeight: '600' },
   heroCopy: { flex: 1 },
-  eyebrow: { color: colors.orange, fontSize: 11, letterSpacing: 0, fontWeight: '700', marginBottom: 6 },
-  title: { color: '#FFFFFF', fontSize: 24, fontWeight: '700', marginBottom: 6 },
+  eyebrow: { color: colors.orange, fontSize: 11, letterSpacing: 0, fontWeight: '600', marginBottom: 6 },
+  title: { color: '#FFFFFF', fontSize: 24, fontWeight: '600', marginBottom: 6 },
   copy: { color: '#cbd5e1', fontSize: 13, lineHeight: 19, fontWeight: '400' },
   card: {
     backgroundColor: 'rgba(255,255,255,0.018)',
@@ -783,7 +790,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statusCopy: { flex: 1, minWidth: 0 },
-  statusTitle: { color: '#F8FAFC', fontSize: 18, fontWeight: '800', marginBottom: 3 },
+  statusTitle: { color: '#F8FAFC', fontSize: 18, fontWeight: '600', marginBottom: 3 },
   statusText: { color: 'rgba(226,232,240,0.64)', fontSize: 12, lineHeight: 17, fontWeight: '400' },
   statusPill: {
     borderRadius: 999,
@@ -797,9 +804,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(249,115,22,0.48)',
     backgroundColor: 'rgba(249,115,22,0.16)',
   },
-  statusPillText: { color: 'rgba(226,232,240,0.72)', fontSize: 9, fontWeight: '900' },
+  statusPillText: { color: 'rgba(226,232,240,0.72)', fontSize: 9, fontWeight: '600' },
   statusPillTextActive: { color: colors.orange },
-  sectionLabel: { color: colors.orange, fontSize: 11, letterSpacing: 0, fontWeight: '700', marginBottom: 12 },
+  sectionLabel: { color: colors.orange, fontSize: 11, letterSpacing: 0, fontWeight: '600', marginBottom: 12 },
   eventRail: { gap: 10, paddingRight: 4 },
   eventChip: {
     width: 230,
@@ -811,7 +818,7 @@ const styles = StyleSheet.create({
   },
   eventChipActive: { backgroundColor: '#030B14', borderColor: 'rgba(249,115,22,0.62)' },
   eventChipDisabled: { borderColor: 'rgba(148,163,184,0.18)', opacity: 0.92 },
-  eventTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  eventTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '600', marginBottom: 4 },
   eventTitleActive: { color: '#FFFFFF' },
   eventMeta: { color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '400' },
   eventMetaActive: { color: '#cbd5e1' },
@@ -828,14 +835,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   activationActive: { backgroundColor: '#030B14', borderColor: 'rgba(249,115,22,0.62)' },
-  activationTitle: { color: 'rgba(226,232,240,0.64)', fontSize: 12, letterSpacing: 0, fontWeight: '700', marginBottom: 3 },
+  activationTitle: { color: 'rgba(226,232,240,0.64)', fontSize: 12, letterSpacing: 0, fontWeight: '600', marginBottom: 3 },
   activationTitleActive: { color: '#FFFFFF' },
   activationSub: { color: 'rgba(226,232,240,0.52)', fontSize: 12, fontWeight: '400' },
   activationSubActive: { color: '#cbd5e1' },
   switchKnob: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#cbd5e1' },
   switchKnobActive: { backgroundColor: colors.orange },
   photoHeader: { marginBottom: 11 },
-  photoTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '800', marginBottom: 3 },
+  photoTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '600', marginBottom: 3 },
   photoHint: { color: 'rgba(226,232,240,0.58)', fontSize: 11.5, lineHeight: 16, fontWeight: '400' },
   photoPreview: {
     width: '100%',
@@ -864,7 +871,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photoPreviewHintText: { color: 'rgba(248,250,252,0.86)', fontSize: 11, fontWeight: '800' },
+  photoPreviewHintText: { color: 'rgba(248,250,252,0.86)', fontSize: 11, fontWeight: '600' },
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 18 },
   photoTile: {
     width: 74,
@@ -902,7 +909,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 5,
   },
-  photoAddText: { color: colors.orange, fontSize: 10.5, fontWeight: '800' },
+  photoAddText: { color: colors.orange, fontSize: 10.5, fontWeight: '600' },
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 16 },
   interestChip: {
     width: '48%',
@@ -916,7 +923,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   interestChipActive: { backgroundColor: '#030B14', borderColor: 'rgba(249,115,22,0.62)' },
-  interestText: { color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '700' },
+  interestText: { color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '600' },
   interestTextActive: { color: '#FFFFFF' },
   inputGroup: { gap: 7, marginBottom: 12 },
   inputLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '400' },
@@ -929,13 +936,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     color: '#F8FAFC',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   saveButton: {
     borderRadius: 16,
     marginTop: 4,
   },
-  saveText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '700' },
+  saveText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '600' },
   toggleRow: {
     minHeight: 70,
     borderRadius: 16,
@@ -949,7 +956,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   toggleCopy: { flex: 1, paddingRight: 12 },
-  toggleTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  toggleTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '600', marginBottom: 4 },
   toggleSub: { color: 'rgba(226,232,240,0.64)', fontSize: 12, lineHeight: 17, fontWeight: '400' },
   toggleTrack: { width: 48, height: 28, borderRadius: 999, backgroundColor: '#cbd5e1', padding: 3 },
   toggleTrackActive: { backgroundColor: colors.orange },
@@ -984,9 +991,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scoreText: { color: colors.orange, fontSize: 13, fontWeight: '700' },
+  scoreText: { color: colors.orange, fontSize: 13, fontWeight: '600' },
   suggestionCopy: { flex: 1 },
-  suggestionName: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  suggestionName: { color: '#F8FAFC', fontSize: 15, fontWeight: '600', marginBottom: 2 },
   suggestionMeta: { color: 'rgba(226,232,240,0.64)', fontSize: 11, fontWeight: '400' },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
   tag: {
@@ -1001,9 +1008,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  tagText: { color: '#F8FAFC', fontSize: 9.5, fontWeight: '700', textAlign: 'center' },
+  tagText: { color: '#F8FAFC', fontSize: 9.5, fontWeight: '600', textAlign: 'center' },
   connectButton: { width: 92, backgroundColor: colors.orange, borderRadius: 14, paddingHorizontal: 8, height: 38, alignItems: 'center', justifyContent: 'center' },
-  connectText: { color: '#FFFFFF', fontSize: 12, letterSpacing: 0, fontWeight: '700' },
+  connectText: { color: '#FFFFFF', fontSize: 12, letterSpacing: 0, fontWeight: '600' },
   connectionCard: {
     borderRadius: 20,
     borderWidth: 1,
@@ -1016,21 +1023,21 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   connectionAvatar: { width: 46, height: 46, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.025)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
-  connectionAvatarText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  connectionAvatarText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   connectionCopy: { flex: 1 },
-  connectionName: { color: '#F8FAFC', fontSize: 15, fontWeight: '700', marginBottom: 3 },
+  connectionName: { color: '#F8FAFC', fontSize: 15, fontWeight: '600', marginBottom: 3 },
   connectionMeta: { color: 'rgba(226,232,240,0.64)', fontSize: 11, fontWeight: '400' },
   connectionActions: { flexDirection: 'row', gap: 6 },
   acceptButton: { width: 78, height: 40, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
-  acceptText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  acceptText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
   rejectButton: { width: 78, height: 40, borderRadius: 16, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
-  rejectText: { color: '#F8FAFC', fontSize: 12, fontWeight: '700' },
+  rejectText: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
   chatButton: { width: 78, height: 40, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
-  chatText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  chatText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
   chatHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  chatName: { color: '#F8FAFC', fontSize: 20, fontWeight: '700' },
+  chatName: { color: '#F8FAFC', fontSize: 20, fontWeight: '600' },
   closeChat: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, paddingVertical: 9 },
-  closeChatText: { color: '#F8FAFC', fontSize: 10, fontWeight: '700' },
+  closeChatText: { color: '#F8FAFC', fontSize: 10, fontWeight: '600' },
   messagesBox: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 12, gap: 9, marginBottom: 12 },
   messageBubble: { maxWidth: '82%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 },
   messageMine: { alignSelf: 'flex-end', backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(249,115,22,0.36)' },
@@ -1048,12 +1055,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     color: '#F8FAFC',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   sendButton: { width: 76, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
-  sendText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '700' },
+  sendText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '600' },
   emptyCard: { backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 24, alignItems: 'center' },
   emptyIcon: { width: 60, height: 60, borderRadius: 20, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  emptyTitle: { color: '#F8FAFC', fontSize: 24, fontWeight: '700', marginBottom: 8 },
+  emptyTitle: { color: '#F8FAFC', fontSize: 24, fontWeight: '600', marginBottom: 8 },
   emptyCopy: { color: 'rgba(226,232,240,0.64)', fontSize: 14, fontWeight: '400', textAlign: 'center', lineHeight: 21 },
 });

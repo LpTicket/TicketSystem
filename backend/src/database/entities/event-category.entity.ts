@@ -18,6 +18,12 @@ export class EventCategoryEntity {
   @Column({ length: 40 })
   labelEn: string;
 
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  subtitleEs?: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  subtitleEn?: string | null;
+
   /** Emoji icon */
   @Column({ length: 10, default: '🎫' })
   icon: string;

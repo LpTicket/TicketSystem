@@ -17,7 +17,7 @@ export class AnalyticsController {
   @Get('summary')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
-  getSummary(@Query('days') days?: string) {
-    return this.analyticsService.getSummary(Number(days || 7));
+  getSummary(@Query('days') days?: string, @Query('eventSlug') eventSlug?: string) {
+    return this.analyticsService.getSummary(Number(days || 7), eventSlug);
   }
 }

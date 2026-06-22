@@ -9,6 +9,7 @@ import {
   UploadedFile,
   UseInterceptors,
   Res,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
@@ -151,5 +152,14 @@ export class AuthController {
   async uploadAvatar(@Request() req: any, @UploadedFile() file: any) {
     const avatarUrl = await this.storageService.uploadFile(file, 'avatars');
     return this.authService.updateProfile(req.user.id, { avatarUrl });
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('profile/avatar/base64')
+  async uploadAvatarBase64(@Request() req: any, @Body() body: { imageData: string }) {
+    if (!body?.imageData?.startsWith('data:image/')) {
+      throw new BadRequestException('Imagen inválida');
+    }
+    return this.authService.updateProfile(req.user.id, { avatarUrl: body.imageData });
   }
 }

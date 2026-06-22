@@ -70,7 +70,7 @@ function mergeDoorEvents(...groups: DoorEvent[][]): DoorEvent[] {
 }
 
 export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'organizer', assignedEvents, initialSelectedEventId }: Props) {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [events, setEvents] = useState<DoorEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [amount, setAmount] = useState(DEFAULT_DOOR_SALE_AMOUNT);
@@ -83,6 +83,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('qr');
   const [tapStatus, setTapStatus] = useState('');
   const [eventQuery, setEventQuery] = useState('');
+  const eventSearchPlaceholder = t('Buscar evento', 'Search event') || (lang === 'es' ? 'Buscar evento' : 'Search event');
 
   const selectedEvent = useMemo(() => events.find((event) => event.id === selectedEventId), [events, selectedEventId]);
   const filteredEvents = useMemo(() => {
@@ -249,9 +250,10 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         <View style={styles.searchBox}>
           <Ionicons name="search" size={17} color="rgba(226,232,240,0.55)" />
           <TextInput
+            key={`door-sale-event-search-${lang}`}
             value={eventQuery}
             onChangeText={setEventQuery}
-            placeholder={t('Buscar evento', 'Search event')}
+            placeholder={eventSearchPlaceholder}
             placeholderTextColor="rgba(226,232,240,0.42)"
             style={styles.searchInput}
             autoCapitalize="none"
