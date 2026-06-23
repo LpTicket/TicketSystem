@@ -20,6 +20,9 @@ type MarketingHomeBanner = {
   mobileImageUrl?: string | null;
   fileName?: string;
   mobileFileName?: string | null;
+  bannerType?: string | null;
+  displayMode?: string | null;
+  sortOrder?: number | null;
   bannerPosition?: string;
   isMarketingBanner: true;
 };
@@ -54,10 +57,10 @@ function getCategoryVisual(slug: string, label: string, lang: 'es' | 'en') {
 
 interface HomeContentProps {
   initialEvents: Event[];
-  initialBanner: MarketingHomeBanner | null;
+  initialBanners: MarketingHomeBanner[];
 }
 
-export default function HomeContent({ initialEvents, initialBanner }: HomeContentProps) {
+export default function HomeContent({ initialEvents, initialBanners }: HomeContentProps) {
   const { t, lang } = useLang();
   const { categories, loading: categoriesLoading } = useCategories();
   const [activeCategory, setActiveCategory] = useState('');
@@ -103,8 +106,23 @@ export default function HomeContent({ initialEvents, initialBanner }: HomeConten
       .sort(() => Math.random() - 0.5)
       .slice(0, 15);
 
-    return initialBanner ? [initialBanner, ...eventBanners] : eventBanners;
-  }, [initialEvents, initialBanner]);
+    const activeBanners = initialBanners
+      .filter((banner) => banner.isMarketingBanner)
+      .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+    const onceBanners = activeBanners.filter((banner) => (banner.displayMode || 'once') === 'once');
+    const every3Banners = activeBanners.filter((banner) => banner.displayMode === 'every3');
+    const every5Banners = activeBanners.filter((banner) => banner.displayMode === 'every5');
+    const mixedEvents: HomeBannerItem[] = [];
+
+    eventBanners.forEach((event, index) => {
+      mixedEvents.push(event);
+      if ((index + 1) % 3 === 0) every3Banners.forEach((banner) => mixedEvents.push(banner));
+      if ((index + 1) % 5 === 0) every5Banners.forEach((banner) => mixedEvents.push(banner));
+    });
+
+    if (!mixedEvents.length && onceBanners.length) return onceBanners;
+    return [...onceBanners, ...mixedEvents];
+  }, [initialEvents, initialBanners]);
 
   const bannerEvent = bannerEvents.length > 0 ? bannerEvents[currentBannerIdx % bannerEvents.length] : null;
 
