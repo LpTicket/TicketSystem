@@ -20,6 +20,23 @@ import {
 } from 'react-icons/hi';
 
 type BannerStatus = 'draft' | 'active';
+type BannerType = 'banner' | 'ad';
+type BannerDisplayMode = 'once' | 'every3' | 'every5';
+
+type MarketingHomeBanner = {
+  id: string;
+  title?: string;
+  imageData?: string | null;
+  imageUrl?: string | null;
+  mobileImageData?: string | null;
+  mobileImageUrl?: string | null;
+  fileName?: string | null;
+  mobileFileName?: string | null;
+  bannerType?: BannerType | string | null;
+  displayMode?: BannerDisplayMode | string | null;
+  sortOrder?: number | null;
+  isActive?: boolean;
+};
 
 const channels = [
   {
@@ -58,6 +75,10 @@ export default function AdminMarketingPage() {
   const [mobileBannerPreview, setMobileBannerPreview] = useState('');
   const [mobileBannerFileName, setMobileBannerFileName] = useState('');
   const [bannerStatus, setBannerStatus] = useState<BannerStatus>('draft');
+  const [marketingBanners, setMarketingBanners] = useState<MarketingHomeBanner[]>([]);
+  const [selectedBannerId, setSelectedBannerId] = useState<string | null>(null);
+  const [bannerType, setBannerType] = useState<BannerType>('banner');
+  const [bannerDisplayMode, setBannerDisplayMode] = useState<BannerDisplayMode>('once');
 
   const [campaignName, setCampaignName] = useState('');
   const [campaignSubject, setCampaignSubject] = useState('');
@@ -225,24 +246,21 @@ export default function AdminMarketingPage() {
     if (savedMobileFileName) setMobileBannerFileName(savedMobileFileName);
     if (savedStatus === 'active' || savedStatus === 'draft') setBannerStatus(savedStatus);
 
-    api.get('/marketing/banner/home?includeData=true')
+    api.get('/marketing/admin/banners/home?includeData=true')
       .then(({ data }) => {
-        if (!data?.imageData) return;
+        const items: MarketingHomeBanner[] = Array.isArray(data) ? data : [];
+        setMarketingBanners(items);
+        if (!items.length) return;
 
-        setBannerPreview(data.imageData);
-        setBannerFileName(data.fileName || 'banner-home');
-        localStorage.setItem('lpMarketingBannerPreview', data.imageData);
-        localStorage.setItem('lpMarketingBannerFileName', data.fileName || 'banner-home');
-
-        if (data.mobileImageData) {
-          setMobileBannerPreview(data.mobileImageData);
-          setMobileBannerFileName(data.mobileFileName || 'banner-home-mobile');
-          localStorage.setItem('lpMarketingMobileBannerPreview', data.mobileImageData);
-          localStorage.setItem('lpMarketingMobileBannerFileName', data.mobileFileName || 'banner-home-mobile');
-        }
-
-        setBannerStatus('active');
-        localStorage.setItem('lpMarketingBannerStatus', 'active');
+        const first = items[0];
+        setSelectedBannerId(first.id);
+        setBannerType(first.bannerType === 'ad' ? 'ad' : 'banner');
+        setBannerDisplayMode(['once', 'every3', 'every5'].includes(first.displayMode || '') ? first.displayMode as BannerDisplayMode : 'once');
+        setBannerPreview(first.imageData || first.imageUrl || '');
+        setBannerFileName(first.fileName || 'banner-home');
+        setMobileBannerPreview(first.mobileImageData || first.mobileImageUrl || '');
+        setMobileBannerFileName(first.mobileFileName || '');
+        setBannerStatus(first.isActive === false ? 'draft' : 'active');
       })
       .catch((error: unknown) => {
         console.error('[load marketing banner preview error]', error);
@@ -298,23 +316,53 @@ export default function AdminMarketingPage() {
     }, 'Selecciona una imagen valida para el arte del email.');
   };
 
+  const selectMarketingBanner = (item: MarketingHomeBanner) => {
+    setSelectedBannerId(item.id);
+    setBannerType(item.bannerType === 'ad' ? 'ad' : 'banner');
+    setBannerDisplayMode(['once', 'every3', 'every5'].includes(item.displayMode || '') ? item.displayMode as BannerDisplayMode : 'once');
+    setBannerPreview(item.imageData || item.imageUrl || '');
+    setBannerFileName(item.fileName || 'banner-home');
+    setMobileBannerPreview(item.mobileImageData || item.mobileImageUrl || '');
+    setMobileBannerFileName(item.mobileFileName || '');
+    setBannerStatus(item.isActive === false ? 'draft' : 'active');
+  };
+
+  const createNewMarketingBanner = (nextType: BannerType = bannerType) => {
+    setSelectedBannerId(null);
+    setBannerType(nextType);
+    setBannerDisplayMode('once');
+    setBannerPreview('');
+    setBannerFileName('');
+    setMobileBannerPreview('');
+    setMobileBannerFileName('');
+    setBannerStatus('draft');
+  };
+
   const removeBanner = async () => {
+    const currentId = selectedBannerId;
     setBannerPreview('');
     setBannerFileName('');
     setBannerStatus('draft');
+    setSelectedBannerId(null);
 
     localStorage.removeItem('lpMarketingBannerPreview');
     localStorage.removeItem('lpMarketingBannerFileName');
     localStorage.removeItem('lpMarketingBannerStatus');
 
     try {
-      await api.delete('/marketing/admin/banner/home');
+      if (currentId) {
+        await api.delete(`/marketing/admin/banners/home/${currentId}`);
+        setMarketingBanners((items) => items.filter((item) => item.id !== currentId));
+      } else {
+        await api.delete('/marketing/admin/banner/home');
+      }
     } catch (error: unknown) {
       console.error('[remove marketing banner error]', error);
     }
   };
 
   const removeMobileBanner = async () => {
+    const currentId = selectedBannerId;
     setMobileBannerPreview('');
     setMobileBannerFileName('');
     setBannerStatus('draft');
@@ -324,7 +372,14 @@ export default function AdminMarketingPage() {
     localStorage.setItem('lpMarketingBannerStatus', 'draft');
 
     try {
-      await api.delete('/marketing/admin/banner/home-mobile');
+      if (currentId) {
+        await api.patch(`/marketing/admin/banners/home/${currentId}`, { mobileImageData: null, mobileFileName: null });
+        setMarketingBanners((items) => items.map((item) => (
+          item.id === currentId ? { ...item, mobileImageData: null, mobileImageUrl: null, mobileFileName: null } : item
+        )));
+      } else {
+        await api.delete('/marketing/admin/banner/home-mobile');
+      }
     } catch (error: unknown) {
       console.error('[remove mobile marketing banner error]', error);
     }
@@ -334,24 +389,33 @@ export default function AdminMarketingPage() {
     if (!bannerPreview) return;
 
     try {
-      await api.post('/marketing/admin/banner/home', {
+      const { data } = await api.post('/marketing/admin/banners/home', {
+        id: selectedBannerId || undefined,
+        title: bannerType === 'ad' ? 'Publicidad Home' : 'Banner Home',
         imageData: bannerPreview,
         fileName: bannerFileName || 'banner-home',
         mobileImageData: mobileBannerPreview || null,
         mobileFileName: mobileBannerFileName || null,
+        bannerType,
+        displayMode: bannerDisplayMode,
+        sortOrder: marketingBanners.length,
+        isActive: true,
       });
 
       setBannerStatus('active');
+      setSelectedBannerId(data.id);
+      setMarketingBanners((items) => [data, ...items.filter((item) => item.id !== data.id)]);
       localStorage.setItem('lpMarketingBannerStatus', 'active');
-      alert('Banner publicado correctamente. Ya puede mostrarse en el Home.');
+      toast.success(selectedBannerId ? 'Cambios guardados.' : 'Banner publicado correctamente.');
     } catch (error: unknown) {
       console.error('[publish marketing banner error]', error);
-      alert('No se pudo publicar el banner.');
+      toast.error('No se pudo publicar el banner.');
     }
   };
 
+  const visibleMarketingBanners = marketingBanners.filter((item) => (item.bannerType === 'ad' ? 'ad' : 'banner') === bannerType);
   const statCards = [
-    { label: 'Banners activos', value: bannerStatus === 'active' ? '1' : '0', icon: HiOutlinePhotograph },
+    { label: 'Banners activos', value: String(marketingBanners.length), icon: HiOutlinePhotograph },
     { label: 'Audiencias', value: '0', icon: HiOutlineUsers },
     { label: 'Campanas', value: emailArtPreview || campaignName ? '1' : '0', icon: HiOutlinePresentationChartLine },
     { label: 'Clicks', value: '0', icon: HiOutlineCursorClick },
@@ -642,133 +706,152 @@ export default function AdminMarketingPage() {
       <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-gray-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-sm font-black uppercase tracking-wide text-gray-500">Banner Home</h2>
-            <p className="mt-1 text-sm text-gray-400">Vista compacta del banner publicado en el carrusel principal.</p>
+            <h2 className="text-sm font-black uppercase tracking-wide text-gray-500">Gestión de banner</h2>
+            <p className="mt-1 text-sm text-gray-400">Administra banners y publicidades del carrusel principal.</p>
           </div>
           <div className={`w-fit rounded-full px-4 py-2 text-sm font-black ${bannerStatus === 'active' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-[#F97316]'}`}>
             {bannerStatus === 'active' ? 'Publicado' : 'Borrador'}
           </div>
         </div>
 
-        <div className="grid gap-5 p-5 xl:grid-cols-[1fr_340px]">
-          <div className="rounded-3xl bg-gray-50 p-4">
-            {bannerPreview ? (
-              <div className="overflow-hidden rounded-2xl bg-black shadow-sm">
-                <img src={bannerPreview} alt="Preview del banner publicitario" className="aspect-[3.05/1] w-full object-cover" />
-              </div>
-            ) : (
-              <div className="flex aspect-[3.05/1] items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white text-sm font-bold text-gray-400">
-                Sin banner publicado
-              </div>
-            )}
+        <div className="p-5">
+          <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4">
+            <p className="text-xs font-black uppercase tracking-wide text-gray-500">Qué quieres gestionar</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {([
+                { id: 'banner', label: 'Banner' },
+                { id: 'ad', label: 'Publicidad' },
+              ] as const).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    const first = marketingBanners.find((banner) => (banner.bannerType === 'ad' ? 'ad' : 'banner') === item.id);
+                    if (first) selectMarketingBanner(first);
+                    else createNewMarketingBanner(item.id);
+                  }}
+                  className={`rounded-2xl px-4 py-2 text-sm font-black transition ${bannerType === item.id ? 'bg-[#0A375A] text-white' : 'border border-gray-200 bg-white text-gray-600 hover:border-orange-200'}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+              <button
+                type="button"
+                onClick={() => createNewMarketingBanner(bannerType)}
+                className={`min-w-[150px] rounded-2xl border p-3 text-left transition ${!selectedBannerId ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white hover:border-orange-200'}`}
+              >
+                <div className="flex h-16 items-center justify-center rounded-xl border border-dashed border-orange-200 bg-orange-50 text-[#F97316]">
+                  <HiOutlineUpload className="h-6 w-6" />
+                </div>
+                <p className="mt-2 text-sm font-black text-gray-950">{bannerType === 'ad' ? 'Nueva publicidad' : 'Nuevo banner'}</p>
+                <p className="text-xs font-bold text-gray-400">Subir fotos</p>
+              </button>
+              {visibleMarketingBanners.map((item, index) => {
+                const img = item.imageData || item.imageUrl || '';
+                const active = selectedBannerId === item.id;
+                const frequency = item.displayMode === 'every3' ? 'Cada 3' : item.displayMode === 'every5' ? 'Cada 5' : 'Una vez';
+                return (
+                  <button
+                    key={item.id || index}
+                    type="button"
+                    onClick={() => selectMarketingBanner(item)}
+                    className={`min-w-[150px] rounded-2xl border p-3 text-left transition ${active ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white hover:border-orange-200'}`}
+                  >
+                    {img ? (
+                      <img src={img} alt="Banner" className="h-16 w-full rounded-xl object-cover" />
+                    ) : (
+                      <div className="h-16 rounded-xl bg-gray-100" />
+                    )}
+                    <p className="mt-2 truncate text-sm font-black text-gray-950">{bannerType === 'ad' ? 'Publicidad' : 'Banner'}</p>
+                    <p className="text-xs font-bold text-gray-400">{frequency}</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="rounded-3xl bg-gray-50 p-4">
-            <div className="mb-3">
-              <h3 className="text-sm font-black uppercase tracking-wide text-gray-500">Movil</h3>
-              <p className="text-xs text-gray-400">Formato flyer para celulares.</p>
+          <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_340px]">
+            <div className="rounded-3xl bg-gray-50 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wide text-gray-500">Escritorio</h3>
+                  <p className="text-xs text-gray-400">Banner horizontal para app y web desktop.</p>
+                </div>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700">
+                  {bannerPreview ? 'Cambiar foto' : 'Subir desde fotos'}
+                </button>
+              </div>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleBannerFile(event.target.files?.[0])} />
+              {bannerPreview ? (
+                <div className="overflow-hidden rounded-2xl bg-black shadow-sm">
+                  <img src={bannerPreview} alt="Preview del banner publicitario" className="aspect-[3.05/1] w-full object-cover" />
+                </div>
+              ) : (
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="flex aspect-[3.05/1] w-full items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white text-sm font-bold text-gray-400">
+                  Subir banner horizontal
+                </button>
+              )}
+              {bannerFileName && <p className="mt-3 truncate text-xs font-bold text-gray-500">{bannerFileName}</p>}
             </div>
-            {mobileBannerPreview ? (
-              <div className="mx-auto max-w-[220px] overflow-hidden rounded-2xl bg-black shadow-sm">
-                <img src={mobileBannerPreview} alt="Preview movil del banner" className="aspect-[3/4] w-full object-cover" />
+
+            <div className="rounded-3xl bg-gray-50 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wide text-gray-500">Móvil</h3>
+                  <p className="text-xs text-gray-400">Flyer vertical para web móvil.</p>
+                </div>
+                <button type="button" onClick={() => mobileFileInputRef.current?.click()} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700">
+                  {mobileBannerPreview ? 'Cambiar foto' : 'Subir desde fotos'}
+                </button>
               </div>
-            ) : (
-              <div className="mx-auto flex aspect-[3/4] max-w-[220px] items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white text-sm font-bold text-gray-400">
-                Sin flyer movil
-              </div>
-            )}
+              <input ref={mobileFileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleMobileBannerFile(event.target.files?.[0])} />
+              {mobileBannerPreview ? (
+                <div className="mx-auto max-w-[220px] overflow-hidden rounded-2xl bg-black shadow-sm">
+                  <img src={mobileBannerPreview} alt="Preview movil del banner" className="aspect-[3/4] w-full object-cover" />
+                </div>
+              ) : (
+                <button type="button" onClick={() => mobileFileInputRef.current?.click()} className="mx-auto flex aspect-[3/4] w-full max-w-[220px] items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white text-sm font-bold text-gray-400">
+                  Subir flyer móvil
+                </button>
+              )}
+              {mobileBannerFileName && (
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <p className="truncate text-xs font-bold text-gray-500">{mobileBannerFileName}</p>
+                  <button type="button" onClick={removeMobileBanner} className="text-xs font-black text-red-500">Borrar móvil</button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-50 text-[#F97316]">
-              <HiOutlineUpload className="h-5 w-5" />
+          <div className="mt-5 rounded-3xl border border-gray-200 bg-gray-50 p-4">
+            <p className="text-xs font-black uppercase tracking-wide text-gray-500">Frecuencia en el carrusel</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {([
+                { id: 'once', label: 'Una vez' },
+                { id: 'every3', label: 'Cada 3' },
+                { id: 'every5', label: 'Cada 5' },
+              ] as const).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setBannerDisplayMode(item.id)}
+                  className={`rounded-2xl px-4 py-3 text-sm font-black transition ${bannerDisplayMode === item.id ? 'bg-[#0A375A] text-white' : 'border border-gray-200 bg-white text-gray-600 hover:border-orange-200'}`}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
-            <div>
-              <h2 className="text-base font-black text-gray-950">Subir banner</h2>
-              <p className="text-xs text-gray-500">Arte horizontal para Home.</p>
-            </div>
-          </div>
-
-          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleBannerFile(event.target.files?.[0])} />
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-4 w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-4 text-center transition hover:border-orange-200 hover:bg-orange-50/40">
-            <HiOutlineUpload className="mx-auto h-7 w-7 text-[#F97316]" />
-            <p className="mt-2 font-black text-gray-950">Cambiar banner</p>
-            <p className="mt-1 text-xs text-gray-500">Recomendado: 1600 x 520 px.</p>
-          </button>
-
-          {bannerFileName && (
-            <div className="mt-4 flex items-center justify-between rounded-2xl border border-gray-200 p-4">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-gray-950">{bannerFileName}</p>
-                <p className="text-xs font-bold text-gray-500">Estado: {bannerStatus === 'active' ? 'Publicado' : 'Borrador'}</p>
-              </div>
-              <button type="button" onClick={removeBanner} className="group flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:bg-red-100 hover:text-red-600 hover:shadow-lg active:translate-y-0 active:scale-95">
-                <HiOutlineX className="h-5 w-5 transition-transform duration-200 group-hover:rotate-90" />
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <button type="button" onClick={publishBanner} disabled={!bannerPreview} className="rounded-2xl bg-[#0A375A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300">
+                {selectedBannerId ? 'Guardar cambios' : 'Publicar banner'}
+              </button>
+              <button type="button" onClick={removeBanner} disabled={!bannerPreview && !selectedBannerId} className="rounded-2xl border border-red-100 bg-red-50 px-5 py-3 text-sm font-black text-red-500 disabled:cursor-not-allowed disabled:opacity-40">
+                Borrar escritorio
               </button>
             </div>
-          )}
-        </div>
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-[#0A375A]">
-              <HiOutlineDeviceMobile className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-black text-gray-950">Subir banner movil</h2>
-              <p className="text-xs text-gray-500">Flyer vertical para celulares.</p>
-            </div>
-          </div>
-
-          <input ref={mobileFileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleMobileBannerFile(event.target.files?.[0])} />
-          <button type="button" onClick={() => mobileFileInputRef.current?.click()} className="mt-4 w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-4 text-center transition hover:border-blue-200 hover:bg-blue-50/40">
-            <HiOutlineDeviceMobile className="mx-auto h-7 w-7 text-[#0A375A]" />
-            <p className="mt-2 font-black text-gray-950">Cambiar flyer movil</p>
-            <p className="mt-1 text-xs text-gray-500">Recomendado: 1080 x 1440 px.</p>
-          </button>
-
-          {mobileBannerFileName && (
-            <div className="mt-4 flex items-center justify-between rounded-2xl border border-gray-200 p-4">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black text-gray-950">{mobileBannerFileName}</p>
-                <p className="text-xs font-bold text-gray-500">Movil</p>
-              </div>
-              <button type="button" onClick={removeMobileBanner} className="group flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:bg-red-100 hover:text-red-600 hover:shadow-lg active:translate-y-0 active:scale-95">
-                <HiOutlineX className="h-5 w-5 transition-transform duration-200 group-hover:rotate-90" />
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-green-50 text-green-600">
-              <HiOutlineBadgeCheck className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-black text-gray-950">Publicacion</h2>
-              <p className="text-xs text-gray-500">Guarda el banner en el Home.</p>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-            <p className="font-black text-gray-950">Rotacion en Home</p>
-            <p className="mt-2 text-sm leading-6 text-gray-500">
-              El banner se mezcla con eventos destacados y aparece dentro del carrusel.
-            </p>
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row lg:flex-col">
-            <button type="button" onClick={publishBanner} disabled={!bannerPreview} className="rounded-2xl bg-[#0A375A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300">
-              Publicar banner
-            </button>
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-black text-gray-700">
-              Cambiar imagen
-            </button>
           </div>
         </div>
       </section>
