@@ -317,10 +317,42 @@ export class MarketingService {
     return { mimeType: match[1], buffer: Buffer.from(match[2], 'base64') };
   }
 
+  private bannerImageUrl(banner: MarketingBanner, variant: 'desktop' | 'mobile' = 'desktop') {
+    const stamp = encodeURIComponent(String(banner.updatedAt?.getTime?.() || banner.id));
+    return `/api/marketing/banner/home/image?id=${encodeURIComponent(banner.id)}&variant=${variant}&v=${stamp}`;
+  }
+
+  private serializeHomeBanner(banner: MarketingBanner, includeData = false) {
+    const hasMobileImage = Boolean(banner.mobileImageData);
+    const base: any = {
+      id: banner.id,
+      placement: banner.placement,
+      title: banner.title,
+      fileName: banner.fileName,
+      mobileFileName: banner.mobileFileName,
+      bannerType: banner.bannerType || 'banner',
+      displayMode: banner.displayMode || 'once',
+      sortOrder: banner.sortOrder || 0,
+      linkUrl: banner.linkUrl || null,
+      isActive: banner.isActive,
+      createdAt: banner.createdAt,
+      updatedAt: banner.updatedAt,
+      imageUrl: this.bannerImageUrl(banner, 'desktop'),
+      mobileImageUrl: hasMobileImage ? this.bannerImageUrl(banner, 'mobile') : null,
+    };
+
+    if (includeData) {
+      base.imageData = banner.imageData;
+      base.mobileImageData = banner.mobileImageData || null;
+    }
+
+    return base;
+  }
+
   async getActiveHomeBanner(includeData = false) {
     const desktop = await this.bannerRepo.findOne({
       where: { placement: 'home', isActive: true },
-      order: { updatedAt: 'DESC' },
+      order: { sortOrder: 'ASC', updatedAt: 'DESC' },
     });
 
     if (!desktop) return null;
@@ -330,36 +362,45 @@ export class MarketingService {
       order: { updatedAt: 'DESC' },
     });
 
-    const imageUrl = `/api/marketing/banner/home/image?variant=desktop&v=${encodeURIComponent(String(desktop.updatedAt?.getTime?.() || desktop.id))}`;
+    const imageUrl = this.bannerImageUrl(desktop, 'desktop');
     const mobileImageUrl = mobile
       ? `/api/marketing/banner/home/image?variant=mobile&v=${encodeURIComponent(String(mobile.updatedAt?.getTime?.() || mobile.id))}`
       : null;
 
     if (includeData) {
       return {
-        ...desktop,
+        ...this.serializeHomeBanner(desktop, true),
         imageUrl,
-        mobileImageData: mobile?.imageData || null,
+        mobileImageData: desktop.mobileImageData || mobile?.imageData || null,
         mobileImageUrl,
-        mobileFileName: mobile?.fileName || null,
+        mobileFileName: desktop.mobileFileName || mobile?.fileName || null,
       };
     }
 
-    const { imageData: _imageData, ...publicDesktop } = desktop;
     return {
-      ...publicDesktop,
+      ...this.serializeHomeBanner(desktop, false),
       imageUrl,
       mobileImageUrl,
-      mobileFileName: mobile?.fileName || null,
+      mobileFileName: desktop.mobileFileName || mobile?.fileName || null,
     };
   }
 
-  async getHomeBannerImage(variant: 'desktop' | 'mobile' = 'desktop') {
-    const banner = await this.bannerRepo.findOne({
-      where: { placement: variant === 'mobile' ? 'home-mobile' : 'home', isActive: true },
-      order: { updatedAt: 'DESC' },
+  async getHomeBanners(includeData = false) {
+    const banners = await this.bannerRepo.find({
+      where: { placement: 'home', isActive: true },
+      order: { sortOrder: 'ASC', updatedAt: 'DESC' },
     });
-    const image = this.parseImageData(banner?.imageData);
+    return banners.map((banner) => this.serializeHomeBanner(banner, includeData));
+  }
+
+  async getHomeBannerImage(variant: 'desktop' | 'mobile' = 'desktop', id?: string) {
+    const banner = id
+      ? await this.bannerRepo.findOne({ where: { id, isActive: true } })
+      : await this.bannerRepo.findOne({
+        where: { placement: variant === 'mobile' ? 'home-mobile' : 'home', isActive: true },
+        order: { sortOrder: 'ASC', updatedAt: 'DESC' },
+      });
+    const image = this.parseImageData(variant === 'mobile' ? (banner?.mobileImageData || banner?.imageData) : banner?.imageData);
     if (!banner || !image) throw new BadRequestException('Banner no disponible');
     return image;
   }
@@ -377,11 +418,15 @@ export class MarketingService {
 
     const banner = this.bannerRepo.create({
       placement: 'home',
-      title: 'Banner Home',
-      imageData: data.imageData,
-      fileName: data.fileName || 'banner-home',
-      isActive: true,
-    });
+        title: 'Banner Home',
+        imageData: data.imageData,
+        fileName: data.fileName || 'banner-home',
+        mobileImageData: data.mobileImageData || null,
+        mobileFileName: data.mobileFileName || null,
+        bannerType: 'banner',
+        displayMode: 'once',
+        isActive: true,
+      });
 
     const savedDesktop = await this.bannerRepo.save(banner);
 
@@ -398,6 +443,80 @@ export class MarketingService {
     }
 
     return savedDesktop;
+  }
+
+  async saveHomeBannerItem(data: {
+    id?: string;
+    title?: string;
+    imageData: string;
+    fileName?: string;
+    mobileImageData?: string | null;
+    mobileFileName?: string | null;
+    bannerType?: string;
+    displayMode?: string;
+    sortOrder?: number;
+    linkUrl?: string | null;
+    isActive?: boolean;
+  }) {
+    const displayMode = ['once', 'every3', 'every5'].includes(data.displayMode || '') ? data.displayMode : 'once';
+    const bannerType = data.bannerType === 'ad' ? 'ad' : 'banner';
+    const payload = {
+      placement: 'home',
+      title: data.title?.trim() || (bannerType === 'ad' ? 'Publicidad Home' : 'Banner Home'),
+      imageData: data.imageData,
+      fileName: data.fileName || 'banner-home',
+      mobileImageData: data.mobileImageData || null,
+      mobileFileName: data.mobileFileName || null,
+      bannerType,
+      displayMode,
+      sortOrder: Number.isFinite(Number(data.sortOrder)) ? Number(data.sortOrder) : 0,
+      linkUrl: data.linkUrl?.trim() || null,
+      isActive: data.isActive !== false,
+    };
+
+    if (data.id) {
+      await this.bannerRepo.update({ id: data.id }, payload);
+      const updated = await this.bannerRepo.findOne({ where: { id: data.id } });
+      if (updated) return this.serializeHomeBanner(updated, true);
+    }
+
+    const saved = await this.bannerRepo.save(this.bannerRepo.create(payload));
+    return this.serializeHomeBanner(saved, true);
+  }
+
+  async updateHomeBannerItem(id: string, data: Partial<{
+    title: string;
+    imageData: string;
+    fileName: string;
+    mobileImageData: string | null;
+    mobileFileName: string | null;
+    bannerType: string;
+    displayMode: string;
+    sortOrder: number;
+    linkUrl: string | null;
+    isActive: boolean;
+  }>) {
+    const next: any = {};
+    if (typeof data.title === 'string') next.title = data.title.trim() || 'Banner Home';
+    if (typeof data.imageData === 'string') next.imageData = data.imageData;
+    if (typeof data.fileName === 'string') next.fileName = data.fileName;
+    if ('mobileImageData' in data) next.mobileImageData = data.mobileImageData || null;
+    if ('mobileFileName' in data) next.mobileFileName = data.mobileFileName || null;
+    if (data.bannerType) next.bannerType = data.bannerType === 'ad' ? 'ad' : 'banner';
+    if (data.displayMode) next.displayMode = ['once', 'every3', 'every5'].includes(data.displayMode) ? data.displayMode : 'once';
+    if (data.sortOrder !== undefined) next.sortOrder = Number.isFinite(Number(data.sortOrder)) ? Number(data.sortOrder) : 0;
+    if ('linkUrl' in data) next.linkUrl = data.linkUrl?.trim() || null;
+    if (typeof data.isActive === 'boolean') next.isActive = data.isActive;
+
+    await this.bannerRepo.update({ id }, next);
+    const updated = await this.bannerRepo.findOne({ where: { id } });
+    if (!updated) throw new BadRequestException('Banner no disponible');
+    return this.serializeHomeBanner(updated, true);
+  }
+
+  async removeHomeBannerItem(id: string) {
+    await this.bannerRepo.update({ id }, { isActive: false });
+    return { ok: true };
   }
 
   async removeHomeBanner() {

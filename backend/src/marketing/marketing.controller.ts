@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Post, Query, Request, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Request, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -14,9 +14,14 @@ export class MarketingController {
     return this.marketingService.getActiveHomeBanner(includeData === 'true');
   }
 
+  @Get('banners/home')
+  async getHomeBanners(@Query('includeData') includeData?: string) {
+    return this.marketingService.getHomeBanners(includeData === 'true');
+  }
+
   @Get('banner/home/image')
-  async getHomeBannerImage(@Query('variant') variant: 'desktop' | 'mobile' | undefined, @Res() res: any) {
-    const image = await this.marketingService.getHomeBannerImage(variant === 'mobile' ? 'mobile' : 'desktop');
+  async getHomeBannerImage(@Query('variant') variant: 'desktop' | 'mobile' | undefined, @Query('id') id: string | undefined, @Res() res: any) {
+    const image = await this.marketingService.getHomeBannerImage(variant === 'mobile' ? 'mobile' : 'desktop', id);
     res.header('Content-Type', image.mimeType);
     res.header('Cache-Control', 'public, max-age=86400, s-maxage=86400');
     res.header('Content-Length', image.buffer.length);
@@ -34,6 +39,46 @@ export class MarketingController {
   @Roles(UserRole.ADMIN)
   async saveHomeBanner(@Body() body: { imageData: string; fileName?: string; mobileImageData?: string | null; mobileFileName?: string | null }) {
     return this.marketingService.saveHomeBanner(body);
+  }
+
+  @Get('admin/banners/home')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async getAdminHomeBanners(@Query('includeData') includeData?: string) {
+    return this.marketingService.getHomeBanners(includeData === 'true');
+  }
+
+  @Post('admin/banners/home')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async saveHomeBannerItem(@Body() body: {
+    id?: string;
+    title?: string;
+    imageData: string;
+    fileName?: string;
+    mobileImageData?: string | null;
+    mobileFileName?: string | null;
+    bannerType?: string;
+    displayMode?: string;
+    sortOrder?: number;
+    linkUrl?: string | null;
+    isActive?: boolean;
+  }) {
+    return this.marketingService.saveHomeBannerItem(body);
+  }
+
+  @Patch('admin/banners/home/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async updateHomeBannerItem(@Param('id') id: string, @Body() body: any) {
+    return this.marketingService.updateHomeBannerItem(id, body);
+  }
+
+  @Delete('admin/banners/home/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async removeHomeBannerItem(@Param('id') id: string) {
+    return this.marketingService.removeHomeBannerItem(id);
   }
 
   @Delete('admin/banner/home')
