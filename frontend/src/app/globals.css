@@ -691,6 +691,7 @@ html {
 .home-hero-overlay {
   position: absolute;
   inset: 0;
+  z-index: 2;
   background:
     linear-gradient(90deg, rgba(5, 24, 44, 0.86) 0%, rgba(5, 24, 44, 0.58) 39%, rgba(5, 24, 44, 0.1) 72%),
     linear-gradient(180deg, rgba(5, 24, 44, 0.12) 0%, rgba(5, 24, 44, 0.68) 100%);
@@ -851,10 +852,6 @@ html {
     padding: 0 1rem 1rem;
   }
 
-  .home-hero-overlay {
-  background: transparent !important;
-  backdrop-filter: none !important;
-}
 }
 
 @media (max-width: 639px) {
@@ -978,12 +975,6 @@ html {
 
 .premium-muted {
   color: #64748b !important;
-}
-
-/* ===== LP Ticket Home Corrections ===== */
-.home-hero-overlay {
-  background: transparent !important;
-  backdrop-filter: none !important;
 }
 
 /* ===== LP Ticket Dashboard Premium Pass ===== */
@@ -2182,11 +2173,6 @@ html {
 
 .home-hero-frame img {
   filter: none !important;
-}
-
-.home-hero-overlay {
-  background: transparent !important;
-  backdrop-filter: none !important;
 }
 
 /* Search/category glass panel */
