@@ -3025,13 +3025,13 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
                 </ScrollView>
               </View>
               <View style={styles.twoColRow}>
-                <View style={styles.col}>
+                <View style={[styles.col, { paddingTop: 4 }]}>
                   <FieldLabel label={t('Escritorio', 'Desktop')} />
                   <BannerPublishBadge published={!!bannerDesktop && bannerDesktopEnabled} />
                   {bannerDesktop ? <Image source={{ uri: bannerDesktop.data }} style={styles.bannerThumb} resizeMode="cover" /> : <View style={styles.bannerThumbEmpty}><Text style={styles.bannerThumbText}>16:9</Text></View>}
                   <TouchableOpacity onPress={() => pickBanner('desktop')} style={styles.bannerPickBtn}><Text style={styles.bannerPickText}>{bannerDesktop ? t('CAMBIAR FOTO', 'CHANGE PHOTO') : t('SUBIR DESDE FOTOS', 'UPLOAD FROM PHOTOS')}</Text></TouchableOpacity>
                 </View>
-                <View style={styles.col}>
+                <View style={[styles.col, { paddingTop: 4 }]}>
                   <FieldLabel label={t('Móvil', 'Mobile')} />
                   <BannerPublishBadge published={!!bannerMobile && bannerMobileEnabled} />
                   {bannerMobile ? <Image source={{ uri: bannerMobile.data }} style={styles.bannerThumb} resizeMode="cover" /> : <View style={styles.bannerThumbEmpty}><Text style={styles.bannerThumbText}>9:16</Text></View>}
