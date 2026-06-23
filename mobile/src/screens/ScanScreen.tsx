@@ -13,6 +13,7 @@ type Props = {
   assignedEvents?: ScannerEvent[];
   initialSelectedEventId?: string | null;
   lockEventSelection?: boolean;
+  scrollToTopSignal?: number;
 };
 
 function fmtDate(iso?: string | null) {
@@ -100,9 +101,10 @@ function eventTime(value?: string | null) {
   return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
 }
 
-export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assignedEvents, initialSelectedEventId, lockEventSelection }: Props) {
+export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assignedEvents, initialSelectedEventId, lockEventSelection, scrollToTopSignal = 0 }: Props) {
   const { t } = useLanguage();
   const [permission, requestPermission] = useCameraPermissions();
+  const scrollRef = useRef<ScrollView>(null);
 
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [scanState, setScanState] = useState<ScanState>('idle');
@@ -121,6 +123,11 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   const scanAnim = useRef(new Animated.Value(0)).current;
 
   const selectedEventTitle = myEvents.find((e) => e.id === selectedEventId)?.title ?? null;
+
+  useEffect(() => {
+    if (!scrollToTopSignal) return;
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [scrollToTopSignal]);
 
   useEffect(() => {
     if (!user) return;
@@ -269,7 +276,7 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   const showIdle = !isApproved && !isDenied && scanState !== 'validating';
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
       {/* ── Top row: EVENT MODE + SOUND ── */}
       <View style={styles.topRow}>

@@ -82,6 +82,7 @@ function AppContent() {
   const [organizerSection, setOrganizerSection] = useState<OrgSection>('dashboard');
   const [adminSection, setAdminSection] = useState<AdminSection>('dashboard');
   const [salesRefreshKey, setSalesRefreshKey] = useState(0);
+  const [scrollToTopSignal, setScrollToTopSignal] = useState(0);
   const [legalDoc, setLegalDoc] = useState<LegalKey>('terms');
   const goToLegal = (key: LegalKey) => { setLegalDoc(key); goToTab('legal'); };
   const notifyDoorSaleCompleted = useCallback(() => {
@@ -383,8 +384,12 @@ function AppContent() {
     setTab('events');
   };
 
-  const handleBottomNavPress = (action: () => void) => {
+  const handleBottomNavPress = (action: () => void, isActive?: boolean) => {
     if (menuOpen) setMenuOpen(false);
+    if (isActive && !selectedEvent && !scanOpen && !authReturn) {
+      setScrollToTopSignal((signal) => signal + 1);
+      return;
+    }
     action();
   };
 
@@ -474,11 +479,11 @@ function AppContent() {
         ) : selectedEvent ? (
           <EventDetailScreen event={selectedEvent} cartSyncToken={cartSyncToken} onBack={async () => { await clearTicketSelection(selectedEvent.id); setSelectedEvent(null); }} onSelectionCountChange={setCartSelectionCount} isLoggedIn={isLoggedIn} onRequestLogin={() => requestLoginFromCurrentPlace({ tab: 'events', selectedEvent, viewMode: 'client', checkoutInfoOpen: false })} onBuy={(seats, ga, gaQty) => { setPreSelectedSeats(seats); setPreSelectedGa(ga); setPreSelectedGaQty(gaQty ?? 1); if (isLoggedIn) { setCheckoutInfoOpen(true); } else { setLoginAfterPurchase(true); } }} />
         ) : tab === 'events' ? (
-          <HomeScreen onOpenEvent={setSelectedEvent} />
+          <HomeScreen onOpenEvent={setSelectedEvent} scrollToTopSignal={scrollToTopSignal} />
         ) : tab === 'tickets' ? (
-          isLoggedIn ? <TicketsScreen /> : <LoginScreen onSignIn={handleSignIn} />
+          isLoggedIn ? <TicketsScreen scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'scan' ? (
-          <ScanScreen onBack={() => goToTab('events')} user={currentUser} />
+          <ScanScreen onBack={() => goToTab('events')} user={currentUser} scrollToTopSignal={scrollToTopSignal} />
         ) : tab === 'employeeScan' ? (
           isLoggedIn ? <EmployeeScanAccessScreen user={currentUser} onBack={handleEmployeeScanBack} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'employeeDoorSale' ? (
@@ -486,13 +491,13 @@ function AppContent() {
         ) : tab === 'doorSale' ? (
           isLoggedIn ? <DoorSaleScreen user={currentUser} onBack={() => goToTab('events')} onSaleCompleted={notifyDoorSaleCompleted} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'social' ? (
-          isLoggedIn ? <SocialScreen /> : <LoginScreen onSignIn={handleSignIn} />
+          isLoggedIn ? <SocialScreen scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'profile' ? (
-          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} canOrganize={canOrganize} canAdmin={canAdmin} viewMode={viewMode} onSetMode={(mode) => setViewMode(mode)} /> : <LoginScreen onSignIn={handleSignIn} />
+          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} canOrganize={canOrganize} canAdmin={canAdmin} viewMode={viewMode} onSetMode={(mode) => setViewMode(mode)} scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'organizer' ? (
-          isLoggedIn ? <OrganizerPanelScreen section={organizerSection} onSectionChange={setOrganizerSection} refreshKey={salesRefreshKey} /> : <LoginScreen onSignIn={handleSignIn} />
+          isLoggedIn ? <OrganizerPanelScreen section={organizerSection} onSectionChange={setOrganizerSection} refreshKey={salesRefreshKey} scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'admin' ? (
-          canAdmin ? <AdminPanelScreen section={adminSection} onSectionChange={setAdminSection} /> : <LoginScreen onSignIn={handleSignIn} />
+          canAdmin ? <AdminPanelScreen section={adminSection} onSectionChange={setAdminSection} scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'contact' ? (
           <ContactScreen user={currentUser} onBack={() => goToTab('events')} />
         ) : tab === 'about' ? (
@@ -502,7 +507,7 @@ function AppContent() {
         ) : tab === 'legal' ? (
           <LegalScreen docKey={legalDoc} onBack={() => goToTab('events')} />
         ) : tab === 'aichat' ? (
-          <AiChatScreen />
+          <AiChatScreen scrollToTopSignal={scrollToTopSignal} />
         ) : null}
 
         <View style={styles.bottomNav}>
@@ -514,7 +519,7 @@ function AppContent() {
                   style={[styles.navFixedSlidingLine, { transform: [{ translateX: adminNavIndicatorX }] }]}
                 />
                 {navItems.map((item, index) => (
-                  <TouchableOpacity key={`${item.key}-${index}`} onPress={() => handleBottomNavPress(item.onPress)} style={styles.navItem}>
+                  <TouchableOpacity key={`${item.key}-${index}`} onPress={() => handleBottomNavPress(item.onPress, item.active)} style={styles.navItem}>
                     <View style={[styles.navItemContent, styles.navItemContentAdmin]}>
                       <Ionicons
                         name={(item.active ? item.icon : `${item.icon}-outline`) as any}
@@ -532,7 +537,7 @@ function AppContent() {
               <>
                 <Animated.View style={[styles.navSlidingLine, { transform: [{ translateX: navIndicatorX }] }]} />
                 {navItems.map((item, index) => (
-                  <TouchableOpacity key={`${item.key}-${index}`} onPress={() => handleBottomNavPress(item.onPress)} style={styles.navItem}>
+                  <TouchableOpacity key={`${item.key}-${index}`} onPress={() => handleBottomNavPress(item.onPress, item.active)} style={styles.navItem}>
                     <View style={styles.navItemContent}>
                       <Ionicons
                         name={(item.active ? item.icon : `${item.icon}-outline`) as any}

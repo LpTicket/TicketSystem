@@ -22,6 +22,7 @@ const HERO_PROGRESS_DOT_WIDTH = 7;
 
 type Props = {
   onOpenEvent: (event: MobileEvent) => void;
+  scrollToTopSignal?: number;
 };
 
 type ApiCategory = {
@@ -43,6 +44,23 @@ type HomeCategory = {
   subtitle: string;
   imageUrl: string;
 };
+
+type ApiHomeBanner = {
+  id?: string;
+  imageData?: string | null;
+  imageUrl?: string | null;
+  fileName?: string | null;
+  bannerType?: string | null;
+  displayMode?: string | null;
+  sortOrder?: number | null;
+  isActive?: boolean;
+};
+
+function resolveHomeBannerImage(value?: string | null) {
+  if (!value) return '';
+  if (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://')) return value;
+  return getImageUrl(value) || value;
+}
 
 function getHeroImageSource(event?: MobileEvent) {
   const imageUrl = event?.bannerImageUrl || event?.imageUrl;
@@ -95,12 +113,14 @@ function eventMatchesCategory(event: MobileEvent, categorySlug: string) {
   return [event.category, event.categoryName, event.tag].some((value) => normalizeCategory(value) === selected);
 }
 
-export function HomeScreen({ onOpenEvent }: Props) {
+export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const { lang, t } = useLanguage();
   const { width } = useWindowDimensions();
+  const scrollRef = useRef<ScrollView>(null);
   const [events, setEvents] = useState<MobileEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [realCategories, setRealCategories] = useState<ApiCategory[]>([]);
+  const [homeBanners, setHomeBanners] = useState<ApiHomeBanner[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
   const [query, setQuery] = useState('');
   const [place, setPlace] = useState('');
@@ -114,6 +134,11 @@ export function HomeScreen({ onOpenEvent }: Props) {
   const eventSearchPlaceholder = t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...') || (lang === 'es' ? 'Conciertos, teatro, talleres...' : 'Concerts, theater, workshops...');
   const placeSearchPlaceholder = t('Ciudad o venue', 'City or venue') || (lang === 'es' ? 'Ciudad o venue' : 'City or venue');
 
+  useEffect(() => {
+    if (!scrollToTopSignal) return;
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [scrollToTopSignal]);
+
   const trustItems: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string }[] = [
     { icon: 'card-outline', title: t('Pagos seguros', 'Secure payments'), subtitle: t('Procesado por Stripe.', 'Processed by Stripe') },
     { icon: 'shield-checkmark-outline', title: t('Tickets verificados', 'Verified tickets'), subtitle: t('Entrada digital protegida.', 'Protected digital entry') },
@@ -122,8 +147,53 @@ export function HomeScreen({ onOpenEvent }: Props) {
   ];
 
   const heroEvents = useMemo(() => events.filter((event) => event.bannerImageUrl || event.imageUrl), [events]);
-  const safeHeroLength = Math.max(heroEvents.length, 1);
-  const heroEvent = heroEvents[heroIndex % safeHeroLength] || events[0];
+  const heroSlides = useMemo(() => {
+    const bannerSlides = homeBanners
+      .map((banner, index) => {
+        const imageUrl = resolveHomeBannerImage(banner.imageData || banner.imageUrl);
+        if (!imageUrl || banner.isActive === false) return null;
+        return {
+          id: banner.id || `marketing-home-banner-${index}`,
+          displayMode: banner.displayMode || 'once',
+          event: {
+            id: banner.id || `marketing-home-banner-${index}`,
+            title: banner.bannerType === 'ad' ? 'LPTicket Ad' : 'LPTicket',
+            imageUrl,
+            bannerImageUrl: imageUrl,
+            date: '',
+            venue: '',
+            address: '',
+            price: '',
+            tag: banner.bannerType === 'ad' ? 'PUBLICIDAD' : 'LPTICKET',
+            featured: true,
+            age: '',
+            description: '',
+            currency: 'USD',
+            minPrice: 0,
+          } as MobileEvent,
+        };
+      })
+      .filter(Boolean) as { id: string; displayMode: string; event: MobileEvent }[];
+
+    const onceSlides = bannerSlides.filter((item) => item.displayMode === 'once').map((item) => item.event);
+    const every3 = bannerSlides.filter((item) => item.displayMode === 'every3');
+    const every5 = bannerSlides.filter((item) => item.displayMode === 'every5');
+    const mixedEvents: MobileEvent[] = [];
+
+    heroEvents.forEach((event, index) => {
+      mixedEvents.push(event);
+      if ((index + 1) % 3 === 0) every3.forEach((item) => mixedEvents.push(item.event));
+      if ((index + 1) % 5 === 0) every5.forEach((item) => mixedEvents.push(item.event));
+    });
+
+    if (!mixedEvents.length && onceSlides.length) {
+      return onceSlides;
+    }
+
+    return [...onceSlides, ...mixedEvents];
+  }, [homeBanners, heroEvents]);
+  const safeHeroLength = Math.max(heroSlides.length, 1);
+  const heroEvent = heroSlides[heroIndex % safeHeroLength] || events[0];
   const heroHeight = Math.max(120, Math.round((width - 32) / 2.63));
   const heroProgressTrackWidth = HERO_PROGRESS_ACTIVE_WIDTH + (safeHeroLength - 1) * HERO_PROGRESS_STEP;
   const heroProgressWidth = Math.max(78, heroProgressTrackWidth + 16);
@@ -236,6 +306,15 @@ export function HomeScreen({ onOpenEvent }: Props) {
         if (mounted) setRealCategories([]);
       });
 
+    apiGet<ApiHomeBanner[]>('/marketing/banners/home')
+      .then((banners) => {
+        if (!mounted) return;
+        setHomeBanners(Array.isArray(banners) ? banners : []);
+      })
+      .catch(() => {
+        if (mounted) setHomeBanners([]);
+      });
+
     return () => {
       mounted = false;
     };
@@ -247,26 +326,26 @@ export function HomeScreen({ onOpenEvent }: Props) {
   }, [categories, category]);
 
   useEffect(() => {
-    if (heroEvents.length <= 1) return;
+    if (heroSlides.length <= 1) return;
 
     const timer = setInterval(() => {
-      changeHero((heroIndex + 1) % heroEvents.length);
+      changeHero((heroIndex + 1) % heroSlides.length);
     }, 4500);
 
     return () => clearInterval(timer);
-  }, [heroEvents.length, heroIndex]);
+  }, [heroSlides.length, heroIndex]);
 
   const goPrevHero = () => {
-    if (heroEvents.length <= 1) return;
-    changeHero((heroIndex - 1 + heroEvents.length) % heroEvents.length);
+    if (heroSlides.length <= 1) return;
+    changeHero((heroIndex - 1 + heroSlides.length) % heroSlides.length);
   };
 
   const changeHero = (nextIndex: number) => {
-    if (heroEvents.length <= 1) return;
+    if (heroSlides.length <= 1) return;
 
-    const normalizedIndex = ((nextIndex % heroEvents.length) + heroEvents.length) % heroEvents.length;
+    const normalizedIndex = ((nextIndex % heroSlides.length) + heroSlides.length) % heroSlides.length;
     if (normalizedIndex === heroIndex) return;
-    const nextEvent = heroEvents[normalizedIndex];
+    const nextEvent = heroSlides[normalizedIndex];
     const nextImageUrl = getHeroImageUrl(nextEvent);
 
     const showNextHero = () => setHeroIndex(normalizedIndex);
@@ -281,8 +360,8 @@ export function HomeScreen({ onOpenEvent }: Props) {
   };
 
   const goNextHero = () => {
-    if (heroEvents.length <= 1) return;
-    changeHero((heroIndex + 1) % heroEvents.length);
+    if (heroSlides.length <= 1) return;
+    changeHero((heroIndex + 1) % heroSlides.length);
   };
 
   const trustSection = (
@@ -308,7 +387,7 @@ export function HomeScreen({ onOpenEvent }: Props) {
 
   return (
     <View style={styles.root}>
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View pointerEvents="none" style={styles.bgBaseLayer} />
       <View pointerEvents="none" style={styles.bgAccentOrange} />
       <View pointerEvents="none" style={styles.bgAccentBlue} />

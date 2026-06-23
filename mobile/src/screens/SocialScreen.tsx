@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SocialMatchMobile } from '../components/profile/SocialMatchMobile';
@@ -6,8 +6,13 @@ import { useLanguage } from '../i18n/LanguageContext';
 
 type Tab = 'social' | 'messages';
 
-export function SocialScreen() {
+type Props = {
+  scrollToTopSignal?: number;
+};
+
+export function SocialScreen({ scrollToTopSignal = 0 }: Props) {
   const { t } = useLanguage();
+  const scrollRef = useRef<ScrollView>(null);
   const [activeTab, setActiveTab] = useState<Tab>('social');
   const pillX = useRef(new Animated.Value(0)).current;
   const pillW = useRef(new Animated.Value(0)).current;
@@ -40,6 +45,11 @@ export function SocialScreen() {
     { id: 'social', labelEs: 'Social Match', labelEn: 'Social Match' },
     { id: 'messages', labelEs: 'Mensajes', labelEn: 'Messages' },
   ];
+
+  useEffect(() => {
+    if (!scrollToTopSignal) return;
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [scrollToTopSignal]);
 
   return (
     <View style={styles.root}>
@@ -80,7 +90,7 @@ export function SocialScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView ref={scrollRef} style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Social match</Text>
           <Text style={styles.title}>

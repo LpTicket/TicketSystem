@@ -21,10 +21,12 @@ type Props = {
   canAdmin?: boolean;
   viewMode?: AppMode;
   onSetMode?: (mode: AppMode) => void;
+  scrollToTopSignal?: number;
 };
 
-export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onLogout, canOrganize, canAdmin, viewMode = 'client', onSetMode }: Props) {
+export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onLogout, canOrganize, canAdmin, viewMode = 'client', onSetMode, scrollToTopSignal = 0 }: Props) {
   const { t } = useLanguage();
+  const scrollRef = useRef<ScrollView>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
@@ -53,6 +55,11 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
     }).start();
   }, [activeTab, tabButtonWidth, tabIndicatorX]);
 
+  useEffect(() => {
+    if (!scrollToTopSignal) return;
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [scrollToTopSignal]);
+
   const updateProfile = (key: keyof typeof profile, value: string) => {
     setProfile((current) => ({ ...current, [key]: value }));
   };
@@ -77,7 +84,7 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
 
   if (editing) {
     return (
-      <ScrollView style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView ref={scrollRef} style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.editHeader}>
           <Text style={styles.eyebrow}>{t('PERFIL', 'PROFILE')}</Text>
           <Text style={styles.editTitle}>{t('Editar información', 'Edit information')}</Text>
@@ -125,7 +132,7 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
   );
 
   return (
-    <ScrollView style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+    <ScrollView ref={scrollRef} style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
       {activeTab === 'account' && <AccountMobile user={user} onUserUpdated={onUserUpdated} tabs={tabs} />}
 
       {activeTab === 'payments' && (

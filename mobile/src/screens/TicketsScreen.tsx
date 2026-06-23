@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, Linking, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
@@ -33,6 +33,10 @@ type MobileTicket = {
 type TicketsResponse = {
   data?: MobileTicket[];
   tickets?: MobileTicket[];
+};
+
+type Props = {
+  scrollToTopSignal?: number;
 };
 
 function statusMeta(status: TicketStatus, t: (es: string, en: string) => string) {
@@ -79,8 +83,9 @@ function openAppleWallet(url: string) {
   WebBrowser.openBrowserAsync(url).catch(() => openUrl(url));
 }
 
-export function TicketsScreen() {
+export function TicketsScreen({ scrollToTopSignal = 0 }: Props) {
   const { t, lang } = useLanguage();
+  const scrollRef = useRef<ScrollView>(null);
   const [tickets, setTickets] = useState<MobileTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [resending, setResending] = useState<string | null>(null);
@@ -104,6 +109,11 @@ export function TicketsScreen() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!scrollToTopSignal) return;
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [scrollToTopSignal]);
 
   const visibleTickets = tickets;
 
@@ -136,7 +146,7 @@ export function TicketsScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>{t('MIS TICKETS', 'MY TICKETS')}</Text>
         <Text style={styles.title}>{t('Tickets digitales', 'Digital tickets')}</Text>

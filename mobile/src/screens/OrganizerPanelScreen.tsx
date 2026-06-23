@@ -154,9 +154,9 @@ const GLOBAL_SECTIONS: Section[] = ['dashboard', 'events', 'create'];
 const EVENT_SECTIONS: Section[] = ['analytics', 'details', 'overview', 'attendees', 'map', 'blocks', 'commission', 'rewards'];
 const isEventSection = (s: Section) => EVENT_SECTIONS.includes(s);
 
-type PanelProps = { section?: Section; onSectionChange?: (s: Section) => void; adminEvent?: any; onAdminBack?: () => void; refreshKey?: number };
+type PanelProps = { section?: Section; onSectionChange?: (s: Section) => void; adminEvent?: any; onAdminBack?: () => void; refreshKey?: number; scrollToTopSignal?: number };
 
-export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onAdminBack, refreshKey = 0 }: PanelProps = {}) {
+export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onAdminBack, refreshKey = 0, scrollToTopSignal = 0 }: PanelProps = {}) {
   const { t } = useLanguage();
   const organizerIndicatorX = useRef(new Animated.Value(0)).current;
   const organizerIndicatorWidth = useRef(new Animated.Value(118)).current;
@@ -169,6 +169,11 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
   const [tabsViewportWidth, setTabsViewportWidth] = useState(0);
   const [tabsContentWidth, setTabsContentWidth] = useState(0);
   const [tabsScrollX, setTabsScrollX] = useState(0);
+
+  useEffect(() => {
+    if (!scrollToTopSignal) return;
+    panelScrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [scrollToTopSignal]);
 
   // Seed state from adminEvent if provided (admin viewing an organizer's event)
   const [eventTitle, setEventTitle] = useState(adminEvent?.title || 'Noche de (des)amor');

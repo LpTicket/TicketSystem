@@ -3,6 +3,7 @@ import { Alert, Animated, Image, Modal, ScrollView, StyleSheet, Text, TextInput,
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { apiDelete, apiGet, apiPatch, apiPost, getImageUrl } from '../services/api';
@@ -27,6 +28,20 @@ type AdminUser = {
 };
 type Category = { id: string; name: string; labelEs: string; labelEn: string; subtitleEs?: string; subtitleEn?: string; slug: string; icon: string; color: string; sortOrder: number; imageData?: string; active: boolean; featured: boolean };
 type MarketingRecipient = { id: string; name: string; email: string; phone?: string };
+type MarketingHomeBanner = {
+  id: string;
+  title?: string;
+  imageData?: string | null;
+  imageUrl?: string | null;
+  mobileImageData?: string | null;
+  mobileImageUrl?: string | null;
+  fileName?: string | null;
+  mobileFileName?: string | null;
+  bannerType?: 'banner' | 'ad' | string;
+  displayMode?: 'once' | 'every3' | 'every5' | string;
+  sortOrder?: number;
+  isActive?: boolean;
+};
 
 type AnalyticsSummary = {
   days: number;
@@ -82,6 +97,15 @@ type CommissionEntry = {
   balance: number;
   payouts?: { id: string; amount: number; note: string | null; paidAt: string }[];
 };
+
+const BANNER_DESKTOP_DISABLED_KEY = 'lp_admin_banner_desktop_disabled';
+const BANNER_MOBILE_DISABLED_KEY = 'lp_admin_banner_mobile_disabled';
+
+function resolveMarketingBannerImage(value?: string | null) {
+  if (!value) return '';
+  if (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://')) return value;
+  return getImageUrl(value) || value;
+}
 
 type FeeConfig = {
   event: {
@@ -267,9 +291,9 @@ const sections: { id: Section; label: string }[] = [
   { id: 'codes', label: 'Codigos' },
 ];
 
-type AdminProps = { section?: Section; onSectionChange?: (s: Section) => void };
+type AdminProps = { section?: Section; onSectionChange?: (s: Section) => void; scrollToTopSignal?: number };
 
-export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) {
+export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal = 0 }: AdminProps = {}) {
   const { t } = useLanguage();
   const adminIndicatorX = useRef(new Animated.Value(0)).current;
   const adminIndicatorWidth = useRef(new Animated.Value(118)).current;
@@ -289,8 +313,6 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
   const [editUserPasswordConfirm, setEditUserPasswordConfirm] = useState('');
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [categoryDraft, setCategoryDraft] = useState('');
-  const [marketingBannerEnabled, setMarketingBannerEnabled] = useState(true);
-  const [marketingFeaturedEnabled, setMarketingFeaturedEnabled] = useState(true);
   const [marketingPromoEnabled, setMarketingPromoEnabled] = useState(false);
   const [specialCodeDraft, setSpecialCodeDraft] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -298,6 +320,11 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [selectedUserTickets, setSelectedUserTickets] = useState<any[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
+
+  useEffect(() => {
+    if (!scrollToTopSignal) return;
+    adminScrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [scrollToTopSignal]);
 
   const [adminStats, setAdminStats] = useState<AdminStats>({});
   const [adminEvents, setAdminEvents] = useState<any[]>([]);
@@ -330,6 +357,7 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
   const [codesError, setCodesError] = useState('');
   const [commissionSummary, setCommissionSummary] = useState<CommissionEntry[]>([]);
   const [homeBanner, setHomeBanner] = useState<{ title?: string; isActive?: boolean } | null | false>(null);
+  const [marketingHomeBanners, setMarketingHomeBanners] = useState<MarketingHomeBanner[]>([]);
   const [recipientsCount, setRecipientsCount] = useState(0);
   const [marketingRecipients, setMarketingRecipients] = useState<MarketingRecipient[]>([]);
   const [pushLiveEvents, setPushLiveEvents] = useState<any[]>([]);
@@ -345,6 +373,9 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
   const [emailArtData, setEmailArtData] = useState('');
   const [emailArtFileName, setEmailArtFileName] = useState('');
   const [emailAudience, setEmailAudience] = useState<'all' | 'specify'>('all');
+  const [emailRecipientIds, setEmailRecipientIds] = useState<string[]>([]);
+  const [emailRecipientSearch, setEmailRecipientSearch] = useState('');
+  const [emailRecipientPickerOpen, setEmailRecipientPickerOpen] = useState(false);
   const [smsMessage, setSmsMessage] = useState('');
   const [pushTitle, setPushTitle] = useState('');
   const [pushMessage, setPushMessage] = useState('');
@@ -360,6 +391,9 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
   const [waLang, setWaLang] = useState<'es' | 'en'>('es');
   const [sending, setSending] = useState<'' | 'email' | 'sms' | 'push' | 'whatsapp'>('');
   const [bannerStatus, setBannerStatus] = useState<'draft' | 'active'>('draft');
+  const [bannerType, setBannerType] = useState<'banner' | 'ad'>('banner');
+  const [bannerDisplayMode, setBannerDisplayMode] = useState<'once' | 'every3' | 'every5'>('once');
+  const [selectedMarketingBannerId, setSelectedMarketingBannerId] = useState<string | null>(null);
   const [specialCodeOwnerDraft, setSpecialCodeOwnerDraft] = useState('');
   const [ownerSearchQuery, setOwnerSearchQuery] = useState('');
   const [ownerSearchResults, setOwnerSearchResults] = useState<{ id: string; name: string; email: string }[]>([]);
@@ -434,6 +468,14 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
   };
 
   const selectedPushRecipient = marketingRecipients.find((item) => item.id === pushRecipientId);
+  const emailRecipients = marketingRecipients.filter((recipient) => !!recipient.email);
+  const filteredEmailRecipients = emailRecipients.filter((recipient) => {
+    const query = emailRecipientSearch.trim().toLowerCase();
+    if (!query) return true;
+    return `${recipient.name} ${recipient.email}`.toLowerCase().includes(query);
+  });
+  const selectedEmailRecipients = emailRecipients.filter((item) => emailRecipientIds.includes(item.id));
+  const visibleMarketingHomeBanners = marketingHomeBanners.filter((item) => (item.bannerType === 'ad' ? 'ad' : 'banner') === bannerType);
   const filteredPushRecipients = marketingRecipients.filter((recipient) => {
     const query = pushRecipientSearch.trim().toLowerCase();
     if (!query) return true;
@@ -812,23 +854,33 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
   useEffect(() => {
     if (active !== 'marketing' || homeBanner !== null) return;
     Promise.allSettled([
-      apiGet<any>('/marketing/banner/home?includeData=true'),
+      apiGet<MarketingHomeBanner[]>('/marketing/admin/banners/home?includeData=true'),
       apiGet<any[]>('/marketing/admin/recipients'),
       apiGet<any>('/admin/users?page=1&limit=200'),
       apiGet<any>('/events'),
-    ]).then(([bannerRes, recipientsRes, usersRes, eventsRes]) => {
-      const banner = bannerRes.status === 'fulfilled' ? (bannerRes.value || false) : false;
+      AsyncStorage.getItem(BANNER_DESKTOP_DISABLED_KEY),
+      AsyncStorage.getItem(BANNER_MOBILE_DISABLED_KEY),
+    ]).then(([bannerRes, recipientsRes, usersRes, eventsRes, desktopDisabledRes, mobileDisabledRes]) => {
+      const banners = bannerRes.status === 'fulfilled' ? (Array.isArray(bannerRes.value) ? bannerRes.value : []) : [];
+      const banner = banners[0] || false;
+      const desktopDisabled = desktopDisabledRes.status === 'fulfilled' && desktopDisabledRes.value === '1';
+      const mobileDisabled = mobileDisabledRes.status === 'fulfilled' && mobileDisabledRes.value === '1';
+      setMarketingHomeBanners(banners);
       setHomeBanner(banner);
-      if (banner && (banner as any).imageData) {
+      if (banner) {
         setBannerStatus('active');
-        // Populate preview with the already-published banner so user can see it
-        const imgData = (banner as any).imageData;
-        const imgUrl = imgData.startsWith('data:') ? imgData : getImageUrl(imgData) || imgData;
-        setBannerDesktop({ data: imgUrl, name: (banner as any).fileName || 'banner-desktop' });
-        const mobileData = (banner as any).mobileImageData;
-        if (mobileData) {
-          const mobileUrl = mobileData.startsWith('data:') ? mobileData : getImageUrl(mobileData) || mobileData;
+        setSelectedMarketingBannerId((banner as any).id || null);
+        setBannerType((banner as any).bannerType === 'ad' ? 'ad' : 'banner');
+        setBannerDisplayMode(['once', 'every3', 'every5'].includes((banner as any).displayMode) ? (banner as any).displayMode : 'once');
+        const desktopUrl = resolveMarketingBannerImage((banner as any).imageData || (banner as any).imageUrl);
+        if (desktopUrl) {
+          setBannerDesktop({ data: desktopUrl, name: (banner as any).fileName || 'banner-desktop' });
+          setBannerDesktopEnabled(!desktopDisabled);
+        }
+        const mobileUrl = resolveMarketingBannerImage((banner as any).mobileImageData || (banner as any).mobileImageUrl);
+        if (mobileUrl) {
           setBannerMobile({ data: mobileUrl, name: (banner as any).mobileFileName || 'banner-mobile' });
+          setBannerMobileEnabled(!mobileDisabled);
         }
       }
       const recipients = recipientsRes.status === 'fulfilled' ? (recipientsRes.value || []) : [];
@@ -1261,6 +1313,13 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
       Alert.alert(t('Asunto requerido', 'Subject required'), t('Ingresa un asunto o nombre de campaña.', 'Enter a subject or campaign name.'));
       return;
     }
+    const recipients = emailAudience === 'specify'
+      ? selectedEmailRecipients.map((recipient) => recipient.email).filter(Boolean)
+      : undefined;
+    if (emailAudience === 'specify' && (!recipients || recipients.length === 0)) {
+      Alert.alert(t('Selecciona destinatarios', 'Select recipients'), t('Elige al menos un usuario con email.', 'Choose at least one user with email.'));
+      return;
+    }
     setSending('email');
     try {
       const result = await apiPost<{ sent: number; failed: number; total: number }>('/marketing/admin/email-campaign', {
@@ -1269,6 +1328,7 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
         preheader: campaignPreheader || campaignBodyDraft,
         link: campaignLink || undefined,
         imageData: emailArtData || undefined,
+        recipients,
       });
       Alert.alert(t('Campaña enviada', 'Campaign sent'), t(`Enviados: ${result.sent} / ${result.total}`, `Sent: ${result.sent} / ${result.total}`));
       setCampaignSubjectDraft('');
@@ -1367,6 +1427,8 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
   // ── Home banner management (base64 data URLs, like the web) ────────────────
   const [bannerDesktop, setBannerDesktop] = useState<{ data: string; name: string } | null>(null);
   const [bannerMobile, setBannerMobile] = useState<{ data: string; name: string } | null>(null);
+  const [bannerDesktopEnabled, setBannerDesktopEnabled] = useState(false);
+  const [bannerMobileEnabled, setBannerMobileEnabled] = useState(false);
   const [publishingBanner, setPublishingBanner] = useState(false);
 
   const pickBanner = async (which: 'desktop' | 'mobile') => {
@@ -1377,22 +1439,43 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
     const a = res.assets[0];
     const dataUrl = a.base64 ? `data:${a.mimeType || 'image/jpeg'};base64,${a.base64}` : a.uri;
     const entry = { data: dataUrl, name: a.fileName || `banner-${which}` };
-    if (which === 'desktop') setBannerDesktop(entry); else setBannerMobile(entry);
+    if (which === 'desktop') {
+      setBannerDesktop(entry);
+      setBannerDesktopEnabled(false);
+      void AsyncStorage.setItem(BANNER_DESKTOP_DISABLED_KEY, '1');
+    } else {
+      setBannerMobile(entry);
+      setBannerMobileEnabled(false);
+      void AsyncStorage.setItem(BANNER_MOBILE_DISABLED_KEY, '1');
+    }
+    setBannerStatus('draft');
   };
 
   const publishBanner = async () => {
     if (!bannerDesktop) { Alert.alert(t('Imagen requerida', 'Image required'), t('Selecciona la imagen del banner.', 'Select the banner image.')); return; }
     setPublishingBanner(true);
     try {
-      await apiPost('/marketing/admin/banner/home', {
+      const saved = await apiPost<MarketingHomeBanner>('/marketing/admin/banners/home', {
+        id: selectedMarketingBannerId || undefined,
+        title: bannerType === 'ad' ? t('Publicidad Home', 'Home Ad') : t('Banner Home', 'Home Banner'),
         imageData: bannerDesktop.data,
         fileName: bannerDesktop.name,
         mobileImageData: bannerMobile?.data || null,
         mobileFileName: bannerMobile?.name || null,
+        bannerType,
+        displayMode: bannerDisplayMode,
+        sortOrder: marketingHomeBanners.length,
+        isActive: true,
       });
       Alert.alert(t('Publicado', 'Published'), t('Banner publicado en el home.', 'Banner published on the home page.'));
       setHomeBanner({ isActive: true });
+      setSelectedMarketingBannerId(saved.id);
+      setMarketingHomeBanners((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
       setBannerStatus('active');
+      setBannerDesktopEnabled(true);
+      setBannerMobileEnabled(!!bannerMobile);
+      await AsyncStorage.removeItem(BANNER_DESKTOP_DISABLED_KEY);
+      if (bannerMobile) await AsyncStorage.removeItem(BANNER_MOBILE_DISABLED_KEY);
     } catch (err: any) {
       Alert.alert('Error', err?.message || t('No se pudo publicar el banner.', 'Could not publish the banner.'));
     } finally {
@@ -1402,11 +1485,68 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
 
   const deleteBanner = async (which: 'home' | 'home-mobile') => {
     try {
-      await apiDelete(`/marketing/admin/banner/${which}`);
-      if (which === 'home') { setBannerDesktop(null); setHomeBanner(false); } else setBannerMobile(null);
+      const currentBannerId = selectedMarketingBannerId || (which === 'home' ? marketingHomeBanners[0]?.id : '');
+      if (currentBannerId && which === 'home') await apiDelete(`/marketing/admin/banners/home/${currentBannerId}`);
+      else if (currentBannerId && which === 'home-mobile') await apiPatch(`/marketing/admin/banners/home/${currentBannerId}`, { mobileImageData: null, mobileFileName: null });
+      else await apiDelete(`/marketing/admin/banner/${which}`);
+      if (which === 'home') {
+        setBannerDesktop(null);
+        setBannerDesktopEnabled(false);
+        setHomeBanner(false);
+        setMarketingHomeBanners((current) => currentBannerId ? current.filter((item) => item.id !== currentBannerId) : current);
+        setSelectedMarketingBannerId(null);
+        setBannerStatus('draft');
+        await AsyncStorage.removeItem(BANNER_DESKTOP_DISABLED_KEY);
+      } else {
+        setBannerMobile(null);
+        setBannerMobileEnabled(false);
+        setMarketingHomeBanners((current) => current.map((item) => (
+          item.id === currentBannerId ? { ...item, mobileImageData: null, mobileImageUrl: null, mobileFileName: null } : item
+        )));
+        await AsyncStorage.removeItem(BANNER_MOBILE_DISABLED_KEY);
+      }
       Alert.alert(t('Listo', 'Done'), t('Banner eliminado.', 'Banner removed.'));
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Error');
+    }
+  };
+
+  const selectMarketingBanner = (item: MarketingHomeBanner) => {
+    const desktopUrl = resolveMarketingBannerImage(item.imageData || item.imageUrl);
+    const mobileUrl = resolveMarketingBannerImage(item.mobileImageData || item.mobileImageUrl);
+    setSelectedMarketingBannerId(item.id);
+    setBannerType(item.bannerType === 'ad' ? 'ad' : 'banner');
+    setBannerDisplayMode(['once', 'every3', 'every5'].includes(item.displayMode || '') ? item.displayMode as 'once' | 'every3' | 'every5' : 'once');
+    setBannerDesktop(desktopUrl ? { data: desktopUrl, name: item.fileName || 'banner-desktop' } : null);
+    setBannerMobile(mobileUrl ? { data: mobileUrl, name: item.mobileFileName || 'banner-mobile' } : null);
+    setBannerDesktopEnabled(item.isActive !== false && !!desktopUrl);
+    setBannerMobileEnabled(item.isActive !== false && !!mobileUrl);
+    setBannerStatus(item.isActive === false ? 'draft' : 'active');
+  };
+
+  const createNewMarketingBanner = (nextType = bannerType) => {
+    setSelectedMarketingBannerId(null);
+    setBannerType(nextType);
+    setBannerDisplayMode('once');
+    setBannerDesktop(null);
+    setBannerMobile(null);
+    setBannerDesktopEnabled(false);
+    setBannerMobileEnabled(false);
+    setBannerStatus('draft');
+  };
+
+  const toggleBannerEnabled = async (which: 'desktop' | 'mobile') => {
+    if (which === 'desktop' && bannerDesktop) {
+      const nextEnabled = !bannerDesktopEnabled;
+      setBannerDesktopEnabled(nextEnabled);
+      if (nextEnabled) await AsyncStorage.removeItem(BANNER_DESKTOP_DISABLED_KEY);
+      else await AsyncStorage.setItem(BANNER_DESKTOP_DISABLED_KEY, '1');
+    }
+    if (which === 'mobile' && bannerMobile) {
+      const nextEnabled = !bannerMobileEnabled;
+      setBannerMobileEnabled(nextEnabled);
+      if (nextEnabled) await AsyncStorage.removeItem(BANNER_MOBILE_DISABLED_KEY);
+      else await AsyncStorage.setItem(BANNER_MOBILE_DISABLED_KEY, '1');
     }
   };
 
@@ -2829,38 +2969,158 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
         {active === 'marketing' && (
           <>
             <PanelCard title={t('Gestión de banner', 'Banner management')} eyebrow={t('HOME', 'HOME')} copy={t('Sube la imagen del banner del home (escritorio y móvil).', 'Upload the home banner image (desktop and mobile).')}>
+              <View style={styles.bannerOptionBlock}>
+                <FieldLabel label={t('Qué quieres gestionar', 'What do you want to manage')} />
+                <View style={styles.bannerSegmentRow}>
+                  {([
+                    { id: 'banner', label: t('Banner', 'Banner') },
+                    { id: 'ad', label: t('Publicidad', 'Ad') },
+                  ] as const).map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      onPress={() => {
+                        const firstItem = marketingHomeBanners.find((banner) => (banner.bannerType === 'ad' ? 'ad' : 'banner') === item.id);
+                        if (firstItem) selectMarketingBanner(firstItem);
+                        else createNewMarketingBanner(item.id);
+                      }}
+                      style={[styles.bannerSegmentBtn, bannerType === item.id && styles.bannerSegmentBtnActive]}
+                    >
+                      <Text style={[styles.bannerSegmentText, bannerType === item.id && styles.bannerSegmentTextActive]}>{item.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.bannerPickerScroll} contentContainerStyle={styles.bannerPickerContent}>
+                  <TouchableOpacity
+                    onPress={() => createNewMarketingBanner(bannerType)}
+                    style={[styles.bannerPickerCard, !selectedMarketingBannerId && styles.bannerPickerCardActive]}
+                    activeOpacity={0.86}
+                  >
+                    <View style={styles.bannerPickerAdd}>
+                      <Ionicons name="add" size={18} color={colors.orange} />
+                    </View>
+                    <Text style={styles.bannerPickerTitle}>{bannerType === 'ad' ? t('Nueva publicidad', 'New ad') : t('Nuevo banner', 'New banner')}</Text>
+                    <Text style={styles.bannerPickerMeta}>{t('Subir fotos', 'Upload photos')}</Text>
+                  </TouchableOpacity>
+                  {visibleMarketingHomeBanners.map((item, index) => {
+                    const img = resolveMarketingBannerImage(item.imageData || item.imageUrl);
+                    const activeItem = selectedMarketingBannerId === item.id;
+                    const frequencyLabel = item.displayMode === 'every3'
+                      ? t('Cada 3', 'Every 3')
+                      : item.displayMode === 'every5'
+                        ? t('Cada 5', 'Every 5')
+                        : t('Una vez', 'Once');
+                    return (
+                      <TouchableOpacity
+                        key={item.id || index}
+                        onPress={() => selectMarketingBanner(item)}
+                        style={[styles.bannerPickerCard, activeItem && styles.bannerPickerCardActive]}
+                        activeOpacity={0.86}
+                      >
+                        {img ? <Image source={{ uri: img }} style={styles.bannerPickerImage} resizeMode="cover" /> : <View style={styles.bannerPickerImage} />}
+                        <Text style={styles.bannerPickerTitle} numberOfLines={1}>{bannerType === 'ad' ? t('Publicidad', 'Ad') : t('Banner', 'Banner')}</Text>
+                        <Text style={styles.bannerPickerMeta} numberOfLines={1}>{frequencyLabel}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
               <View style={styles.twoColRow}>
                 <View style={styles.col}>
                   <FieldLabel label={t('Escritorio', 'Desktop')} />
+                  <BannerPublishBadge published={!!bannerDesktop && bannerDesktopEnabled} />
                   {bannerDesktop ? <Image source={{ uri: bannerDesktop.data }} style={styles.bannerThumb} resizeMode="cover" /> : <View style={styles.bannerThumbEmpty}><Text style={styles.bannerThumbText}>16:9</Text></View>}
-                  <TouchableOpacity onPress={() => pickBanner('desktop')} style={styles.bannerPickBtn}><Text style={styles.bannerPickText}>{bannerDesktop ? t('CAMBIAR', 'CHANGE') : t('SELECCIONAR', 'SELECT')}</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => pickBanner('desktop')} style={styles.bannerPickBtn}><Text style={styles.bannerPickText}>{bannerDesktop ? t('CAMBIAR FOTO', 'CHANGE PHOTO') : t('SUBIR DESDE FOTOS', 'UPLOAD FROM PHOTOS')}</Text></TouchableOpacity>
                 </View>
                 <View style={styles.col}>
-                  <FieldLabel label={t('Móvil (opcional)', 'Mobile (optional)')} />
+                  <FieldLabel label={t('Móvil', 'Mobile')} />
+                  <BannerPublishBadge published={!!bannerMobile && bannerMobileEnabled} />
                   {bannerMobile ? <Image source={{ uri: bannerMobile.data }} style={styles.bannerThumb} resizeMode="cover" /> : <View style={styles.bannerThumbEmpty}><Text style={styles.bannerThumbText}>9:16</Text></View>}
-                  <TouchableOpacity onPress={() => pickBanner('mobile')} style={styles.bannerPickBtn}><Text style={styles.bannerPickText}>{bannerMobile ? t('CAMBIAR', 'CHANGE') : t('SELECCIONAR', 'SELECT')}</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => pickBanner('mobile')} style={styles.bannerPickBtn}><Text style={styles.bannerPickText}>{bannerMobile ? t('CAMBIAR FOTO', 'CHANGE PHOTO') : t('SUBIR DESDE FOTOS', 'UPLOAD FROM PHOTOS')}</Text></TouchableOpacity>
                 </View>
               </View>
-              <GradientButton label={publishingBanner ? t('PUBLICANDO...', 'PUBLISHING...') : t('PUBLICAR BANNER', 'PUBLISH BANNER')} onPress={publishBanner} height={48} style={{ marginTop: 12 }} />
+              <View style={styles.bannerOptionBlock}>
+                <FieldLabel label={t('Frecuencia en el carrusel', 'Carousel frequency')} />
+                <View style={styles.bannerSegmentRow}>
+                  {([
+                    { id: 'once', label: t('Una vez', 'Once') },
+                    { id: 'every3', label: t('Cada 3', 'Every 3') },
+                    { id: 'every5', label: t('Cada 5', 'Every 5') },
+                  ] as const).map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      onPress={() => setBannerDisplayMode(item.id)}
+                      style={[styles.bannerSegmentBtn, bannerDisplayMode === item.id && styles.bannerSegmentBtnActive]}
+                    >
+                      <Text style={[styles.bannerSegmentText, bannerDisplayMode === item.id && styles.bannerSegmentTextActive]}>{item.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <GradientButton label={publishingBanner ? t('PUBLICANDO...', 'PUBLISHING...') : selectedMarketingBannerId ? t('GUARDAR CAMBIOS', 'SAVE CHANGES') : t('PUBLICAR BANNER', 'PUBLISH BANNER')} onPress={publishBanner} height={48} style={{ marginTop: 12 }} />
+              <View style={styles.bannerDeleteRow}>
+                <TouchableOpacity
+                  onPress={() => toggleBannerEnabled('desktop')}
+                  disabled={!bannerDesktop}
+                  style={[
+                    styles.bannerToggleBtn,
+                    bannerDesktop && bannerDesktopEnabled ? styles.bannerToggleBtnOn : styles.bannerToggleBtnOff,
+                    !bannerDesktop && styles.bannerToggleBtnDisabled,
+                  ]}
+                >
+                  <Text style={[
+                    styles.bannerToggleText,
+                    bannerDesktop && bannerDesktopEnabled ? styles.bannerToggleTextOn : styles.bannerToggleTextOff,
+                  ]}>
+                    {bannerDesktopEnabled ? t('Desactivar escritorio', 'Disable desktop') : t('Activar escritorio', 'Activate desktop')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => toggleBannerEnabled('mobile')}
+                  disabled={!bannerMobile}
+                  style={[
+                    styles.bannerToggleBtn,
+                    bannerMobile && bannerMobileEnabled ? styles.bannerToggleBtnOn : styles.bannerToggleBtnOff,
+                    !bannerMobile && styles.bannerToggleBtnDisabled,
+                  ]}
+                >
+                  <Text style={[
+                    styles.bannerToggleText,
+                    bannerMobile && bannerMobileEnabled ? styles.bannerToggleTextOn : styles.bannerToggleTextOff,
+                  ]}>
+                    {bannerMobileEnabled ? t('Desactivar móvil', 'Disable mobile') : t('Activar móvil', 'Activate mobile')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
               <View style={styles.bannerDeleteRow}>
                 <TouchableOpacity onPress={() => deleteBanner('home')} style={styles.bannerDeleteBtn}><Text style={styles.bannerDeleteText}>{t('Borrar escritorio', 'Delete desktop')}</Text></TouchableOpacity>
                 <TouchableOpacity onPress={() => deleteBanner('home-mobile')} style={styles.bannerDeleteBtn}><Text style={styles.bannerDeleteText}>{t('Borrar móvil', 'Delete mobile')}</Text></TouchableOpacity>
               </View>
+              <View style={styles.bannerList}>
+                <Text style={styles.bannerListTitle}>{t('Banners y publicidades activos', 'Active banners and ads')}</Text>
+                {marketingHomeBanners.length === 0 ? (
+                  <Text style={styles.bannerListEmpty}>{t('Todavía no hay banners publicados desde esta nueva gestión.', 'No banners have been published from this new manager yet.')}</Text>
+                ) : (
+                  marketingHomeBanners.slice(0, 6).map((item, index) => {
+                    const img = resolveMarketingBannerImage(item.imageData || item.imageUrl);
+                    const frequencyLabel = item.displayMode === 'every3'
+                      ? t('Cada 3 banners', 'Every 3 banners')
+                      : item.displayMode === 'every5'
+                        ? t('Cada 5 banners', 'Every 5 banners')
+                        : t('Una sola vez', 'Once');
+                    return (
+                      <View key={item.id || index} style={styles.bannerListItem}>
+                        {img ? <Image source={{ uri: img }} style={styles.bannerListThumb} resizeMode="cover" /> : <View style={styles.bannerListThumb} />}
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={styles.bannerListName} numberOfLines={1}>{item.bannerType === 'ad' ? t('Publicidad', 'Ad') : t('Banner', 'Banner')}</Text>
+                          <Text style={styles.bannerListMeta} numberOfLines={1}>{frequencyLabel}</Text>
+                        </View>
+                        <BannerPublishBadge published={item.isActive !== false} />
+                      </View>
+                    );
+                  })
+                )}
+              </View>
             </PanelCard>
-
-            <MarketingRow
-              title={t('Banner principal', 'Main banner')}
-              copy={t('Imagen principal del home y carrusel superior.', 'Main home image and top carousel.')}
-              enabled={marketingBannerEnabled}
-              onToggle={() => setMarketingBannerEnabled(!marketingBannerEnabled)}
-            />
-
-            <MarketingRow
-              title={t('Eventos destacados', 'Featured events')}
-              copy={t('Controla los eventos que aparecen como destacados.', 'Control events that appear as featured.')}
-              enabled={marketingFeaturedEnabled}
-              onToggle={() => setMarketingFeaturedEnabled(!marketingFeaturedEnabled)}
-            />
 
             <MarketingRow
               title={t('Promociones', 'Promotions')}
@@ -3385,11 +3645,105 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
 
               {/* Audience selector */}
               <View style={styles.mktSelect}>
-                <TouchableOpacity onPress={() => setEmailAudience(emailAudience === 'all' ? 'specify' : 'all')} style={styles.mktSelectInner}>
-                  <Text style={styles.mktSelectText}>{emailAudience === 'all' ? t('Enviar a todos los usuarios', 'Send to all users') : t('Especificar destinatarios', 'Specify recipients')}</Text>
-                  <Ionicons name="chevron-down" size={14} color="rgba(226,232,240,0.5)" />
+                <TouchableOpacity
+                  onPress={() => {
+                    if (emailAudience === 'all') {
+                      setEmailAudience('specify');
+                      setEmailRecipientPickerOpen(true);
+                    } else {
+                      setEmailRecipientPickerOpen((open) => !open);
+                    }
+                  }}
+                  style={styles.mktSelectInner}
+                >
+                  <Text style={styles.mktSelectText}>
+                    {emailAudience === 'all'
+                      ? t('Enviar a todos los usuarios', 'Send to all users')
+                      : selectedEmailRecipients.length > 0
+                        ? t(`${selectedEmailRecipients.length} destinatarios seleccionados`, `${selectedEmailRecipients.length} selected recipients`)
+                        : t('Especificar destinatarios', 'Specify recipients')}
+                  </Text>
+                  <Ionicons name={emailAudience === 'specify' && emailRecipientPickerOpen ? 'chevron-up' : 'chevron-down'} size={14} color="rgba(226,232,240,0.5)" />
                 </TouchableOpacity>
               </View>
+              {emailAudience === 'specify' && emailRecipientPickerOpen ? (
+                <View style={styles.mktEmailRecipientPanel}>
+                  <View style={styles.mktEmailRecipientHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.mktEmailRecipientTitle}>{t('Destinatarios', 'Recipients')}</Text>
+                      <Text style={styles.mktEmailRecipientSub}>{t(`${selectedEmailRecipients.length} seleccionados`, `${selectedEmailRecipients.length} selected`)}</Text>
+                    </View>
+                    {emailRecipientIds.length > 0 ? (
+                      <TouchableOpacity onPress={() => setEmailRecipientIds([])} style={styles.mktEmailRecipientClear} activeOpacity={0.82}>
+                        <Text style={styles.mktEmailRecipientClearText}>{t('Limpiar', 'Clear')}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    <TouchableOpacity
+                      onPress={() => {
+                        setEmailAudience('all');
+                        setEmailRecipientPickerOpen(false);
+                      }}
+                      style={styles.mktEmailRecipientClear}
+                      activeOpacity={0.82}
+                    >
+                      <Text style={styles.mktEmailRecipientClearText}>{t('Todos', 'All')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.mktPushSearchBox}>
+                    <Ionicons name="search" size={16} color={colors.orange} />
+                    <TextInput
+                      value={emailRecipientSearch}
+                      onChangeText={setEmailRecipientSearch}
+                      placeholder={t('Buscar por nombre o email...', 'Search by name or email...')}
+                      placeholderTextColor="rgba(226,232,240,0.38)"
+                      style={styles.mktPushSearchInput}
+                      autoCapitalize="none"
+                    />
+                    {emailRecipientSearch ? (
+                      <TouchableOpacity onPress={() => setEmailRecipientSearch('')} activeOpacity={0.8}>
+                        <Ionicons name="close-circle" size={16} color="rgba(226,232,240,0.5)" />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  <ScrollView style={styles.mktEmailRecipientList} nestedScrollEnabled showsVerticalScrollIndicator={filteredEmailRecipients.length > 5}>
+                    {emailRecipients.length === 0 ? (
+                      <View style={styles.mktPushRecipientEmpty}>
+                        <Text style={styles.mktPushRecipientEmail}>{t('No hay usuarios con email cargados.', 'No users with email loaded.')}</Text>
+                      </View>
+                    ) : filteredEmailRecipients.length === 0 ? (
+                      <View style={styles.mktPushRecipientEmpty}>
+                        <Text style={styles.mktPushRecipientEmail}>{t('No encontramos usuarios con ese texto.', 'No users match that search.')}</Text>
+                      </View>
+                    ) : filteredEmailRecipients.map((recipient) => {
+                      const selected = emailRecipientIds.includes(recipient.id);
+                      return (
+                        <TouchableOpacity
+                          key={recipient.id}
+                          onPress={() => {
+                            setEmailRecipientIds((current) => (
+                              selected ? current.filter((id) => id !== recipient.id) : [...current, recipient.id]
+                            ));
+                            setEmailRecipientPickerOpen(false);
+                          }}
+                          style={[styles.mktPushRecipientRow, selected && styles.mktPushRecipientRowActive]}
+                          activeOpacity={0.86}
+                        >
+                          <View style={[styles.mktEmailCheck, selected && styles.mktEmailCheckActive]}>
+                            {selected ? <Ionicons name="checkmark" size={14} color="#FFFFFF" /> : null}
+                          </View>
+                          <View style={styles.mktPushRecipientAvatar}>
+                            <Text style={styles.mktPushRecipientAvatarText}>{(recipient.name || recipient.email || '?').trim().slice(0, 1).toUpperCase()}</Text>
+                          </View>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={styles.mktPushRecipientName} numberOfLines={1}>{recipient.name || recipient.email}</Text>
+                            <Text style={styles.mktPushRecipientEmail} numberOfLines={1}>{recipient.email}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              ) : null}
 
               <TextInput value={campaignLink} onChangeText={setCampaignLink} placeholder={t('Link del botón o evento', 'Button or event link')} placeholderTextColor="rgba(226,232,240,0.35)" autoCapitalize="none" style={styles.mktInput} />
 
@@ -3413,7 +3767,7 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
               {emailArtData ? <Image source={{ uri: emailArtData }} style={styles.mktArtPreview} resizeMode="contain" /> : null}
 
               <GradientButton label={sending === 'email' ? t('ENVIANDO...', 'SENDING...') : t('ENVIAR CAMPAÑA POR EMAIL', 'SEND EMAIL CAMPAIGN')} onPress={sendEmailCampaign} height={50} style={{ marginTop: 12 }} />
-              <Text style={styles.mktFootNote}>{t('Se envía a todos los usuarios registrados.', 'Sent to all registered users.')}</Text>
+              <Text style={styles.mktFootNote}>{emailAudience === 'all' ? t('Se envía a todos los usuarios registrados.', 'Sent to all registered users.') : t(`Se envía solo a ${selectedEmailRecipients.length} destinatarios seleccionados.`, `Sent only to ${selectedEmailRecipients.length} selected recipients.`)}</Text>
             </View>
 
             {/* ─── Preview premium ─── */}
@@ -3700,111 +4054,6 @@ export function AdminPanelScreen({ section, onSectionChange }: AdminProps = {}) 
               <GradientButton label={sending === 'whatsapp' ? t('ENVIANDO...', 'SENDING...') : t(`ENVIAR WHATSAPP (${waLang.toUpperCase()})`, `SEND WHATSAPP (${waLang.toUpperCase()})`)} onPress={sendWhatsapp} height={48} style={{ marginTop: 8 }} />
             </View>
 
-            {/* ─── Banner Home preview ─── */}
-            <View style={styles.mktCard}>
-              <View style={styles.mktBannerPreviewHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.mktBannerPreviewEyebrow}>{t('BANNER HOME', 'HOME BANNER')}</Text>
-                  <Text style={styles.mktCardSub}>{t('Vista compacta del banner publicado en el carrusel principal.', 'Compact view of the banner published in the main carousel.')}</Text>
-                </View>
-                <View style={[styles.mktStatusBadge, bannerStatus === 'active' ? styles.mktStatusActive : styles.mktStatusDraft]}>
-                  <Text style={[styles.mktStatusText, bannerStatus === 'active' ? { color: '#4ADE80' } : { color: colors.orange }]}>{bannerStatus === 'active' ? t('Publicado', 'Published') : t('Borrador', 'Draft')}</Text>
-                </View>
-              </View>
-              {(() => {
-                const desktopSrc = bannerDesktop?.data || (homeBanner && typeof homeBanner === 'object' && (homeBanner as any).imageData ? getImageUrl((homeBanner as any).imageData) || (homeBanner as any).imageData : null);
-                return desktopSrc ? (
-                  <Image source={{ uri: desktopSrc }} style={styles.mktBannerImg} resizeMode="cover" />
-                ) : (
-                  <View style={styles.mktBannerEmpty}><Text style={styles.mktBannerEmptyText}>{t('Sin banner publicado', 'No published banner')}</Text></View>
-                );
-              })()}
-              <Text style={[styles.mktBannerPreviewEyebrow, { marginTop: 14 }]}>MOVIL</Text>
-              <Text style={[styles.mktCardSub, { marginBottom: 8 }]}>{t('Formato flyer para celulares.', 'Vertical flyer for mobile devices.')}</Text>
-              {(() => {
-                const mobileSrc = bannerMobile?.data || (homeBanner && typeof homeBanner === 'object' && (homeBanner as any).mobileImageData ? getImageUrl((homeBanner as any).mobileImageData) || (homeBanner as any).mobileImageData : null);
-                return mobileSrc ? (
-                  <Image source={{ uri: mobileSrc }} style={styles.mktBannerMobileImg} resizeMode="cover" />
-                ) : (
-                  <View style={[styles.mktBannerEmpty, { aspectRatio: 3 / 4, maxWidth: 180, alignSelf: 'center' }]}><Text style={styles.mktBannerEmptyText}>{t('Sin flyer móvil', 'No mobile flyer')}</Text></View>
-                );
-              })()}
-            </View>
-
-            {/* ─── Upload banner ─── */}
-            <View style={styles.mktCard}>
-              <View style={styles.mktCardHeader}>
-                <View style={styles.mktCardIcon}><Ionicons name="cloud-upload-outline" size={20} color={colors.orange} /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.mktCardTitle}>{t('Subir banner', 'Upload banner')}</Text>
-                  <Text style={styles.mktCardSub}>{t('Arte horizontal para Home.', 'Horizontal art for Home.')}</Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={() => pickBanner('desktop')} style={styles.mktUploadBox}>
-                <Ionicons name="cloud-upload-outline" size={28} color={colors.orange} />
-                <Text style={styles.mktUploadBoxTitle}>{t('Cambiar banner', 'Change banner')}</Text>
-                <Text style={styles.mktUploadBoxSub}>{t('Recomendado: 1600 × 520 px.', 'Recommended: 1600 × 520 px.')}</Text>
-              </TouchableOpacity>
-              {bannerDesktop && (
-                <View style={styles.mktFileRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.mktFileName} numberOfLines={1}>{bannerDesktop.name}</Text>
-                    <Text style={styles.mktFileSub}>{t('Estado:', 'Status:')} {bannerStatus === 'active' ? t('Publicado', 'Published') : t('Borrador', 'Draft')}</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => { setBannerDesktop(null); setBannerStatus('draft'); }} style={styles.mktFileRemove}>
-                    <Ionicons name="close" size={16} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-
-            {/* ─── Upload banner movil ─── */}
-            <View style={styles.mktCard}>
-              <View style={styles.mktCardHeader}>
-                <View style={[styles.mktCardIcon, { backgroundColor: 'rgba(10,55,90,0.5)' }]}><Ionicons name="phone-portrait-outline" size={20} color="#CBD5E1" /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.mktCardTitle}>{t('Subir banner móvil', 'Upload mobile banner')}</Text>
-                  <Text style={styles.mktCardSub}>{t('Flyer vertical para celulares.', 'Vertical flyer for mobile devices.')}</Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={() => pickBanner('mobile')} style={styles.mktUploadBox}>
-                <Ionicons name="phone-portrait-outline" size={28} color="#CBD5E1" />
-                <Text style={styles.mktUploadBoxTitle}>{t('Cambiar flyer móvil', 'Change mobile flyer')}</Text>
-                <Text style={styles.mktUploadBoxSub}>{t('Recomendado: 1080 × 1440 px.', 'Recommended: 1080 × 1440 px.')}</Text>
-              </TouchableOpacity>
-              {bannerMobile && (
-                <View style={styles.mktFileRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.mktFileName} numberOfLines={1}>{bannerMobile.name}</Text>
-                    <Text style={styles.mktFileSub}>{t('Móvil', 'Mobile')}</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => setBannerMobile(null)} style={styles.mktFileRemove}>
-                    <Ionicons name="close" size={16} color="#FFFFFF" />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-
-            {/* ─── Publicación ─── */}
-            <View style={styles.mktCard}>
-              <View style={styles.mktCardHeader}>
-                <View style={[styles.mktCardIcon, { backgroundColor: 'rgba(16,185,129,0.12)', borderColor: 'rgba(16,185,129,0.3)' }]}><Ionicons name="checkmark-circle-outline" size={20} color="#34D399" /></View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.mktCardTitle}>{t('Publicación', 'Publication')}</Text>
-                  <Text style={styles.mktCardSub}>{t('Guarda el banner en el Home.', 'Save the banner to the Home.')}</Text>
-                </View>
-              </View>
-              <View style={styles.mktRotationCard}>
-                <Text style={styles.mktRotationTitle}>{t('Rotación en Home', 'Home Rotation')}</Text>
-                <Text style={styles.mktRotationCopy}>{t('El banner se mezcla con eventos destacados y aparece dentro del carrusel.', 'The banner mixes with featured events and appears inside the carousel.')}</Text>
-              </View>
-              <TouchableOpacity onPress={publishBanner} style={styles.mktPublishBtn}>
-                <Text style={styles.mktPublishBtnText}>{publishingBanner ? t('Publicando...', 'Publishing...') : t('Publicar banner', 'Publish banner')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => pickBanner('desktop')} style={styles.mktChangeImgBtn}>
-                <Text style={styles.mktChangeImgBtnText}>{t('Cambiar imagen', 'Change image')}</Text>
-              </TouchableOpacity>
-            </View>
           </>
         )}
 
@@ -3825,6 +4074,17 @@ function PanelCard({ title, eyebrow, copy, children }: { title: string; eyebrow?
 
 function FieldLabel({ label }: { label: string }) {
   return <Text style={styles.fieldLabel}>{label}</Text>;
+}
+
+function BannerPublishBadge({ published }: { published: boolean }) {
+  return (
+    <View style={[styles.bannerPublishBadge, published ? styles.bannerPublishBadgeOn : styles.bannerPublishBadgeOff]}>
+      <View style={[styles.bannerPublishDot, published ? styles.bannerPublishDotOn : styles.bannerPublishDotOff]} />
+      <Text style={[styles.bannerPublishText, published ? styles.bannerPublishTextOn : styles.bannerPublishTextOff]}>
+        {published ? 'Publicado' : 'No publicado'}
+      </Text>
+    </View>
+  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -4107,11 +4367,48 @@ const styles = StyleSheet.create({
   bannerThumb: { width: '100%', height: 88, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', marginBottom: 8, backgroundColor: '#030B14' },
   bannerThumbEmpty: { width: '100%', height: 88, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', marginBottom: 8, backgroundColor: '#030B14', alignItems: 'center', justifyContent: 'center' },
   bannerThumbText: { color: 'rgba(226,232,240,0.4)', fontSize: 13, fontWeight: '600' },
+  bannerPublishBadge: { alignSelf: 'flex-start', minHeight: 24, borderRadius: 999, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 9, marginTop: -2, marginBottom: 8 },
+  bannerPublishBadgeOn: { backgroundColor: 'rgba(34,197,94,0.11)', borderColor: 'rgba(34,197,94,0.34)' },
+  bannerPublishBadgeOff: { backgroundColor: 'rgba(248,113,113,0.10)', borderColor: 'rgba(248,113,113,0.32)' },
+  bannerPublishDot: { width: 6, height: 6, borderRadius: 999 },
+  bannerPublishDotOn: { backgroundColor: '#4ADE80' },
+  bannerPublishDotOff: { backgroundColor: '#FCA5A5' },
+  bannerPublishText: { fontSize: 10, fontWeight: '600' },
+  bannerPublishTextOn: { color: '#4ADE80' },
+  bannerPublishTextOff: { color: '#FCA5A5' },
   bannerPickBtn: { height: 38, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', alignItems: 'center', justifyContent: 'center' },
   bannerPickText: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
+  bannerOptionBlock: { marginTop: 12, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(3,11,20,0.56)', padding: 12, gap: 8 },
+  bannerSegmentRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
+  bannerSegmentBtn: { flex: 1, minHeight: 36, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(255,255,255,0.035)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  bannerSegmentBtnActive: { borderColor: 'rgba(249,115,22,0.52)', backgroundColor: 'rgba(249,115,22,0.14)' },
+  bannerSegmentText: { color: 'rgba(226,232,240,0.62)', fontSize: 11, fontWeight: '600', textAlign: 'center' },
+  bannerSegmentTextActive: { color: '#FDBA74' },
+  bannerPickerScroll: { marginTop: 2 },
+  bannerPickerContent: { gap: 10, paddingRight: 4 },
+  bannerPickerCard: { width: 116, minHeight: 112, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.035)', padding: 9 },
+  bannerPickerCardActive: { borderColor: 'rgba(249,115,22,0.58)', backgroundColor: 'rgba(249,115,22,0.12)' },
+  bannerPickerImage: { width: '100%', height: 54, borderRadius: 10, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', marginBottom: 8 },
+  bannerPickerAdd: { width: '100%', height: 54, borderRadius: 10, backgroundColor: 'rgba(249,115,22,0.08)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  bannerPickerTitle: { color: '#F8FAFC', fontSize: 11, fontWeight: '600' },
+  bannerPickerMeta: { color: 'rgba(226,232,240,0.52)', fontSize: 10, fontWeight: '600', marginTop: 3 },
   bannerDeleteRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  bannerToggleBtn: { flex: 1, minHeight: 38, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  bannerToggleBtnOn: { borderColor: 'rgba(34,197,94,0.34)', backgroundColor: 'rgba(34,197,94,0.10)' },
+  bannerToggleBtnOff: { borderColor: 'rgba(248,113,113,0.32)', backgroundColor: 'rgba(248,113,113,0.09)' },
+  bannerToggleBtnDisabled: { opacity: 0.46 },
+  bannerToggleText: { fontSize: 10, fontWeight: '600', textAlign: 'center' },
+  bannerToggleTextOn: { color: '#4ADE80' },
+  bannerToggleTextOff: { color: '#FCA5A5' },
   bannerDeleteBtn: { flex: 1, height: 38, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,90,69,0.3)', backgroundColor: 'rgba(255,90,69,0.08)', alignItems: 'center', justifyContent: 'center' },
   bannerDeleteText: { color: '#ff5a45', fontSize: 12, fontWeight: '600' },
+  bannerList: { marginTop: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.025)', padding: 10, gap: 8 },
+  bannerListTitle: { color: '#F8FAFC', fontSize: 12, fontWeight: '600', marginBottom: 2 },
+  bannerListEmpty: { color: 'rgba(226,232,240,0.58)', fontSize: 11, fontWeight: '600', lineHeight: 16, paddingVertical: 8 },
+  bannerListItem: { minHeight: 52, borderRadius: 12, backgroundColor: 'rgba(3,11,20,0.62)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 8, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  bannerListThumb: { width: 58, height: 34, borderRadius: 8, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  bannerListName: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
+  bannerListMeta: { color: 'rgba(226,232,240,0.54)', fontSize: 10, fontWeight: '600', marginTop: 2 },
   segment: { flex: 1, height: 48, borderRadius: 15, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
   segmentActive: { backgroundColor: 'rgba(255,255,255,0.055)', borderColor: 'rgba(255,255,255,0.24)' },
   segmentActiveOrange: { backgroundColor: colors.orange, borderColor: colors.orange },
@@ -4496,6 +4793,15 @@ const styles = StyleSheet.create({
   mktSelect: { height: 48, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.04)', marginBottom: 10, justifyContent: 'center' },
   mktSelectInner: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, justifyContent: 'space-between' },
   mktSelectText: { color: '#F8FAFC', fontSize: 14, fontWeight: '600' },
+  mktEmailRecipientPanel: { marginTop: -2, marginBottom: 10, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(249,115,22,0.18)', backgroundColor: 'rgba(3,11,20,0.76)', overflow: 'hidden' },
+  mktEmailRecipientHeader: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  mktEmailRecipientTitle: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
+  mktEmailRecipientSub: { color: 'rgba(226,232,240,0.48)', fontSize: 10, fontWeight: '600', marginTop: 2 },
+  mktEmailRecipientClear: { minHeight: 30, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', backgroundColor: 'rgba(249,115,22,0.10)', paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
+  mktEmailRecipientClearText: { color: colors.orange, fontSize: 10, fontWeight: '600' },
+  mktEmailRecipientList: { maxHeight: 286, padding: 8 },
+  mktEmailCheck: { width: 24, height: 24, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(226,232,240,0.24)', backgroundColor: 'rgba(255,255,255,0.035)', alignItems: 'center', justifyContent: 'center' },
+  mktEmailCheckActive: { borderColor: 'rgba(249,115,22,0.68)', backgroundColor: '#F97316' },
   mktTextArea: { minHeight: 100, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.04)', paddingHorizontal: 14, paddingTop: 14, color: '#F8FAFC', fontSize: 14, fontWeight: '600', textAlignVertical: 'top' },
   mktCharCount: { color: 'rgba(226,232,240,0.4)', fontSize: 11, textAlign: 'right', marginTop: 4, marginBottom: 6 },
   mktUploadArt: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(249,115,22,0.4)', borderRadius: 16, padding: 24, alignItems: 'center', gap: 8, backgroundColor: 'rgba(249,115,22,0.04)', marginBottom: 10 },
