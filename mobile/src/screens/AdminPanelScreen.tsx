@@ -888,8 +888,9 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
         }
       }
       const recipients = recipientsRes.status === 'fulfilled' ? (recipientsRes.value || []) : [];
-      const adminUsers = usersRes.status === 'fulfilled' ? usersToMarketingRecipients(listFrom(usersRes.value)) : [];
-      const merged = usersToMarketingRecipients([...adminUsers, ...recipients]);
+      const adminUsers = usersRes.status === 'fulfilled' ? listFrom(usersRes.value) : [];
+      // recipients first so dedup keeps their phone data over adminUsers entries
+      const merged = usersToMarketingRecipients([...recipients, ...adminUsers]);
       if (merged.length > 0 || recipientsRes.status === 'fulfilled' || usersRes.status === 'fulfilled') {
         const nextRecipients = merged.length > 0 ? merged : recipients;
         setRecipientsCount(nextRecipients.length);

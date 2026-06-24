@@ -169,7 +169,7 @@ export class AdminService {
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
-      select: ['id', 'email', 'username', 'firstName', 'lastName', 'role', 'isActive', 'avatarUrl', 'createdAt'],
+      select: ['id', 'email', 'username', 'firstName', 'lastName', 'phone', 'role', 'isActive', 'avatarUrl', 'createdAt'],
     });
 
     return { users, total, page, totalPages: Math.ceil(total / limit) };
