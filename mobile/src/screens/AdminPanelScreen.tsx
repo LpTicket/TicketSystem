@@ -389,6 +389,10 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
   const [pushRecipientSearch, setPushRecipientSearch] = useState('');
   const [whatsappMessage, setWhatsappMessage] = useState('');
   const [waLang, setWaLang] = useState<'es' | 'en'>('es');
+  const [waAudience, setWaAudience] = useState<'all' | 'specify'>('all');
+  const [waSel, setWaSel] = useState<string[]>([]);
+  const [waSearch, setWaSearch] = useState('');
+  const [waPickerOpen, setWaPickerOpen] = useState(false);
   const [sending, setSending] = useState<'' | 'email' | 'sms' | 'push' | 'whatsapp'>('');
   const [bannerStatus, setBannerStatus] = useState<'draft' | 'active'>('draft');
   const [bannerType, setBannerType] = useState<'banner' | 'ad'>('banner');
@@ -1414,11 +1418,19 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
 
   const sendWhatsapp = async () => {
     if (!whatsappMessage.trim()) { Alert.alert(t('Mensaje vacío', 'Empty message'), t('Escribe un mensaje.', 'Write a message.')); return; }
+    if (waAudience === 'specify' && waSel.length === 0) {
+      Alert.alert(t('Sin destinatarios', 'No recipients'), t('Selecciona al menos un usuario.', 'Select at least one user.'));
+      return;
+    }
     setSending('whatsapp');
     try {
-      const result = await apiPost<{ sent: number; failed: number; total: number }>('/marketing/admin/whatsapp-campaign', { message: whatsappMessage, lang: waLang });
+      const recipients = waAudience === 'specify'
+        ? marketingRecipients.filter((u) => waSel.includes(u.id) && u.phone).map((u) => u.phone!)
+        : undefined;
+      const result = await apiPost<{ sent: number; failed: number; total: number }>('/marketing/admin/whatsapp-campaign', { message: whatsappMessage, lang: waLang, recipients });
       Alert.alert(t('WhatsApp enviado', 'WhatsApp sent'), t(`Enviados: ${result.sent} / ${result.total}`, `Sent: ${result.sent} / ${result.total}`));
       setWhatsappMessage('');
+      setWaSel([]);
     } catch (err: any) {
       Alert.alert('Error', err?.message || t('No se pudo enviar el WhatsApp.', 'Could not send WhatsApp.'));
     } finally { setSending(''); }
@@ -4032,12 +4044,98 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
                   <Text style={[styles.mktWaLangBtnText, waLang === 'en' && styles.mktWaLangBtnTextActive]}>EN</Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.mktSelect}>
-                <View style={styles.mktSelectInner}>
-                  <Text style={styles.mktSelectText}>{t('Enviar a todos los usuarios', 'Send to all users')}</Text>
-                  <Ionicons name="chevron-down" size={14} color="rgba(226,232,240,0.5)" />
-                </View>
+              {/* Audience selector */}
+              <View style={styles.mktPushModeRow}>
+                <TouchableOpacity onPress={() => { setWaAudience('all'); setWaPickerOpen(false); }} style={[styles.mktPushModeBtn, waAudience === 'all' && styles.mktPushModeBtnActive]} activeOpacity={0.86}>
+                  <Ionicons name="people-outline" size={14} color={waAudience === 'all' ? colors.orange : 'rgba(226,232,240,0.5)'} />
+                  <Text style={[styles.mktPushModeText, waAudience === 'all' && styles.mktPushModeTextActive]}>{t('Todos', 'All')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setWaAudience('specify')} style={[styles.mktPushModeBtn, waAudience === 'specify' && styles.mktPushModeBtnActive]} activeOpacity={0.86}>
+                  <Ionicons name="person-outline" size={14} color={waAudience === 'specify' ? colors.orange : 'rgba(226,232,240,0.5)'} />
+                  <Text style={[styles.mktPushModeText, waAudience === 'specify' && styles.mktPushModeTextActive]}>{t('Específicos', 'Specific')}</Text>
+                </TouchableOpacity>
               </View>
+
+              {waAudience === 'specify' && (
+                <View style={styles.mktPushPickerWrap}>
+                  <TouchableOpacity onPress={() => setWaPickerOpen((v) => !v)} style={styles.mktPushUserSelect} activeOpacity={0.86}>
+                    <View style={styles.mktPushUserSelectIcon}>
+                      <Ionicons name="logo-whatsapp" size={17} color="#25D366" />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.mktPushUserSelectTitle} numberOfLines={1}>
+                        {waSel.length > 0 ? t(`${waSel.length} seleccionado(s)`, `${waSel.length} selected`) : t('Seleccionar usuarios', 'Select users')}
+                      </Text>
+                      <Text style={styles.mktPushUserSelectSub} numberOfLines={1}>
+                        {t(`${marketingRecipients.filter((u) => u.phone).length} con teléfono registrado`, `${marketingRecipients.filter((u) => u.phone).length} with phone registered`)}
+                      </Text>
+                    </View>
+                    <Ionicons name={waPickerOpen ? 'chevron-up' : 'chevron-down'} size={16} color="rgba(226,232,240,0.58)" />
+                  </TouchableOpacity>
+                  {waPickerOpen && (
+                    <View style={styles.mktPushRecipientPanel}>
+                      <View style={styles.mktPushSearchBox}>
+                        <Ionicons name="search" size={16} color={colors.orange} />
+                        <TextInput
+                          value={waSearch}
+                          onChangeText={setWaSearch}
+                          placeholder={t('Buscar usuario...', 'Search user...')}
+                          placeholderTextColor="rgba(226,232,240,0.38)"
+                          style={styles.mktPushSearchInput}
+                        />
+                        {waSearch ? (
+                          <TouchableOpacity onPress={() => setWaSearch('')} activeOpacity={0.8}>
+                            <Ionicons name="close-circle" size={16} color="rgba(226,232,240,0.5)" />
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 6 }}>
+                        <TouchableOpacity onPress={() => setWaSel(marketingRecipients.filter((u) => u.phone).map((u) => u.id))}>
+                          <Text style={{ color: colors.orange, fontSize: 11, fontWeight: '600' }}>{t('Todos', 'All')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setWaSel([])}>
+                          <Text style={{ color: 'rgba(226,232,240,0.5)', fontSize: 11, fontWeight: '600' }}>{t('Ninguno', 'None')}</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <ScrollView style={styles.mktPushRecipientList} nestedScrollEnabled showsVerticalScrollIndicator>
+                        {marketingRecipients.length === 0 ? (
+                          <View style={styles.mktPushRecipientEmpty}>
+                            <Text style={styles.mktPushRecipientEmail}>{t('No hay usuarios cargados.', 'No users loaded.')}</Text>
+                          </View>
+                        ) : marketingRecipients.filter((u) => {
+                            const q = waSearch.toLowerCase();
+                            return !q || `${u.name} ${u.email} ${u.phone || ''}`.toLowerCase().includes(q);
+                          }).map((u) => {
+                            const selected = waSel.includes(u.id);
+                            const hasPhone = !!u.phone;
+                            return (
+                              <TouchableOpacity
+                                key={u.id}
+                                onPress={() => {
+                                  if (!hasPhone) return;
+                                  setWaSel((prev) => prev.includes(u.id) ? prev.filter((x) => x !== u.id) : [...prev, u.id]);
+                                }}
+                                style={[styles.mktPushRecipientRow, selected && styles.mktPushRecipientRowActive, !hasPhone && { opacity: 0.4 }]}
+                                activeOpacity={hasPhone ? 0.86 : 1}
+                              >
+                                <View style={styles.mktPushRecipientAvatar}>
+                                  <Text style={styles.mktPushRecipientAvatarText}>{(u.name || u.email || '?').trim().slice(0, 1).toUpperCase()}</Text>
+                                </View>
+                                <View style={{ flex: 1, minWidth: 0 }}>
+                                  <Text style={styles.mktPushRecipientName} numberOfLines={1}>{u.name || u.email}</Text>
+                                  <Text style={styles.mktPushRecipientEmail} numberOfLines={1}>{hasPhone ? u.phone : t('Sin teléfono', 'No phone')}</Text>
+                                </View>
+                                {selected && <Ionicons name="checkmark-circle" size={18} color={colors.orange} />}
+                              </TouchableOpacity>
+                            );
+                          })
+                        }
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              )}
+
               <Text style={styles.mktWaHint}>
                 {t('Tu texto va en ', 'Your text goes in ')}<Text style={{ color: colors.orange, fontWeight: '600' }}>{'{{2}}'}</Text>{t('. El nombre del cliente se completa solo en ', '. The customer name is filled in ')}<Text style={{ color: colors.orange, fontWeight: '600' }}>{'{{1}}'}</Text>{t('. Si quieres un enlace, escríbelo dentro del mensaje.', '. To add a link, write it inside the message.')}
               </Text>
