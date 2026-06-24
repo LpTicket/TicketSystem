@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { apiGet } from '../../services/api';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { OrderRowSkeleton } from '../Skeleton';
@@ -159,7 +159,6 @@ export function OrdersMobile() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
 
   const load = async (nextPage: number) => {
     try {
@@ -186,8 +185,6 @@ export function OrdersMobile() {
   };
 
   const toggleExpand = (id: string) => setExpandedId((prev) => (prev === id ? null : id));
-  const visibleOrders = showAll ? orders : orders.slice(0, 5);
-  const canViewMore = !showAll && (orders.length > 5 || page < pages);
 
   return (
     <View style={styles.card}>
@@ -204,44 +201,52 @@ export function OrdersMobile() {
         <View style={styles.empty}><Text style={styles.emptyText}>{t('Aún no tienes pedidos.', 'No orders yet.')}</Text></View>
       ) : (
         <>
-          {visibleOrders.map((order, index) => {
-            const badge = statusBadge(order.status, t);
-            const isOpen = expandedId === order.id;
-            return (
-              <View key={`${order.id || 'order'}-${index}`}>
-                <TouchableOpacity onPress={() => toggleExpand(order.id)} activeOpacity={0.78} style={styles.row}>
-                  <View style={styles.rowLeft}>
-                    <Text style={styles.event} numberOfLines={1}>{order.event?.title || t('Evento', 'Event')}</Text>
-                    <Text style={styles.meta} numberOfLines={1}>
-                      {formatDate(order.createdAt, es)} · {order.ticketCount || 0} {t('ticket(s)', 'ticket(s)')}
-                    </Text>
+          <View style={styles.ordersScrollShell}>
+            <ScrollView
+              style={styles.ordersScroll}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={orders.length > 5}
+            >
+              {orders.map((order, index) => {
+                const badge = statusBadge(order.status, t);
+                const isOpen = expandedId === order.id;
+                return (
+                  <View key={`${order.id || 'order'}-${index}`}>
+                    <TouchableOpacity onPress={() => toggleExpand(order.id)} activeOpacity={0.78} style={styles.row}>
+                      <View style={styles.rowLeft}>
+                        <Text style={styles.event} numberOfLines={1}>{order.event?.title || t('Evento', 'Event')}</Text>
+                        <Text style={styles.meta} numberOfLines={1}>
+                          {formatDate(order.createdAt, es)} · {order.ticketCount || 0} {t('ticket(s)', 'ticket(s)')}
+                        </Text>
+                      </View>
+                      <View style={styles.rowRight}>
+                        <Text style={styles.total}>{money(order.total)}</Text>
+                        <View style={[styles.badge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
+                          <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+
+                    {isOpen && <OrderDetail orderId={order.id} />}
                   </View>
-                  <View style={styles.rowRight}>
-                    <Text style={styles.total}>{money(order.total)}</Text>
-                    <View style={[styles.badge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
-                      <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
-                    </View>
-                  </View>
+                );
+              })}
+
+              {page < pages && (
+                <TouchableOpacity onPress={loadMore} disabled={loadingMore} style={styles.loadMore}>
+                  <Text style={styles.loadMoreText}>
+                    {loadingMore ? t('Cargando...', 'Loading...') : `${t('Cargar más', 'Load more')} (${page}/${pages})`}
+                  </Text>
                 </TouchableOpacity>
-
-                {isOpen && <OrderDetail orderId={order.id} />}
+              )}
+            </ScrollView>
+            {orders.length > 5 && (
+              <View pointerEvents="none" style={styles.scrollHint}>
+                <View style={styles.scrollHintLine} />
+                <Text style={styles.scrollHintText}>{t('Desliza para ver más recibos', 'Scroll for more receipts')}</Text>
               </View>
-            );
-          })}
-
-          {canViewMore && (
-            <TouchableOpacity onPress={() => setShowAll(true)} style={styles.loadMore}>
-              <Text style={styles.loadMoreText}>{t('Ver más', 'View more')}</Text>
-            </TouchableOpacity>
-          )}
-
-          {showAll && page < pages && (
-            <TouchableOpacity onPress={loadMore} disabled={loadingMore} style={styles.loadMore}>
-              <Text style={styles.loadMoreText}>
-                {loadingMore ? t('Cargando...', 'Loading...') : `${t('Cargar más', 'Load more')} (${page}/${pages})`}
-              </Text>
-            </TouchableOpacity>
-          )}
+            )}
+          </View>
         </>
       )}
     </View>
@@ -260,6 +265,25 @@ const styles = StyleSheet.create({
   cardLabel: { color: '#F97316', fontSize: 11, fontWeight: '600', letterSpacing: 0.8, marginBottom: 12 },
   empty: { paddingVertical: 24, alignItems: 'center' },
   emptyText: { color: 'rgba(226,232,240,0.6)', fontSize: 14 },
+  ordersScrollShell: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(3,11,20,0.34)',
+    overflow: 'hidden',
+  },
+  ordersScroll: { maxHeight: 342 },
+  scrollHint: {
+    minHeight: 34,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(3,11,20,0.58)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  scrollHintLine: { width: 32, height: 3, borderRadius: 999, backgroundColor: 'rgba(249,115,22,0.55)' },
+  scrollHintText: { color: 'rgba(226,232,240,0.48)', fontSize: 10, fontWeight: '600' },
   row: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', gap: 12,

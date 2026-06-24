@@ -122,6 +122,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const [realCategories, setRealCategories] = useState<ApiCategory[]>([]);
   const [homeBanners, setHomeBanners] = useState<ApiHomeBanner[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [incomingHeroIndex, setIncomingHeroIndex] = useState<number | null>(null);
   const [query, setQuery] = useState('');
   const [place, setPlace] = useState('');
   const [category, setCategory] = useState('All');
@@ -131,6 +132,9 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const categoryShine = useRef(new Animated.Value(0)).current;
   const categoryImageScale = useRef(new Animated.Value(1.12)).current;
   const categoryFrameX = useRef(new Animated.Value(0)).current;
+  const heroFade = useRef(new Animated.Value(1)).current;
+  const heroScale = useRef(new Animated.Value(1)).current;
+  const heroCleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventSearchPlaceholder = t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...') || (lang === 'es' ? 'Conciertos, teatro, talleres...' : 'Concerts, theater, workshops...');
   const placeSearchPlaceholder = t('Ciudad o venue', 'City or venue') || (lang === 'es' ? 'Ciudad o venue' : 'City or venue');
 
@@ -138,6 +142,10 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
     if (!scrollToTopSignal) return;
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [scrollToTopSignal]);
+
+  useEffect(() => () => {
+    if (heroCleanupTimer.current) clearTimeout(heroCleanupTimer.current);
+  }, []);
 
   const trustItems: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string }[] = [
     { icon: 'card-outline', title: t('Pagos seguros', 'Secure payments'), subtitle: t('Procesado por Stripe.', 'Processed by Stripe') },
@@ -194,9 +202,12 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   }, [homeBanners, heroEvents]);
   const safeHeroLength = Math.max(heroSlides.length, 1);
   const heroEvent = heroSlides[heroIndex % safeHeroLength] || events[0];
+  const incomingHeroEvent = incomingHeroIndex !== null ? heroSlides[incomingHeroIndex % safeHeroLength] : null;
   const heroHeight = Math.max(120, Math.round((width - 32) / 2.63));
   const heroProgressTrackWidth = HERO_PROGRESS_ACTIVE_WIDTH + (safeHeroLength - 1) * HERO_PROGRESS_STEP;
   const heroProgressWidth = Math.max(78, heroProgressTrackWidth + 16);
+  const activeHeroIndex = incomingHeroIndex ?? heroIndex;
+  const incomingHeroScale = Animated.multiply(heroScale, getHeroImageUrl(incomingHeroEvent || undefined) ? 1 : 0.88);
 
   const categories = useMemo<HomeCategory[]>(() => {
     const allCategory = realCategories.find((item) => item.slug === 'todos' || item.slug === 'todas');
@@ -343,13 +354,14 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
 
   useEffect(() => {
     if (heroSlides.length <= 1) return;
+    if (incomingHeroIndex !== null) return;
 
-    const timer = setInterval(() => {
+    const timer = setTimeout(() => {
       changeHero((heroIndex + 1) % heroSlides.length);
     }, 4500);
 
-    return () => clearInterval(timer);
-  }, [heroSlides.length, heroIndex]);
+    return () => clearTimeout(timer);
+  }, [heroSlides.length, heroIndex, incomingHeroIndex]);
 
   const goPrevHero = () => {
     if (heroSlides.length <= 1) return;
@@ -358,13 +370,49 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
 
   const changeHero = (nextIndex: number) => {
     if (heroSlides.length <= 1) return;
+    if (incomingHeroIndex !== null) return;
 
     const normalizedIndex = ((nextIndex % heroSlides.length) + heroSlides.length) % heroSlides.length;
     if (normalizedIndex === heroIndex) return;
     const nextEvent = heroSlides[normalizedIndex];
     const nextImageUrl = getHeroImageUrl(nextEvent);
 
-    const showNextHero = () => setHeroIndex(normalizedIndex);
+    const showNextHero = () => {
+      if (heroCleanupTimer.current) {
+        clearTimeout(heroCleanupTimer.current);
+        heroCleanupTimer.current = null;
+      }
+      heroFade.stopAnimation();
+      heroScale.stopAnimation();
+      heroFade.setValue(0);
+      heroScale.setValue(1.02);
+      setIncomingHeroIndex(normalizedIndex);
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(heroFade, {
+            toValue: 1,
+            duration: 1200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(heroScale, {
+            toValue: 1,
+            duration: 1200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]).start(({ finished }) => {
+          if (!finished) return;
+          setHeroIndex(normalizedIndex);
+          heroFade.setValue(1);
+          heroScale.setValue(1);
+          heroCleanupTimer.current = setTimeout(() => {
+            setIncomingHeroIndex(null);
+            heroCleanupTimer.current = null;
+          }, 520);
+        });
+      }, 0);
+    };
 
     if (nextImageUrl) {
       Image.prefetch(nextImageUrl)
@@ -412,9 +460,23 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
       <View style={[styles.heroWrap, { height: heroHeight }]}>
         <Image
           source={getHeroImageSource(heroEvent)}
-          style={[styles.heroImage, !getHeroImageUrl(heroEvent) && styles.heroFallbackLogo]}
+          style={[styles.heroImageLayer, !getHeroImageUrl(heroEvent) && styles.heroFallbackLogo]}
           resizeMode="contain"
         />
+        {incomingHeroEvent ? (
+        <Animated.Image
+          key={`${incomingHeroEvent?.id || 'hero'}-${incomingHeroIndex}`}
+          source={getHeroImageSource(incomingHeroEvent)}
+          style={[
+            styles.heroImageLayer,
+            {
+              opacity: heroFade,
+              transform: [{ scale: incomingHeroScale }],
+            },
+          ]}
+          resizeMode="contain"
+        />
+        ) : null}
       </View>
 
       <View style={styles.heroControls}>
@@ -432,7 +494,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
               >
                 <View style={[
                   styles.heroProgressNode,
-                  heroIndex % safeHeroLength === index && styles.heroProgressNodeActive,
+                  activeHeroIndex % safeHeroLength === index && styles.heroProgressNodeActive,
                 ]} />
               </TouchableOpacity>
             ))}
@@ -670,6 +732,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 10, paddingBottom: 46, backgroundColor: 'transparent' },
   heroWrap: { alignSelf: 'stretch', marginHorizontal: 16, marginTop: 0, marginBottom: 10, overflow: 'hidden', backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 18, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.30, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
   heroImage: { width: '100%', height: '100%', backgroundColor: 'transparent' },
+  heroImageLayer: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'transparent' },
   heroFallbackLogo: { transform: [{ scale: 0.88 }] },
   heroControls: { alignSelf: 'center', minHeight: 38, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(3,11,20,0.82)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 8, marginBottom: 12, shadowColor: '#000000', shadowOpacity: 0.24, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
   heroControlButton: { width: 30, height: 30, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(249,115,22,0.38)', backgroundColor: 'rgba(249,115,22,0.12)', alignItems: 'center', justifyContent: 'center' },
