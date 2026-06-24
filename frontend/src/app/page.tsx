@@ -1,7 +1,7 @@
 import { Event } from '@/types';
 import HomeContent from './HomeContent';
 
-export const revalidate = 60; // ISR: revalidar cada 60 segundos
+export const revalidate = 10;
 
 type MarketingHomeBanner = {
   id: string;
@@ -24,7 +24,7 @@ async function loadHomeData() {
   try {
     const [eventsRes, bannerRes] = await Promise.all([
       fetch(`${baseUrl}/events?limit=16`, { next: { revalidate: 60 } }),
-      fetch(`${baseUrl}/marketing/banners/home`, { next: { revalidate: 60 } }),
+      fetch(`${baseUrl}/marketing/banners/home`, { cache: 'no-store' }),
     ]);
 
     const events: Event[] = eventsRes.ok ? (await eventsRes.json()).events || [] : [];
