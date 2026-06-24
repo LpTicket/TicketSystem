@@ -20,6 +20,7 @@ import {
   HiOutlineTicket,
   HiOutlineShoppingCart,
   HiOutlineDownload,
+  HiOutlineSearch,
   HiOutlineGlobe,
   HiOutlineTrash,
   HiOutlineUsers,
@@ -669,6 +670,7 @@ export default function EventDetailPage() {
   const [blockingActionLoading, setBlockingActionLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [expandedAttendee, setExpandedAttendee] = useState<string | null>(null);
+  const [attendeeSearch, setAttendeeSearch] = useState('');
   const [resendCode, setResendCode] = useState<string | null>(null);
   const [resendEmail, setResendEmail] = useState('');
   const [resendBusy, setResendBusy] = useState(false);
@@ -1749,6 +1751,20 @@ export default function EventDetailPage() {
                 </button>
               </div>
             </div>
+            {attendees.length > 0 && (
+              <div className="px-6 py-3 border-b border-gray-200 bg-white">
+                <div className="relative max-w-sm">
+                  <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={attendeeSearch}
+                    onChange={(e) => setAttendeeSearch(e.target.value)}
+                    placeholder={lang === 'es' ? 'Buscar asistente por nombre o email…' : 'Search attendee by name or email…'}
+                    className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 focus:outline-none focus:border-primary-400 focus:bg-white transition-colors"
+                  />
+                </div>
+              </div>
+            )}
             
             {attendees.length > 0 ? (() => {
               // Group attendees by email
@@ -1778,7 +1794,13 @@ export default function EventDetailPage() {
                 });
               }
 
-              const groupedEntries = Object.values(grouped).sort((a, b) => b.tickets.length - a.tickets.length);
+              const allGroupedEntries = Object.values(grouped).sort((a, b) => b.tickets.length - a.tickets.length);
+              const searchQ = attendeeSearch.toLowerCase().trim();
+              const groupedEntries = searchQ
+                ? allGroupedEntries.filter((g) =>
+                    g.name.toLowerCase().includes(searchQ) || g.email.toLowerCase().includes(searchQ)
+                  )
+                : allGroupedEntries;
               const selectedGroup = expandedAttendee ? grouped[expandedAttendee] : null;
 
               return (
