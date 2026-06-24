@@ -83,6 +83,11 @@ export class CategoriesService implements OnModuleInit {
    * findAll
    * Retrieves all categories, optionally including inactive ones for admin views.
    */
+  async getVersion(): Promise<{ version: string }> {
+    const cat = await this.categoryRepo.findOne({ where: {}, order: { updatedAt: 'DESC' } });
+    return { version: cat?.updatedAt ? new Date(cat.updatedAt).getTime().toString() : '0' };
+  }
+
   async findAll(includeInactive = false) {
     const where = includeInactive ? {} : { isActive: true };
     const categories = await this.categoryRepo.find({ where, order: { sortOrder: 'ASC', labelEs: 'ASC' } });

@@ -39,6 +39,12 @@ class UpdateCategoryDto {
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
+  /** Public: returns the updatedAt of the most recently modified category — clients poll this to detect changes */
+  @Get('version')
+  getVersion() {
+    return this.categoriesService.getVersion();
+  }
+
   /** Public: list active categories for dropdowns */
   @Get()
   findAll(@Query('all') all?: string) {

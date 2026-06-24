@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, Easing, Image, Keyboard, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Image, Keyboard, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Polygon } from 'react-native-svg';
@@ -309,9 +309,17 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
 
     fetchCategories();
 
-    const appStateSub = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') fetchCategories();
-    });
+    let knownVersion = '';
+    const categoryPoll = setInterval(async () => {
+      try {
+        const res = await apiGet<{ version: string }>('/categories/version');
+        const v = res?.version ?? '';
+        if (v && v !== knownVersion) {
+          knownVersion = v;
+          fetchCategories();
+        }
+      } catch { /* ignore */ }
+    }, 30_000);
 
     apiGet<ApiHomeBanner[]>('/marketing/banners/home')
       .then((banners) => {
@@ -324,7 +332,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
 
     return () => {
       mounted = false;
-      appStateSub.remove();
+      clearInterval(categoryPoll);
     };
   }, []);
 
