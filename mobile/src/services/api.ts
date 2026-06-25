@@ -111,13 +111,27 @@ async function refreshAuthTokens() {
 
 async function requestWithAuth(url: string, options: RequestInit = {}, retryAuth = true) {
   await ensureAuthTokens();
-  let response = await fetchWithTimeout(url, options);
+  // Rebuild headers after ensureAuthTokens so the token is always injected.
+  const headersWithAuth = authHeaders(
+    Object.fromEntries(
+      Object.entries((options.headers as Record<string, string>) || {}).filter(
+        ([k]) => k.toLowerCase() !== 'authorization',
+      ),
+    ),
+  );
+  let response = await fetchWithTimeout(url, { ...options, headers: headersWithAuth });
   if (response.status === 401 && retryAuth) {
     const refreshed = await refreshAuthTokens();
     if (refreshed) {
       response = await fetchWithTimeout(url, {
         ...options,
-        headers: authHeaders(options.headers as Record<string, string> | undefined),
+        headers: authHeaders(
+          Object.fromEntries(
+            Object.entries((options.headers as Record<string, string>) || {}).filter(
+              ([k]) => k.toLowerCase() !== 'authorization',
+            ),
+          ),
+        ),
       });
     }
   }
