@@ -446,7 +446,7 @@ export default function SocialMatchWidget() {
           if (!isOpen) notifyFloatingPanelOpen(SOCIAL_MATCH_PANEL);
           setOpen(!isOpen);
         }}
-        className="w-14 h-14 floating-action-pill rounded-full flex items-center justify-center transition-all duration-300 relative group active:scale-90 pointer-events-auto shrink-0"
+        className="w-12 h-12 sm:w-14 sm:h-14 floating-action-pill rounded-full flex items-center justify-center transition-all duration-300 relative group active:scale-90 pointer-events-auto shrink-0"
         title={lang === 'es' ? 'Mis Matches' : 'My Matches'}
       >
         {isOpen ? <HiOutlineX className="w-6 h-6" /> : <HiOutlineMail className="w-7 h-7" />}

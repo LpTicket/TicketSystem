@@ -569,7 +569,7 @@ export default function Header() {
             if (!cartDropdown) notifyFloatingPanelOpen(CART_PANEL);
             setCartDropdown(!cartDropdown);
           }}
-          className={`w-14 h-14 floating-action-pill rounded-full flex items-center justify-center transition-all duration-300 relative group active:scale-90 pointer-events-auto ${
+          className={`w-12 h-12 sm:w-14 sm:h-14 floating-action-pill rounded-full flex items-center justify-center transition-all duration-300 relative group active:scale-90 pointer-events-auto ${
             cartDropdown ? 'rotate-90' : ''
           }`}
         >

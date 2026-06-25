@@ -113,7 +113,7 @@ export default function Chatbot() {
           if (!isOpen) notifyFloatingPanelOpen(SUPPORT_CHAT_PANEL);
           setIsOpen(!isOpen);
         }}
-        className="w-14 h-14 floating-action-pill rounded-full flex items-center justify-center transition-all pointer-events-auto group relative active:scale-90"
+        className="w-12 h-12 sm:w-14 sm:h-14 floating-action-pill rounded-full flex items-center justify-center transition-all pointer-events-auto group relative active:scale-90"
       >
         {isOpen ? (
           <HiX className="w-7 h-7" />
