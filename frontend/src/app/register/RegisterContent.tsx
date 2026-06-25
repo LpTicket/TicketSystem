@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
+import { getApiErrorMessage } from '@/lib/apiError';
 import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 import VisualCaptcha, { VisualCaptchaHandle } from '@/components/auth/VisualCaptcha';
 
@@ -71,7 +72,7 @@ export default function RegisterContent() {
       } as any);
       router.push(redirect || '/');
     } catch (err: any) {
-      setError(err.response?.data?.message || t('registerError'));
+      setError(getApiErrorMessage(err, lang, t('registerError')));
       captchaRef.current?.refresh();
       setCaptchaInput('');
     } finally {

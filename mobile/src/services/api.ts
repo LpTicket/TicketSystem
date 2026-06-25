@@ -12,6 +12,54 @@ let refreshToken = '';
 
 export { API_URL };
 
+// Error carrying the HTTP status so callers can react to 429 (rate limited),
+// 401, etc. instead of only seeing a generic message string.
+export class ApiError extends Error {
+  status: number;
+  retryAfter?: number; // seconds, when the server sends Retry-After
+  constructor(message: string, status: number, retryAfter?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.retryAfter = retryAfter;
+  }
+}
+
+function buildApiError(response: Response, serverMessage?: string): ApiError {
+  const retryHeader = response.headers.get('retry-after') || response.headers.get('Retry-After');
+  const retryAfter = retryHeader && Number(retryHeader) > 0 ? Math.ceil(Number(retryHeader)) : undefined;
+  return new ApiError(serverMessage || `API request failed: ${response.status}`, response.status, retryAfter);
+}
+
+function formatWait(seconds: number, es: boolean): string {
+  if (!seconds || seconds < 1) seconds = 1;
+  if (seconds < 60) return es ? `${seconds} segundo${seconds === 1 ? '' : 's'}` : `${seconds} second${seconds === 1 ? '' : 's'}`;
+  const mins = Math.ceil(seconds / 60);
+  return es ? `${mins} minuto${mins === 1 ? '' : 's'}` : `${mins} minute${mins === 1 ? '' : 's'}`;
+}
+
+/**
+ * Turns any thrown error into a friendly, localized message.
+ * Special-cases 429 so the user is told how long to wait.
+ */
+export function getApiErrorMessage(error: any, lang: 'es' | 'en' = 'es', fallback?: string): string {
+  const es = lang === 'es';
+  if (error instanceof ApiError) {
+    if (error.status === 429) {
+      const wait = formatWait(error.retryAfter ?? 60, es);
+      return es ? `Demasiados intentos. Vuelve a intentarlo en ${wait}.` : `Too many attempts. Please try again in ${wait}.`;
+    }
+    if (error.status >= 500) {
+      return es ? 'Ocurrió un error en el servidor. Inténtalo más tarde.' : 'A server error occurred. Please try again later.';
+    }
+    if (error.message && !error.message.startsWith('API request failed')) return error.message;
+  }
+  if (error?.message === 'Network request failed' || error?.name === 'AbortError') {
+    return es ? 'Sin conexión. Revisa tu internet e inténtalo de nuevo.' : 'No connection. Check your internet and try again.';
+  }
+  return fallback || (es ? 'Algo salió mal. Inténtalo de nuevo.' : 'Something went wrong. Please try again.');
+}
+
 export type AuthUser = {
   id: string;
   email: string;
@@ -185,7 +233,7 @@ export async function apiGet<T>(path: string, params?: Record<string, any>): Pro
   }
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
+    throw buildApiError(response);
   }
 
   return readJsonResponse<T>(response);
@@ -202,12 +250,12 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   });
 
   if (!response.ok) {
-    let message = `API request failed: ${response.status}`;
+    let message: string | undefined;
     try {
       const data = await response.json();
-      message = data?.message || message;
+      message = data?.message;
     } catch {}
-    throw new Error(message);
+    throw buildApiError(response, Array.isArray(message) ? message.join(' ') : message);
   }
 
   return readJsonResponse<T>(response);
@@ -224,7 +272,7 @@ export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
+    throw buildApiError(response);
   }
 
   return readJsonResponse<T>(response);
@@ -241,7 +289,7 @@ export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
+    throw buildApiError(response);
   }
 
   return readJsonResponse<T>(response);
@@ -297,7 +345,7 @@ export async function apiDelete<T = void>(path: string): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
+    throw buildApiError(response);
   }
 
   return readJsonResponse<T>(response);

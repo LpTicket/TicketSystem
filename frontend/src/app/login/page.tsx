@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
+import { getApiErrorMessage } from '@/lib/apiError';
 import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 import { FaGoogle, FaFacebook } from 'react-icons/fa';
 
@@ -55,7 +56,7 @@ function LoginContent() {
         router.push(redirect || '/');
       }, 150);
     } catch (err: any) {
-      setError(err.response?.data?.message || t('loginError'));
+      setError(getApiErrorMessage(err, lang, t('loginError')));
     } finally { setLoading(false); }
   };
 

@@ -6,7 +6,7 @@ import * as Linking from 'expo-linking';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
-import { API_URL, AuthUser, setAuthTokens } from '../services/api';
+import { API_URL, AuthUser, setAuthTokens, getApiErrorMessage } from '../services/api';
 import { login as loginRequest, register as registerRequest, forgotPassword as forgotPasswordRequest, refreshSession } from '../services/auth';
 import { getBiometricAvailability, saveBiometricLogin, signInWithBiometrics } from '../services/biometricAuth';
 import { GradientButton } from '../components/GradientButton';
@@ -115,10 +115,13 @@ export function LoginScreen({ onSignIn }: Props) {
       onSignIn(user);
     } catch (err: any) {
       setError(
-        err?.message ||
-          (isRegister
+        getApiErrorMessage(
+          err,
+          lang === 'en' ? 'en' : 'es',
+          isRegister
             ? t('No pudimos crear la cuenta.', 'We could not create the account.')
-            : t('No pudimos iniciar sesión.', 'We could not sign in.')),
+            : t('No pudimos iniciar sesión.', 'We could not sign in.'),
+        ),
       );
     } finally {
       setLoading(false);
