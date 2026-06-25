@@ -48,11 +48,14 @@ export default function SocialMatchWidget() {
   // Admin/organizer panels have their own mobile hamburger (bottom-right). On
   // mobile the message button must sit above it so it doesn't cover the menu.
   const hasPanelNav = ['/admin', '/organizer'].some((p) => pathname.includes(p));
+  // px-4 / sm:px-6 (horizontal padding only) keeps the button at the same
+  // vertical height as the chatbot on the left; using p-6 would add vertical
+  // padding and push it up, misaligning the two floating buttons.
   const positionClass = !cartHidden
     ? 'bottom-20 px-4 sm:bottom-20 sm:px-6' // public pages: stack just above the cart
     : hasPanelNav
-      ? 'bottom-20 px-4 sm:bottom-4 sm:p-6' // panels: above the mobile menu button, bottom on desktop
-      : 'bottom-4 px-4 sm:p-6'; // dashboard/login/register: cart's spot
+      ? 'bottom-20 px-4 sm:bottom-4 sm:px-6' // panels: above the mobile menu button, aligned with the chatbot on desktop
+      : 'bottom-4 px-4 sm:px-6'; // dashboard/login/register: same height as the chatbot
   const { isAuthenticated } = useAuthStore();
   const { isOpen, setOpen, setUnreadCount } = useSocialMatchWidgetStore();
   const [connections, setConnections] = useState<SocialMatchConnection[]>([]);
