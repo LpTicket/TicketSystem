@@ -84,11 +84,21 @@ async function bootstrap() {
       .map((o) => o.replace(/\/$/, '')),
   );
 
+  // Local development origins are always allowed (any port on localhost /
+  // 127.0.0.1 / LAN IP, plus Expo's exp:// scheme). These cannot be a CSRF
+  // vector from a public attacker site, and devs run the web/Expo clients on
+  // varying ports (3000, 8081, 19006, …) against the deployed API.
+  const isLocalOrigin = (origin: string) =>
+    /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/i.test(origin) ||
+    origin.startsWith('exp://');
+
   const corsOrigin = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // No Origin header → non-browser client (mobile app, curl, server-to-server).
     if (!origin) return callback(null, true);
     const normalized = origin.replace(/\/$/, '');
     if (allowedOrigins.has(normalized)) return callback(null, true);
+    // Local dev clients (any port) are always allowed.
+    if (isLocalOrigin(normalized)) return callback(null, true);
     // In non-production, be permissive to ease local development.
     if (!isProd) return callback(null, true);
     return callback(new Error(`Origin ${origin} is not allowed by CORS`), false);
