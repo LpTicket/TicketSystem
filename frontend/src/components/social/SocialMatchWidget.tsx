@@ -49,7 +49,7 @@ export default function SocialMatchWidget() {
   // mobile the message button must sit above it so it doesn't cover the menu.
   const hasPanelNav = ['/admin', '/organizer'].some((p) => pathname.includes(p));
   const positionClass = !cartHidden
-    ? 'bottom-20 px-4 sm:bottom-28 sm:px-6' // public pages: stack above the cart
+    ? 'bottom-20 px-4 sm:bottom-20 sm:px-6' // public pages: stack just above the cart
     : hasPanelNav
       ? 'bottom-20 px-4 sm:bottom-4 sm:p-6' // panels: above the mobile menu button, bottom on desktop
       : 'bottom-4 px-4 sm:p-6'; // dashboard/login/register: cart's spot
