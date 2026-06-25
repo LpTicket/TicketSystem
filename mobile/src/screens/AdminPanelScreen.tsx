@@ -1437,10 +1437,20 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
       const recipients = waAudience === 'specify'
         ? marketingRecipients.filter((u) => waSel.includes(u.id) && u.phone).map((u) => u.phone!)
         : undefined;
-      const result = await apiPost<{ sent: number; failed: number; total: number }>('/marketing/admin/whatsapp-campaign', { message: whatsappMessage, lang: waLang, recipients });
-      Alert.alert(t('WhatsApp enviado', 'WhatsApp sent'), t(`Enviados: ${result.sent} / ${result.total}`, `Sent: ${result.sent} / ${result.total}`));
-      setWhatsappMessage('');
-      setWaSel([]);
+      const result = await apiPost<{ sent: number; failed: number; total: number; error?: string }>('/marketing/admin/whatsapp-campaign', { message: whatsappMessage, lang: waLang, recipients });
+      // The backend returns 200 with an `error` field when Twilio is not
+      // configured or every message failed — surface it instead of a silent
+      // "0 sent" that looks like success.
+      if (result.error) {
+        Alert.alert(t('No se pudo enviar', 'Could not send'), result.error);
+      } else {
+        Alert.alert(
+          t('WhatsApp enviado', 'WhatsApp sent'),
+          t(`Enviados: ${result.sent} / ${result.total} (${result.failed} fallidos)`, `Sent: ${result.sent} / ${result.total} (${result.failed} failed)`),
+        );
+        setWhatsappMessage('');
+        setWaSel([]);
+      }
     } catch (err: any) {
       Alert.alert('Error', err?.message || t('No se pudo enviar el WhatsApp.', 'Could not send WhatsApp.'));
     } finally { setSending(''); }
@@ -4123,7 +4133,11 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
                                 key={u.id}
                                 onPress={() => {
                                   if (!hasPhone) return;
+                                  const willSelect = !waSel.includes(u.id);
                                   setWaSel((prev) => prev.includes(u.id) ? prev.filter((x) => x !== u.id) : [...prev, u.id]);
+                                  // Close the list once a person is picked so the
+                                  // selection summary is visible. Deselecting keeps it open.
+                                  if (willSelect) setWaPickerOpen(false);
                                 }}
                                 style={[styles.mktPushRecipientRow, selected && styles.mktPushRecipientRowActive, !hasPhone && { opacity: 0.4 }]}
                                 activeOpacity={hasPhone ? 0.86 : 1}
