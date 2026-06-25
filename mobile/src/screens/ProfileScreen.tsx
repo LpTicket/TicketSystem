@@ -1,3 +1,10 @@
+/**
+ * ProfileScreen (mobile)
+ * EN: The user's account area — edit profile, manage settings, switch
+ *     buyer/organizer/admin views, and log out.
+ * ES: El área de cuenta del usuario — editar perfil, gestionar ajustes, cambiar
+ *     entre vistas comprador/organizador/admin y cerrar sesión.
+ */
 import { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';

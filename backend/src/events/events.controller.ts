@@ -1,3 +1,13 @@
+/**
+ * EventsController — routes under /api/events
+ * EN: Public reads (list, featured, by-slug, seat map, sections) plus
+ *     organizer/admin-only writes (create, update, publish, delete, images,
+ *     sections bulk-sync, price/commission requests, seat lock/unlock).
+ * ES: Lecturas públicas (listar, destacados, por-slug, mapa de asientos,
+ *     secciones) más escrituras solo para organizador/admin (crear, actualizar,
+ *     publicar, eliminar, imágenes, sincronización masiva de secciones,
+ *     solicitudes de precio/comisión, bloqueo/desbloqueo de asientos).
+ */
 import {
   Controller, Get, Post, Patch, Delete, Body, Param, Query,
   UseGuards, Request, UseInterceptors, UploadedFile, Res,

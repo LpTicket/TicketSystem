@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * LanguageContext
+ * EN: App-wide i18n for the web. Holds the active language (es/en), persists the
+ *     choice, and exposes `t(key)` plus `t(es, en)` helpers used across pages.
+ * ES: i18n global de la web. Mantiene el idioma activo (es/en), persiste la
+ *     elección y expone los helpers `t(key)` y `t(es, en)` usados en las páginas.
+ */
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export type Lang = 'es' | 'en';

@@ -1,5 +1,13 @@
 'use client';
 
+/**
+ * Admin home (web) — /admin
+ * EN: Admin landing with dashboard stats; gateways to user, event, category,
+ *     marketing, special-code and analytics management (admin role required).
+ * ES: Inicio de admin con estadísticas del panel; acceso a la gestión de
+ *     usuarios, eventos, categorías, marketing, códigos especiales y analítica
+ *     (requiere rol admin).
+ */
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useLang } from '@/context/LanguageContext';

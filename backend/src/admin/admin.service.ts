@@ -1,3 +1,13 @@
+/**
+ * AdminService
+ * EN: Admin-only operations — dashboard stats, user CRUD + role/active toggles,
+ *     event moderation (approve/reject/feature), fees, prices and creator
+ *     commissions, plus orders and per-event financial breakdowns.
+ * ES: Operaciones solo de admin — estadísticas del panel, CRUD de usuarios +
+ *     cambios de rol/activo, moderación de eventos (aprobar/rechazar/destacar),
+ *     tarifas, precios y comisiones de creador, además de órdenes y desglose
+ *     financiero por evento.
+ */
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

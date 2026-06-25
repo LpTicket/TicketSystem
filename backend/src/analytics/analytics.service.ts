@@ -1,3 +1,11 @@
+/**
+ * AnalyticsService
+ * EN: Records page views and produces summaries (unique visitors, top pages,
+ *     views over time) used by the admin analytics dashboard.
+ * ES: Registra vistas de página y genera resúmenes (visitantes únicos, páginas
+ *     más vistas, vistas a lo largo del tiempo) usados por el panel de analítica
+ *     del admin.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Repository } from 'typeorm';

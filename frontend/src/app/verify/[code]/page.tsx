@@ -1,5 +1,13 @@
 'use client';
 
+/**
+ * Ticket verification page (web) — /verify/[code]
+ * EN: Public gate-verification view. Loads a sanitized ticket by code (no buyer
+ *     PII) and lets staff confirm/scan it at the door.
+ * ES: Vista pública de verificación en puerta. Carga un ticket sanitizado por
+ *     código (sin datos personales del comprador) y permite al personal
+ *     confirmarlo/escanearlo en la entrada.
+ */
 import { toast } from 'react-hot-toast';
 
 import { useState, useEffect } from 'react';

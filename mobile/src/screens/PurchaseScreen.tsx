@@ -1,3 +1,11 @@
+/**
+ * PurchaseScreen (mobile)
+ * EN: Checkout flow — shows the order summary/invoice for the selected seats and
+ *     starts payment, then routes to the success screen with the issued tickets.
+ * ES: Flujo de checkout — muestra el resumen/factura de la orden para los
+ *     asientos elegidos e inicia el pago, luego dirige a la pantalla de éxito con
+ *     los tickets emitidos.
+ */
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';

@@ -1,5 +1,16 @@
 'use client';
 
+/**
+ * Organizer Event Editor (web) — /organizer/events/[id]
+ * EN: The full event management screen with 7 tabs: Analytics, Details & Media,
+ *     Overview (sections), Attendees & Sales (+ reminders modal), Venue Map,
+ *     Blocks & Invitations, and Commission. This is the canonical reference the
+ *     mobile OrganizerPanel mirrors 1:1.
+ * ES: La pantalla completa de gestión de evento con 7 pestañas: Analytics,
+ *     Detalles e Imágenes, Resumen (secciones), Asistentes y Ventas (+ modal de
+ *     recordatorios), Mapa Visual, Bloqueos e Invitaciones y Comisión. Es la
+ *     referencia canónica que el OrganizerPanel del mobile replica 1:1.
+ */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useRouter } from 'next/navigation';

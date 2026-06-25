@@ -1,3 +1,15 @@
+/**
+ * OrganizerPanelScreen (mobile)
+ * EN: The organizer hub and per-event editor. Global sections: Dashboard, My
+ *     events, Create. Per-event tabs mirror the web editor 1:1 — Analytics,
+ *     Details & Media, Overview, Attendees, Venue Map, Blocks & Invitations,
+ *     Commission. Also used by admins to manage another organizer's event.
+ * ES: El centro del organizador y el editor por evento. Secciones globales:
+ *     Dashboard, Mis eventos, Crear. Las pestañas por evento replican el editor
+ *     web 1:1 — Analytics, Detalles e Imágenes, Resumen, Asistentes, Mapa Visual,
+ *     Bloqueos e Invitaciones, Comisión. También lo usan los admins para
+ *     gestionar el evento de otro organizador.
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';

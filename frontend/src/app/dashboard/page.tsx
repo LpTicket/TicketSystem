@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * Dashboard / My Tickets (web) — /dashboard
+ * EN: The buyer's home — lists their tickets and orders, with QR display and
+ *     Apple/Google Wallet + resend-email actions per ticket.
+ * ES: El inicio del comprador — lista sus tickets y órdenes, con visualización de
+ *     QR y acciones de Apple/Google Wallet + reenviar correo por ticket.
+ */
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';

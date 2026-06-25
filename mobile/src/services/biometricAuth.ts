@@ -1,3 +1,12 @@
+/**
+ * biometricAuth (mobile)
+ * EN: Face ID / fingerprint sign-in. Stores the refresh token in SecureStore on
+ *     opt-in and exchanges it for a fresh session after a successful biometric
+ *     prompt — the password is never stored.
+ * ES: Inicio de sesión con Face ID / huella. Guarda el refresh token en
+ *     SecureStore al activarlo y lo intercambia por una sesión nueva tras una
+ *     verificación biométrica exitosa — la contraseña nunca se guarda.
+ */
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';

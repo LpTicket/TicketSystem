@@ -1,3 +1,12 @@
+/**
+ * Home page (web) — /
+ * EN: Server component that fetches featured events and marketing banners and
+ *     renders HomeContent. Banners are fetched with no-store so marketing
+ *     changes appear instantly.
+ * ES: Componente de servidor que obtiene los eventos destacados y los banners de
+ *     marketing y renderiza HomeContent. Los banners se obtienen sin caché para
+ *     que los cambios de marketing aparezcan al instante.
+ */
 import { Event } from '@/types';
 import HomeContent from './HomeContent';
 

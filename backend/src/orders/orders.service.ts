@@ -20,8 +20,13 @@ const STRIPE_FIXED = 0.30; // $0.30 Stripe fixed fee per transaction
 
 /**
  * OrdersService
- * Core logic for managing orders, payments via Stripe, ticket issuance, 
- * and ticket validation (scanning).
+ * EN: Core logic for managing orders, payments via Stripe, ticket issuance,
+ *     ticket validation (scanning), sales/attendee reporting, door sales,
+ *     reminders, free invitations and seat blocking. Ownership-checked.
+ * ES: Lógica central para gestionar órdenes, pagos vía Stripe, emisión de
+ *     tickets, validación de tickets (escaneo), reportes de ventas/asistentes,
+ *     ventas en puerta, recordatorios, invitaciones gratis y bloqueo de
+ *     asientos. Con verificación de propiedad.
  */
 @Injectable()
 export class OrdersService {

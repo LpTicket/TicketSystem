@@ -1,3 +1,13 @@
+/**
+ * EventsService
+ * EN: Core event logic — create/update/publish/delete events, manage seat-map
+ *     sections and seats, handle images, list an organizer's own events, and
+ *     route price/commission change requests. Enforces organizer/admin ownership.
+ * ES: Lógica central de eventos — crear/actualizar/publicar/eliminar eventos,
+ *     gestionar secciones y asientos del mapa, manejar imágenes, listar los
+ *     eventos del organizador y encaminar solicitudes de cambio de precio/comisión.
+ *     Aplica la propiedad de organizador/admin.
+ */
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';

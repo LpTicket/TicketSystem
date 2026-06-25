@@ -1,3 +1,12 @@
+/**
+ * auth (mobile)
+ * EN: Login, registration, profile fetch and password reset for the mobile app.
+ *     Persists the token pair and user in AsyncStorage and exposes session
+ *     restore/refresh used on app start.
+ * ES: Login, registro, obtención de perfil y restablecimiento de contraseña para
+ *     la app móvil. Persiste el par de tokens y el usuario en AsyncStorage y
+ *     expone restaurar/refrescar sesión usados al iniciar la app.
+ */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   apiGet,

@@ -1,5 +1,15 @@
 'use client';
 
+/**
+ * useAuthStore (Zustand)
+ * EN: Global auth state for the web — current user, login/register/logout,
+ *     profile load/update, avatar upload, and the buyer/organizer view mode.
+ *     Persists tokens in localStorage and hydrates the user from /auth/profile.
+ * ES: Estado global de autenticación de la web — usuario actual, login/registro/
+ *     logout, carga/actualización de perfil, subida de avatar y el modo de vista
+ *     comprador/organizador. Persiste los tokens en localStorage e hidrata el
+ *     usuario desde /auth/profile.
+ */
 import { create } from 'zustand';
 import api from '@/lib/api';
 import { User, AuthResponse } from '@/types';

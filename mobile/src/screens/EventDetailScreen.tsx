@@ -1,3 +1,10 @@
+/**
+ * EventDetailScreen (mobile)
+ * EN: Shows a single event with its banner, info and seat map; the user picks
+ *     seats/quantity and continues to the purchase flow.
+ * ES: Muestra un evento con su banner, información y mapa de asientos; el usuario
+ *     elige asientos/cantidad y continúa al flujo de compra.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Share, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';

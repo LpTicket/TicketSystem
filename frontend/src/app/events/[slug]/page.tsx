@@ -1,3 +1,12 @@
+/**
+ * Event detail page (web) — /events/[slug]
+ * EN: Server-fetches a single event (by slug) with its sections/seats and
+ *     renders EventDetailContent, where the buyer picks seats and starts the
+ *     purchase flow.
+ * ES: Obtiene en el servidor un evento (por slug) con sus secciones/asientos y
+ *     renderiza EventDetailContent, donde el comprador elige asientos e inicia el
+ *     flujo de compra.
+ */
 import EventDetailContent from './EventDetailContent';
 import type { Event, VenueSection, Seat } from '@/types';
 

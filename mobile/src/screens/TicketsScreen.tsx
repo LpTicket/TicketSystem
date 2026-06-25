@@ -1,3 +1,10 @@
+/**
+ * TicketsScreen (mobile)
+ * EN: The buyer's tickets — lists purchased tickets with QR codes and actions to
+ *     add to wallet, share or resend the ticket email.
+ * ES: Los tickets del comprador — lista los tickets comprados con códigos QR y
+ *     acciones para añadir a wallet, compartir o reenviar el correo del ticket.
+ */
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Image, Linking, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

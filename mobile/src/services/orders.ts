@@ -1,3 +1,10 @@
+/**
+ * orders (mobile)
+ * EN: Purchase/checkout and ticket-related calls for the mobile app — create
+ *     orders, fetch my tickets/orders and ticket details.
+ * ES: Llamadas de compra/checkout y de tickets para la app móvil — crear
+ *     órdenes, obtener mis tickets/órdenes y el detalle de un ticket.
+ */
 import { apiPost, apiGet } from './api';
 
 export type CheckoutPayload = {

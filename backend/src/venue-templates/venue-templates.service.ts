@@ -1,3 +1,11 @@
+/**
+ * VenueTemplatesService
+ * EN: Reusable venue / seat-map templates an organizer can save and apply to
+ *     new events instead of rebuilding the layout each time.
+ * ES: Plantillas reutilizables de recinto / mapa de asientos que un organizador
+ *     puede guardar y aplicar a nuevos eventos en lugar de reconstruir el diseño
+ *     cada vez.
+ */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

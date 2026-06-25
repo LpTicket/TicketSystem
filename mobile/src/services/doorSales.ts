@@ -1,3 +1,11 @@
+/**
+ * doorSales (mobile)
+ * EN: In-person door-sale flow — preview a custom-amount sale and create the
+ *     checkout/intent (works with Stripe Terminal / Tap to Pay, see tapToPay).
+ * ES: Flujo de venta en puerta presencial — previsualizar una venta de monto
+ *     personalizado y crear el checkout/intent (funciona con Stripe Terminal /
+ *     Tap to Pay, ver tapToPay).
+ */
 import { apiGet, apiPost } from './api';
 
 export type DoorSalePreview = {

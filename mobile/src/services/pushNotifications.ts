@@ -1,3 +1,11 @@
+/**
+ * pushNotifications (mobile)
+ * EN: Requests notification permission, gets the Expo push token and registers
+ *     it with the backend so the user can receive marketing/transactional pushes.
+ * ES: Solicita permiso de notificaciones, obtiene el token de push de Expo y lo
+ *     registra en el backend para que el usuario reciba pushes de
+ *     marketing/transaccionales.
+ */
 import { Platform } from 'react-native';
 import { apiPost } from './api';
 

@@ -1,3 +1,14 @@
+/**
+ * CategoriesService
+ * EN: Event categories CRUD and seeding. Exposes a lightweight version endpoint
+ *     (a timestamp of the most-recently-changed category) so web and mobile can
+ *     poll and stay in sync in near real time. Runs idempotent column patches
+ *     on startup.
+ * ES: CRUD y siembra de categorías de eventos. Expone un endpoint de versión
+ *     ligero (un timestamp de la categoría modificada más recientemente) para que
+ *     web y mobile puedan sondear y mantenerse sincronizados casi en tiempo real.
+ *     Ejecuta parches idempotentes de columnas al arrancar.
+ */
 import { Injectable, NotFoundException, ConflictException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';

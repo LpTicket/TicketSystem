@@ -1,3 +1,15 @@
+/**
+ * OrdersController — routes under /api/orders
+ * EN: Stripe checkout & webhook, ticket lookup/validation/resend, wallet passes,
+ *     my-orders/my-tickets, door sales, and organizer reports (sales, attendees,
+ *     scanner-stats) plus seat blocking, free invites and reminders.
+ *     The Stripe webhook is unauthenticated but signature-verified.
+ * ES: Checkout y webhook de Stripe, consulta/validación/reenvío de tickets, pases
+ *     de wallet, mis-órdenes/mis-tickets, ventas en puerta y reportes del
+ *     organizador (ventas, asistentes, stats de escáner) más bloqueo de asientos,
+ *     invitaciones gratis y recordatorios. El webhook de Stripe no requiere auth
+ *     pero verifica la firma.
+ */
 import {
   Controller, Get, Post, Put, Body, Param, Query,
   UseGuards, Request, RawBodyRequest, Req, Headers, Res,

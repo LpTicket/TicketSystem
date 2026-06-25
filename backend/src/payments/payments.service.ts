@@ -1,3 +1,9 @@
+/**
+ * PaymentsService
+ * EN: Manages a user's saved payment methods (list, add, set default, delete).
+ * ES: Gestiona los métodos de pago guardados de un usuario (listar, agregar,
+ *     marcar predeterminado, eliminar).
+ */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

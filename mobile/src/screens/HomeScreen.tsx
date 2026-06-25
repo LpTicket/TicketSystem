@@ -1,4 +1,14 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿/**
+ * HomeScreen (mobile)
+ * EN: The app home — hero banner carousel (event + marketing banners), category
+ *     chips, search/filter and the event list. Polls a lightweight category
+ *     version endpoint to stay in sync with the web in near real time.
+ * ES: El inicio de la app — carrusel de banners hero (de evento + de marketing),
+ *     chips de categoría, búsqueda/filtro y la lista de eventos. Sondea un
+ *     endpoint ligero de versión de categorías para sincronizarse con la web casi
+ *     en tiempo real.
+ */
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image, Keyboard, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';

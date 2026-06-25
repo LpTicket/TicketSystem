@@ -1,3 +1,14 @@
+/**
+ * api (axios instance)
+ * EN: Single configured axios client for the web app. Attaches the bearer token
+ *     from localStorage on every request and, on a 401, clears the session and
+ *     redirects to /login (unless already on an auth page). `getImageUrl`
+ *     resolves relative image paths against the API host.
+ * ES: Cliente axios único y configurado para la web. Adjunta el token bearer
+ *     desde localStorage en cada petición y, ante un 401, limpia la sesión y
+ *     redirige a /login (salvo que ya estés en una página de auth). `getImageUrl`
+ *     resuelve rutas de imagen relativas contra el host de la API.
+ */
 import axios from 'axios';
 
 // API_URL is always a string — never undefined

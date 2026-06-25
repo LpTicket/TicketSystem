@@ -1,3 +1,12 @@
+/**
+ * MarketingService
+ * EN: Home banners (desktop/mobile), and email / SMS / WhatsApp / push
+ *     campaigns to recipient lists, plus push-token registration and the
+ *     transactional welcome messages used on registration.
+ * ES: Banners de inicio (escritorio/móvil) y campañas de email / SMS / WhatsApp
+ *     / push a listas de destinatarios, además del registro de tokens de push y
+ *     los mensajes de bienvenida transaccionales del registro.
+ */
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

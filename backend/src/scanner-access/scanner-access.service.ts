@@ -1,3 +1,12 @@
+/**
+ * ScannerAccessService
+ * EN: Door-scanner access for staff — a user requests scan access to an event,
+ *     the organizer approves/rejects/revokes it, and approved staff can then
+ *     validate tickets at the gate without being the organizer.
+ * ES: Acceso al escáner de puerta para el personal — un usuario solicita acceso
+ *     de escaneo a un evento, el organizador lo aprueba/rechaza/revoca, y el
+ *     personal aprobado puede validar tickets en la puerta sin ser el organizador.
+ */
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

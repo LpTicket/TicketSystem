@@ -1,3 +1,10 @@
+/**
+ * SocialMatchService
+ * EN: Optional social/matchmaking feature between attendees — preferences,
+ *     connections (like/match) and messaging between matched users.
+ * ES: Función social/de emparejamiento opcional entre asistentes — preferencias,
+ *     conexiones (like/match) y mensajería entre usuarios emparejados.
+ */
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';

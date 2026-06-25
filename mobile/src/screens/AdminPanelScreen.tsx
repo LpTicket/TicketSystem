@@ -1,3 +1,12 @@
+/**
+ * AdminPanelScreen (mobile)
+ * EN: The admin hub — dashboard stats, user management (CRUD, roles), event
+ *     moderation, categories, marketing campaigns (email/SMS/WhatsApp/push +
+ *     home banners) and financials. Requires the admin role.
+ * ES: El centro de administración — estadísticas del panel, gestión de usuarios
+ *     (CRUD, roles), moderación de eventos, categorías, campañas de marketing
+ *     (email/SMS/WhatsApp/push + banners de inicio) y finanzas. Requiere rol admin.
+ */
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

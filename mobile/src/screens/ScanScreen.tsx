@@ -1,4 +1,11 @@
-﻿import { CameraView, useCameraPermissions } from 'expo-camera';
+﻿/**
+ * ScanScreen (mobile)
+ * EN: Camera QR scanner for staff/organizers to validate tickets at the gate;
+ *     reads a ticket code and confirms entry against the backend.
+ * ES: Escáner QR con cámara para que el personal/organizadores validen tickets
+ *     en la puerta; lee un código de ticket y confirma el ingreso contra el backend.
+ */
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';

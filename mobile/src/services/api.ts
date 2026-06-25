@@ -1,3 +1,15 @@
+/**
+ * api (mobile HTTP layer)
+ * EN: Thin fetch wrapper for the mobile app. Injects the bearer token, refreshes
+ *     it on a 401 and retries, applies timeouts and GET retries, and throws
+ *     `ApiError` (carrying HTTP status + Retry-After) so callers can show
+ *     friendly messages (see `getApiErrorMessage`). Tokens live in AsyncStorage.
+ * ES: Envoltura ligera de fetch para la app móvil. Inyecta el token bearer, lo
+ *     refresca ante un 401 y reintenta, aplica timeouts y reintentos en GET, y
+ *     lanza `ApiError` (con el status HTTP + Retry-After) para que quien llama
+ *     muestre mensajes amigables (ver `getApiErrorMessage`). Los tokens viven en
+ *     AsyncStorage.
+ */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Defaults to the production Railway backend so the app works out of the box.

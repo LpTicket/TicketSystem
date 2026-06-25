@@ -1,3 +1,11 @@
+/**
+ * events (mobile)
+ * EN: Fetches public events and event detail for the mobile app and normalizes
+ *     the API payload into the `MobileEvent` shape used by the screens.
+ * ES: Obtiene los eventos públicos y el detalle de evento para la app móvil y
+ *     normaliza la respuesta de la API a la forma `MobileEvent` usada por las
+ *     pantallas.
+ */
 import { MobileEvent } from '../types/event';
 import { apiGet, getImageUrl } from './api';
 

@@ -1,3 +1,13 @@
+/**
+ * SpecialCodesService
+ * EN: Promoter/creator discount-and-commission codes — admin CRUD, per-event
+ *     listing (ownership-checked), per-code commission, and payout summaries
+ *     for code owners. Used to track and reward sales driven by each code.
+ * ES: Códigos de descuento y comisión de promotor/creador — CRUD de admin,
+ *     listado por evento (con verificación de propiedad), comisión por código y
+ *     resúmenes de pagos para los dueños de códigos. Sirve para rastrear y
+ *     recompensar las ventas generadas por cada código.
+ */
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, IsNull, Repository } from 'typeorm';

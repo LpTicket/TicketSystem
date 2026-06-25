@@ -1,3 +1,10 @@
+/**
+ * Events listing page (web) — /events
+ * EN: Server-fetches the paginated/filterable list of public events and renders
+ *     EventsContent (search, category and sorting handled client-side).
+ * ES: Obtiene en el servidor la lista paginada/filtrable de eventos públicos y
+ *     renderiza EventsContent (búsqueda, categoría y orden se manejan en cliente).
+ */
 import { Suspense } from 'react';
 import EventsContent from './EventsContent';
 import { EventsResponse } from '@/types';
