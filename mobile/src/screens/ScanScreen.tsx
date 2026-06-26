@@ -538,15 +538,15 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder={t('Nombre o correo del asistente', 'Attendee name or email')}
+              editable={!!selectedEventId}
+              placeholder={selectedEventId
+                ? t('Nombre o correo del asistente', 'Attendee name or email')
+                : t('Selecciona un evento primero', 'Select an event first')}
               placeholderTextColor="rgba(148,163,184,0.60)"
               autoCapitalize="none"
-              style={styles.input}
+              style={[styles.input, !selectedEventId && { opacity: 0.6 }]}
             />
           </View>
-          {!selectedEventId && (
-            <Text style={styles.searchHint}>{t('Selecciona un evento para buscar.', 'Select an event to search.')}</Text>
-          )}
           {searching && <Text style={styles.searchHint}>{t('Buscando…', 'Searching…')}</Text>}
           {searchResults.map((r) => (
             <TouchableOpacity

@@ -615,15 +615,19 @@ export default function TicketScannerPage() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={lang === 'es' ? 'Nombre o correo del asistente' : 'Attendee name or email'}
+                    disabled={!selectedEventId}
+                    placeholder={
+                      !selectedEventId
+                        ? (lang === 'es' ? 'Selecciona un evento primero' : 'Select an event first')
+                        : (lang === 'es' ? 'Nombre o correo del asistente' : 'Attendee name or email')
+                    }
                     className={`w-full min-h-[52px] rounded-lg border px-12 py-4 text-sm font-semibold outline-none transition focus:ring-2 focus:ring-[#F97316] ${
+                      !selectedEventId ? 'cursor-not-allowed opacity-60' : ''
+                    } ${
                       highContrast ? 'border-white/10 bg-white/5 text-white placeholder:text-white/30' : 'border-slate-200 bg-white text-slate-900'
                     }`}
                   />
                 </div>
-                {!selectedEventId && (
-                  <p className="mt-2 text-xs text-slate-400">{lang === 'es' ? 'Selecciona un evento para buscar.' : 'Select an event to search.'}</p>
-                )}
                 {searching && <p className="mt-2 text-xs text-slate-400">{lang === 'es' ? 'Buscando…' : 'Searching…'}</p>}
                 {searchResults.length > 0 && (
                   <div className="mt-2 space-y-2">
