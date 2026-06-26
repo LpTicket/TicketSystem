@@ -1,5 +1,5 @@
 import { Alert, Dimensions, GestureResponderEvent, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { apiGet, apiPost } from '../../services/api';
 
@@ -95,7 +95,8 @@ type VenueItem = {
 const CANVAS_WIDTH = 920;
 const CANVAS_HEIGHT = 640;
 
-const palette = ['#ff6b16', '#f59e0b', '#10b981', '#64748b', '#ef4444', '#a855f7'];
+// Matches the web editor's SECTION_COLORS so sections look the same on both.
+const palette = ['#3b82f6', '#f97316', '#10b981', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#6366f1'];
 
 const initialItems: VenueItem[] = [
   { id: 'bar-1', type: 'bar', name: 'BAR', x: 95, y: 130, width: 260, height: 120, color: '#ff8138', price: 0, rows: 0, seatsPerRow: 0, fontSize: 18, shape: 'rectangle', saleMode: 'whole', locked: false, blockedSeats: [] },
@@ -352,6 +353,8 @@ export function VenueMapEditor({ eventId }: Props) {
             }}
             onResponderRelease={() => setCanvasDrag(null)}
           >
+              {/* Grid background matching the web editor (100px major + 20px minor). */}
+              <EditorGrid width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
               {items.map((item, index) => {
                 const isSelected = selectedId === item.id;
 
@@ -486,7 +489,9 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
   const seats = [];
   const rows = Math.max(1, item.rows);
   const cols = Math.max(1, item.seatsPerRow);
-  const dot = Math.max(14, Math.min(22, Math.floor(item.width / (cols + 2))));
+  // Match the web editor: chair size is proportional to the smaller table
+  // dimension (clamped 10–22), so seats aren't cramped on narrow tables.
+  const dot = Math.max(10, Math.min(22, Math.floor(Math.min(item.width, item.height) * 0.18)));
   const sidePad = dot * 0.75;
   const usable = Math.max(1, item.width - sidePad * 2);
 
@@ -513,6 +518,31 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
 
   return <View pointerEvents="box-none" style={styles.seatsLayer}>{seats}</View>;
 }
+
+// Grid background that mirrors the web editor's CSS gradient pattern:
+// a 100px major grid (rgba 0.10) over a 20px minor grid (rgba 0.05).
+const EditorGrid = memo(function EditorGrid({ width, height }: { width: number; height: number }) {
+  const cols100 = Math.ceil(width / 100) + 1;
+  const rows100 = Math.ceil(height / 100) + 1;
+  const cols20 = Math.ceil(width / 20) + 1;
+  const rows20 = Math.ceil(height / 20) + 1;
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {Array.from({ length: cols20 }, (_, i) => (
+        <View key={`c20-${i}`} style={{ position: 'absolute', left: i * 20, top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(148,163,184,0.05)' }} />
+      ))}
+      {Array.from({ length: rows20 }, (_, i) => (
+        <View key={`r20-${i}`} style={{ position: 'absolute', top: i * 20, left: 0, right: 0, height: 1, backgroundColor: 'rgba(148,163,184,0.05)' }} />
+      ))}
+      {Array.from({ length: cols100 }, (_, i) => (
+        <View key={`c100-${i}`} style={{ position: 'absolute', left: i * 100, top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(148,163,184,0.10)' }} />
+      ))}
+      {Array.from({ length: rows100 }, (_, i) => (
+        <View key={`r100-${i}`} style={{ position: 'absolute', top: i * 100, left: 0, right: 0, height: 1, backgroundColor: 'rgba(148,163,184,0.10)' }} />
+      ))}
+    </View>
+  );
+});
 
 function Tool({ icon, label, onPress }: { icon?: string; label: string; onPress: () => void }) {
   return (
