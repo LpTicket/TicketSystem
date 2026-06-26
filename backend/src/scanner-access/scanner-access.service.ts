@@ -164,8 +164,8 @@ export class ScannerAccessService {
     if (!access) {
       throw new ForbiddenException('You do not have scanner access for this event');
     }
-    // The employee is authorized for this event; reuse the orders search with an
-    // admin-like context scoped to this event id.
-    return this.ordersService.searchEventTickets(eventId, query, { id: user.id, role: 'admin' });
+    // The employee is authorized for this event; reuse the grouped orders search
+    // with an admin-like context scoped to this event id.
+    return this.ordersService.searchEventTicketsGrouped(eventId, query, { id: user.id, role: 'admin' });
   }
 }

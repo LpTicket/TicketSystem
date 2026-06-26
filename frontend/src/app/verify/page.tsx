@@ -61,10 +61,15 @@ export default function TicketScannerPage() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Gate search by attendee name / email (when the QR can't be scanned)
+  // Gate search by attendee name / email / table — grouped by buyer.
+  type BuyerGroup = {
+    buyerId: string; name: string; email: string; ticketCount: number; scannedCount: number;
+    tickets: { ticketCode: string; status: string; seat: string }[];
+  };
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<{ ticketCode: string; status: string; name: string; email: string; seat: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<BuyerGroup[]>([]);
   const [searching, setSearching] = useState(false);
+  const [expandedBuyer, setExpandedBuyer] = useState<string | null>(null);
 
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<{
@@ -629,27 +634,68 @@ export default function TicketScannerPage() {
                   />
                 </div>
                 {searching && <p className="mt-2 text-xs text-slate-400">{lang === 'es' ? 'Buscando…' : 'Searching…'}</p>}
+                {!searching && searchQuery.trim().length >= 2 && selectedEventId && searchResults.length === 0 && (
+                  <p className="mt-2 text-xs text-slate-400">{lang === 'es' ? 'Sin coincidencias.' : 'No matches.'}</p>
+                )}
                 {searchResults.length > 0 && (
                   <div className="mt-2 space-y-2">
-                    {searchResults.map((r) => (
-                      <button
-                        key={r.ticketCode}
-                        onClick={() => { setSearchResults([]); setSearchQuery(''); handleValidateTicket(r.ticketCode); }}
-                        className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition ${
-                          highContrast ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-slate-200 bg-white hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className={`truncate text-sm font-bold ${highContrast ? 'text-white' : 'text-slate-900'}`}>{r.name}</p>
-                          <p className="truncate text-[11px] text-slate-400">{r.email || r.seat} · {r.ticketCode}</p>
+                    {searchResults.map((buyer) => {
+                      const open = expandedBuyer === buyer.buyerId;
+                      return (
+                        <div key={buyer.buyerId} className={`rounded-lg border overflow-hidden ${highContrast ? 'border-white/10' : 'border-slate-200'}`}>
+                          {/* Level 1: the buyer */}
+                          <button
+                            onClick={() => setExpandedBuyer(open ? null : buyer.buyerId)}
+                            className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition ${highContrast ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-slate-50'}`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className={`truncate text-sm font-bold ${highContrast ? 'text-white' : 'text-slate-900'}`}>{buyer.name}</p>
+                              <p className="truncate text-[11px] text-slate-400">{buyer.email}</p>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-orange-100 px-2.5 py-1 text-[10px] font-black text-orange-700">
+                              {buyer.scannedCount}/{buyer.ticketCount} {lang === 'es' ? 'entradas' : 'tickets'}
+                            </span>
+                            <span className="shrink-0 text-slate-400">{open ? '▲' : '▼'}</span>
+                          </button>
+
+                          {/* Level 2: the buyer's tickets */}
+                          {open && (
+                            <div className={`divide-y ${highContrast ? 'divide-white/10 bg-black/20' : 'divide-slate-100 bg-slate-50'}`}>
+                              {buyer.tickets.map((tk) => (
+                                <div key={tk.ticketCode} className="flex items-center gap-2 px-3 py-2.5">
+                                  <div className="min-w-0 flex-1">
+                                    <p className={`truncate text-xs font-bold ${highContrast ? 'text-white' : 'text-slate-800'}`}>{tk.seat}</p>
+                                    <p className="truncate text-[10px] font-mono text-slate-400">{tk.ticketCode}</p>
+                                  </div>
+                                  {/* Open the full receipt (existing ticket page) */}
+                                  <a
+                                    href={`/verify/${tk.ticketCode}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide ${highContrast ? 'border-white/15 text-white/80 hover:bg-white/10' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+                                  >
+                                    {lang === 'es' ? 'Recibo' : 'Receipt'}
+                                  </a>
+                                  {/* Validate directly */}
+                                  {tk.status === 'used' ? (
+                                    <span className="shrink-0 rounded-lg bg-green-100 px-2.5 py-1.5 text-[10px] font-black uppercase text-green-700">{lang === 'es' ? 'Escaneado' : 'Scanned'}</span>
+                                  ) : tk.status === 'cancelled' ? (
+                                    <span className="shrink-0 rounded-lg bg-red-100 px-2.5 py-1.5 text-[10px] font-black uppercase text-red-700">{lang === 'es' ? 'Cancelado' : 'Cancelled'}</span>
+                                  ) : (
+                                    <button
+                                      onClick={() => { setSearchResults([]); setSearchQuery(''); setExpandedBuyer(null); handleValidateTicket(tk.ticketCode); }}
+                                      className="shrink-0 rounded-lg bg-[#F97316] px-2.5 py-1.5 text-[10px] font-black uppercase text-white hover:bg-[#ea6a0c]"
+                                    >
+                                      {lang === 'es' ? 'Validar' : 'Validate'}
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide ${
-                          r.status === 'used' ? 'bg-green-100 text-green-700' : r.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
-                        }`}>
-                          {r.status === 'used' ? (lang === 'es' ? 'Escaneado' : 'Scanned') : r.status === 'cancelled' ? (lang === 'es' ? 'Cancelado' : 'Cancelled') : (lang === 'es' ? 'Validar' : 'Validate')}
-                        </span>
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

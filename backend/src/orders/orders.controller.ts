@@ -298,7 +298,8 @@ export class OrdersController {
     return this.ordersService.getEventSales(eventId, req.user);
   }
 
-  // Gate search by attendee name / email / code (when the QR can't be scanned).
+  // Gate search by attendee name / email / table / code (when the QR can't be
+  // scanned), grouped by buyer so staff can see all of a person's tickets.
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.CLIENT, UserRole.ADMIN)
   @Get('event/:eventId/search-tickets')
@@ -307,7 +308,7 @@ export class OrdersController {
     @Query('q') q: string,
     @Request() req: any,
   ) {
-    return this.ordersService.searchEventTickets(eventId, q || '', req.user);
+    return this.ordersService.searchEventTicketsGrouped(eventId, q || '', req.user);
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)

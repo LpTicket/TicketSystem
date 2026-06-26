@@ -1535,9 +1535,69 @@ export class OrdersService {
   }
 
   /**
-   * Gate search — find an event's tickets by attendee name, email or code.
-   * Used at the door when a QR can't be scanned (it never arrived, the screen
-   * is broken, etc.) so staff can still look the ticket up and validate it.
+   * Gate search — find an event's tickets by attendee name, email, table/section
+   * or code, GROUPED BY buyer. Used at the door when a QR can't be scanned: staff
+   * search a person, see all the tickets that person bought, then open a ticket.
+   */
+  async searchEventTicketsGrouped(
+    eventId: string,
+    query: string,
+    user: { id: string; role?: string },
+  ) {
+    await this.assertEventAccess(eventId, user);
+    const q = (query || '').trim();
+    if (q.length < 2) return [];
+
+    const like = `%${q.toLowerCase()}%`;
+    const tickets = await this.ticketRepo
+      .createQueryBuilder('ticket')
+      .leftJoinAndSelect('ticket.user', 'user')
+      .where('ticket.eventId = :eventId', { eventId })
+      .andWhere(
+        `(
+          LOWER(user.firstName) LIKE :like OR
+          LOWER(user.lastName) LIKE :like OR
+          LOWER(user.firstName || ' ' || user.lastName) LIKE :like OR
+          LOWER(user.email) LIKE :like OR
+          LOWER(ticket.sectionName) LIKE :like OR
+          LOWER(ticket.ticketCode) LIKE :like
+        )`,
+        { like },
+      )
+      .orderBy('ticket.createdAt', 'ASC')
+      .limit(200)
+      .getMany();
+
+    // Group all matching tickets by buyer (by user id, falling back to email).
+    const groups = new Map<string, {
+      buyerId: string;
+      name: string;
+      email: string;
+      ticketCount: number;
+      scannedCount: number;
+      tickets: { ticketCode: string; status: string; seat: string }[];
+    }>();
+
+    for (const ticket of tickets) {
+      const u = ticket.user;
+      const key = u?.id || u?.email || ticket.ticketCode;
+      const name = [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim() || u?.email || 'Invitado';
+      const seat = [ticket.sectionName, ticket.rowLabel, ticket.seatNumber].filter(Boolean).join(' · ') || 'General';
+      if (!groups.has(key)) {
+        groups.set(key, { buyerId: key, name, email: u?.email || '', ticketCount: 0, scannedCount: 0, tickets: [] });
+      }
+      const g = groups.get(key)!;
+      g.ticketCount += 1;
+      if (ticket.status === TicketStatus.USED) g.scannedCount += 1;
+      g.tickets.push({ ticketCode: ticket.ticketCode, status: ticket.status, seat });
+    }
+
+    return Array.from(groups.values()).slice(0, 30);
+  }
+
+  /**
+   * Legacy flat (non-grouped) gate search — kept for any caller that still wants
+   * a flat list of tickets by name / email / code.
    */
   async searchEventTickets(
     eventId: string,
@@ -1559,6 +1619,7 @@ export class OrdersService {
           LOWER(user.lastName) LIKE :like OR
           LOWER(user.firstName || ' ' || user.lastName) LIKE :like OR
           LOWER(user.email) LIKE :like OR
+          LOWER(ticket.sectionName) LIKE :like OR
           LOWER(ticket.ticketCode) LIKE :like
         )`,
         { like },

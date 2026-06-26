@@ -120,10 +120,15 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
   const [sessionStats, setSessionStats] = useState({ total: 0, approved: 0, denied: 0 });
 
-  // Gate search by name / email (when the QR can't be scanned)
+  // Gate search by name / email / table — grouped by buyer.
+  type BuyerGroup = {
+    buyerId: string; name: string; email: string; ticketCount: number; scannedCount: number;
+    tickets: { ticketCode: string; status: string; seat: string }[];
+  };
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<{ ticketCode: string; status: string; name: string; email: string; seat: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<BuyerGroup[]>([]);
   const [searching, setSearching] = useState(false);
+  const [expandedBuyer, setExpandedBuyer] = useState<string | null>(null);
 
   // Event selector + server stats
   const [myEvents, setMyEvents] = useState<ScannerEvent[]>([]);
@@ -548,24 +553,53 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
             />
           </View>
           {searching && <Text style={styles.searchHint}>{t('Buscando…', 'Searching…')}</Text>}
-          {searchResults.map((r) => (
-            <TouchableOpacity
-              key={r.ticketCode}
-              style={styles.searchResultRow}
-              onPress={() => { setSearchResults([]); setSearchQuery(''); validateCode(r.ticketCode); }}
-              activeOpacity={0.85}
-            >
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.searchResultName} numberOfLines={1}>{r.name}</Text>
-                <Text style={styles.searchResultMeta} numberOfLines={1}>{r.email || r.seat} · {r.ticketCode}</Text>
+          {!searching && searchQuery.trim().length >= 2 && selectedEventId && searchResults.length === 0 && (
+            <Text style={styles.searchHint}>{t('Sin coincidencias.', 'No matches.')}</Text>
+          )}
+          {searchResults.map((buyer) => {
+            const open = expandedBuyer === buyer.buyerId;
+            return (
+              <View key={buyer.buyerId} style={styles.buyerGroup}>
+                {/* Level 1: the buyer */}
+                <TouchableOpacity
+                  style={styles.buyerHeader}
+                  onPress={() => setExpandedBuyer(open ? null : buyer.buyerId)}
+                  activeOpacity={0.85}
+                >
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.searchResultName} numberOfLines={1}>{buyer.name}</Text>
+                    <Text style={styles.searchResultMeta} numberOfLines={1}>{buyer.email}</Text>
+                  </View>
+                  <View style={[styles.searchResultBadge, styles.searchBadgeActive]}>
+                    <Text style={styles.searchResultBadgeText}>{buyer.scannedCount}/{buyer.ticketCount}</Text>
+                  </View>
+                  <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="rgba(148,163,184,0.8)" style={{ marginLeft: 6 }} />
+                </TouchableOpacity>
+
+                {/* Level 2: the buyer's tickets, each can be validated */}
+                {open && buyer.tickets.map((tk) => (
+                  <View key={tk.ticketCode} style={styles.buyerTicketRow}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.buyerTicketSeat} numberOfLines={1}>{tk.seat}</Text>
+                      <Text style={styles.buyerTicketCode} numberOfLines={1}>{tk.ticketCode}</Text>
+                    </View>
+                    {tk.status === 'used' ? (
+                      <View style={[styles.searchResultBadge, styles.searchBadgeUsed]}><Text style={styles.searchResultBadgeText}>{t('ESCANEADO', 'SCANNED')}</Text></View>
+                    ) : tk.status === 'cancelled' ? (
+                      <View style={[styles.searchResultBadge, styles.searchBadgeCancelled]}><Text style={styles.searchResultBadgeText}>{t('CANCELADO', 'CANCELLED')}</Text></View>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.buyerValidateBtn}
+                        onPress={() => { setSearchResults([]); setSearchQuery(''); setExpandedBuyer(null); validateCode(tk.ticketCode); }}
+                      >
+                        <Text style={styles.buyerValidateBtnText}>{t('VALIDAR', 'VALIDATE')}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
               </View>
-              <View style={[styles.searchResultBadge, r.status === 'used' ? styles.searchBadgeUsed : r.status === 'cancelled' ? styles.searchBadgeCancelled : styles.searchBadgeActive]}>
-                <Text style={styles.searchResultBadgeText}>
-                  {r.status === 'used' ? t('ESCANEADO', 'SCANNED') : r.status === 'cancelled' ? t('CANCELADO', 'CANCELLED') : t('VALIDAR', 'VALIDATE')}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
       )}
 
@@ -840,6 +874,21 @@ const styles = StyleSheet.create({
   searchBadgeUsed: { backgroundColor: 'rgba(34,197,94,0.14)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.34)' },
   searchBadgeCancelled: { backgroundColor: 'rgba(239,68,68,0.14)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.34)' },
   searchResultBadgeText: { color: '#F8FAFC', fontSize: 9, fontWeight: '600' },
+  buyerGroup: {
+    marginTop: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 14, backgroundColor: '#030B14', overflow: 'hidden',
+  },
+  buyerHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 11 },
+  buyerTicketRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 12, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: 'rgba(255,255,255,0.02)',
+  },
+  buyerTicketSeat: { color: '#E2E8F0', fontSize: 13, fontWeight: '600' },
+  buyerTicketCode: { color: 'rgba(148,163,184,0.7)', fontSize: 10, fontFamily: 'monospace', marginTop: 2 },
+  buyerValidateBtn: { borderRadius: 10, backgroundColor: '#F97316', paddingHorizontal: 12, paddingVertical: 8 },
+  buyerValidateBtnText: { color: '#FFFFFF', fontSize: 10, fontWeight: '600' },
 
   // Event dropdown
   eventSection: { marginTop: 22 },
