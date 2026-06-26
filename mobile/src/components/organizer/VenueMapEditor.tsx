@@ -337,6 +337,9 @@ export function VenueMapEditor({ eventId }: Props) {
 
       <View style={styles.workbench}>
           <View style={styles.canvasViewport}>
+            {/* Grid covers the whole viewport (fixed), so the area around the
+                canvas isn't a flat blue — the cuadrícula shows everywhere. */}
+            <EditorGrid width={vpW} height={VP_H} />
             <View
             style={[styles.canvas, canvasTransformStyle]}
             onStartShouldSetResponder={(event: any) => event.target === event.currentTarget}
@@ -353,8 +356,6 @@ export function VenueMapEditor({ eventId }: Props) {
             }}
             onResponderRelease={() => setCanvasDrag(null)}
           >
-              {/* Grid background matching the web editor (100px major + 20px minor). */}
-              <EditorGrid width={CANVAS_WIDTH} height={CANVAS_HEIGHT} />
               {items.map((item, index) => {
                 const isSelected = selectedId === item.id;
 
@@ -748,7 +749,8 @@ const styles = StyleSheet.create({
   zoomButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
   zoomValue: { width: 52, alignItems: 'center', justifyContent: 'center' },
   zoomText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
-  canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, position: 'relative', backgroundColor: '#0d2138' },
+  // Transparent so the viewport grid shows through the whole canvas area.
+  canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, position: 'relative', backgroundColor: 'transparent' },
   canvasTips: { position: 'absolute', left: 16, bottom: 14, gap: 6 },
   tipText: { color: '#cbd5e1', backgroundColor: '#334155', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 4, fontSize: 10, fontWeight: '700' },
   tipTextOrange: { color: '#fbbf24', backgroundColor: '#8b6b4a', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 4, fontSize: 10, fontWeight: '700' },
