@@ -505,7 +505,10 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
   const total = rows * cols;
   const w = item.width;
   const h = item.height;
-  const isRound = item.shape === 'round' || item.shape === 'soft';
+  // Only a true 'round' table uses circular seat placement. 'soft' is just a
+  // rounded-corner rectangle, so it uses the rectangular edge layout (otherwise
+  // its chairs collapse into the centre and pile up).
+  const isRound = item.shape === 'round';
 
   // Mirror ClientVenueMap's TableSection: chairs are arranged AROUND a central
   // table rather than in flat rows, so the editor looks like the client view.
