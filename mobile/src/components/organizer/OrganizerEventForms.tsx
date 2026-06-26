@@ -118,6 +118,15 @@ function formatDayLabel(dateStr: string, lang: string) {
   } catch { return dateStr; }
 }
 
+// "HH:MM" → a Date today at that time, for seeding the native time picker.
+function parseTimeToDate(time?: string): Date {
+  const d = new Date();
+  const m = /^(\d{1,2}):(\d{2})$/.exec((time || '').trim());
+  if (m) { d.setHours(Number(m[1]) || 0, Number(m[2]) || 0, 0, 0); }
+  else { d.setHours(22, 0, 0, 0); } // sensible default for a night event
+  return d;
+}
+
 export function OrganizerDashboardMobile({ eventTitle, eventVenue, eventStatus, eventDateLabel, metrics, summary, events = [], salesByDay = [], onOpenEvent, goTo }: DashboardProps) {
   const { t, lang } = useLanguage();
   const hasEvents = events.length > 0;
@@ -298,6 +307,7 @@ export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVen
   const [pickerDate, setPickerDate] = useState<Date>(new Date('2026-06-25T19:00:00'));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [timezone, setTimezone] = useState('America/Chicago');
   const [maxTickets, setMaxTickets] = useState('8');
   const [saving, setSaving] = useState(false);
@@ -520,13 +530,31 @@ export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVen
           )
         )}
 
-        <Field
-          label={t('Hora de finalización (opcional)', 'End time (optional)')}
-          value={eventEndTime}
-          onChangeText={setEventEndTime}
-          placeholder={t('HH:MM — vacío = 6 h tras el inicio', 'HH:MM — empty = 6h after start')}
-          keyboardType="numbers-and-punctuation"
-        />
+        <Text style={styles.fieldLabel}>{t('Hora de finalización (opcional)', 'End time (optional)')}</Text>
+        <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowEndTimePicker(true)}>
+          <Ionicons name="time-outline" size={16} color="#f97316" style={{ marginRight: 6 }} />
+          <Text style={[styles.datePickerText, !eventEndTime && { color: 'rgba(148,163,184,0.6)' }]}>
+            {eventEndTime || t('Sin hora de fin (6 h tras el inicio)', 'No end time (6h after start)')}
+          </Text>
+          {!!eventEndTime && (
+            <TouchableOpacity onPress={() => setEventEndTime('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 'auto' }}>
+              <Ionicons name="close-circle" size={18} color="rgba(148,163,184,0.7)" />
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+        {showEndTimePicker && (
+          <DateTimePicker
+            value={parseTimeToDate(eventEndTime)}
+            mode="time"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            textColor="#F8FAFC"
+            accentColor="#F97316"
+            onChange={(_, d) => {
+              setShowEndTimePicker(false);
+              if (d) setEventEndTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+            }}
+          />
+        )}
         <Field label={t('Zona horaria', 'Timezone')} value={timezone} onChangeText={setTimezone} placeholder="America/Chicago" autoCapitalize="none" />
         <Field label={t('Lugar', 'Venue')} value={eventVenue} onChangeText={setEventVenue} />
         <Field label={t('Direccion', 'Address')} value={address} onChangeText={setAddress} multiline />
@@ -559,6 +587,7 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
   const [pickerDate, setPickerDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [timezone, setTimezone] = useState('America/Chicago');
   const [maxTickets, setMaxTickets] = useState('10');
   const [focalY, setFocalY] = useState(50); // 0 = top, 50 = center, 100 = bottom
@@ -835,13 +864,31 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
           )
         )}
 
-        <Field
-          label={t('Hora de finalización (opcional)', 'End time (optional)')}
-          value={eventEndTime}
-          onChangeText={setEventEndTime}
-          placeholder={t('HH:MM — vacío = 6 h tras el inicio', 'HH:MM — empty = 6h after start')}
-          keyboardType="numbers-and-punctuation"
-        />
+        <Text style={styles.fieldLabel}>{t('Hora de finalización (opcional)', 'End time (optional)')}</Text>
+        <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowEndTimePicker(true)}>
+          <Ionicons name="time-outline" size={16} color="#f97316" style={{ marginRight: 6 }} />
+          <Text style={[styles.datePickerText, !eventEndTime && { color: 'rgba(148,163,184,0.6)' }]}>
+            {eventEndTime || t('Sin hora de fin (6 h tras el inicio)', 'No end time (6h after start)')}
+          </Text>
+          {!!eventEndTime && (
+            <TouchableOpacity onPress={() => setEventEndTime('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 'auto' }}>
+              <Ionicons name="close-circle" size={18} color="rgba(148,163,184,0.7)" />
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+        {showEndTimePicker && (
+          <DateTimePicker
+            value={parseTimeToDate(eventEndTime)}
+            mode="time"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            textColor="#F8FAFC"
+            accentColor="#F97316"
+            onChange={(_, d) => {
+              setShowEndTimePicker(false);
+              if (d) setEventEndTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+            }}
+          />
+        )}
         <Field label={t('Zona horaria', 'Timezone')} value={timezone} onChangeText={setTimezone} placeholder="America/Chicago" autoCapitalize="none" />
         <Field label={t('Lugar', 'Venue')} value={eventVenue} onChangeText={setEventVenue} />
         <Field label={t('Direccion', 'Address')} value={address} onChangeText={setAddress} multiline />
