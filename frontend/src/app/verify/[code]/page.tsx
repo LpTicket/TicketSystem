@@ -3,7 +3,7 @@
 import { toast } from 'react-hot-toast';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { formatSeatLabel } from '@/lib/seatLabel';
 import { Ticket } from '@/types';
@@ -30,6 +30,7 @@ const money = (value: any, currency = 'USD') => `$${Number(value || 0).toFixed(2
 export default function VerifyTicketPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
   const [shareLabel, setShareLabel] = useState('Compartir');
@@ -53,6 +54,19 @@ export default function VerifyTicketPage() {
     const isMobilePrint = window.innerWidth <= 640;
     document.documentElement.classList.toggle('mobile-print-mode', isMobilePrint);
     window.print();
+  };
+
+  const handleBack = () => {
+    const eventId = searchParams.get('from') === 'organizer' ? searchParams.get('eventId') : null;
+    if (!eventId) {
+      router.back();
+      return;
+    }
+
+    const params = new URLSearchParams({ tab: 'attendees' });
+    const attendee = searchParams.get('attendee');
+    if (attendee) params.set('attendee', attendee);
+    router.push(`/organizer/events/${encodeURIComponent(eventId)}?${params.toString()}`);
   };
 
   useEffect(() => {
@@ -593,7 +607,7 @@ export default function VerifyTicketPage() {
       <div className="no-print w-full bg-white border-b border-gray-100 shadow-sm sticky top-0 z-10 px-4">
         <div className="max-w-2xl mx-auto py-3 flex justify-between items-center gap-3">
           <button
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors font-medium shrink-0"
           >
             <HiOutlineArrowLeft className="w-4 h-4" /> Volver
