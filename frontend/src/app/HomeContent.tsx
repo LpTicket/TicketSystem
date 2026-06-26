@@ -163,7 +163,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
                     // translucent and the background shows through.
                     initial={{ opacity: 0, scale: 1.02 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.8, ease: 'easeInOut' }}
+                    transition={{ duration: 1.2, ease: 'easeInOut' }}
                     className="absolute inset-0 block h-full w-full object-cover transition-transform duration-[1600ms] group-hover:scale-[1.025] sm:hidden"
                     style={{ objectPosition: bannerEvent.bannerPosition || 'center' }}
                     loading="eager"
@@ -176,7 +176,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
                     alt={isMarketingBanner(bannerEvent) ? (bannerEvent.fileName || 'Banner publicitario LPTicket') : bannerEvent.title}
                     initial={{ opacity: 0, scale: 1.02 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.8, ease: 'easeInOut' }}
+                    transition={{ duration: 1.2, ease: 'easeInOut' }}
                     className="absolute inset-0 hidden h-full w-full object-cover transition-transform duration-[1600ms] group-hover:scale-[1.025] sm:block"
                     style={{ objectPosition: bannerEvent.bannerPosition || 'center' }}
                     loading="eager"
