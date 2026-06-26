@@ -699,19 +699,14 @@ export default function VerifyTicketPage() {
                   )}
                 </div>
 
-                {/* Right: QR Code */}
+                {/* Right: QR Code. Falls back to the public PNG endpoint when the
+                    stored data-URL is missing, so the QR always renders. */}
                 <div className="flex flex-col items-center shrink-0">
-                  {ticket.qrData ? (
-                    <img 
-                      src={ticket.qrData} 
-                      alt="QR Code" 
-                      className="qr-img w-36 h-36 object-contain border border-slate-200 rounded-xl p-2 bg-white shadow-sm" 
-                    />
-                  ) : (
-                    <div className="w-40 h-40 bg-gray-100 flex items-center justify-center rounded-xl border border-gray-200">
-                      <HiOutlineTicket className="w-10 h-10 text-gray-300" />
-                    </div>
-                  )}
+                  <img
+                    src={ticket.qrData || `${api.defaults.baseURL}/orders/ticket/${ticket.ticketCode || code}/qr.png`}
+                    alt="QR Code"
+                    className="qr-img w-36 h-36 object-contain border border-slate-200 rounded-xl p-2 bg-white shadow-sm"
+                  />
                   <span className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wide text-center">Present at entry</span>
                 </div>
               </div>

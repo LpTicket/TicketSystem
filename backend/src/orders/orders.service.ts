@@ -1263,15 +1263,36 @@ export class OrdersService {
     const u = ticket.user;
     const attendeeName =
       [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim() || 'Invitado';
+    const order = (ticket as any).order;
     return {
+      // Fields the digital ticket / receipt needs. The QR and the attendee's
+      // name are part of the ticket itself, so they are shown here. We still
+      // withhold the buyer's email, phone, address, password hash and any other
+      // account data — only the order's money breakdown is exposed for the receipt.
+      id: ticket.id,
       ticketCode: ticket.ticketCode,
+      orderId: ticket.orderId,
       status: ticket.status,
       sectionName: ticket.sectionName,
       rowLabel: ticket.rowLabel,
       seatNumber: ticket.seatNumber,
+      seatLabel: (ticket as any).seatLabel ?? null,
       price: ticket.price,
+      qrData: ticket.qrData,
       createdAt: ticket.createdAt,
       attendeeName,
+      // Minimal buyer shape so existing receipt UI (ticket.user.firstName/lastName)
+      // keeps working — name only, no contact details.
+      user: u ? { firstName: u.firstName, lastName: u.lastName } : null,
+      order: order
+        ? {
+            id: order.id,
+            subtotal: order.subtotal,
+            lpFee: order.lpFee,
+            processingFee: order.processingFee,
+            total: order.total,
+          }
+        : null,
       event: ticket.event
         ? {
             id: ticket.event.id,
@@ -1283,6 +1304,7 @@ export class OrdersService {
             venueAddress: ticket.event.venueAddress,
             imageUrl: ticket.event.imageUrl,
             bannerImageUrl: ticket.event.bannerImageUrl,
+            currency: ticket.event.currency,
           }
         : null,
     };
