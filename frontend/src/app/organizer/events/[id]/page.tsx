@@ -13,7 +13,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
 import { parseSafeDate, formatDateInTimezone, getTimezoneAbbr } from '@/lib/dateUtils';
@@ -646,6 +646,7 @@ export default function EventDetailPage() {
   const { user } = useAuthStore();
   const { t, lang } = useLang();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { categories, getCategoryInfo, refreshCategories } = useCategories();
 
   const [event, setEvent] = useState<Event | null>(null);
@@ -675,6 +676,7 @@ export default function EventDetailPage() {
       /* ignore */
     }
   }, [id, activeTab]);
+
   const [selectedBlockSection, setSelectedBlockSection] = useState('');
   const [selectedBlockSeats, setSelectedBlockSeats] = useState<string[]>([]);
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
@@ -685,6 +687,14 @@ export default function EventDetailPage() {
   const [resendCode, setResendCode] = useState<string | null>(null);
   const [resendEmail, setResendEmail] = useState('');
   const [resendBusy, setResendBusy] = useState(false);
+
+  useEffect(() => {
+    const attendeeEmail = searchParams.get('attendee');
+    if (searchParams.get('tab') === 'attendees') setActiveTab('attendees');
+    if (attendeeEmail && attendees.some((attendee) => attendee.user?.email === attendeeEmail)) {
+      setExpandedAttendee(attendeeEmail);
+    }
+  }, [attendees, searchParams]);
 
   // Email Reminder States
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -740,7 +750,7 @@ export default function EventDetailPage() {
   const loadEvent = async () => {
     try {
       // Load event details
-      const { data: events } = await api.get('/events', { params: { limit: 100 } });
+      const { data: events } = await api.get('/events', { params: { limit: 100, includePast: 'true' } });
       const ev = (events.events || []).find((e: Event) => e.id === id);
       if (!ev || (ev.organizerId !== user?.id && user?.role !== 'admin')) { router.push('/organizer/events'); return; }
       setEvent(ev);
@@ -1787,7 +1797,7 @@ export default function EventDetailPage() {
                     type="text"
                     value={attendeeSearch}
                     onChange={(e) => setAttendeeSearch(e.target.value)}
-                    placeholder={lang === 'es' ? 'Buscar asistente por nombre o email…' : 'Search attendee by name or email…'}
+                    placeholder={lang === 'es' ? 'Buscar por nombre, email o mesa…' : 'Search by name, email, or table…'}
                     className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 bg-gray-50 focus:outline-none focus:border-primary-400 focus:bg-white transition-colors"
                   />
                 </div>
@@ -1826,7 +1836,21 @@ export default function EventDetailPage() {
               const searchQ = attendeeSearch.toLowerCase().trim();
               const groupedEntries = searchQ
                 ? allGroupedEntries.filter((g) =>
-                    g.name.toLowerCase().includes(searchQ) || g.email.toLowerCase().includes(searchQ)
+                    g.name.toLowerCase().includes(searchQ) ||
+                    g.email.toLowerCase().includes(searchQ) ||
+                    g.tickets.some((ticket) => {
+                      const location = formatSeatLabel(
+                        {
+                          rowLabel: ticket.rowLabel,
+                          seatNumber: ticket.seatNumber,
+                          sectionName: ticket.sectionName,
+                        },
+                        ticket.sectionName,
+                        lang,
+                      );
+                      return [ticket.sectionName, ticket.rowLabel, ticket.seatNumber, location]
+                        .some((value) => String(value ?? '').toLowerCase().includes(searchQ));
+                    })
                   )
                 : allGroupedEntries;
               const selectedGroup = expandedAttendee ? grouped[expandedAttendee] : null;
@@ -1837,6 +1861,18 @@ export default function EventDetailPage() {
                     {groupedEntries.map((group) => {
                       const usedCount = group.tickets.filter(t => t.status === 'used').length;
                       const activeCount = group.tickets.filter(t => t.status === 'active').length;
+                      const tableLabels = [...new Set(group.tickets.map((ticket) => {
+                        const location = formatSeatLabel(
+                          {
+                            rowLabel: ticket.rowLabel,
+                            seatNumber: ticket.seatNumber,
+                            sectionName: ticket.sectionName,
+                          },
+                          ticket.sectionName,
+                          lang,
+                        );
+                        return location.match(/^(Mesa|Table)\b.*?(?=\s+-\s+(Silla|Chair)\b|$)/i)?.[0];
+                      }).filter((label): label is string => Boolean(label)))];
 
                       return (
                         <button
@@ -1853,6 +1889,9 @@ export default function EventDetailPage() {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-gray-900 truncate">{group.name}</p>
                             <p className="text-xs text-gray-500 truncate">{group.email}</p>
+                            {tableLabels.length > 0 && (
+                              <p className="mt-1 text-[11px] font-bold text-[#0A375A] truncate">{tableLabels.join(' · ')}</p>
+                            )}
                           </div>
 
                           {/* Stats */}
@@ -1948,23 +1987,28 @@ export default function EventDetailPage() {
                             <div className="min-h-[120px] max-h-[340px] overflow-y-auto pr-1 select-none mt-2">
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {selectedGroup.tickets.map((ticket) => (
-                                  <div key={ticket.id} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-start justify-between gap-3 shadow-[0_4px_15px_rgba(0,0,0,0.015)] hover:border-gray-200 transition-all">
+                                  <Link
+                                    key={ticket.id}
+                                    href={`/verify/${ticket.ticketCode}?from=organizer&eventId=${encodeURIComponent(id)}&attendee=${encodeURIComponent(selectedGroup.email)}`}
+                                    className="bg-white border border-gray-100 rounded-2xl p-4 flex items-start justify-between gap-3 shadow-[0_4px_15px_rgba(0,0,0,0.015)] hover:border-primary-300 hover:bg-primary-50/30 transition-all"
+                                  >
                                     <div className="min-w-0 space-y-1">
                                       <p className="font-bold text-xs text-gray-900 truncate">{ticket.sectionName}</p>
                                       <p className="text-[10px] text-gray-500">
-                                        {lang === 'es' ? 'Asiento' : 'Seat'}: <span className="font-bold text-gray-700">{formatSeatLabel({ rowLabel: ticket.rowLabel, seatNumber: ticket.seatNumber }, undefined, lang)}</span>
+                                        {lang === 'es' ? 'Asiento' : 'Seat'}: <span className="font-bold text-gray-700">{formatSeatLabel({ rowLabel: ticket.rowLabel, seatNumber: ticket.seatNumber, sectionName: ticket.sectionName }, ticket.sectionName, lang)}</span>
                                       </p>
                                       <p className="text-[10px] font-mono text-primary-600 font-semibold">{ticket.ticketCode}</p>
                                     </div>
-                                    <div className="text-right shrink-0 space-y-1.5">
+                                    <div className="text-right shrink-0 flex items-center gap-2">
                                       <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                                         ticket.status === 'active' ? 'bg-green-100 text-green-700' :
                                         ticket.status === 'used' ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
                                       }`}>
                                         {ticket.status === 'active' ? (lang === 'es' ? 'Activo' : 'Active') : ticket.status === 'used' ? (lang === 'es' ? 'Escaneado' : 'Scanned') : ticket.status}
                                       </span>
+                                      <HiOutlineChevronRight className="w-4 h-4 text-gray-300" />
                                     </div>
-                                  </div>
+                                  </Link>
                                 ))}
                               </div>
                             </div>
