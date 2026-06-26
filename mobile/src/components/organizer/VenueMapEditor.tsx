@@ -488,9 +488,13 @@ function getCapacity(item: VenueItem) {
 }
 
 function shapeStyle(item: VenueItem) {
-  if (item.shape === 'round') return { borderRadius: Math.min(item.width, item.height) / 2 };
-  if (item.shape === 'soft') return { borderRadius: 16 };
-  return { borderRadius: 4 };
+  // 'round' tables are circular; everything else uses subtle corners like the
+  // client view (standing/areas = 8). The old soft=16 looked like a pill on
+  // large areas such as "General Área".
+  if (item.shape === 'round' && (item.type === 'table' || item.type === 'seat')) {
+    return { borderRadius: Math.min(item.width, item.height) / 2 };
+  }
+  return { borderRadius: 8 };
 }
 
 function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; selectedSeat: string | null; onSeatPress: (seatId: string) => void }) {
@@ -504,7 +508,8 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
 
   // Mirror ClientVenueMap's TableSection: chairs are arranged AROUND a central
   // table rather than in flat rows, so the editor looks like the client view.
-  const dot = Math.max(10, Math.min(20, Math.floor(Math.min(w, h) * 0.18)));
+  // Slightly larger/clamped so seats read as robust filled circles.
+  const dot = Math.max(12, Math.min(22, Math.floor(Math.min(w, h) * 0.22)));
 
   // Central table block (the same proportions/colors the client uses).
   const tableW = w * (isRound ? 0.60 : 0.70);
@@ -717,8 +722,10 @@ const styles = StyleSheet.create({
   itemLabel: { fontWeight: '700', zIndex: 5 },
   lockedItem: { opacity: 0.62 },
   seatsLayer: { ...StyleSheet.absoluteFill, overflow: 'visible', zIndex: 4 },
-  seatDot: { position: 'absolute', borderWidth: 2, borderColor: '#020712' },
-  seatSelected: { borderColor: '#F97316', borderWidth: 3 },
+  // Match ClientVenueMap's chair look: solid colored dot with a thin white
+  // border (not a dark heavy outline), so seats read as robust filled circles.
+  seatDot: { position: 'absolute', borderWidth: 1, borderColor: 'rgba(255,255,255,0.55)' },
+  seatSelected: { borderColor: '#FFFFFF', borderWidth: 2 },
   corner: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: '#F97316', borderWidth: 2, borderColor: '#FFFFFF', zIndex: 8 },
   cornerTL: { left: -7, top: -7 },
   cornerTR: { right: -7, top: -7 },
