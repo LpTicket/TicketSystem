@@ -384,8 +384,12 @@ export function VenueMapEditor({ eventId }: Props) {
                         top: item.y,
                         width: item.width,
                         height: item.height,
-                        borderColor: isSelected ? '#F97316' : 'rgba(255,255,255,0.30)',
-                        backgroundColor: item.type === 'table' || item.type === 'seat' ? '#030B14' : item.color,
+                        // Tables/seats draw their own central block + chairs, so
+                        // the wrapper is transparent (like the client view). Only
+                        // a selection outline is shown. Other items keep their fill.
+                        borderColor: isSelected ? '#F97316' : (item.type === 'table' || item.type === 'seat') ? 'transparent' : 'rgba(255,255,255,0.30)',
+                        borderWidth: isSelected ? 2 : (item.type === 'table' || item.type === 'seat') ? 0 : 2,
+                        backgroundColor: item.type === 'table' || item.type === 'seat' ? 'transparent' : item.color,
                       },
                       item.locked && styles.lockedItem,
                     ]}
@@ -394,7 +398,11 @@ export function VenueMapEditor({ eventId }: Props) {
                       <SeatDots item={item} selectedSeat={selectedSeat} onSeatPress={toggleSeat} />
                     )}
 
-                    <Text style={[styles.itemLabel, { fontSize: item.fontSize, color: '#FFFFFF' }]}>
+                    <Text style={[
+                      styles.itemLabel,
+                      { fontSize: item.fontSize, color: '#FFFFFF', zIndex: 6 },
+                      (item.type === 'table' || item.type === 'seat') && { textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 3 },
+                    ]}>
                       {item.name}
                     </Text>
                   </View>
@@ -489,32 +497,71 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
   const seats = [];
   const rows = Math.max(1, item.rows);
   const cols = Math.max(1, item.seatsPerRow);
-  // Match the web editor: chair size is proportional to the smaller table
-  // dimension (clamped 10–22), so seats aren't cramped on narrow tables.
-  const dot = Math.max(10, Math.min(22, Math.floor(Math.min(item.width, item.height) * 0.18)));
-  const sidePad = dot * 0.75;
-  const usable = Math.max(1, item.width - sidePad * 2);
+  const total = rows * cols;
+  const w = item.width;
+  const h = item.height;
+  const isRound = item.shape === 'round' || item.shape === 'soft';
 
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const seatId = `${row}-${col}`;
-      const blocked = item.blockedSeats.includes(seatId);
-      const left = sidePad + (cols === 1 ? usable / 2 : (usable / (cols - 1)) * col) - dot / 2;
-      const top = rows === 1 ? item.height / 2 - dot / 2 : row === 0 ? -dot / 2 : item.height - dot / 2;
+  // Mirror ClientVenueMap's TableSection: chairs are arranged AROUND a central
+  // table rather than in flat rows, so the editor looks like the client view.
+  const dot = Math.max(10, Math.min(20, Math.floor(Math.min(w, h) * 0.18)));
 
-      seats.push(
-        <TouchableOpacity
-          key={seatId}
-          onPress={() => onSeatPress(seatId)}
-          style={[
-            styles.seatDot,
-            { left, top, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: blocked ? '#9CA3AF' : item.color },
-            selectedSeat === seatId && styles.seatSelected,
-          ]}
-        />
-      );
+  // Central table block (the same proportions/colors the client uses).
+  const tableW = w * (isRound ? 0.60 : 0.70);
+  const tableH = h * (isRound ? 0.60 : 0.45);
+
+  // Build a flat seat list (the editor models seats as rows × cols).
+  const ids: string[] = [];
+  for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) ids.push(`${row}-${col}`);
+
+  ids.forEach((seatId, i) => {
+    const blocked = item.blockedSeats.includes(seatId);
+    let cx: number; let cy: number;
+    if (isRound) {
+      const angle = (i * 360) / total;
+      const rad = (angle * Math.PI) / 180;
+      cx = w / 2 + w * 0.52 * Math.sin(rad);
+      cy = h / 2 - h * 0.52 * Math.cos(rad);
+    } else {
+      // Distribute around the rectangle perimeter (top → right → bottom → left).
+      const step = (2 * (1 + 0.55)) / Math.max(1, total);
+      const pos = i * step;
+      let xPct = 50; let yPct = 50;
+      if (pos < 1) { xPct = 15 + pos * 70; yPct = 12; }
+      else if (pos < 1.55) { xPct = 88; yPct = 15 + ((pos - 1) / 0.55) * 70; }
+      else if (pos < 2.55) { xPct = 85 - (pos - 1.55) * 70; yPct = 88; }
+      else { xPct = 12; yPct = 85 - ((pos - 2.55) / 0.55) * 70; }
+      cx = (w * xPct) / 100;
+      cy = (h * yPct) / 100;
     }
-  }
+    seats.push(
+      <TouchableOpacity
+        key={seatId}
+        onPress={() => onSeatPress(seatId)}
+        style={[
+          styles.seatDot,
+          { left: cx - dot / 2, top: cy - dot / 2, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: blocked ? '#9CA3AF' : item.color },
+          selectedSeat === seatId && styles.seatSelected,
+        ]}
+      />
+    );
+  });
+
+  // The central table block sits behind the chairs.
+  seats.unshift(
+    <View
+      key="__table"
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        left: (w - tableW) / 2, top: (h - tableH) / 2, width: tableW, height: tableH,
+        borderRadius: isRound ? tableW / 2 : 6,
+        backgroundColor: '#22415C',
+        borderWidth: 1, borderColor: 'rgba(246,198,95,0.28)',
+        zIndex: 1,
+      }}
+    />
+  );
 
   return <View pointerEvents="box-none" style={styles.seatsLayer}>{seats}</View>;
 }
