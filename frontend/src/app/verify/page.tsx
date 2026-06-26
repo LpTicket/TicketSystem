@@ -61,6 +61,11 @@ export default function TicketScannerPage() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Gate search by attendee name / email (when the QR can't be scanned)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ ticketCode: string; status: string; name: string; email: string; seat: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<{
     valid: boolean;
@@ -264,6 +269,28 @@ export default function TicketScannerPage() {
       setValidating(false);
     }
   };
+
+  // Look up tickets by attendee name / email / code for the selected event.
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2 || !selectedEventId) {
+      setSearchResults([]);
+      return;
+    }
+    let active = true;
+    setSearching(true);
+    const handle = setTimeout(async () => {
+      try {
+        const { data } = await api.get(`/orders/event/${selectedEventId}/search-tickets`, { params: { q } });
+        if (active) setSearchResults(Array.isArray(data) ? data : []);
+      } catch {
+        if (active) setSearchResults([]);
+      } finally {
+        if (active) setSearching(false);
+      }
+    }, 350);
+    return () => { active = false; clearTimeout(handle); };
+  }, [searchQuery, selectedEventId]);
 
   const handleManualSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -576,6 +603,52 @@ export default function TicketScannerPage() {
                   {lang === 'es' ? 'Validar código' : 'Validate code'}
                 </button>
               </form>
+
+              {/* Search by name / email (when the QR can't be scanned) */}
+              <div className="mt-5">
+                <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  {lang === 'es' ? 'Buscar por nombre / email' : 'Search by name / email'}
+                </p>
+                <div className="relative">
+                  <HiOutlineSearch className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={lang === 'es' ? 'Nombre o correo del asistente' : 'Attendee name or email'}
+                    className={`w-full min-h-[52px] rounded-lg border px-12 py-4 text-sm font-semibold outline-none transition focus:ring-2 focus:ring-[#F97316] ${
+                      highContrast ? 'border-white/10 bg-white/5 text-white placeholder:text-white/30' : 'border-slate-200 bg-white text-slate-900'
+                    }`}
+                  />
+                </div>
+                {!selectedEventId && (
+                  <p className="mt-2 text-xs text-slate-400">{lang === 'es' ? 'Selecciona un evento para buscar.' : 'Select an event to search.'}</p>
+                )}
+                {searching && <p className="mt-2 text-xs text-slate-400">{lang === 'es' ? 'Buscando…' : 'Searching…'}</p>}
+                {searchResults.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {searchResults.map((r) => (
+                      <button
+                        key={r.ticketCode}
+                        onClick={() => { setSearchResults([]); setSearchQuery(''); handleValidateTicket(r.ticketCode); }}
+                        className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition ${
+                          highContrast ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-slate-200 bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className={`truncate text-sm font-bold ${highContrast ? 'text-white' : 'text-slate-900'}`}>{r.name}</p>
+                          <p className="truncate text-[11px] text-slate-400">{r.email || r.seat} · {r.ticketCode}</p>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide ${
+                          r.status === 'used' ? 'bg-green-100 text-green-700' : r.status === 'cancelled' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
+                        }`}>
+                          {r.status === 'used' ? (lang === 'es' ? 'Escaneado' : 'Scanned') : r.status === 'cancelled' ? (lang === 'es' ? 'Cancelado' : 'Cancelled') : (lang === 'es' ? 'Validar' : 'Validate')}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>

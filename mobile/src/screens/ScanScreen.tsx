@@ -120,6 +120,11 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
   const [sessionStats, setSessionStats] = useState({ total: 0, approved: 0, denied: 0 });
 
+  // Gate search by name / email (when the QR can't be scanned)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ ticketCode: string; status: string; name: string; email: string; seat: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+
   // Event selector + server stats
   const [myEvents, setMyEvents] = useState<ScannerEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -247,6 +252,34 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
       setScanState('denied');
     }
   }, [mode, registerScan, selectedEventId, t]);
+
+  // Look up tickets by attendee name / email / code for the selected event.
+  const runSearch = useCallback(async (raw: string) => {
+    const q = raw.trim();
+    if (q.length < 2) { setSearchResults([]); return; }
+    if (!selectedEventId) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    try {
+      const path = mode === 'employee'
+        ? `/scanner-access/events/${selectedEventId}/search-tickets`
+        : `/orders/event/${selectedEventId}/search-tickets`;
+      const res = await apiGet<typeof searchResults>(path, { q });
+      setSearchResults(Array.isArray(res) ? res : []);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, [mode, selectedEventId]);
+
+  // Debounce the search so we don't hit the API on every keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => runSearch(searchQuery), 350);
+    return () => clearTimeout(id);
+  }, [searchQuery, runSearch]);
 
   const resetScanner = () => {
     setManualCode('');
@@ -493,6 +526,46 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
           <TouchableOpacity style={styles.validateBtn} onPress={() => validateCode(manualCode)}>
             <Text style={styles.validateBtnText}>{t('VALIDAR CÓDIGO', 'VALIDATE CODE')}</Text>
           </TouchableOpacity>
+
+          {/* ── Search by name / email (when the QR can't be scanned) ── */}
+          <View style={[styles.separator, { marginTop: 16 }]}>
+            <View style={styles.separatorLine} />
+            <Text style={styles.separatorText}>{t('BUSCAR POR NOMBRE / EMAIL', 'SEARCH BY NAME / EMAIL')}</Text>
+            <View style={styles.separatorLine} />
+          </View>
+          <View style={styles.inputShell}>
+            <Ionicons name="person-outline" size={18} color="rgba(148,163,184,0.8)" />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={t('Nombre o correo del asistente', 'Attendee name or email')}
+              placeholderTextColor="rgba(148,163,184,0.60)"
+              autoCapitalize="none"
+              style={styles.input}
+            />
+          </View>
+          {!selectedEventId && (
+            <Text style={styles.searchHint}>{t('Selecciona un evento para buscar.', 'Select an event to search.')}</Text>
+          )}
+          {searching && <Text style={styles.searchHint}>{t('Buscando…', 'Searching…')}</Text>}
+          {searchResults.map((r) => (
+            <TouchableOpacity
+              key={r.ticketCode}
+              style={styles.searchResultRow}
+              onPress={() => { setSearchResults([]); setSearchQuery(''); validateCode(r.ticketCode); }}
+              activeOpacity={0.85}
+            >
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.searchResultName} numberOfLines={1}>{r.name}</Text>
+                <Text style={styles.searchResultMeta} numberOfLines={1}>{r.email || r.seat} · {r.ticketCode}</Text>
+              </View>
+              <View style={[styles.searchResultBadge, r.status === 'used' ? styles.searchBadgeUsed : r.status === 'cancelled' ? styles.searchBadgeCancelled : styles.searchBadgeActive]}>
+                <Text style={styles.searchResultBadgeText}>
+                  {r.status === 'used' ? t('ESCANEADO', 'SCANNED') : r.status === 'cancelled' ? t('CANCELADO', 'CANCELLED') : t('VALIDAR', 'VALIDATE')}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
 
@@ -753,6 +826,20 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', alignItems: 'center', justifyContent: 'center',
   },
   validateBtnText: { color: '#F97316', fontSize: 12, fontWeight: '600' },
+
+  searchHint: { color: 'rgba(148,163,184,0.85)', fontSize: 12, marginTop: 8, textAlign: 'center' },
+  searchResultRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 14,
+    backgroundColor: '#030B14', paddingHorizontal: 12, paddingVertical: 11,
+  },
+  searchResultName: { color: '#F8FAFC', fontSize: 14, fontWeight: '600' },
+  searchResultMeta: { color: 'rgba(148,163,184,0.8)', fontSize: 11, marginTop: 2 },
+  searchResultBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  searchBadgeActive: { backgroundColor: 'rgba(249,115,22,0.16)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.4)' },
+  searchBadgeUsed: { backgroundColor: 'rgba(34,197,94,0.14)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.34)' },
+  searchBadgeCancelled: { backgroundColor: 'rgba(239,68,68,0.14)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.34)' },
+  searchResultBadgeText: { color: '#F8FAFC', fontSize: 9, fontWeight: '600' },
 
   // Event dropdown
   eventSection: { marginTop: 22 },
