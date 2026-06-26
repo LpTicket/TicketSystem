@@ -511,42 +511,76 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
   // Slightly larger/clamped so seats read as robust filled circles.
   const dot = Math.max(12, Math.min(22, Math.floor(Math.min(w, h) * 0.22)));
 
-  // Central table block (the same proportions/colors the client uses).
-  const tableW = w * (isRound ? 0.60 : 0.70);
-  const tableH = h * (isRound ? 0.60 : 0.45);
+  // Central table block sized so the edge-hugging chairs sit just outside it.
+  const vertical = h >= w;
+  const tableW = isRound ? w * 0.60 : (vertical ? Math.max(w * 0.5, w - dot * 2.4) : w * 0.82);
+  const tableH = isRound ? h * 0.60 : (vertical ? h * 0.82 : Math.max(h * 0.5, h - dot * 2.4));
 
-  // Build a flat seat list (the editor models seats as rows × cols).
-  const ids: string[] = [];
-  for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) ids.push(`${row}-${col}`);
+  // Compute a (cx, cy) for each seat, hugging the table edges in an orderly way.
+  const positions: { id: string; cx: number; cy: number }[] = [];
 
-  ids.forEach((seatId, i) => {
-    const blocked = item.blockedSeats.includes(seatId);
-    let cx: number; let cy: number;
-    if (isRound) {
-      const angle = (i * 360) / total;
-      const rad = (angle * Math.PI) / 180;
-      cx = w / 2 + w * 0.52 * Math.sin(rad);
-      cy = h / 2 - h * 0.52 * Math.cos(rad);
-    } else {
-      // Distribute around the rectangle perimeter (top → right → bottom → left).
-      const step = (2 * (1 + 0.55)) / Math.max(1, total);
-      const pos = i * step;
-      let xPct = 50; let yPct = 50;
-      if (pos < 1) { xPct = 15 + pos * 70; yPct = 12; }
-      else if (pos < 1.55) { xPct = 88; yPct = 15 + ((pos - 1) / 0.55) * 70; }
-      else if (pos < 2.55) { xPct = 85 - (pos - 1.55) * 70; yPct = 88; }
-      else { xPct = 12; yPct = 85 - ((pos - 2.55) / 0.55) * 70; }
-      cx = (w * xPct) / 100;
-      cy = (h * yPct) / 100;
+  if (isRound) {
+    // Evenly distribute around a circle just outside the central block.
+    let i = 0;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const angle = (i * 360) / total;
+        const rad = (angle * Math.PI) / 180;
+        positions.push({
+          id: `${row}-${col}`,
+          cx: w / 2 + (w / 2 - dot / 2 - 1) * Math.sin(rad),
+          cy: h / 2 - (h / 2 - dot / 2 - 1) * Math.cos(rad),
+        });
+        i++;
+      }
     }
+  } else {
+    // Rectangular table: seats line the two LONG sides (one row of seats per
+    // side). `cols` (seatsPerRow) seats are spaced along each side; `rows` is how
+    // many sides are used (1 or 2). Tall tables get left/right columns; wide
+    // tables get top/bottom rows. This matches the client look.
+    // `vertical` computed above. tall table → seats on left & right.
+    const sidesNeeded = Math.min(2, rows < 1 ? 1 : rows >= 2 ? 2 : 1);
+    const perSide = cols;
+    const spread = (n: number, length: number) =>
+      n === 1 ? [length / 2] : Array.from({ length: n }, (_, k) => (length / (n + 1)) * (k + 1));
+
+    let row = 0;
+    if (vertical) {
+      // left column, then right column
+      const ys = spread(perSide, h);
+      const sideX = [dot / 2 + 1, w - dot / 2 - 1];
+      for (let s = 0; s < sidesNeeded; s++) {
+        for (let k = 0; k < perSide; k++) positions.push({ id: `${row}-${k}`, cx: sideX[s], cy: ys[k] });
+        row++;
+      }
+    } else {
+      // top row, then bottom row
+      const xs = spread(perSide, w);
+      const sideY = [dot / 2 + 1, h - dot / 2 - 1];
+      for (let s = 0; s < sidesNeeded; s++) {
+        for (let k = 0; k < perSide; k++) positions.push({ id: `${row}-${k}`, cx: xs[k], cy: sideY[s] });
+        row++;
+      }
+    }
+    // Any remaining rows (3+) fall back to stacking just inside the table.
+    for (let r = sidesNeeded; r < rows; r++) {
+      const xs = spread(perSide, w);
+      const y = (h / (rows + 1)) * (r + 1);
+      for (let k = 0; k < perSide; k++) positions.push({ id: `${r}-${k}`, cx: xs[k], cy: y });
+    }
+  }
+
+  positions.forEach(({ id, cx, cy }) => {
+    const blocked = item.blockedSeats.includes(id);
     seats.push(
       <TouchableOpacity
-        key={seatId}
-        onPress={() => onSeatPress(seatId)}
+        key={id}
+        onPress={() => onSeatPress(id)}
         style={[
           styles.seatDot,
           { left: cx - dot / 2, top: cy - dot / 2, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: blocked ? '#9CA3AF' : item.color },
-          selectedSeat === seatId && styles.seatSelected,
+          selectedSeat === id && styles.seatSelected,
         ]}
       />
     );
