@@ -516,62 +516,39 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
   const dot = Math.max(12, Math.min(22, Math.floor(Math.min(w, h) * 0.22)));
 
   // Central table block sized so the edge-hugging chairs sit just outside it.
-  const vertical = h >= w;
-  const tableW = isRound ? w * 0.60 : (vertical ? Math.max(w * 0.5, w - dot * 2.4) : w * 0.82);
-  const tableH = isRound ? h * 0.60 : (vertical ? h * 0.82 : Math.max(h * 0.5, h - dot * 2.4));
+  // Central block leaves a ring of space for the perimeter chairs.
+  const tableW = isRound ? w * 0.60 : Math.max(w * 0.4, w - dot * 2.2);
+  const tableH = isRound ? h * 0.60 : Math.max(h * 0.4, h - dot * 2.2);
 
-  // Compute a (cx, cy) for each seat, hugging the table edges in an orderly way.
+  // Compute a (cx, cy) for each seat. We distribute ALL seats evenly around the
+  // table perimeter (same approach as ClientVenueMap's TableSection), instead of
+  // assuming rows/cols map to specific sides — that assumption made every chair
+  // pile up on one edge.
   const positions: { id: string; cx: number; cy: number }[] = [];
-
-  if (isRound) {
-    // Evenly distribute around a circle just outside the central block.
-    let i = 0;
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const angle = (i * 360) / total;
-        const rad = (angle * Math.PI) / 180;
-        positions.push({
-          id: `${row}-${col}`,
-          cx: w / 2 + (w / 2 - dot / 2 - 1) * Math.sin(rad),
-          cy: h / 2 - (h / 2 - dot / 2 - 1) * Math.cos(rad),
-        });
-        i++;
+  let i = 0;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const id = `${row}-${col}`;
+      let cx: number; let cy: number;
+      if (isRound) {
+        const rad = ((i * 360) / total * Math.PI) / 180;
+        cx = w / 2 + (w / 2 - dot / 2 - 1) * Math.sin(rad);
+        cy = h / 2 - (h / 2 - dot / 2 - 1) * Math.cos(rad);
+      } else {
+        // Walk the rectangle perimeter: top edge → right → bottom → left,
+        // proportional to each edge's length so spacing stays even.
+        const inset = dot / 2 + 1;
+        const iw = Math.max(1, w - inset * 2);
+        const ih = Math.max(1, h - inset * 2);
+        const perim = 2 * (iw + ih);
+        const d = (i / total) * perim; // distance along the perimeter
+        if (d < iw) { cx = inset + d; cy = inset; }                          // top
+        else if (d < iw + ih) { cx = w - inset; cy = inset + (d - iw); }     // right
+        else if (d < 2 * iw + ih) { cx = w - inset - (d - iw - ih); cy = h - inset; } // bottom
+        else { cx = inset; cy = h - inset - (d - 2 * iw - ih); }             // left
       }
-    }
-  } else {
-    // Rectangular table: seats line the two LONG sides (one row of seats per
-    // side). `cols` (seatsPerRow) seats are spaced along each side; `rows` is how
-    // many sides are used (1 or 2). Tall tables get left/right columns; wide
-    // tables get top/bottom rows. This matches the client look.
-    // `vertical` computed above. tall table → seats on left & right.
-    const sidesNeeded = Math.min(2, rows < 1 ? 1 : rows >= 2 ? 2 : 1);
-    const perSide = cols;
-    const spread = (n: number, length: number) =>
-      n === 1 ? [length / 2] : Array.from({ length: n }, (_, k) => (length / (n + 1)) * (k + 1));
-
-    let row = 0;
-    if (vertical) {
-      // left column, then right column
-      const ys = spread(perSide, h);
-      const sideX = [dot / 2 + 1, w - dot / 2 - 1];
-      for (let s = 0; s < sidesNeeded; s++) {
-        for (let k = 0; k < perSide; k++) positions.push({ id: `${row}-${k}`, cx: sideX[s], cy: ys[k] });
-        row++;
-      }
-    } else {
-      // top row, then bottom row
-      const xs = spread(perSide, w);
-      const sideY = [dot / 2 + 1, h - dot / 2 - 1];
-      for (let s = 0; s < sidesNeeded; s++) {
-        for (let k = 0; k < perSide; k++) positions.push({ id: `${row}-${k}`, cx: xs[k], cy: sideY[s] });
-        row++;
-      }
-    }
-    // Any remaining rows (3+) fall back to stacking just inside the table.
-    for (let r = sidesNeeded; r < rows; r++) {
-      const xs = spread(perSide, w);
-      const y = (h / (rows + 1)) * (r + 1);
-      for (let k = 0; k < perSide; k++) positions.push({ id: `${r}-${k}`, cx: xs[k], cy: y });
+      positions.push({ id, cx, cy });
+      i++;
     }
   }
 
