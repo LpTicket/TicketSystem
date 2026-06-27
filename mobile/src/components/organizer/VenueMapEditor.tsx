@@ -1,4 +1,5 @@
 import { Alert, Dimensions, GestureResponderEvent, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { apiGet, apiPost } from '../../services/api';
@@ -139,6 +140,9 @@ export function VenueMapEditor({ eventId }: Props) {
   const { t } = useLanguage();
   const vpW = Dimensions.get('window').width;
   const [items, setItems] = useState<VenueItem[]>(initialItems);
+  // Edit mode (off = view only). Like the web, nothing moves/edits until the
+  // pencil is tapped.
+  const [editMode, setEditMode] = useState(false);
   const [selectedId, setSelectedId] = useState(initialItems[2].id);
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -299,7 +303,7 @@ export function VenueMapEditor({ eventId }: Props) {
 
   // Tapping a chair now just selects it; its options live in the inspector.
   const toggleSeat = (seatId: string) => {
-    if (!selected) return;
+    if (!editMode || !selected) return;
     setSelectedSeat((current) => (current === seatId ? null : seatId));
   };
 
@@ -349,18 +353,36 @@ export function VenueMapEditor({ eventId }: Props) {
           </ScrollView>
         </View>
 
-        <TouchableOpacity onPress={saveMap} disabled={saving} style={[styles.saveButton, saving && { opacity: 0.6 }]}>
-          <Text style={styles.saveText}>{saving ? t('GUARDANDO...', 'SAVING...') : saved ? t('GUARDADO', 'SAVED') : t('GUARDAR', 'SAVE')}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => { setEditMode((m) => { if (m) { setSelectedSeat(null); } return !m; }); }}
+            style={[styles.editToggle, editMode && styles.editToggleActive]}
+          >
+            <Ionicons name={editMode ? 'pencil' : 'pencil-outline'} size={16} color={editMode ? '#FFFFFF' : '#fb923c'} />
+            <Text style={[styles.editToggleText, editMode && styles.editToggleTextActive]}>
+              {editMode ? t('Editando', 'Editing') : t('Editar', 'Edit')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={saveMap} disabled={saving} style={[styles.saveButton, saving && { opacity: 0.6 }]}>
+            <Text style={styles.saveText}>{saving ? t('GUARDANDO...', 'SAVING...') : saved ? t('GUARDADO', 'SAVED') : t('GUARDAR', 'SAVE')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Horizontal toolbar */}
+      {/* Horizontal toolbar — add-tools only in edit mode (like the web). */}
       <View style={styles.toolbar}>
-        <Tool icon="▦" label={t('Mesa', 'Table')} onPress={() => addItem('table')} />
-        <Tool icon="□" label={t('Área', 'Area')} onPress={() => addItem('area')} />
-        <Tool icon="▬" label={t('Barra', 'Bar')} onPress={() => addItem('bar')} />
-        <Tool icon="▰" label={t('Escenario', 'Stage')} onPress={() => addItem('stage')} />
-        <Tool icon="●" label={t('Asiento', 'Seat')} onPress={() => addItem('seat')} />
+        {editMode && (
+          <>
+            <Tool icon="▦" label={t('Mesa', 'Table')} onPress={() => addItem('table')} />
+            <Tool icon="□" label={t('Área', 'Area')} onPress={() => addItem('area')} />
+            <Tool icon="▬" label={t('Barra', 'Bar')} onPress={() => addItem('bar')} />
+            <Tool icon="▰" label={t('Escenario', 'Stage')} onPress={() => addItem('stage')} />
+            <Tool icon="●" label={t('Asiento', 'Seat')} onPress={() => addItem('seat')} />
+          </>
+        )}
+        {!editMode && (
+          <Text style={styles.viewModeHint}>{t('Toca el lápiz para editar', 'Tap the pencil to edit')}</Text>
+        )}
         <View style={styles.zoomGroup}>
           <TouchableOpacity onPress={() => setZoom((current) => Math.max(0.2, Number((current - 0.1).toFixed(2))))} style={styles.railZoomButton}>
             <Text style={styles.railZoomText}>-</Text>
@@ -402,16 +424,19 @@ export function VenueMapEditor({ eventId }: Props) {
                 return (
                   <View
                     key={`${item.id || item.name || 'map-item'}-${index}`}
-                    onStartShouldSetResponder={() => true}
-                    onMoveShouldSetResponder={() => true}
+                    // In view mode the item doesn't grab touches, so the canvas
+                    // pans normally and nothing can be moved or selected.
+                    onStartShouldSetResponder={() => editMode}
+                    onMoveShouldSetResponder={() => editMode}
                     onResponderGrant={(event: GestureResponderEvent) => {
+                      if (!editMode) return;
                       setCanvasDrag(null);
                       setSelectedId(item.id);
                       setSelectedSeat(null);
                       setDrag({ id: item.id, x: item.x, y: item.y, pageX: event.nativeEvent.pageX, pageY: event.nativeEvent.pageY });
                     }}
                     onResponderMove={(event: GestureResponderEvent) => {
-                      if (!drag || drag.id !== item.id) return;
+                      if (!editMode || !drag || drag.id !== item.id) return;
                       const nextX = drag.x + event.nativeEvent.pageX - drag.pageX;
                       const nextY = drag.y + event.nativeEvent.pageY - drag.pageY;
                       moveItem(item, nextX, nextY);
@@ -457,6 +482,7 @@ export function VenueMapEditor({ eventId }: Props) {
           </View>
       </View>
 
+      {editMode && (
       <View style={styles.inspector}>
             <View style={styles.inspectorHeader}>
               <Text style={styles.inspectorTitle}>{t('INSPECTOR DE OBJETO', 'OBJECT INSPECTOR')}</Text>
@@ -598,6 +624,7 @@ export function VenueMapEditor({ eventId }: Props) {
               </ScrollView>
             )}
           </View>
+      )}
     </View>
   );
 }
@@ -856,6 +883,12 @@ const styles = StyleSheet.create({
   capacityText: { color: '#F97316', fontSize: 10, fontWeight: '700' },
   saveButton: { height: 38, borderRadius: 12, paddingHorizontal: 16, backgroundColor: '#F97316', justifyContent: 'center', shadowColor: '#F97316', shadowOpacity: 0.30, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
   saveText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  editToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 13, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.40)', backgroundColor: 'rgba(249,115,22,0.10)' },
+  editToggleActive: { backgroundColor: '#F97316', borderColor: '#F97316' },
+  editToggleText: { color: '#fb923c', fontSize: 11, fontWeight: '800', letterSpacing: 0.4 },
+  editToggleTextActive: { color: '#FFFFFF' },
+  viewModeHint: { color: 'rgba(226,232,240,0.55)', fontSize: 11, fontWeight: '600', fontStyle: 'italic' },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', flexWrap: 'wrap' },
   zoomGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
   workbench: { height: VP_H, backgroundColor: '#0d2138' },
