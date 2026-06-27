@@ -420,6 +420,10 @@ export function VenueMapEditor({ eventId }: Props) {
                     style={[
                       styles.mapItem,
                       shapeStyle(item),
+                      // Shadow only on solid items (area/bar/stage). Tables/seats
+                      // are transparent, so a shadow would draw a ghost box around
+                      // the chairs ("minifondo").
+                      (item.type !== 'table' && item.type !== 'seat') && styles.itemShadow,
                       {
                         left: item.x,
                         top: item.y,
@@ -626,18 +630,13 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
   // its chairs collapse into the centre and pile up).
   const isRound = item.shape === 'round';
 
-  // Mirror ClientVenueMap's TableSection: chairs are arranged AROUND a central
-  // table rather than in flat rows, so the editor looks like the client view.
-  // Chair size proportional to the table but a bit smaller, so seats stay fully
-  // inside the item and don't overlap neighbouring tables.
-  const dot = Math.max(11, Math.min(18, Math.floor(Math.min(w, h) * 0.20)));
+  // Chair size matches the web editor exactly.
+  const dot = Math.max(10, Math.min(22, Math.min(w, h) * 0.18));
 
-  // Inset only used for the circular layout.
-  const inset = dot * 0.75 + 2;
-
-  // Central block proportions match ClientVenueMap (chairs ring it at 12–88%).
-  const tableW = w * (isRound ? 0.58 : 0.62);
-  const tableH = h * (isRound ? 0.58 : 0.50);
+  // Central block proportions match the WEB editor exactly: 70%×45% for
+  // rectangular tables, ~60% for round. Chairs ring it at the 12–88% bands.
+  const tableW = w * (isRound ? 0.60 : 0.70);
+  const tableH = h * (isRound ? 0.60 : 0.45);
 
   // Compute a (cx, cy) for each seat. We distribute ALL seats evenly around the
   // table perimeter (same approach as ClientVenueMap's TableSection), instead of
@@ -656,9 +655,10 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
         : `${String.fromCharCode(65 + row)}-${col + 1}`;
       let cx: number; let cy: number;
       if (isRound) {
+        // Same as ClientVenueMap: ring the chairs at 0.52 of the radius.
         const rad = ((i * 360) / total * Math.PI) / 180;
-        cx = w / 2 + (w / 2 - inset) * Math.sin(rad);
-        cy = h / 2 - (h / 2 - inset) * Math.cos(rad);
+        cx = w / 2 + w * 0.52 * Math.sin(rad);
+        cy = h / 2 - h * 0.52 * Math.cos(rad);
       } else {
         // EXACT same percentage layout ClientVenueMap uses, so the editor and
         // the buyer view look identical. Seats run top → right → bottom → left
@@ -886,7 +886,8 @@ const styles = StyleSheet.create({
   canvasTips: { position: 'absolute', left: 16, bottom: 14, gap: 6 },
   tipText: { color: '#cbd5e1', backgroundColor: '#334155', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 4, fontSize: 10, fontWeight: '700' },
   tipTextOrange: { color: '#fbbf24', backgroundColor: '#8b6b4a', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 4, fontSize: 10, fontWeight: '700' },
-  mapItem: { position: 'absolute', borderWidth: 2, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, overflow: 'visible' },
+  mapItem: { position: 'absolute', borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
+  itemShadow: { shadowColor: '#000000', shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 7 } },
   itemLabel: { fontWeight: '700', zIndex: 5 },
   lockedItem: { opacity: 0.62 },
   seatsLayer: { ...StyleSheet.absoluteFill, overflow: 'visible', zIndex: 4 },
