@@ -431,6 +431,15 @@ export function VenueMapEditor({ eventId }: Props) {
                 <Text style={styles.inputLabel}>{t('Nombre', 'Name')}</Text>
                 <TextInput value={selected.name} onChangeText={(name) => updateSelected({ name })} style={styles.input} />
 
+                <Text style={styles.inputLabel}>{t('Tipo', 'Type')}</Text>
+                <View style={[styles.segmentRow, { flexWrap: 'wrap' }]}>
+                  <Segment label={t('Mesa', 'Table')} active={selected.type === 'table'} onPress={() => updateSelected({ type: 'table' })} />
+                  <Segment label={t('Asientos', 'Seats')} active={selected.type === 'seat'} onPress={() => updateSelected({ type: 'seat' })} />
+                  <Segment label={t('General', 'General')} active={selected.type === 'area'} onPress={() => updateSelected({ type: 'area' })} />
+                  <Segment label={t('Barra', 'Bar')} active={selected.type === 'bar'} onPress={() => updateSelected({ type: 'bar' })} />
+                  <Segment label={t('Escenario', 'Stage')} active={selected.type === 'stage'} onPress={() => updateSelected({ type: 'stage' })} />
+                </View>
+
                 <View style={styles.row2}>
                   <Field label={t('Precio/Silla', 'Price/Seat')} value={selected.price} step={5} min={0} onChange={(value) => updateSelected({ price: value })} />
                   <Field label={t('Total Mesa', 'Table Total')} value={selected.price * Math.max(1, getCapacity(selected))} step={5} min={0} onChange={() => undefined} readonly />
@@ -658,7 +667,7 @@ function Field({ label, value, step, min, max, onChange, readonly }: { label: st
     <View style={styles.field}>
       <Text style={styles.inputLabel}>{label}</Text>
       <View style={styles.numberBox}>
-        {!readonly && <TouchableOpacity onPress={() => onChange(down)} style={styles.smallStepper}><Text style={styles.smallStepperText}>-</Text></TouchableOpacity>}
+        {!readonly && <TouchableOpacity onPress={() => onChange(down)} style={styles.smallStepper}><Text style={styles.smallStepperText}>−</Text></TouchableOpacity>}
         <TextInput
           editable={!readonly}
           value={String(Number(value).toFixed(value % 1 ? 2 : 0))}
@@ -678,9 +687,14 @@ function Field({ label, value, step, min, max, onChange, readonly }: { label: st
 function NumericMini({ value, min, max, step, onChange }: { value: number; min: number; max: number; step: number; onChange: (value: number) => void }) {
   return (
     <View style={styles.miniRow}>
-      <TouchableOpacity onPress={() => onChange(Math.max(min, value - step))} style={styles.miniButton}><Text style={styles.miniText}>-</Text></TouchableOpacity>
-      <View style={styles.fakeSlider}><View style={[styles.fakeFill, { width: `${((value - min) / (max - min)) * 100}%` }]} /></View>
-      <TouchableOpacity onPress={() => onChange(Math.min(max, value + step))} style={styles.miniValue}><Text style={styles.miniValueText}>{value}px</Text></TouchableOpacity>
+      <TouchableOpacity onPress={() => onChange(Math.max(min, value - step))} style={styles.miniButton}>
+        <Text style={styles.miniText}>−</Text>
+      </TouchableOpacity>
+      <View style={styles.fakeSlider}><View style={[styles.fakeFill, { width: `${Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))}%` }]} /></View>
+      <View style={styles.miniValue}><Text style={styles.miniValueText}>{value}px</Text></View>
+      <TouchableOpacity onPress={() => onChange(Math.min(max, value + step))} style={styles.miniButton}>
+        <Text style={styles.miniText}>+</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -761,19 +775,19 @@ const styles = StyleSheet.create({
   sliderCard: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', padding: 14, shadowColor: '#000000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
   sliderCopy: { color: 'rgba(226,232,240,0.55)', fontSize: 11, fontWeight: '500', marginBottom: 10 },
   miniRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  miniButton: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#ff6b16', alignItems: 'center', justifyContent: 'center' },
-  miniText: { color: '#FFFFFF', fontWeight: '700' },
-  fakeSlider: { flex: 1, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
-  fakeFill: { height: 5, backgroundColor: '#ff6b16' },
-  miniValue: { width: 54, height: 30, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', backgroundColor: '#030B14' },
-  miniValueText: { color: '#ff6b16', fontSize: 11, fontWeight: '700' },
+  miniButton: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#F97316', alignItems: 'center', justifyContent: 'center', shadowColor: '#F97316', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  miniText: { color: '#FFFFFF', fontWeight: '800', fontSize: 18, lineHeight: 20 },
+  fakeSlider: { flex: 1, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.10)', overflow: 'hidden' },
+  fakeFill: { height: 6, backgroundColor: '#F97316', borderRadius: 3 },
+  miniValue: { minWidth: 52, height: 32, paddingHorizontal: 8, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(249,115,22,0.30)', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.10)' },
+  miniValueText: { color: '#fb923c', fontSize: 12, fontWeight: '800' },
   inputLabel: { color: 'rgba(226,232,240,0.55)', fontSize: 10, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 7, marginTop: 12 },
   input: { height: 42, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 12, color: '#F8FAFC', backgroundColor: 'rgba(255,255,255,0.05)', fontSize: 13, fontWeight: '700' },
   row2: { flexDirection: 'row', gap: 10 },
   field: { flex: 1 },
   numberBox: { height: 42, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', flexDirection: 'row', alignItems: 'center', overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.05)' },
-  smallStepper: { width: 34, height: 42, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.12)' },
-  smallStepperText: { color: '#F97316', fontWeight: '700', fontSize: 17 },
+  smallStepper: { width: 38, height: 42, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.14)' },
+  smallStepperText: { color: '#fb923c', fontWeight: '800', fontSize: 18, lineHeight: 20 },
   numberInput: { flex: 1, textAlign: 'center', color: '#F8FAFC', fontSize: 13, fontWeight: '700' },
   blockButton: { height: 46, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(249,115,22,0.40)', backgroundColor: 'rgba(249,115,22,0.14)', alignItems: 'center', justifyContent: 'center', marginTop: 16 },
   blockText: { color: '#fb923c', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
