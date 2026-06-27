@@ -362,39 +362,42 @@ export function VenueMapEditor({ eventId }: Props) {
         </View>
       </View>
 
-      {/* Horizontal toolbar — Edit toggle + add-tools (tools only in edit mode). */}
+      {/* Row A: Edit/View on the left, zoom on the right. */}
       <View style={styles.toolbar}>
         <TouchableOpacity
           onPress={() => { setEditMode((m) => { if (m) { setSelectedSeat(null); } return !m; }); }}
           style={[styles.editToggle, editMode && styles.editToggleActive]}
         >
-          <Ionicons name={editMode ? 'pencil' : 'pencil-outline'} size={15} color={editMode ? '#FFFFFF' : '#fb923c'} />
+          <Ionicons name={editMode ? 'pencil' : 'eye-outline'} size={15} color={editMode ? '#FFFFFF' : '#fb923c'} />
           <Text style={[styles.editToggleText, editMode && styles.editToggleTextActive]}>
-            {editMode ? t('Editando', 'Editing') : t('Editar', 'Edit')}
+            {editMode ? t('Editando', 'Editing') : t('Ver', 'View')}
           </Text>
         </TouchableOpacity>
-        {editMode && (
-          <>
-            <Tool icon="▦" label={t('Mesa', 'Table')} onPress={() => addItem('table')} />
-            <Tool icon="□" label={t('Área', 'Area')} onPress={() => addItem('area')} />
-            <Tool icon="▬" label={t('Barra', 'Bar')} onPress={() => addItem('bar')} />
-            <Tool icon="▰" label={t('Escenario', 'Stage')} onPress={() => addItem('stage')} />
-            <Tool icon="●" label={t('Asiento', 'Seat')} onPress={() => addItem('seat')} />
-          </>
-        )}
+
         <View style={styles.zoomGroup}>
           <TouchableOpacity onPress={() => setZoom((current) => Math.max(0.2, Number((current - 0.1).toFixed(2))))} style={styles.railZoomButton}>
-            <Text style={styles.railZoomText}>-</Text>
+            <Ionicons name="remove" size={18} color="#fb923c" />
           </TouchableOpacity>
           <Text style={styles.railZoomValue}>{Math.round(zoom * 100)}%</Text>
           <TouchableOpacity onPress={() => setZoom((current) => Math.min(2.4, Number((current + 0.1).toFixed(2))))} style={styles.railZoomButton}>
-            <Text style={styles.railZoomText}>+</Text>
+            <Ionicons name="add" size={18} color="#fb923c" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => fitToContent(items)} style={styles.railZoomButton}>
-            <Text style={styles.railZoomText}>⊡</Text>
+            <Ionicons name="scan-outline" size={16} color="#fb923c" />
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Row B: add-tools, only in edit mode, in their own clean row. */}
+      {editMode && (
+        <View style={styles.toolsRow}>
+          <Tool icon="grid-outline" label={t('Mesa', 'Table')} onPress={() => addItem('table')} />
+          <Tool icon="square-outline" label={t('Área', 'Area')} onPress={() => addItem('area')} />
+          <Tool icon="remove-outline" label={t('Barra', 'Bar')} onPress={() => addItem('bar')} />
+          <Tool icon="tv-outline" label={t('Escenario', 'Stage')} onPress={() => addItem('stage')} />
+          <Tool icon="ellipse-outline" label={t('Asiento', 'Seat')} onPress={() => addItem('seat')} />
+        </View>
+      )}
 
       <View style={styles.workbench}>
           <View style={styles.canvasViewport}>
@@ -768,39 +771,13 @@ const EditorGrid = memo(function EditorGrid({ width, height }: { width: number; 
   );
 });
 
-function Tool({ icon, label, onPress }: { icon?: string; label: string; onPress: () => void }) {
+function Tool({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
   return (
-    <TouchableOpacity onPress={onPress} style={styles.tool}>
-      <ToolSymbol label={label} />
-      <Text style={styles.toolText}>{label}</Text>
+    <TouchableOpacity onPress={onPress} style={styles.tool} activeOpacity={0.8}>
+      <Ionicons name={icon as any} size={20} color="#fb923c" />
+      <Text style={styles.toolText} numberOfLines={1}>{label}</Text>
     </TouchableOpacity>
   );
-}
-
-function ToolSymbol({ label }: { label: string }) {
-  if (label === 'Mesa') {
-    return (
-      <View style={styles.iconTable}>
-        <View style={styles.iconSeatTop} />
-        <View style={styles.iconTableBody} />
-        <View style={styles.iconSeatBottom} />
-      </View>
-    );
-  }
-
-  if (label === 'Area') {
-    return <View style={styles.iconArea} />;
-  }
-
-  if (label === 'Barra') {
-    return <View style={styles.iconBar} />;
-  }
-
-  if (label === 'Stage') {
-    return <View style={styles.iconStage} />;
-  }
-
-  return <View style={styles.iconSeat} />;
 }
 
 function Field({ label, value, step, min, max, onChange, readonly }: { label: string; value: number; step: number; min: number; max?: number; onChange: (value: number) => void; readonly?: boolean }) {
@@ -887,11 +864,12 @@ const styles = StyleSheet.create({
   editToggleActive: { backgroundColor: '#F97316', borderColor: '#F97316' },
   editToggleText: { color: '#fb923c', fontSize: 11, fontWeight: '800', letterSpacing: 0.4 },
   editToggleTextActive: { color: '#FFFFFF' },
-  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', flexWrap: 'wrap' },
+  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  toolsRow: { flexDirection: 'row', alignItems: 'stretch', gap: 7, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   zoomGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
   workbench: { height: VP_H, backgroundColor: '#0d2138' },
   leftRail: { display: 'none', width: 0 },
-  tool: { alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', backgroundColor: 'rgba(255,255,255,0.03)', minWidth: 56 },
+  tool: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.22)', backgroundColor: 'rgba(249,115,22,0.06)' },
   toolIcon: { width: 22, height: 16, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
   iconTable: { width: 28, height: 24, alignItems: 'center', justifyContent: 'center', gap: 2 },
   iconSeatTop: { width: 22, height: 5, borderRadius: 4, backgroundColor: '#F97316' },
