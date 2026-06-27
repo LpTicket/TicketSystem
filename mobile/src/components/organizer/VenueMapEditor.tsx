@@ -691,7 +691,7 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
         onPress={() => onSeatPress(id)}
         style={[
           styles.seatDot,
-          { left: cx - dot / 2 + ox, top: cy - dot / 2 + oy, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: fill },
+          { left: cx - dot / 2 + ox, top: cy - dot / 2 + oy, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: fill, zIndex: 5 },
           selectedSeat === id && styles.seatSelected,
         ]}
       />
