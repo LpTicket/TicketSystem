@@ -1,4 +1,4 @@
-import { Alert, Animated, Dimensions, GestureResponderEvent, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Dimensions, GestureResponderEvent, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -145,6 +145,9 @@ export function VenueMapEditor({ eventId }: Props) {
   const [editMode, setEditMode] = useState(false);
   // The camera view (pan + zoom) the buyer sees by default, set via "View".
   const [defaultView, setDefaultView] = useState<{ x: number; y: number; zoom: number } | null>(null);
+  // Saved venue templates (reusable layouts).
+  const [templates, setTemplates] = useState<{ id: string; name: string; sections: any[] }[]>([]);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(initialItems[2].id);
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -201,6 +204,48 @@ export function VenueMapEditor({ eventId }: Props) {
       .catch(() => fitToContent(initialItems));
     return () => { mounted = false; };
   }, [eventId, fitToContent]);
+
+  // ── Venue templates ────────────────────────────────────────────────────
+  const loadTemplates = useCallback(async () => {
+    try {
+      const data = await apiGet<any[]>('/venue-templates');
+      setTemplates(Array.isArray(data) ? data : []);
+    } catch { setTemplates([]); }
+  }, []);
+  useEffect(() => { loadTemplates(); }, [loadTemplates]);
+
+  // Apply a template's sections to the editor (replaces current items).
+  const applyTemplate = (tmpl: { id: string; name: string; sections: any[] }) => {
+    const loaded = (tmpl.sections || []).map((s) => sectionToItem({ ...s, id: undefined }));
+    if (loaded.length === 0) {
+      Alert.alert(t('Plantilla vacía', 'Empty template'), t('Esta plantilla no tiene secciones.', 'This template has no sections.'));
+      return;
+    }
+    setItems(loaded);
+    setSelectedId(loaded[0].id);
+    setSelectedSeat(null);
+    setSaved(false);
+    setTemplatesOpen(false);
+    fitToContent(loaded);
+    Alert.alert(t('Plantilla cargada', 'Template loaded'), t('Recuerda guardar el mapa.', 'Remember to save the map.'));
+  };
+
+  // Save the current layout as a reusable template (admin only on the backend).
+  const saveAsTemplate = async () => {
+    const name = `Mapa ${new Date().toLocaleDateString()}`;
+    try {
+      await apiPost('/venue-templates', {
+        name,
+        description: 'Plantilla creada desde el editor móvil',
+        sections: items.map(itemToSection),
+        isSystem: false,
+      });
+      Alert.alert(t('Plantilla guardada', 'Template saved'), name);
+      loadTemplates();
+    } catch (err: any) {
+      Alert.alert(t('No se pudo guardar', 'Could not save'), err?.message || t('Solo un administrador puede guardar plantillas.', 'Only an admin can save templates.'));
+    }
+  };
 
   const saveMap = async () => {
     if (!eventId) {
@@ -382,13 +427,13 @@ export function VenueMapEditor({ eventId }: Props) {
         </View>
       </View>
 
-      {/* Row A: Edit + View on the left, zoom on the right. */}
+      {/* Row A: actions (Edit, Set View, Templates) + zoom on the right. */}
       <View style={styles.toolbar}>
         <TouchableOpacity
           onPress={() => { setEditMode((m) => { if (m) { setSelectedSeat(null); } return !m; }); }}
           style={[styles.editToggle, editMode && styles.editToggleActive]}
         >
-          <Ionicons name="pencil" size={15} color={editMode ? '#FFFFFF' : '#fb923c'} />
+          <Ionicons name="pencil" size={14} color={editMode ? '#FFFFFF' : '#fb923c'} />
           <Text style={[styles.editToggleText, editMode && styles.editToggleTextActive]}>
             {editMode ? t('Editando', 'Editing') : t('Editar', 'Edit')}
           </Text>
@@ -402,22 +447,14 @@ export function VenueMapEditor({ eventId }: Props) {
           }}
           style={styles.viewBtn}
         >
-          <Ionicons name="eye-outline" size={15} color="#60a5fa" />
-          <Text style={styles.viewBtnText}>{t('Fijar Vista', 'Set View')}</Text>
+          <Ionicons name="eye-outline" size={14} color="#60a5fa" />
+          <Text style={styles.viewBtnText}>{t('Vista', 'View')}</Text>
         </TouchableOpacity>
 
-        <View style={styles.zoomGroup}>
-          <TouchableOpacity onPress={() => setZoom((current) => Math.max(0.2, Number((current - 0.1).toFixed(2))))} style={styles.railZoomButton}>
-            <Ionicons name="remove" size={18} color="#fb923c" />
-          </TouchableOpacity>
-          <Text style={styles.railZoomValue}>{Math.round(zoom * 100)}%</Text>
-          <TouchableOpacity onPress={() => setZoom((current) => Math.min(2.4, Number((current + 0.1).toFixed(2))))} style={styles.railZoomButton}>
-            <Ionicons name="add" size={18} color="#fb923c" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => fitToContent(items)} style={styles.railZoomButton}>
-            <Ionicons name="scan-outline" size={16} color="#fb923c" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={() => { loadTemplates(); setTemplatesOpen(true); }} style={styles.tmplBtn}>
+          <Ionicons name="albums-outline" size={16} color="#fb923c" />
+          <Text style={styles.tmplBtnText}>{t('Plantillas', 'Templates')}</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Row B: add-tools, only in edit mode, in their own clean row. */}
@@ -530,6 +567,24 @@ export function VenueMapEditor({ eventId }: Props) {
                 );
               })}
             </Animated.View>
+
+            {/* Floating zoom bar over the canvas (like the web). */}
+            <View style={styles.zoomFloat} pointerEvents="box-none">
+              <View style={styles.zoomFloatInner}>
+                <TouchableOpacity onPress={() => setZoom((c) => Math.max(0.2, Number((c - 0.1).toFixed(2))))} style={styles.zoomFloatBtn}>
+                  <Ionicons name="remove" size={18} color="#fb923c" />
+                </TouchableOpacity>
+                <Text style={styles.zoomFloatValue}>{Math.round(zoom * 100)}%</Text>
+                <TouchableOpacity onPress={() => setZoom((c) => Math.min(2.4, Number((c + 0.1).toFixed(2))))} style={styles.zoomFloatBtn}>
+                  <Ionicons name="add" size={18} color="#fb923c" />
+                </TouchableOpacity>
+                <View style={styles.zoomFloatDivider} />
+                <TouchableOpacity onPress={() => fitToContent(items)} style={styles.zoomFloatBtn}>
+                  <Ionicons name="scan-outline" size={16} color="#fb923c" />
+                  <Text style={styles.zoomFloatFit}>{t('AJUSTAR', 'FIT')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
       </View>
 
@@ -676,6 +731,42 @@ export function VenueMapEditor({ eventId }: Props) {
             )}
           </View>
       )}
+
+      {/* Saved templates picker */}
+      <Modal visible={templatesOpen} transparent animationType="fade" onRequestClose={() => setTemplatesOpen(false)}>
+        <View style={styles.tmplOverlay}>
+          <View style={styles.tmplModal}>
+            <View style={styles.tmplHeader}>
+              <Text style={styles.tmplTitle}>{t('Plantillas guardadas', 'Saved templates')}</Text>
+              <TouchableOpacity onPress={() => setTemplatesOpen(false)}>
+                <Ionicons name="close" size={20} color="rgba(248,250,252,0.7)" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+              {templates.length === 0 ? (
+                <Text style={styles.tmplEmpty}>{t('No hay plantillas guardadas.', 'No saved templates.')}</Text>
+              ) : (
+                templates.map((tmpl) => (
+                  <TouchableOpacity key={tmpl.id} style={styles.tmplRow} onPress={() => applyTemplate(tmpl)} activeOpacity={0.8}>
+                    <Ionicons name="albums-outline" size={18} color="#fb923c" />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.tmplName} numberOfLines={1}>{tmpl.name}</Text>
+                      <Text style={styles.tmplMeta}>{(tmpl.sections || []).length} {t('secciones', 'sections')}</Text>
+                    </View>
+                    <View style={styles.tmplLoadChip}><Text style={styles.tmplLoadChipText}>{t('CARGAR', 'LOAD')}</Text></View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+
+            <TouchableOpacity onPress={saveAsTemplate} style={styles.tmplSaveBtn}>
+              <Ionicons name="save-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.tmplSaveText}>{t('GUARDAR DISEÑO ACTUAL COMO PLANTILLA', 'SAVE CURRENT LAYOUT AS TEMPLATE')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -915,6 +1006,28 @@ const styles = StyleSheet.create({
   editToggleTextActive: { color: '#FFFFFF' },
   viewBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, borderColor: 'rgba(59,130,246,0.40)', backgroundColor: 'rgba(59,130,246,0.10)' },
   viewBtnText: { color: '#60a5fa', fontSize: 11, fontWeight: '800', letterSpacing: 0.4 },
+  tmplBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, borderColor: 'rgba(249,115,22,0.30)', backgroundColor: 'rgba(249,115,22,0.07)' },
+  tmplBtnText: { color: '#fb923c', fontSize: 11, fontWeight: '800', letterSpacing: 0.4 },
+  // Floating zoom bar over the canvas (web-style).
+  zoomFloat: { position: 'absolute', left: 0, right: 0, bottom: 14, alignItems: 'center', zIndex: 30 },
+  zoomFloatInner: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(7,20,35,0.92)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.30)', shadowColor: '#000000', shadowOpacity: 0.35, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
+  zoomFloatBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 36, height: 34, paddingHorizontal: 8, borderRadius: 999, justifyContent: 'center' },
+  zoomFloatValue: { color: '#F8FAFC', fontSize: 12, fontWeight: '800', minWidth: 42, textAlign: 'center' },
+  zoomFloatDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.14)', marginHorizontal: 2 },
+  zoomFloatFit: { color: '#fb923c', fontSize: 10, fontWeight: '800' },
+  // Templates modal
+  tmplOverlay: { flex: 1, backgroundColor: 'rgba(2,8,15,0.78)', alignItems: 'center', justifyContent: 'center', padding: 18 },
+  tmplModal: { width: '100%', maxWidth: 460, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#0A1420', padding: 16 },
+  tmplHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  tmplTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '800' },
+  tmplEmpty: { color: 'rgba(226,232,240,0.6)', fontSize: 13, textAlign: 'center', paddingVertical: 28 },
+  tmplRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 12, paddingVertical: 12, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.04)', marginBottom: 8 },
+  tmplName: { color: '#F8FAFC', fontSize: 14, fontWeight: '700' },
+  tmplMeta: { color: 'rgba(148,163,184,0.7)', fontSize: 11, marginTop: 2 },
+  tmplLoadChip: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(249,115,22,0.16)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.4)' },
+  tmplLoadChipText: { color: '#fb923c', fontSize: 9, fontWeight: '800' },
+  tmplSaveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 46, borderRadius: 13, backgroundColor: '#F97316', marginTop: 8 },
+  tmplSaveText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   toolsRow: { flexDirection: 'row', alignItems: 'stretch', gap: 7, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   zoomGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
