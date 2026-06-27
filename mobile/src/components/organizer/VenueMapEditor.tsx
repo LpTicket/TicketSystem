@@ -632,13 +632,12 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
   // inside the item and don't overlap neighbouring tables.
   const dot = Math.max(11, Math.min(18, Math.floor(Math.min(w, h) * 0.20)));
 
-  // Seats are inset by a full chair so they sit INSIDE the item bounds (their
-  // outer edge touches the item edge, not poking out into a neighbour).
+  // Inset only used for the circular layout.
   const inset = dot * 0.75 + 2;
 
-  // Central block leaves a clear ring of space for the perimeter chairs.
-  const tableW = isRound ? w * 0.58 : Math.max(w * 0.34, w - dot * 2.6);
-  const tableH = isRound ? h * 0.58 : Math.max(h * 0.34, h - dot * 2.6);
+  // Central block proportions match ClientVenueMap (chairs ring it at 12–88%).
+  const tableW = w * (isRound ? 0.58 : 0.62);
+  const tableH = h * (isRound ? 0.58 : 0.50);
 
   // Compute a (cx, cy) for each seat. We distribute ALL seats evenly around the
   // table perimeter (same approach as ClientVenueMap's TableSection), instead of
@@ -661,16 +660,18 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
         cx = w / 2 + (w / 2 - inset) * Math.sin(rad);
         cy = h / 2 - (h / 2 - inset) * Math.cos(rad);
       } else {
-        // Walk the rectangle perimeter: top edge → right → bottom → left,
-        // proportional to each edge's length so spacing stays even.
-        const iw = Math.max(1, w - inset * 2);
-        const ih = Math.max(1, h - inset * 2);
-        const perim = 2 * (iw + ih);
-        const d = (i / total) * perim; // distance along the perimeter
-        if (d < iw) { cx = inset + d; cy = inset; }                          // top
-        else if (d < iw + ih) { cx = w - inset; cy = inset + (d - iw); }     // right
-        else if (d < 2 * iw + ih) { cx = w - inset - (d - iw - ih); cy = h - inset; } // bottom
-        else { cx = inset; cy = h - inset - (d - 2 * iw - ih); }             // left
+        // EXACT same percentage layout ClientVenueMap uses, so the editor and
+        // the buyer view look identical. Seats run top → right → bottom → left
+        // in clean rows, not at arbitrary perimeter points.
+        const step = (2 * (1 + 0.55)) / Math.max(1, total);
+        const pos = i * step;
+        let xPct = 50; let yPct = 50;
+        if (pos < 1) { xPct = 15 + pos * 70; yPct = 12; }
+        else if (pos < 1.55) { xPct = 88; yPct = 15 + ((pos - 1) / 0.55) * 70; }
+        else if (pos < 2.55) { xPct = 85 - (pos - 1.55) * 70; yPct = 88; }
+        else { xPct = 12; yPct = 85 - ((pos - 2.55) / 0.55) * 70; }
+        cx = (w * xPct) / 100;
+        cy = (h * yPct) / 100;
       }
       positions.push({ id, cx, cy });
       i++;
