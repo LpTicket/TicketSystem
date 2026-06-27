@@ -353,24 +353,22 @@ export function VenueMapEditor({ eventId }: Props) {
           </ScrollView>
         </View>
 
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={() => { setEditMode((m) => { if (m) { setSelectedSeat(null); } return !m; }); }}
-            style={[styles.editToggle, editMode && styles.editToggleActive]}
-          >
-            <Ionicons name={editMode ? 'pencil' : 'pencil-outline'} size={16} color={editMode ? '#FFFFFF' : '#fb923c'} />
-            <Text style={[styles.editToggleText, editMode && styles.editToggleTextActive]}>
-              {editMode ? t('Editando', 'Editing') : t('Editar', 'Edit')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={saveMap} disabled={saving} style={[styles.saveButton, saving && { opacity: 0.6 }]}>
-            <Text style={styles.saveText}>{saving ? t('GUARDANDO...', 'SAVING...') : saved ? t('GUARDADO', 'SAVED') : t('GUARDAR', 'SAVE')}</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={saveMap} disabled={saving} style={[styles.saveButton, saving && { opacity: 0.6 }]}>
+          <Text style={styles.saveText}>{saving ? t('GUARDANDO...', 'SAVING...') : saved ? t('GUARDADO', 'SAVED') : t('GUARDAR', 'SAVE')}</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Horizontal toolbar — add-tools only in edit mode (like the web). */}
+      {/* Horizontal toolbar — Edit toggle + add-tools (tools only in edit mode). */}
       <View style={styles.toolbar}>
+        <TouchableOpacity
+          onPress={() => { setEditMode((m) => { if (m) { setSelectedSeat(null); } return !m; }); }}
+          style={[styles.editToggle, editMode && styles.editToggleActive]}
+        >
+          <Ionicons name={editMode ? 'pencil' : 'pencil-outline'} size={15} color={editMode ? '#FFFFFF' : '#fb923c'} />
+          <Text style={[styles.editToggleText, editMode && styles.editToggleTextActive]}>
+            {editMode ? t('Editando', 'Editing') : t('Editar', 'Edit')}
+          </Text>
+        </TouchableOpacity>
         {editMode && (
           <>
             <Tool icon="▦" label={t('Mesa', 'Table')} onPress={() => addItem('table')} />
@@ -379,9 +377,6 @@ export function VenueMapEditor({ eventId }: Props) {
             <Tool icon="▰" label={t('Escenario', 'Stage')} onPress={() => addItem('stage')} />
             <Tool icon="●" label={t('Asiento', 'Seat')} onPress={() => addItem('seat')} />
           </>
-        )}
-        {!editMode && (
-          <Text style={styles.viewModeHint}>{t('Toca el lápiz para editar', 'Tap the pencil to edit')}</Text>
         )}
         <View style={styles.zoomGroup}>
           <TouchableOpacity onPress={() => setZoom((current) => Math.max(0.2, Number((current - 0.1).toFixed(2))))} style={styles.railZoomButton}>
@@ -883,12 +878,10 @@ const styles = StyleSheet.create({
   capacityText: { color: '#F97316', fontSize: 10, fontWeight: '700' },
   saveButton: { height: 38, borderRadius: 12, paddingHorizontal: 16, backgroundColor: '#F97316', justifyContent: 'center', shadowColor: '#F97316', shadowOpacity: 0.30, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
   saveText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  editToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 13, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.40)', backgroundColor: 'rgba(249,115,22,0.10)' },
+  editToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, borderColor: 'rgba(249,115,22,0.40)', backgroundColor: 'rgba(249,115,22,0.10)' },
   editToggleActive: { backgroundColor: '#F97316', borderColor: '#F97316' },
   editToggleText: { color: '#fb923c', fontSize: 11, fontWeight: '800', letterSpacing: 0.4 },
   editToggleTextActive: { color: '#FFFFFF' },
-  viewModeHint: { color: 'rgba(226,232,240,0.55)', fontSize: 11, fontWeight: '600', fontStyle: 'italic' },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)', flexWrap: 'wrap' },
   zoomGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
   workbench: { height: VP_H, backgroundColor: '#0d2138' },
