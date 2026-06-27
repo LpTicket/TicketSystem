@@ -46,7 +46,19 @@ function sectionToItem(s: any): VenueItem {
     saleMode: s.tablePurchaseMode === 'whole' ? 'whole' : 'seat',
     locked: false,
     blockedSeats: [],
+    seatConfig: parseSeatConfig(s.seatsConfig),
   };
+}
+
+// Parse the backend seatsConfig (JSON string) into our keyed override map.
+function parseSeatConfig(raw: any): Record<string, SeatOverride> {
+  if (!raw) return {};
+  try {
+    const obj = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return obj && typeof obj === 'object' ? obj : {};
+  } catch {
+    return {};
+  }
 }
 
 // Map an editor item onto the backend /sections/bulk payload shape.
@@ -66,12 +78,25 @@ function itemToSection(item: VenueItem, index: number) {
     labelFontSize: Number(item.fontSize) || 0,
     tableShape: item.shape || 'round',
     tablePurchaseMode: item.saleMode === 'whole' ? 'whole' : 'individual',
+    seatsConfig: item.seatConfig && Object.keys(item.seatConfig).length ? JSON.stringify(item.seatConfig) : undefined,
     sortOrder: index,
   };
   // Only send the id for rows that already exist in the database.
   if (item.id && UUID_RE.test(item.id)) section.id = item.id;
   return section;
 }
+
+// Per-seat overrides keyed by seat id ("row-col"), mirroring the web seatsConfig.
+type SeatOverride = {
+  isWheelchair?: boolean;
+  reserved?: boolean;   // blocked / reserved for sale
+  disabled?: boolean;   // hidden seat
+  rowLabel?: string;    // custom row/prefix
+  seatNumber?: string;  // custom number
+  price?: number;       // individual price (undefined = use section price)
+  xOffset?: number;
+  yOffset?: number;
+};
 
 type VenueItem = {
   id: string;
@@ -90,6 +115,7 @@ type VenueItem = {
   saleMode: SaleMode;
   locked: boolean;
   blockedSeats: string[];
+  seatConfig: Record<string, SeatOverride>;
 };
 
 const CANVAS_WIDTH = 920;
@@ -99,10 +125,10 @@ const CANVAS_HEIGHT = 640;
 const palette = ['#3b82f6', '#f97316', '#10b981', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#6366f1'];
 
 const initialItems: VenueItem[] = [
-  { id: 'bar-1', type: 'bar', name: 'BAR', x: 95, y: 130, width: 260, height: 120, color: '#ff8138', price: 0, rows: 0, seatsPerRow: 0, fontSize: 18, shape: 'rectangle', saleMode: 'whole', locked: false, blockedSeats: [] },
-  { id: 'area-1', type: 'area', name: 'General Area', x: 135, y: 290, width: 205, height: 62, color: '#64748b', price: 25, rows: 0, seatsPerRow: 0, fontSize: 15, shape: 'soft', saleMode: 'seat', locked: false, blockedSeats: [] },
-  { id: 'table-31', type: 'table', name: '31', x: 500, y: 355, width: 86, height: 58, color: '#16b981', price: 100, rows: 2, seatsPerRow: 3, fontSize: 10, shape: 'rectangle', saleMode: 'whole', locked: false, blockedSeats: [] },
-  { id: 'table-30', type: 'table', name: '30', x: 650, y: 275, width: 96, height: 64, color: '#f59e0b', price: 100, rows: 2, seatsPerRow: 5, fontSize: 10, shape: 'rectangle', saleMode: 'seat', locked: false, blockedSeats: [] },
+  { id: 'bar-1', type: 'bar', name: 'BAR', x: 95, y: 130, width: 260, height: 120, color: '#ff8138', price: 0, rows: 0, seatsPerRow: 0, fontSize: 18, shape: 'rectangle', saleMode: 'whole', locked: false, blockedSeats: [], seatConfig: {} },
+  { id: 'area-1', type: 'area', name: 'General Area', x: 135, y: 290, width: 205, height: 62, color: '#64748b', price: 25, rows: 0, seatsPerRow: 0, fontSize: 15, shape: 'soft', saleMode: 'seat', locked: false, blockedSeats: [], seatConfig: {} },
+  { id: 'table-31', type: 'table', name: '31', x: 500, y: 355, width: 86, height: 58, color: '#16b981', price: 100, rows: 2, seatsPerRow: 3, fontSize: 10, shape: 'rectangle', saleMode: 'whole', locked: false, blockedSeats: [], seatConfig: {} },
+  { id: 'table-30', type: 'table', name: '30', x: 650, y: 275, width: 96, height: 64, color: '#f59e0b', price: 100, rows: 2, seatsPerRow: 5, fontSize: 10, shape: 'rectangle', saleMode: 'seat', locked: false, blockedSeats: [], seatConfig: {} },
 ];
 
 type Props = { eventId?: string };
@@ -228,6 +254,7 @@ export function VenueMapEditor({ eventId }: Props) {
       saleMode: type === 'table' ? 'whole' : 'seat',
       locked: false,
       blockedSeats: [],
+      seatConfig: {},
     };
 
     setSaved(false);
@@ -270,14 +297,29 @@ export function VenueMapEditor({ eventId }: Props) {
     setSelectedSeat(null);
   };
 
+  // Tapping a chair now just selects it; its options live in the inspector.
   const toggleSeat = (seatId: string) => {
     if (!selected) return;
-    setSelectedSeat(seatId);
-    updateSelected({
-      blockedSeats: selected.blockedSeats.includes(seatId)
-        ? selected.blockedSeats.filter((seat) => seat !== seatId)
-        : [...selected.blockedSeats, seatId],
-    });
+    setSelectedSeat((current) => (current === seatId ? null : seatId));
+  };
+
+  // Update one override field for the currently selected seat.
+  const updateSeatOverride = (field: keyof SeatOverride, value: any) => {
+    if (!selected || !selectedSeat) return;
+    const next = { ...(selected.seatConfig || {}) };
+    const cur = { ...(next[selectedSeat] || {}) } as SeatOverride;
+    if (value === undefined || value === '' || value === false) delete (cur as any)[field];
+    else (cur as any)[field] = value;
+    if (Object.keys(cur).length === 0) delete next[selectedSeat];
+    else next[selectedSeat] = cur;
+    updateSelected({ seatConfig: next });
+  };
+
+  const resetSeatOverride = () => {
+    if (!selected || !selectedSeat) return;
+    const next = { ...(selected.seatConfig || {}) };
+    delete next[selectedSeat];
+    updateSelected({ seatConfig: next });
   };
 
   return (
@@ -422,6 +464,65 @@ export function VenueMapEditor({ eventId }: Props) {
 
             {selected && (
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.inspectorContent}>
+                {selectedSeat && (selected.type === 'table' || selected.type === 'seat') && (() => {
+                  const ov: SeatOverride = selected.seatConfig?.[selectedSeat] || {};
+                  const [defRow, defNum] = selectedSeat.split('-');
+                  return (
+                    <View style={styles.seatPanel}>
+                      <View style={styles.seatPanelHead}>
+                        <View>
+                          <Text style={styles.seatPanelEyebrow}>{t('ASIENTO SELECCIONADO', 'SELECTED SEAT')}</Text>
+                          <Text style={styles.seatPanelTitle}>{(ov.rowLabel || defRow)}-{(ov.seatNumber || defNum)}</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => setSelectedSeat(null)}><Text style={styles.seatPanelClose}>{t('Cerrar', 'Close')}</Text></TouchableOpacity>
+                      </View>
+
+                      <SeatToggle label={t('Silla de ruedas', 'Wheelchair')} value={!!ov.isWheelchair} onPress={() => updateSeatOverride('isWheelchair', !ov.isWheelchair)} tone="blue" />
+                      <SeatToggle label={t('Bloquear para venta', 'Block / Reserve seat')} value={!!ov.reserved} onPress={() => updateSeatOverride('reserved', !ov.reserved)} tone="orange" />
+                      <SeatToggle label={t('Ocultar silla', 'Hide seat')} value={!!ov.disabled} onPress={() => updateSeatOverride('disabled', !ov.disabled)} tone="gray" />
+
+                      <Text style={styles.inputLabel}>{t('Personalizar nombre / etiqueta', 'Customize name / label')}</Text>
+                      <View style={styles.row2}>
+                        <View style={styles.field}>
+                          <Text style={styles.seatMiniLabel}>{t('Fila / Prefijo', 'Row / Prefix')}</Text>
+                          <TextInput value={ov.rowLabel ?? ''} placeholder={defRow} placeholderTextColor="rgba(148,163,184,0.5)" onChangeText={(v) => updateSeatOverride('rowLabel', v)} style={styles.input} />
+                        </View>
+                        <View style={styles.field}>
+                          <Text style={styles.seatMiniLabel}>{t('Número', 'Number')}</Text>
+                          <TextInput value={ov.seatNumber ?? ''} placeholder={defNum} placeholderTextColor="rgba(148,163,184,0.5)" keyboardType="numeric" onChangeText={(v) => updateSeatOverride('seatNumber', v)} style={styles.input} />
+                        </View>
+                      </View>
+
+                      {selected.saleMode !== 'whole' && (
+                        <>
+                          <Text style={styles.inputLabel}>{t('Precio de este asiento ($)', 'Price of this seat ($)')}</Text>
+                          <TextInput
+                            value={ov.price !== undefined ? String(ov.price) : ''}
+                            placeholder={String(selected.price || 0)}
+                            placeholderTextColor="rgba(148,163,184,0.5)"
+                            keyboardType="numeric"
+                            onChangeText={(v) => updateSeatOverride('price', v === '' ? undefined : Number(v))}
+                            style={styles.input}
+                          />
+                          <Text style={styles.seatHint}>{t('Vacío = usa el precio general de la sección.', 'Blank = use the general section price.')}</Text>
+                        </>
+                      )}
+
+                      <Text style={styles.inputLabel}>{t('Ajuste fino de posición', 'Fine-tune position')}</Text>
+                      <View style={styles.row2}>
+                        <Field label="X Offset" value={ov.xOffset || 0} step={2} min={-200} max={200} onChange={(v) => updateSeatOverride('xOffset', v === 0 ? undefined : v)} />
+                        <Field label="Y Offset" value={ov.yOffset || 0} step={2} min={-200} max={200} onChange={(v) => updateSeatOverride('yOffset', v === 0 ? undefined : v)} />
+                      </View>
+
+                      {Object.keys(ov).length > 0 && (
+                        <TouchableOpacity onPress={resetSeatOverride} style={styles.seatResetBtn}>
+                          <Text style={styles.seatResetText}>{t('Restablecer valores', 'Reset values')}</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })()}
+
                 <Text style={styles.sectionLabel}>{t('TAMAÑO DEL TEXTO', 'TEXT SIZE')}</Text>
                 <View style={styles.sliderCard}>
                   <Text style={styles.sliderCopy}>{t('Nombre visible en el mapa', 'Name visible on the map')}</Text>
@@ -566,14 +667,19 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
   }
 
   positions.forEach(({ id, cx, cy }) => {
-    const blocked = item.blockedSeats.includes(id);
+    const ov: SeatOverride = item.seatConfig?.[id] || {};
+    if (ov.disabled) return; // hidden seat — don't render
+    const blocked = item.blockedSeats.includes(id) || !!ov.reserved;
+    const fill = blocked ? '#F97316' : ov.isWheelchair ? '#1a73e8' : item.color;
+    const ox = ov.xOffset || 0;
+    const oy = ov.yOffset || 0;
     seats.push(
       <TouchableOpacity
         key={id}
         onPress={() => onSeatPress(id)}
         style={[
           styles.seatDot,
-          { left: cx - dot / 2, top: cy - dot / 2, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: blocked ? '#9CA3AF' : item.color },
+          { left: cx - dot / 2 + ox, top: cy - dot / 2 + oy, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: fill },
           selectedSeat === id && styles.seatSelected,
         ]}
       />
@@ -703,6 +809,19 @@ function Segment({ label, active, onPress }: { label: string; active: boolean; o
   return <TouchableOpacity onPress={onPress} style={[styles.segment, active && styles.segmentActive]}><Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text></TouchableOpacity>;
 }
 
+// A checkbox-style row for the per-seat options (wheelchair, block, hide).
+function SeatToggle({ label, value, onPress, tone }: { label: string; value: boolean; onPress: () => void; tone: 'blue' | 'orange' | 'gray' }) {
+  const accent = tone === 'blue' ? '#3b82f6' : tone === 'orange' ? '#F97316' : '#94a3b8';
+  return (
+    <TouchableOpacity onPress={onPress} style={styles.seatToggleRow} activeOpacity={0.8}>
+      <View style={[styles.seatCheck, value && { backgroundColor: accent, borderColor: accent }]}>
+        {value && <Text style={styles.seatCheckMark}>✓</Text>}
+      </View>
+      <Text style={styles.seatToggleLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 
 const styles = StyleSheet.create({
   mapStatsScroller: { flex: 1, minWidth: 0, marginRight: 2 },
@@ -799,4 +918,19 @@ const styles = StyleSheet.create({
   palette: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
   swatch: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)' },
   swatchActive: { borderColor: '#FFFFFF', borderWidth: 3, transform: [{ scale: 1.1 }] },
+
+  // Per-seat panel
+  seatPanel: { borderRadius: 16, borderWidth: 1, borderColor: 'rgba(59,130,246,0.35)', backgroundColor: 'rgba(59,130,246,0.07)', padding: 14, marginBottom: 6, gap: 6 },
+  seatPanelHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 },
+  seatPanelEyebrow: { color: '#60a5fa', fontSize: 9, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase' },
+  seatPanelTitle: { color: '#F8FAFC', fontSize: 18, fontWeight: '800', marginTop: 2 },
+  seatPanelClose: { color: 'rgba(226,232,240,0.7)', fontSize: 11, fontWeight: '700', textDecorationLine: 'underline' },
+  seatToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', paddingHorizontal: 12, paddingVertical: 10, marginTop: 6 },
+  seatCheck: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.30)', alignItems: 'center', justifyContent: 'center' },
+  seatCheckMark: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  seatToggleLabel: { color: '#F8FAFC', fontSize: 12, fontWeight: '700', flex: 1 },
+  seatMiniLabel: { color: 'rgba(226,232,240,0.55)', fontSize: 10, fontWeight: '700', marginBottom: 6, marginTop: 2 },
+  seatHint: { color: 'rgba(148,163,184,0.6)', fontSize: 10, marginTop: 5 },
+  seatResetBtn: { marginTop: 12, alignItems: 'center', paddingVertical: 8 },
+  seatResetText: { color: '#60a5fa', fontSize: 11, fontWeight: '700' },
 });
