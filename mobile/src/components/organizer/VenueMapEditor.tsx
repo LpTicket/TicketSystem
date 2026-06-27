@@ -143,6 +143,8 @@ export function VenueMapEditor({ eventId }: Props) {
   // Edit mode (off = view only). Like the web, nothing moves/edits until the
   // pencil is tapped.
   const [editMode, setEditMode] = useState(false);
+  // The camera view (pan + zoom) the buyer sees by default, set via "View".
+  const [defaultView, setDefaultView] = useState<{ x: number; y: number; zoom: number } | null>(null);
   const [selectedId, setSelectedId] = useState(initialItems[2].id);
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -206,6 +208,11 @@ export function VenueMapEditor({ eventId }: Props) {
       const updated = await apiPost<any[]>(`/events/${eventId}/sections/bulk`, {
         sections: items.map(itemToSection),
         showStage: items.some((it) => it.type === 'stage'),
+        ...(defaultView ? {
+          defaultViewX: parseFloat(defaultView.x.toFixed(2)),
+          defaultViewY: parseFloat(defaultView.y.toFixed(2)),
+          defaultViewZoom: parseFloat(defaultView.zoom.toFixed(4)),
+        } : {}),
       });
       if (Array.isArray(updated) && updated.length > 0) {
         const reloaded = updated.map(sectionToItem);
@@ -362,16 +369,28 @@ export function VenueMapEditor({ eventId }: Props) {
         </View>
       </View>
 
-      {/* Row A: Edit/View on the left, zoom on the right. */}
+      {/* Row A: Edit + View on the left, zoom on the right. */}
       <View style={styles.toolbar}>
         <TouchableOpacity
           onPress={() => { setEditMode((m) => { if (m) { setSelectedSeat(null); } return !m; }); }}
           style={[styles.editToggle, editMode && styles.editToggleActive]}
         >
-          <Ionicons name={editMode ? 'pencil' : 'eye-outline'} size={15} color={editMode ? '#FFFFFF' : '#fb923c'} />
+          <Ionicons name="pencil" size={15} color={editMode ? '#FFFFFF' : '#fb923c'} />
           <Text style={[styles.editToggleText, editMode && styles.editToggleTextActive]}>
-            {editMode ? t('Editando', 'Editing') : t('Ver', 'View')}
+            {editMode ? t('Editando', 'Editing') : t('Editar', 'Edit')}
           </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => {
+            setDefaultView({ x: canvasPan.x, y: canvasPan.y, zoom });
+            setSaved(false);
+            Alert.alert(t('Vista fijada', 'View set'), t('Esta será la vista inicial que verán los clientes. Recuerda guardar.', 'This will be the initial view buyers see. Remember to save.'));
+          }}
+          style={styles.viewBtn}
+        >
+          <Ionicons name="eye-outline" size={15} color="#60a5fa" />
+          <Text style={styles.viewBtnText}>{t('Fijar Vista', 'Set View')}</Text>
         </TouchableOpacity>
 
         <View style={styles.zoomGroup}>
@@ -864,6 +883,8 @@ const styles = StyleSheet.create({
   editToggleActive: { backgroundColor: '#F97316', borderColor: '#F97316' },
   editToggleText: { color: '#fb923c', fontSize: 11, fontWeight: '800', letterSpacing: 0.4 },
   editToggleTextActive: { color: '#FFFFFF' },
+  viewBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, borderColor: 'rgba(59,130,246,0.40)', backgroundColor: 'rgba(59,130,246,0.10)' },
+  viewBtnText: { color: '#60a5fa', fontSize: 11, fontWeight: '800', letterSpacing: 0.4 },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   toolsRow: { flexDirection: 'row', alignItems: 'stretch', gap: 7, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   zoomGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
