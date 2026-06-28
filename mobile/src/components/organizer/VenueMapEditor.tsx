@@ -1074,12 +1074,11 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         const dy = (e.nativeEvent.pageY - start.current.y) / z;
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) start.current.moved = true;
         if (start.current.moved) {
-          const nx = Math.max(0, Math.min(CANVAS_WIDTH - item.width, start.current.ix + dx));
-          const ny = Math.max(0, Math.min(CANVAS_HEIGHT - item.height, start.current.iy + dy));
-          start.current.lastX = nx; start.current.lastY = ny;
-          // Translate relative to the captured base (start.current.ix/iy), NOT the
-          // live item.x — item.x stays put during the drag, so this is the offset.
-          offset.setValue({ x: nx - start.current.ix, y: ny - start.current.iy });
+          // Same approach as SeatDot: use the raw delta for the live offset, and
+          // remember the clamped final position for the commit on release.
+          start.current.lastX = Math.max(0, Math.min(CANVAS_WIDTH - item.width, start.current.ix + dx));
+          start.current.lastY = Math.max(0, Math.min(CANVAS_HEIGHT - item.height, start.current.iy + dy));
+          offset.setValue({ x: dx, y: dy });
         }
       }}
       onResponderRelease={(e) => {
