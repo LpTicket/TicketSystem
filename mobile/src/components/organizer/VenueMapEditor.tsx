@@ -1139,7 +1139,7 @@ const styles = StyleSheet.create({
   tmplBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, borderColor: 'rgba(249,115,22,0.30)', backgroundColor: 'rgba(249,115,22,0.07)' },
   tmplBtnText: { color: '#fb923c', fontSize: 11, fontWeight: '800', letterSpacing: 0.4 },
   // Floating zoom bar over the canvas (web-style).
-  zoomFloat: { position: 'absolute', right: 12, top: 12, alignItems: 'flex-end', zIndex: 30 },
+  zoomFloat: { position: 'absolute', bottom: 12, right: 12, alignItems: 'flex-end', zIndex: 30 },
   zoomControls: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(13,33,56,0.92)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
   zoomCtrlBtn: { width: 34, height: 32, alignItems: 'center', justifyContent: 'center' },
   zoomCtrlDivider: { width: 1, height: 18, backgroundColor: 'rgba(255,255,255,0.14)' },
