@@ -184,6 +184,27 @@ export function VenueMapEditor({ eventId }: Props) {
     setCanvasPan({ x: Number(tx.toFixed(1)), y: Number(ty.toFixed(1)) });
   }, [vpW]);
 
+  // Zoom toward the CENTRE of the viewport (keeps the middle of the map fixed,
+  // instead of scaling from the corner which made it drift to the left).
+  const zoomTo = useCallback((newZoomRaw: number) => {
+    const newZoom = Math.max(0.2, Math.min(2.4, Number(newZoomRaw.toFixed(3))));
+    setZoom((oldZoom) => {
+      if (newZoom === oldZoom) return oldZoom;
+      // Canvas point currently at the viewport centre (invert the transform:
+      // vp = pan + CW/2 + (p - CW/2) * zoom).
+      setCanvasPan((pan) => {
+        const pxCenter = CANVAS_WIDTH / 2 + (vpW / 2 - pan.x - CANVAS_WIDTH / 2) / oldZoom;
+        const pyCenter = CANVAS_HEIGHT / 2 + (VP_H / 2 - pan.y - CANVAS_HEIGHT / 2) / oldZoom;
+        // New pan so that same point stays at the viewport centre.
+        return {
+          x: Number((vpW / 2 - CANVAS_WIDTH / 2 - (pxCenter - CANVAS_WIDTH / 2) * newZoom).toFixed(1)),
+          y: Number((VP_H / 2 - CANVAS_HEIGHT / 2 - (pyCenter - CANVAS_HEIGHT / 2) * newZoom).toFixed(1)),
+        };
+      });
+      return newZoom;
+    });
+  }, [vpW]);
+
   // Fit default items on first render.
   useEffect(() => { fitToContent(initialItems); }, [fitToContent]);
 
@@ -571,11 +592,11 @@ export function VenueMapEditor({ eventId }: Props) {
             {/* Floating zoom bar over the canvas (like the web). */}
             <View style={styles.zoomFloat} pointerEvents="box-none">
               <View style={styles.zoomFloatInner}>
-                <TouchableOpacity onPress={() => setZoom((c) => Math.max(0.2, Number((c - 0.1).toFixed(2))))} style={styles.zoomFloatBtn}>
+                <TouchableOpacity onPress={() => zoomTo(zoom - 0.15)} style={styles.zoomFloatBtn}>
                   <Ionicons name="remove" size={18} color="#fb923c" />
                 </TouchableOpacity>
                 <Text style={styles.zoomFloatValue}>{Math.round(zoom * 100)}%</Text>
-                <TouchableOpacity onPress={() => setZoom((c) => Math.min(2.4, Number((c + 0.1).toFixed(2))))} style={styles.zoomFloatBtn}>
+                <TouchableOpacity onPress={() => zoomTo(zoom + 0.15)} style={styles.zoomFloatBtn}>
                   <Ionicons name="add" size={18} color="#fb923c" />
                 </TouchableOpacity>
                 <View style={styles.zoomFloatDivider} />
