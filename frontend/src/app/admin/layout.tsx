@@ -20,6 +20,7 @@ import {
   HiOutlineTag,
   HiOutlineSpeakerphone,
   HiOutlineTrendingUp,
+  HiOutlineDocumentText,
 } from 'react-icons/hi';
 
 import { useUIStore } from '@/stores/ui';
@@ -53,6 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/special-codes', label: lang === 'es' ? 'Códigos especiales' : 'Special codes', icon: HiOutlineTag },
   { href: '/admin/marketing', label: 'Marketing', icon: HiOutlineSpeakerphone },
     { href: '/admin/analytics', label: lang === 'es' ? 'Analíticas' : 'Analytics', icon: HiOutlineTrendingUp },
+    { href: '/admin/invoices', label: lang === 'es' ? 'Facturas' : 'Invoices', icon: HiOutlineDocumentText },
   ];
 
   const isActive = (href: string) => {

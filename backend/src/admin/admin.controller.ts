@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AdminService } from './admin.service';
+import { AdminInvoicesService } from './admin-invoices.service';
 import { OrdersService } from '../orders/orders.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -14,6 +15,7 @@ import { UserRole } from '../database/entities';
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
+    private readonly adminInvoicesService: AdminInvoicesService,
     private readonly ordersService: OrdersService,
   ) {}
 
@@ -21,6 +23,27 @@ export class AdminController {
   @Get('stats')
   getStats() {
     return this.adminService.getDashboardStats();
+  }
+
+  @Get('manual-invoices')
+  getManualInvoices(@Query('limit') limit?: number) {
+    return this.adminInvoicesService.listManualInvoices(limit || 20);
+  }
+
+  @Post('manual-invoices')
+  createManualInvoice(@Body() body: {
+    customerName: string;
+    customerEmail: string;
+    companyName?: string;
+    concept: string;
+    description?: string;
+    amount: number;
+    currency?: string;
+    addProcessingFee?: boolean;
+    dueDays?: number;
+    notes?: string;
+  }) {
+    return this.adminInvoicesService.createManualInvoice(body);
   }
 
   // Users

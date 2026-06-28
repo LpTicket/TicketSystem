@@ -30,6 +30,20 @@ type PostEventReportEmail = {
   csv?: { filename: string; content: string };
 };
 
+type ManualInvoiceEmail = {
+  customerName: string;
+  concept: string;
+  description?: string | null;
+  baseAmount: number;
+  processingFee: number;
+  total: number;
+  currency: string;
+  dueDate?: string | null;
+  hostedInvoiceUrl: string;
+  invoiceNumber?: string | null;
+  notes?: string | null;
+};
+
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
@@ -335,6 +349,117 @@ export class MailService {
       console.error('Error sending email:', err);
     }
   }
+
+  async sendManualInvoiceEmail(to: string, invoice: ManualInvoiceEmail) {
+    const appUrl = this.getAppUrl();
+    const currency = invoice.currency || 'USD';
+    const money = (value: number) => `${Number(value || 0).toFixed(2)} ${currency}`;
+    const escapeHtml = (value?: string | null) => String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+    const safeCustomerName = escapeHtml(invoice.customerName);
+    const safeConcept = escapeHtml(invoice.concept);
+    const safeDescription = escapeHtml(invoice.description);
+    const safeNotes = escapeHtml(invoice.notes);
+    const safePayUrl = escapeHtml(invoice.hostedInvoiceUrl);
+    const dueLabel = invoice.dueDate
+      ? new Date(invoice.dueDate).toLocaleDateString('es-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : 'Próximamente';
+    const subject = `Factura LPTicket${invoice.invoiceNumber ? ` ${invoice.invoiceNumber}` : ''} - ${invoice.concept}`;
+    const text = [
+      `Hola ${invoice.customerName},`,
+      'Tu factura de LPTicket está lista para pago.',
+      `Concepto: ${invoice.concept}`,
+      invoice.description ? `Detalle: ${invoice.description}` : '',
+      `Base: ${money(invoice.baseAmount)}`,
+      invoice.processingFee > 0 ? `Processing Fee 3.5%: ${money(invoice.processingFee)}` : '',
+      `Total: ${money(invoice.total)}`,
+      `Pagar factura: ${invoice.hostedInvoiceUrl}`,
+    ].filter(Boolean).join('\n');
+
+    const html = `<!doctype html>
+<html>
+<body style="margin:0;padding:0;background:#f3f6fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f6fb;padding:30px 14px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 18px 55px rgba(15,23,42,0.16);">
+          <tr>
+            <td style="background:#0A375A;padding:28px 28px 24px;">
+              <img src="${appUrl}/logo-email-orange.png" alt="LPTicket" width="190" style="display:block;width:190px;max-width:190px;height:auto;border:0;" />
+              <p style="margin:22px 0 0;color:#fb923c;font-size:12px;font-weight:900;letter-spacing:3px;text-transform:uppercase;">Factura disponible</p>
+              <h1 style="margin:8px 0 0;color:#ffffff;font-size:30px;line-height:1.15;font-weight:900;">${safeConcept}</h1>
+              <p style="margin:10px 0 0;color:#cbd5e1;font-size:15px;line-height:1.5;">Hola ${safeCustomerName}, ya puedes completar tu pago de forma segura por Stripe.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:26px 28px 8px;background:#ffffff;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:14px 16px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc;">
+                    <p style="margin:0;color:#64748b;font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;">Total a pagar</p>
+                    <p style="margin:6px 0 0;color:#F97316;font-size:34px;line-height:1;font-weight:900;">${money(invoice.total)}</p>
+                    <p style="margin:8px 0 0;color:#64748b;font-size:13px;">Vence: ${escapeHtml(dueLabel)}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:12px 28px;background:#ffffff;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+                <tr>
+                  <td style="padding:16px;color:#64748b;font-size:14px;">Concepto</td>
+                  <td align="right" style="padding:16px;color:#0f172a;font-size:14px;font-weight:900;">${safeConcept}</td>
+                </tr>
+                ${safeDescription ? `<tr><td colspan="2" style="padding:0 16px 16px;color:#64748b;font-size:13px;line-height:1.5;">${safeDescription}</td></tr>` : ''}
+                <tr>
+                  <td style="padding:12px 16px;color:#64748b;font-size:14px;border-top:1px solid #e2e8f0;">Monto base</td>
+                  <td align="right" style="padding:12px 16px;color:#0f172a;font-size:14px;font-weight:900;border-top:1px solid #e2e8f0;">${money(invoice.baseAmount)}</td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 16px;color:#64748b;font-size:14px;border-top:1px solid #e2e8f0;">Processing Fee 3.5%</td>
+                  <td align="right" style="padding:12px 16px;color:#0f172a;font-size:14px;font-weight:900;border-top:1px solid #e2e8f0;">${money(invoice.processingFee)}</td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 16px;color:#F97316;font-size:15px;font-weight:900;border-top:1px solid #F97316;">Total</td>
+                  <td align="right" style="padding:14px 16px;color:#F97316;font-size:18px;font-weight:900;border-top:1px solid #F97316;">${money(invoice.total)}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          ${safeNotes ? `<tr><td style="padding:0 28px 12px;background:#ffffff;"><p style="margin:0;padding:14px 16px;border-radius:14px;background:#fff7ed;color:#9a3412;font-size:13px;line-height:1.5;">${safeNotes}</p></td></tr>` : ''}
+          <tr>
+            <td align="center" style="padding:22px 28px 30px;background:#ffffff;">
+              <a href="${safePayUrl}" target="_blank" style="display:inline-block;background:#F97316;color:#ffffff;text-decoration:none;border-radius:14px;padding:15px 30px;font-size:14px;font-weight:900;">Pagar factura</a>
+              <p style="margin:14px 0 0;color:#64748b;font-size:12px;line-height:1.5;">El pago se procesa de forma segura por Stripe. También recibirás la factura oficial de Stripe para tu respaldo.</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="background:#0A375A;padding:22px 28px;">
+              <p style="margin:0;color:#fb923c;font-size:13px;font-weight:900;">LPTicket</p>
+              <p style="margin:5px 0 0;color:#cbd5e1;font-size:11px;">Tus tickets. Tus eventos.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+    return this.transporter.sendMail({
+      from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
+      to,
+      subject,
+      text,
+      html,
+    });
+  }
+
   /**
    * Sends a branded event reminder email to a list of attendees.
    * Sent from info@lpticket.com
