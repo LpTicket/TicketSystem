@@ -1973,10 +1973,11 @@ export class OrdersService {
   }
 
   private getAppUrl() {
-    const raw = this.configService.get<string>('APP_URL') || 'https://www.lpticket.com';
-    return raw.startsWith('http://') || raw.startsWith('https://')
-      ? raw.replace(/\/$/, '')
-      : `https://${raw.replace(/\/$/, '')}`;
+    const configured = this.configService.get<string>('FRONTEND_URL') || this.configService.get<string>('APP_URL') || 'https://www.lpticket.com';
+    const normalized = configured.startsWith('http://') || configured.startsWith('https://')
+      ? configured.replace(/\/$/, '')
+      : `https://${configured.replace(/\/$/, '')}`;
+    return /railway\.app|render\.com|\/api$/i.test(normalized) ? 'https://www.lpticket.com' : normalized;
   }
 
   private formatEventDate(date: Date, timezone = 'UTC') {

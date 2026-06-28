@@ -1051,11 +1051,12 @@ export class MailService {
             </td>
           </tr>
           <tr>
-            <td align="center" bgcolor="#f8fafc" style="background:#f8fafc!important;border-top:1px solid #e2e8f0;padding:18px 24px;">
+            <td align="center" bgcolor="#f8fafc" style="background:#f8fafc!important;border-top:1px solid #e2e8f0;padding:20px 24px 34px;">
               <p style="margin:0 0 4px;color:#F97316;font-size:12px;font-weight:900;">lpticket.com</p>
               <p style="margin:0;color:#64748b;font-size:11px;line-height:1.5;">© ${year} LPTicket · Tus tickets. Tus eventos.</p>
             </td>
           </tr>
+          <tr><td bgcolor="#ffffff" style="background:#ffffff!important;height:18px;font-size:0;line-height:0;">&nbsp;</td></tr>
         </table>
       </td>
     </tr>
