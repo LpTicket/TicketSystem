@@ -1087,6 +1087,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         draggingRef.current = true;
         start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, fx: item.x, fy: item.y, moved: false };
         pos.setValue({ x: item.x, y: item.y });
+        console.log('[ITEM grant]', item.type, item.name, 'ix:', item.x, 'iy:', item.y);
       }}
       onResponderMove={(e) => {
         if (!editMode) return;
@@ -1102,6 +1103,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         }
       }}
       onResponderRelease={() => {
+        console.log('[ITEM release]', item.type, item.name, 'dragging:', draggingRef.current, 'moved:', start.current.moved, 'fx:', start.current.fx.toFixed(1), 'fy:', start.current.fy.toFixed(1));
         if (!draggingRef.current) return; // ignore stray release events
         draggingRef.current = false;
         if (start.current.moved) {
@@ -1148,7 +1150,7 @@ function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, active, edit
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => editMode}
       onResponderTerminationRequest={() => false}
-      onResponderGrant={(e) => { seatTouchRef.current = true; offset.setValue({ x: 0, y: 0 }); start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, dx: 0, dy: 0, moved: false }; }}
+      onResponderGrant={(e) => { console.log('[SEAT grant]', id, 'of', itemId); seatTouchRef.current = true; offset.setValue({ x: 0, y: 0 }); start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, dx: 0, dy: 0, moved: false }; }}
       onResponderMove={(e) => {
         if (!editMode) return;
         const z = zoomRef.current.zoom || 1;
