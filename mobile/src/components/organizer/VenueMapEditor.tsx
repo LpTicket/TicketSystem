@@ -285,6 +285,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   };
   const onCanvasTouchStart = (e: any) => {
     if (animatingRef.current) return;
+    if (dragRef.current) return; // an item is being dragged — don't pan/pinch the canvas
     onScrollLock?.(true); // stop the page from scrolling while moving the map
     const touches = e.nativeEvent.touches || [];
     const t0 = touches[0];
@@ -293,6 +294,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     else if (!touchRef.current.isPinch) beginPan(touches);
   };
   const onCanvasTouchMove = (e: any) => {
+    if (dragRef.current) return; // an item is being dragged — don't pan/pinch the canvas
     const touches = e.nativeEvent.touches || [];
     if (!touchRef.current.isPinch && touches.length >= 2) { beginPinch(touches); return; }
     if (touchRef.current.isPinch && touches.length >= 2) {
