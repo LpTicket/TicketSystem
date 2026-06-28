@@ -531,13 +531,20 @@ export function OrganizerCreateEventMobile({ eventTitle, setEventTitle, eventVen
         )}
 
         <Text style={styles.fieldLabel}>{t('Hora de finalización (opcional)', 'End time (optional)')}</Text>
-        <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowEndTimePicker(true)}>
+        <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowEndTimePicker((current) => !current)}>
           <Ionicons name="time-outline" size={16} color="#f97316" style={{ marginRight: 6 }} />
           <Text style={[styles.datePickerText, !eventEndTime && { color: 'rgba(148,163,184,0.6)' }]}>
             {eventEndTime || t('Sin hora de fin (6 h tras el inicio)', 'No end time (6h after start)')}
           </Text>
           {!!eventEndTime && (
-            <TouchableOpacity onPress={() => setEventEndTime('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 'auto' }}>
+            <TouchableOpacity
+              onPress={() => {
+                setEventEndTime('');
+                setShowEndTimePicker(false);
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ marginLeft: 'auto' }}
+            >
               <Ionicons name="close-circle" size={18} color="rgba(148,163,184,0.7)" />
             </TouchableOpacity>
           )}
@@ -865,13 +872,20 @@ export function OrganizerDetailsMobile({ eventTitle, setEventTitle, eventVenue, 
         )}
 
         <Text style={styles.fieldLabel}>{t('Hora de finalización (opcional)', 'End time (optional)')}</Text>
-        <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowEndTimePicker(true)}>
+        <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowEndTimePicker((current) => !current)}>
           <Ionicons name="time-outline" size={16} color="#f97316" style={{ marginRight: 6 }} />
           <Text style={[styles.datePickerText, !eventEndTime && { color: 'rgba(148,163,184,0.6)' }]}>
             {eventEndTime || t('Sin hora de fin (6 h tras el inicio)', 'No end time (6h after start)')}
           </Text>
           {!!eventEndTime && (
-            <TouchableOpacity onPress={() => setEventEndTime('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginLeft: 'auto' }}>
+            <TouchableOpacity
+              onPress={() => {
+                setEventEndTime('');
+                setShowEndTimePicker(false);
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ marginLeft: 'auto' }}
+            >
               <Ionicons name="close-circle" size={18} color="rgba(148,163,184,0.7)" />
             </TouchableOpacity>
           )}
