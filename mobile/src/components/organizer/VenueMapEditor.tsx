@@ -718,19 +718,16 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
             ref={canvasVpRef}
             style={styles.canvasViewport}
             onLayout={() => { canvasVpRef.current?.measure((_x: number, _y: number, _w: number, _h: number, _px: number, py: number) => { canvasVpYRef.current = py; }); }}
-            // Pan + pinch handled the SAME WAY as ClientVenueMap: onTouch* drives
-            // the gesture (reliable multi-touch for pinch) and the responder
-            // callbacks mirror it. Item dragging takes priority via the item's
-            // own responder, so dragging a table doesn't also pan.
-            onStartShouldSetResponderCapture={() => false}
-            onMoveShouldSetResponderCapture={shouldCapturePan}
+            // The viewport claims the responder on START (not just move), so the
+            // parent ScrollView can never steal a vertical gesture mid-drag. Items
+            // and chairs sit above and win their own touches via their responders.
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => true}
+            onResponderTerminationRequest={() => false}
             onTouchStart={onCanvasTouchStart}
             onTouchMove={onCanvasTouchMove}
             onTouchEnd={onCanvasTouchEnd}
             onTouchCancel={onCanvasTouchEnd}
-            onStartShouldSetResponder={() => !dragRef.current}
-            onMoveShouldSetResponder={() => !dragRef.current}
-            onResponderTerminationRequest={() => false}
             onResponderGrant={onCanvasTouchStart}
             onResponderMove={onCanvasTouchMove}
             onResponderRelease={onCanvasTouchEnd}
