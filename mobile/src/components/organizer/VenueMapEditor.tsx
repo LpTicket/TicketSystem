@@ -781,11 +781,13 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                       <SeatDots item={item} selectedSeat={selectedSeat} selectedItemId={selectedId} editMode={editMode} zoomRef={viewRef} seatTouchRef={seatTouchRef} onSeatPress={toggleSeat} onSeatDrag={dragSeat} />
                     )}
 
-                    <Text style={[
-                      styles.itemLabel,
-                      { fontSize: item.fontSize, color: '#FFFFFF', zIndex: 6 },
-                      (item.type === 'table' || item.type === 'seat') && { textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 3 },
-                    ]}>
+                    <Text
+                      pointerEvents="none"
+                      style={[
+                        styles.itemLabel,
+                        { fontSize: item.fontSize, color: '#FFFFFF', zIndex: 6 },
+                        (item.type === 'table' || item.type === 'seat') && { textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 3 },
+                      ]}>
                       {item.name}
                     </Text>
                   </ItemView>
