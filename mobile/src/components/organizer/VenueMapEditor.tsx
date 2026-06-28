@@ -691,23 +691,28 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                 return (
                   <View
                     key={`${item.id || item.name || 'map-item'}-${index}`}
-                    // Only claim the responder in edit mode (for dragging).
-                    // In view mode, touches flow through to the chair TouchableOpacity children.
-                    onStartShouldSetResponder={() => editMode}
+                    // In edit mode, claim the responder only once the finger MOVES,
+                    // so a tap still reaches the chair TouchableOpacity (to select a
+                    // seat) while a drag moves the whole item. In view mode the item
+                    // never claims touches — they flow to the chairs.
+                    onStartShouldSetResponder={() => false}
                     onMoveShouldSetResponder={() => editMode}
                     onResponderGrant={(event: GestureResponderEvent) => {
+                      if (!editMode) return;
                       setSelectedId(item.id);
                       setSelectedSeat(null);
-                      if (!editMode) return;
                       onScrollLock?.(true);
                       setDragSafe({ id: item.id, x: item.x, y: item.y, pageX: event.nativeEvent.pageX, pageY: event.nativeEvent.pageY });
                     }}
                     onResponderMove={(event: GestureResponderEvent) => {
                       const d = dragRef.current;
                       if (!editMode || !d || d.id !== item.id) return;
+                      // Read coords synchronously (RN may recycle the event object).
+                      const pageX = event.nativeEvent.pageX;
+                      const pageY = event.nativeEvent.pageY;
                       const z = viewRef.current.zoom || 1;
-                      const nextX = d.x + (event.nativeEvent.pageX - d.pageX) / z;
-                      const nextY = d.y + (event.nativeEvent.pageY - d.pageY) / z;
+                      const nextX = d.x + (pageX - d.pageX) / z;
+                      const nextY = d.y + (pageY - d.pageY) / z;
                       moveItem(item, nextX, nextY);
                     }}
                     onResponderRelease={() => { setDragSafe(null); onScrollLock?.(false); }}
