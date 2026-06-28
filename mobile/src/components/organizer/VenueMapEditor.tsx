@@ -171,6 +171,9 @@ export function VenueMapEditor({ eventId }: Props) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [zoom, setZoom] = useState(0.5);
+  // Mirror of the live zoom so zoomTo can read it synchronously.
+  const zoomRef = useRef(0.5);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
 
   // Compute pan+zoom so all items fit in the viewport.
   const fitToContent = useCallback((loadedItems: VenueItem[]) => {
@@ -189,30 +192,42 @@ export function VenueMapEditor({ eventId }: Props) {
     // vp_x = tx + CANVAS_WIDTH/2 + (px - CANVAS_WIDTH/2) * s
     const tx = vpW / 2 - CANVAS_WIDTH / 2 + (CANVAS_WIDTH / 2 - cX) * s;
     const ty = VP_H / 2 - CANVAS_HEIGHT / 2 + (CANVAS_HEIGHT / 2 - cY) * s;
-    setZoom(Number(s.toFixed(3)));
-    setCanvasPan({ x: Number(tx.toFixed(1)), y: Number(ty.toFixed(1)) });
-  }, [vpW]);
+    const z = Number(s.toFixed(3));
+    const p = { x: Number(tx.toFixed(1)), y: Number(ty.toFixed(1)) };
+    zoomRef.current = z;
+    panCurrent.current = p;
+    panLast.current = p;
+    panAnim.setValue(p);
+    setZoom(z);
+    setCanvasPan(p);
+  }, [vpW, panAnim]);
 
   // Zoom toward the CENTRE of the viewport (keeps the middle of the map fixed,
   // instead of scaling from the corner which made it drift to the left).
   const zoomTo = useCallback((newZoomRaw: number) => {
+    const oldZoom = zoomRef.current;
     const newZoom = Math.max(0.2, Math.min(2.4, Number(newZoomRaw.toFixed(3))));
-    setZoom((oldZoom) => {
-      if (newZoom === oldZoom) return oldZoom;
-      // Canvas point currently at the viewport centre (invert the transform:
-      // vp = pan + CW/2 + (p - CW/2) * zoom).
-      setCanvasPan((pan) => {
-        const pxCenter = CANVAS_WIDTH / 2 + (vpW / 2 - pan.x - CANVAS_WIDTH / 2) / oldZoom;
-        const pyCenter = CANVAS_HEIGHT / 2 + (VP_H / 2 - pan.y - CANVAS_HEIGHT / 2) / oldZoom;
-        // New pan so that same point stays at the viewport centre.
-        return {
-          x: Number((vpW / 2 - CANVAS_WIDTH / 2 - (pxCenter - CANVAS_WIDTH / 2) * newZoom).toFixed(1)),
-          y: Number((VP_H / 2 - CANVAS_HEIGHT / 2 - (pyCenter - CANVAS_HEIGHT / 2) * newZoom).toFixed(1)),
-        };
-      });
-      return newZoom;
-    });
-  }, [vpW]);
+    if (newZoom === oldZoom) return;
+
+    // Use the LIVE pan (animated value) and compute the new pan so the point at
+    // the viewport centre stays put. Apply BOTH pan and zoom in the same commit
+    // so there's no intermediate frame where the new scale uses the old pan
+    // (that caused the "jump left, then re-centre").
+    const pan = { x: panCurrent.current.x, y: panCurrent.current.y };
+    const pxCenter = CANVAS_WIDTH / 2 + (vpW / 2 - pan.x - CANVAS_WIDTH / 2) / oldZoom;
+    const pyCenter = CANVAS_HEIGHT / 2 + (VP_H / 2 - pan.y - CANVAS_HEIGHT / 2) / oldZoom;
+    const newPan = {
+      x: Number((vpW / 2 - CANVAS_WIDTH / 2 - (pxCenter - CANVAS_WIDTH / 2) * newZoom).toFixed(1)),
+      y: Number((VP_H / 2 - CANVAS_HEIGHT / 2 - (pyCenter - CANVAS_HEIGHT / 2) * newZoom).toFixed(1)),
+    };
+    // Drive the animated pan immediately (no useEffect lag), then update state.
+    panAnim.setValue(newPan);
+    panCurrent.current = newPan;
+    panLast.current = newPan;
+    zoomRef.current = newZoom;
+    setCanvasPan(newPan);
+    setZoom(newZoom);
+  }, [vpW, panAnim]);
 
   // Fit default items on first render.
   useEffect(() => { fitToContent(initialItems); }, [fitToContent]);
