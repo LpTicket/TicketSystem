@@ -262,6 +262,8 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   // When a touch lands on a draggable item in edit mode, the viewport must NOT
   // capture the pan — the item should own the gesture (drag/select).
   const touchedItemRef = useRef(false);
+  // True while a chair is handling the touch, so the viewport ignores it.
+  const seatTouchRef = useRef(false);
 
   // Only claim the move responder once the finger has actually moved a bit (or a
   // second finger lands), so a tap doesn't get captured. Mirrors the client.
@@ -308,6 +310,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
 
   const onCanvasTouchStart = (e: any) => {
     if (animatingRef.current) return;
+    if (seatTouchRef.current) return; // a chair owns this touch
     if (dragRef.current) return; // an item is being dragged — don't pan/pinch the canvas
     const touches = e.nativeEvent.touches || [];
     const t0 = touches[0];
@@ -327,6 +330,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     else if (!touchRef.current.isPinch) beginPan(touches);
   };
   const onCanvasTouchMove = (e: any) => {
+    if (seatTouchRef.current) return; // a chair owns this touch
     // An item is being dragged — move it instead of panning the canvas.
     if (dragRef.current) {
       const d = dragRef.current;
@@ -531,6 +535,22 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       x: Math.max(0, Math.min(CANVAS_WIDTH - entry.width, x)),
       y: Math.max(0, Math.min(CANVAS_HEIGHT - entry.height, y)),
     } : entry));
+  };
+
+  // Drag a chair: update its xOffset/yOffset (baseX/baseY = offset when the drag began).
+  const dragSeat = (seatId: string, itemId: string, baseX: number, baseY: number, dx: number, dy: number) => {
+    setSaved(false);
+    setItems((current) => current.map((it) => {
+      if (it.id !== itemId) return it;
+      const cfg = { ...(it.seatConfig || {}) };
+      const cur = { ...(cfg[seatId] || {}) } as SeatOverride;
+      cur.xOffset = Math.round(baseX + dx);
+      cur.yOffset = Math.round(baseY + dy);
+      if (cur.xOffset === 0) delete cur.xOffset;
+      if (cur.yOffset === 0) delete cur.yOffset;
+      cfg[seatId] = cur;
+      return { ...it, seatConfig: cfg };
+    }));
   };
 
   const resizeSelected = (width: number, height: number) => {
@@ -772,7 +792,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                     ]}
                   >
                     {(item.type === 'table' || item.type === 'seat') && (
-                      <SeatDots item={item} selectedSeat={selectedSeat} selectedItemId={selectedId} onSeatPress={toggleSeat} />
+                      <SeatDots item={item} selectedSeat={selectedSeat} selectedItemId={selectedId} editMode={editMode} zoomRef={viewRef} seatTouchRef={seatTouchRef} onSeatPress={toggleSeat} onSeatDrag={dragSeat} />
                     )}
 
                     <Text style={[
@@ -1025,7 +1045,60 @@ function shapeStyle(item: VenueItem) {
   return { borderRadius: 8 };
 }
 
-function SeatDots({ item, selectedSeat, selectedItemId, onSeatPress }: { item: VenueItem; selectedSeat: string | null; selectedItemId: string; onSeatPress: (seatId: string, px: number, py: number, itemId: string) => void }) {
+// One chair: a tap selects it (info/inspector); a drag adjusts its xOffset/yOffset
+// (like the web editor). Uses its own responder so it doesn't fight the canvas.
+function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, active, editMode, zoomRef, seatTouchRef, onSeatPress, onSeatDrag }: {
+  id: string; itemId: string; baseX: number; baseY: number;
+  left: number; top: number; size: number; fill: string; active: boolean;
+  editMode: boolean; zoomRef: React.MutableRefObject<{ zoom: number; pan: { x: number; y: number } }>;
+  seatTouchRef: React.MutableRefObject<boolean>;
+  onSeatPress: (seatId: string, px: number, py: number, itemId: string) => void;
+  onSeatDrag: (seatId: string, itemId: string, baseX: number, baseY: number, dx: number, dy: number) => void;
+}) {
+  const start = useRef({ x: 0, y: 0, moved: false });
+  return (
+    <View
+      onStartShouldSetResponder={() => true}
+      onMoveShouldSetResponder={() => editMode}
+      onResponderGrant={(e) => { seatTouchRef.current = true; start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, moved: false }; }}
+      onResponderMove={(e) => {
+        if (!editMode) return;
+        const z = zoomRef.current.zoom || 1;
+        const dx = (e.nativeEvent.pageX - start.current.x) / z;
+        const dy = (e.nativeEvent.pageY - start.current.y) / z;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) start.current.moved = true;
+        if (start.current.moved) onSeatDrag(id, itemId, baseX, baseY, dx, dy);
+      }}
+      onResponderRelease={(e) => {
+        if (!start.current.moved) onSeatPress(id, e.nativeEvent.pageX, e.nativeEvent.pageY, itemId);
+        seatTouchRef.current = false;
+      }}
+      onResponderTerminate={() => { seatTouchRef.current = false; }}
+      style={[
+        styles.seatDot,
+        {
+          left, top, width: size, height: size, borderRadius: size / 2,
+          backgroundColor: fill,
+          zIndex: active ? 10 : 5,
+          transform: [{ scale: active ? 1.35 : 1 }],
+          borderColor: active ? '#ffffff' : 'rgba(255,255,255,0.55)',
+          borderWidth: active ? 2 : 1,
+        },
+      ]}
+    />
+  );
+}
+
+function SeatDots({ item, selectedSeat, selectedItemId, editMode, zoomRef, seatTouchRef, onSeatPress, onSeatDrag }: {
+  item: VenueItem;
+  selectedSeat: string | null;
+  selectedItemId: string;
+  editMode: boolean;
+  zoomRef: React.MutableRefObject<{ zoom: number; pan: { x: number; y: number } }>;
+  seatTouchRef: React.MutableRefObject<boolean>;
+  onSeatPress: (seatId: string, px: number, py: number, itemId: string) => void;
+  onSeatDrag: (seatId: string, itemId: string, baseX: number, baseY: number, dx: number, dy: number) => void;
+}) {
   const seats = [];
   const rows = Math.max(1, item.rows);
   const cols = Math.max(1, item.seatsPerRow);
@@ -1093,21 +1166,22 @@ function SeatDots({ item, selectedSeat, selectedItemId, onSeatPress }: { item: V
     const oy = ov.yOffset || 0;
     const isActiveSeat = selectedSeat === id && selectedItemId === item.id;
     seats.push(
-      <TouchableOpacity
+      <SeatDot
         key={id}
-        onPress={(e) => onSeatPress(id, e.nativeEvent.pageX, e.nativeEvent.pageY, item.id)}
-        style={[
-          styles.seatDot,
-          {
-            left: cx - dot / 2 + ox, top: cy - dot / 2 + oy,
-            width: dot, height: dot, borderRadius: dot / 2,
-            backgroundColor: isActiveSeat ? '#f97316' : fill,
-            zIndex: isActiveSeat ? 10 : 5,
-            transform: [{ scale: isActiveSeat ? 1.35 : 1 }],
-            borderColor: isActiveSeat ? '#ffffff' : 'rgba(255,255,255,0.55)',
-            borderWidth: isActiveSeat ? 2 : 1,
-          },
-        ]}
+        id={id}
+        itemId={item.id}
+        baseX={ox}
+        baseY={oy}
+        left={cx - dot / 2 + ox}
+        top={cy - dot / 2 + oy}
+        size={dot}
+        fill={isActiveSeat ? '#f97316' : fill}
+        active={isActiveSeat}
+        editMode={editMode}
+        zoomRef={zoomRef}
+        seatTouchRef={seatTouchRef}
+        onSeatPress={onSeatPress}
+        onSeatDrag={onSeatDrag}
       />
     );
   });
