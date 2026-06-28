@@ -1068,10 +1068,12 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
   // position, there is NO reset and NO frame where left/top and the translate
   // disagree → the item never snaps back on release.
   const start = useRef({ x: 0, y: 0, ix: 0, iy: 0, moved: false });
+  const draggingRef = useRef(false); // local: is THIS item being dragged right now
   const pos = useRef(new Animated.ValueXY({ x: item.x, y: item.y })).current;
-  // Keep pos in sync when item.x/y change from outside a drag (e.g. load/reset).
+  // Keep pos in sync with the item's stored position whenever it changes and this
+  // item isn't actively being dragged (load, reset, template, etc.).
   useEffect(() => {
-    if (!touchedItemRef.current) pos.setValue({ x: item.x, y: item.y });
+    if (!draggingRef.current) pos.setValue({ x: item.x, y: item.y });
   }, [item.x, item.y]);
   return (
     <Animated.View
@@ -1081,6 +1083,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
       onResponderTerminationRequest={() => false}
       onResponderGrant={(e) => {
         touchedItemRef.current = true;
+        draggingRef.current = true;
         start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, moved: false };
         pos.setValue({ x: item.x, y: item.y });
       }}
@@ -1106,10 +1109,12 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
           onSelect(item.id);
           onShowInfo(item, e.nativeEvent.pageX, e.nativeEvent.pageY);
         }
+        draggingRef.current = false;
         touchedItemRef.current = false;
         onDragEnd();
       }}
       onResponderTerminate={() => {
+        draggingRef.current = false;
         touchedItemRef.current = false;
         onDragEnd();
       }}
