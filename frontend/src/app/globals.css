@@ -3036,7 +3036,7 @@ body header .premium-nav-link.active {
 }/* SCAN igual al estilo Search, sin cambiar tamaño */
 body header a[class*="bg-primary"],
 body header button[class*="bg-primary"],
-body header a[href*="scan"],
+body header a[href*="scan"]:not(.lp-user-menu a):not(.hamburger-menu-panel a),
 body header button:has(span),
 body header .btn-primary {
   border-radius: 10px !important;
@@ -3054,7 +3054,7 @@ body header .btn-primary {
 
 body header a[class*="bg-primary"]:hover,
 body header button[class*="bg-primary"]:hover,
-body header a[href*="scan"]:hover,
+body header a[href*="scan"]:not(.lp-user-menu a):not(.hamburger-menu-panel a):hover,
 body header button:has(span):hover,
 body header .btn-primary:hover {
   background:
@@ -5795,6 +5795,12 @@ html body {
 .lp-user-menu .lp-menu-danger {
   transition: background-color 0.18s ease, color 0.18s ease,
     transform 0.18s ease, box-shadow 0.18s ease !important;
+}
+.lp-user-menu .lp-menu-item {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
 }
 .lp-user-menu .lp-menu-item:hover,
 .lp-user-menu .lp-menu-danger:hover {
