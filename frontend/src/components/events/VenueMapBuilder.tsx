@@ -762,7 +762,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     const vw = viewportRef.current.clientWidth;
     const vh = viewportRef.current.clientHeight;
     const scale = 1.0;
-    viewRef.current = { scale, x: vw / 2 - (STAGE_X + STAGE_W / 2) * scale, y: vh / 4 - STAGE_Y * scale };
+    const nextView = { scale, x: vw / 2 - (STAGE_X + STAGE_W / 2) * scale, y: vh / 4 - STAGE_Y * scale };
+    viewRef.current = nextView;
+    setCustomViewport(nextView);
     applyTransform();
   };
 

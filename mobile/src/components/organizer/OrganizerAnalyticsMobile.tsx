@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { exportCsv } from '../../utils/csv';
 
@@ -11,6 +12,8 @@ type Props = {
   sections: any[];
   eventTitle?: string;
 };
+
+const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://www.lpticket.com').replace(/\/$/, '');
 
 // Local YYYY-MM-DD key (organizer analytics groups by calendar day).
 function dayKey(value?: string): string {
@@ -32,9 +35,34 @@ function sectionAnalyticsLabel(name: string, es: boolean): string {
   return clean || (es ? 'General' : 'General');
 }
 
+function money(value: any): string {
+  return `$${Number(value || 0).toFixed(2)}`;
+}
+
+function buyerName(order: any, fallback: string): string {
+  const user = order?.user || {};
+  return [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || fallback;
+}
+
+function ticketLabel(ticket: any, fallback: string): string {
+  const section = ticket?.sectionName;
+  const row = ticket?.rowLabel;
+  const seat = ticket?.seatNumber;
+  const parts = [section, row, seat].filter(Boolean);
+  return parts.length ? parts.join(' · ') : fallback;
+}
+
+function openTicketReceipt(code?: string | null) {
+  if (!code) return;
+  const url = `${SITE_URL}/verify/${code}`;
+  WebBrowser.openBrowserAsync(url).catch(() => Linking.openURL(url).catch(() => {}));
+}
+
 export function OrganizerAnalyticsMobile({ sales, attendees, sections, eventTitle }: Props) {
   const { t, lang } = useLanguage();
   const es = lang === 'es';
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
   const data = useMemo(() => {
     const orders = (sales?.orders || []) as any[];
@@ -74,10 +102,10 @@ export function OrganizerAnalyticsMobile({ sales, attendees, sections, eventTitl
     const averageOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
     const scanRate = issuedTickets > 0 ? Math.round((scannedTickets / issuedTickets) * 100) : 0;
 
-    const rawByDay = paidOrders.reduce<Record<string, { date: string; orders: number; tickets: number; revenue: number }>>((acc, o) => {
+    const rawByDay = paidOrders.reduce<Record<string, { date: string; orders: number; tickets: number; revenue: number; orderRows: any[] }>>((acc, o) => {
       const key = dayKey(o.paidAt || o.createdAt);
       if (!key) return acc;
-      if (!acc[key]) acc[key] = { date: key, orders: 0, tickets: 0, revenue: 0 };
+      if (!acc[key]) acc[key] = { date: key, orders: 0, tickets: 0, revenue: 0, orderRows: [] };
       const tickets = Array.isArray(o.tickets) ? o.tickets : [];
       const paidTicketsInOrder = tickets.length > 0
         ? tickets.filter((ticket: any) => Number(ticket.price ?? o.subtotal ?? o.total ?? 0) > 0).length
@@ -85,6 +113,7 @@ export function OrganizerAnalyticsMobile({ sales, attendees, sections, eventTitl
       acc[key].orders += 1;
       acc[key].tickets += paidTicketsInOrder;
       acc[key].revenue += Number(o.subtotal ?? o.total ?? 0);
+      acc[key].orderRows.push(o);
       return acc;
     }, {});
     // Show ALL days with sales, sorted chronologically.
@@ -168,18 +197,85 @@ export function OrganizerAnalyticsMobile({ sales, attendees, sections, eventTitl
         <Text style={styles.cardSub}>{es ? 'Órdenes, tickets e ingresos diarios' : 'Daily orders, tickets and revenue'}</Text>
         {data.salesByDay.some((d) => d.revenue > 0) ? (
           <ScrollView style={styles.innerScroll} nestedScrollEnabled showsVerticalScrollIndicator>
-            {data.salesByDay.map((day, index) => (
-              <View key={`${day.date}-${index}`} style={styles.barRow}>
-                <View style={styles.barHead}>
-                  <Text style={styles.barLabel}>{dayLabel(day.date)}</Text>
-                  <Text style={styles.barValue}>${day.revenue.toFixed(2)}</Text>
+            {data.salesByDay.map((day, index) => {
+              const dayOpen = expandedDay === day.date;
+              return (
+                <View key={`${day.date}-${index}`} style={styles.barRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.82}
+                    onPress={() => {
+                      setExpandedDay(dayOpen ? null : day.date);
+                      setExpandedOrder(null);
+                    }}
+                    style={styles.dayButton}
+                  >
+                    <View style={styles.barHead}>
+                      <Text style={styles.barLabel}>{dayLabel(day.date)}</Text>
+                      <View style={styles.rowRight}>
+                        <Text style={styles.barValue}>${day.revenue.toFixed(2)}</Text>
+                        <Ionicons name={dayOpen ? 'chevron-up' : 'chevron-down'} size={14} color="rgba(226,232,240,0.55)" />
+                      </View>
+                    </View>
+                    <View style={styles.barTrack}>
+                      <View style={[styles.barFill, { width: `${Math.max(6, (day.revenue / maxRevenue) * 100)}%`, backgroundColor: '#F97316' }]} />
+                    </View>
+                    <Text style={styles.barNote}>{day.orders} {es ? 'órdenes' : 'orders'} · {day.tickets} tickets</Text>
+                  </TouchableOpacity>
+
+                  {dayOpen && (
+                    <View style={styles.ordersPanel}>
+                      {day.orderRows.map((order: any, orderIndex: number) => {
+                        const orderKey = String(order.id || `${day.date}-${orderIndex}`);
+                        const orderOpen = expandedOrder === orderKey;
+                        const tickets = Array.isArray(order.tickets) ? order.tickets : [];
+                        return (
+                          <View key={orderKey} style={styles.orderCard}>
+                            <TouchableOpacity
+                              activeOpacity={0.84}
+                              onPress={() => setExpandedOrder(orderOpen ? null : orderKey)}
+                              style={styles.orderTop}
+                            >
+                              <View style={styles.orderMain}>
+                                <Text style={styles.orderBuyer} numberOfLines={1}>{buyerName(order, es ? 'Comprador' : 'Buyer')}</Text>
+                                <Text style={styles.orderMeta} numberOfLines={1}>
+                                  {order.id ? `${es ? 'Orden' : 'Order'} ${String(order.id).slice(0, 8)}` : es ? 'Orden' : 'Order'} · {tickets.length || Number(order.ticketCount || 0)} tickets
+                                </Text>
+                              </View>
+                              <View style={styles.orderRight}>
+                                <Text style={styles.orderTotal}>{money(order.subtotal ?? order.total)}</Text>
+                                <Ionicons name={orderOpen ? 'chevron-up' : 'chevron-down'} size={13} color="rgba(226,232,240,0.55)" />
+                              </View>
+                            </TouchableOpacity>
+
+                            {orderOpen && (
+                              <View style={styles.ticketList}>
+                                {tickets.length > 0 ? tickets.map((ticket: any, ticketIndex: number) => (
+                                  <TouchableOpacity
+                                    key={`${ticket.id || ticket.ticketCode || 'ticket'}-${ticketIndex}`}
+                                    activeOpacity={0.8}
+                                    onPress={() => openTicketReceipt(ticket.ticketCode)}
+                                    style={styles.ticketRow}
+                                    disabled={!ticket.ticketCode}
+                                  >
+                                    <View style={styles.ticketTextWrap}>
+                                      <Text style={styles.ticketTitle} numberOfLines={1}>{ticketLabel(ticket, es ? 'Entrada general' : 'General admission')}</Text>
+                                      <Text style={styles.ticketCode} numberOfLines={1}>{ticket.ticketCode || (es ? 'Sin código' : 'No code')}</Text>
+                                    </View>
+                                    <Ionicons name="open-outline" size={14} color="rgba(249,115,22,0.88)" />
+                                  </TouchableOpacity>
+                                )) : (
+                                  <Text style={styles.orderEmpty}>{es ? 'Esta orden no trae entradas detalladas.' : 'This order has no detailed tickets.'}</Text>
+                                )}
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
-                <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { width: `${Math.max(6, (day.revenue / maxRevenue) * 100)}%`, backgroundColor: '#F97316' }]} />
-                </View>
-                <Text style={styles.barNote}>{day.orders} {es ? 'órdenes' : 'orders'} · {day.tickets} tickets</Text>
-              </View>
-            ))}
+              );
+            })}
           </ScrollView>
         ) : (
           <Text style={styles.empty}>{es ? 'Aún no hay ventas para graficar.' : 'No sales to chart yet.'}</Text>
@@ -232,11 +328,27 @@ const styles = StyleSheet.create({
   cardSub: { color: 'rgba(226,232,240,0.6)', fontSize: 12, marginTop: 2, marginBottom: 12 },
   innerScroll: { maxHeight: 350 },
   barRow: { marginBottom: 14 },
+  dayButton: { borderRadius: 14 },
   barHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   barLabel: { color: 'rgba(248,250,252,0.85)', fontSize: 12, fontWeight: '600', flex: 1, marginRight: 8 },
   barValue: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
+  rowRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   barTrack: { height: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   barFill: { height: '100%', borderRadius: 999 },
   barNote: { color: 'rgba(226,232,240,0.55)', fontSize: 11, fontWeight: '600', marginTop: 6 },
+  ordersPanel: { marginTop: 10, gap: 8 },
+  orderCard: { borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: '#030B14', overflow: 'hidden' },
+  orderTop: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
+  orderMain: { flex: 1, minWidth: 0 },
+  orderBuyer: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
+  orderMeta: { color: 'rgba(226,232,240,0.52)', fontSize: 10, fontWeight: '600', marginTop: 3 },
+  orderRight: { alignItems: 'flex-end', gap: 5 },
+  orderTotal: { color: '#F97316', fontSize: 12, fontWeight: '600' },
+  ticketList: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' },
+  ticketRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  ticketTextWrap: { flex: 1, minWidth: 0 },
+  ticketTitle: { color: 'rgba(248,250,252,0.88)', fontSize: 12, fontWeight: '600' },
+  ticketCode: { color: 'rgba(226,232,240,0.46)', fontSize: 10, fontWeight: '600', marginTop: 2 },
+  orderEmpty: { color: 'rgba(203,213,225,0.64)', fontSize: 11, fontWeight: '600', padding: 12, textAlign: 'center' },
   empty: { color: 'rgba(203,213,225,0.7)', fontSize: 13, textAlign: 'center', paddingVertical: 18 },
 });
