@@ -22,6 +22,7 @@ import {
   HiOutlineCurrencyDollar,
   HiOutlineEye,
   HiOutlineEyeOff,
+  HiOutlineMail,
 } from 'react-icons/hi';
 import Link from 'next/link';
 
@@ -34,6 +35,33 @@ type AdminEventsCache = {
   page: number;
   filter: string;
   cachedAt: number;
+};
+
+type PostEventReportPreview = {
+  defaultEmail: string;
+  sentAt?: string | null;
+  report: {
+    eventTitle: string;
+    eventDateLabel: string;
+    venueLabel: string;
+    currency: string;
+    totals: {
+      grossSales: number;
+      ticketRevenue: number;
+      lpFees: number;
+      processingFees: number;
+      netEstimated: number;
+      totalOrders: number;
+      totalTickets: number;
+      scannedTickets: number;
+      pendingTickets: number;
+      scanRate: number;
+      averageOrder: number;
+    };
+    topSections: Array<{ name: string; tickets: number; revenue: number }>;
+    salesByDay: Array<{ date: string; orders: number; tickets: number; revenue: number }>;
+    specialCodes: Array<{ code: string; orders: number; tickets: number; revenue: number; commission: number }>;
+  };
 };
 
 function readEventsCache(filter: string, page: number): AdminEventsCache | null {
@@ -70,6 +98,11 @@ export default function AdminEventsPage() {
   const [search, setSearch] = useState('');
   const [selectedEventForChanges, setSelectedEventForChanges] = useState<Event | null>(null);
   const [processingField, setProcessingField] = useState<string | null>(null);
+  const [selectedEventForReport, setSelectedEventForReport] = useState<Event | null>(null);
+  const [reportPreview, setReportPreview] = useState<PostEventReportPreview | null>(null);
+  const [reportEmail, setReportEmail] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportSending, setReportSending] = useState(false);
 
   // Fee configuration state
   const [selectedEventForFees, setSelectedEventForFees] = useState<Event | null>(null);
@@ -83,6 +116,43 @@ export default function AdminEventsPage() {
   const [eventPricesConfig, setEventPricesConfig] = useState<{ event: any; sections: any[] } | null>(null);
   const [pricesLoading, setPricesLoading] = useState(false);
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
+
+  const money = (value: number, currency = 'USD') => `${Number(value || 0).toFixed(2)} ${currency}`;
+
+  const handleOpenReportModal = async (ev: Event) => {
+    setSelectedEventForReport(ev);
+    setReportPreview(null);
+    setReportEmail(ev.organizer?.email || '');
+    setReportLoading(true);
+    try {
+      const { data } = await api.get(`/admin/events/${ev.id}/post-event-report`);
+      setReportPreview(data);
+      setReportEmail(data.defaultEmail || ev.organizer?.email || '');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || (lang === 'es' ? 'No se pudo cargar el resumen' : 'Could not load report'));
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleSendReport = async () => {
+    if (!selectedEventForReport) return;
+    if (!reportEmail.trim()) {
+      toast.error(lang === 'es' ? 'Coloca un correo destino' : 'Enter a destination email');
+      return;
+    }
+    setReportSending(true);
+    try {
+      await api.post(`/admin/events/${selectedEventForReport.id}/post-event-report/send`, { email: reportEmail.trim() });
+      toast.success(lang === 'es' ? 'Resumen enviado correctamente' : 'Report sent successfully');
+      setSelectedEventForReport(null);
+      setReportPreview(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || (lang === 'es' ? 'No se pudo enviar el resumen' : 'Could not send report'));
+    } finally {
+      setReportSending(false);
+    }
+  };
 
   const handleOpenFeesModal = async (ev: Event) => {
     setSelectedEventForFees(ev);
@@ -513,6 +583,14 @@ export default function AdminEventsPage() {
                             </button>
                           )}
                           <button
+                            onClick={() => handleOpenReportModal(ev)}
+                            className="px-4 py-2 rounded-xl bg-[#F97316] text-white text-xs font-black hover:bg-[#ea6c10] transition-colors flex items-center gap-2 shrink-0 shadow-sm shadow-orange-100 active:scale-95"
+                            title={lang === 'es' ? 'Enviar resumen final del evento' : 'Send final event report'}
+                          >
+                            <HiOutlineMail className="w-4 h-4" />
+                            {lang === 'es' ? 'Enviar resumen' : 'Send report'}
+                          </button>
+                          <button
                             onClick={() => handleOpenPricesModal(ev)}
                             className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1 shrink-0 shadow-sm border border-emerald-200"
                             title={lang === 'es' ? 'Gestionar Precios' : 'Manage Prices'}
@@ -635,6 +713,14 @@ export default function AdminEventsPage() {
                       </button>
                     )}
 
+                    <button
+                      onClick={() => handleOpenReportModal(ev)}
+                      className="w-full bg-[#F97316] text-white text-[10px] font-black py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-orange-100 active:scale-95 transition-all"
+                    >
+                      <HiOutlineMail className="w-4 h-4" />
+                      {lang === 'es' ? 'ENVIAR RESUMEN' : 'SEND REPORT'}
+                    </button>
+
                     <div className="flex gap-2 w-full mt-1">
                       <button
                         onClick={() => handleOpenPricesModal(ev)}
@@ -699,6 +785,140 @@ export default function AdminEventsPage() {
         </div>
       )}
       </div>
+
+      {/* Post-event Report Modal */}
+      {selectedEventForReport && (
+        <div className="fixed inset-0 h-screen w-screen z-[9999] overflow-hidden flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm"
+            onClick={() => !reportSending && setSelectedEventForReport(null)}
+          />
+          <div className="relative w-full max-w-2xl max-h-[92vh] overflow-hidden bg-white rounded-2xl shadow-2xl border border-gray-150 z-10 flex flex-col">
+            <div className="px-6 py-5 border-b border-gray-100 bg-[rgba(249,115,22,0.06)] flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-11 h-11 rounded-xl bg-[#F97316] text-white flex items-center justify-center shadow-sm">
+                  <HiOutlineMail className="w-6 h-6" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="font-extrabold text-lg text-gray-900 leading-tight">{lang === 'es' ? 'Enviar resumen' : 'Send report'}</h2>
+                  <p className="text-xs text-gray-500 mt-0.5 font-medium truncate">{selectedEventForReport.title}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedEventForReport(null)}
+                disabled={reportSending}
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-white transition-all disabled:opacity-50"
+              >
+                <HiOutlineXCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-500 block mb-2">
+                  {lang === 'es' ? 'Correo destino' : 'Destination email'}
+                </label>
+                <input
+                  type="email"
+                  value={reportEmail}
+                  onChange={(e) => setReportEmail(e.target.value)}
+                  placeholder="organizer@email.com"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-800 outline-none focus:border-[#F97316] focus:ring-2 focus:ring-orange-100"
+                />
+                <p className="mt-2 text-[11px] text-gray-500">
+                  {lang === 'es'
+                    ? 'Puedes dejar el correo del organizador o cambiarlo para probar cómo llegará.'
+                    : 'You can keep the organizer email or change it to test delivery.'}
+                </p>
+              </div>
+
+              {reportLoading ? (
+                <div className="py-12 text-center text-sm font-semibold text-gray-500">
+                  {lang === 'es' ? 'Cargando resumen...' : 'Loading report...'}
+                </div>
+              ) : reportPreview ? (
+                <>
+                  {reportPreview.sentAt && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800">
+                      {lang === 'es' ? 'Este resumen ya fue enviado antes. Puedes reenviarlo manualmente.' : 'This report was already sent. You can resend it manually.'}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">{lang === 'es' ? 'Ventas cobradas' : 'Gross sales'}</p>
+                      <p className="mt-1 text-xl font-black text-[#F97316]">{money(reportPreview.report.totals.grossSales, reportPreview.report.currency)}</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">{lang === 'es' ? 'Entradas' : 'Tickets'}</p>
+                      <p className="mt-1 text-xl font-black text-gray-900">{reportPreview.report.totals.totalTickets}</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">{lang === 'es' ? 'Escaneados' : 'Scanned'}</p>
+                      <p className="mt-1 text-xl font-black text-gray-900">{reportPreview.report.totals.scannedTickets} / {reportPreview.report.totals.totalTickets}</p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">{lang === 'es' ? 'Asistencia' : 'Attendance'}</p>
+                      <p className="mt-1 text-xl font-black text-[#F97316]">{reportPreview.report.totals.scanRate}%</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-100 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400 mb-2">{lang === 'es' ? 'Evento' : 'Event'}</p>
+                    <p className="text-sm font-extrabold text-gray-900">{reportPreview.report.eventTitle}</p>
+                    <p className="mt-1 text-xs font-semibold text-gray-500">{reportPreview.report.eventDateLabel}</p>
+                    <p className="mt-1 text-xs font-semibold text-gray-500">{reportPreview.report.venueLabel}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-gray-100 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400 mb-3">{lang === 'es' ? 'Secciones / mesas' : 'Sections / tables'}</p>
+                      <div className="space-y-2">
+                        {reportPreview.report.topSections.length > 0 ? reportPreview.report.topSections.slice(0, 4).map((item) => (
+                          <div key={item.name} className="flex items-center justify-between gap-3 text-xs">
+                            <span className="font-bold text-gray-700 truncate">{item.name}</span>
+                            <span className="font-black text-[#F97316]">{item.tickets}</span>
+                          </div>
+                        )) : <p className="text-xs font-semibold text-gray-400">{lang === 'es' ? 'Sin ventas.' : 'No sales.'}</p>}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 p-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400 mb-3">{lang === 'es' ? 'Códigos' : 'Codes'}</p>
+                      <div className="space-y-2">
+                        {reportPreview.report.specialCodes.length > 0 ? reportPreview.report.specialCodes.slice(0, 4).map((item) => (
+                          <div key={item.code} className="flex items-center justify-between gap-3 text-xs">
+                            <span className="font-bold text-gray-700 truncate">{item.code}</span>
+                            <span className="font-black text-[#F97316]">{item.tickets}</span>
+                          </div>
+                        )) : <p className="text-xs font-semibold text-gray-400">{lang === 'es' ? 'Sin códigos usados.' : 'No codes used.'}</p>}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row gap-3 sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedEventForReport(null)}
+                disabled={reportSending}
+                className="btn-secondary px-5 py-3 text-sm font-bold justify-center disabled:opacity-50"
+              >
+                {lang === 'es' ? 'Cancelar' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={handleSendReport}
+                disabled={reportLoading || reportSending || !reportPreview}
+                className="btn-primary px-5 py-3 text-sm font-black justify-center disabled:opacity-60"
+              >
+                {reportSending ? (lang === 'es' ? 'Enviando...' : 'Sending...') : (lang === 'es' ? 'Enviar resumen' : 'Send report')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pending Changes Modal */}
       {selectedEventForChanges && (

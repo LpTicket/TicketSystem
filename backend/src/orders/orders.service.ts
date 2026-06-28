@@ -2141,6 +2141,44 @@ export class OrdersService {
     };
   }
 
+  async getPostEventReportPreview(eventId: string) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId }, relations: ['organizer'] });
+    if (!event) throw new NotFoundException('Evento no encontrado');
+    const report = await this.buildPostEventReport(event);
+    const organizer: any = event.organizer || {};
+    return {
+      defaultEmail: organizer.email || '',
+      sentAt: event.postEventReportSentAt,
+      report: {
+        eventTitle: report.eventTitle,
+        eventDateLabel: report.eventDateLabel,
+        venueLabel: report.venueLabel,
+        currency: report.currency,
+        totals: report.totals,
+        topSections: report.topSections.slice(0, 8),
+        salesByDay: report.salesByDay.slice(-7),
+        specialCodes: report.specialCodes.slice(0, 8),
+      },
+    };
+  }
+
+  async sendManualPostEventReport(eventId: string, overrideEmail?: string) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId }, relations: ['organizer'] });
+    if (!event) throw new NotFoundException('Evento no encontrado');
+    const organizer: any = event.organizer || {};
+    const targetEmail = String(overrideEmail || organizer.email || '').trim();
+    if (!targetEmail) throw new BadRequestException('Este evento no tiene correo destino');
+    if (!isValidEmailFormat(targetEmail)) throw new BadRequestException('Correo inválido');
+
+    const report = await this.buildPostEventReport(event);
+    const sent = await this.mailService.sendPostEventReportEmail(targetEmail, report);
+    if (!sent) throw new BadRequestException('No se pudo enviar el resumen');
+
+    event.postEventReportSentAt = new Date();
+    await this.eventRepo.save(event);
+    return { success: true, email: targetEmail, sentAt: event.postEventReportSentAt };
+  }
+
   @Cron('0 5 * * * *')
   async handlePostEventReports() {
     console.log('[Cron] Checking post-event organizer reports...');
