@@ -1048,7 +1048,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
   onScrollLock?: (locked: boolean) => void;
   style: any; children: React.ReactNode;
 }) {
-  const start = useRef({ x: 0, y: 0, ix: 0, iy: 0, lastX: 0, lastY: 0, moved: false });
+  const start = useRef({ x: 0, y: 0, ix: 0, iy: 0, dx: 0, dy: 0, moved: false });
   // Animated translate applied on top of left/top so we can move per-frame without
   // a React re-render (works on web + native, unlike setNativeProps).
   const offset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
@@ -1062,7 +1062,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
       onResponderTerminationRequest={() => false}
       onResponderGrant={(e) => {
         touchedItemRef.current = true;
-        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, lastX: item.x, lastY: item.y, moved: false };
+        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, dx: 0, dy: 0, moved: false };
         offset.setValue({ x: 0, y: 0 });
         onSelect(item.id);
         onScrollLock?.(true); // block page scroll the instant the item is touched
@@ -1074,19 +1074,16 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         const dy = (e.nativeEvent.pageY - start.current.y) / z;
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) start.current.moved = true;
         if (start.current.moved) {
-          // Same approach as SeatDot: use the raw delta for the live offset, and
-          // remember the clamped final position for the commit on release.
-          start.current.lastX = Math.max(0, Math.min(CANVAS_WIDTH - item.width, start.current.ix + dx));
-          start.current.lastY = Math.max(0, Math.min(CANVAS_HEIGHT - item.height, start.current.iy + dy));
+          // Store the raw delta and move the visual offset (exactly like SeatDot).
+          start.current.dx = dx; start.current.dy = dy;
           offset.setValue({ x: dx, y: dy });
         }
       }}
       onResponderRelease={(e) => {
         if (start.current.moved) {
-          // Reset offset FIRST, then commit the new base position in the same tick.
-          // React batches both so left/top and translate update together (no jump).
           offset.setValue({ x: 0, y: 0 });
-          onDragMove(item, start.current.lastX, start.current.lastY);
+          // Commit using the captured base + raw delta (same math SeatDot uses).
+          onDragMove(item, start.current.ix + start.current.dx, start.current.iy + start.current.dy);
         } else {
           onShowInfo(item, e.nativeEvent.pageX, e.nativeEvent.pageY);
         }
@@ -1094,7 +1091,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         onDragEnd();
       }}
       onResponderTerminate={() => {
-        if (start.current.moved) { offset.setValue({ x: 0, y: 0 }); onDragMove(item, start.current.lastX, start.current.lastY); }
+        if (start.current.moved) { offset.setValue({ x: 0, y: 0 }); onDragMove(item, start.current.ix + start.current.dx, start.current.iy + start.current.dy); }
         touchedItemRef.current = false;
         onDragEnd();
       }}
