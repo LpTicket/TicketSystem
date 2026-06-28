@@ -139,11 +139,11 @@ const initialItems: VenueItem[] = [
   { id: 'table-30', type: 'table', name: '30', x: 650, y: 275, width: 96, height: 64, color: '#f59e0b', price: 100, rows: 2, seatsPerRow: 5, fontSize: 10, shape: 'rectangle', saleMode: 'seat', locked: false, blockedSeats: [], seatConfig: {} },
 ];
 
-type Props = { eventId?: string };
+type Props = { eventId?: string; onScrollLock?: (locked: boolean) => void };
 
 const VP_H = 440; // canvas viewport height (matches styles.workbench height)
 
-export function VenueMapEditor({ eventId }: Props) {
+export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const { t } = useLanguage();
   const vpW = Dimensions.get('window').width;
   const [items, setItems] = useState<VenueItem[]>(initialItems);
@@ -281,6 +281,7 @@ export function VenueMapEditor({ eventId }: Props) {
   };
   const onCanvasTouchStart = (e: any) => {
     if (animatingRef.current) return;
+    onScrollLock?.(true); // stop the page from scrolling while moving the map
     const touches = e.nativeEvent.touches || [];
     const t0 = touches[0];
     responderStart.current = { x: t0?.pageX || 0, y: t0?.pageY || 0 };
@@ -313,6 +314,7 @@ export function VenueMapEditor({ eventId }: Props) {
     if (touches.length === 1) { beginPan(touches); return; }
     if (touches.length === 0) {
       touchRef.current.isPinch = false;
+      onScrollLock?.(false); // re-enable page scroll once fingers are lifted
       // Refresh the % label once the gesture finishes (not per frame).
       setZoomPct(Math.round(viewRef.current.zoom * 100));
     }
@@ -642,6 +644,7 @@ export function VenueMapEditor({ eventId }: Props) {
                     onMoveShouldSetResponder={() => editMode}
                     onResponderGrant={(event: GestureResponderEvent) => {
                       if (!editMode) return;
+                      onScrollLock?.(true);
                       setSelectedId(item.id);
                       setSelectedSeat(null);
                       setDrag({ id: item.id, x: item.x, y: item.y, pageX: event.nativeEvent.pageX, pageY: event.nativeEvent.pageY });
@@ -655,7 +658,8 @@ export function VenueMapEditor({ eventId }: Props) {
                       const nextY = drag.y + (event.nativeEvent.pageY - drag.pageY) / z;
                       moveItem(item, nextX, nextY);
                     }}
-                    onResponderRelease={() => setDrag(null)}
+                    onResponderRelease={() => { setDrag(null); onScrollLock?.(false); }}
+                    onResponderTerminate={() => { setDrag(null); onScrollLock?.(false); }}
                     style={[
                       styles.mapItem,
                       shapeStyle(item),
