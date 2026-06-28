@@ -1067,11 +1067,12 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
   // we commit the same value to state. Because pos already holds the final absolute
   // position, there is NO reset and NO frame where left/top and the translate
   // disagree → the item never snaps back on release.
-  const start = useRef({ x: 0, y: 0, ix: 0, iy: 0, moved: false });
+  // Position driven by an Animated value (absolute). left/top are 0; everything is
+  // the translate. We track the final x/y in a ref so the commit never depends on
+  // reading the Animated value's private _value (which is unreliable on web).
+  const start = useRef({ x: 0, y: 0, ix: 0, iy: 0, fx: 0, fy: 0, moved: false });
   const draggingRef = useRef(false); // local: is THIS item being dragged right now
   const pos = useRef(new Animated.ValueXY({ x: item.x, y: item.y })).current;
-  // Keep pos in sync with the item's stored position whenever it changes and this
-  // item isn't actively being dragged (load, reset, template, etc.).
   useEffect(() => {
     if (!draggingRef.current) pos.setValue({ x: item.x, y: item.y });
   }, [item.x, item.y]);
@@ -1084,7 +1085,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
       onResponderGrant={(e) => {
         touchedItemRef.current = true;
         draggingRef.current = true;
-        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, moved: false };
+        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, fx: item.x, fy: item.y, moved: false };
         pos.setValue({ x: item.x, y: item.y });
       }}
       onResponderMove={(e) => {
@@ -1094,27 +1095,30 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         const dy = (e.nativeEvent.pageY - start.current.y) / z;
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) start.current.moved = true;
         if (start.current.moved) {
-          pos.setValue({ x: start.current.ix + dx, y: start.current.iy + dy });
+          // Track the absolute final position in the ref AND drive the visual.
+          start.current.fx = start.current.ix + dx;
+          start.current.fy = start.current.iy + dy;
+          pos.setValue({ x: start.current.fx, y: start.current.fy });
         }
       }}
-      onResponderRelease={(e) => {
+      onResponderRelease={() => {
         if (!draggingRef.current) return; // ignore stray release events
         draggingRef.current = false;
         if (start.current.moved) {
-          // Use the offset's current animated value (what's on screen) as the final
-          // position — it already tracked every move frame, so no recompute drift.
-          const finalX = (pos.x as any)._value ?? item.x;
-          const finalY = (pos.y as any)._value ?? item.y;
-          pos.setValue({ x: finalX, y: finalY });
-          onDragMove(item, finalX, finalY);
+          pos.setValue({ x: start.current.fx, y: start.current.fy });
+          onDragMove(item, start.current.fx, start.current.fy);
         } else {
           onSelect(item.id);
-          onShowInfo(item, e.nativeEvent.pageX, e.nativeEvent.pageY);
+          onShowInfo(item, start.current.x, start.current.y);
         }
         touchedItemRef.current = false;
         onDragEnd();
       }}
       onResponderTerminate={() => {
+        if (draggingRef.current && start.current.moved) {
+          pos.setValue({ x: start.current.fx, y: start.current.fy });
+          onDragMove(item, start.current.fx, start.current.fy);
+        }
         draggingRef.current = false;
         touchedItemRef.current = false;
         onDragEnd();
