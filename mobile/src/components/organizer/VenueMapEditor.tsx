@@ -251,6 +251,20 @@ export function VenueMapEditor({ eventId }: Props) {
 
   // Touch refs (pan + pinch) — same approach as ClientVenueMap.
   const touchRef = useRef({ x: 0, y: 0, panX: 0, panY: 0, isPinch: false, pinchDist: 0, pinchZoom: 1, pinchCx: 0, pinchCy: 0, moved: false });
+  const responderStart = useRef({ x: 0, y: 0 });
+
+  // Only claim the move responder once the finger has actually moved a bit (or a
+  // second finger lands), so a tap doesn't get captured. Mirrors the client.
+  const shouldCapturePan = (e: any) => {
+    if (drag) return false; // an item is being dragged
+    const touches = e.nativeEvent.touches || [];
+    if (touches.length >= 2) return true;
+    const t = touches[0];
+    if (!t) return false;
+    const dx = Math.abs((t.pageX || 0) - responderStart.current.x);
+    const dy = Math.abs((t.pageY || 0) - responderStart.current.y);
+    return dx > 2 || dy > 2;
+  };
 
   const beginPinch = (touches: any[]) => {
     if (touches.length >= 2) {
@@ -268,6 +282,8 @@ export function VenueMapEditor({ eventId }: Props) {
   const onCanvasTouchStart = (e: any) => {
     if (animatingRef.current) return;
     const touches = e.nativeEvent.touches || [];
+    const t0 = touches[0];
+    responderStart.current = { x: t0?.pageX || 0, y: t0?.pageY || 0 };
     if (touches.length >= 2) beginPinch(touches);
     else if (!touchRef.current.isPinch) beginPan(touches);
   };
@@ -590,8 +606,16 @@ export function VenueMapEditor({ eventId }: Props) {
               (in edit mode), so dragging an item doesn't also pan. */}
           <View
             style={styles.canvasViewport}
-            // Pan + pinch handled the same way as ClientVenueMap. Item dragging
-            // (in edit mode) takes priority because items grab their own touches.
+            // Pan + pinch handled the SAME WAY as ClientVenueMap: onTouch* drives
+            // the gesture (reliable multi-touch for pinch) and the responder
+            // callbacks mirror it. Item dragging takes priority via the item's
+            // own responder, so dragging a table doesn't also pan.
+            onStartShouldSetResponderCapture={() => false}
+            onMoveShouldSetResponderCapture={shouldCapturePan}
+            onTouchStart={onCanvasTouchStart}
+            onTouchMove={onCanvasTouchMove}
+            onTouchEnd={onCanvasTouchEnd}
+            onTouchCancel={onCanvasTouchEnd}
             onStartShouldSetResponder={() => !drag}
             onMoveShouldSetResponder={() => !drag}
             onResponderTerminationRequest={() => false}
