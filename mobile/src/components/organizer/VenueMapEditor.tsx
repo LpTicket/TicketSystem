@@ -668,9 +668,9 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                 return (
                   <View
                     key={`${item.id || item.name || 'map-item'}-${index}`}
-                    // Always capture taps so the info panel shows in view mode too.
-                    // Drag is only started in edit mode.
-                    onStartShouldSetResponder={() => true}
+                    // Only claim the responder in edit mode (for dragging).
+                    // In view mode, touches flow through to the chair TouchableOpacity children.
+                    onStartShouldSetResponder={() => editMode}
                     onMoveShouldSetResponder={() => editMode}
                     onResponderGrant={(event: GestureResponderEvent) => {
                       setSelectedId(item.id);
