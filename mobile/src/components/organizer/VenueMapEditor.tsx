@@ -1081,9 +1081,12 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
       }}
       onResponderRelease={(e) => {
         if (start.current.moved) {
+          // Read the offset's actual current value so the commit matches exactly
+          // what's on screen, then commit and reset in the same tick.
+          const ox = (offset.x as any)._value ?? start.current.dx;
+          const oy = (offset.y as any)._value ?? start.current.dy;
           offset.setValue({ x: 0, y: 0 });
-          // Commit using the captured base + raw delta (same math SeatDot uses).
-          onDragMove(item, start.current.ix + start.current.dx, start.current.iy + start.current.dy);
+          onDragMove(item, start.current.ix + ox, start.current.iy + oy);
         } else {
           onShowInfo(item, e.nativeEvent.pageX, e.nativeEvent.pageY);
         }
@@ -1091,7 +1094,12 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         onDragEnd();
       }}
       onResponderTerminate={() => {
-        if (start.current.moved) { offset.setValue({ x: 0, y: 0 }); onDragMove(item, start.current.ix + start.current.dx, start.current.iy + start.current.dy); }
+        if (start.current.moved) {
+          const ox = (offset.x as any)._value ?? start.current.dx;
+          const oy = (offset.y as any)._value ?? start.current.dy;
+          offset.setValue({ x: 0, y: 0 });
+          onDragMove(item, start.current.ix + ox, start.current.iy + oy);
+        }
         touchedItemRef.current = false;
         onDragEnd();
       }}
