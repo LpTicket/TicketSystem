@@ -2137,7 +2137,7 @@ export class OrdersService {
         ticketRevenue,
         lpFees,
         processingFees,
-        netEstimated: Math.max(0, ticketRevenue - processingFees),
+        netEstimated: Math.round(Math.max(0, grossSales - lpFees - processingFees) * 100) / 100,
         totalOrders,
         totalTickets,
         blockedTickets,

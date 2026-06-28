@@ -870,6 +870,7 @@ export class MailService {
     const year = new Date().getFullYear();
     const adminEmail = String(this.configService.get('ADMIN_EMAIL') || '').trim();
     const money = (value: number) => `${Number(value || 0).toFixed(2)} ${report.currency || 'USD'}`;
+    const paidTicketAverage = report.totals.totalTickets > 0 ? report.totals.ticketRevenue / report.totals.totalTickets : 0;
     const safe = (value: any) => String(value ?? '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -985,6 +986,10 @@ export class MailService {
         `Lugar: ${report.venueLabel}`,
         `Ventas cobradas: ${money(report.totals.grossSales)}`,
         `Entradas pagadas: ${report.totals.totalTickets}`,
+        `Venta base de entradas: ${report.totals.totalTickets} x ${money(paidTicketAverage)} = ${money(report.totals.ticketRevenue)}`,
+        `Cargos LPTicket descontados: ${money(report.totals.lpFees)}`,
+        `Procesamiento descontado: ${money(report.totals.processingFees)}`,
+        `Formula del organizador: ${money(report.totals.grossSales)} - ${money(report.totals.lpFees)} - ${money(report.totals.processingFees)} = ${money(report.totals.netEstimated)}`,
         `Bloqueadas / sin ingreso: ${report.totals.blockedTickets}`,
         `Asistentes escaneados: ${report.totals.scannedTickets} / ${report.totals.totalTickets}`,
         `Ordenes: ${report.totals.totalOrders}`,
@@ -1057,12 +1062,14 @@ export class MailService {
             <td bgcolor="#ffffff" style="background:#ffffff!important;padding:12px 24px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:16px;background:#ffffff;">
                 <tr><td colspan="2" style="padding:16px 16px 8px;color:#0A375A;font-size:15px;font-weight:900;">Resumen financiero</td></tr>
-                <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Venta de tickets</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.ticketRevenue)}</td></tr>
-                <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Cargos de servicio LPTicket</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.lpFees)}</td></tr>
-                <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Procesamiento</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.processingFees)}</td></tr>
+                <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Ventas cobradas al comprador</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.grossSales)}</td></tr>
+                <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Menos cargos de servicio LPTicket</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">-${money(report.totals.lpFees)}</td></tr>
+                <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Menos procesamiento</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">-${money(report.totals.processingFees)}</td></tr>
+                <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Base de entradas</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.ticketRevenue)}</td></tr>
                 <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Órdenes pagadas</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${report.totals.totalOrders}</td></tr>
                 <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Orden promedio</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.averageOrder)}</td></tr>
                 <tr><td style="padding:12px 16px 16px;color:#F97316;font-size:14px;font-weight:900;border-top:1px solid #e2e8f0;">Neto estimado organizador</td><td align="right" style="padding:12px 16px 16px;color:#F97316;font-size:17px;font-weight:900;border-top:1px solid #e2e8f0;">${money(report.totals.netEstimated)}</td></tr>
+                <tr><td colspan="2" style="padding:0 16px 16px;color:#64748b;font-size:12px;line-height:1.45;">Cálculo: ${money(report.totals.grossSales)} cobrados - ${money(report.totals.lpFees)} de LPTicket - ${money(report.totals.processingFees)} de procesamiento = ${money(report.totals.netEstimated)} para el organizador. La base de entradas equivale a ${report.totals.totalTickets} entradas pagadas × ${money(paidTicketAverage)} promedio.</td></tr>
               </table>
             </td>
           </tr>
