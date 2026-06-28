@@ -1,4 +1,4 @@
-import { Alert, Animated, Dimensions, GestureResponderEvent, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Dimensions, Easing, GestureResponderEvent, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -122,6 +122,13 @@ type VenueItem = {
 const CANVAS_WIDTH = 920;
 const CANVAS_HEIGHT = 640;
 
+// Zoom/pan tuning — ported from ClientVenueMap so the editor navigates the same.
+const MIN_ZOOM = 0.12;
+const MAX_ZOOM = 2.5;
+const ZOOM_STEP = 0.12;
+const MAP_EDGE_PADDING = 80;
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
 // Matches the web editor's SECTION_COLORS so sections look the same on both.
 const palette = ['#3b82f6', '#f97316', '#10b981', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#6366f1'];
 
@@ -151,83 +158,143 @@ export function VenueMapEditor({ eventId }: Props) {
   const [selectedId, setSelectedId] = useState(initialItems[2].id);
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; pageX: number; pageY: number } | null>(null);
-  const [canvasPan, setCanvasPan] = useState({ x: 0, y: 0 });
-  // Animated pan drives the transform on the native side so dragging doesn't
-  // re-render React on every move (which caused the "warping"/lag).
-  const panAnim = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
-  // Mirror of the live animated pan value, so a drag always starts from the
-  // CURRENT on-screen position (state can lag behind the animated value, which
-  // caused the map to jump when grabbing it).
-  const panCurrent = useRef({ x: 0, y: 0 });
-  useEffect(() => {
-    const idX = panAnim.x.addListener(({ value }) => { panCurrent.current.x = value; });
-    const idY = panAnim.y.addListener(({ value }) => { panCurrent.current.y = value; });
-    return () => { panAnim.x.removeListener(idX); panAnim.y.removeListener(idY); };
-  }, [panAnim]);
-  const panStart = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
-  const panLast = useRef<{ x: number; y: number } | null>(null);
-  const [canvasDrag, setCanvasDrag] = useState<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
-  const [objectDrag, setObjectDrag] = useState<{ id: string; x: number; y: number; pageX: number; pageY: number } | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [zoom, setZoom] = useState(0.5);
-  // Mirror of the live zoom so zoomTo can read it synchronously.
-  const zoomRef = useRef(0.5);
-  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  const [zoomPct, setZoomPct] = useState(50); // for the % label only
 
-  // Compute pan+zoom so all items fit in the viewport.
+  // ── Pan/zoom system ported from ClientVenueMap ──────────────────────────
+  // Animated values move the canvas on the native side (no JS re-render per
+  // frame). viewRef is the single source of truth for the pan/zoom math.
+  const animZoom = useRef(new Animated.Value(0.5)).current;
+  const animPanX = useRef(new Animated.Value(0)).current;
+  const animPanY = useRef(new Animated.Value(0)).current;
+  const halfCanvasW = useRef(new Animated.Value(CANVAS_WIDTH / 2)).current;
+  const halfCanvasH = useRef(new Animated.Value(CANVAS_HEIGHT / 2)).current;
+  const negOne = useRef(new Animated.Value(-1)).current;
+  const viewRef = useRef({ zoom: 0.5, pan: { x: 0, y: 0 } });
+  const fitRef = useRef({ zoom: 0.5, pan: { x: 0, y: 0 } });
+  const animatingRef = useRef(false);
+
+  const clampPan = useCallback((z: number, p: { x: number; y: number }, cb: { minX: number; minY: number; maxX: number; maxY: number }) => {
+    const minPanX = vpW - MAP_EDGE_PADDING - cb.maxX * z;
+    const maxPanX = MAP_EDGE_PADDING - cb.minX * z;
+    const minPanY = VP_H - MAP_EDGE_PADDING - cb.maxY * z;
+    const maxPanY = MAP_EDGE_PADDING - cb.minY * z;
+    const centerX = vpW / 2 - ((cb.minX + cb.maxX) / 2) * z;
+    const centerY = VP_H / 2 - ((cb.minY + cb.maxY) / 2) * z;
+    return {
+      x: minPanX <= maxPanX ? clamp(p.x, minPanX, maxPanX) : centerX,
+      y: minPanY <= maxPanY ? clamp(p.y, minPanY, maxPanY) : centerY,
+    };
+  }, [vpW]);
+
+  const boundsRef = useRef({ minX: 0, minY: 0, maxX: CANVAS_WIDTH, maxY: CANVAS_HEIGHT });
+
+  const syncAnimated = useCallback((z: number, p: { x: number; y: number }) => {
+    const safePan = clampPan(z, p, boundsRef.current);
+    animZoom.setValue(z);
+    animPanX.setValue(safePan.x);
+    animPanY.setValue(safePan.y);
+    viewRef.current = { zoom: z, pan: safePan };
+    setZoomPct(Math.round(z * 100));
+  }, [animZoom, animPanX, animPanY, clampPan]);
+
+  const animateTo = useCallback((newZ: number, newP: { x: number; y: number }, duration = 200) => {
+    if (animatingRef.current) return;
+    animatingRef.current = true;
+    const safePan = clampPan(newZ, newP, boundsRef.current);
+    viewRef.current = { zoom: newZ, pan: safePan };
+    setZoomPct(Math.round(newZ * 100));
+    Animated.parallel([
+      Animated.timing(animZoom, { toValue: newZ, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(animPanX, { toValue: safePan.x, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(animPanY, { toValue: safePan.y, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+    ]).start(() => { animatingRef.current = false; });
+  }, [animZoom, animPanX, animPanY, clampPan]);
+
+  // Compute the fit pan+zoom for the current items and apply it.
   const fitToContent = useCallback((loadedItems: VenueItem[]) => {
     if (loadedItems.length === 0) return;
-    const pad = 24;
-    const x1 = Math.min(...loadedItems.map((i) => i.x)) - pad;
-    const y1 = Math.min(...loadedItems.map((i) => i.y)) - pad;
-    const x2 = Math.max(...loadedItems.map((i) => i.x + i.width)) + pad;
-    const y2 = Math.max(...loadedItems.map((i) => i.y + i.height)) + pad;
-    const cW = x2 - x1;
-    const cH = y2 - y1;
-    const s = Math.min(vpW / cW, VP_H / cH, 1.1);
-    const cX = (x1 + x2) / 2;
-    const cY = (y1 + y2) / 2;
-    // RN transform [translateX, translateY, scale] maps canvas point (px,py) to viewport:
-    // vp_x = tx + CANVAS_WIDTH/2 + (px - CANVAS_WIDTH/2) * s
-    const tx = vpW / 2 - CANVAS_WIDTH / 2 + (CANVAS_WIDTH / 2 - cX) * s;
-    const ty = VP_H / 2 - CANVAS_HEIGHT / 2 + (CANVAS_HEIGHT / 2 - cY) * s;
-    const z = Number(s.toFixed(3));
-    const p = { x: Number(tx.toFixed(1)), y: Number(ty.toFixed(1)) };
-    zoomRef.current = z;
-    panCurrent.current = p;
-    panLast.current = p;
-    panAnim.setValue(p);
-    setZoom(z);
-    setCanvasPan(p);
-  }, [vpW, panAnim]);
+    const pad = 40;
+    const minX = Math.min(...loadedItems.map((i) => i.x)) - pad;
+    const minY = Math.min(...loadedItems.map((i) => i.y)) - pad;
+    const maxX = Math.max(...loadedItems.map((i) => i.x + i.width)) + pad;
+    const maxY = Math.max(...loadedItems.map((i) => i.y + i.height)) + pad;
+    boundsRef.current = { minX, minY, maxX, maxY };
+    const z = clamp(Math.min((vpW - pad * 2) / Math.max(1, maxX - minX), (VP_H - pad * 2) / Math.max(1, maxY - minY)), MIN_ZOOM, MAX_ZOOM);
+    const pan = { x: vpW / 2 - ((minX + maxX) / 2) * z, y: VP_H / 2 - ((minY + maxY) / 2) * z };
+    fitRef.current = { zoom: z, pan };
+    syncAnimated(z, pan);
+  }, [vpW, syncAnimated]);
 
-  // Zoom toward the CENTRE of the viewport (keeps the middle of the map fixed,
-  // instead of scaling from the corner which made it drift to the left).
-  const zoomTo = useCallback((newZoomRaw: number) => {
-    const oldZoom = zoomRef.current;
-    const newZoom = Math.max(0.2, Math.min(2.4, Number(newZoomRaw.toFixed(3))));
-    if (newZoom === oldZoom) return;
-
-    // Use the LIVE pan (animated value) and compute the new pan so the point at
-    // the viewport centre stays put. Apply BOTH pan and zoom in the same commit
-    // so there's no intermediate frame where the new scale uses the old pan
-    // (that caused the "jump left, then re-centre").
-    const pan = { x: panCurrent.current.x, y: panCurrent.current.y };
-    const pxCenter = CANVAS_WIDTH / 2 + (vpW / 2 - pan.x - CANVAS_WIDTH / 2) / oldZoom;
-    const pyCenter = CANVAS_HEIGHT / 2 + (VP_H / 2 - pan.y - CANVAS_HEIGHT / 2) / oldZoom;
-    const newPan = {
-      x: Number((vpW / 2 - CANVAS_WIDTH / 2 - (pxCenter - CANVAS_WIDTH / 2) * newZoom).toFixed(1)),
-      y: Number((VP_H / 2 - CANVAS_HEIGHT / 2 - (pyCenter - CANVAS_HEIGHT / 2) * newZoom).toFixed(1)),
+  const zoomBy = useCallback((delta: number) => {
+    const oldZ = viewRef.current.zoom;
+    const newZ = clamp(oldZ + delta, fitRef.current.zoom, MAX_ZOOM);
+    if (newZ === oldZ) return;
+    // Keep the visible centre fixed during zoom (same math as ClientVenueMap).
+    const contentCx = (vpW / 2 - viewRef.current.pan.x) / oldZ;
+    const contentCy = (VP_H / 2 - viewRef.current.pan.y) / oldZ;
+    const newP = newZ <= fitRef.current.zoom + 0.001 ? fitRef.current.pan : {
+      x: vpW / 2 - contentCx * newZ,
+      y: VP_H / 2 - contentCy * newZ,
     };
-    // Drive the animated pan immediately (no useEffect lag), then update state.
-    panAnim.setValue(newPan);
-    panCurrent.current = newPan;
-    panLast.current = newPan;
-    zoomRef.current = newZoom;
-    setCanvasPan(newPan);
-    setZoom(newZoom);
-  }, [vpW, panAnim]);
+    animateTo(newZ, newP);
+  }, [vpW, animateTo]);
+
+  const resetMap = useCallback(() => { animateTo(fitRef.current.zoom, fitRef.current.pan); }, [animateTo]);
+
+  // Touch refs (pan + pinch) — same approach as ClientVenueMap.
+  const touchRef = useRef({ x: 0, y: 0, panX: 0, panY: 0, isPinch: false, pinchDist: 0, pinchZoom: 1, pinchCx: 0, pinchCy: 0, moved: false });
+
+  const beginPinch = (touches: any[]) => {
+    if (touches.length >= 2) {
+      const t1 = touches[0], t2 = touches[1];
+      const cx = ((t1.locationX ?? t1.pageX) + (t2.locationX ?? t2.pageX)) / 2;
+      const cy = ((t1.locationY ?? t1.pageY) + (t2.locationY ?? t2.pageY)) / 2;
+      touchRef.current = { x: 0, y: 0, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: true, pinchDist: Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY), pinchZoom: viewRef.current.zoom, pinchCx: cx, pinchCy: cy, moved: false };
+    }
+  };
+  const beginPan = (touches: any[]) => {
+    const t = touches[0];
+    if (!t) return;
+    touchRef.current = { x: t.locationX ?? t.pageX, y: t.locationY ?? t.pageY, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: false, pinchDist: 0, pinchZoom: viewRef.current.zoom, pinchCx: 0, pinchCy: 0, moved: false };
+  };
+  const onCanvasTouchStart = (e: any) => {
+    if (animatingRef.current) return;
+    const touches = e.nativeEvent.touches || [];
+    if (touches.length >= 2) beginPinch(touches);
+    else if (!touchRef.current.isPinch) beginPan(touches);
+  };
+  const onCanvasTouchMove = (e: any) => {
+    const touches = e.nativeEvent.touches || [];
+    if (!touchRef.current.isPinch && touches.length >= 2) { beginPinch(touches); return; }
+    if (touchRef.current.isPinch && touches.length >= 2) {
+      const t1 = touches[0], t2 = touches[1];
+      const dist = Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY);
+      if (!touchRef.current.pinchDist) return;
+      const cx = ((t1.locationX ?? t1.pageX) + (t2.locationX ?? t2.pageX)) / 2;
+      const cy = ((t1.locationY ?? t1.pageY) + (t2.locationY ?? t2.pageY)) / 2;
+      const newZ = clamp(touchRef.current.pinchZoom * Math.pow(dist / touchRef.current.pinchDist, 1.18), fitRef.current.zoom, MAX_ZOOM);
+      const ratio = newZ / touchRef.current.pinchZoom;
+      syncAnimated(newZ, { x: cx - (touchRef.current.pinchCx - touchRef.current.panX) * ratio, y: cy - (touchRef.current.pinchCy - touchRef.current.panY) * ratio });
+    } else if (touchRef.current.isPinch && touches.length === 1) {
+      beginPan(touches);
+    } else if (!touchRef.current.isPinch && touches.length === 1) {
+      const t = touches[0];
+      const dx = (t.locationX ?? t.pageX) - touchRef.current.x;
+      const dy = (t.locationY ?? t.pageY) - touchRef.current.y;
+      syncAnimated(viewRef.current.zoom, { x: touchRef.current.panX + dx, y: touchRef.current.panY + dy });
+    }
+  };
+  const onCanvasTouchEnd = (e: any) => {
+    const touches = e?.nativeEvent?.touches || [];
+    if (touches.length === 1) { beginPan(touches); return; }
+    if (touches.length === 0) touchRef.current.isPinch = false;
+  };
+
+  // Canvas transform graph (stable nodes — built once).
+  const canvasTranslateX = useRef(Animated.add(animPanX, Animated.multiply(halfCanvasW, Animated.add(negOne, animZoom)))).current;
+  const canvasTranslateY = useRef(Animated.add(animPanY, Animated.multiply(halfCanvasH, Animated.add(negOne, animZoom)))).current;
 
   // Fit default items on first render.
   useEffect(() => { fitToContent(initialItems); }, [fitToContent]);
@@ -327,21 +394,14 @@ export function VenueMapEditor({ eventId }: Props) {
   const soldSeats = Math.min(8, capacity);
   const availableSeats = Math.max(capacity - soldSeats, 0);
 
-  // Pan comes from the Animated value (no re-render during drag); zoom is a
-  // normal state value (changes only on +/- taps).
+  // Canvas transform: translate(pan) + scale, compensating RN's centre origin.
   const canvasTransformStyle = {
     transform: [
-      { translateX: panAnim.x },
-      { translateY: panAnim.y },
-      { scale: zoom },
+      { translateX: canvasTranslateX as any },
+      { translateY: canvasTranslateY as any },
+      { scale: animZoom as any },
     ],
   };
-
-  // Keep the Animated value in sync whenever pan state changes from code
-  // (fit-to-content, set view, etc.) — not during a drag.
-  useEffect(() => {
-    panAnim.setValue({ x: canvasPan.x, y: canvasPan.y });
-  }, [canvasPan.x, canvasPan.y, panAnim]);
 
   const updateSelected = (patch: Partial<VenueItem>) => {
     if (!selected) return;
@@ -486,7 +546,7 @@ export function VenueMapEditor({ eventId }: Props) {
 
         <TouchableOpacity
           onPress={() => {
-            setDefaultView({ x: canvasPan.x, y: canvasPan.y, zoom });
+            setDefaultView({ x: viewRef.current.pan.x, y: viewRef.current.pan.y, zoom: viewRef.current.zoom });
             setSaved(false);
             Alert.alert(t('Vista fijada', 'View set'), t('Esta será la vista inicial que verán los clientes. Recuerda guardar.', 'This will be the initial view buyers see. Remember to save.'));
           }}
@@ -520,33 +580,15 @@ export function VenueMapEditor({ eventId }: Props) {
               (in edit mode), so dragging an item doesn't also pan. */}
           <View
             style={styles.canvasViewport}
-            onStartShouldSetResponder={() => true}
-            onMoveShouldSetResponder={() => true}
-            onResponderGrant={(event: GestureResponderEvent) => {
-              if (drag) return; // an item is being dragged
-              // Start from the CURRENT on-screen pan (animated value), not the
-              // possibly-stale React state — prevents the map jumping on grab.
-              const cur = { x: panCurrent.current.x, y: panCurrent.current.y };
-              panStart.current = { x: cur.x, y: cur.y, pageX: event.nativeEvent.pageX, pageY: event.nativeEvent.pageY };
-              panLast.current = cur;
-            }}
-            onResponderMove={(event: GestureResponderEvent) => {
-              if (!panStart.current) return;
-              // Drive the transform directly on the Animated value — no React
-              // re-render per move, so dragging is smooth (no warping/lag).
-              const nx = Math.max(-1400, Math.min(1000, panStart.current.x + event.nativeEvent.pageX - panStart.current.pageX));
-              const ny = Math.max(-1100, Math.min(900, panStart.current.y + event.nativeEvent.pageY - panStart.current.pageY));
-              panLast.current = { x: nx, y: ny };
-              panAnim.setValue({ x: nx, y: ny });
-            }}
-            onResponderRelease={() => {
-              if (panStart.current && panLast.current) setCanvasPan(panLast.current);
-              panStart.current = null;
-            }}
-            onResponderTerminate={() => {
-              if (panStart.current && panLast.current) setCanvasPan(panLast.current);
-              panStart.current = null;
-            }}
+            // Pan + pinch handled the same way as ClientVenueMap. Item dragging
+            // (in edit mode) takes priority because items grab their own touches.
+            onStartShouldSetResponder={() => !drag}
+            onMoveShouldSetResponder={() => !drag}
+            onResponderTerminationRequest={() => false}
+            onResponderGrant={onCanvasTouchStart}
+            onResponderMove={onCanvasTouchMove}
+            onResponderRelease={onCanvasTouchEnd}
+            onResponderTerminate={onCanvasTouchEnd}
           >
             {/* Grid covers the whole viewport (fixed). */}
             <EditorGrid width={vpW} height={VP_H} />
@@ -566,15 +608,17 @@ export function VenueMapEditor({ eventId }: Props) {
                     onMoveShouldSetResponder={() => editMode}
                     onResponderGrant={(event: GestureResponderEvent) => {
                       if (!editMode) return;
-                      setCanvasDrag(null);
                       setSelectedId(item.id);
                       setSelectedSeat(null);
                       setDrag({ id: item.id, x: item.x, y: item.y, pageX: event.nativeEvent.pageX, pageY: event.nativeEvent.pageY });
                     }}
                     onResponderMove={(event: GestureResponderEvent) => {
                       if (!editMode || !drag || drag.id !== item.id) return;
-                      const nextX = drag.x + event.nativeEvent.pageX - drag.pageX;
-                      const nextY = drag.y + event.nativeEvent.pageY - drag.pageY;
+                      // Divide the screen delta by the zoom so the item tracks the
+                      // finger at any zoom level.
+                      const z = viewRef.current.zoom || 1;
+                      const nextX = drag.x + (event.nativeEvent.pageX - drag.pageX) / z;
+                      const nextY = drag.y + (event.nativeEvent.pageY - drag.pageY) / z;
                       moveItem(item, nextX, nextY);
                     }}
                     onResponderRelease={() => setDrag(null)}
@@ -619,11 +663,11 @@ export function VenueMapEditor({ eventId }: Props) {
             {/* Floating zoom bar over the canvas (like the web). */}
             <View style={styles.zoomFloat} pointerEvents="box-none">
               <View style={styles.zoomFloatInner}>
-                <TouchableOpacity onPress={() => zoomTo(zoom - 0.15)} style={styles.zoomFloatBtn}>
+                <TouchableOpacity onPress={() => zoomBy(-ZOOM_STEP)} style={styles.zoomFloatBtn}>
                   <Ionicons name="remove" size={18} color="#fb923c" />
                 </TouchableOpacity>
-                <Text style={styles.zoomFloatValue}>{Math.round(zoom * 100)}%</Text>
-                <TouchableOpacity onPress={() => zoomTo(zoom + 0.15)} style={styles.zoomFloatBtn}>
+                <Text style={styles.zoomFloatValue}>{zoomPct}%</Text>
+                <TouchableOpacity onPress={() => zoomBy(ZOOM_STEP)} style={styles.zoomFloatBtn}>
                   <Ionicons name="add" size={18} color="#fb923c" />
                 </TouchableOpacity>
                 <View style={styles.zoomFloatDivider} />
