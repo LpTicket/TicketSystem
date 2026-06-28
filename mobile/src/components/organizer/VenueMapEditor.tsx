@@ -766,7 +766,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                     touchedItemRef={touchedItemRef}
                     onSelect={(id) => { setSelectedId(id); }}
                     onShowInfo={(it, px, py) => showItemInfo(it, px, py)}
-                    onDragMove={(it, x, y) => moveItem(it, x, y)}
+                    onDragMove={(it, dx, dy) => moveItemBy(it.id, dx, dy)}
                     onDragEnd={() => onScrollLock?.(false)}
                     onScrollLock={onScrollLock}
                     style={[
@@ -1080,12 +1080,13 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         if (!editMode) return;
         const z = zoomRef.current.zoom || 1;
         const px = e.nativeEvent.pageX, py = e.nativeEvent.pageY;
-        // Delta since the LAST frame, applied to the item's live position.
+        // Per-frame delta. The parent applies it to the item's LIVE position (read
+        // from its ref), so we don't rely on item.x from a stale closure.
         const fx = (px - start.current.x) / z;
         const fy = (py - start.current.y) / z;
         start.current.x = px; start.current.y = py;
         if (Math.abs(fx) > 0.5 || Math.abs(fy) > 0.5) start.current.moved = true;
-        if (start.current.moved) onDragMove(item, item.x + fx, item.y + fy);
+        if (start.current.moved) onDragMove(item, fx, fy);
       }}
       onResponderRelease={(e) => {
         if (!start.current.moved) {
