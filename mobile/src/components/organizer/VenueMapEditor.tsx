@@ -155,6 +155,15 @@ export function VenueMapEditor({ eventId }: Props) {
   // Animated pan drives the transform on the native side so dragging doesn't
   // re-render React on every move (which caused the "warping"/lag).
   const panAnim = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  // Mirror of the live animated pan value, so a drag always starts from the
+  // CURRENT on-screen position (state can lag behind the animated value, which
+  // caused the map to jump when grabbing it).
+  const panCurrent = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    const idX = panAnim.x.addListener(({ value }) => { panCurrent.current.x = value; });
+    const idY = panAnim.y.addListener(({ value }) => { panCurrent.current.y = value; });
+    return () => { panAnim.x.removeListener(idX); panAnim.y.removeListener(idY); };
+  }, [panAnim]);
   const panStart = useRef<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
   const panLast = useRef<{ x: number; y: number } | null>(null);
   const [canvasDrag, setCanvasDrag] = useState<{ x: number; y: number; pageX: number; pageY: number } | null>(null);
@@ -500,8 +509,11 @@ export function VenueMapEditor({ eventId }: Props) {
             onMoveShouldSetResponder={() => true}
             onResponderGrant={(event: GestureResponderEvent) => {
               if (drag) return; // an item is being dragged
-              panStart.current = { x: canvasPan.x, y: canvasPan.y, pageX: event.nativeEvent.pageX, pageY: event.nativeEvent.pageY };
-              panLast.current = { x: canvasPan.x, y: canvasPan.y };
+              // Start from the CURRENT on-screen pan (animated value), not the
+              // possibly-stale React state — prevents the map jumping on grab.
+              const cur = { x: panCurrent.current.x, y: panCurrent.current.y };
+              panStart.current = { x: cur.x, y: cur.y, pageX: event.nativeEvent.pageX, pageY: event.nativeEvent.pageY };
+              panLast.current = cur;
             }}
             onResponderMove={(event: GestureResponderEvent) => {
               if (!panStart.current) return;
