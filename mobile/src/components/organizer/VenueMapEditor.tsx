@@ -1098,19 +1098,19 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         }
       }}
       onResponderRelease={(e) => {
+        if (!draggingRef.current) return; // ignore stray release events
+        draggingRef.current = false;
         if (start.current.moved) {
-          const z = zoomRef.current.zoom || 1;
-          const fx = (e.nativeEvent.pageX - start.current.x) / z;
-          const fy = (e.nativeEvent.pageY - start.current.y) / z;
-          const finalX = start.current.ix + fx, finalY = start.current.iy + fy;
-          console.log('[release]', item.type, item.name, 'ix:', start.current.ix, 'iy:', start.current.iy, 'fx:', fx.toFixed(1), 'fy:', fy.toFixed(1), 'final:', finalX.toFixed(1), finalY.toFixed(1));
+          // Use the offset's current animated value (what's on screen) as the final
+          // position — it already tracked every move frame, so no recompute drift.
+          const finalX = (pos.x as any)._value ?? item.x;
+          const finalY = (pos.y as any)._value ?? item.y;
           pos.setValue({ x: finalX, y: finalY });
           onDragMove(item, finalX, finalY);
         } else {
           onSelect(item.id);
           onShowInfo(item, e.nativeEvent.pageX, e.nativeEvent.pageY);
         }
-        draggingRef.current = false;
         touchedItemRef.current = false;
         onDragEnd();
       }}
