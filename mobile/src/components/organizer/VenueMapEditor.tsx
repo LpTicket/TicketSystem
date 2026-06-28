@@ -510,7 +510,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const showSeatInfo = (info: SeatInfoCard) => {
     if (infoDismissRef.current) clearTimeout(infoDismissRef.current);
     setActiveSeatInfo(info);
-    infoDismissRef.current = setTimeout(() => setActiveSeatInfo(null), 2500);
+    infoDismissRef.current = setTimeout(() => { setActiveSeatInfo(null); setSelectedSeat(null); setSelectedId(''); }, 2500);
   };
 
   const toggleSeat = (seatId: string, pageX = 0, pageY = 0) => {
@@ -519,18 +519,29 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       setSelectedSeat((current) => (current === seatId ? null : seatId));
       return;
     }
-    // View mode: show seat info card floating above the tapped chair.
-    const ov: SeatOverride = selected.seatConfig?.[seatId] || {};
+    // View mode: mark item + chair visually + show info card.
+    // Find which item owns this seat (in case selected isn't set yet).
+    const owner = items.find((it) => {
+      const rows = Math.max(1, it.rows); const cols = Math.max(1, it.seatsPerRow);
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const id = it.type === 'table' ? `seat-${r * cols + c + 1}` : `${String.fromCharCode(65 + r)}-${c + 1}`;
+        if (id === seatId) return true;
+      }
+      return false;
+    }) || selected;
+    if (owner.id !== selectedId) setSelectedId(owner.id);
+    const ov: SeatOverride = owner.seatConfig?.[seatId] || {};
     const isTableKey = seatId.startsWith('seat-');
-    const rowLabel = isTableKey ? selected.name : seatId.split('-')[0];
     const seatNum = isTableKey ? seatId.replace('seat-', '') : seatId.split('-')[1];
+    const rowLabel = isTableKey ? '' : seatId.split('-')[0];
     const status = ov.disabled ? t('Oculto', 'Hidden') : ov.reserved ? t('Bloqueado', 'Blocked') : t('Disponible', 'Available');
     const tone: SeatInfoCard['tone'] = ov.disabled ? 'disabled' : ov.reserved ? 'reserved' : 'available';
+    setSelectedSeat(seatId);
     showSeatInfo({
-      title: `${selected.name} · ${t('Silla', 'Seat')} ${seatNum}`,
-      subtitle: isTableKey ? '' : `${t('Fila', 'Row')} ${rowLabel}`,
+      title: `${owner.name} · ${t('Silla', 'Seat')} ${seatNum}`,
+      subtitle: rowLabel ? `${t('Fila', 'Row')} ${rowLabel}` : '',
       status,
-      price: selected.price || 0,
+      price: owner.price || 0,
       tone,
       px: pageX,
       py: pageY - canvasVpYRef.current,
