@@ -991,12 +991,83 @@ export class MailService {
         `Neto estimado organizador: ${money(report.totals.netEstimated)}`,
         `Reporte completo: ${report.reportUrl}`,
       ].join('\n');
+      const organizerHtml = `
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+</head>
+<body bgcolor="#ffffff" style="margin:0;padding:0;background:#ffffff!important;color:#0f172a!important;">
+  <span style="display:none;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">Resumen final de ${safe(report.eventTitle)}.</span>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%;background:#ffffff!important;padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%;max-width:600px;background:#ffffff!important;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.03);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+          <tr>
+            <td bgcolor="#ffffff" style="background:#ffffff!important;border-bottom:2px solid #f1f5f9;padding:24px;">
+              <img src="${appUrl}/logo-email-orange.png" alt="LPTicket" width="190" style="display:block;width:190px;max-width:70%;height:auto;border:0;">
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="#ffffff" style="background:#ffffff!important;padding:26px 24px 8px;">
+              <p style="margin:0 0 8px;color:#F97316;font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;">Resumen final del evento</p>
+              <h1 style="margin:0 0 10px;color:#0A375A;font-size:25px;line-height:1.22;font-weight:900;">${safe(report.eventTitle)}</h1>
+              <p style="margin:0;color:#475569;font-size:14px;line-height:1.6;">Hola ${safe(report.organizerName || 'organizador')}, aquí tienes el cierre completo de tu evento.</p>
+              <p style="margin:12px 0 0;color:#334155;font-size:13px;line-height:1.55;"><strong>Fecha:</strong> ${safe(report.eventDateLabel)}<br><strong>Lugar:</strong> ${safe(report.venueLabel)}</p>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="#ffffff" style="background:#ffffff!important;padding:14px 18px 4px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="50%" style="padding:6px;"><div style="border:1px solid #e2e8f0;border-radius:16px;padding:14px;background:#f8fafc;"><p style="margin:0 0 5px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;">Ventas cobradas</p><p style="margin:0;color:#F97316;font-size:22px;font-weight:900;">${money(report.totals.grossSales)}</p></div></td>
+                  <td width="50%" style="padding:6px;"><div style="border:1px solid #e2e8f0;border-radius:16px;padding:14px;background:#f8fafc;"><p style="margin:0 0 5px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;">Entradas pagadas</p><p style="margin:0;color:#0f172a;font-size:22px;font-weight:900;">${report.totals.totalTickets}</p></div></td>
+                </tr>
+                <tr>
+                  <td width="50%" style="padding:6px;"><div style="border:1px solid #e2e8f0;border-radius:16px;padding:14px;background:#ffffff;"><p style="margin:0 0 5px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;">Bloqueadas / sin ingreso</p><p style="margin:0;color:#0f172a;font-size:22px;font-weight:900;">${report.totals.blockedTickets}</p></div></td>
+                  <td width="50%" style="padding:6px;"><div style="border:1px solid #e2e8f0;border-radius:16px;padding:14px;background:#ffffff;"><p style="margin:0 0 5px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;">Asistencia</p><p style="margin:0;color:#F97316;font-size:22px;font-weight:900;">${report.totals.scanRate}%</p></div></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="#ffffff" style="background:#ffffff!important;padding:12px 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:16px;background:#ffffff;">
+                <tr><td colspan="2" style="padding:16px 16px 8px;color:#0A375A;font-size:15px;font-weight:900;">Resumen financiero</td></tr>
+                <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Venta de tickets</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.ticketRevenue)}</td></tr>
+                <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Cargos de servicio LPTicket</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.lpFees)}</td></tr>
+                <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Procesamiento</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.processingFees)}</td></tr>
+                <tr><td style="padding:12px 16px 16px;color:#F97316;font-size:14px;font-weight:900;border-top:1px solid #e2e8f0;">Neto estimado organizador</td><td align="right" style="padding:12px 16px 16px;color:#F97316;font-size:17px;font-weight:900;border-top:1px solid #e2e8f0;">${money(report.totals.netEstimated)}</td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" bgcolor="#ffffff" style="background:#ffffff!important;padding:18px 24px 30px;">
+              <a href="${report.reportUrl}" target="_blank" style="display:inline-block;background:#F97316;color:#ffffff;text-decoration:none;border-radius:14px;padding:13px 26px;font-size:13px;font-weight:900;">Ver reporte completo</a>
+              <p style="margin:14px 0 0;color:#64748b;font-size:12px;line-height:1.5;">LPTicket conserva el respaldo administrativo con el CSV completo de asistentes.</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" bgcolor="#f8fafc" style="background:#f8fafc!important;border-top:1px solid #e2e8f0;padding:18px 24px;">
+              <p style="margin:0 0 4px;color:#F97316;font-size:12px;font-weight:900;">lpticket.com</p>
+              <p style="margin:0;color:#64748b;font-size:11px;line-height:1.5;">© ${year} LPTicket · Tus tickets. Tus eventos.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
       const info = await this.transporter.sendMail({
         from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
         to,
-        subject: `Resumen final de tu evento — ${report.eventTitle}`,
+        subject: `Resumen final de tu evento: ${report.eventTitle}`,
         text,
-        html,
+        html: organizerHtml,
       });
       const accepted = Array.isArray((info as any)?.accepted) ? (info as any).accepted : [];
       const rejected = Array.isArray((info as any)?.rejected) ? (info as any).rejected : [];
