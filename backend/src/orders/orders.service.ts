@@ -5,7 +5,7 @@ import { In, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require('stripe');
-import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, VenueSection, SpecialCode, ScannerAccess, ScannerAccessStatus, UserRole } from '../database/entities';
+import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, EventStatus, VenueSection, SpecialCode, ScannerAccess, ScannerAccessStatus, UserRole } from '../database/entities';
 import { nanoid } from 'nanoid';
 import * as QRCode from 'qrcode';
 import { MailService } from '../common/services/mail.service';
@@ -1970,6 +1970,215 @@ export class OrdersService {
       message: 'Configuración de recordatorio guardada correctamente',
       event,
     };
+  }
+
+  private getAppUrl() {
+    const raw = this.configService.get<string>('APP_URL') || 'https://www.lpticket.com';
+    return raw.startsWith('http://') || raw.startsWith('https://')
+      ? raw.replace(/\/$/, '')
+      : `https://${raw.replace(/\/$/, '')}`;
+  }
+
+  private formatEventDate(date: Date, timezone = 'UTC') {
+    const tz = timezone || 'UTC';
+    const eventDate = new Date(date);
+    const day = eventDate.toLocaleDateString('es-US', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: tz,
+    });
+    const time = eventDate.toLocaleTimeString('es-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: tz,
+    });
+    const zone = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' })
+      .formatToParts(eventDate)
+      .find((part) => part.type === 'timeZoneName')?.value || '';
+    return `${day}, ${time} ${zone}`.trim();
+  }
+
+  private csvCell(value: any) {
+    const text = String(value ?? '').replace(/"/g, '""');
+    return `"${text}"`;
+  }
+
+  private ticketLocation(ticket: Ticket) {
+    const section = String(ticket.sectionName || '').trim();
+    const row = String(ticket.rowLabel || '').trim();
+    const seat = ticket.seatNumber !== null && ticket.seatNumber !== undefined ? String(ticket.seatNumber) : '';
+    if (/^(mesa|table)\b/i.test(section)) return [section, seat ? `Silla ${seat}` : ''].filter(Boolean).join(' - ');
+    if (/^(mesa|table)\b/i.test(row)) return [`Mesa ${row.replace(/^(mesa|table)\s*/i, '')}`, seat ? `Silla ${seat}` : ''].filter(Boolean).join(' - ');
+    if (/^\d+$/.test(section) && seat) return `Mesa ${section} - Silla ${seat}`;
+    if (row === 'GA') return section || 'Entrada general';
+    return [section, row ? `Fila ${row}` : '', seat ? `Asiento ${seat}` : ''].filter(Boolean).join(' · ') || 'Entrada general';
+  }
+
+  private buildAttendeeCsv(event: Event, tickets: Ticket[]) {
+    const header = ['Evento', 'Nombre', 'Email', 'Telefono', 'Ticket Code', 'Ubicacion', 'Seccion', 'Fila/Mesa', 'Asiento/Silla', 'Estado', 'Precio', 'Order ID', 'Fecha Compra'];
+    const rows = tickets.map((ticket) => {
+      const user: any = ticket.user || {};
+      const order: any = ticket.order || {};
+      const name = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || user.email || 'Invitado';
+      return [
+        event.title,
+        name,
+        user.email || '',
+        user.phone || '',
+        ticket.ticketCode,
+        this.ticketLocation(ticket),
+        ticket.sectionName || '',
+        ticket.rowLabel || '',
+        ticket.seatNumber ?? '',
+        ticket.status,
+        Number(ticket.price || 0).toFixed(2),
+        ticket.orderId,
+        order.paidAt || order.createdAt || ticket.createdAt,
+      ];
+    });
+    return [header, ...rows].map((row) => row.map((cell) => this.csvCell(cell)).join(',')).join('\n');
+  }
+
+  private async buildPostEventReport(event: Event) {
+    const [orders, tickets] = await Promise.all([
+      this.orderRepo.find({
+        where: { eventId: event.id, status: OrderStatus.PAID },
+        relations: ['user'],
+        order: { paidAt: 'ASC', createdAt: 'ASC' },
+      }),
+      this.ticketRepo.find({
+        where: { eventId: event.id },
+        relations: ['user', 'order'],
+        order: { createdAt: 'ASC' },
+      }),
+    ]);
+
+    const paidOrderIds = new Set(orders.map((order) => order.id));
+    const paidTickets = tickets.filter((ticket) => paidOrderIds.has(ticket.orderId) && ticket.status !== TicketStatus.CANCELLED);
+    const totalOrders = orders.length;
+    const ticketRevenue = orders.reduce((sum, order) => sum + Number(order.subtotal || 0), 0);
+    const lpFees = orders.reduce((sum, order) => sum + Number(order.lpFee || 0), 0);
+    const processingFees = orders.reduce((sum, order) => sum + Number(order.processingFee || 0), 0);
+    const grossSales = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const scannedTickets = paidTickets.filter((ticket) => ticket.status === TicketStatus.USED).length;
+    const pendingTickets = paidTickets.filter((ticket) => ticket.status === TicketStatus.ACTIVE).length;
+    const totalTickets = paidTickets.length;
+    const scanRate = totalTickets > 0 ? Math.round((scannedTickets / totalTickets) * 100) : 0;
+    const averageOrder = totalOrders > 0 ? grossSales / totalOrders : 0;
+    const currency = event.currency || 'USD';
+
+    const sectionMap = new Map<string, { name: string; tickets: number; revenue: number }>();
+    paidTickets.forEach((ticket) => {
+      const name = String(ticket.sectionName || '').trim() || 'General';
+      const current = sectionMap.get(name) || { name, tickets: 0, revenue: 0 };
+      current.tickets += 1;
+      current.revenue += Number(ticket.price || 0);
+      sectionMap.set(name, current);
+    });
+    const topSections = Array.from(sectionMap.values()).sort((a, b) => b.revenue - a.revenue);
+
+    const salesByDayMap = new Map<string, { date: string; orders: number; tickets: number; revenue: number }>();
+    orders.forEach((order) => {
+      const date = new Date(order.paidAt || order.createdAt).toLocaleDateString('es-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        timeZone: event.eventTimezone || 'UTC',
+      });
+      const current = salesByDayMap.get(date) || { date, orders: 0, tickets: 0, revenue: 0 };
+      current.orders += 1;
+      current.tickets += Number(order.ticketCount || 0);
+      current.revenue += Number(order.subtotal || 0);
+      salesByDayMap.set(date, current);
+    });
+
+    const codeMap = new Map<string, { code: string; orders: number; tickets: number; revenue: number; commission: number }>();
+    orders.filter((order) => order.specialCode).forEach((order) => {
+      const code = String(order.specialCode || '').toUpperCase();
+      const current = codeMap.get(code) || { code, orders: 0, tickets: 0, revenue: 0, commission: 0 };
+      const ticketCount = Number(order.ticketCount || 0);
+      current.orders += 1;
+      current.tickets += ticketCount;
+      current.revenue += Number(order.subtotal || 0);
+      current.commission += ticketCount * Number(event.creatorCommission || 0);
+      codeMap.set(code, current);
+    });
+
+    const organizer: any = event.organizer || {};
+    const organizerName = [organizer.firstName, organizer.lastName].filter(Boolean).join(' ') || organizer.username || 'organizador';
+    const appUrl = this.getAppUrl();
+    return {
+      organizerName,
+      eventTitle: event.title,
+      eventDateLabel: this.formatEventDate(event.eventDate, event.eventTimezone),
+      venueLabel: [event.venueName, event.venueAddress].filter(Boolean).join(' — ') || 'Lugar por confirmar',
+      flyerUrl: event.imageUrl || event.bannerImageUrl,
+      reportUrl: `${appUrl}/organizer/events/${event.id}`,
+      currency,
+      totals: {
+        grossSales,
+        ticketRevenue,
+        lpFees,
+        processingFees,
+        netEstimated: Math.max(0, ticketRevenue - processingFees),
+        totalOrders,
+        totalTickets,
+        scannedTickets,
+        pendingTickets,
+        scanRate,
+        averageOrder,
+      },
+      topSections,
+      salesByDay: Array.from(salesByDayMap.values()),
+      specialCodes: Array.from(codeMap.values()).sort((a, b) => b.revenue - a.revenue),
+      csv: {
+        filename: `lpticket-${event.slug || event.id}-asistentes.csv`,
+        content: this.buildAttendeeCsv(event, paidTickets),
+      },
+    };
+  }
+
+  @Cron('0 5 * * * *')
+  async handlePostEventReports() {
+    console.log('[Cron] Checking post-event organizer reports...');
+    const now = new Date();
+    const explicitEndCutoff = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+    const fallbackStartCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const events = await this.eventRepo
+      .createQueryBuilder('event')
+      .leftJoinAndSelect('event.organizer', 'organizer')
+      .where('event."postEventReportSentAt" IS NULL')
+      .andWhere('event.status IN (:...statuses)', { statuses: [EventStatus.PUBLISHED, EventStatus.COMPLETED] })
+      .andWhere(`(
+        (event."eventEndDate" IS NOT NULL AND event."eventEndDate" <= :explicitEndCutoff)
+        OR
+        (event."eventEndDate" IS NULL AND event."eventDate" <= :fallbackStartCutoff)
+      )`, { explicitEndCutoff, fallbackStartCutoff })
+      .orderBy('event.eventDate', 'ASC')
+      .limit(20)
+      .getMany();
+
+    for (const event of events) {
+      try {
+        const organizerEmail = (event.organizer as any)?.email;
+        if (!organizerEmail) {
+          console.warn(`[Cron] Skipping post-event report for ${event.id}: organizer has no email.`);
+          continue;
+        }
+        const report = await this.buildPostEventReport(event);
+        const sent = await this.mailService.sendPostEventReportEmail(organizerEmail, report);
+        if (sent) {
+          event.postEventReportSentAt = new Date();
+          await this.eventRepo.save(event);
+          console.log(`[Cron] Post-event report sent for ${event.title}.`);
+        }
+      } catch (err) {
+        console.error(`[Cron] Error sending post-event report for event ${event.id}:`, err);
+      }
+    }
   }
 
   /**

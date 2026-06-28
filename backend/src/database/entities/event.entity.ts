@@ -203,6 +203,9 @@ export class Event {
   @Column({ default: false })
   autoReminderSent: boolean;
 
+  @Column({ type: 'timestamp', nullable: true })
+  postEventReportSentAt: Date | null;
+
   @Column('uuid')
   organizerId: string;
 
