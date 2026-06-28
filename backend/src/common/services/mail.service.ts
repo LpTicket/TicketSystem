@@ -869,7 +869,6 @@ export class MailService {
     const appUrl = this.getAppUrl();
     const year = new Date().getFullYear();
     const adminEmail = String(this.configService.get('ADMIN_EMAIL') || '').trim();
-    const bcc = adminEmail && adminEmail.toLowerCase() !== to.trim().toLowerCase() ? adminEmail : undefined;
     const money = (value: number) => `${Number(value || 0).toFixed(2)} ${report.currency || 'USD'}`;
     const safe = (value: any) => String(value ?? '')
       .replace(/&/g, '&amp;')
@@ -975,17 +974,30 @@ export class MailService {
 </html>`;
 
     try {
+      const attachments = report.csv ? [{
+        filename: report.csv.filename,
+        content: Buffer.from(report.csv.content, 'utf8'),
+        contentType: 'text/csv; charset=utf-8',
+      }] : undefined;
+      const text = [
+        `Resumen final del evento: ${report.eventTitle}`,
+        `Fecha: ${report.eventDateLabel}`,
+        `Lugar: ${report.venueLabel}`,
+        `Ventas cobradas: ${money(report.totals.grossSales)}`,
+        `Entradas pagadas: ${report.totals.totalTickets}`,
+        `Bloqueadas / sin ingreso: ${report.totals.blockedTickets}`,
+        `Asistentes escaneados: ${report.totals.scannedTickets} / ${report.totals.totalTickets}`,
+        `Ordenes: ${report.totals.totalOrders}`,
+        `Neto estimado organizador: ${money(report.totals.netEstimated)}`,
+        `Reporte completo: ${report.reportUrl}`,
+      ].join('\n');
       const info = await this.transporter.sendMail({
         from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
         to,
-        bcc,
         subject: `Resumen final de tu evento — ${report.eventTitle}`,
+        text,
         html,
-        attachments: report.csv ? [{
-          filename: report.csv.filename,
-          content: Buffer.from(report.csv.content, 'utf8'),
-          contentType: 'text/csv; charset=utf-8',
-        }] : undefined,
+        attachments,
       });
       const accepted = Array.isArray((info as any)?.accepted) ? (info as any).accepted : [];
       const rejected = Array.isArray((info as any)?.rejected) ? (info as any).rejected : [];
@@ -998,7 +1010,28 @@ export class MailService {
         return false;
       }
       if (accepted.length === 0 && rejected.length > 0) return false;
-      return { accepted, rejected, messageId: (info as any)?.messageId || null };
+      let adminCopy: { accepted: string[]; rejected: string[]; messageId: string | null } | null = null;
+      if (adminEmail && adminEmail.toLowerCase() !== target) {
+        try {
+          const adminInfo = await this.transporter.sendMail({
+            from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
+            to: adminEmail,
+            subject: `[Copia admin] Resumen final de evento — ${report.eventTitle}`,
+            text,
+            html,
+            attachments,
+          });
+          adminCopy = {
+            accepted: Array.isArray((adminInfo as any)?.accepted) ? (adminInfo as any).accepted : [],
+            rejected: Array.isArray((adminInfo as any)?.rejected) ? (adminInfo as any).rejected : [],
+            messageId: (adminInfo as any)?.messageId || null,
+          };
+          console.log('[Mail] Post-event admin copy accepted:', adminCopy.accepted, 'rejected:', adminCopy.rejected, 'messageId:', adminCopy.messageId);
+        } catch (adminError: any) {
+          console.error('Post-event report admin copy failed:', adminError?.message || adminError);
+        }
+      }
+      return { accepted, rejected, messageId: (info as any)?.messageId || null, adminCopy };
     } catch (e: any) {
       console.error('Post-event report email failed:', e?.message || e);
       return false;
