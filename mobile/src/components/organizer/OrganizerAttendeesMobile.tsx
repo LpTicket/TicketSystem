@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Alert, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { GradientButton } from '../GradientButton';
@@ -38,12 +39,18 @@ type BuyerGroup = {
   spent: number;
 };
 
+const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://www.lpticket.com').replace(/\/$/, '');
+
 function parseTotal(str: string): number {
   return parseFloat(str.replace(/[^0-9.]/g, '')) || 0;
 }
 
 function initials(name: string) {
   return name.split(' ').map((w) => w[0] || '').join('').slice(0, 2).toUpperCase();
+}
+
+function ticketVerifyUrl(code: string) {
+  return `${SITE_URL}/verify/${code}`;
 }
 
 export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, onResend, goTo, eventId, event, eventTitle, sales }: Props) {
@@ -170,6 +177,12 @@ export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, on
     }
   };
 
+  const openTicketReceipt = (code?: string) => {
+    if (!code) return;
+    const url = ticketVerifyUrl(code);
+    WebBrowser.openBrowserAsync(url).catch(() => Linking.openURL(url).catch(() => {}));
+  };
+
   return (
     <View>
       <View style={styles.panel}>
@@ -256,10 +269,18 @@ export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, on
                 <View style={styles.ticketList}>
                   {buyer.tickets.map((tk, ticketIndex) => (
                     <View key={`${tk.id || tk.code || 'buyer-ticket'}-${ticketIndex}`} style={styles.ticketRow}>
-                      <View style={styles.ticketInfo}>
+                      <TouchableOpacity
+                        style={styles.ticketInfo}
+                        onPress={() => openTicketReceipt(tk.code)}
+                        activeOpacity={0.78}
+                        disabled={!tk.code}
+                      >
                         <Text style={styles.ticketSeat}>{tk.ticket}</Text>
-                        <Text style={styles.ticketCode}>{tk.code}</Text>
-                      </View>
+                        <View style={styles.ticketCodeLine}>
+                          <Text style={styles.ticketCode}>{tk.code}</Text>
+                          {tk.code ? <Ionicons name="open-outline" size={12} color="rgba(249,115,22,0.85)" /> : null}
+                        </View>
+                      </TouchableOpacity>
                       <View style={styles.ticketActions}>
                         <StatusBadge status={tk.status} />
                         <TouchableOpacity onPress={() => onToggle(tk.id)} style={styles.smallBtn}>
@@ -372,6 +393,7 @@ const styles = StyleSheet.create({
   ticketRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   ticketInfo: { flex: 1 },
   ticketSeat: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
+  ticketCodeLine: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
   ticketCode: { color: 'rgba(226,232,240,0.55)', fontSize: 10, marginTop: 2 },
   ticketActions: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   smallBtn: { height: 30, paddingHorizontal: 8, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
