@@ -1236,7 +1236,7 @@ const styles = StyleSheet.create({
   cornerTR: { right: -7, top: -7 },
   cornerBL: { left: -7, bottom: -7 },
   cornerBR: { right: -7, bottom: -7 },
-  seatInfoCard: { position: 'absolute', bottom: 56, left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(11,34,54,0.96)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(246,198,95,0.20)', paddingHorizontal: 12, paddingVertical: 10, zIndex: 40 },
+  seatInfoCard: { position: 'absolute', top: 10, left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(11,34,54,0.96)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(246,198,95,0.20)', paddingHorizontal: 12, paddingVertical: 10, zIndex: 40 },
   seatInfoTone: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 },
   seatInfoToneText: { fontSize: 10, fontWeight: '600' },
   seatInfoTitle: { color: '#ffffff', fontSize: 12, fontWeight: '600' },
