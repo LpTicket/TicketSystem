@@ -963,7 +963,7 @@ export class MailService {
         <tr>
           <td align="center" style="padding:18px 30px 34px;">
             <a href="${report.reportUrl}" target="_blank" style="display:inline-block;background:#F97316;color:#ffffff;text-decoration:none;border-radius:14px;padding:14px 28px;font-size:14px;font-weight:900;font-family:'Helvetica Neue',Arial,sans-serif;">Ver reporte completo</a>
-            <p style="margin:14px 0 0;color:#8ea3b8;font-size:12px;line-height:1.5;font-family:'Helvetica Neue',Arial,sans-serif;">También adjuntamos un CSV con la base de datos de asistentes: nombre, email, ticket, mesa/asiento, estado y orden.</p>
+            <p style="margin:14px 0 0;color:#8ea3b8;font-size:12px;line-height:1.5;font-family:'Helvetica Neue',Arial,sans-serif;">La administración de LPTicket recibe una copia con el CSV de asistentes para mantener el respaldo completo del evento.</p>
           </td>
         </tr>
         <tr><td align="center" style="background:#08111c;padding:20px 28px;border-top:1px solid rgba(255,255,255,0.05);"><p style="margin:0 0 4px;color:#F97316;font-size:12px;font-weight:900;font-family:'Helvetica Neue',Arial,sans-serif;">LPTicket</p><p style="margin:0;color:#64748b;font-size:11px;font-family:'Helvetica Neue',Arial,sans-serif;">© ${year} LPTicket · Tus tickets. Tus eventos.</p></td></tr>
@@ -974,7 +974,7 @@ export class MailService {
 </html>`;
 
     try {
-      const attachments = report.csv ? [{
+      const adminAttachments = report.csv ? [{
         filename: report.csv.filename,
         content: Buffer.from(report.csv.content, 'utf8'),
         contentType: 'text/csv; charset=utf-8',
@@ -997,7 +997,6 @@ export class MailService {
         subject: `Resumen final de tu evento — ${report.eventTitle}`,
         text,
         html,
-        attachments,
       });
       const accepted = Array.isArray((info as any)?.accepted) ? (info as any).accepted : [];
       const rejected = Array.isArray((info as any)?.rejected) ? (info as any).rejected : [];
@@ -1019,7 +1018,7 @@ export class MailService {
             subject: `[Copia admin] Resumen final de evento — ${report.eventTitle}`,
             text,
             html,
-            attachments,
+            attachments: adminAttachments,
           });
           adminCopy = {
             accepted: Array.isArray((adminInfo as any)?.accepted) ? (adminInfo as any).accepted : [],
