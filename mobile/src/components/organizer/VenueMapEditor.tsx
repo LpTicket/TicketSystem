@@ -638,21 +638,19 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                 return (
                   <View
                     key={`${item.id || item.name || 'map-item'}-${index}`}
-                    // In view mode the item doesn't grab touches, so the canvas
-                    // pans normally and nothing can be moved or selected.
-                    onStartShouldSetResponder={() => editMode}
+                    // Always capture taps so the info panel shows in view mode too.
+                    // Drag is only started in edit mode.
+                    onStartShouldSetResponder={() => true}
                     onMoveShouldSetResponder={() => editMode}
                     onResponderGrant={(event: GestureResponderEvent) => {
-                      if (!editMode) return;
-                      onScrollLock?.(true);
                       setSelectedId(item.id);
                       setSelectedSeat(null);
+                      if (!editMode) return;
+                      onScrollLock?.(true);
                       setDrag({ id: item.id, x: item.x, y: item.y, pageX: event.nativeEvent.pageX, pageY: event.nativeEvent.pageY });
                     }}
                     onResponderMove={(event: GestureResponderEvent) => {
                       if (!editMode || !drag || drag.id !== item.id) return;
-                      // Divide the screen delta by the zoom so the item tracks the
-                      // finger at any zoom level.
                       const z = viewRef.current.zoom || 1;
                       const nextX = drag.x + (event.nativeEvent.pageX - drag.pageX) / z;
                       const nextY = drag.y + (event.nativeEvent.pageY - drag.pageY) / z;
@@ -717,6 +715,56 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
             </View>
           </View>
       </View>
+
+      {/* Info panel — always visible when an item is selected (even in view mode) */}
+      {!editMode && selected && (() => {
+        const totalSeats = selected.rows > 0 && selected.seatsPerRow > 0
+          ? selected.rows * selected.seatsPerRow
+          : 0;
+        const cfg = selected.seatConfig || {};
+        const blocked = Object.values(cfg).filter((v: SeatOverride) => v.reserved || v.disabled).length;
+        const available = Math.max(0, totalSeats - blocked);
+        const typeLabel = selected.type === 'table' ? t('Mesa', 'Table')
+          : selected.type === 'seat' ? t('Grilla de asientos', 'Seat grid')
+          : selected.type === 'area' ? t('Área', 'Area')
+          : selected.type === 'bar' ? t('Barra', 'Bar')
+          : selected.type === 'stage' ? t('Escenario', 'Stage')
+          : selected.type;
+        return (
+          <View style={styles.infoPanel}>
+            <View style={styles.infoPanelRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.infoPanelName}>{selected.name}</Text>
+                <Text style={styles.infoPanelType}>{typeLabel}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setSelectedId('')} style={styles.infoPanelClose}>
+                <Ionicons name="close" size={18} color="rgba(226,232,240,0.6)" />
+              </TouchableOpacity>
+            </View>
+            {totalSeats > 0 && (
+              <View style={styles.infoPanelStats}>
+                <View style={styles.infoPanelStat}>
+                  <Text style={styles.infoPanelStatVal}>{totalSeats}</Text>
+                  <Text style={styles.infoPanelStatLabel}>{t('Total', 'Total')}</Text>
+                </View>
+                <View style={styles.infoPanelStatDivider} />
+                <View style={styles.infoPanelStat}>
+                  <Text style={[styles.infoPanelStatVal, { color: '#4ade80' }]}>{available}</Text>
+                  <Text style={styles.infoPanelStatLabel}>{t('Disponibles', 'Available')}</Text>
+                </View>
+                <View style={styles.infoPanelStatDivider} />
+                <View style={styles.infoPanelStat}>
+                  <Text style={[styles.infoPanelStatVal, { color: '#fb923c' }]}>{blocked}</Text>
+                  <Text style={styles.infoPanelStatLabel}>{t('Bloqueados', 'Blocked')}</Text>
+                </View>
+              </View>
+            )}
+            {selected.price !== undefined && selected.price > 0 && (
+              <Text style={styles.infoPanelPrice}>${selected.price} {selected.saleMode === 'whole' ? t('/ mesa completa', '/ whole table') : t('/ asiento', '/ seat')}</Text>
+            )}
+          </View>
+        );
+      })()}
 
       {editMode && (
       <View style={styles.inspector}>
@@ -1196,6 +1244,17 @@ const styles = StyleSheet.create({
   cornerTR: { right: -7, top: -7 },
   cornerBL: { left: -7, bottom: -7 },
   cornerBR: { right: -7, bottom: -7 },
+  infoPanel: { backgroundColor: '#071423', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)', paddingHorizontal: 16, paddingVertical: 12 },
+  infoPanelRow: { flexDirection: 'row', alignItems: 'center' },
+  infoPanelName: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
+  infoPanelType: { color: 'rgba(226,232,240,0.45)', fontSize: 11, marginTop: 1 },
+  infoPanelClose: { padding: 6 },
+  infoPanelStats: { flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', paddingVertical: 10 },
+  infoPanelStat: { flex: 1, alignItems: 'center' },
+  infoPanelStatVal: { color: '#F8FAFC', fontSize: 18, fontWeight: '800' },
+  infoPanelStatLabel: { color: 'rgba(226,232,240,0.45)', fontSize: 10, marginTop: 2 },
+  infoPanelStatDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.10)' },
+  infoPanelPrice: { color: '#fb923c', fontSize: 12, fontWeight: '600', marginTop: 8 },
   inspector: { backgroundColor: '#071423', borderTopWidth: 1, borderTopColor: 'rgba(249,115,22,0.22)' },
   inspectorHeader: { minHeight: 54, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 8, paddingVertical: 10, backgroundColor: 'rgba(255,255,255,0.02)' },
   inspectorTitle: { flex: 1, color: '#F8FAFC', fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
