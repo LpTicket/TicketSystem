@@ -314,6 +314,26 @@ export default function Header() {
                       </Link>
                     )}
 
+                    {(user.role === 'admin' || mode === 'organizer') && (
+                      <Link
+                        href="/organizer/scanner-access"
+                        onClick={() => setProfileDropdown(false)}
+                        className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
+                      >
+                        <HiOutlineQrcode className="w-4 h-4 opacity-70" />
+                        {lang === 'es' ? 'Empleados scan' : 'Scan staff'}
+                      </Link>
+                    )}
+
+                    <Link
+                      href="/staff/scan-access"
+                      onClick={() => setProfileDropdown(false)}
+                      className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
+                    >
+                      <HiOutlineQrcode className="w-4 h-4 opacity-70" />
+                      {lang === 'es' ? 'Scan empleado' : 'Staff scan'}
+                    </Link>
+
                     {/* Admin Panel Link */}
                     {user.role === 'admin' && (
                       <Link 
@@ -437,6 +457,18 @@ export default function Header() {
                     {t('organizerPanel') || 'Organizer Panel'}
                   </Link>
                 )}
+
+                {(user?.role === 'admin' || mode === 'organizer') && (
+                  <Link href="/organizer/scanner-access" onClick={() => setMobileMenuOpen(false)} className="hamburger-account-link lp-menu-item">
+                    <HiOutlineQrcode className="w-5 h-5 opacity-60" />
+                    {lang === 'es' ? 'Empleados scan' : 'Scan staff'}
+                  </Link>
+                )}
+
+                <Link href="/staff/scan-access" onClick={() => setMobileMenuOpen(false)} className="hamburger-account-link lp-menu-item">
+                  <HiOutlineQrcode className="w-5 h-5 opacity-60" />
+                  {lang === 'es' ? 'Scan empleado' : 'Staff scan'}
+                </Link>
 
                 {user?.role === 'admin' && (
                   <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="hamburger-account-link hamburger-danger-link lp-menu-danger">

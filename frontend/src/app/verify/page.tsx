@@ -19,7 +19,7 @@ import {
 } from 'react-icons/hi';
 import Link from 'next/link';
 
-type MyEvent = { id: string; title: string; date: string; status: string };
+type MyEvent = { id: string; title: string; date: string; status: string; accessType?: 'owner' | 'staff' };
 
 type EventTicketStats = {
   totalPurchased: number;
@@ -122,18 +122,45 @@ export default function TicketScannerPage() {
     };
   }, [scannerInstance]);
 
-  // Load organizer events
+  const selectedEvent = myEvents.find((event) => event.id === selectedEventId);
+  const isStaffEvent = selectedEvent?.accessType === 'staff';
+
+  // Load organizer events and approved staff events
   useEffect(() => {
     if (!isAuthenticated || !user) return;
-    api.get('/events', { params: { limit: 100, includePast: 'true' } })
-      .then(({ data }) => {
-        const events: MyEvent[] = (data.events || [])
+    Promise.allSettled([
+      api.get('/events', { params: { limit: 100, includePast: 'true' } }),
+      api.get('/scanner-access/me'),
+    ]).then(([ownResult, staffResult]) => {
+      const ownEvents: MyEvent[] = ownResult.status === 'fulfilled'
+        ? (ownResult.value.data.events || [])
           .filter((e: any) => e.organizerId === user.id)
-          .map((e: any) => ({ id: e.id, title: e.title, date: e.date, status: e.status }));
-        setMyEvents(events);
-      })
-      .catch(() => {});
+          .map((e: any) => ({ id: e.id, title: e.title, date: e.date || e.eventDate, status: e.status, accessType: 'owner' }))
+        : [];
+      const staffEvents: MyEvent[] = staffResult.status === 'fulfilled'
+        ? (Array.isArray(staffResult.value.data) ? staffResult.value.data : [])
+          .filter((grant: any) => grant.status === 'approved' && grant.event?.id)
+          .map((grant: any) => ({
+            id: grant.event.id,
+            title: grant.event.title,
+            date: grant.event.eventDate,
+            status: grant.event.status,
+            accessType: 'staff',
+          }))
+        : [];
+      const merged = new Map<string, MyEvent>();
+      [...ownEvents, ...staffEvents].forEach((event) => merged.set(event.id, event));
+      setMyEvents(Array.from(merged.values()));
+    }).catch(() => {});
   }, [isAuthenticated, user?.id]);
+
+  useEffect(() => {
+    if (selectedEventId || myEvents.length === 0 || typeof window === 'undefined') return;
+    const eventId = new URLSearchParams(window.location.search).get('eventId');
+    if (eventId && myEvents.some((event) => event.id === eventId)) {
+      setSelectedEventId(eventId);
+    }
+  }, [myEvents, selectedEventId]);
 
   // Fetch + poll scanner stats for selected event
   useEffect(() => {
@@ -142,6 +169,7 @@ export default function TicketScannerPage() {
     if (!selectedEventId) return;
 
     const fetchStats = () => {
+      if (isStaffEvent) return;
       api.get(`/orders/event/${selectedEventId}/scanner-stats`)
         .then(({ data }) => setEventTicketStats(data))
         .catch(() => {});
@@ -150,7 +178,7 @@ export default function TicketScannerPage() {
     fetchStats();
     pollIntervalRef.current = setInterval(fetchStats, 15000);
     return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
-  }, [selectedEventId]);
+  }, [selectedEventId, isStaffEvent]);
 
   const playFeedback = (valid: boolean) => {
     if (typeof window === 'undefined') return;
@@ -250,7 +278,10 @@ export default function TicketScannerPage() {
         return;
       }
 
-      const { data: res } = await api.post(`/orders/ticket/${cleanCode}/validate`);
+      const validateUrl = isStaffEvent && selectedEventId
+        ? `/scanner-access/events/${selectedEventId}/ticket/${cleanCode}/validate`
+        : `/orders/ticket/${cleanCode}/validate`;
+      const { data: res } = await api.post(validateUrl);
       const result = {
         valid: Boolean(res.valid),
         message: res.message,
@@ -286,7 +317,10 @@ export default function TicketScannerPage() {
     setSearching(true);
     const handle = setTimeout(async () => {
       try {
-        const { data } = await api.get(`/orders/event/${selectedEventId}/search-tickets`, { params: { q } });
+        const searchUrl = isStaffEvent
+          ? `/scanner-access/events/${selectedEventId}/search-tickets`
+          : `/orders/event/${selectedEventId}/search-tickets`;
+        const { data } = await api.get(searchUrl, { params: { q } });
         if (active) setSearchResults(Array.isArray(data) ? data : []);
       } catch {
         if (active) setSearchResults([]);
@@ -718,7 +752,9 @@ export default function TicketScannerPage() {
                 >
                   <option value="">{lang === 'es' ? '— Seleccionar evento —' : '— Select event —'}</option>
                   {myEvents.map((ev) => (
-                    <option key={ev.id} value={ev.id}>{ev.title}</option>
+                    <option key={ev.id} value={ev.id}>
+                      {ev.title}{ev.accessType === 'staff' ? (lang === 'es' ? ' · Empleado' : ' · Staff') : ''}
+                    </option>
                   ))}
                 </select>
                 <HiOutlineChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
