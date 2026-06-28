@@ -522,21 +522,14 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     }, 4000);
   };
 
-  const toggleSeat = (seatId: string, pageX = 0, pageY = 0) => {
+  const toggleSeat = (seatId: string, pageX = 0, pageY = 0, itemId = '') => {
     if (editMode) {
       if (!selected) return;
       setSelectedSeat((current) => (current === seatId ? null : seatId));
       return;
     }
-    // View mode: find owner across ALL items (selected may be null).
-    const owner = items.find((it) => {
-      const rows = Math.max(1, it.rows); const cols = Math.max(1, it.seatsPerRow);
-      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-        const id = it.type === 'table' ? `seat-${r * cols + c + 1}` : `${String.fromCharCode(65 + r)}-${c + 1}`;
-        if (id === seatId) return true;
-      }
-      return false;
-    });
+    // View mode: itemId is passed directly from SeatDots so we know exactly which table was tapped.
+    const owner = items.find((it) => it.id === itemId);
     if (!owner) return;
     setSelectedId(owner.id);
     setSelectedSeat(seatId);
@@ -988,7 +981,7 @@ function shapeStyle(item: VenueItem) {
   return { borderRadius: 8 };
 }
 
-function SeatDots({ item, selectedSeat, selectedItemId, onSeatPress }: { item: VenueItem; selectedSeat: string | null; selectedItemId: string; onSeatPress: (seatId: string, px: number, py: number) => void }) {
+function SeatDots({ item, selectedSeat, selectedItemId, onSeatPress }: { item: VenueItem; selectedSeat: string | null; selectedItemId: string; onSeatPress: (seatId: string, px: number, py: number, itemId: string) => void }) {
   const seats = [];
   const rows = Math.max(1, item.rows);
   const cols = Math.max(1, item.seatsPerRow);
@@ -1030,16 +1023,23 @@ function SeatDots({ item, selectedSeat, selectedItemId, onSeatPress }: { item: V
         cx = w / 2 + w * 0.52 * Math.sin(rad);
         cy = h / 2 - h * 0.52 * Math.cos(rad);
       } else {
-        // EXACT same percentage layout ClientVenueMap uses, so the editor and
-        // the buyer view look identical. Seats run top → right → bottom → left
-        // in clean rows, not at arbitrary perimeter points.
-        const step = (2 * (1 + 0.55)) / Math.max(1, total);
+        // Distribute seats around the real perimeter proportionally.
+        // sideRatio = h/w so vertical tables get more seats on the tall sides.
+        const sideRatio = h / w;
+        const perimeter = 2 * (1 + sideRatio);
+        const step = perimeter / Math.max(1, total);
         const pos = i * step;
+        // Bands: top=1 unit, right=sideRatio, bottom=1, left=sideRatio
         let xPct = 50; let yPct = 50;
-        if (pos < 1) { xPct = 15 + pos * 70; yPct = 12; }
-        else if (pos < 1.55) { xPct = 88; yPct = 15 + ((pos - 1) / 0.55) * 70; }
-        else if (pos < 2.55) { xPct = 85 - (pos - 1.55) * 70; yPct = 88; }
-        else { xPct = 12; yPct = 85 - ((pos - 2.55) / 0.55) * 70; }
+        if (pos < 1) {                              // top
+          xPct = 15 + pos * 70; yPct = 12;
+        } else if (pos < 1 + sideRatio) {           // right
+          xPct = 88; yPct = 15 + ((pos - 1) / sideRatio) * 70;
+        } else if (pos < 2 + sideRatio) {           // bottom
+          xPct = 85 - (pos - 1 - sideRatio) * 70; yPct = 88;
+        } else {                                     // left
+          xPct = 12; yPct = 85 - ((pos - 2 - sideRatio) / sideRatio) * 70;
+        }
         cx = (w * xPct) / 100;
         cy = (h * yPct) / 100;
       }
@@ -1059,7 +1059,7 @@ function SeatDots({ item, selectedSeat, selectedItemId, onSeatPress }: { item: V
     seats.push(
       <TouchableOpacity
         key={id}
-        onPress={(e) => onSeatPress(id, e.nativeEvent.pageX, e.nativeEvent.pageY)}
+        onPress={(e) => onSeatPress(id, e.nativeEvent.pageX, e.nativeEvent.pageY, item.id)}
         style={[
           styles.seatDot,
           {
