@@ -507,20 +507,28 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const canvasVpRef = useRef<any>(null);
   const canvasVpYRef = useRef(0);
 
+  // Keep a ref so the card survives re-renders caused by zoom/pan state updates.
+  const activeSeatInfoRef = useRef<SeatInfoCard | null>(null);
+
   const showSeatInfo = (info: SeatInfoCard) => {
     if (infoDismissRef.current) clearTimeout(infoDismissRef.current);
+    activeSeatInfoRef.current = info;
     setActiveSeatInfo(info);
-    infoDismissRef.current = setTimeout(() => { setActiveSeatInfo(null); setSelectedSeat(null); setSelectedId(''); }, 2500);
+    infoDismissRef.current = setTimeout(() => {
+      activeSeatInfoRef.current = null;
+      setActiveSeatInfo(null);
+      setSelectedSeat(null);
+      setSelectedId('');
+    }, 4000);
   };
 
   const toggleSeat = (seatId: string, pageX = 0, pageY = 0) => {
-    if (!selected) return;
     if (editMode) {
+      if (!selected) return;
       setSelectedSeat((current) => (current === seatId ? null : seatId));
       return;
     }
-    // View mode: mark item + chair visually + show info card.
-    // Find which item owns this seat (in case selected isn't set yet).
+    // View mode: find owner across ALL items (selected may be null).
     const owner = items.find((it) => {
       const rows = Math.max(1, it.rows); const cols = Math.max(1, it.seatsPerRow);
       for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
@@ -528,15 +536,16 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
         if (id === seatId) return true;
       }
       return false;
-    }) || selected;
-    if (owner.id !== selectedId) setSelectedId(owner.id);
+    });
+    if (!owner) return;
+    setSelectedId(owner.id);
+    setSelectedSeat(seatId);
     const ov: SeatOverride = owner.seatConfig?.[seatId] || {};
     const isTableKey = seatId.startsWith('seat-');
     const seatNum = isTableKey ? seatId.replace('seat-', '') : seatId.split('-')[1];
     const rowLabel = isTableKey ? '' : seatId.split('-')[0];
     const status = ov.disabled ? t('Oculto', 'Hidden') : ov.reserved ? t('Bloqueado', 'Blocked') : t('Disponible', 'Available');
     const tone: SeatInfoCard['tone'] = ov.disabled ? 'disabled' : ov.reserved ? 'reserved' : 'available';
-    setSelectedSeat(seatId);
     showSeatInfo({
       title: `${owner.name} · ${t('Silla', 'Seat')} ${seatNum}`,
       subtitle: rowLabel ? `${t('Fila', 'Row')} ${rowLabel}` : '',
@@ -758,21 +767,22 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
               </View>
             </View>
 
-            {/* Seat info card — floats above the tapped chair in view mode */}
-            {activeSeatInfo && (() => {
-              const toneColor = activeSeatInfo.tone === 'reserved' ? '#facc15' : activeSeatInfo.tone === 'disabled' ? '#94a3b8' : '#86efac';
+            {/* Seat info card — floats over canvas; use ref as source of truth so zoom re-renders don't clear it */}
+            {(activeSeatInfo || activeSeatInfoRef.current) && (() => {
+              const card = activeSeatInfo || activeSeatInfoRef.current!;
+              const toneColor = card.tone === 'reserved' ? '#facc15' : card.tone === 'disabled' ? '#94a3b8' : '#86efac';
               // Fixed position just above the zoom bar — never follows the finger.
               const cardTop = VP_H - 100;
               return (
                 <View style={[styles.seatInfoCard, { top: cardTop }]} pointerEvents="none">
                   <View style={[styles.seatInfoTone, { backgroundColor: `${toneColor}22` }]}>
-                    <Text style={[styles.seatInfoToneText, { color: toneColor }]}>{activeSeatInfo.status}</Text>
+                    <Text style={[styles.seatInfoToneText, { color: toneColor }]}>{card.status}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.seatInfoTitle} numberOfLines={1}>{activeSeatInfo.title}</Text>
-                    {!!activeSeatInfo.subtitle && <Text style={styles.seatInfoSub} numberOfLines={1}>{activeSeatInfo.subtitle}</Text>}
+                    <Text style={styles.seatInfoTitle} numberOfLines={1}>{card.title}</Text>
+                    {!!card.subtitle && <Text style={styles.seatInfoSub} numberOfLines={1}>{card.subtitle}</Text>}
                   </View>
-                  {activeSeatInfo.price > 0 && <Text style={styles.seatInfoPrice}>${activeSeatInfo.price.toFixed(2)}</Text>}
+                  {card.price > 0 && <Text style={styles.seatInfoPrice}>${card.price.toFixed(2)}</Text>}
                 </View>
               );
             })()}
