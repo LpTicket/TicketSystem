@@ -1,6 +1,11 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
+import { LogBox } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Animated, Linking, Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+
+// react-native-web fires this warning whenever the canvas responder wins over
+// the parent ScrollView — it's a known RNW quirk, harmless on native.
+LogBox.ignoreLogs(["ScrollView doesn't take rejection well"]);
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from './src/components/AppHeader';
