@@ -499,9 +499,11 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     setSelectedSeat(null);
   };
 
-  type SeatInfoCard = { title: string; subtitle: string; status: string; price: number; tone: 'available' | 'reserved' | 'disabled' };
+  type SeatInfoCard = { title: string; subtitle: string; status: string; price: number; tone: 'available' | 'reserved' | 'disabled'; px: number; py: number };
   const [activeSeatInfo, setActiveSeatInfo] = useState<SeatInfoCard | null>(null);
   const infoDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rootRef = useRef<any>(null);
+  const rootYRef = useRef(0);
 
   const showSeatInfo = (info: SeatInfoCard) => {
     if (infoDismissRef.current) clearTimeout(infoDismissRef.current);
@@ -509,13 +511,13 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     infoDismissRef.current = setTimeout(() => setActiveSeatInfo(null), 2500);
   };
 
-  const toggleSeat = (seatId: string) => {
+  const toggleSeat = (seatId: string, pageX = 0, pageY = 0) => {
     if (!selected) return;
     if (editMode) {
       setSelectedSeat((current) => (current === seatId ? null : seatId));
       return;
     }
-    // View mode: show seat info card (same as ClientVenueMap).
+    // View mode: show seat info card floating above the tapped chair.
     const ov: SeatOverride = selected.seatConfig?.[seatId] || {};
     const isTableKey = seatId.startsWith('seat-');
     const rowLabel = isTableKey ? selected.name : seatId.split('-')[0];
@@ -528,6 +530,8 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       status,
       price: selected.price || 0,
       tone,
+      px: pageX,
+      py: pageY - rootYRef.current,
     });
   };
 
@@ -551,7 +555,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} ref={rootRef} onLayout={() => { rootRef.current?.measure((_x: number, _y: number, _w: number, _h: number, _px: number, py: number) => { rootYRef.current = py; }); }}>
       <View style={styles.topBar}>
         {/* Row 1: logo + title + save */}
         <View style={styles.topBarRow}>
@@ -739,11 +743,13 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
               </View>
             </View>
 
-            {/* Seat info card — floats over canvas when a chair is tapped in view mode */}
+            {/* Seat info card — floats above the tapped chair in view mode */}
             {activeSeatInfo && (() => {
               const toneColor = activeSeatInfo.tone === 'reserved' ? '#facc15' : activeSeatInfo.tone === 'disabled' ? '#94a3b8' : '#86efac';
+              // Position above the finger: clamp so it never goes off the top of the viewport.
+              const cardTop = Math.max(6, activeSeatInfo.py - 58);
               return (
-                <View style={styles.seatInfoCard} pointerEvents="none">
+                <View style={[styles.seatInfoCard, { top: cardTop }]} pointerEvents="none">
                   <View style={[styles.seatInfoTone, { backgroundColor: `${toneColor}22` }]}>
                     <Text style={[styles.seatInfoToneText, { color: toneColor }]}>{activeSeatInfo.status}</Text>
                   </View>
@@ -957,7 +963,7 @@ function shapeStyle(item: VenueItem) {
   return { borderRadius: 8 };
 }
 
-function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; selectedSeat: string | null; onSeatPress: (seatId: string) => void }) {
+function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; selectedSeat: string | null; onSeatPress: (seatId: string, px: number, py: number) => void }) {
   const seats = [];
   const rows = Math.max(1, item.rows);
   const cols = Math.max(1, item.seatsPerRow);
@@ -1027,7 +1033,7 @@ function SeatDots({ item, selectedSeat, onSeatPress }: { item: VenueItem; select
     seats.push(
       <TouchableOpacity
         key={id}
-        onPress={() => onSeatPress(id)}
+        onPress={(e) => onSeatPress(id, e.nativeEvent.pageX, e.nativeEvent.pageY)}
         style={[
           styles.seatDot,
           { left: cx - dot / 2 + ox, top: cy - dot / 2 + oy, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: fill, zIndex: 5 },
@@ -1236,7 +1242,7 @@ const styles = StyleSheet.create({
   cornerTR: { right: -7, top: -7 },
   cornerBL: { left: -7, bottom: -7 },
   cornerBR: { right: -7, bottom: -7 },
-  seatInfoCard: { position: 'absolute', top: 10, left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(11,34,54,0.96)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(246,198,95,0.20)', paddingHorizontal: 12, paddingVertical: 10, zIndex: 40 },
+  seatInfoCard: { position: 'absolute', left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(11,34,54,0.96)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(246,198,95,0.20)', paddingHorizontal: 12, paddingVertical: 10, zIndex: 40 },
   seatInfoTone: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 },
   seatInfoToneText: { fontSize: 10, fontWeight: '600' },
   seatInfoTitle: { color: '#ffffff', fontSize: 12, fontWeight: '600' },
