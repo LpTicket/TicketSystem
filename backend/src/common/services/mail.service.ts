@@ -18,6 +18,7 @@ type PostEventReportEmail = {
     netEstimated: number;
     totalOrders: number;
     totalTickets: number;
+    blockedTickets: number;
     scannedTickets: number;
     pendingTickets: number;
     scanRate: number;
@@ -929,7 +930,7 @@ export class MailService {
             <p style="margin:12px 0 0;color:#cbd5e1;font-size:13px;line-height:1.55;font-family:'Helvetica Neue',Arial,sans-serif;"><strong style="color:#ffffff;">Fecha:</strong> ${safe(report.eventDateLabel)}<br /><strong style="color:#ffffff;">Lugar:</strong> ${safe(report.venueLabel)}</p>
           </td>
         </tr>
-        <tr><td style="padding:12px 22px 4px;"><table role="presentation" width="100%"><tr>${metric('Ventas cobradas', money(report.totals.grossSales), true)}${metric('Entradas vendidas', String(report.totals.totalTickets))}</tr><tr>${metric('Asistentes escaneados', `${report.totals.scannedTickets} / ${report.totals.totalTickets}`)}${metric('Asistencia', `${report.totals.scanRate}%`, true)}</tr><tr>${metric('Órdenes', String(report.totals.totalOrders))}${metric('Orden promedio', money(report.totals.averageOrder))}</tr></table></td></tr>
+        <tr><td style="padding:12px 22px 4px;"><table role="presentation" width="100%"><tr>${metric('Ventas cobradas', money(report.totals.grossSales), true)}${metric('Entradas pagadas', String(report.totals.totalTickets))}</tr><tr>${metric('Bloqueadas', String(report.totals.blockedTickets))}${metric('Asistentes escaneados', `${report.totals.scannedTickets} / ${report.totals.totalTickets}`)}</tr><tr>${metric('Asistencia', `${report.totals.scanRate}%`, true)}${metric('Órdenes', String(report.totals.totalOrders))}</tr><tr>${metric('Orden promedio', money(report.totals.averageOrder))}</tr></table></td></tr>
         <tr>
           <td style="padding:8px 30px 6px;">
             <div style="background:#08111c;border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:18px;">

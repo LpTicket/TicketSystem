@@ -2043,7 +2043,7 @@ export class OrdersService {
   }
 
   private async buildPostEventReport(event: Event) {
-    const [orders, tickets] = await Promise.all([
+    const [orders, tickets, blockedTickets] = await Promise.all([
       this.orderRepo.find({
         where: { eventId: event.id, status: OrderStatus.PAID },
         relations: ['user'],
@@ -2054,24 +2054,35 @@ export class OrdersService {
         relations: ['user', 'order'],
         order: { createdAt: 'ASC' },
       }),
+      this.seatRepo
+        .createQueryBuilder('seat')
+        .innerJoin('seat.section', 'section')
+        .where('section.eventId = :eventId', { eventId: event.id })
+        .andWhere('seat.status = :status', { status: SeatStatus.LOCKED })
+        .getCount(),
     ]);
 
     const paidOrderIds = new Set(orders.map((order) => order.id));
     const paidTickets = tickets.filter((ticket) => paidOrderIds.has(ticket.orderId) && ticket.status !== TicketStatus.CANCELLED);
+    const paidAdmissionTickets = paidTickets.filter((ticket) => Number(ticket.price || 0) > 0);
+    const paidTicketsByOrderId = paidAdmissionTickets.reduce<Record<string, number>>((acc, ticket) => {
+      acc[ticket.orderId] = (acc[ticket.orderId] || 0) + 1;
+      return acc;
+    }, {});
     const totalOrders = orders.length;
     const ticketRevenue = orders.reduce((sum, order) => sum + Number(order.subtotal || 0), 0);
     const lpFees = orders.reduce((sum, order) => sum + Number(order.lpFee || 0), 0);
     const processingFees = orders.reduce((sum, order) => sum + Number(order.processingFee || 0), 0);
     const grossSales = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
-    const scannedTickets = paidTickets.filter((ticket) => ticket.status === TicketStatus.USED).length;
-    const pendingTickets = paidTickets.filter((ticket) => ticket.status === TicketStatus.ACTIVE).length;
-    const totalTickets = paidTickets.length;
+    const scannedTickets = paidAdmissionTickets.filter((ticket) => ticket.status === TicketStatus.USED).length;
+    const pendingTickets = paidAdmissionTickets.filter((ticket) => ticket.status === TicketStatus.ACTIVE).length;
+    const totalTickets = paidAdmissionTickets.length;
     const scanRate = totalTickets > 0 ? Math.round((scannedTickets / totalTickets) * 100) : 0;
     const averageOrder = totalOrders > 0 ? grossSales / totalOrders : 0;
     const currency = event.currency || 'USD';
 
     const sectionMap = new Map<string, { name: string; tickets: number; revenue: number }>();
-    paidTickets.forEach((ticket) => {
+    paidAdmissionTickets.forEach((ticket) => {
       const name = String(ticket.sectionName || '').trim() || 'General';
       const current = sectionMap.get(name) || { name, tickets: 0, revenue: 0 };
       current.tickets += 1;
@@ -2090,7 +2101,7 @@ export class OrdersService {
       });
       const current = salesByDayMap.get(date) || { date, orders: 0, tickets: 0, revenue: 0 };
       current.orders += 1;
-      current.tickets += Number(order.ticketCount || 0);
+      current.tickets += paidTicketsByOrderId[order.id] || 0;
       current.revenue += Number(order.subtotal || 0);
       salesByDayMap.set(date, current);
     });
@@ -2099,7 +2110,7 @@ export class OrdersService {
     orders.filter((order) => order.specialCode).forEach((order) => {
       const code = String(order.specialCode || '').toUpperCase();
       const current = codeMap.get(code) || { code, orders: 0, tickets: 0, revenue: 0, commission: 0 };
-      const ticketCount = Number(order.ticketCount || 0);
+      const ticketCount = paidTicketsByOrderId[order.id] || 0;
       current.orders += 1;
       current.tickets += ticketCount;
       current.revenue += Number(order.subtotal || 0);
@@ -2126,6 +2137,7 @@ export class OrdersService {
         netEstimated: Math.max(0, ticketRevenue - processingFees),
         totalOrders,
         totalTickets,
+        blockedTickets,
         scannedTickets,
         pendingTickets,
         scanRate,
