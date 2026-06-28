@@ -910,11 +910,11 @@ export class MailService {
 <!DOCTYPE html>
 <html lang="es">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
-<body style="margin:0;padding:0;background:#07111d;">
+<body style="margin:0;padding:0;background:#f4f7fb;">
   <span style="display:none;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">Resumen final de ventas, asistencia y base de datos de ${safe(report.eventTitle)}.</span>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#07111d;padding:24px 12px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fb;padding:26px 12px;">
     <tr><td align="center">
-      <table role="presentation" width="680" cellpadding="0" cellspacing="0" style="width:680px;max-width:680px;background:#0b1622;border:1px solid rgba(246,198,95,0.16);border-radius:22px;overflow:hidden;">
+      <table role="presentation" width="680" cellpadding="0" cellspacing="0" style="width:680px;max-width:680px;background:#0b1622;border:1px solid rgba(10,55,90,0.10);border-radius:24px;overflow:hidden;box-shadow:0 24px 70px rgba(10,20,32,0.26),0 8px 24px rgba(10,20,32,0.14);">
         <tr>
           <td style="background:#0A375A;padding:24px 28px;">
             <img src="${appUrl}/logo-email-orange.png" alt="LPTicket" width="190" style="display:block;width:190px;max-width:190px;height:auto;border:0;" />
@@ -963,7 +963,7 @@ export class MailService {
         <tr>
           <td align="center" style="padding:18px 30px 34px;">
             <a href="${report.reportUrl}" target="_blank" style="display:inline-block;background:#F97316;color:#ffffff;text-decoration:none;border-radius:14px;padding:14px 28px;font-size:14px;font-weight:900;font-family:'Helvetica Neue',Arial,sans-serif;">Ver reporte completo</a>
-            <p style="margin:14px 0 0;color:#8ea3b8;font-size:12px;line-height:1.5;font-family:'Helvetica Neue',Arial,sans-serif;">Adjuntamos un CSV con la base de datos de asistentes: nombre, email, ticket, mesa/asiento, estado y orden.</p>
+            <p style="margin:14px 0 0;color:#8ea3b8;font-size:12px;line-height:1.5;font-family:'Helvetica Neue',Arial,sans-serif;">También adjuntamos un CSV con la base de datos de asistentes: nombre, email, ticket, mesa/asiento, estado y orden.</p>
           </td>
         </tr>
         <tr><td align="center" style="background:#08111c;padding:20px 28px;border-top:1px solid rgba(255,255,255,0.05);"><p style="margin:0 0 4px;color:#F97316;font-size:12px;font-weight:900;font-family:'Helvetica Neue',Arial,sans-serif;">LPTicket</p><p style="margin:0;color:#64748b;font-size:11px;font-family:'Helvetica Neue',Arial,sans-serif;">© ${year} LPTicket · Tus tickets. Tus eventos.</p></td></tr>
