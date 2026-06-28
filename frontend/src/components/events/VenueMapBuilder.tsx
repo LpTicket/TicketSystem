@@ -512,9 +512,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     // Add to active pointers
     activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    // Only pan when clicking the viewport background, not a section or welcome screen
+    // Pan/drag only available in edit mode.
+    if (!editModeRef.current) return;
     // In edit mode, don't pan when grabbing a section (it gets dragged instead).
-    // In view mode, allow panning from anywhere — even over sections.
     if (editModeRef.current && (e.target as HTMLElement).closest('[data-section]')) return;
     if ((e.target as HTMLElement).closest('[data-welcome]')) return;
 
@@ -724,6 +724,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   }, [updateSeatConfig]);
 
   const onViewportWheel = useCallback((e: WheelEvent) => {
+    if (!editModeRef.current) return;
     e.preventDefault();
     e.stopPropagation();
 
