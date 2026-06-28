@@ -256,11 +256,15 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   // Touch refs (pan + pinch) — same approach as ClientVenueMap.
   const touchRef = useRef({ x: 0, y: 0, panX: 0, panY: 0, isPinch: false, pinchDist: 0, pinchZoom: 1, pinchCx: 0, pinchCy: 0, moved: false });
   const responderStart = useRef({ x: 0, y: 0 });
+  // When a touch lands on a draggable item in edit mode, the viewport must NOT
+  // capture the pan — the item should own the gesture (drag/select).
+  const touchedItemRef = useRef(false);
 
   // Only claim the move responder once the finger has actually moved a bit (or a
   // second finger lands), so a tap doesn't get captured. Mirrors the client.
   const shouldCapturePan = (e: any) => {
     if (dragRef.current) return false; // an item is being dragged
+    if (touchedItemRef.current) return false; // touch started on an item — let it handle the gesture
     const touches = e.nativeEvent.touches || [];
     if (touches.length >= 2) return true;
     const t = touches[0];
@@ -320,6 +324,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     if (touches.length === 1) { beginPan(touches); return; }
     if (touches.length === 0) {
       touchRef.current.isPinch = false;
+      touchedItemRef.current = false; // reset for the next gesture
       onScrollLock?.(false); // re-enable page scroll once fingers are lifted
       // Refresh the % label once the gesture finishes (not per frame).
       setZoomPct(Math.round(viewRef.current.zoom * 100));
@@ -530,7 +535,8 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
 
   const toggleSeat = (seatId: string, pageX = 0, pageY = 0, itemId = '') => {
     if (editMode) {
-      if (!selected) return;
+      // Select the chair's item too, so the inspector targets the right table.
+      if (itemId && itemId !== selectedId) setSelectedId(itemId);
       setSelectedSeat((current) => (current === seatId ? null : seatId));
       return;
     }
@@ -691,14 +697,19 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                 return (
                   <View
                     key={`${item.id || item.name || 'map-item'}-${index}`}
-                    // In edit mode, claim the responder only once the finger MOVES,
-                    // so a tap still reaches the chair TouchableOpacity (to select a
-                    // seat) while a drag moves the whole item. In view mode the item
-                    // never claims touches — they flow to the chairs.
-                    onStartShouldSetResponder={() => false}
+                    // In edit mode the item owns the gesture: it flags the touch so
+                    // the viewport won't capture the pan, claims the responder on
+                    // start, and drags. A tap that doesn't move still selects it; a
+                    // tap on a chair is handled by the chair's own TouchableOpacity
+                    // (which sits above and wins the responder).
+                    onStartShouldSetResponder={() => {
+                      if (editMode) { touchedItemRef.current = true; return true; }
+                      return false;
+                    }}
                     onMoveShouldSetResponder={() => editMode}
                     onResponderGrant={(event: GestureResponderEvent) => {
                       if (!editMode) return;
+                      touchedItemRef.current = true;
                       setSelectedId(item.id);
                       setSelectedSeat(null);
                       onScrollLock?.(true);
@@ -715,8 +726,8 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                       const nextY = d.y + (pageY - d.pageY) / z;
                       moveItem(item, nextX, nextY);
                     }}
-                    onResponderRelease={() => { setDragSafe(null); onScrollLock?.(false); }}
-                    onResponderTerminate={() => { setDragSafe(null); onScrollLock?.(false); }}
+                    onResponderRelease={() => { setDragSafe(null); touchedItemRef.current = false; onScrollLock?.(false); }}
+                    onResponderTerminate={() => { setDragSafe(null); touchedItemRef.current = false; onScrollLock?.(false); }}
                     style={[
                       styles.mapItem,
                       shapeStyle(item),
