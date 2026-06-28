@@ -1083,9 +1083,10 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
       }}
       onResponderRelease={(e) => {
         if (start.current.moved) {
+          // Reset offset FIRST, then commit the new base position in the same tick.
+          // React batches both so left/top and translate update together (no jump).
+          offset.setValue({ x: 0, y: 0 });
           onDragMove(item, start.current.lastX, start.current.lastY);
-          // Reset the visual offset only AFTER state commits, to avoid a 1-frame jump.
-          requestAnimationFrame(() => offset.setValue({ x: 0, y: 0 }));
         } else {
           onShowInfo(item, e.nativeEvent.pageX, e.nativeEvent.pageY);
         }
@@ -1093,7 +1094,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         onDragEnd();
       }}
       onResponderTerminate={() => {
-        if (start.current.moved) { onDragMove(item, start.current.lastX, start.current.lastY); requestAnimationFrame(() => offset.setValue({ x: 0, y: 0 })); }
+        if (start.current.moved) { offset.setValue({ x: 0, y: 0 }); onDragMove(item, start.current.lastX, start.current.lastY); }
         touchedItemRef.current = false;
         onDragEnd();
       }}
