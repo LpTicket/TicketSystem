@@ -200,7 +200,9 @@ export function VenueMapEditor({ eventId }: Props) {
     animPanX.setValue(safePan.x);
     animPanY.setValue(safePan.y);
     viewRef.current = { zoom: z, pan: safePan };
-    setZoomPct(Math.round(z * 100));
+    // NOTE: no setState here — this runs on every gesture frame. Updating React
+    // state per frame re-renders all items/grid and causes flicker/warp on real
+    // devices. The % label is refreshed on gesture end / button taps instead.
   }, [animZoom, animPanX, animPanY, clampPan]);
 
   const animateTo = useCallback((newZ: number, newP: { x: number; y: number }, duration = 200) => {
@@ -293,7 +295,11 @@ export function VenueMapEditor({ eventId }: Props) {
   const onCanvasTouchEnd = (e: any) => {
     const touches = e?.nativeEvent?.touches || [];
     if (touches.length === 1) { beginPan(touches); return; }
-    if (touches.length === 0) touchRef.current.isPinch = false;
+    if (touches.length === 0) {
+      touchRef.current.isPinch = false;
+      // Refresh the % label once the gesture finishes (not per frame).
+      setZoomPct(Math.round(viewRef.current.zoom * 100));
+    }
   };
 
   // Canvas transform graph (stable nodes — built once).
