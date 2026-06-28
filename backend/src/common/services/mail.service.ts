@@ -990,6 +990,13 @@ export class MailService {
       const accepted = Array.isArray((info as any)?.accepted) ? (info as any).accepted : [];
       const rejected = Array.isArray((info as any)?.rejected) ? (info as any).rejected : [];
       console.log('[Mail] Post-event report accepted:', accepted, 'rejected:', rejected, 'messageId:', (info as any)?.messageId);
+      const target = String(to || '').trim().toLowerCase();
+      const targetRejected = rejected.some((email: string) => String(email || '').trim().toLowerCase() === target);
+      const targetAccepted = accepted.some((email: string) => String(email || '').trim().toLowerCase() === target);
+      if (targetRejected || (accepted.length > 0 && !targetAccepted)) {
+        console.error('[Mail] Post-event report target was not accepted:', to, 'accepted:', accepted, 'rejected:', rejected);
+        return false;
+      }
       if (accepted.length === 0 && rejected.length > 0) return false;
       return { accepted, rejected, messageId: (info as any)?.messageId || null };
     } catch (e: any) {
