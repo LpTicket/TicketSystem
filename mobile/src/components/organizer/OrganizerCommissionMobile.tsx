@@ -89,7 +89,7 @@ export function OrganizerCommissionMobile({
         es ? 'Listo' : 'Done',
         eventStatus === 'published'
           ? es ? 'Solicitud enviada al admin.' : 'Request sent to admin for approval.'
-          : es ? 'Recompensa guardada.' : 'Reward saved.',
+          : es ? 'Comisión guardada.' : 'Commission saved.',
       );
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Error');
@@ -107,7 +107,7 @@ export function OrganizerCommissionMobile({
       await apiPatch(`/special-codes/by-event/${eventId}/${code.id}/reward`, {
         commissionFixed: Math.round(amount * 100) / 100,
       });
-      Alert.alert(es ? 'Listo' : 'Done', es ? 'Recompensa actualizada.' : 'Reward updated.');
+      Alert.alert(es ? 'Listo' : 'Done', es ? 'Comisión actualizada.' : 'Commission updated.');
       loadCodes();
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Error');
@@ -126,11 +126,11 @@ export function OrganizerCommissionMobile({
           <Ionicons name="cash-outline" size={22} color="#F97316" />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>{es ? 'Recompensas para Creadores' : 'Creator Rewards'}</Text>
+          <Text style={styles.headerTitle}>{es ? 'Comisión del creador' : 'Creator commission'}</Text>
           <Text style={styles.headerCopy}>
             {es
-              ? 'El admin crea los códigos y asigna creadores. Cada venta con el código de un creador acumula su recompensa. Los pagos los realiza el administrador.'
-              : "The admin creates codes and assigns creators to your event. Every time someone buys a ticket using a creator's code, their reward accumulates. Payments are handled directly by the administrator."}
+              ? 'El admin crea los códigos y asigna creadores. Cada venta con el código de un creador acumula su comisión. Los pagos los realiza el administrador.'
+              : "The admin creates codes and assigns creators to your event. Every time someone buys a ticket using a creator's code, their commission accumulates. Payments are handled directly by the administrator."}
           </Text>
         </View>
       </View>
@@ -139,7 +139,7 @@ export function OrganizerCommissionMobile({
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View>
-            <Text style={styles.cardEyebrow}>{es ? 'RECOMPENSA BASE DEL EVENTO' : 'EVENT BASE REWARD'}</Text>
+            <Text style={styles.cardEyebrow}>{es ? 'COMISIÓN BASE DEL EVENTO' : 'EVENT BASE COMMISSION'}</Text>
             <Text style={styles.cardSub}>{es ? 'Se aplica a creadores sin monto propio.' : 'Applies to creators without their own rate.'}</Text>
           </View>
         </View>
@@ -283,7 +283,7 @@ export function OrganizerCommissionMobile({
                     <Text style={styles.statValue}>{Number(code.ticketCount || 0)}</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>{es ? 'RECOMPENSA GENERADA' : 'REWARD GENERATED'}</Text>
+                    <Text style={styles.statLabel}>{es ? 'COMISIÓN GENERADA' : 'COMMISSION GENERATED'}</Text>
                     <Text style={[styles.statValue, { color: '#34D399' }]}>${Number(code.totalGenerated || 0).toFixed(2)}</Text>
                   </View>
                 </View>

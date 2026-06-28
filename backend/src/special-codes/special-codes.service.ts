@@ -198,6 +198,35 @@ export class SpecialCodesService {
     return summary.filter((entry) => entry.ownerUserId === ownerUserId);
   }
 
+  async getEventPayoutSummary(eventId: string, user: { id: string; role?: string }) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Evento no encontrado.');
+    if (user.role !== 'admin' && event.organizerId !== user.id) {
+      throw new ForbiddenException('No tienes permiso para ver los pagos de este evento.');
+    }
+
+    const [codes, summary] = await Promise.all([
+      this.specialCodeRepo.find({ where: { eventId }, relations: ['owner', 'event'] }),
+      this.getCommissionSummary(),
+    ]);
+    const entries = summary.filter((entry) => entry.eventId === eventId);
+    const totalEarned = entries.reduce((sum, entry) => sum + Number(entry.totalEarned || 0), 0);
+    const totalPaid = entries.reduce((sum, entry) => sum + Number(entry.totalPaid || 0), 0);
+    const balance = entries.reduce((sum, entry) => sum + Number(entry.balance || 0), 0);
+
+    return {
+      eventId,
+      eventTitle: event.title,
+      activeCodes: codes.filter((code) => code.isActive).length,
+      totalCodes: codes.length,
+      totalEarned: Math.round(totalEarned * 100) / 100,
+      totalPaid: Math.round(totalPaid * 100) / 100,
+      balance: Math.round(balance * 100) / 100,
+      pending: Math.round(balance * 100) / 100,
+      entries,
+    };
+  }
+
   async getCommissionSummary() {
     const [codes, orders, payouts] = await Promise.all([
       this.specialCodeRepo.find({ relations: ['owner', 'event'] }),

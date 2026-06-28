@@ -201,7 +201,6 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
     adminEvent ? toOrganizerEvent(adminEvent, 0) : null
   );
   const [rewardStats, setRewardStats] = useState<{ balance: number; activeCodes: number; totalPaid: number; pending: number } | null>(null);
-  const [rewardStatsLoaded, setRewardStatsLoaded] = useState(false);
 
   // Open a specific event in one of its sections.
   const openEvent = (ev: OrganizerMobileEvent, toSection: Section) => {
@@ -396,19 +395,21 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
     }
   }, [active, reloadOrganizerSummary, reloadEventData]);
 
-  // Lazy load reward stats when visiting the rewards section.
+  // Load event reward stats every time this event's rewards section is opened.
   useEffect(() => {
-    if (active !== 'rewards' || rewardStatsLoaded) return;
-    setRewardStatsLoaded(true);
-    apiGet<any[]>('/special-codes/my-payouts')
+    if (active !== 'rewards') return;
+    if (!selectedEventId) { setRewardStats(null); return; }
+    apiGet<any>(`/special-codes/by-event/${selectedEventId}/payout-summary`)
       .then((data) => {
-        const payouts = Array.isArray(data) ? data : [];
-        const balance = payouts.reduce((s: number, p: any) => s + Number(p.balance || 0), 0);
-        const totalPaid = payouts.reduce((s: number, p: any) => s + Number(p.totalPaid || 0), 0);
-        setRewardStats({ balance, activeCodes: payouts.length, totalPaid, pending: balance });
+        setRewardStats({
+          balance: Number(data?.balance || 0),
+          activeCodes: Number(data?.activeCodes || 0),
+          totalPaid: Number(data?.totalPaid || 0),
+          pending: Number(data?.pending ?? data?.balance ?? 0),
+        });
       })
-      .catch(() => {});
-  }, [active, rewardStatsLoaded]);
+      .catch(() => setRewardStats(null));
+  }, [active, selectedEventId]);
 
   // Leaving an event section (e.g. via the bottom bar) returns to the global view.
   useEffect(() => {
@@ -926,7 +927,7 @@ function sectionLabel(section: Section, t: (es: string, en: string) => string) {
     map: t('Mapa visual', 'Venue Map'),
     attendees: t('Asistentes', 'Attendees & Sales'),
     blocks: t('Bloqueos', 'Blocks'),
-    commission: t('Recompensas', 'Rewards'),
+    commission: t('Comisión', 'Commission'),
     rewards: t('Recompensas', 'Rewards'),
     scan: t('Escanear', 'Scan'),
   };
@@ -962,7 +963,7 @@ function subtitleFor(section: Section, t: (es: string, en: string) => string) {
     map: t('Mesas, sillas, areas, barras y precios.', 'Tables, seats, areas, bars and prices.'),
     attendees: t('Compradores, tickets y acceso.', 'Buyers, tickets and access.'),
     blocks: t('Bloquea asientos e invita gratis.', 'Block seats and send free invites.'),
-    commission: t('Define tu comisión por entrada.', 'Set your per-ticket commission.'),
+    commission: t('Define la comisión por entrada.', 'Set the per-ticket commission.'),
     rewards: t('Comisiones, codigos y pagos.', 'Commissions, codes and payouts.'),
     scan: t('Valida tickets en la puerta.', 'Validate tickets at the door.'),
   };
