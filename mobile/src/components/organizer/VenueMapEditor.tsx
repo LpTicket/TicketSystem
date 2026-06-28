@@ -766,7 +766,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                     touchedItemRef={touchedItemRef}
                     onSelect={(id) => { setSelectedId(id); }}
                     onShowInfo={(it, px, py) => showItemInfo(it, px, py)}
-                    onDragMove={(it, dx, dy) => moveItemBy(it.id, dx, dy)}
+                    onDragMove={(it, x, y) => moveItem(it, x, y)}
                     onDragEnd={() => onScrollLock?.(false)}
                     onScrollLock={onScrollLock}
                     style={[
@@ -1062,34 +1062,38 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
   onScrollLock?: (locked: boolean) => void;
   style: any; children: React.ReactNode;
 }) {
-  // Move by updating the item's real left/top in state every frame — the same
-  // approach the chairs use (which work). No Animated translate, no offset reset,
-  // so nothing can desync on release.
-  const start = useRef({ x: 0, y: 0, moved: false });
+  // EXACTLY the same drag logic as SeatDot (which works): a stable Animated offset
+  // translates the view during the drag, then on release we reset the offset and
+  // commit the new base position. base = item.x/item.y captured at grant.
+  const start = useRef({ x: 0, y: 0, ix: 0, iy: 0, dx: 0, dy: 0, moved: false });
+  const offset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   return (
-    <View
+    <Animated.View
       onStartShouldSetResponderCapture={() => { touchedItemRef.current = true; return false; }}
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => editMode}
       onResponderTerminationRequest={() => false}
       onResponderGrant={(e) => {
         touchedItemRef.current = true;
-        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, moved: false };
+        offset.setValue({ x: 0, y: 0 });
+        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, dx: 0, dy: 0, moved: false };
       }}
       onResponderMove={(e) => {
         if (!editMode) return;
         const z = zoomRef.current.zoom || 1;
-        const px = e.nativeEvent.pageX, py = e.nativeEvent.pageY;
-        // Per-frame delta. The parent applies it to the item's LIVE position (read
-        // from its ref), so we don't rely on item.x from a stale closure.
-        const fx = (px - start.current.x) / z;
-        const fy = (py - start.current.y) / z;
-        start.current.x = px; start.current.y = py;
-        if (Math.abs(fx) > 0.5 || Math.abs(fy) > 0.5) start.current.moved = true;
-        if (start.current.moved) onDragMove(item, fx, fy);
+        const dx = (e.nativeEvent.pageX - start.current.x) / z;
+        const dy = (e.nativeEvent.pageY - start.current.y) / z;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) start.current.moved = true;
+        if (start.current.moved) {
+          start.current.dx = dx; start.current.dy = dy;
+          offset.setValue({ x: dx, y: dy });
+        }
       }}
       onResponderRelease={(e) => {
-        if (!start.current.moved) {
+        if (start.current.moved) {
+          offset.setValue({ x: 0, y: 0 });
+          onDragMove(item, start.current.ix + start.current.dx, start.current.iy + start.current.dy);
+        } else {
           onSelect(item.id);
           onShowInfo(item, e.nativeEvent.pageX, e.nativeEvent.pageY);
         }
@@ -1097,13 +1101,14 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         onDragEnd();
       }}
       onResponderTerminate={() => {
+        if (start.current.moved) { offset.setValue({ x: 0, y: 0 }); onDragMove(item, start.current.ix + start.current.dx, start.current.iy + start.current.dy); }
         touchedItemRef.current = false;
         onDragEnd();
       }}
-      style={style}
+      style={[style, { transform: [{ translateX: offset.x }, { translateY: offset.y }] }]}
     >
       {children}
-    </View>
+    </Animated.View>
   );
 }
 
