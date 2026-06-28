@@ -158,6 +158,10 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const [selectedId, setSelectedId] = useState(initialItems[2].id);
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; pageX: number; pageY: number } | null>(null);
+  // Mirror of `drag` for gesture callbacks (they run outside React's render cycle
+  // and would otherwise see a stale `drag` from the closure).
+  const dragRef = useRef<typeof drag>(null);
+  const setDragSafe = (d: typeof drag) => { dragRef.current = d; setDrag(d); };
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [zoomPct, setZoomPct] = useState(50); // for the % label only
@@ -256,7 +260,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   // Only claim the move responder once the finger has actually moved a bit (or a
   // second finger lands), so a tap doesn't get captured. Mirrors the client.
   const shouldCapturePan = (e: any) => {
-    if (drag) return false; // an item is being dragged
+    if (dragRef.current) return false; // an item is being dragged
     const touches = e.nativeEvent.touches || [];
     if (touches.length >= 2) return true;
     const t = touches[0];
@@ -665,8 +669,8 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
             onTouchMove={onCanvasTouchMove}
             onTouchEnd={onCanvasTouchEnd}
             onTouchCancel={onCanvasTouchEnd}
-            onStartShouldSetResponder={() => !drag}
-            onMoveShouldSetResponder={() => !drag}
+            onStartShouldSetResponder={() => !dragRef.current}
+            onMoveShouldSetResponder={() => !dragRef.current}
             onResponderTerminationRequest={() => false}
             onResponderGrant={onCanvasTouchStart}
             onResponderMove={onCanvasTouchMove}
@@ -694,17 +698,18 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                       setSelectedSeat(null);
                       if (!editMode) return;
                       onScrollLock?.(true);
-                      setDrag({ id: item.id, x: item.x, y: item.y, pageX: event.nativeEvent.pageX, pageY: event.nativeEvent.pageY });
+                      setDragSafe({ id: item.id, x: item.x, y: item.y, pageX: event.nativeEvent.pageX, pageY: event.nativeEvent.pageY });
                     }}
                     onResponderMove={(event: GestureResponderEvent) => {
-                      if (!editMode || !drag || drag.id !== item.id) return;
+                      const d = dragRef.current;
+                      if (!editMode || !d || d.id !== item.id) return;
                       const z = viewRef.current.zoom || 1;
-                      const nextX = drag.x + (event.nativeEvent.pageX - drag.pageX) / z;
-                      const nextY = drag.y + (event.nativeEvent.pageY - drag.pageY) / z;
+                      const nextX = d.x + (event.nativeEvent.pageX - d.pageX) / z;
+                      const nextY = d.y + (event.nativeEvent.pageY - d.pageY) / z;
                       moveItem(item, nextX, nextY);
                     }}
-                    onResponderRelease={() => { setDrag(null); onScrollLock?.(false); }}
-                    onResponderTerminate={() => { setDrag(null); onScrollLock?.(false); }}
+                    onResponderRelease={() => { setDragSafe(null); onScrollLock?.(false); }}
+                    onResponderTerminate={() => { setDragSafe(null); onScrollLock?.(false); }}
                     style={[
                       styles.mapItem,
                       shapeStyle(item),
