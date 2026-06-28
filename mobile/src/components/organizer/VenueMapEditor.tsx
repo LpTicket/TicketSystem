@@ -499,10 +499,36 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     setSelectedSeat(null);
   };
 
-  // Tapping a chair now just selects it; its options live in the inspector.
+  type SeatInfoCard = { title: string; subtitle: string; status: string; price: number; tone: 'available' | 'reserved' | 'disabled' };
+  const [activeSeatInfo, setActiveSeatInfo] = useState<SeatInfoCard | null>(null);
+  const infoDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showSeatInfo = (info: SeatInfoCard) => {
+    if (infoDismissRef.current) clearTimeout(infoDismissRef.current);
+    setActiveSeatInfo(info);
+    infoDismissRef.current = setTimeout(() => setActiveSeatInfo(null), 2500);
+  };
+
   const toggleSeat = (seatId: string) => {
-    if (!editMode || !selected) return;
-    setSelectedSeat((current) => (current === seatId ? null : seatId));
+    if (!selected) return;
+    if (editMode) {
+      setSelectedSeat((current) => (current === seatId ? null : seatId));
+      return;
+    }
+    // View mode: show seat info card (same as ClientVenueMap).
+    const ov: SeatOverride = selected.seatConfig?.[seatId] || {};
+    const isTableKey = seatId.startsWith('seat-');
+    const rowLabel = isTableKey ? selected.name : seatId.split('-')[0];
+    const seatNum = isTableKey ? seatId.replace('seat-', '') : seatId.split('-')[1];
+    const status = ov.disabled ? t('Oculto', 'Hidden') : ov.reserved ? t('Bloqueado', 'Blocked') : t('Disponible', 'Available');
+    const tone: SeatInfoCard['tone'] = ov.disabled ? 'disabled' : ov.reserved ? 'reserved' : 'available';
+    showSeatInfo({
+      title: `${selected.name} · ${t('Silla', 'Seat')} ${seatNum}`,
+      subtitle: isTableKey ? '' : `${t('Fila', 'Row')} ${rowLabel}`,
+      status,
+      price: selected.price || 0,
+      tone,
+    });
   };
 
   // Update one override field for the currently selected seat.
@@ -716,52 +742,19 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
           </View>
       </View>
 
-      {/* Info panel — always visible when an item is selected (even in view mode) */}
-      {!editMode && selected && (() => {
-        const totalSeats = selected.rows > 0 && selected.seatsPerRow > 0
-          ? selected.rows * selected.seatsPerRow
-          : 0;
-        const cfg = selected.seatConfig || {};
-        const blocked = Object.values(cfg).filter((v: SeatOverride) => v.reserved || v.disabled).length;
-        const available = Math.max(0, totalSeats - blocked);
-        const typeLabel = selected.type === 'table' ? t('Mesa', 'Table')
-          : selected.type === 'seat' ? t('Grilla de asientos', 'Seat grid')
-          : selected.type === 'area' ? t('Área', 'Area')
-          : selected.type === 'bar' ? t('Barra', 'Bar')
-          : selected.type === 'stage' ? t('Escenario', 'Stage')
-          : selected.type;
+      {/* Seat info card — same look as ClientVenueMap, shown when a chair is tapped in view mode */}
+      {activeSeatInfo && (() => {
+        const toneColor = activeSeatInfo.tone === 'reserved' ? '#facc15' : activeSeatInfo.tone === 'disabled' ? '#94a3b8' : '#86efac';
         return (
-          <View style={styles.infoPanel}>
-            <View style={styles.infoPanelRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.infoPanelName}>{selected.name}</Text>
-                <Text style={styles.infoPanelType}>{typeLabel}</Text>
-              </View>
-              <TouchableOpacity onPress={() => setSelectedId('')} style={styles.infoPanelClose}>
-                <Ionicons name="close" size={18} color="rgba(226,232,240,0.6)" />
-              </TouchableOpacity>
+          <View style={styles.seatInfoCard}>
+            <View style={[styles.seatInfoTone, { backgroundColor: `${toneColor}22` }]}>
+              <Text style={[styles.seatInfoToneText, { color: toneColor }]}>{activeSeatInfo.status}</Text>
             </View>
-            {totalSeats > 0 && (
-              <View style={styles.infoPanelStats}>
-                <View style={styles.infoPanelStat}>
-                  <Text style={styles.infoPanelStatVal}>{totalSeats}</Text>
-                  <Text style={styles.infoPanelStatLabel}>{t('Total', 'Total')}</Text>
-                </View>
-                <View style={styles.infoPanelStatDivider} />
-                <View style={styles.infoPanelStat}>
-                  <Text style={[styles.infoPanelStatVal, { color: '#4ade80' }]}>{available}</Text>
-                  <Text style={styles.infoPanelStatLabel}>{t('Disponibles', 'Available')}</Text>
-                </View>
-                <View style={styles.infoPanelStatDivider} />
-                <View style={styles.infoPanelStat}>
-                  <Text style={[styles.infoPanelStatVal, { color: '#fb923c' }]}>{blocked}</Text>
-                  <Text style={styles.infoPanelStatLabel}>{t('Bloqueados', 'Blocked')}</Text>
-                </View>
-              </View>
-            )}
-            {selected.price !== undefined && selected.price > 0 && (
-              <Text style={styles.infoPanelPrice}>${selected.price} {selected.saleMode === 'whole' ? t('/ mesa completa', '/ whole table') : t('/ asiento', '/ seat')}</Text>
-            )}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.seatInfoTitle} numberOfLines={1}>{activeSeatInfo.title}</Text>
+              {!!activeSeatInfo.subtitle && <Text style={styles.seatInfoSub} numberOfLines={1}>{activeSeatInfo.subtitle}</Text>}
+            </View>
+            {activeSeatInfo.price > 0 && <Text style={styles.seatInfoPrice}>${activeSeatInfo.price.toFixed(2)}</Text>}
           </View>
         );
       })()}
@@ -1244,17 +1237,12 @@ const styles = StyleSheet.create({
   cornerTR: { right: -7, top: -7 },
   cornerBL: { left: -7, bottom: -7 },
   cornerBR: { right: -7, bottom: -7 },
-  infoPanel: { backgroundColor: '#071423', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)', paddingHorizontal: 16, paddingVertical: 12 },
-  infoPanelRow: { flexDirection: 'row', alignItems: 'center' },
-  infoPanelName: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
-  infoPanelType: { color: 'rgba(226,232,240,0.45)', fontSize: 11, marginTop: 1 },
-  infoPanelClose: { padding: 6 },
-  infoPanelStats: { flexDirection: 'row', alignItems: 'center', marginTop: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', paddingVertical: 10 },
-  infoPanelStat: { flex: 1, alignItems: 'center' },
-  infoPanelStatVal: { color: '#F8FAFC', fontSize: 18, fontWeight: '800' },
-  infoPanelStatLabel: { color: 'rgba(226,232,240,0.45)', fontSize: 10, marginTop: 2 },
-  infoPanelStatDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.10)' },
-  infoPanelPrice: { color: '#fb923c', fontSize: 12, fontWeight: '600', marginTop: 8 },
+  seatInfoCard: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 12, marginTop: 8, marginBottom: 4, backgroundColor: 'rgba(11,34,54,0.96)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(246,198,95,0.20)', paddingHorizontal: 12, paddingVertical: 10 },
+  seatInfoTone: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 },
+  seatInfoToneText: { fontSize: 10, fontWeight: '600' },
+  seatInfoTitle: { color: '#ffffff', fontSize: 12, fontWeight: '600' },
+  seatInfoSub: { color: '#94a3b8', fontSize: 10, fontWeight: '600', marginTop: 1 },
+  seatInfoPrice: { color: '#F97316', fontSize: 14, fontWeight: '600', flexShrink: 0 },
   inspector: { backgroundColor: '#071423', borderTopWidth: 1, borderTopColor: 'rgba(249,115,22,0.22)' },
   inspectorHeader: { minHeight: 54, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 8, paddingVertical: 10, backgroundColor: 'rgba(255,255,255,0.02)' },
   inspectorTitle: { flex: 1, color: '#F8FAFC', fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
