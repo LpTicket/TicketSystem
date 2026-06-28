@@ -991,6 +991,26 @@ export class MailService {
         `Neto estimado organizador: ${money(report.totals.netEstimated)}`,
         `Reporte completo: ${report.reportUrl}`,
       ].join('\n');
+      const organizerSectionRows = report.topSections.slice(0, 8).map((item) => `
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #e2e8f0;color:#0f172a;font-size:12px;font-weight:800;">${safe(item.name)}</td>
+                  <td align="right" style="padding:9px 0;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:12px;">${item.tickets}</td>
+                  <td align="right" style="padding:9px 0;border-bottom:1px solid #e2e8f0;color:#F97316;font-size:12px;font-weight:900;">${money(item.revenue)}</td>
+                </tr>`).join('');
+      const organizerDayRows = report.salesByDay.slice(-7).map((item) => `
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #e2e8f0;color:#0f172a;font-size:12px;font-weight:800;">${safe(item.date)}</td>
+                  <td align="right" style="padding:9px 0;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:12px;">${item.orders}</td>
+                  <td align="right" style="padding:9px 0;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:12px;">${item.tickets}</td>
+                  <td align="right" style="padding:9px 0;border-bottom:1px solid #e2e8f0;color:#F97316;font-size:12px;font-weight:900;">${money(item.revenue)}</td>
+                </tr>`).join('');
+      const organizerCodeRows = report.specialCodes.slice(0, 8).map((item) => `
+                <tr>
+                  <td style="padding:9px 0;border-bottom:1px solid #e2e8f0;color:#0f172a;font-size:12px;font-weight:900;">${safe(item.code)}</td>
+                  <td align="right" style="padding:9px 0;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:12px;">${item.orders}</td>
+                  <td align="right" style="padding:9px 0;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:12px;">${item.tickets}</td>
+                  <td align="right" style="padding:9px 0;border-bottom:1px solid #e2e8f0;color:#F97316;font-size:12px;font-weight:900;">${money(item.revenue)}</td>
+                </tr>`).join('');
       const organizerHtml = `
 <!doctype html>
 <html lang="es">
@@ -1040,10 +1060,47 @@ export class MailService {
                 <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Venta de tickets</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.ticketRevenue)}</td></tr>
                 <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Cargos de servicio LPTicket</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.lpFees)}</td></tr>
                 <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Procesamiento</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.processingFees)}</td></tr>
+                <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Órdenes pagadas</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${report.totals.totalOrders}</td></tr>
+                <tr><td style="padding:6px 16px;color:#64748b;font-size:13px;">Orden promedio</td><td align="right" style="padding:6px 16px;color:#0f172a;font-size:13px;font-weight:900;">${money(report.totals.averageOrder)}</td></tr>
                 <tr><td style="padding:12px 16px 16px;color:#F97316;font-size:14px;font-weight:900;border-top:1px solid #e2e8f0;">Neto estimado organizador</td><td align="right" style="padding:12px 16px 16px;color:#F97316;font-size:17px;font-weight:900;border-top:1px solid #e2e8f0;">${money(report.totals.netEstimated)}</td></tr>
               </table>
             </td>
           </tr>
+          <tr>
+            <td bgcolor="#ffffff" style="background:#ffffff!important;padding:0 24px 12px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc;">
+                <tr><td style="padding:16px 16px 6px;color:#0A375A;font-size:15px;font-weight:900;">Lectura rápida</td></tr>
+                <tr><td style="padding:0 16px 16px;color:#475569;font-size:13px;line-height:1.55;">Las <strong>entradas pagadas</strong> son las que generaron ingreso. Las <strong>bloqueadas / sin ingreso</strong> incluyen cortesías, invitaciones o espacios bloqueados que no deben contarse como ventas cobradas.</td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="#ffffff" style="background:#ffffff!important;padding:0 24px 12px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:16px;background:#ffffff;">
+                <tr><td colspan="3" style="padding:16px 16px 4px;color:#0A375A;font-size:15px;font-weight:900;">Ventas por sección / mesa</td></tr>
+                <tr><td style="padding:0 16px 8px;color:#64748b;font-size:11px;">Sección</td><td align="right" style="padding:0 0 8px;color:#64748b;font-size:11px;">Tickets</td><td align="right" style="padding:0 16px 8px;color:#64748b;font-size:11px;">Ingresos</td></tr>
+                <tr><td colspan="3" style="padding:0 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${organizerSectionRows || `<tr><td style="padding:10px 0;color:#64748b;font-size:13px;">No hubo ventas registradas por sección.</td></tr>`}</table></td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td bgcolor="#ffffff" style="background:#ffffff!important;padding:0 24px 12px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:16px;background:#ffffff;">
+                <tr><td colspan="4" style="padding:16px 16px 4px;color:#0A375A;font-size:15px;font-weight:900;">Ventas por día</td></tr>
+                <tr><td style="padding:0 16px 8px;color:#64748b;font-size:11px;">Día</td><td align="right" style="padding:0 0 8px;color:#64748b;font-size:11px;">Órdenes</td><td align="right" style="padding:0 0 8px;color:#64748b;font-size:11px;">Tickets</td><td align="right" style="padding:0 16px 8px;color:#64748b;font-size:11px;">Ingresos</td></tr>
+                <tr><td colspan="4" style="padding:0 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${organizerDayRows || `<tr><td style="padding:10px 0;color:#64748b;font-size:13px;">No hubo ventas registradas por día.</td></tr>`}</table></td></tr>
+              </table>
+            </td>
+          </tr>
+          ${report.specialCodes.length ? `<tr>
+            <td bgcolor="#ffffff" style="background:#ffffff!important;padding:0 24px 12px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:16px;background:#ffffff;">
+                <tr><td colspan="4" style="padding:16px 16px 4px;color:#0A375A;font-size:15px;font-weight:900;">Códigos especiales</td></tr>
+                <tr><td style="padding:0 16px 8px;color:#64748b;font-size:11px;">Código</td><td align="right" style="padding:0 0 8px;color:#64748b;font-size:11px;">Órdenes</td><td align="right" style="padding:0 0 8px;color:#64748b;font-size:11px;">Tickets</td><td align="right" style="padding:0 16px 8px;color:#64748b;font-size:11px;">Ingresos</td></tr>
+                <tr><td colspan="4" style="padding:0 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${organizerCodeRows}</table></td></tr>
+              </table>
+            </td>
+          </tr>` : ''}
           <tr>
             <td align="center" bgcolor="#ffffff" style="background:#ffffff!important;padding:18px 24px 30px;">
               <a href="${report.reportUrl}" target="_blank" style="display:inline-block;background:#F97316;color:#ffffff;text-decoration:none;border-radius:14px;padding:13px 26px;font-size:13px;font-weight:900;">Ver reporte completo</a>
