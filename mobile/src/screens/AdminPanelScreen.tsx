@@ -74,6 +74,26 @@ type EventFinancial = {
   orders: number;
 };
 
+type PostEventReportPreview = {
+  defaultEmail: string;
+  sentAt?: string | null;
+  report: {
+    eventTitle: string;
+    eventDateLabel: string;
+    venueLabel: string;
+    currency: string;
+    totals: {
+      grossSales: number;
+      totalTickets: number;
+      scannedTickets: number;
+      scanRate: number;
+      totalOrders: number;
+    };
+    topSections: Array<{ name: string; tickets: number; revenue: number }>;
+    specialCodes: Array<{ code: string; tickets: number; revenue: number }>;
+  };
+};
+
 type AnalyticsEventTarget = {
   id?: string;
   slug?: string;
@@ -439,6 +459,11 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
   const [feeLoading, setFeeLoading] = useState(false);
   const [feeSaving, setFeeSaving] = useState(false);
   const [feeTab, setFeeTab] = useState<'global' | 'sections'>('global');
+  const [reportEvent, setReportEvent] = useState<any | null>(null);
+  const [reportPreview, setReportPreview] = useState<PostEventReportPreview | null>(null);
+  const [reportEmail, setReportEmail] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportSending, setReportSending] = useState(false);
 
   // Price approvals
   const [priceEventId, setPriceEventId] = useState<string | null>(null);
@@ -1658,6 +1683,48 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
     }
   };
 
+  const openPostEventReport = async (ev: any) => {
+    setReportEvent(ev);
+    setReportPreview(null);
+    setReportEmail(ev?.organizer?.email || '');
+    setReportLoading(true);
+    try {
+      const data = await apiGet<PostEventReportPreview>(`/admin/events/${ev.id}/post-event-report`);
+      setReportPreview(data);
+      setReportEmail(data.defaultEmail || ev?.organizer?.email || '');
+    } catch (err: any) {
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo cargar el resumen.', 'Could not load the report.'));
+      setReportEvent(null);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const sendPostEventReport = async () => {
+    if (!reportEvent) return;
+    const email = reportEmail.trim();
+    if (!email) {
+      Alert.alert(t('Correo requerido', 'Email required'), t('Coloca el correo destino.', 'Enter the destination email.'));
+      return;
+    }
+    setReportSending(true);
+    try {
+      const result = await apiPost<any>(`/admin/events/${reportEvent.id}/post-event-report/send`, { email });
+      const accepted = Array.isArray(result?.delivery?.accepted) ? result.delivery.accepted.join(', ') : email;
+      Alert.alert(
+        t('Resumen enviado', 'Report sent'),
+        t(`El servidor aceptó el correo para: ${accepted}. Revisa Inbox, Spam o Promociones.`, `Server accepted the email for: ${accepted}. Check Inbox, Spam or Promotions.`),
+      );
+      setReportEvent(null);
+      setReportPreview(null);
+      setReportEmail('');
+    } catch (err: any) {
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo enviar el resumen.', 'Could not send the report.'));
+    } finally {
+      setReportSending(false);
+    }
+  };
+
   const updateFeeEvent = (key: keyof FeeConfig['event'], value: string) => {
     setFeeConfig((prev) => prev ? { ...prev, event: { ...prev.event, [key]: value } } : prev);
   };
@@ -2193,16 +2260,20 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
                     <Text style={[styles.adminEventSecondaryText, styles.adminEventDangerText]}>{t('DEL', 'DEL')}</Text>
                   </TouchableOpacity>
                 </View>
-                <View style={styles.adminEventActions}>
-                  <TouchableOpacity onPress={() => openFees(item)} style={[styles.adminEventSecondaryAction, feeEventId === item.id && styles.adminEventSecondaryActionActive]}>
-                    <Text style={[styles.adminEventSecondaryText, feeEventId === item.id && styles.adminEventSecondaryTextActive]}>{t('FEES', 'FEES')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => openPrices(item)} style={[styles.adminEventSecondaryAction, priceEventId === item.id && styles.adminEventSecondaryActionActive]}>
-                    <Text style={[styles.adminEventSecondaryText, priceEventId === item.id && styles.adminEventSecondaryTextActive]}>{t('PRECIOS', 'PRICES')}</Text>
-                  </TouchableOpacity>
-                </View>
+	                <View style={styles.adminEventActions}>
+	                  <TouchableOpacity onPress={() => openFees(item)} style={[styles.adminEventSecondaryAction, feeEventId === item.id && styles.adminEventSecondaryActionActive]}>
+	                    <Text style={[styles.adminEventSecondaryText, feeEventId === item.id && styles.adminEventSecondaryTextActive]}>{t('FEES', 'FEES')}</Text>
+	                  </TouchableOpacity>
+	                  <TouchableOpacity onPress={() => openPrices(item)} style={[styles.adminEventSecondaryAction, priceEventId === item.id && styles.adminEventSecondaryActionActive]}>
+	                    <Text style={[styles.adminEventSecondaryText, priceEventId === item.id && styles.adminEventSecondaryTextActive]}>{t('PRECIOS', 'PRICES')}</Text>
+	                  </TouchableOpacity>
+	                </View>
+	                <TouchableOpacity onPress={() => openPostEventReport(item)} style={styles.adminEventReportAction}>
+	                  <Ionicons name="mail-outline" size={16} color="#FFFFFF" />
+	                  <Text style={styles.adminEventReportActionText}>{t('ENVIAR RESUMEN', 'SEND REPORT')}</Text>
+	                </TouchableOpacity>
 
-                {/* Inline fees panel */}
+	                {/* Inline fees panel */}
                 {feeEventId === item.id && (
                   <View style={styles.inlinePanel}>
                     {feeLoading ? (
@@ -2689,6 +2760,77 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
           </View>
         </Modal>
       )}
+
+      {/* ── Post-event report modal ───────────────────────────────────────── */}
+      <Modal visible={!!reportEvent} transparent animationType="slide" onRequestClose={() => setReportEvent(null)}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => !reportSending && setReportEvent(null)} activeOpacity={1} />
+          <View style={styles.userModal}>
+            <View style={styles.userModalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.userModalName}>{t('Enviar resumen', 'Send report')}</Text>
+                <Text style={styles.userModalSub} numberOfLines={1}>{reportEvent ? adminEventTitle(reportEvent) : ''}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setReportEvent(null)} style={styles.userModalClose} disabled={reportSending}>
+                <Ionicons name="close" size={18} color="#CBD5E1" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 430 }} contentContainerStyle={{ padding: 18, gap: 14 }} keyboardShouldPersistTaps="handled">
+              <Text style={styles.userModalSectionLabel}>{t('CORREO DESTINO', 'DESTINATION EMAIL')}</Text>
+              <TextInput
+                value={reportEmail}
+                onChangeText={setReportEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder="organizer@email.com"
+                placeholderTextColor="#64748B"
+                style={styles.inlinePanelInput}
+              />
+              {reportLoading ? (
+                <Text style={styles.inlinePanelLoading}>{t('Cargando resumen...', 'Loading report...')}</Text>
+              ) : reportPreview ? (
+                <View style={styles.userModalInfoCard}>
+                  {reportPreview.sentAt ? (
+                    <Text style={[styles.userModalInfoText, { color: '#FBBF24' }]}>
+                      {t('Este resumen ya fue enviado antes. Puedes reenviarlo.', 'This report was already sent. You can resend it.')}
+                    </Text>
+                  ) : null}
+                  <View style={styles.userModalInfoRow}>
+                    <Ionicons name="cash-outline" size={17} color={colors.orange} />
+                    <Text style={styles.userModalInfoText}>{t('Ventas cobradas', 'Gross sales')}: {money(reportPreview.report.totals.grossSales)}</Text>
+                  </View>
+                  <View style={styles.userModalInfoRow}>
+                    <Ionicons name="ticket-outline" size={17} color={colors.orange} />
+                    <Text style={styles.userModalInfoText}>{t('Entradas', 'Tickets')}: {reportPreview.report.totals.totalTickets}</Text>
+                  </View>
+                  <View style={styles.userModalInfoRow}>
+                    <Ionicons name="scan-outline" size={17} color={colors.orange} />
+                    <Text style={styles.userModalInfoText}>{t('Asistencia', 'Attendance')}: {reportPreview.report.totals.scannedTickets}/{reportPreview.report.totals.totalTickets} ({reportPreview.report.totals.scanRate}%)</Text>
+                  </View>
+                  <Text style={[styles.userModalInfoText, { color: 'rgba(226,232,240,0.55)' }]}>
+                    {reportPreview.report.eventDateLabel}
+                  </Text>
+                </View>
+              ) : null}
+              <Text style={styles.userModalInfoText}>
+                {t('El servidor indicará si aceptó el correo. Si no aparece en Inbox, revisa Spam o Promociones.', 'The server will indicate if it accepted the email. If it does not appear in Inbox, check Spam or Promotions.')}
+              </Text>
+            </ScrollView>
+            <View style={[styles.userModalFooter, { gap: 10 }]}>
+              <TouchableOpacity onPress={() => setReportEvent(null)} style={[styles.userModalCloseBtn, { flex: 1, alignItems: 'center' }]} disabled={reportSending}>
+                <Text style={styles.userModalCloseBtnText}>{t('Cancelar', 'Cancel')}</Text>
+              </TouchableOpacity>
+              <GradientButton
+                label={reportSending ? t('ENVIANDO...', 'SENDING...') : t('ENVIAR', 'SEND')}
+                onPress={sendPostEventReport}
+                height={44}
+                style={{ flex: 1.5, opacity: reportLoading || reportSending ? 0.65 : 1 }}
+                disabled={reportLoading || reportSending}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Create Category Modal ─────────────────────────────────────────── */}
       {showCreateCategory && (
@@ -4430,6 +4572,8 @@ const styles = StyleSheet.create({
   adminEventActions: { flexDirection: 'row', gap: 7, marginTop: 10 },
   adminEventPrimaryAction: { flex: 1.12, borderRadius: 10 },
   adminEventPrimaryText: { color: '#FFFFFF', fontSize: 10, fontWeight: '600', letterSpacing: 0 },
+  adminEventReportAction: { height: 42, borderRadius: 13, marginTop: 10, backgroundColor: '#F97316', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, shadowColor: '#F97316', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
+  adminEventReportActionText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
   adminEventSecondaryAction: { flex: 1, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.025)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
   adminEventSecondaryText: { color: '#F8FAFC', fontSize: 10, fontWeight: '600', letterSpacing: 0 },
   adminEventDangerAction: { flex: 0.72, borderColor: 'rgba(239,68,68,0.24)' },

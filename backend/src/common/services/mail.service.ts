@@ -868,7 +868,7 @@ export class MailService {
     const appUrl = this.getAppUrl();
     const year = new Date().getFullYear();
     const adminEmail = String(this.configService.get('ADMIN_EMAIL') || '').trim();
-    const cc = adminEmail && adminEmail.toLowerCase() !== to.trim().toLowerCase() ? adminEmail : undefined;
+    const bcc = adminEmail && adminEmail.toLowerCase() !== to.trim().toLowerCase() ? adminEmail : undefined;
     const money = (value: number) => `${Number(value || 0).toFixed(2)} ${report.currency || 'USD'}`;
     const safe = (value: any) => String(value ?? '')
       .replace(/&/g, '&amp;')
@@ -974,10 +974,10 @@ export class MailService {
 </html>`;
 
     try {
-      await this.transporter.sendMail({
+      const info = await this.transporter.sendMail({
         from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
         to,
-        cc,
+        bcc,
         subject: `Resumen final de tu evento — ${report.eventTitle}`,
         html,
         attachments: report.csv ? [{
@@ -986,7 +986,11 @@ export class MailService {
           contentType: 'text/csv; charset=utf-8',
         }] : undefined,
       });
-      return true;
+      const accepted = Array.isArray((info as any)?.accepted) ? (info as any).accepted : [];
+      const rejected = Array.isArray((info as any)?.rejected) ? (info as any).rejected : [];
+      console.log('[Mail] Post-event report accepted:', accepted, 'rejected:', rejected, 'messageId:', (info as any)?.messageId);
+      if (accepted.length === 0 && rejected.length > 0) return false;
+      return { accepted, rejected, messageId: (info as any)?.messageId || null };
     } catch (e: any) {
       console.error('Post-event report email failed:', e?.message || e);
       return false;

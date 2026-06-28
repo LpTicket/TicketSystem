@@ -2171,12 +2171,12 @@ export class OrdersService {
     if (!isValidEmailFormat(targetEmail)) throw new BadRequestException('Correo inválido');
 
     const report = await this.buildPostEventReport(event);
-    const sent = await this.mailService.sendPostEventReportEmail(targetEmail, report);
-    if (!sent) throw new BadRequestException('No se pudo enviar el resumen');
+    const sendInfo = await this.mailService.sendPostEventReportEmail(targetEmail, report);
+    if (!sendInfo) throw new BadRequestException('No se pudo enviar el resumen');
 
     event.postEventReportSentAt = new Date();
     await this.eventRepo.save(event);
-    return { success: true, email: targetEmail, sentAt: event.postEventReportSentAt };
+    return { success: true, email: targetEmail, sentAt: event.postEventReportSentAt, delivery: sendInfo };
   }
 
   @Cron('0 5 * * * *')

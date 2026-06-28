@@ -143,8 +143,11 @@ export default function AdminEventsPage() {
     }
     setReportSending(true);
     try {
-      await api.post(`/admin/events/${selectedEventForReport.id}/post-event-report/send`, { email: reportEmail.trim() });
-      toast.success(lang === 'es' ? 'Resumen enviado correctamente' : 'Report sent successfully');
+      const { data } = await api.post(`/admin/events/${selectedEventForReport.id}/post-event-report/send`, { email: reportEmail.trim() });
+      const accepted = Array.isArray(data?.delivery?.accepted) && data.delivery.accepted.length > 0
+        ? data.delivery.accepted.join(', ')
+        : reportEmail.trim();
+      toast.success(lang === 'es' ? `Servidor aceptó: ${accepted}` : `Server accepted: ${accepted}`);
       setSelectedEventForReport(null);
       setReportPreview(null);
     } catch (err: any) {
