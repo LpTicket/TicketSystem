@@ -1062,7 +1062,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
   onScrollLock?: (locked: boolean) => void;
   style: any; children: React.ReactNode;
 }) {
-  const start = useRef({ x: 0, y: 0, ix: 0, iy: 0, dx: 0, dy: 0, moved: false });
+  const start = useRef({ x: 0, y: 0, ix: 0, iy: 0, dx: 0, dy: 0, moved: false, committed: false });
   // Animated translate applied on top of left/top so we can move per-frame without
   // a React re-render (works on web + native, unlike setNativeProps).
   const offset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
@@ -1076,7 +1076,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
       onResponderTerminationRequest={() => false}
       onResponderGrant={(e) => {
         touchedItemRef.current = true;
-        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, dx: 0, dy: 0, moved: false };
+        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, dx: 0, dy: 0, moved: false, committed: false };
         offset.setValue({ x: 0, y: 0 });
         // NOTE: don't call onSelect here — setSelectedId re-renders the parent mid
         // gesture and can reset the drag. Select on release instead.
@@ -1094,13 +1094,12 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         }
       }}
       onResponderRelease={(e) => {
-        if (start.current.moved) {
-          // Commit by DELTA so the parent applies it to the item's live position —
-          // no reliance on a captured base that could be stale/zero.
+        if (start.current.moved && !start.current.committed) {
+          start.current.committed = true;
           const dx = start.current.dx, dy = start.current.dy;
           offset.setValue({ x: 0, y: 0 });
           onDragMove(item, dx, dy);
-        } else {
+        } else if (!start.current.moved) {
           onSelect(item.id);
           onShowInfo(item, e.nativeEvent.pageX, e.nativeEvent.pageY);
         }
@@ -1108,7 +1107,8 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         onDragEnd();
       }}
       onResponderTerminate={() => {
-        if (start.current.moved) {
+        if (start.current.moved && !start.current.committed) {
+          start.current.committed = true;
           const dx = start.current.dx, dy = start.current.dy;
           offset.setValue({ x: 0, y: 0 });
           onDragMove(item, dx, dy);
