@@ -1087,7 +1087,6 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         draggingRef.current = true;
         start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, fx: item.x, fy: item.y, moved: false };
         pos.setValue({ x: item.x, y: item.y });
-        console.log('[ITEM grant]', item.type, item.name, 'ix:', item.x, 'iy:', item.y);
       }}
       onResponderMove={(e) => {
         if (!editMode) return;
@@ -1096,14 +1095,14 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         const dy = (e.nativeEvent.pageY - start.current.y) / z;
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) start.current.moved = true;
         if (start.current.moved) {
-          // Track the absolute final position in the ref AND drive the visual.
-          start.current.fx = start.current.ix + dx;
-          start.current.fy = start.current.iy + dy;
+          // Clamp HERE to the same bounds moveItem uses, so the visual position
+          // matches the committed state exactly (no snap on release).
+          start.current.fx = Math.max(0, Math.min(CANVAS_WIDTH - item.width, start.current.ix + dx));
+          start.current.fy = Math.max(0, Math.min(CANVAS_HEIGHT - item.height, start.current.iy + dy));
           pos.setValue({ x: start.current.fx, y: start.current.fy });
         }
       }}
       onResponderRelease={() => {
-        console.log('[ITEM release]', item.type, item.name, 'dragging:', draggingRef.current, 'moved:', start.current.moved, 'fx:', start.current.fx.toFixed(1), 'fy:', start.current.fy.toFixed(1));
         if (!draggingRef.current) return; // ignore stray release events
         draggingRef.current = false;
         if (start.current.moved) {
@@ -1150,7 +1149,7 @@ function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, active, edit
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => editMode}
       onResponderTerminationRequest={() => false}
-      onResponderGrant={(e) => { console.log('[SEAT grant]', id, 'of', itemId); seatTouchRef.current = true; offset.setValue({ x: 0, y: 0 }); start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, dx: 0, dy: 0, moved: false }; }}
+      onResponderGrant={(e) => { seatTouchRef.current = true; offset.setValue({ x: 0, y: 0 }); start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, dx: 0, dy: 0, moved: false }; }}
       onResponderMove={(e) => {
         if (!editMode) return;
         const z = zoomRef.current.zoom || 1;
