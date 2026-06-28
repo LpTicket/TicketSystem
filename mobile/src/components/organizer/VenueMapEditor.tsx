@@ -746,8 +746,8 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
             {/* Seat info card — floats above the tapped chair in view mode */}
             {activeSeatInfo && (() => {
               const toneColor = activeSeatInfo.tone === 'reserved' ? '#facc15' : activeSeatInfo.tone === 'disabled' ? '#94a3b8' : '#86efac';
-              // Position above the finger: clamp so it never goes off the top of the viewport.
-              const cardTop = Math.max(6, activeSeatInfo.py - 58);
+              // Position below the finger, clamped so it stays inside the viewport.
+              const cardTop = Math.min(activeSeatInfo.py + 12, VP_H - 60);
               return (
                 <View style={[styles.seatInfoCard, { top: cardTop }]} pointerEvents="none">
                   <View style={[styles.seatInfoTone, { backgroundColor: `${toneColor}22` }]}>
