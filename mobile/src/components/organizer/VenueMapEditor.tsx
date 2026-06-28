@@ -766,7 +766,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                     touchedItemRef={touchedItemRef}
                     onSelect={(id) => { setSelectedId(id); }}
                     onShowInfo={(it, px, py) => showItemInfo(it, px, py)}
-                    onDragMove={(it, x, y) => moveItem(it, x, y)}
+                    onDragMove={(it, dx, dy) => moveItemBy(it.id, dx, dy)}
                     onDragEnd={() => onScrollLock?.(false)}
                     onScrollLock={onScrollLock}
                     style={[
@@ -1062,15 +1062,16 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
   onScrollLock?: (locked: boolean) => void;
   style: any; children: React.ReactNode;
 }) {
-  // Replicates the WEB editor's drag exactly:
-  //  - during the drag, override left/top with a local state (like el.style.left)
-  //  - on release, commit once to the parent and clear the override
-  // No Animated value, no useEffect syncing → nothing can desync on release.
-  const start = useRef({ x: 0, y: 0, ix: 0, iy: 0, fx: 0, fy: 0, moved: false });
+  // SAME mechanism as SeatDot (which works): move with an additive Animated
+  // translate, NEVER relayout left/top. The canvas is scaled from its centre, so
+  // changing left/top mid-drag reprojects the item (teleport). A translate child
+  // composes cleanly with the parent scale. On release we commit the DELTA via
+  // moveItemBy (applied to the item's live position) and reset the translate.
+  const start = useRef({ x: 0, y: 0, dx: 0, dy: 0, moved: false });
   const draggingRef = useRef(false);
-  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const offset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   return (
-    <View
+    <Animated.View
       onStartShouldSetResponderCapture={() => { touchedItemRef.current = true; return false; }}
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => editMode}
@@ -1078,7 +1079,8 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
       onResponderGrant={(e) => {
         touchedItemRef.current = true;
         draggingRef.current = true;
-        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, fx: item.x, fy: item.y, moved: false };
+        offset.setValue({ x: 0, y: 0 });
+        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, dx: 0, dy: 0, moved: false };
       }}
       onResponderMove={(e) => {
         if (!editMode) return;
@@ -1087,35 +1089,33 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         const dy = (e.nativeEvent.pageY - start.current.y) / z;
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) start.current.moved = true;
         if (start.current.moved) {
-          start.current.fx = Math.max(0, Math.min(CANVAS_WIDTH - item.width, start.current.ix + dx));
-          start.current.fy = Math.max(0, Math.min(CANVAS_HEIGHT - item.height, start.current.iy + dy));
-          setDragPos({ x: start.current.fx, y: start.current.fy });
+          start.current.dx = dx; start.current.dy = dy;
+          offset.setValue({ x: dx, y: dy });
         }
       }}
       onResponderRelease={() => {
         if (!draggingRef.current) return;
         draggingRef.current = false;
         if (start.current.moved) {
-          onDragMove(item, start.current.fx, start.current.fy);
+          offset.setValue({ x: 0, y: 0 });
+          onDragMove(item, start.current.dx, start.current.dy);
         } else {
           onSelect(item.id);
           onShowInfo(item, start.current.x, start.current.y);
         }
-        setDragPos(null);
         touchedItemRef.current = false;
         onDragEnd();
       }}
       onResponderTerminate={() => {
-        if (draggingRef.current && start.current.moved) onDragMove(item, start.current.fx, start.current.fy);
+        if (draggingRef.current && start.current.moved) { offset.setValue({ x: 0, y: 0 }); onDragMove(item, start.current.dx, start.current.dy); }
         draggingRef.current = false;
-        setDragPos(null);
         touchedItemRef.current = false;
         onDragEnd();
       }}
-      style={[style, dragPos ? { left: dragPos.x, top: dragPos.y } : null]}
+      style={[style, { transform: [{ translateX: offset.x }, { translateY: offset.y }] }]}
     >
       {children}
-    </View>
+    </Animated.View>
   );
 }
 
