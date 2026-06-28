@@ -176,15 +176,19 @@ export function VenueMapEditor({ eventId }: Props) {
   const animatingRef = useRef(false);
 
   const clampPan = useCallback((z: number, p: { x: number; y: number }, cb: { minX: number; minY: number; maxX: number; maxY: number }) => {
-    const minPanX = vpW - MAP_EDGE_PADDING - cb.maxX * z;
-    const maxPanX = MAP_EDGE_PADDING - cb.minX * z;
-    const minPanY = VP_H - MAP_EDGE_PADDING - cb.maxY * z;
-    const maxPanY = MAP_EDGE_PADDING - cb.minY * z;
-    const centerX = vpW / 2 - ((cb.minX + cb.maxX) / 2) * z;
-    const centerY = VP_H / 2 - ((cb.minY + cb.maxY) / 2) * z;
+    // Allow free movement in BOTH axes: let the content travel from one edge of
+    // the viewport to the other, plus a generous slack so you can always reach
+    // around it. (The old logic locked an axis to centre when the content was
+    // smaller than the viewport, which made it pan only side-to-side.)
+    const slackX = vpW * 0.9;
+    const slackY = VP_H * 0.9;
+    const minPanX = vpW - cb.maxX * z - slackX;
+    const maxPanX = -cb.minX * z + slackX;
+    const minPanY = VP_H - cb.maxY * z - slackY;
+    const maxPanY = -cb.minY * z + slackY;
     return {
-      x: minPanX <= maxPanX ? clamp(p.x, minPanX, maxPanX) : centerX,
-      y: minPanY <= maxPanY ? clamp(p.y, minPanY, maxPanY) : centerY,
+      x: clamp(p.x, Math.min(minPanX, maxPanX), Math.max(minPanX, maxPanX)),
+      y: clamp(p.y, Math.min(minPanY, maxPanY), Math.max(minPanY, maxPanY)),
     };
   }, [vpW]);
 
