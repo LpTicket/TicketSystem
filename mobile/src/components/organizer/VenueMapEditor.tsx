@@ -1054,6 +1054,9 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
   const offset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   return (
     <Animated.View
+      // Capture-phase flag: mark the item-touch BEFORE the viewport's onTouchStart
+      // runs, so the canvas never starts a pan under a dragged item.
+      onStartShouldSetResponderCapture={() => { touchedItemRef.current = true; return false; }}
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => editMode}
       onResponderTerminationRequest={() => false}
@@ -1074,14 +1077,16 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
           const nx = Math.max(0, Math.min(CANVAS_WIDTH - item.width, start.current.ix + dx));
           const ny = Math.max(0, Math.min(CANVAS_HEIGHT - item.height, start.current.iy + dy));
           start.current.lastX = nx; start.current.lastY = ny;
-          // Translate relative to the item's base left/top (item.x/item.y).
-          offset.setValue({ x: nx - item.x, y: ny - item.y });
+          // Translate relative to the captured base (start.current.ix/iy), NOT the
+          // live item.x — item.x stays put during the drag, so this is the offset.
+          offset.setValue({ x: nx - start.current.ix, y: ny - start.current.iy });
         }
       }}
       onResponderRelease={(e) => {
         if (start.current.moved) {
-          offset.setValue({ x: 0, y: 0 });
           onDragMove(item, start.current.lastX, start.current.lastY);
+          // Reset the visual offset only AFTER state commits, to avoid a 1-frame jump.
+          requestAnimationFrame(() => offset.setValue({ x: 0, y: 0 }));
         } else {
           onShowInfo(item, e.nativeEvent.pageX, e.nativeEvent.pageY);
         }
@@ -1089,7 +1094,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         onDragEnd();
       }}
       onResponderTerminate={() => {
-        if (start.current.moved) { offset.setValue({ x: 0, y: 0 }); onDragMove(item, start.current.lastX, start.current.lastY); }
+        if (start.current.moved) { onDragMove(item, start.current.lastX, start.current.lastY); requestAnimationFrame(() => offset.setValue({ x: 0, y: 0 })); }
         touchedItemRef.current = false;
         onDragEnd();
       }}
@@ -1114,6 +1119,7 @@ function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, active, edit
   const offset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   return (
     <Animated.View
+      onStartShouldSetResponderCapture={() => { seatTouchRef.current = true; return false; }}
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => editMode}
       onResponderTerminationRequest={() => false}
