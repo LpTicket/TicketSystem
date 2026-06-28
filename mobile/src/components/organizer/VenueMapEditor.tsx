@@ -1059,7 +1059,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         touchedItemRef.current = true;
         start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, moved: false };
         onSelect(item.id);
-        if (editMode) onScrollLock?.(true);
+        onScrollLock?.(true); // block page scroll the instant the item is touched
       }}
       onResponderMove={(e) => {
         if (!editMode) return;

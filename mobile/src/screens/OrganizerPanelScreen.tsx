@@ -735,8 +735,6 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
 
         {active === 'overview' && <OrganizerOverviewMobile sections={eventSections} />}
 
-        {active === 'map' && <VenueMapEditor eventId={selectedEventId} onScrollLock={setMapScrollLock} />}
-
         {active === 'attendees' && (
           <OrganizerAttendeesMobile
             attendees={attendees}
@@ -777,6 +775,21 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
         )}
 
       </ScrollView>
+
+      {/* The map editor lives OUTSIDE the page ScrollView (covers it while active)
+          so its drag/pan gestures never compete with the vertical page scroll. It
+          scrolls its own inspector internally. */}
+      {active === 'map' && (
+        <View style={styles.mapOverlay}>
+          {selectedEvent && (
+            <TouchableOpacity style={styles.eventBackChip} onPress={backToEvents}>
+              <Text style={styles.eventBackArrow}>‹</Text>
+              <Text style={styles.eventBackText} numberOfLines={1}>{selectedEvent.title}</Text>
+            </TouchableOpacity>
+          )}
+          <VenueMapEditor eventId={selectedEventId} onScrollLock={setMapScrollLock} />
+        </View>
+      )}
     </View>
   );
 }
@@ -993,6 +1006,7 @@ const styles = StyleSheet.create({
   tabsDot: { width: 4, height: 4, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.24)' },
   tabsDotActive: { width: 14, backgroundColor: 'rgba(249,115,22,0.72)' },
   content: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 140 },
+  mapOverlay: { position: 'absolute', top: 88, left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingTop: 12 },
   eventBackChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
     paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, marginBottom: 12,
