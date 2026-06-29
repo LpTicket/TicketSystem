@@ -287,8 +287,12 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const beginPinch = (touches: any[]) => {
     if (touches.length >= 2) {
       const t1 = touches[0], t2 = touches[1];
-      const cx = ((t1.locationX ?? t1.pageX) + (t2.locationX ?? t2.pageX)) / 2;
-      const cy = ((t1.locationY ?? t1.pageY) + (t2.locationY ?? t2.pageY)) / 2;
+      // Use pageX/pageY (absolute screen coords) for BOTH fingers — locationX is
+      // per-target and inconsistent across fingers on real touch devices, which
+      // made the pinch centre jump and warp the map. Subtract the viewport's
+      // on-screen offset so the centre is in viewport-local space.
+      const cx = (t1.pageX + t2.pageX) / 2 - canvasVpXRef.current;
+      const cy = (t1.pageY + t2.pageY) / 2 - canvasVpYRef.current;
       touchRef.current = { x: 0, y: 0, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: true, pinchDist: Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY), pinchZoom: viewRef.current.zoom, pinchCx: cx, pinchCy: cy, moved: false };
     }
   };
@@ -332,8 +336,9 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       const t1 = touches[0], t2 = touches[1];
       const dist = Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY);
       if (!touchRef.current.pinchDist) return;
-      const cx = ((t1.locationX ?? t1.pageX) + (t2.locationX ?? t2.pageX)) / 2;
-      const cy = ((t1.locationY ?? t1.pageY) + (t2.locationY ?? t2.pageY)) / 2;
+      // Same coordinate space as beginPinch (pageX/pageY minus viewport offset).
+      const cx = (t1.pageX + t2.pageX) / 2 - canvasVpXRef.current;
+      const cy = (t1.pageY + t2.pageY) / 2 - canvasVpYRef.current;
       const newZ = clamp(touchRef.current.pinchZoom * Math.pow(dist / touchRef.current.pinchDist, 1.18), fitRef.current.zoom, MAX_ZOOM);
       const ratio = newZ / touchRef.current.pinchZoom;
       syncAnimated(newZ, { x: cx - (touchRef.current.pinchCx - touchRef.current.panX) * ratio, y: cy - (touchRef.current.pinchCy - touchRef.current.panY) * ratio });
@@ -593,6 +598,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const rootYRef = useRef(0);
   const canvasVpRef = useRef<any>(null);
   const canvasVpYRef = useRef(0);
+  const canvasVpXRef = useRef(0);
 
   // Keep a ref so the card survives re-renders caused by zoom/pan state updates.
   const activeSeatInfoRef = useRef<SeatInfoCard | null>(null);
@@ -765,7 +771,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
           <View
             ref={canvasVpRef}
             style={styles.canvasViewport}
-            onLayout={() => { canvasVpRef.current?.measure((_x: number, _y: number, _w: number, _h: number, _px: number, py: number) => { canvasVpYRef.current = py; }); }}
+            onLayout={() => { canvasVpRef.current?.measure((_x: number, _y: number, _w: number, _h: number, px: number, py: number) => { canvasVpXRef.current = px; canvasVpYRef.current = py; }); }}
             // The viewport claims the responder on START (not just move), so the
             // parent ScrollView can never steal a vertical gesture mid-drag. Items
             // and chairs sit above and win their own touches via their responders.
