@@ -240,7 +240,12 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     const maxY = Math.max(...loadedItems.map((i) => i.y + i.height)) + pad;
     boundsRef.current = { minX, minY, maxX, maxY };
     const z = clamp(Math.min((vpW - pad * 2) / Math.max(1, maxX - minX), (VP_H - pad * 2) / Math.max(1, maxY - minY)), MIN_ZOOM, MAX_ZOOM);
-    const pan = { x: vpW / 2 - ((minX + maxX) / 2) * z, y: VP_H / 2 - ((minY + maxY) / 2) * z };
+    // Centre the content in the viewport, compensating the canvas's centre-origin scale.
+    const HW = CANVAS_WIDTH / 2, HH = CANVAS_HEIGHT / 2;
+    const pan = {
+      x: vpW / 2 - HW * (z - 1) - ((minX + maxX) / 2) * z,
+      y: VP_H / 2 - HH * (z - 1) - ((minY + maxY) / 2) * z,
+    };
     fitRef.current = { zoom: z, pan };
     syncAnimated(z, pan);
   }, [vpW, syncAnimated]);
@@ -249,12 +254,14 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     const oldZ = viewRef.current.zoom;
     const newZ = clamp(oldZ + delta, fitRef.current.zoom, MAX_ZOOM);
     if (newZ === oldZ) return;
-    // Keep the visible centre fixed during zoom (same math as ClientVenueMap).
-    const contentCx = (vpW / 2 - viewRef.current.pan.x) / oldZ;
-    const contentCy = (VP_H / 2 - viewRef.current.pan.y) / oldZ;
+    // Keep the viewport centre fixed during zoom. The canvas scales from its centre
+    // (translate includes halfCanvas*(z-1)), so compensate for that term.
+    const HW = CANVAS_WIDTH / 2, HH = CANVAS_HEIGHT / 2;
+    const contentCx = (vpW / 2 - viewRef.current.pan.x - HW * (oldZ - 1)) / oldZ;
+    const contentCy = (VP_H / 2 - viewRef.current.pan.y - HH * (oldZ - 1)) / oldZ;
     const newP = newZ <= fitRef.current.zoom + 0.001 ? fitRef.current.pan : {
-      x: vpW / 2 - contentCx * newZ,
-      y: VP_H / 2 - contentCy * newZ,
+      x: vpW / 2 - HW * (newZ - 1) - contentCx * newZ,
+      y: VP_H / 2 - HH * (newZ - 1) - contentCy * newZ,
     };
     animateTo(newZ, newP);
   }, [vpW, animateTo]);
@@ -346,8 +353,16 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       // Same coordinate space as beginPinch.
       const { cx, cy } = pinchCenter(t1, t2);
       const newZ = clamp(touchRef.current.pinchZoom * Math.pow(dist / touchRef.current.pinchDist, 1.18), fitRef.current.zoom, MAX_ZOOM);
-      const ratio = newZ / touchRef.current.pinchZoom;
-      syncAnimated(newZ, { x: cx - (touchRef.current.pinchCx - touchRef.current.panX) * ratio, y: cy - (touchRef.current.pinchCy - touchRef.current.panY) * ratio });
+      const oldZ = touchRef.current.pinchZoom;
+      // The canvas scales from its CENTRE (translate includes halfCanvas*(z-1)), so
+      // we must compensate or the zoom drifts. Keep the content point under the
+      // pinch centre fixed: invert the real transform, then re-project at newZ.
+      const HW = CANVAS_WIDTH / 2, HH = CANVAS_HEIGHT / 2;
+      const contentX = (touchRef.current.pinchCx - touchRef.current.panX - HW * (oldZ - 1)) / oldZ;
+      const contentY = (touchRef.current.pinchCy - touchRef.current.panY - HH * (oldZ - 1)) / oldZ;
+      const newPanX = cx - HW * (newZ - 1) - contentX * newZ;
+      const newPanY = cy - HH * (newZ - 1) - contentY * newZ;
+      syncAnimated(newZ, { x: newPanX, y: newPanY });
     } else if (touchRef.current.isPinch && touches.length === 1) {
       // Lifted one finger during a pinch. Re-anchor the pan to the REMAINING
       // finger's current page position WITHOUT moving, so it doesn't fling toward
