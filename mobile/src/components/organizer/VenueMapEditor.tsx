@@ -303,12 +303,12 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     touchRef.current = { x: t.pageX, y: t.pageY, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: false, pinchDist: 0, pinchZoom: viewRef.current.zoom, pinchCx: 0, pinchCy: 0, moved: false };
   };
   const onCanvasTouchStart = (e: any) => {
-    if (animatingRef.current) return;
     const touches = e.nativeEvent.touches || [];
     // Two fingers = pinch. A pinch is never an item/chair drag, so clear those
-    // flags and ALWAYS handle it here (fixes warp/teleport on real devices where
-    // a stale item/seat flag made the pinch bail out with old touchRef data).
+    // flags and ALWAYS handle it here (also cancels any running animation so a
+    // fresh pinch doesn't fight a leftover animateTo → no jump/teleport).
     if (touches.length >= 2) {
+      animatingRef.current = false;
       touchedItemRef.current = false;
       seatTouchRef.current = false;
       setDragSafe(null);
@@ -318,6 +318,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       beginPinch(touches);
       return;
     }
+    if (animatingRef.current) return;
     if (seatTouchRef.current || touchedItemRef.current) return; // an item/chair owns this touch
     onScrollLock?.(true); // stop the page from scrolling while moving the map
     const t0 = touches[0];
@@ -344,18 +345,11 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       const ratio = newZ / touchRef.current.pinchZoom;
       syncAnimated(newZ, { x: cx - (touchRef.current.pinchCx - touchRef.current.panX) * ratio, y: cy - (touchRef.current.pinchCy - touchRef.current.panY) * ratio });
     } else if (touchRef.current.isPinch && touches.length === 1) {
-      // Lifted one finger during a pinch. Re-anchor the pan to the REMAINING
-      // finger's current page position WITHOUT moving, so it doesn't fling toward
-      // the other finger. The next move continues smoothly from here.
-      const t = touches[0];
-      touchRef.current.x = t.pageX;
-      touchRef.current.y = t.pageY;
-      touchRef.current.panX = viewRef.current.pan.x;
-      touchRef.current.panY = viewRef.current.pan.y;
-      touchRef.current.isPinch = false;
+      // Lifted one finger during a pinch — start a fresh single-finger pan anchored
+      // to the remaining finger (same as ClientVenueMap). Don't move this frame.
+      beginPan(touches);
     } else if (!touchRef.current.isPinch && touches.length === 1) {
       const t = touches[0];
-      // Use pageX/pageY (consistent on real touch) instead of per-target locationX.
       const dx = t.pageX - touchRef.current.x;
       const dy = t.pageY - touchRef.current.y;
       syncAnimated(viewRef.current.zoom, { x: touchRef.current.panX + dx, y: touchRef.current.panY + dy });
