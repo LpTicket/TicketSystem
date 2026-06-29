@@ -863,7 +863,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
             </View>
 
             {selected && (
-              <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={true} nestedScrollEnabled contentContainerStyle={styles.inspectorContent}>
+              <View style={styles.inspectorContent}>
                 {selectedSeat && (selected.type === 'table' || selected.type === 'seat') && (() => {
                   const ov: SeatOverride = selected.seatConfig?.[selectedSeat] || {};
                   // Default row/number derived from the canonical key:
@@ -993,7 +993,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                     />
                   ))}
                 </View>
-              </ScrollView>
+              </View>
             )}
           </View>
       )}
