@@ -340,6 +340,17 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     }
     if (touches.length === 1) { beginPan(touches); return; }
     if (touches.length === 0) {
+      // A tap on EMPTY canvas (no pan, no item) clears the current selection.
+      const cp = e?.nativeEvent?.changedTouches?.[0];
+      const movedX = Math.abs((cp?.pageX ?? responderStart.current.x) - responderStart.current.x);
+      const movedY = Math.abs((cp?.pageY ?? responderStart.current.y) - responderStart.current.y);
+      if (!touchRef.current.isPinch && movedX < 6 && movedY < 6) {
+        if (infoDismissRef.current) clearTimeout(infoDismissRef.current);
+        activeSeatInfoRef.current = null;
+        setActiveSeatInfo(null);
+        setSelectedSeat(null);
+        setSelectedId('');
+      }
       touchRef.current.isPinch = false;
       touchedItemRef.current = false; // reset for the next gesture
       onScrollLock?.(false); // re-enable page scroll once fingers are lifted
@@ -573,11 +584,11 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     if (infoDismissRef.current) clearTimeout(infoDismissRef.current);
     activeSeatInfoRef.current = info;
     setActiveSeatInfo(info);
+    // Only hide the floating info card after a while — keep the selection
+    // (item/seat highlight) until the user taps an empty spot on the canvas.
     infoDismissRef.current = setTimeout(() => {
       activeSeatInfoRef.current = null;
       setActiveSeatInfo(null);
-      setSelectedSeat(null);
-      setSelectedId('');
     }, 4000);
   };
 
