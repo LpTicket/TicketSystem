@@ -291,22 +291,19 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const beginPinch = (touches: any[]) => {
     if (touches.length >= 2) {
       const t1 = touches[0], t2 = touches[1];
-      // EXACT same as ClientVenueMap: locationX/Y centre (works because the touch
-      // handlers live on an absoluteFill that exactly covers the viewport).
-      const cx = ((t1.locationX ?? t1.pageX) + (t2.locationX ?? t2.pageX)) / 2;
-      const cy = ((t1.locationY ?? t1.pageY) + (t2.locationY ?? t2.pageY)) / 2;
+      // Use pageX/Y minus the measured viewport origin — reliable on both native and
+      // web (locationX/Y can be relative to a child element in web multi-touch events).
+      const vx = canvasVpXRef.current, vy = canvasVpYRef.current;
+      const cx = ((t1.pageX - vx) + (t2.pageX - vx)) / 2;
+      const cy = ((t1.pageY - vy) + (t2.pageY - vy)) / 2;
       touchRef.current = { x: 0, y: 0, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: true, pinchDist: Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY), pinchZoom: viewRef.current.zoom, pinchCx: cx, pinchCy: cy, moved: false };
     }
   };
   const beginPan = (touches: any[]) => {
     const t = touches[0];
     if (!t) return;
-    // The touch handlers live on an absoluteFill that exactly covers the viewport,
-    // so locationX/locationY are in viewport-local space — the same space used by
-    // beginPinch. Using pageX here would mix coordinate systems and cause a jump
-    // when transitioning pan → pinch → pan.
-    const x = t.locationX ?? t.pageX;
-    const y = t.locationY ?? t.pageY;
+    const x = t.pageX - canvasVpXRef.current;
+    const y = t.pageY - canvasVpYRef.current;
     touchRef.current = { x, y, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: false, pinchDist: 0, pinchZoom: viewRef.current.zoom, pinchCx: 0, pinchCy: 0, moved: false };
   };
   const onCanvasTouchStart = (e: any) => {
@@ -322,12 +319,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       onScrollLock?.(true);
       const a = touches[0];
       responderStart.current = { x: a?.pageX || 0, y: a?.pageY || 0 };
-      // Don't call beginPinch here — locationX/Y in touchStart may be relative to a
-      // child element (the canvas), not the absoluteFill responder, causing a coord
-      // mismatch with onCanvasTouchMove where locationX/Y is always viewport-local.
-      // Instead just mark isPinch=true; the first onCanvasTouchMove will call beginPinch
-      // with correct locationX/Y (the first move event always fires on the responder).
-      touchRef.current = { ...touchRef.current, isPinch: true, pinchDist: 0, pinchCx: 0, pinchCy: 0 };
+      beginPinch(touches);
       return;
     }
     if (animatingRef.current) return;
@@ -349,12 +341,10 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     if (touchRef.current.isPinch && touches.length >= 2) {
       const t1 = touches[0], t2 = touches[1];
       const dist = Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY);
-      // pinchDist===0 means we deferred beginPinch from touchStart to here so that
-      // locationX/Y is relative to the absoluteFill responder (not a canvas child).
-      if (!touchRef.current.pinchDist) { beginPinch(touches); return; }
-      // EXACT same as ClientVenueMap: locationX/Y centre.
-      const cx = ((t1.locationX ?? t1.pageX) + (t2.locationX ?? t2.pageX)) / 2;
-      const cy = ((t1.locationY ?? t1.pageY) + (t2.locationY ?? t2.pageY)) / 2;
+      if (!touchRef.current.pinchDist) return;
+      const vx = canvasVpXRef.current, vy = canvasVpYRef.current;
+      const cx = ((t1.pageX - vx) + (t2.pageX - vx)) / 2;
+      const cy = ((t1.pageY - vy) + (t2.pageY - vy)) / 2;
       const newZ = clamp(touchRef.current.pinchZoom * Math.pow(dist / touchRef.current.pinchDist, 1.18), fitRef.current.zoom, MAX_ZOOM);
       const ratio = newZ / touchRef.current.pinchZoom;
       syncAnimated(newZ, { x: cx - (touchRef.current.pinchCx - touchRef.current.panX) * ratio, y: cy - (touchRef.current.pinchCy - touchRef.current.panY) * ratio });
@@ -364,8 +354,8 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       beginPan(touches);
     } else if (!touchRef.current.isPinch && touches.length === 1) {
       const t = touches[0];
-      const dx = (t.locationX ?? t.pageX) - touchRef.current.x;
-      const dy = (t.locationY ?? t.pageY) - touchRef.current.y;
+      const dx = (t.pageX - canvasVpXRef.current) - touchRef.current.x;
+      const dy = (t.pageY - canvasVpYRef.current) - touchRef.current.y;
       syncAnimated(viewRef.current.zoom, { x: touchRef.current.panX + dx, y: touchRef.current.panY + dy });
     }
   };
@@ -792,6 +782,12 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
             // touchAction:'none' (web only) stops the browser from scrolling/zooming
             // the page while dragging inside the canvas. Ignored on native.
             style={[styles.canvasViewport, { touchAction: 'none' } as any]}
+            onLayout={() => {
+              canvasVpRef.current?.measureInWindow?.((x: number, y: number) => {
+                canvasVpXRef.current = x || 0;
+                canvasVpYRef.current = y || 0;
+              });
+            }}
           >
             {/* Touch handlers live on an absoluteFill that EXACTLY covers the
                 viewport (same structure as ClientVenueMap), so locationX/locationY
