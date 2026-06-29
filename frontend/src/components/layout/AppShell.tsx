@@ -17,6 +17,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // site header/footer/floating widgets that would overlap the ticket.
   const standalone = pathname.startsWith('/verify/');
 
+  // The organizer event editor (esp. the venue-map tab) has its own dense toolbar
+  // and floating controls; the global chat/social widgets overlap it and break the
+  // layout on small screens (e.g. iPhone SE). Hide them there.
+  const hideFloatingWidgets = /^\/organizer\/events\/[^/]+/.test(pathname);
+
   useEffect(() => {
     loadUser();
   }, [loadUser]);
@@ -29,8 +34,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </Suspense>
       <main className="min-h-screen w-full max-w-full overflow-x-clip">{children}</main>
       {!standalone && <Footer />}
-      {!standalone && <Chatbot />}
-      {!standalone && <SocialMatchWidget />}
+      {!standalone && !hideFloatingWidgets && <Chatbot />}
+      {!standalone && !hideFloatingWidgets && <SocialMatchWidget />}
     </>
   );
 }
