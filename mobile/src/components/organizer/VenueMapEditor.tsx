@@ -781,7 +781,9 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
               (in edit mode), so dragging an item doesn't also pan. */}
           <View
             ref={canvasVpRef}
-            style={styles.canvasViewport}
+            // touchAction:'none' (web only) stops the browser from scrolling/zooming
+            // the page while dragging inside the canvas. Ignored on native.
+            style={[styles.canvasViewport, { touchAction: 'none' } as any]}
             onLayout={() => { canvasVpRef.current?.measure((_x: number, _y: number, _w: number, _h: number, px: number, py: number) => { canvasVpXRef.current = px; canvasVpYRef.current = py; }); }}
             // The viewport claims the responder on START (not just move), so the
             // parent ScrollView can never steal a vertical gesture mid-drag. Items
