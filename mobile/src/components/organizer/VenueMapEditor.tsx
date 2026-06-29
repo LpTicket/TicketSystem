@@ -299,17 +299,34 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   };
   const onCanvasTouchStart = (e: any) => {
     if (animatingRef.current) return;
+    const touches = e.nativeEvent.touches || [];
+    // Two fingers = pinch. A pinch is never an item/chair drag, so clear those
+    // flags and ALWAYS handle it here (fixes warp/teleport on real devices where
+    // a stale item/seat flag made the pinch bail out with old touchRef data).
+    if (touches.length >= 2) {
+      touchedItemRef.current = false;
+      seatTouchRef.current = false;
+      setDragSafe(null);
+      onScrollLock?.(true);
+      const a = touches[0], b = touches[1];
+      responderStart.current = { x: a?.pageX || 0, y: a?.pageY || 0 };
+      beginPinch(touches);
+      return;
+    }
     if (seatTouchRef.current || touchedItemRef.current) return; // an item/chair owns this touch
     onScrollLock?.(true); // stop the page from scrolling while moving the map
-    const touches = e.nativeEvent.touches || [];
     const t0 = touches[0];
     responderStart.current = { x: t0?.pageX || 0, y: t0?.pageY || 0 };
-    if (touches.length >= 2) beginPinch(touches);
-    else if (!touchRef.current.isPinch) beginPan(touches);
+    if (!touchRef.current.isPinch) beginPan(touches);
   };
   const onCanvasTouchMove = (e: any) => {
-    if (seatTouchRef.current || touchedItemRef.current) return; // an item/chair owns this touch
     const touches = e.nativeEvent.touches || [];
+    // Pinch handling takes priority and ignores item/seat flags.
+    if (touches.length >= 2) {
+      if (!touchRef.current.isPinch) { beginPinch(touches); return; }
+    } else if (seatTouchRef.current || touchedItemRef.current) {
+      return; // single finger on an item/chair — let it handle the gesture
+    }
     if (!touchRef.current.isPinch && touches.length >= 2) { beginPinch(touches); return; }
     if (touchRef.current.isPinch && touches.length >= 2) {
       const t1 = touches[0], t2 = touches[1];
