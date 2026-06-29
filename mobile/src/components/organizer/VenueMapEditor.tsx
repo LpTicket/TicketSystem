@@ -766,7 +766,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                     touchedItemRef={touchedItemRef}
                     onSelect={(id) => { setSelectedId(id); }}
                     onShowInfo={(it, px, py) => showItemInfo(it, px, py)}
-                    onDragMove={(it, dx, dy) => moveItemBy(it.id, dx, dy)}
+                    onDragMove={(it, x, y) => moveItem(it, x, y)}
                     onDragEnd={() => onScrollLock?.(false)}
                     onScrollLock={onScrollLock}
                     style={[
@@ -1067,14 +1067,11 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
   // changing left/top mid-drag reprojects the item (teleport). A translate child
   // composes cleanly with the parent scale. On release we commit the DELTA via
   // moveItemBy (applied to the item's live position) and reset the translate.
-  const start = useRef({ x: 0, y: 0, dx: 0, dy: 0, moved: false });
+  // ix/iy = item position captured at grant (like SeatDot's baseX/baseY). Commit
+  // uses ix+dx (absolute), so duplicate releases can't accumulate the delta.
+  const start = useRef({ x: 0, y: 0, ix: 0, iy: 0, dx: 0, dy: 0, moved: false });
   const draggingRef = useRef(false);
   const offset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
-  // When item.x/y change (the commit landed), the new left/top already include the
-  // drag, so reset the translate to 0 in the SAME render → no snap-back frame.
-  useEffect(() => {
-    offset.setValue({ x: 0, y: 0 });
-  }, [item.x, item.y]);
   return (
     <Animated.View
       onStartShouldSetResponderCapture={() => { touchedItemRef.current = true; return false; }}
@@ -1085,7 +1082,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         touchedItemRef.current = true;
         draggingRef.current = true;
         offset.setValue({ x: 0, y: 0 });
-        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, dx: 0, dy: 0, moved: false };
+        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, dx: 0, dy: 0, moved: false };
       }}
       onResponderMove={(e) => {
         if (!editMode) return;
@@ -1102,9 +1099,8 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         if (!draggingRef.current) return;
         draggingRef.current = false;
         if (start.current.moved) {
-          // Keep the translate (don't reset) and commit the delta. The useEffect
-          // above resets the translate exactly when the new left/top arrive.
-          onDragMove(item, start.current.dx, start.current.dy);
+          offset.setValue({ x: 0, y: 0 });
+          onDragMove(item, start.current.ix + start.current.dx, start.current.iy + start.current.dy);
         } else {
           onSelect(item.id);
           onShowInfo(item, start.current.x, start.current.y);
@@ -1113,7 +1109,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         onDragEnd();
       }}
       onResponderTerminate={() => {
-        if (draggingRef.current && start.current.moved) onDragMove(item, start.current.dx, start.current.dy);
+        if (draggingRef.current && start.current.moved) { offset.setValue({ x: 0, y: 0 }); onDragMove(item, start.current.ix + start.current.dx, start.current.iy + start.current.dy); }
         draggingRef.current = false;
         touchedItemRef.current = false;
         onDragEnd();
