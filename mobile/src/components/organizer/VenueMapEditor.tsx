@@ -306,11 +306,6 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       const cy = ((t1.locationY ?? t1.pageY) + (t2.locationY ?? t2.pageY)) / 2;
       touchRef.current.pinchCx = cx;
       touchRef.current.pinchCy = cy;
-      // Re-anchor panX/Y and zoom to current state so the first move frame is a no-op.
-      touchRef.current.panX = viewRef.current.pan.x;
-      touchRef.current.panY = viewRef.current.pan.y;
-      touchRef.current.pinchZoom = viewRef.current.zoom;
-      touchRef.current.pinchDist = Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY);
     }
   };
   const beginPan = (touches: any[]) => {
