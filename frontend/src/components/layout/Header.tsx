@@ -383,16 +383,16 @@ export default function Header() {
           {/* Mobile UI */}
           <div className="lg:hidden flex items-center gap-1 sm:gap-1.5 ml-auto shrink-0">
             {/* Language Switcher Mobile */}
-            <div className="flex border border-white/20 rounded-md overflow-hidden h-8 w-[40px] sm:w-[44px] shrink-0">
+            <div className="flex border border-white/20 rounded-md overflow-hidden h-8 w-[46px] shrink-0">
               <button
                 onClick={() => setLang('es')}
-                className={`flex-1 text-[10px] font-bold transition-colors ${lang === 'es' ? 'bg-primary-500 text-white' : 'bg-white/10 text-white/70'}`}
+                className={`flex-1 text-[9px] font-bold leading-none transition-colors ${lang === 'es' ? 'bg-primary-500 text-white' : 'bg-white/10 text-white/70'}`}
               >
                 ES
               </button>
               <button
                 onClick={() => setLang('en')}
-                className={`flex-1 text-[10px] font-bold border-l border-white/20 transition-colors ${lang === 'en' ? 'bg-primary-500 text-white' : 'bg-white/10 text-white/70'}`}
+                className={`flex-1 text-[9px] font-bold leading-none border-l border-white/20 transition-colors ${lang === 'en' ? 'bg-primary-500 text-white' : 'bg-white/10 text-white/70'}`}
               >
                 EN
               </button>
