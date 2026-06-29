@@ -46,6 +46,7 @@ function sectionToItem(s: any): VenueItem {
     fontSize: Number(s.labelFontSize) || 12,
     shape: (s.tableShape as TableShape) || 'rectangle',
     saleMode: s.tablePurchaseMode === 'whole' ? 'whole' : 'seat',
+    rotation: Number(s.rotation) || 0,
     locked: false,
     blockedSeats: [],
     seatConfig: parseSeatConfig(s.seatsConfig),
@@ -79,6 +80,7 @@ function itemToSection(item: VenueItem, index: number) {
     mapHeight: parseFloat(item.height.toFixed(2)),
     labelFontSize: Number(item.fontSize) || 0,
     tableShape: item.shape || 'round',
+    rotation: Number(item.rotation) || 0,
     tablePurchaseMode: item.saleMode === 'whole' ? 'whole' : 'individual',
     seatsConfig: item.seatConfig && Object.keys(item.seatConfig).length ? JSON.stringify(item.seatConfig) : undefined,
     sortOrder: index,
@@ -115,6 +117,7 @@ type VenueItem = {
   fontSize: number;
   shape: TableShape;
   saleMode: SaleMode;
+  rotation: number;
   locked: boolean;
   blockedSeats: string[];
   seatConfig: Record<string, SeatOverride>;
@@ -138,10 +141,10 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 const palette = ['#3b82f6', '#f97316', '#10b981', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#6366f1'];
 
 const initialItems: VenueItem[] = [
-  { id: 'bar-1', type: 'bar', name: 'BAR', x: 95, y: 130, width: 260, height: 120, color: '#ff8138', price: 0, rows: 0, seatsPerRow: 0, fontSize: 18, shape: 'rectangle', saleMode: 'whole', locked: false, blockedSeats: [], seatConfig: {} },
-  { id: 'area-1', type: 'area', name: 'General Area', x: 135, y: 290, width: 205, height: 62, color: '#64748b', price: 25, rows: 0, seatsPerRow: 0, fontSize: 15, shape: 'soft', saleMode: 'seat', locked: false, blockedSeats: [], seatConfig: {} },
-  { id: 'table-31', type: 'table', name: '31', x: 500, y: 355, width: 86, height: 58, color: '#16b981', price: 100, rows: 2, seatsPerRow: 3, fontSize: 10, shape: 'rectangle', saleMode: 'whole', locked: false, blockedSeats: [], seatConfig: {} },
-  { id: 'table-30', type: 'table', name: '30', x: 650, y: 275, width: 96, height: 64, color: '#f59e0b', price: 100, rows: 2, seatsPerRow: 5, fontSize: 10, shape: 'rectangle', saleMode: 'seat', locked: false, blockedSeats: [], seatConfig: {} },
+  { id: 'bar-1', type: 'bar', name: 'BAR', x: 95, y: 130, width: 260, height: 120, color: '#ff8138', price: 0, rows: 0, seatsPerRow: 0, fontSize: 18, shape: 'rectangle', saleMode: 'whole', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
+  { id: 'area-1', type: 'area', name: 'General Area', x: 135, y: 290, width: 205, height: 62, color: '#64748b', price: 25, rows: 0, seatsPerRow: 0, fontSize: 15, shape: 'soft', saleMode: 'seat', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
+  { id: 'table-31', type: 'table', name: '31', x: 500, y: 355, width: 86, height: 58, color: '#16b981', price: 100, rows: 2, seatsPerRow: 3, fontSize: 10, shape: 'rectangle', saleMode: 'whole', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
+  { id: 'table-30', type: 'table', name: '30', x: 650, y: 275, width: 96, height: 64, color: '#f59e0b', price: 100, rows: 2, seatsPerRow: 5, fontSize: 10, shape: 'rectangle', saleMode: 'seat', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
 ];
 
 type Props = { eventId?: string; onScrollLock?: (locked: boolean) => void };
@@ -519,6 +522,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       fontSize: type === 'table' ? 10 : 14,
       shape: type === 'table' ? 'rectangle' : 'soft',
       saleMode: type === 'table' ? 'whole' : 'seat',
+      rotation: 0,
       locked: false,
       blockedSeats: [],
       seatConfig: {},
@@ -1026,6 +1030,15 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                   <Field label="H (px)" value={selected.height} step={10} min={34} max={260} onChange={(height) => resizeSelected(selected.width, height)} />
                 </View>
 
+                <Text style={styles.sectionLabel}>{t('ROTACIÓN', 'ROTATION')}</Text>
+                <View style={styles.row2}>
+                  <Field label={t('Grados (°)', 'Degrees (°)')} value={selected.rotation} step={15} min={0} max={360} onChange={(rotation) => updateSelected({ rotation: ((rotation % 360) + 360) % 360 })} />
+                  <TouchableOpacity style={styles.rotateResetBtn} onPress={() => updateSelected({ rotation: 0 })}>
+                    <Ionicons name="refresh-outline" size={15} color="#fb923c" />
+                    <Text style={styles.rotateResetText}>{t('Enderezar', 'Reset')}</Text>
+                  </TouchableOpacity>
+                </View>
+
                 <Text style={styles.inputLabel}>{t('Color', 'Color')}</Text>
                 <View style={styles.palette}>
                   {palette.map((color) => (
@@ -1165,7 +1178,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
         touchedItemRef.current = false;
         onDragEnd();
       }}
-      style={[style, { transform: [{ translateX: offset.x }, { translateY: offset.y }] }]}
+      style={[style, { transform: [{ translateX: offset.x }, { translateY: offset.y }, { rotate: `${item.rotation || 0}deg` }] }]}
     >
       {children}
     </Animated.View>
@@ -1638,4 +1651,6 @@ const styles = StyleSheet.create({
   seatHint: { color: 'rgba(148,163,184,0.6)', fontSize: 10, marginTop: 5 },
   seatResetBtn: { marginTop: 12, alignItems: 'center', paddingVertical: 8 },
   seatResetText: { color: '#60a5fa', fontSize: 11, fontWeight: '700' },
+  rotateResetBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 42, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.30)', backgroundColor: 'rgba(249,115,22,0.08)' },
+  rotateResetText: { color: '#fb923c', fontSize: 12, fontWeight: '700' },
 });
