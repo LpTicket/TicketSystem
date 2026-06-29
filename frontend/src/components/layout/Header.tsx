@@ -383,7 +383,7 @@ export default function Header() {
           {/* Mobile UI */}
           <div className="lg:hidden flex items-center gap-1 sm:gap-1.5 ml-auto shrink-0">
             {/* Language Switcher Mobile */}
-            <div className="flex border border-white/20 rounded-md overflow-hidden h-8 w-[52px] sm:w-[56px] shrink-0">
+            <div className="flex border border-white/20 rounded-md overflow-hidden h-8 w-[46px] sm:w-[50px] shrink-0">
               <button
                 onClick={() => setLang('es')}
                 className={`flex-1 text-[10px] font-bold transition-colors ${lang === 'es' ? 'bg-primary-500 text-white' : 'bg-white/10 text-white/70'}`}
@@ -403,9 +403,9 @@ export default function Header() {
               <Link
                 href="/verify"
                 onClick={() => setMobileMenuOpen(false)}
-                className="h-8 px-2 sm:px-2.5 bg-[#F97316] text-white rounded-md flex items-center gap-1 transition-all shadow-md active:scale-95 shrink-0"
+                className="h-8 px-3 sm:px-3.5 bg-[#F97316] text-white rounded-md flex items-center justify-center gap-1 transition-all shadow-md active:scale-95 shrink-0"
               >
-                <HiOutlineQrcode className="w-3.5 h-3.5" />
+                <HiOutlineQrcode className="w-4 h-4" />
                 <span className="text-[10px] font-black uppercase hidden xs:inline">SCAN</span>
               </Link>
             ) : (
