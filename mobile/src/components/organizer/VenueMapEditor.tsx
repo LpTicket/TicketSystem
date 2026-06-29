@@ -301,9 +301,13 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const beginPan = (touches: any[]) => {
     const t = touches[0];
     if (!t) return;
-    // pageX/pageY are consistent across the gesture on real touch devices;
-    // locationX is per-target and jitters → warp.
-    touchRef.current = { x: t.pageX, y: t.pageY, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: false, pinchDist: 0, pinchZoom: viewRef.current.zoom, pinchCx: 0, pinchCy: 0, moved: false };
+    // The touch handlers live on an absoluteFill that exactly covers the viewport,
+    // so locationX/locationY are in viewport-local space — the same space used by
+    // beginPinch. Using pageX here would mix coordinate systems and cause a jump
+    // when transitioning pan → pinch → pan.
+    const x = t.locationX ?? t.pageX;
+    const y = t.locationY ?? t.pageY;
+    touchRef.current = { x, y, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: false, pinchDist: 0, pinchZoom: viewRef.current.zoom, pinchCx: 0, pinchCy: 0, moved: false };
   };
   const onCanvasTouchStart = (e: any) => {
     const touches = e.nativeEvent.touches || [];
@@ -353,8 +357,8 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       beginPan(touches);
     } else if (!touchRef.current.isPinch && touches.length === 1) {
       const t = touches[0];
-      const dx = t.pageX - touchRef.current.x;
-      const dy = t.pageY - touchRef.current.y;
+      const dx = (t.locationX ?? t.pageX) - touchRef.current.x;
+      const dy = (t.locationY ?? t.pageY) - touchRef.current.y;
       syncAnimated(viewRef.current.zoom, { x: touchRef.current.panX + dx, y: touchRef.current.panY + dy });
     }
   };
