@@ -12,9 +12,6 @@
       "buildNumber": "14",
       "icon": "./assets/icon.png",
       "supportsTablet": true,
-      "entitlements": {
-        "com.apple.developer.proximity-reader.payment.acceptance": true
-      },
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "LPTicket necesita acceso a tus fotos para cambiar tu foto de perfil.",
         "NSPhotoLibraryAddUsageDescription": "LPTicket necesita permiso para guardar imágenes cuando sea necesario.",
@@ -78,8 +75,7 @@
           "locationWhenInUsePermission": "LPTicket necesita ubicación para aceptar pagos presenciales.",
           "bluetoothPeripheralPermission": "LPTicket usa Bluetooth para lectores de pago compatibles.",
           "bluetoothAlwaysUsagePermission": "LPTicket usa Bluetooth para conectar lectores de pago compatibles.",
-          "localNetworkUsagePermission": "LPTicket usa la red local para conectar lectores de pago compatibles.",
-          "tapToPayCheck": true
+          "localNetworkUsagePermission": "LPTicket usa la red local para conectar lectores de pago compatibles."
         }
       ]
     ],
