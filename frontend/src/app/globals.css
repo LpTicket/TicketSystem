@@ -5805,6 +5805,18 @@ html body {
   box-shadow: none !important;
   text-shadow: none !important;
 }
+.lp-menu-section-label {
+  color: rgba(148, 163, 184, 0.72) !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase !important;
+}
+.lp-user-menu .lp-menu-section {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
 .lp-user-menu .lp-menu-item:hover,
 .lp-user-menu .lp-menu-danger:hover {
   background: rgba(249, 115, 22, 0.12) !important;
