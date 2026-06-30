@@ -75,8 +75,8 @@ function isUnavailable(seat: ClientSeat, override: any) {
 function seatStatusInfo(seat: ClientSeat, override: any, selected: boolean) {
   const s = String(seat.status || 'available').toLowerCase();
   if (selected) return { label: 'Seleccionado', tone: 'selected' as const };
-  if (s === 'sold') return { label: 'Vendido', tone: 'sold' as const };
-  if (s === 'locked' || s === 'reserved' || override?.reserved) return { label: 'Bloqueado', tone: 'reserved' as const };
+  if (s === 'sold') return { label: 'No disponible', tone: 'sold' as const };
+  if (s === 'locked' || s === 'reserved' || override?.reserved) return { label: 'No disponible', tone: 'reserved' as const };
   return { label: 'Disponible', tone: 'available' as const };
 }
 function isSelected(seat: ClientSeat, sel: ClientSeat[]) { return sel.some((s) => s.id === seat.id); }
@@ -965,7 +965,7 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
         {([
           { color: '#ffffff', label: t('Disponible', 'Available'), border: true },
           { color: '#f97316', label: t('Seleccionado', 'Selected'), border: false },
-          { color: '#cbd5e1', label: t('Vendido', 'Sold'), border: false },
+          { color: '#cbd5e1', label: t('No disponible', 'Unavailable'), border: false },
         ] as { color: string; label: string; border: boolean }[]).map((item) => (
           <View key={item.label} style={st.legendItem}>
             <View style={[st.legendDot, { backgroundColor: item.color, borderWidth: item.border ? 1 : 0, borderColor: '#94a3b8' }]} />

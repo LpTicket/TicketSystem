@@ -40,8 +40,13 @@ function sectionToItem(s: any): VenueItem {
       const isActiveHold = status === 'locked' && lockExpiresAt && lockExpiresAt > Date.now();
       const next = { ...(seatConfig[key] || {}) } as SeatOverride;
       if (status === 'sold') next.status = 'sold';
-      else if (status === 'locked') next.status = isActiveHold ? 'held' : 'reserved';
-      else delete next.status;
+      else if (status === 'locked') {
+        next.status = isActiveHold ? 'held' : 'reserved';
+        if (!isActiveHold) next.reserved = true;
+      } else {
+        delete next.status;
+        delete next.reserved;
+      }
       const buyerName = seat.buyerName || seat.attendeeName || seat.userName || seat.ownerName;
       if (buyerName) next.buyerName = buyerName;
       if (Object.keys(next).length > 0) seatConfig[key] = next;
@@ -104,6 +109,23 @@ function itemToSection(item: VenueItem, index: number) {
   // Only send the id for rows that already exist in the database.
   if (item.id && UUID_RE.test(item.id)) section.id = item.id;
   return section;
+}
+
+function seatKeysForItem(item: VenueItem) {
+  if (item.type === 'table') {
+    return Array.from({ length: Math.max(0, Number(item.seatsPerRow) || 0) }, (_, index) => `seat-${index + 1}`);
+  }
+  if (item.type === 'seat') {
+    const keys: string[] = [];
+    const rows = Math.max(0, Number(item.rows) || 0);
+    const seatsPerRow = Math.max(0, Number(item.seatsPerRow) || 0);
+    for (let row = 1; row <= rows; row += 1) {
+      const rowLabel = String.fromCharCode(64 + row);
+      for (let seat = 1; seat <= seatsPerRow; seat += 1) keys.push(`${rowLabel}-${seat}`);
+    }
+    return keys;
+  }
+  return [];
 }
 
 // Per-seat overrides keyed by seat id ("row-col"), mirroring the web seatsConfig.
@@ -743,15 +765,33 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     const sold = Object.values(it.seatConfig || {}).filter((v: SeatOverride) => v.status === 'sold').length;
     const blocked = Object.values(it.seatConfig || {}).filter((v: SeatOverride) => v.reserved || v.disabled || v.status === 'reserved' || v.status === 'held').length;
     const available = Math.max(0, totalSeats - blocked - sold);
+    const buyerKeySection = String(it.name || '').toLowerCase();
+    const soldBuyerNames = seatKeysForItem(it)
+      .map((key) => {
+        const ov = it.seatConfig?.[key] || {};
+        const seatNum = key.startsWith('seat-') ? key.replace('seat-', '') : key.split('-')[1];
+        const rowLabel = key.startsWith('seat-') ? 'mesa' : key.split('-')[0].toLowerCase();
+        return ov.status === 'sold'
+          ? (ov.buyerName
+            || seatBuyers?.[`${buyerKeySection}|${rowLabel}|${seatNum}`]
+            || seatBuyers?.[`${buyerKeySection}|${seatNum}`])
+          : undefined;
+      })
+      .filter(Boolean) as string[];
+    const uniqueBuyers = Array.from(new Set(soldBuyerNames));
+    const wholeTableBuyer = it.type === 'table' && it.saleMode === 'whole' && sold > 0 && uniqueBuyers.length === 1
+      ? uniqueBuyers[0]
+      : undefined;
     const subtitle = totalSeats > 0
       ? `${available} ${t('disp.', 'avail.')} · ${sold} ${t('vend.', 'sold')} · ${blocked} ${t('bloq.', 'blocked')}`
       : typeLabel;
     showSeatInfo({
-      title: `${it.name} · ${typeLabel}`,
+      title: it.type === 'table' ? `${t('Mesa', 'Table')} ${it.name}` : `${it.name} · ${typeLabel}`,
       subtitle,
       status: it.saleMode === 'whole' ? t('Mesa completa', 'Whole table') : t('Por asiento', 'Per seat'),
       price: it.price || 0,
-      tone: 'available',
+      tone: sold > 0 ? 'sold' : 'available',
+      buyerName: wholeTableBuyer,
       px: 0, py: 0,
     });
   };
@@ -807,12 +847,53 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     if (!selected || !selectedSeat) return;
     const next = { ...(selected.seatConfig || {}) };
     const cur = { ...(next[selectedSeat] || {}) } as SeatOverride;
-    if (value === undefined || value === '' || value === false) delete (cur as any)[field];
+    if (field === 'reserved') {
+      if (value) {
+        cur.reserved = true;
+        cur.status = 'reserved';
+      } else {
+        delete cur.reserved;
+        if (cur.status === 'reserved' || cur.status === 'held') delete cur.status;
+      }
+    } else if (value === undefined || value === '' || value === false) delete (cur as any)[field];
     else (cur as any)[field] = value;
     if (Object.keys(cur).length === 0) delete next[selectedSeat];
     else next[selectedSeat] = cur;
     updateSelected({ seatConfig: next });
   };
+
+  const toggleAllSelectedSeatsReserved = () => {
+    if (!selected || (selected.type !== 'table' && selected.type !== 'seat')) return;
+    const keys = seatKeysForItem(selected);
+    if (keys.length === 0) return;
+    const current = selected.seatConfig || {};
+    const allBlocked = keys.every((key) => {
+      const ov = current[key] || {};
+      return !!ov.reserved || ov.status === 'reserved';
+    });
+    const shouldBlock = !allBlocked;
+    const next = { ...current };
+    keys.forEach((key) => {
+      const cur = { ...(next[key] || {}) } as SeatOverride;
+      if (cur.status === 'sold') return;
+      if (shouldBlock) {
+        cur.reserved = true;
+        cur.status = 'reserved';
+      } else {
+        delete cur.reserved;
+        if (cur.status === 'reserved' || cur.status === 'held') delete cur.status;
+      }
+      if (Object.keys(cur).length === 0) delete next[key];
+      else next[key] = cur;
+    });
+    updateSelected({ seatConfig: next, locked: false });
+  };
+
+  const selectedSeatKeys = selected ? seatKeysForItem(selected) : [];
+  const selectedAllBlocked = selectedSeatKeys.length > 0 && selectedSeatKeys.every((key) => {
+    const ov = selected?.seatConfig?.[key] || {};
+    return !!ov.reserved || ov.status === 'reserved';
+  });
 
   const resetSeatOverride = () => {
     if (!selected || !selectedSeat) return;
@@ -1083,7 +1164,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
                       </View>
 
                       <SeatToggle label={t('Silla de ruedas', 'Wheelchair')} value={!!ov.isWheelchair} onPress={() => updateSeatOverride('isWheelchair', !ov.isWheelchair)} tone="blue" />
-                      <SeatToggle label={t('Bloquear para venta', 'Block / Reserve seat')} value={!!ov.reserved} onPress={() => updateSeatOverride('reserved', !ov.reserved)} tone="orange" />
+                      <SeatToggle label={t('Bloquear para venta', 'Block / Reserve seat')} value={!!ov.reserved || ov.status === 'reserved'} onPress={() => updateSeatOverride('reserved', !(!!ov.reserved || ov.status === 'reserved'))} tone="orange" />
                       <SeatToggle label={t('Ocultar silla', 'Hide seat')} value={!!ov.disabled} onPress={() => updateSeatOverride('disabled', !ov.disabled)} tone="gray" />
 
                       <Text style={styles.inputLabel}>{t('Personalizar nombre / etiqueta', 'Customize name / label')}</Text>
@@ -1151,8 +1232,8 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
                   <Field label={t('Total Mesa', 'Table Total')} value={selected.price * Math.max(1, getCapacity(selected))} step={5} min={0} onChange={() => undefined} readonly />
                 </View>
 
-                <TouchableOpacity onPress={() => updateSelected({ locked: !selected.locked })} style={styles.blockButton}>
-                  <Text style={styles.blockText}>{selected.locked ? 'DESBLOQUEAR TODO' : 'BLOQUEAR / DESBLOQUEAR TODO'}</Text>
+                <TouchableOpacity onPress={toggleAllSelectedSeatsReserved} style={styles.blockButton}>
+                  <Text style={styles.blockText}>{selectedAllBlocked ? 'DESBLOQUEAR TODAS LAS SILLAS' : 'BLOQUEAR TODAS LAS SILLAS'}</Text>
                 </TouchableOpacity>
 
                 {(selected.type === 'table' || selected.type === 'seat') && (

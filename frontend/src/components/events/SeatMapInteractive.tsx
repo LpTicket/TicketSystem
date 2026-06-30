@@ -269,22 +269,22 @@ export default function SeatMapInteractive({
 
 	    if (seatOverride?.reserved) {
 	      return {
-	        label: lang === 'es' ? 'Bloqueado' : 'Blocked',
-	        className: 'bg-orange-50 text-orange-700 border-orange-200',
+	        label: lang === 'es' ? 'No disponible' : 'Unavailable',
+	        className: 'bg-slate-100 text-slate-500 border-slate-200',
 	      };
 	    }
 
     if (seat.status === SeatStatus.SOLD) {
       return {
-        label: lang === 'es' ? 'Vendido' : 'Sold',
+        label: lang === 'es' ? 'No disponible' : 'Unavailable',
         className: 'bg-slate-100 text-slate-500 border-slate-200',
       };
     }
 
 	    if (seat.status === SeatStatus.LOCKED) {
 	      return {
-	        label: lang === 'es' ? 'Bloqueado' : 'Locked',
-	        className: 'bg-orange-50 text-orange-700 border-orange-200',
+	        label: lang === 'es' ? 'No disponible' : 'Unavailable',
+	        className: 'bg-slate-100 text-slate-500 border-slate-200',
 	      };
 	    }
 
@@ -336,15 +336,14 @@ export default function SeatMapInteractive({
     const availableSeats = seats.filter((seat) => !isSeatUnavailable(seat, overrides[`seat-${seat.seatNumber}`])).length;
     const soldSeats = seats.filter((seat) => isSeatSold(seat)).length;
     const blockedSeats = seats.filter((seat) => isSeatBlocked(seat, overrides[`seat-${seat.seatNumber}`])).length;
-    const unavailableStatus = soldSeats > 0 && soldSeats >= seats.length
-      ? (lang === 'es' ? 'Vendida' : 'Sold')
-      : (lang === 'es' ? 'Bloqueada' : 'Blocked');
+    const unavailableSeats = soldSeats + blockedSeats;
+    const unavailableStatus = lang === 'es' ? 'No disponible' : 'Unavailable';
     return {
       id: `table-${section.id}`,
       title: tableLabel(section.name),
       subtitle: lang === 'es'
-        ? `${availableSeats} disponibles · ${soldSeats} vendidas · ${blockedSeats} bloqueadas`
-        : `${availableSeats} available · ${soldSeats} sold · ${blockedSeats} blocked`,
+        ? `${availableSeats} disponibles · ${unavailableSeats} no disponibles`
+        : `${availableSeats} available · ${unavailableSeats} unavailable`,
       price: Number(section.price || 0),
       status: selected
         ? (lang === 'es' ? 'Seleccionada' : 'Selected')
@@ -354,9 +353,7 @@ export default function SeatMapInteractive({
       statusClass: selected
         ? 'bg-orange-50 text-orange-700 border-orange-200'
         : isUnavailable
-          ? (soldSeats > 0 && soldSeats >= seats.length
-              ? 'bg-slate-100 text-slate-500 border-slate-200'
-              : 'bg-orange-50 text-orange-700 border-orange-200')
+          ? 'bg-slate-100 text-slate-500 border-slate-200'
           : 'bg-emerald-50 text-emerald-700 border-emerald-200',
       x: pos.x,
       y: pos.y,
@@ -1233,7 +1230,7 @@ export default function SeatMapInteractive({
       <div className="flex flex-wrap gap-3 justify-center text-xs text-gray-500">
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-white border border-gray-300" /> Disponible</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-primary-500 ring-2 ring-primary-200" /> Seleccionado</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-gray-300" /> Vendido</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-gray-300" /> {lang === 'es' ? 'No disponible' : 'Unavailable'}</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-yellow-400" /> Reservado</span>
       </div>
     </div>

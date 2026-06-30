@@ -285,7 +285,6 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
   const initializedRef = useRef(false);
   const centeredRef = useRef(false);
-  const appliedSavedViewRef = useRef(false);
   const historyReadyRef = useRef(false);
 
   useEffect(() => {
@@ -465,39 +464,45 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       const vh = viewportRef.current.clientHeight;
       if (vw === 0 || vh === 0) { raf = requestAnimationFrame(apply); return; }
 
-      const hasSavedView =
+      if (
         event &&
         typeof event.defaultViewX === 'number' &&
         typeof event.defaultViewY === 'number' &&
-        typeof event.defaultViewZoom === 'number';
-
-      // Always prefer the saved view ("FIJAR VISTA") so the editor re-opens
-      // exactly where the organizer left it.
-      if (hasSavedView && !appliedSavedViewRef.current) {
-        viewRef.current = {
-          x: event.defaultViewX,
-          y: event.defaultViewY,
-          scale: event.defaultViewZoom,
-        };
+        typeof event.defaultViewZoom === 'number'
+      ) {
         setCustomViewport({
           x: event.defaultViewX,
           y: event.defaultViewY,
           scale: event.defaultViewZoom,
         });
-        applyTransform();
-        appliedSavedViewRef.current = true;
-        centeredRef.current = true;
-        return;
       }
 
-      // No saved view — center on the stage once (don't lock out a saved view
-      // that might still load after the event prop resolves).
-      if (!centeredRef.current && !hasSavedView) {
-        const scale = 1.0;
+      if (!centeredRef.current && sections.length > 0) {
+        const bounds = sections.reduce((acc, section) => {
+          const x = Number(section.mapX || 0);
+          const y = Number(section.mapY || 0);
+          const w = Number(section.mapWidth || 100);
+          const h = Number(section.mapHeight || 80);
+          return {
+            minX: Math.min(acc.minX, x),
+            minY: Math.min(acc.minY, y),
+            maxX: Math.max(acc.maxX, x + w),
+            maxY: Math.max(acc.maxY, y + h),
+          };
+        }, {
+          minX: showStage ? STAGE_X : Infinity,
+          minY: showStage ? STAGE_Y : Infinity,
+          maxX: showStage ? STAGE_X + STAGE_W : -Infinity,
+          maxY: showStage ? STAGE_Y + STAGE_H : -Infinity,
+        });
+        const contentW = Math.max(1, bounds.maxX - bounds.minX);
+        const contentH = Math.max(1, bounds.maxY - bounds.minY);
+        const padding = 88;
+        const scale = Math.min(2.2, Math.max(0.35, Math.min((vw - padding) / contentW, (vh - padding) / contentH)));
         viewRef.current = {
           scale,
-          x: vw / 2 - (STAGE_X + STAGE_W / 2) * scale,
-          y: vh / 4 - STAGE_Y * scale,
+          x: vw / 2 - ((bounds.minX + bounds.maxX) / 2) * scale,
+          y: vh / 2 - ((bounds.minY + bounds.maxY) / 2) * scale,
         };
         applyTransform();
         centeredRef.current = true;
@@ -505,7 +510,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     };
     apply();
     return () => cancelAnimationFrame(raf);
-  }, [applyTransform, event]);
+  }, [applyTransform, event, sections, showStage]);
 
   // ── Viewport pointer events (pan + zoom) ─────────────────────────────────
   const onViewportPointerDown = useCallback((e: React.PointerEvent) => {
