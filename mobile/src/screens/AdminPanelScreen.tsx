@@ -17,7 +17,7 @@ import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { apiDelete, apiGet, apiPatch, apiPost, getImageUrl } from '../services/api';
 import { GradientButton } from '../components/GradientButton';
-import { OrganizerPanelScreen } from './OrganizerPanelScreen';
+import { OrganizerPanelScreen, Section as OrganizerSection } from './OrganizerPanelScreen';
 import { OrganizerAnalyticsMobile } from '../components/organizer/OrganizerAnalyticsMobile';
 
 export type Section = 'dashboard' | 'events' | 'users' | 'categories' | 'marketing' | 'analytics' | 'codes';
@@ -362,9 +362,12 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
   const [eventFilterLayouts, setEventFilterLayouts] = useState<Record<string, { x: number; width: number }>>({});
   const [eventFilterViewportWidth, setEventFilterViewportWidth] = useState(0);
   const [editingAdminEvent, setEditingAdminEvent] = useState<any | null>(null);
+  const [editingAdminSection, setEditingAdminSection] = useState<OrganizerSection>('details');
+  const [editingAdminMapScrollLock, setEditingAdminMapScrollLock] = useState(false);
   const [adminEditTitle, setAdminEditTitle] = useState('');
   const [adminEditVenue, setAdminEditVenue] = useState('');
   const [adminEditStatus, setAdminEditStatus] = useState<'draft' | 'published' | 'cancelled'>('published');
+  const adminScrollEnabled = !editingAdminMapScrollLock;
 
   // Lazy-loaded section data
   const [analyticsDays, setAnalyticsDays] = useState(7);
@@ -1813,6 +1816,8 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
   const openAdminEventEditor = async (event: any) => {
     // Set basic data immediately so the editor opens fast
     setEditingAdminEvent(event);
+    setEditingAdminSection('details');
+    setEditingAdminMapScrollLock(false);
     setAdminEditTitle(adminEventTitle(event));
     setAdminEditVenue(adminEventVenue(event));
     setAdminEditStatus(event?.status === 'draft' ? 'draft' : 'published');
@@ -1854,6 +1859,8 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
 
   const closeAdminEventEditor = async () => {
     setEditingAdminEvent(null);
+    setEditingAdminSection('details');
+    setEditingAdminMapScrollLock(false);
     try {
       const fresh = await apiGet<any>('/admin/events?page=1&limit=50');
       setAdminEvents(listFrom(fresh));
@@ -1877,7 +1884,14 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
 
   return (
     <View style={styles.root}>
-      <ScrollView ref={adminScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+      <ScrollView
+        ref={adminScrollRef}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={adminScrollEnabled}
+        disableScrollViewPanResponder={!adminScrollEnabled}
+        contentContainerStyle={styles.content}
+      >
         {active !== 'codes' && (
           <>
             <Text style={styles.eyebrow}>{t('ADMIN', 'ADMIN')}</Text>
@@ -2072,6 +2086,9 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
         {active === 'events' && (
           editingAdminEvent ? (
             <OrganizerPanelScreen
+              section={editingAdminSection}
+              onSectionChange={setEditingAdminSection}
+              onMapScrollLockChange={setEditingAdminMapScrollLock}
               adminEvent={editingAdminEvent}
               onAdminBack={closeAdminEventEditor}
             />
