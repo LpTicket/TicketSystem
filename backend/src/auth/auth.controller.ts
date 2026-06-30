@@ -141,6 +141,18 @@ export class AuthController {
     return this.authService.updateProfile(req.user.id, dto);
   }
 
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Post('apple/mobile')
+  async appleAuthMobile(@Body() body: { identityToken: string; email?: string; firstName?: string; lastName?: string }, @Res() res: any) {
+    try {
+      const result = await this.authService.validateAppleMobileUser(body);
+      return res.status(200).send(result);
+    } catch (error) {
+      console.error('Apple mobile auth error:', error);
+      return res.status(401).send({ message: 'Apple authentication failed' });
+    }
+  }
+
   @UseGuards(AuthGuard('jwt'))
   @Post('delete-account')
   deleteAccount(@Request() req: any) {

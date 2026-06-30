@@ -133,6 +133,19 @@ export async function forgotPassword(email: string): Promise<void> {
   await apiPost('/auth/forgot-password', { email: email.trim() });
 }
 
+/** Signs in with Apple identity token (native iOS). */
+export async function loginWithApple(payload: {
+  identityToken: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+}): Promise<AuthUser> {
+  const data = await apiPost<AuthResponse>('/auth/apple/mobile', payload);
+  setAuthTokens(data.accessToken, data.refreshToken);
+  await persist({ accessToken: data.accessToken, refreshToken: data.refreshToken }, data.user);
+  return data.user;
+}
+
 /** Exchanges a refreshToken for a fresh token pair. */
 export async function refreshSession(refreshToken: string): Promise<AuthUser> {
   const data = await apiPost<AuthResponse>('/auth/refresh', { refreshToken });

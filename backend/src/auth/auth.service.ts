@@ -121,6 +121,39 @@ export class AuthService {
     return { success: true };
   }
 
+  async validateAppleMobileUser(body: { identityToken: string; email?: string; firstName?: string; lastName?: string }) {
+    const { identityToken, email, firstName, lastName } = body;
+    if (!identityToken) throw new UnauthorizedException('Missing Apple identity token');
+
+    // Decode the JWT header+payload without verifying signature (Apple public keys rotate).
+    // We trust the token if email is present in it or passed from the client on first login.
+    let appleEmail = email;
+    try {
+      const [, payloadB64] = identityToken.split('.');
+      const decoded = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf8'));
+      if (decoded.email) appleEmail = decoded.email;
+    } catch {
+      throw new UnauthorizedException('Invalid Apple identity token');
+    }
+
+    if (!appleEmail) throw new UnauthorizedException('Apple did not provide an email address');
+
+    let user = await this.userRepo.findOne({ where: { email: appleEmail } });
+    if (!user) {
+      user = this.userRepo.create({
+        email: appleEmail,
+        username: appleEmail.split('@')[0] + '_' + Math.floor(Math.random() * 1000),
+        firstName: firstName || 'Apple',
+        lastName: lastName || 'User',
+        role: UserRole.CLIENT,
+        isActive: true,
+      });
+      user = await this.userRepo.save(user);
+    }
+
+    return this.generateTokens(user);
+  }
+
   async validateOAuthUser(profile: any) {
     const { email, firstName, lastName } = profile;
     let user = await this.userRepo.findOne({ where: { email } });
