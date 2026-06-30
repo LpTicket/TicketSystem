@@ -291,11 +291,10 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const beginPinch = (touches: any[]) => {
     if (touches.length >= 2) {
       const t1 = touches[0], t2 = touches[1];
-      // On web, locationX/Y is undefined for multi-touch. Use locationX (if available,
-      // meaning we're in a move event on the responder) or defer center calculation.
-      // If locationX is present, use it; otherwise mark as deferred (-1).
-      const cx = t1.locationX !== undefined ? ((t1.locationX + t2.locationX) / 2) : -1;
-      const cy = t1.locationY !== undefined ? ((t1.locationY + t2.locationY) / 2) : -1;
+      // Use viewport-local coords: pageX/Y minus measured viewport offset.
+      const cx = ((t1.pageX - vpOffsetXRef.current) + (t2.pageX - vpOffsetXRef.current)) / 2;
+      const cy = ((t1.pageY - vpOffsetYRef.current) + (t2.pageY - vpOffsetYRef.current)) / 2;
+      console.log('BEGIN_PINCH', { vpX: vpOffsetXRef.current, vpY: vpOffsetYRef.current, t1_page: t1.pageX, t2_page: t2.pageX, cx, cy, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, zoom: viewRef.current.zoom });
       touchRef.current = { x: 0, y: 0, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: true, pinchDist: Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY), pinchZoom: viewRef.current.zoom, pinchCx: cx, pinchCy: cy, moved: false };
     }
   };
@@ -308,6 +307,15 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   };
   const onCanvasTouchStart = (e: any) => {
     const touches = e.nativeEvent.touches || [];
+    // Measure viewport position on first touch (all platforms, cached for multi-touch).
+    if (vpOffsetXRef.current === 0 && vpOffsetYRef.current === 0) {
+      const elem = canvasVpRef.current;
+      if (elem && elem.getBoundingClientRect) {
+        const rect = elem.getBoundingClientRect();
+        vpOffsetXRef.current = rect.left;
+        vpOffsetYRef.current = rect.top;
+      }
+    }
     // Two fingers = pinch. A pinch is never an item/chair drag, so clear those
     // flags and ALWAYS handle it here (also cancels any running animation so a
     // fresh pinch doesn't fight a leftover animateTo → no jump/teleport).
@@ -344,17 +352,19 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       if (!touchRef.current.pinchDist) return;
       // If center was deferred (-1), calculate it now using locationX/Y (available in move events).
       if (touchRef.current.pinchCx === -1) {
-        const cx = ((t1.locationX ?? t1.pageX) + (t2.locationX ?? t2.pageX)) / 2;
-        const cy = ((t1.locationY ?? t1.pageY) + (t2.locationY ?? t2.pageY)) / 2;
+        const cx = ((t1.pageX - vpOffsetXRef.current) + (t2.pageX - vpOffsetXRef.current)) / 2;
+        const cy = ((t1.pageY - vpOffsetYRef.current) + (t2.pageY - vpOffsetYRef.current)) / 2;
+        console.log('ANCHOR_PINCH', { vpX: vpOffsetXRef.current, vpY: vpOffsetYRef.current, cx, cy });
         touchRef.current.pinchCx = cx;
         touchRef.current.pinchCy = cy;
         return; // skip this frame, anchor on next move
       }
-      const cx = ((t1.locationX ?? t1.pageX) + (t2.locationX ?? t2.pageX)) / 2;
-      const cy = ((t1.locationY ?? t1.pageY) + (t2.locationY ?? t2.pageY)) / 2;
+      const cx = ((t1.pageX - vpOffsetXRef.current) + (t2.pageX - vpOffsetXRef.current)) / 2;
+      const cy = ((t1.pageY - vpOffsetYRef.current) + (t2.pageY - vpOffsetYRef.current)) / 2;
       const newZ = clamp(touchRef.current.pinchZoom * Math.pow(dist / touchRef.current.pinchDist, 1.18), fitRef.current.zoom, MAX_ZOOM);
       const ratio = newZ / touchRef.current.pinchZoom;
       const newPan = { x: cx - (touchRef.current.pinchCx - touchRef.current.panX) * ratio, y: cy - (touchRef.current.pinchCy - touchRef.current.panY) * ratio };
+      console.log('PINCH_MOVE', { cx, cy, dist, ratio, pinchCx: touchRef.current.pinchCx, pinchCy: touchRef.current.pinchCy, panX: touchRef.current.panX, panY: touchRef.current.panY, newPan });
       syncAnimated(newZ, newPan);
     } else if (touchRef.current.isPinch && touches.length === 1) {
       // Lifted one finger during a pinch — start a fresh single-finger pan anchored
@@ -615,6 +625,8 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const rootYRef = useRef(0);
   const canvasVpRef = useRef<any>(null);
   const canvasVpYRef = useRef(0);
+  const vpOffsetXRef = useRef(0);
+  const vpOffsetYRef = useRef(0);
 
   // Keep a ref so the card survives re-renders caused by zoom/pan state updates.
   const activeSeatInfoRef = useRef<SeatInfoCard | null>(null);
