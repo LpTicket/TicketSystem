@@ -81,6 +81,14 @@
           "localNetworkUsagePermission": "LPTicket usa la red local para conectar lectores de pago compatibles.",
           "tapToPayCheck": true
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
       ]
     ],
     "extra": {
