@@ -57,6 +57,17 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
     loadEvent();
   }, [slug]);
 
+  useEffect(() => {
+    if (!initialEvent?.id) return;
+    let active = true;
+    api.get(`/events/${initialEvent.id}/seatmap`)
+      .then(({ data }) => {
+        if (active) setSeatMap(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [initialEvent?.id]);
+
   const loadEvent = async () => {
     try {
       const { data } = await api.get(`/events/${slug}`);

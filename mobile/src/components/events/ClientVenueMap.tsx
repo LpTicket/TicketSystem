@@ -72,6 +72,13 @@ function isUnavailable(seat: ClientSeat, override: any) {
   const expired = s === 'locked' && seat.lockExpiresAt && new Date(seat.lockExpiresAt).getTime() <= Date.now();
   return !expired && (s === 'sold' || s === 'reserved' || s === 'locked' || !!override?.reserved);
 }
+function seatStatusInfo(seat: ClientSeat, override: any, selected: boolean) {
+  const s = String(seat.status || 'available').toLowerCase();
+  if (selected) return { label: 'Seleccionado', tone: 'selected' as const };
+  if (s === 'sold') return { label: 'Vendido', tone: 'sold' as const };
+  if (s === 'locked' || s === 'reserved' || override?.reserved) return { label: 'Bloqueado', tone: 'reserved' as const };
+  return { label: 'Disponible', tone: 'available' as const };
+}
 function isSelected(seat: ClientSeat, sel: ClientSeat[]) { return sel.some((s) => s.id === seat.id); }
 function seatBg(seat: ClientSeat, ov: any, color: string, selected: boolean) {
   if (selected) return '#f97316';
@@ -99,6 +106,12 @@ function tableLabel(name?: string | null) {
   if (!raw) return 'Mesa';
   return /^(mesa|table)\b/i.test(raw) ? raw : `Mesa ${raw}`;
 }
+function seatInfoTitle(section: ClientVenueSection, seat: ClientSeat) {
+  const isTable = section.sectionType === 'table' || getKind(section) === 'table';
+  if (isTable) return `${tableLabel(section.name)} - Silla ${seat.seatNumber}`;
+  const row = seat.rowLabel && seat.rowLabel !== 'GA' ? `Fila ${seat.rowLabel} - ` : '';
+  return `${section.name || 'Sección'} - ${row}Silla ${seat.seatNumber}`;
+}
 function getKind(s: ClientVenueSection) {
   const raw = `${s.sectionType || s.type || ''}`.toLowerCase();
   if (raw === 'stage') return 'stage';
@@ -125,9 +138,9 @@ function Chair({ seat, section, override, sel, size, cx, cy, onToggle, onToggleM
 }) {
   const selected = isSelected(seat, sel);
   const unavail = isUnavailable(seat, override) && !selected;
+  const statusInfo = seatStatusInfo(seat, override, selected);
   return (
     <TouchableOpacity
-      disabled={unavail}
       activeOpacity={0.75}
       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
       style={{
@@ -142,14 +155,13 @@ function Chair({ seat, section, override, sel, size, cx, cy, onToggle, onToggleM
       }}
       onPress={() => {
         onInfo({
-          title: section.sectionType === 'table'
-            ? `${tableLabel(section.name)} · Silla ${seat.seatNumber}`
-            : `${section.name || ''} ${seat.rowLabel || ''}${seat.seatNumber ? `-${seat.seatNumber}` : ''}`.trim(),
+          title: seatInfoTitle(section, seat),
           subtitle: section.name || '',
-          status: selected ? 'Seleccionado' : isUnavailable(seat, override) ? 'No disponible' : 'Disponible',
+          status: statusInfo.label,
           price: getSeatPrice(seat, section),
-          tone: selected ? 'selected' : isUnavailable(seat, override) ? 'sold' : 'available',
+          tone: statusInfo.tone,
         });
+        if (unavail) return;
         const isTableSection = section.sectionType === 'table' || getKind(section) === 'table';
         if (isTableSection || section.tablePurchaseMode === 'whole') {
           const all = section.seats || [];
@@ -264,9 +276,10 @@ function RowSection({ section, sel, onToggle, onInfo }: {
         const y = 16 + rIdx * baseSpacingY + curve * (t * t - 1);
         const selected = isSelected(seat, sel);
         const unavail = isUnavailable(seat, ov) && !selected;
+        const statusInfo = seatStatusInfo(seat, ov, selected);
         return (
           <TouchableOpacity
-            key={seat.id} disabled={unavail} activeOpacity={0.75}
+            key={seat.id} activeOpacity={0.75}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             style={{
               position: 'absolute',
@@ -279,11 +292,12 @@ function RowSection({ section, sel, onToggle, onInfo }: {
             }}
             onPress={() => {
               onInfo({
-                title: `${section.name || ''} ${seat.rowLabel || ''}${seat.seatNumber ? `-${seat.seatNumber}` : ''}`.trim(),
+                title: seatInfoTitle(section, seat),
                 subtitle: section.name || '',
-                status: selected ? 'Seleccionado' : isUnavailable(seat, ov) ? 'No disponible' : 'Disponible',
-                price: getSeatPrice(seat, section), tone: selected ? 'selected' : isUnavailable(seat, ov) ? 'sold' : 'available',
+                status: statusInfo.label,
+                price: getSeatPrice(seat, section), tone: statusInfo.tone,
               });
+              if (unavail) return;
               onToggle(seat);
             }}
           />
@@ -607,7 +621,79 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
 
       if (kind === 'table') {
         const cfg = parseCfg(section.seatsConfig);
-        const available = (section.seats || []).filter((s) => !isUnavailable(s, cfg[`seat-${s.seatNumber}`] || {}));
+        const seats = section.seats || [];
+        const isRound = (section.tableShape || 'round') === 'round';
+        const chairSize = clamp(Math.min(w, h) * 0.18, 8, 18);
+        let nearestSeat: ClientSeat | null = null;
+        let nearestOverride: any = {};
+        let nearestDist = Infinity;
+
+        seats.forEach((seat, index) => {
+          const ov = cfg[`seat-${seat.seatNumber}`] || {};
+          if (ov.disabled) return;
+          let sx = w / 2;
+          let sy = h / 2;
+          if (isRound) {
+            const angle = (index * 360) / Math.max(1, seats.length);
+            const rad = (angle * Math.PI) / 180;
+            sx = w / 2 + w * 0.52 * Math.sin(rad);
+            sy = h / 2 - h * 0.52 * Math.cos(rad);
+          } else {
+            const step = (2 * (1 + 0.55)) / Math.max(1, seats.length);
+            const pos = index * step;
+            let xPct = 50, yPct = 50;
+            if (pos < 1)         { xPct = 15 + pos * 70;           yPct = 12; }
+            else if (pos < 1.55) { xPct = 88;                      yPct = 15 + ((pos - 1) / 0.55) * 70; }
+            else if (pos < 2.55) { xPct = 85 - (pos - 1.55) * 70; yPct = 88; }
+            else                 { xPct = 12;                       yPct = 85 - ((pos - 2.55) / 0.55) * 70; }
+            sx = w * xPct / 100;
+            sy = h * yPct / 100;
+          }
+          sx += ov.xOffset || 0;
+          sy += ov.yOffset || 0;
+          const dist = Math.hypot(lx - sx, ly - sy);
+          const hit = Math.max(16, chairSize * 2.1);
+          if (dist <= hit && dist < nearestDist) {
+            nearestSeat = seat;
+            nearestOverride = ov;
+            nearestDist = dist;
+          }
+        });
+
+        if (nearestSeat) {
+          const selected = isSelected(nearestSeat, selectedSeats);
+          const statusInfo = seatStatusInfo(nearestSeat, nearestOverride, selected);
+          showInfo({
+            title: seatInfoTitle(section, nearestSeat),
+            subtitle: section.name || '',
+            status: statusInfo.label,
+            price: getSeatPrice(nearestSeat, section),
+            tone: statusInfo.tone,
+          });
+          if (isUnavailable(nearestSeat, nearestOverride) && !selected) return;
+          if (section.tablePurchaseMode !== 'whole') onToggleSeat(nearestSeat);
+          else if (onToggleSeats) {
+            const allSelected = seats.some((s) => isSelected(s, selectedSeats));
+            if (allSelected) onToggleSeats(seats.filter((s) => isSelected(s, selectedSeats)));
+            else onToggleSeats(seats.filter((s) => !isUnavailable(s, cfg[`seat-${s.seatNumber}`] || {})));
+          }
+          return;
+        }
+
+        const available = seats.filter((s) => !isUnavailable(s, cfg[`seat-${s.seatNumber}`] || {}));
+        if (!available.length && seats.length) {
+          const seat = seats[0];
+          const ov = cfg[`seat-${seat.seatNumber}`] || {};
+          const statusInfo = seatStatusInfo(seat, ov, false);
+          showInfo({
+            title: seatInfoTitle(section, seat),
+            subtitle: section.name || '',
+            status: statusInfo.label,
+            price: getSeatPrice(seat, section),
+            tone: statusInfo.tone,
+          });
+          return;
+        }
         if (available.length) {
           if (onToggleSeats) onToggleSeats(available);
           else onToggleSeat(available[0]);
@@ -626,7 +712,7 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
         seats.forEach((seat) => {
           const key = `${seat.rowLabel || 'A'}-${seat.seatNumber}`;
           const ov = cfg[key] || {};
-          if (ov.disabled || isUnavailable(seat, ov)) return;
+          if (ov.disabled) return;
 
           const rIdx = Math.max(0, rows.indexOf(seat.rowLabel || 'A'));
           const rowSeats = seats.filter((s) => (s.rowLabel || 'A') === (seat.rowLabel || 'A'))
@@ -645,7 +731,21 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
           }
         });
 
-        if (nearestSeat) onToggleSeat(nearestSeat);
+        const pickedSeat = nearestSeat as ClientSeat | null;
+        if (pickedSeat) {
+          const key = `${pickedSeat.rowLabel || 'A'}-${pickedSeat.seatNumber}`;
+          const ov = cfg[key] || {};
+          const selected = isSelected(pickedSeat, selectedSeats);
+          const statusInfo = seatStatusInfo(pickedSeat, ov, selected);
+          showInfo({
+            title: seatInfoTitle(section, pickedSeat),
+            subtitle: section.name || '',
+            status: statusInfo.label,
+            price: getSeatPrice(pickedSeat, section),
+            tone: statusInfo.tone,
+          });
+          if (!isUnavailable(pickedSeat, ov) || selected) onToggleSeat(pickedSeat);
+        }
         return;
       }
     }

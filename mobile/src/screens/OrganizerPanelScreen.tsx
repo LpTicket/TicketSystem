@@ -10,7 +10,7 @@
  *     Bloqueos e Invitaciones, Comisión. También lo usan los admins para
  *     gestionar el evento de otro organizador.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Alert, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -360,6 +360,25 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
       mounted = false;
     };
   }, [selectedEventId]);
+
+  const seatBuyers = useMemo(() => {
+    const map: Record<string, string> = {};
+    attendeesRaw.forEach((ticket: any) => {
+      const section = String(ticket.sectionName || '').trim().toLowerCase();
+      const row = String(ticket.rowLabel || '').trim().toLowerCase();
+      const seat = ticket.seatNumber !== null && ticket.seatNumber !== undefined ? String(ticket.seatNumber) : '';
+      if (!section || !seat) return;
+      const user = ticket.user || {};
+      const name = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
+        || ticket.attendeeName
+        || user.email
+        || '';
+      if (!name) return;
+      if (row) map[`${section}|${row}|${seat}`] = name;
+      map[`${section}|${seat}`] = name;
+    });
+    return map;
+  }, [attendeesRaw]);
 
   // Load access items (special codes) for the selected event.
   useEffect(() => {
@@ -798,7 +817,7 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
 
         {active === 'overview' && <OrganizerOverviewMobile sections={eventSections} />}
 
-        {active === 'map' && <VenueMapEditor eventId={selectedEventId} onScrollLock={setMapScrollLock} onCanvasFrame={(frame) => { mapCanvasFrameRef.current = frame; }} />}
+        {active === 'map' && <VenueMapEditor eventId={selectedEventId} onScrollLock={setMapScrollLock} onCanvasFrame={(frame) => { mapCanvasFrameRef.current = frame; }} seatBuyers={seatBuyers} />}
 
         {active === 'attendees' && (
           <OrganizerAttendeesMobile
