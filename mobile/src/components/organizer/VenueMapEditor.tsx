@@ -301,8 +301,10 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const beginPan = (touches: any[]) => {
     const t = touches[0];
     if (!t) return;
-    const x = t.locationX ?? t.pageX;
-    const y = t.locationY ?? t.pageY;
+    // Use viewport-local coords. If locationX is available (move event on responder),
+    // use it; otherwise use pageX minus viewport offset.
+    const x = t.locationX !== undefined ? t.locationX : (t.pageX - vpOffsetXRef.current);
+    const y = t.locationY !== undefined ? t.locationY : (t.pageY - vpOffsetYRef.current);
     touchRef.current = { x, y, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: false, pinchDist: 0, pinchZoom: viewRef.current.zoom, pinchCx: 0, pinchCy: 0, moved: false };
   };
   const onCanvasTouchStart = (e: any) => {
@@ -372,8 +374,10 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       beginPan(touches);
     } else if (!touchRef.current.isPinch && touches.length === 1) {
       const t = touches[0];
-      const dx = (t.locationX ?? t.pageX) - touchRef.current.x;
-      const dy = (t.locationY ?? t.pageY) - touchRef.current.y;
+      const x = t.locationX !== undefined ? t.locationX : (t.pageX - vpOffsetXRef.current);
+      const y = t.locationY !== undefined ? t.locationY : (t.pageY - vpOffsetYRef.current);
+      const dx = x - touchRef.current.x;
+      const dy = y - touchRef.current.y;
       syncAnimated(viewRef.current.zoom, { x: touchRef.current.panX + dx, y: touchRef.current.panY + dy });
     }
   };
