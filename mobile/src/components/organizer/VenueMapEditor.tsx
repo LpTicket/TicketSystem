@@ -291,10 +291,14 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const beginPinch = (touches: any[]) => {
     if (touches.length >= 2) {
       const t1 = touches[0], t2 = touches[1];
-      // Use viewport-local coords: pageX/Y minus measured viewport offset.
-      const cx = ((t1.pageX - vpOffsetXRef.current) + (t2.pageX - vpOffsetXRef.current)) / 2;
-      const cy = ((t1.pageY - vpOffsetYRef.current) + (t2.pageY - vpOffsetYRef.current)) / 2;
-      console.log('BEGIN_PINCH', { vpX: vpOffsetXRef.current, vpY: vpOffsetYRef.current, t1_page: t1.pageX, t2_page: t2.pageX, cx, cy, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, zoom: viewRef.current.zoom });
+      // Prefer locationX/Y if available (native, or move events on web responder).
+      // Fall back to pageX/Y minus viewport offset (web touchStart where locationX is undefined).
+      const x1 = t1.locationX !== undefined ? t1.locationX : (t1.pageX - vpOffsetXRef.current);
+      const x2 = t2.locationX !== undefined ? t2.locationX : (t2.pageX - vpOffsetXRef.current);
+      const y1 = t1.locationY !== undefined ? t1.locationY : (t1.pageY - vpOffsetYRef.current);
+      const y2 = t2.locationY !== undefined ? t2.locationY : (t2.pageY - vpOffsetYRef.current);
+      const cx = (x1 + x2) / 2;
+      const cy = (y1 + y2) / 2;
       touchRef.current = { x: 0, y: 0, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: true, pinchDist: Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY), pinchZoom: viewRef.current.zoom, pinchCx: cx, pinchCy: cy, moved: false };
     }
   };
@@ -354,15 +358,22 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       if (!touchRef.current.pinchDist) return;
       // If center was deferred (-1), calculate it now using locationX/Y (available in move events).
       if (touchRef.current.pinchCx === -1) {
-        const cx = ((t1.pageX - vpOffsetXRef.current) + (t2.pageX - vpOffsetXRef.current)) / 2;
-        const cy = ((t1.pageY - vpOffsetYRef.current) + (t2.pageY - vpOffsetYRef.current)) / 2;
-        console.log('ANCHOR_PINCH', { vpX: vpOffsetXRef.current, vpY: vpOffsetYRef.current, cx, cy });
+        const x1 = t1.locationX !== undefined ? t1.locationX : (t1.pageX - vpOffsetXRef.current);
+        const x2 = t2.locationX !== undefined ? t2.locationX : (t2.pageX - vpOffsetXRef.current);
+        const y1 = t1.locationY !== undefined ? t1.locationY : (t1.pageY - vpOffsetYRef.current);
+        const y2 = t2.locationY !== undefined ? t2.locationY : (t2.pageY - vpOffsetYRef.current);
+        const cx = (x1 + x2) / 2;
+        const cy = (y1 + y2) / 2;
         touchRef.current.pinchCx = cx;
         touchRef.current.pinchCy = cy;
         return; // skip this frame, anchor on next move
       }
-      const cx = ((t1.pageX - vpOffsetXRef.current) + (t2.pageX - vpOffsetXRef.current)) / 2;
-      const cy = ((t1.pageY - vpOffsetYRef.current) + (t2.pageY - vpOffsetYRef.current)) / 2;
+      const x1 = t1.locationX !== undefined ? t1.locationX : (t1.pageX - vpOffsetXRef.current);
+      const x2 = t2.locationX !== undefined ? t2.locationX : (t2.pageX - vpOffsetXRef.current);
+      const y1 = t1.locationY !== undefined ? t1.locationY : (t1.pageY - vpOffsetYRef.current);
+      const y2 = t2.locationY !== undefined ? t2.locationY : (t2.pageY - vpOffsetYRef.current);
+      const cx = (x1 + x2) / 2;
+      const cy = (y1 + y2) / 2;
       const newZ = clamp(touchRef.current.pinchZoom * Math.pow(dist / touchRef.current.pinchDist, 1.18), fitRef.current.zoom, MAX_ZOOM);
       const ratio = newZ / touchRef.current.pinchZoom;
       const newPan = { x: cx - (touchRef.current.pinchCx - touchRef.current.panX) * ratio, y: cy - (touchRef.current.pinchCy - touchRef.current.panY) * ratio };
