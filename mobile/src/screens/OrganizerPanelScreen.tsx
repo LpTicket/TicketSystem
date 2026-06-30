@@ -166,19 +166,23 @@ const GLOBAL_SECTIONS: Section[] = ['dashboard', 'events', 'create'];
 const EVENT_SECTIONS: Section[] = ['analytics', 'details', 'overview', 'attendees', 'map', 'blocks', 'commission', 'rewards'];
 const isEventSection = (s: Section) => EVENT_SECTIONS.includes(s);
 
-type PanelProps = { section?: Section; onSectionChange?: (s: Section) => void; adminEvent?: any; onAdminBack?: () => void; refreshKey?: number; scrollToTopSignal?: number };
+type PanelProps = { section?: Section; onSectionChange?: (s: Section) => void; adminEvent?: any; onAdminBack?: () => void; refreshKey?: number; scrollToTopSignal?: number; onMapScrollLockChange?: (locked: boolean) => void };
 
-export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onAdminBack, refreshKey = 0, scrollToTopSignal = 0 }: PanelProps = {}) {
+export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onAdminBack, refreshKey = 0, scrollToTopSignal = 0, onMapScrollLockChange }: PanelProps = {}) {
   const { t } = useLanguage();
   const organizerIndicatorX = useRef(new Animated.Value(0)).current;
   const organizerIndicatorWidth = useRef(new Animated.Value(118)).current;
   const tabsScrollRef = useRef<ScrollView>(null);
   const panelScrollRef = useRef<ScrollView>(null);
+  const scrollUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mapCanvasFrameRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  const mapScrollLockRef = useRef(false);
   // Locked while dragging/zooming the venue map, so the page doesn't scroll.
-  const [mapScrollLock, setMapScrollLock] = useState(false);
+  const [mapScrollLock, setMapScrollLockState] = useState(false);
   const [internalSection, setInternalSection] = useState<Section>(adminEvent ? 'details' : 'dashboard');
   const active = section ?? internalSection;
   const setActive = (s: Section) => { setInternalSection(s); onSectionChange?.(s); };
+  const panelScrollEnabled = !mapScrollLock;
   const [tabLayouts, setTabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
   const [tabsViewportWidth, setTabsViewportWidth] = useState(0);
   const [tabsContentWidth, setTabsContentWidth] = useState(0);
@@ -188,6 +192,56 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
     if (!scrollToTopSignal) return;
     panelScrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [scrollToTopSignal]);
+
+  useEffect(() => {
+    if (active !== 'map') onMapScrollLockChange?.(false);
+  }, [active, onMapScrollLockChange]);
+
+  const setMapScrollLock = useCallback((locked: boolean) => {
+    if (scrollUnlockTimerRef.current) {
+      clearTimeout(scrollUnlockTimerRef.current);
+      scrollUnlockTimerRef.current = null;
+    }
+    if (locked) {
+      if (mapScrollLockRef.current) return;
+      mapScrollLockRef.current = true;
+      panelScrollRef.current?.setNativeProps?.({ scrollEnabled: false });
+      setMapScrollLockState(true);
+      onMapScrollLockChange?.(true);
+      return;
+    }
+    if (!mapScrollLockRef.current) return;
+    scrollUnlockTimerRef.current = setTimeout(() => {
+      mapScrollLockRef.current = false;
+      panelScrollRef.current?.setNativeProps?.({ scrollEnabled: true });
+      setMapScrollLockState(false);
+      onMapScrollLockChange?.(false);
+    }, 120);
+  }, [onMapScrollLockChange]);
+
+  useEffect(() => () => {
+    if (scrollUnlockTimerRef.current) clearTimeout(scrollUnlockTimerRef.current);
+  }, []);
+
+  const isTouchInsideMapCanvas = useCallback((e: any) => {
+    if (active !== 'map') return false;
+    const frame = mapCanvasFrameRef.current;
+    if (!frame) return false;
+    const touch = e?.nativeEvent?.touches?.[0] || e?.nativeEvent?.changedTouches?.[0] || e?.nativeEvent;
+    const pageX = touch?.pageX;
+    const pageY = touch?.pageY;
+    if (typeof pageX !== 'number' || typeof pageY !== 'number') return false;
+    return pageX >= frame.x && pageX <= frame.x + frame.width && pageY >= frame.y && pageY <= frame.y + frame.height;
+  }, [active]);
+
+  const handlePanelTouchCapture = useCallback((e: any) => {
+    if (isTouchInsideMapCanvas(e)) {
+      setMapScrollLock(true);
+      return false;
+    }
+    if (active === 'map') setMapScrollLock(false);
+    return false;
+  }, [active, isTouchInsideMapCanvas, setMapScrollLock]);
 
   // Seed state from adminEvent if provided (admin viewing an organizer's event)
   const [eventTitle, setEventTitle] = useState(adminEvent?.title || 'Noche de (des)amor');
@@ -647,7 +701,16 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
       </View>
       )}
 
-      <ScrollView ref={panelScrollRef} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" scrollEnabled={!mapScrollLock} contentContainerStyle={[styles.content, !selectedEvent && { paddingTop: 44 }]}>
+      <ScrollView
+        ref={panelScrollRef}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={panelScrollEnabled}
+        disableScrollViewPanResponder={!panelScrollEnabled}
+        onStartShouldSetResponderCapture={handlePanelTouchCapture}
+        onMoveShouldSetResponderCapture={handlePanelTouchCapture}
+        contentContainerStyle={[styles.content, !selectedEvent && { paddingTop: 44 }]}
+      >
         {selectedEvent ? (
           <TouchableOpacity style={styles.eventBackChip} onPress={backToEvents}>
             <Text style={styles.eventBackArrow}>‹</Text>
@@ -735,7 +798,7 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
 
         {active === 'overview' && <OrganizerOverviewMobile sections={eventSections} />}
 
-        {active === 'map' && <VenueMapEditor eventId={selectedEventId} onScrollLock={setMapScrollLock} />}
+        {active === 'map' && <VenueMapEditor eventId={selectedEventId} onScrollLock={setMapScrollLock} onCanvasFrame={(frame) => { mapCanvasFrameRef.current = frame; }} />}
 
         {active === 'attendees' && (
           <OrganizerAttendeesMobile

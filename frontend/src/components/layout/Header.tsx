@@ -281,12 +281,14 @@ export default function Header() {
                       </div>
                     )}
 
-                    <Link 
-                      href="/dashboard?tab=profile" 
-                      onClick={() => setProfileDropdown(false)} 
+                    <div className="lp-menu-section-label mx-4 mt-3 mb-1">{lang === 'es' ? 'Cuenta' : 'Account'}</div>
+
+                    <Link
+                      href="/dashboard?tab=profile"
+                      onClick={() => setProfileDropdown(false)}
                       className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
                     >
-                      <HiOutlineUser className="w-4 h-4 opacity-70" /> 
+                      <HiOutlineUser className="w-4 h-4 opacity-70" />
                       {t('myProfile')}
                     </Link>
 
@@ -302,47 +304,46 @@ export default function Header() {
                       </Link>
                     )}
 
-                    {/* Organizer Panel Link */}
                     {(user.role === 'admin' || mode === 'organizer') && (
-                      <Link 
-                        href="/organizer" 
-                        onClick={() => setProfileDropdown(false)} 
-                        className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
-                      >
-                        <HiOutlineCog className="w-4 h-4 opacity-70" /> 
-                        {t('organizerPanel') || 'Organizer Panel'}
-                      </Link>
+                      <div className="lp-menu-section">
+                        <div className="lp-menu-section-label mx-4 mt-3 mb-1">{lang === 'es' ? 'Herramientas organizador' : 'Organizer tools'}</div>
+                        <Link
+                          href="/organizer"
+                          onClick={() => setProfileDropdown(false)}
+                          className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
+                        >
+                          <HiOutlineCog className="w-4 h-4 opacity-70" />
+                          {t('organizerPanel') || 'Organizer Panel'}
+                        </Link>
+
+                        <Link
+                          href="/organizer/scanner-access"
+                          onClick={() => setProfileDropdown(false)}
+                          className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
+                        >
+                          <HiOutlineQrcode className="w-4 h-4 opacity-70" />
+                          {lang === 'es' ? 'Administrar empleados' : 'Manage staff'}
+                        </Link>
+
+                        <Link
+                          href="/organizer/door-sale"
+                          onClick={() => setProfileDropdown(false)}
+                          className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
+                        >
+                          <HiOutlineShoppingCart className="w-4 h-4 opacity-70" />
+                          {lang === 'es' ? 'Venta en puerta' : 'Door sale'}
+                        </Link>
+                      </div>
                     )}
 
-                    {(user.role === 'admin' || mode === 'organizer') && (
-                      <Link
-                        href="/organizer/scanner-access"
-                        onClick={() => setProfileDropdown(false)}
-                        className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
-                      >
-                        <HiOutlineQrcode className="w-4 h-4 opacity-70" />
-                        {lang === 'es' ? 'Empleados scan' : 'Scan staff'}
-                      </Link>
-                    )}
-
-                    {(user.role === 'admin' || mode === 'organizer') && (
-                      <Link
-                        href="/organizer/door-sale"
-                        onClick={() => setProfileDropdown(false)}
-                        className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
-                      >
-                        <HiOutlineShoppingCart className="w-4 h-4 opacity-70" />
-                        {lang === 'es' ? 'Venta en puerta' : 'Door sale'}
-                      </Link>
-                    )}
-
+                    <div className="lp-menu-section-label mx-4 mt-3 mb-1">{lang === 'es' ? 'Modo empleado' : 'Staff mode'}</div>
                     <Link
                       href="/staff/scan-access"
                       onClick={() => setProfileDropdown(false)}
                       className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
                     >
                       <HiOutlineQrcode className="w-4 h-4 opacity-70" />
-                      {lang === 'es' ? 'Scan empleado' : 'Staff scan'}
+                      {lang === 'es' ? 'Mi acceso de scan' : 'My scan access'}
                     </Link>
 
                     <Link
@@ -351,7 +352,7 @@ export default function Header() {
                       className="lp-menu-item mx-2 flex items-center gap-3 px-3 py-3 text-[13px] font-bold transition-colors"
                     >
                       <HiOutlineShoppingCart className="w-4 h-4 opacity-70" />
-                      {lang === 'es' ? 'Venta empleado' : 'Staff sale'}
+                      {lang === 'es' ? 'Mi venta en puerta' : 'My door sale'}
                     </Link>
 
                     {/* Admin Panel Link */}
@@ -459,6 +460,7 @@ export default function Header() {
             {/* Bottom Links (Profile, Tickets, Organizer, Logout) */}
             {isAuthenticated && (
               <div className="hamburger-menu-card p-2 space-y-1">
+                <div className="lp-menu-section-label px-3 pt-2 pb-1">{lang === 'es' ? 'Cuenta' : 'Account'}</div>
                 <Link href="/dashboard?tab=profile" onClick={() => setMobileMenuOpen(false)} className="hamburger-account-link lp-menu-item">
                   <HiOutlineUser className="w-5 h-5 opacity-60" />
                   {t('myProfile')}
@@ -472,34 +474,34 @@ export default function Header() {
                 )}
                 
                 {(user?.role === 'admin' || mode === 'organizer') && (
-                  <Link href="/organizer" onClick={() => setMobileMenuOpen(false)} className="hamburger-account-link lp-menu-item">
-                    <HiOutlineCog className="w-5 h-5 opacity-60" />
-                    {t('organizerPanel') || 'Organizer Panel'}
-                  </Link>
+                  <>
+                    <div className="lp-menu-section-label px-3 pt-3 pb-1">{lang === 'es' ? 'Herramientas organizador' : 'Organizer tools'}</div>
+                    <Link href="/organizer" onClick={() => setMobileMenuOpen(false)} className="hamburger-account-link lp-menu-item">
+                      <HiOutlineCog className="w-5 h-5 opacity-60" />
+                      {t('organizerPanel') || 'Organizer Panel'}
+                    </Link>
+
+                    <Link href="/organizer/scanner-access" onClick={() => setMobileMenuOpen(false)} className="hamburger-account-link lp-menu-item">
+                      <HiOutlineQrcode className="w-5 h-5 opacity-60" />
+                      {lang === 'es' ? 'Administrar empleados' : 'Manage staff'}
+                    </Link>
+
+                    <Link href="/organizer/door-sale" onClick={() => setMobileMenuOpen(false)} className="hamburger-account-link lp-menu-item">
+                      <HiOutlineShoppingCart className="w-5 h-5 opacity-60" />
+                      {lang === 'es' ? 'Venta en puerta' : 'Door sale'}
+                    </Link>
+                  </>
                 )}
 
-                {(user?.role === 'admin' || mode === 'organizer') && (
-                  <Link href="/organizer/scanner-access" onClick={() => setMobileMenuOpen(false)} className="hamburger-account-link lp-menu-item">
-                    <HiOutlineQrcode className="w-5 h-5 opacity-60" />
-                    {lang === 'es' ? 'Empleados scan' : 'Scan staff'}
-                  </Link>
-                )}
-
-                {(user?.role === 'admin' || mode === 'organizer') && (
-                  <Link href="/organizer/door-sale" onClick={() => setMobileMenuOpen(false)} className="hamburger-account-link lp-menu-item">
-                    <HiOutlineShoppingCart className="w-5 h-5 opacity-60" />
-                    {lang === 'es' ? 'Venta en puerta' : 'Door sale'}
-                  </Link>
-                )}
-
+                <div className="lp-menu-section-label px-3 pt-3 pb-1">{lang === 'es' ? 'Modo empleado' : 'Staff mode'}</div>
                 <Link href="/staff/scan-access" onClick={() => setMobileMenuOpen(false)} className="hamburger-account-link lp-menu-item">
                   <HiOutlineQrcode className="w-5 h-5 opacity-60" />
-                  {lang === 'es' ? 'Scan empleado' : 'Staff scan'}
+                  {lang === 'es' ? 'Mi acceso de scan' : 'My scan access'}
                 </Link>
 
                 <Link href="/staff/door-sale" onClick={() => setMobileMenuOpen(false)} className="hamburger-account-link lp-menu-item">
                   <HiOutlineShoppingCart className="w-5 h-5 opacity-60" />
-                  {lang === 'es' ? 'Venta empleado' : 'Staff sale'}
+                  {lang === 'es' ? 'Mi venta en puerta' : 'My door sale'}
                 </Link>
 
                 {user?.role === 'admin' && (

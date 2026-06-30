@@ -123,18 +123,18 @@ type VenueItem = {
   seatConfig: Record<string, SeatOverride>;
 };
 
-const CANVAS_WIDTH = 920;
-const CANVAS_HEIGHT = 640;
+const CANVAS_WIDTH = 2000;
+const CANVAS_HEIGHT = 1600;
 // How far past the canvas edges items may be dragged, in every direction.
 const MOVE_MARGIN = 800;
 // Extra room on the right side only.
-const MOVE_MARGIN_RIGHT = 1100;
+const MOVE_MARGIN_RIGHT = 0;
 
 // Zoom/pan tuning — ported from ClientVenueMap so the editor navigates the same.
 const MIN_ZOOM = 0.12;
 const MAX_ZOOM = 2.5;
 const ZOOM_STEP = 0.12;
-const MAP_EDGE_PADDING = 80;
+const MAP_EDGE_PADDING = 48;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 // Matches the web editor's SECTION_COLORS so sections look the same on both.
@@ -147,13 +147,17 @@ const initialItems: VenueItem[] = [
   { id: 'table-30', type: 'table', name: '30', x: 650, y: 275, width: 96, height: 64, color: '#f59e0b', price: 100, rows: 2, seatsPerRow: 5, fontSize: 10, shape: 'rectangle', saleMode: 'seat', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
 ];
 
-type Props = { eventId?: string; onScrollLock?: (locked: boolean) => void };
+type Props = {
+  eventId?: string;
+  onScrollLock?: (locked: boolean) => void;
+  onCanvasFrame?: (frame: { x: number; y: number; width: number; height: number }) => void;
+};
 
 const VP_H = 440; // canvas viewport height (matches styles.workbench height)
 
-export function VenueMapEditor({ eventId, onScrollLock }: Props) {
+export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame }: Props) {
   const { t } = useLanguage();
-  const vpW = Dimensions.get('window').width;
+  const [vpW, setVpW] = useState(Math.max(1, Dimensions.get('window').width - 32));
   const [items, setItems] = useState<VenueItem[]>(initialItems);
   // Live mirror of items for gesture callbacks (avoids stale closures).
   const itemsRef = useRef<VenueItem[]>(initialItems);
@@ -191,23 +195,36 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const animatingRef = useRef(false);
 
   const clampPan = useCallback((z: number, p: { x: number; y: number }, cb: { minX: number; minY: number; maxX: number; maxY: number }) => {
-    // Allow free movement in BOTH axes: let the content travel from one edge of
-    // the viewport to the other, plus a generous slack so you can always reach
-    // around it. (The old logic locked an axis to centre when the content was
-    // smaller than the viewport, which made it pan only side-to-side.)
-    const slackX = vpW * 0.9;
-    const slackY = VP_H * 0.9;
-    const minPanX = vpW - cb.maxX * z - slackX;
-    const maxPanX = -cb.minX * z + slackX;
-    const minPanY = VP_H - cb.maxY * z - slackY;
-    const maxPanY = -cb.minY * z + slackY;
+    // Match the buyer map: keep the setup centered when it fits, and only allow
+    // panning to the padded edges when the zoomed content is larger.
+    const centerX = vpW / 2 - ((cb.minX + cb.maxX) / 2) * z;
+    const centerY = VP_H / 2 - ((cb.minY + cb.maxY) / 2) * z;
+    const minPanX = vpW - MAP_EDGE_PADDING - cb.maxX * z;
+    const maxPanX = MAP_EDGE_PADDING - cb.minX * z;
+    const minPanY = VP_H - MAP_EDGE_PADDING - cb.maxY * z;
+    const maxPanY = MAP_EDGE_PADDING - cb.minY * z;
     return {
-      x: clamp(p.x, Math.min(minPanX, maxPanX), Math.max(minPanX, maxPanX)),
-      y: clamp(p.y, Math.min(minPanY, maxPanY), Math.max(minPanY, maxPanY)),
+      x: minPanX <= maxPanX ? clamp(p.x, minPanX, maxPanX) : centerX,
+      y: minPanY <= maxPanY ? clamp(p.y, minPanY, maxPanY) : centerY,
     };
   }, [vpW]);
 
   const boundsRef = useRef({ minX: 0, minY: 0, maxX: CANVAS_WIDTH, maxY: CANVAS_HEIGHT });
+
+  const getVisualBounds = (item: VenueItem) => {
+    const seatOffsets = Object.values(item.seatConfig || {});
+    const minSeatX = seatOffsets.length ? Math.min(...seatOffsets.map((ov) => ov.xOffset || 0)) : 0;
+    const maxSeatX = seatOffsets.length ? Math.max(...seatOffsets.map((ov) => ov.xOffset || 0)) : 0;
+    const minSeatY = seatOffsets.length ? Math.min(...seatOffsets.map((ov) => ov.yOffset || 0)) : 0;
+    const maxSeatY = seatOffsets.length ? Math.max(...seatOffsets.map((ov) => ov.yOffset || 0)) : 0;
+    const chairOverhang = (item.type === 'table' || item.type === 'seat') ? Math.max(24, Math.min(item.width, item.height) * 0.25) : 0;
+    return {
+      minX: item.x - chairOverhang + Math.min(0, minSeatX),
+      minY: item.y - chairOverhang + Math.min(0, minSeatY),
+      maxX: item.x + item.width + chairOverhang + Math.max(0, maxSeatX),
+      maxY: item.y + item.height + chairOverhang + Math.max(0, maxSeatY),
+    };
+  };
 
   const syncAnimated = useCallback((z: number, p: { x: number; y: number }) => {
     const safePan = clampPan(z, p, boundsRef.current);
@@ -237,10 +254,11 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const fitToContent = useCallback((loadedItems: VenueItem[]) => {
     if (loadedItems.length === 0) return;
     const pad = 40;
-    const minX = Math.min(...loadedItems.map((i) => i.x)) - pad;
-    const minY = Math.min(...loadedItems.map((i) => i.y)) - pad;
-    const maxX = Math.max(...loadedItems.map((i) => i.x + i.width)) + pad;
-    const maxY = Math.max(...loadedItems.map((i) => i.y + i.height)) + pad;
+    const visualBounds = loadedItems.map(getVisualBounds);
+    const minX = Math.min(...visualBounds.map((b) => b.minX)) - pad;
+    const minY = Math.min(...visualBounds.map((b) => b.minY)) - pad;
+    const maxX = Math.max(...visualBounds.map((b) => b.maxX)) + pad;
+    const maxY = Math.max(...visualBounds.map((b) => b.maxY)) + pad;
     boundsRef.current = { minX, minY, maxX, maxY };
     const z = clamp(Math.min((vpW - pad * 2) / Math.max(1, maxX - minX), (VP_H - pad * 2) / Math.max(1, maxY - minY)), MIN_ZOOM, MAX_ZOOM);
     // Same simple math as ClientVenueMap's fitView (works on mobile).
@@ -273,12 +291,54 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
   const touchedItemRef = useRef(false);
   // True while a chair is handling the touch, so the viewport ignores it.
   const seatTouchRef = useRef(false);
+  const itemInteractionRef = useRef(false);
 
-  // Only claim the move responder once the finger has actually moved a bit (or a
-  // second finger lands), so a tap doesn't get captured. Mirrors the client.
+  const lockCanvasScroll = () => {
+    onScrollLock?.(true);
+  };
+
+  const reportCanvasFrame = useCallback(() => {
+    requestAnimationFrame(() => {
+      canvasVpRef.current?.measureInWindow?.((x: number, y: number, width: number, height: number) => {
+        onCanvasFrame?.({ x, y, width, height });
+      });
+    });
+  }, [onCanvasFrame]);
+
+  const releaseCanvasScrollIfDone = (e: any) => {
+    const touches = e?.nativeEvent?.touches || [];
+    if (touches.length === 0) onScrollLock?.(false);
+  };
+
+  const rememberCanvasStart = (e: any) => {
+    const touches = e.nativeEvent.touches || [];
+    const t = touches[0];
+    responderStart.current = { x: t?.pageX || 0, y: t?.pageY || 0 };
+    itemInteractionRef.current = false;
+    lockCanvasScroll();
+    return false;
+  };
+
+  const lockCanvasStartCapture = (e: any) => {
+    const touches = e.nativeEvent.touches || [];
+    const t = touches[0];
+    responderStart.current = { x: t?.pageX || 0, y: t?.pageY || 0 };
+    itemInteractionRef.current = false;
+    lockCanvasScroll();
+    return false;
+  };
+
+  const lockCanvasMoveCapture = () => {
+    lockCanvasScroll();
+    return false;
+  };
+
+  // Any finger inside the canvas belongs to the canvas. This prevents the parent
+  // ScrollView from stealing vertical drags while the map is being moved.
   const shouldCapturePan = (e: any) => {
-    if (dragRef.current) return false; // an item is being dragged
-    if (touchedItemRef.current) return false; // touch started on an item — let it handle the gesture
+    lockCanvasScroll();
+    if (dragRef.current) return false;
+    if (seatTouchRef.current || touchedItemRef.current) return false;
     const touches = e.nativeEvent.touches || [];
     if (touches.length >= 2) return true;
     const t = touches[0];
@@ -312,6 +372,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     touchRef.current = { x, y, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: false, pinchDist: 0, pinchZoom: viewRef.current.zoom, pinchCx: 0, pinchCy: 0, moved: false };
   };
   const onCanvasTouchStart = (e: any) => {
+    lockCanvasScroll();
     const touches = e.nativeEvent.touches || [];
     // Measure viewport position on first touch (all platforms, cached for multi-touch).
     if (vpOffsetXRef.current === 0 && vpOffsetYRef.current === 0) {
@@ -330,7 +391,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
       touchedItemRef.current = false;
       seatTouchRef.current = false;
       setDragSafe(null);
-      onScrollLock?.(true);
+      lockCanvasScroll();
       const a = touches[0];
       responderStart.current = { x: a?.pageX || 0, y: a?.pageY || 0 };
       beginPinch(touches);
@@ -338,12 +399,13 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     }
     if (animatingRef.current) return;
     if (seatTouchRef.current || touchedItemRef.current) return; // an item/chair owns this touch
-    onScrollLock?.(true); // stop the page from scrolling while moving the map
+    lockCanvasScroll(); // stop the page from scrolling while moving the map
     const t0 = touches[0];
     responderStart.current = { x: t0?.pageX || 0, y: t0?.pageY || 0 };
     if (!touchRef.current.isPinch) beginPan(touches);
   };
   const onCanvasTouchMove = (e: any) => {
+    lockCanvasScroll();
     const touches = e.nativeEvent.touches || [];
     // Pinch handling takes priority and ignores item/seat flags.
     if (touches.length >= 2) {
@@ -402,6 +464,15 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
     }
     if (touches.length === 1) { beginPan(touches); return; }
     if (touches.length === 0) {
+      if (itemInteractionRef.current) {
+        itemInteractionRef.current = false;
+        touchRef.current.isPinch = false;
+        touchedItemRef.current = false;
+        seatTouchRef.current = false;
+        onScrollLock?.(false);
+        setZoomPct(Math.round(viewRef.current.zoom * 100));
+        return;
+      }
       // A tap on EMPTY canvas (no pan, no item) clears the current selection.
       const cp = e?.nativeEvent?.changedTouches?.[0];
       const movedX = Math.abs((cp?.pageX ?? responderStart.current.x) - responderStart.current.x);
@@ -815,14 +886,27 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
             // touchAction:'none' (web only) stops the browser from scrolling/zooming
             // the page while dragging inside the canvas. Ignored on native.
             style={[styles.canvasViewport, { touchAction: 'none' } as any]}
+            onStartShouldSetResponderCapture={lockCanvasStartCapture}
+            onMoveShouldSetResponderCapture={lockCanvasMoveCapture}
+            onTouchStart={lockCanvasScroll}
+            onTouchMove={lockCanvasScroll}
+            onTouchEnd={releaseCanvasScrollIfDone}
+            onTouchCancel={releaseCanvasScrollIfDone}
+            onLayout={(e) => {
+              const nextW = e.nativeEvent.layout.width;
+              if (nextW > 0 && Math.abs(nextW - vpW) > 1) setVpW(nextW);
+              reportCanvasFrame();
+            }}
           >
             {/* Touch handlers live on an absoluteFill that EXACTLY covers the
                 viewport (same structure as ClientVenueMap), so locationX/locationY
                 are relative to the viewport → pinch zooms to the right point. */}
             <View
               style={StyleSheet.absoluteFill}
-              onStartShouldSetResponder={() => { onScrollLock?.(true); return true; }}
-              onMoveShouldSetResponder={() => true}
+              onStartShouldSetResponderCapture={rememberCanvasStart}
+              onMoveShouldSetResponderCapture={shouldCapturePan}
+              onStartShouldSetResponder={() => false}
+              onMoveShouldSetResponder={shouldCapturePan}
               onResponderTerminationRequest={() => false}
               onTouchStart={onCanvasTouchStart}
               onTouchMove={onCanvasTouchMove}
@@ -850,6 +934,7 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                     editMode={editMode}
                     zoomRef={viewRef}
                     touchedItemRef={touchedItemRef}
+                    itemInteractionRef={itemInteractionRef}
                     onSelect={(id) => { setSelectedId(id); }}
                     onShowInfo={(it, px, py) => showItemInfo(it, px, py)}
                     onDragMove={(it, x, y) => moveItem(it, x, y)}
@@ -878,14 +963,15 @@ export function VenueMapEditor({ eventId, onScrollLock }: Props) {
                     ]}
                   >
                     {(item.type === 'table' || item.type === 'seat') && (
-                      <SeatDots item={item} selectedSeat={selectedSeat} selectedItemId={selectedId} editMode={editMode} zoomRef={viewRef} seatTouchRef={seatTouchRef} onSeatPress={toggleSeat} onSeatDrag={dragSeat} />
+                      <SeatDots item={item} selectedSeat={selectedSeat} selectedItemId={selectedId} editMode={editMode} zoomRef={viewRef} seatTouchRef={seatTouchRef} itemInteractionRef={itemInteractionRef} onScrollLock={onScrollLock} onSeatPress={toggleSeat} onSeatDrag={dragSeat} />
                     )}
 
                     <Text
                       pointerEvents="none"
                       style={[
                         styles.itemLabel,
-                        { fontSize: item.fontSize, color: '#FFFFFF', zIndex: 6 },
+                        (item.type === 'table' || item.type === 'seat') && styles.tableItemLabel,
+                        { fontSize: item.fontSize, color: '#FFFFFF', zIndex: 20 },
                         (item.type === 'table' || item.type === 'seat') && { textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 3 },
                       ]}>
                       {item.name}
@@ -1147,10 +1233,11 @@ function shapeStyle(item: VenueItem) {
 // drag moves it. Owns its own responder so it never fights the canvas pan: it
 // flags `touchedItemRef` so the viewport ignores the gesture. Chairs sit above
 // (higher zIndex) and win their own taps via SeatDot.
-function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelect, onShowInfo, onDragMove, onDragEnd, onScrollLock, style, children }: {
+function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, itemInteractionRef, onSelect, onShowInfo, onDragMove, onDragEnd, onScrollLock, style, children }: {
   item: VenueItem; isSelected: boolean; editMode: boolean;
   zoomRef: React.MutableRefObject<{ zoom: number; pan: { x: number; y: number } }>;
   touchedItemRef: React.MutableRefObject<boolean>;
+  itemInteractionRef: React.MutableRefObject<boolean>;
   onSelect: (id: string) => void;
   onShowInfo: (item: VenueItem, px: number, py: number) => void;
   onDragMove: (item: VenueItem, x: number, y: number) => void;
@@ -1168,12 +1255,13 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
   const offset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   return (
     <Animated.View
-      onStartShouldSetResponderCapture={() => { touchedItemRef.current = true; return false; }}
+      onStartShouldSetResponderCapture={() => { touchedItemRef.current = true; itemInteractionRef.current = true; return false; }}
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => editMode}
       onResponderTerminationRequest={() => false}
       onResponderGrant={(e) => {
         touchedItemRef.current = true;
+        itemInteractionRef.current = true;
         draggingRef.current = true;
         offset.setValue({ x: 0, y: 0 });
         start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, fx: item.x, fy: item.y, moved: false };
@@ -1221,11 +1309,13 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, onSelec
 
 // One chair: a tap selects it (info/inspector); a drag adjusts its xOffset/yOffset
 // (like the web editor). Uses its own responder so it doesn't fight the canvas.
-function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, active, editMode, zoomRef, seatTouchRef, onSeatPress, onSeatDrag }: {
+function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, active, editMode, zoomRef, seatTouchRef, itemInteractionRef, onScrollLock, onSeatPress, onSeatDrag }: {
   id: string; itemId: string; baseX: number; baseY: number;
   left: number; top: number; size: number; fill: string; active: boolean;
   editMode: boolean; zoomRef: React.MutableRefObject<{ zoom: number; pan: { x: number; y: number } }>;
   seatTouchRef: React.MutableRefObject<boolean>;
+  itemInteractionRef: React.MutableRefObject<boolean>;
+  onScrollLock?: (locked: boolean) => void;
   onSeatPress: (seatId: string, px: number, py: number, itemId: string) => void;
   onSeatDrag: (seatId: string, itemId: string, baseX: number, baseY: number, dx: number, dy: number) => void;
 }) {
@@ -1233,11 +1323,11 @@ function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, active, edit
   const offset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   return (
     <Animated.View
-      onStartShouldSetResponderCapture={() => { seatTouchRef.current = true; return false; }}
+      onStartShouldSetResponderCapture={() => { seatTouchRef.current = true; itemInteractionRef.current = true; return false; }}
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => editMode}
       onResponderTerminationRequest={() => false}
-      onResponderGrant={(e) => { seatTouchRef.current = true; offset.setValue({ x: 0, y: 0 }); start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, dx: 0, dy: 0, moved: false }; }}
+      onResponderGrant={(e) => { seatTouchRef.current = true; itemInteractionRef.current = true; offset.setValue({ x: 0, y: 0 }); start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, dx: 0, dy: 0, moved: false }; }}
       onResponderMove={(e) => {
         if (!editMode) return;
         const z = zoomRef.current.zoom || 1;
@@ -1257,10 +1347,12 @@ function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, active, edit
           onSeatPress(id, e.nativeEvent.pageX, e.nativeEvent.pageY, itemId);
         }
         seatTouchRef.current = false;
+        onScrollLock?.(false);
       }}
       onResponderTerminate={() => {
         if (start.current.moved) { offset.setValue({ x: 0, y: 0 }); onSeatDrag(id, itemId, baseX, baseY, start.current.dx, start.current.dy); }
         seatTouchRef.current = false;
+        onScrollLock?.(false);
       }}
       style={[
         styles.seatDot,
@@ -1277,13 +1369,15 @@ function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, active, edit
   );
 }
 
-function SeatDots({ item, selectedSeat, selectedItemId, editMode, zoomRef, seatTouchRef, onSeatPress, onSeatDrag }: {
+function SeatDots({ item, selectedSeat, selectedItemId, editMode, zoomRef, seatTouchRef, itemInteractionRef, onScrollLock, onSeatPress, onSeatDrag }: {
   item: VenueItem;
   selectedSeat: string | null;
   selectedItemId: string;
   editMode: boolean;
   zoomRef: React.MutableRefObject<{ zoom: number; pan: { x: number; y: number } }>;
   seatTouchRef: React.MutableRefObject<boolean>;
+  itemInteractionRef: React.MutableRefObject<boolean>;
+  onScrollLock?: (locked: boolean) => void;
   onSeatPress: (seatId: string, px: number, py: number, itemId: string) => void;
   onSeatDrag: (seatId: string, itemId: string, baseX: number, baseY: number, dx: number, dy: number) => void;
 }) {
@@ -1368,6 +1462,8 @@ function SeatDots({ item, selectedSeat, selectedItemId, editMode, zoomRef, seatT
         editMode={editMode}
         zoomRef={zoomRef}
         seatTouchRef={seatTouchRef}
+        itemInteractionRef={itemInteractionRef}
+        onScrollLock={onScrollLock}
         onSeatPress={onSeatPress}
         onSeatDrag={onSeatDrag}
       />
@@ -1619,6 +1715,7 @@ const styles = StyleSheet.create({
   mapItem: { position: 'absolute', borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
   itemShadow: { shadowColor: '#000000', shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 7 } },
   itemLabel: { fontWeight: '700', zIndex: 5 },
+  tableItemLabel: { position: 'absolute', left: 0, right: 0, top: '50%', textAlign: 'center', transform: [{ translateY: -8 }] },
   lockedItem: { opacity: 0.62 },
   seatsLayer: { ...StyleSheet.absoluteFill, overflow: 'visible', zIndex: 4 },
   // Match ClientVenueMap's chair look: solid colored dot with a thin white
