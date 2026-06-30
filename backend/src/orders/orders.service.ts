@@ -2194,46 +2194,6 @@ export class OrdersService {
     return { success: true, email: targetEmail, sentAt: event.postEventReportSentAt, delivery: sendInfo };
   }
 
-  @Cron('0 5 * * * *')
-  async handlePostEventReports() {
-    console.log('[Cron] Checking post-event organizer reports...');
-    const now = new Date();
-    const explicitEndCutoff = new Date(now.getTime() - 12 * 60 * 60 * 1000);
-    const fallbackStartCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const events = await this.eventRepo
-      .createQueryBuilder('event')
-      .leftJoinAndSelect('event.organizer', 'organizer')
-      .where('event."postEventReportSentAt" IS NULL')
-      .andWhere('event.status IN (:...statuses)', { statuses: [EventStatus.PUBLISHED, EventStatus.COMPLETED] })
-      .andWhere(`(
-        (event."eventEndDate" IS NOT NULL AND event."eventEndDate" <= :explicitEndCutoff)
-        OR
-        (event."eventEndDate" IS NULL AND event."eventDate" <= :fallbackStartCutoff)
-      )`, { explicitEndCutoff, fallbackStartCutoff })
-      .orderBy('event.eventDate', 'ASC')
-      .limit(20)
-      .getMany();
-
-    for (const event of events) {
-      try {
-        const organizerEmail = (event.organizer as any)?.email;
-        if (!organizerEmail) {
-          console.warn(`[Cron] Skipping post-event report for ${event.id}: organizer has no email.`);
-          continue;
-        }
-        const report = await this.buildPostEventReport(event);
-        const sent = await this.mailService.sendPostEventReportEmail(organizerEmail, report);
-        if (sent) {
-          event.postEventReportSentAt = new Date();
-          await this.eventRepo.save(event);
-          console.log(`[Cron] Post-event report sent for ${event.title}.`);
-        }
-      } catch (err) {
-        console.error(`[Cron] Error sending post-event report for event ${event.id}:`, err);
-      }
-    }
-  }
-
   /**
    * Cron Job to send automated email reminders for upcoming events.
    * Runs every 30 minutes to support both daily and hourly reminder triggers.
