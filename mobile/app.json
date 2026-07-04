@@ -9,7 +9,7 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "bundleIdentifier": "com.inhoustontexas.lpticket",
-      "buildNumber": "24",
+      "buildNumber": "29",
       "icon": "./assets/icon.png",
       "supportsTablet": true,
       "infoPlist": {
