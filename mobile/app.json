@@ -9,12 +9,9 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "bundleIdentifier": "com.inhoustontexas.lpticket",
-      "buildNumber": "14",
+      "buildNumber": "24",
       "icon": "./assets/icon.png",
       "supportsTablet": true,
-      "entitlements": {
-        "com.apple.developer.proximity-reader.payment.acceptance": true
-      },
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "LPTicket necesita acceso a tus fotos para cambiar tu foto de perfil.",
         "NSPhotoLibraryAddUsageDescription": "LPTicket necesita permiso para guardar imágenes cuando sea necesario.",
