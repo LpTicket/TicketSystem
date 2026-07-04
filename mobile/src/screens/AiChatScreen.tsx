@@ -9,7 +9,7 @@ import { colors } from '../theme/colors';
 type Message = { role: 'user' | 'assistant'; content: string };
 type Props = { scrollToTopSignal?: number };
 
-const INPUT_CLOSED_BOTTOM = 60;
+const INPUT_CLOSED_BOTTOM = 100;
 const INPUT_KEYBOARD_GAP = 34;
 const INPUT_BAR_HEIGHT = 60;
 const BOTTOM_NAV_CLEARANCE = INPUT_CLOSED_BOTTOM;

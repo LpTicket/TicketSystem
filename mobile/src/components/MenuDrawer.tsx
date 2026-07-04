@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', alignItems: 'center', justifyContent: 'center',
   },
   modeSelectorWrap: { marginBottom: 16 },
-  scroll: { paddingBottom: 70, gap: 16 },
+  scroll: { paddingBottom: 100, gap: 16 },
   modeRow: {
     flexDirection: 'row',
     alignItems: 'center',

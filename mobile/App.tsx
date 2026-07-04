@@ -8,6 +8,7 @@ import { Animated, AppState, Linking, Modal, SafeAreaView, ScrollView, StyleShee
 // filter for it lives in index.ts (must run before expo wraps console.error).
 LogBox.ignoreLogs(["ScrollView doesn't take rejection well"]);
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from './src/components/AppHeader';
 import { MenuDrawer } from './src/components/MenuDrawer';
@@ -63,6 +64,8 @@ function AppContent() {
   const { width } = useWindowDimensions();
   const navIndicatorX = useRef(new Animated.Value(0)).current;
   const adminNavIndicatorX = useRef(new Animated.Value(0)).current;
+  const navPillX = useRef(new Animated.Value(0)).current;
+  const adminNavPillX = useRef(new Animated.Value(0)).current;
   const [tab, setTab] = useState<Tab>('events');
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -445,7 +448,8 @@ function AppContent() {
   const userRole = currentUser?.role;
   const canAdmin = userRole === 'admin';
   const canOrganize = isLoggedIn;
-  const navPadding = 8;
+  const navOuterMargin = 18;
+  const navPadding = 7;
 
   // Bottom tab bar swaps with the mode: client / organizer / admin tools.
   const navItems = viewMode === 'admin'
@@ -472,28 +476,48 @@ function AppContent() {
         { key: 'profile', label: t('Perfil', 'Profile'),   icon: 'person-circle',          active: tab === 'profile', onPress: () => goToTab('profile') },
       ];
   const activeBottomIndex = Math.max(0, navItems.findIndex((i) => i.active));
-  const navItemWidth = (width - navPadding * 2) / navItems.length;
+  const navItemWidth = (width - navOuterMargin * 2 - navPadding * 2) / navItems.length;
+  const navPillWidth = Math.max(54, navItemWidth - 10);
+  const navPillTargetX = navPadding + navItemWidth * activeBottomIndex + 5;
 
   useEffect(() => {
-    Animated.spring(navIndicatorX, {
-      toValue: navPadding + navItemWidth * activeBottomIndex + navItemWidth / 2 - NAV_LINE_WIDTH / 2,
-      useNativeDriver: true,
-      damping: 18,
-      stiffness: 180,
-      mass: 0.7,
-    }).start();
-  }, [activeBottomIndex, navIndicatorX, navItemWidth]);
+    Animated.parallel([
+      Animated.spring(navIndicatorX, {
+        toValue: navPadding + navItemWidth * activeBottomIndex + navItemWidth / 2 - NAV_LINE_WIDTH / 2,
+        useNativeDriver: true,
+        damping: 18,
+        stiffness: 180,
+        mass: 0.7,
+      }),
+      Animated.spring(navPillX, {
+        toValue: navPillTargetX,
+        useNativeDriver: true,
+        damping: 15,
+        stiffness: 145,
+        mass: 0.82,
+      }),
+    ]).start();
+  }, [activeBottomIndex, navIndicatorX, navItemWidth, navPillTargetX, navPillX]);
 
   useEffect(() => {
     if (viewMode !== 'admin') return;
-    Animated.spring(adminNavIndicatorX, {
-      toValue: navPadding + navItemWidth * activeBottomIndex + navItemWidth / 2 - NAV_LINE_WIDTH / 2,
-      useNativeDriver: true,
-      damping: 18,
-      stiffness: 180,
-      mass: 0.7,
-    }).start();
-  }, [activeBottomIndex, adminNavIndicatorX, navItemWidth, viewMode]);
+    Animated.parallel([
+      Animated.spring(adminNavIndicatorX, {
+        toValue: navPadding + navItemWidth * activeBottomIndex + navItemWidth / 2 - NAV_LINE_WIDTH / 2,
+        useNativeDriver: true,
+        damping: 18,
+        stiffness: 180,
+        mass: 0.7,
+      }),
+      Animated.spring(adminNavPillX, {
+        toValue: navPillTargetX,
+        useNativeDriver: true,
+        damping: 15,
+        stiffness: 145,
+        mass: 0.82,
+      }),
+    ]).start();
+  }, [activeBottomIndex, adminNavIndicatorX, adminNavPillX, navItemWidth, navPillTargetX, viewMode]);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -559,7 +583,39 @@ function AppContent() {
         ) : null}
 
         <View style={styles.bottomNav}>
-            <View pointerEvents="none" style={styles.bottomNavBg} />
+            <View pointerEvents="none" style={styles.bottomNavShield} />
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(38,42,50,0.88)', 'rgba(18,23,31,0.90)', 'rgba(2,8,15,0.93)']}
+              locations={[0, 0.30, 1]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.bottomNavBg}
+            />
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(255,255,255,0.34)', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={styles.bottomNavGlass}
+            />
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.navLiquidPill,
+                {
+                  width: navPillWidth,
+                  transform: [{ translateX: viewMode === 'admin' ? adminNavPillX : navPillX }],
+                },
+              ]}
+            >
+              <LinearGradient
+                colors={['rgba(249,115,22,0.34)', 'rgba(251,146,60,0.16)', 'rgba(255,255,255,0.03)']}
+                start={{ x: 0.05, y: 0 }}
+                end={{ x: 0.95, y: 1 }}
+                style={styles.navLiquidFill}
+              />
+            </Animated.View>
             {viewMode === 'admin' ? (
               <>
                 <Animated.View
@@ -572,7 +628,7 @@ function AppContent() {
                       <Ionicons
                         name={(item.active ? item.icon : `${item.icon}-outline`) as any}
                         size={NAV_ICON_SIZE}
-                        color={item.active ? colors.orange : 'rgba(226,232,240,0.45)'}
+                        color={item.active ? colors.orange : 'rgba(226,232,240,0.58)'}
                         style={styles.navIcon}
                       />
                       <Text style={[styles.navText, styles.navTextAdmin, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
@@ -590,7 +646,7 @@ function AppContent() {
                       <Ionicons
                         name={(item.active ? item.icon : `${item.icon}-outline`) as any}
                         size={NAV_ICON_SIZE}
-                        color={item.active ? colors.orange : 'rgba(226,232,240,0.50)'}
+                        color={item.active ? colors.orange : 'rgba(226,232,240,0.60)'}
                         style={styles.navIcon}
                       />
                       <Text style={[styles.navText, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
@@ -827,20 +883,36 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+    left: 18,
+    right: 18,
+    bottom: 12,
     zIndex: 60,
     elevation: 60,
-    transform: [{ translateY: 18 }],
-    height: 78,
-    paddingTop: 10,
-    paddingBottom: 18,
-    paddingHorizontal: 8,
+    height: 76,
+    paddingTop: 9,
+    paddingBottom: 11,
+    paddingHorizontal: 7,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(2,8,15,0.33)',
+    borderRadius: 38,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.20)',
+    shadowColor: '#000000',
+    shadowOpacity: 0.58,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 14 },
+  },
+  bottomNavShield: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(2,8,15,0.13)',
+    zIndex: 0,
   },
   bottomNavBg: {
     position: 'absolute',
@@ -848,23 +920,47 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: 'rgba(2,8,15,0.98)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(125,211,252,0.12)',
-    shadowColor: '#000000',
-    shadowOpacity: 0.34,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: -6 },
-    elevation: 18,
-    zIndex: 0,
+    zIndex: 1,
+  },
+  bottomNavGlass: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 34,
+    zIndex: 2,
+  },
+  navLiquidPill: {
+    position: 'absolute',
+    left: 0,
+    top: 9,
+    bottom: 11,
+    borderRadius: 30,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(249,115,22,0.42)',
+    backgroundColor: 'rgba(249,115,22,0.08)',
+    shadowColor: colors.orange,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    zIndex: 3,
+  },
+  navLiquidFill: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
   },
   navItem: {
     flex: 1,
-    height: 50,
+    height: 54,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    zIndex: 2,
+    zIndex: 5,
+    borderRadius: 28,
   },
   navItemContent: {
     alignItems: 'center',
@@ -880,31 +976,33 @@ const styles = StyleSheet.create({
     top: NAV_LINE_TOP,
     left: 0,
     width: NAV_LINE_WIDTH,
-    height: 2,
+    height: 0,
     borderRadius: 999,
-    backgroundColor: colors.orange,
+    backgroundColor: 'transparent',
     shadowColor: colors.orange,
-    shadowOpacity: 0.65,
-    shadowRadius: 8,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 3 },
-    zIndex: 3,
+    opacity: 0,
+    zIndex: 6,
   },
   navSlidingLine: {
     position: 'absolute',
     top: NAV_LINE_TOP,
     left: 0,
     width: NAV_LINE_WIDTH,
-    height: 2,
+    height: 0,
     borderRadius: 999,
-    backgroundColor: colors.orange,
+    backgroundColor: 'transparent',
     shadowColor: colors.orange,
-    shadowOpacity: 0.65,
-    shadowRadius: 8,
+    shadowOpacity: 0,
+    shadowRadius: 0,
     shadowOffset: { width: 0, height: 3 },
-    zIndex: 3,
+    opacity: 0,
+    zIndex: 6,
   },
   navText: {
-    color: 'rgba(226,232,240,0.48)',
+    color: 'rgba(226,232,240,0.62)',
     fontWeight: '600',
     fontSize: 10,
     lineHeight: 12,
