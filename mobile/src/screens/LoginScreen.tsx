@@ -1,13 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
-import { AuthUser, getApiErrorMessage } from '../services/api';
-import { login as loginRequest, register as registerRequest, forgotPassword as forgotPasswordRequest } from '../services/auth';
+import { AuthUser, getApiErrorMessage, setAuthTokens } from '../services/api';
+import { login as loginRequest, register as registerRequest, forgotPassword as forgotPasswordRequest, loginWithApple } from '../services/auth';
 import { getBiometricAvailability, saveBiometricLogin, signInWithBiometrics } from '../services/biometricAuth';
 import { GradientButton } from '../components/GradientButton';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://ticketsystembackend.up.railway.app/api';
+const TOKENS_KEY = 'lp_auth_tokens';
+const USER_KEY_STORE = 'lp_auth_user';
 
 type Props = {
   onSignIn: (user: AuthUser) => void;
@@ -166,6 +173,70 @@ export function LoginScreen({ onSignIn }: Props) {
         },
       ],
     );
+  };
+
+  const completeOAuthLogin = async (url: string) => {
+    const parsed = new URL(url);
+    const token = parsed.searchParams.get('token');
+    const refreshToken = parsed.searchParams.get('refreshToken');
+    if (!token || !refreshToken) return;
+
+    setAuthTokens(token, refreshToken);
+    await AsyncStorage.setItem(TOKENS_KEY, JSON.stringify({ accessToken: token, refreshToken }));
+    const { apiGet } = await import('../services/api');
+    const user = await apiGet<AuthUser>('/auth/profile');
+    await AsyncStorage.setItem(USER_KEY_STORE, JSON.stringify(user));
+    onSignIn(user);
+  };
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    try {
+      const url = `${API_URL}/auth/google?platform=mobile`;
+      const result = await WebBrowser.openAuthSessionAsync(url, 'lpticket://login/success');
+      if (result.type === 'success' && result.url) {
+        await completeOAuthLogin(result.url);
+      }
+    } catch {
+      setError(t('No pudimos conectar con Google.', 'Could not connect with Google.'));
+    }
+  };
+
+  const handleFacebookLogin = async () => {
+    setError('');
+    try {
+      const url = `${API_URL}/auth/facebook?platform=mobile`;
+      const result = await WebBrowser.openAuthSessionAsync(url, 'lpticket://login/success');
+      if (result.type === 'success' && result.url) {
+        await completeOAuthLogin(result.url);
+      }
+    } catch {
+      setError(t('No pudimos conectar con Facebook.', 'Could not connect with Facebook.'));
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    setError('');
+    try {
+      const AppleAuthentication = await import('expo-apple-authentication');
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      const user = await loginWithApple({
+        identityToken: credential.identityToken!,
+        email: credential.email ?? undefined,
+        firstName: credential.fullName?.givenName ?? undefined,
+        lastName: credential.fullName?.familyName ?? undefined,
+      });
+      onSignIn(user);
+    } catch (err: any) {
+      if (err?.code !== 'ERR_REQUEST_CANCELED') {
+        setError(t('No pudimos conectar con Apple.', 'Could not connect with Apple.'));
+      }
+    }
   };
 
   const handleFaceId = async () => {
@@ -349,6 +420,29 @@ export function LoginScreen({ onSignIn }: Props) {
           style={[styles.button, loading ? styles.buttonDisabled : {}]}
           textStyle={styles.buttonText}
         />
+
+        <View style={styles.dividerRow}>
+          <View style={styles.divider} />
+          <Text style={styles.dividerText}>{t('O CONTINÚA CON', 'OR CONTINUE WITH')}</Text>
+          <View style={styles.divider} />
+        </View>
+
+        <View style={styles.socialGrid}>
+          <TouchableOpacity style={styles.socialButton} onPress={handleGoogleLogin} activeOpacity={0.82}>
+            <Ionicons name="logo-google" size={18} color="#FFFFFF" />
+            <Text style={styles.socialText}>Google</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.socialButton} onPress={handleFacebookLogin} activeOpacity={0.82}>
+            <Ionicons name="logo-facebook" size={18} color="#FFFFFF" />
+            <Text style={styles.socialText}>Facebook</Text>
+          </TouchableOpacity>
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity style={styles.socialButton} onPress={handleAppleLogin} activeOpacity={0.82}>
+              <Ionicons name="logo-apple" size={18} color="#FFFFFF" />
+              <Text style={styles.socialText}>Apple</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={() => switchMode(isRegister ? 'login' : 'register')}>
           <Text style={styles.secondaryText}>
