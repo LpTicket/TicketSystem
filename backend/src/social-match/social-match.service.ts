@@ -33,6 +33,7 @@ type UpdateSocialMatchDto = {
 };
 
 const allowedInterests = new Set(Object.values(SocialMatchInterest));
+const socialMatchTicketStatuses = [TicketStatus.ACTIVE, TicketStatus.USED];
 
 @Injectable()
 export class SocialMatchService {
@@ -105,15 +106,11 @@ export class SocialMatchService {
         { eventId, receiverId: userId },
       ],
     });
-    // Only hide users with active (pending/accepted) connections; cancelled/declined can reappear
-    const activeConnections = existingConnections.filter(
-      (c) => c.status === SocialMatchConnectionStatus.PENDING || c.status === SocialMatchConnectionStatus.ACCEPTED,
-    );
-    const connectedUserIds = new Set(activeConnections.flatMap((connection) => [connection.requesterId, connection.receiverId]));
+    const connectedUserIds = new Set(existingConnections.flatMap((connection) => [connection.requesterId, connection.receiverId]));
 
     // Get ALL other ticket holders for this event
     const tickets = await this.ticketRepo.find({
-      where: { eventId, status: TicketStatus.ACTIVE, userId: Not(userId) },
+      where: { eventId, status: In(socialMatchTicketStatuses), userId: Not(userId) },
       relations: ['user'],
     });
 
@@ -198,6 +195,36 @@ export class SocialMatchService {
       requesterId: userId,
       receiverId,
       status: SocialMatchConnectionStatus.PENDING,
+    }));
+  }
+
+  async dismissSuggestion(userId: string, eventId: string, receiverId: string) {
+    if (!receiverId || receiverId === userId) throw new BadRequestException('Selecciona un perfil válido.');
+
+    await this.ensureActivePreference(userId, eventId);
+    const receiverHasTicket = await this.userHasTicketForEvent(receiverId, eventId);
+    if (!receiverHasTicket) throw new ForbiddenException('El perfil no tiene entrada para este evento.');
+
+    const existing = await this.connectionRepo.findOne({
+      where: [
+        { eventId, requesterId: userId, receiverId },
+        { eventId, requesterId: receiverId, receiverId: userId },
+      ],
+    });
+
+    if (existing) {
+      if (existing.status === SocialMatchConnectionStatus.ACCEPTED) return existing;
+      existing.requesterId = userId;
+      existing.receiverId = receiverId;
+      existing.status = SocialMatchConnectionStatus.CANCELLED;
+      return this.connectionRepo.save(existing);
+    }
+
+    return this.connectionRepo.save(this.connectionRepo.create({
+      eventId,
+      requesterId: userId,
+      receiverId,
+      status: SocialMatchConnectionStatus.CANCELLED,
     }));
   }
 
@@ -297,7 +324,7 @@ export class SocialMatchService {
 
   private async getEligibleEvents(userId: string) {
     const tickets = await this.ticketRepo.find({
-      where: { userId, status: TicketStatus.ACTIVE },
+      where: { userId, status: In(socialMatchTicketStatuses) },
       relations: ['event'],
       order: { createdAt: 'DESC' },
     });
@@ -315,7 +342,7 @@ export class SocialMatchService {
   }
 
   private async userHasTicketForEvent(userId: string, eventId: string) {
-    const ticket = await this.ticketRepo.findOne({ where: { userId, eventId, status: TicketStatus.ACTIVE } });
+    const ticket = await this.ticketRepo.findOne({ where: { userId, eventId, status: In(socialMatchTicketStatuses) } });
     return Boolean(ticket);
   }
 
@@ -447,7 +474,7 @@ export class SocialMatchService {
     const eventId = event.id;
 
     // Get a section from the event
-    const adminTicket = await this.ticketRepo.findOne({ where: { userId: adminUserId, eventId, status: TicketStatus.ACTIVE } });
+    const adminTicket = await this.ticketRepo.findOne({ where: { userId: adminUserId, eventId, status: In(socialMatchTicketStatuses) } });
     const sectionId = adminTicket?.sectionId;
 
     const testUsers = [
@@ -464,7 +491,7 @@ export class SocialMatchService {
       if (!user) continue;
 
       // Create ticket if needed
-      const hasTicket = await this.ticketRepo.findOne({ where: { userId: user.id, eventId, status: TicketStatus.ACTIVE } });
+      const hasTicket = await this.ticketRepo.findOne({ where: { userId: user.id, eventId, status: In(socialMatchTicketStatuses) } });
       if (!hasTicket && sectionId) {
         const order = await this.orderRepo.save(this.orderRepo.create({ userId: user.id, eventId, subtotal: 0, total: 0, ticketCount: 1, status: 'paid' as any }));
         const code = 'SMTEST' + Math.random().toString(36).substring(2, 8).toUpperCase();

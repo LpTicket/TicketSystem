@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -43,7 +43,7 @@ type Connection = {
   id: string;
   eventId: string;
   eventTitle: string;
-  status: string;
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   direction: 'incoming' | 'outgoing';
   otherUserName: string;
   profile: { fullName: string; industry: string | null; interests: string[]; instagram: string | null; photos: string[] } | null;
@@ -84,7 +84,7 @@ const DEFAULT_PREF: Preference = {
 const PREVIEW_EVENT_ID = '__social_match_preview__';
 const PREVIEW_PREF_KEY = 'lp_social_match_preview_pref';
 
-export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
+export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | 'messages'; onComposerFocus?: () => void }) {
   const { lang, t } = useLanguage();
   const [eligibleEvents, setEligibleEvents] = useState<EligibleEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -100,16 +100,18 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [sendingMsg, setSendingMsg] = useState(false);
   const [requesting, setRequesting] = useState('');
+  const [dismissing, setDismissing] = useState('');
   const [editInterests, setEditInterests] = useState<string[]>([]);
   const [editIndustry, setEditIndustry] = useState('');
   const [editInstagram, setEditInstagram] = useState('');
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const photoPreviewAnim = useRef(new Animated.Value(0)).current;
+  const messageScrollRef = useRef<ScrollView>(null);
 
   const hasEligibleEvent = eligibleEvents.length > 0;
   const currentPref = prefMap[selectedEventId] ?? DEFAULT_PREF;
   const activeConnection = connections.find((c) => c.id === activeChatId);
-  const visibleConnections = connections.filter((c) => c.status === 'PENDING' || c.status === 'ACCEPTED');
+  const visibleConnections = connections.filter((c) => c.status === 'pending' || c.status === 'accepted');
   const selectedEvent = eligibleEvents.find((e) => e.id === selectedEventId);
   const myPhotos = (currentPref.photos || []).filter(Boolean);
   const industryPlaceholder = t('Música, finanzas, bienes raíces...', 'Music, finance, real estate...') || (lang === 'es' ? 'Música, finanzas, bienes raíces...' : 'Music, finance, real estate...');
@@ -151,6 +153,51 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
     else openPhotoPreview(photo);
   };
 
+  const loadSocialMatch = useCallback(async (showLoader = false, silent = false) => {
+    if (showLoader) setLoading(true);
+    try {
+      const data = await apiGet<{
+        eligibleEvents: EligibleEvent[];
+        preferences: Preference[];
+        connections: Connection[];
+      }>('/social-match/me');
+      const events = data.eligibleEvents || [];
+      setEligibleEvents(events);
+      setConnections(data.connections || []);
+      const map: Record<string, Preference> = {};
+      for (const pref of data.preferences || []) map[pref.eventId] = pref;
+      if (events.length === 0) {
+        try {
+          const stored = await AsyncStorage.getItem(PREVIEW_PREF_KEY);
+          if (stored) map[PREVIEW_EVENT_ID] = { ...DEFAULT_PREF, ...JSON.parse(stored), eventId: PREVIEW_EVENT_ID, isActive: false };
+        } catch {
+          map[PREVIEW_EVENT_ID] = { ...DEFAULT_PREF, eventId: PREVIEW_EVENT_ID };
+        }
+      }
+      setPrefMap(map);
+      const firstId = events[0]?.id || PREVIEW_EVENT_ID;
+      setSelectedEventId((current) => (current && (current === PREVIEW_EVENT_ID || events.some((event) => event.id === current)) ? current : firstId));
+      if (firstId && map[firstId]) {
+        setEditInterests(map[firstId].interests || []);
+        setEditIndustry(map[firstId].industry || '');
+        setEditInstagram(map[firstId].instagram || '');
+      }
+    } catch (err: any) {
+      if (!silent) Alert.alert('Error', err?.message || 'Could not load Social Match');
+    } finally {
+      if (showLoader) setLoading(false);
+    }
+  }, []);
+
+  const loadMessages = useCallback(async (connectionId: string, silent = false) => {
+    try {
+      const data = await apiGet<{ messages: Message[] }>(`/social-match/connections/${connectionId}/messages`);
+      setMessages(data.messages || []);
+    } catch {
+      if (!silent) setMessages([]);
+    }
+  }, []);
+
   useEffect(() => {
     if (expandedPhoto && !myPhotos.includes(expandedPhoto)) closePhotoPreview();
   }, [expandedPhoto, myPhotos]);
@@ -158,40 +205,18 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
   // Load profile on mount
   useEffect(() => {
     (async () => {
-      try {
-        const data = await apiGet<{
-          eligibleEvents: EligibleEvent[];
-          preferences: Preference[];
-          connections: Connection[];
-        }>('/social-match/me');
-        const events = data.eligibleEvents || [];
-        setEligibleEvents(events);
-        setConnections(data.connections || []);
-        const map: Record<string, Preference> = {};
-        for (const pref of data.preferences || []) map[pref.eventId] = pref;
-        if (events.length === 0) {
-          try {
-            const stored = await AsyncStorage.getItem(PREVIEW_PREF_KEY);
-            if (stored) map[PREVIEW_EVENT_ID] = { ...DEFAULT_PREF, ...JSON.parse(stored), eventId: PREVIEW_EVENT_ID, isActive: false };
-          } catch {
-            map[PREVIEW_EVENT_ID] = { ...DEFAULT_PREF, eventId: PREVIEW_EVENT_ID };
-          }
-        }
-        setPrefMap(map);
-        const firstId = events[0]?.id || PREVIEW_EVENT_ID;
-        setSelectedEventId(firstId);
-        if (firstId && map[firstId]) {
-          setEditInterests(map[firstId].interests || []);
-          setEditIndustry(map[firstId].industry || '');
-          setEditInstagram(map[firstId].instagram || '');
-        }
-      } catch (err: any) {
-        Alert.alert('Error', err?.message || 'Could not load Social Match');
-      } finally {
-        setLoading(false);
-      }
+      await loadSocialMatch(true);
     })();
-  }, []);
+  }, [loadSocialMatch]);
+
+  useEffect(() => {
+    if (tab !== 'messages') return;
+    loadSocialMatch(false, true);
+    const interval = setInterval(() => {
+      loadSocialMatch(false, true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [loadSocialMatch, tab]);
 
   // When event changes: sync edit fields + load suggestions
   useEffect(() => {
@@ -208,15 +233,16 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
   // Load messages when chat opens
   useEffect(() => {
     if (!activeChatId) { setMessages([]); return; }
-    (async () => {
-      try {
-        const data = await apiGet<{ messages: Message[] }>(`/social-match/connections/${activeChatId}/messages`);
-        setMessages(data.messages || []);
-      } catch {
-        setMessages([]);
-      }
-    })();
-  }, [activeChatId]);
+    loadMessages(activeChatId);
+  }, [activeChatId, loadMessages]);
+
+  useEffect(() => {
+    if (tab !== 'messages' || !activeChatId) return;
+    const interval = setInterval(() => {
+      loadMessages(activeChatId, true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [activeChatId, loadMessages, tab]);
 
   const loadSuggestions = async (eventId: string) => {
     try {
@@ -278,7 +304,12 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
   };
 
   const saveEditedPref = () => {
-    savePref({ interests: editInterests, industry: editIndustry || null, instagram: editInstagram || null }, true);
+    savePref({
+      interests: editInterests,
+      industry: editIndustry || null,
+      instagram: editInstagram || null,
+      isActive: hasEligibleEvent && editInterests.length > 0 ? true : currentPref.isActive,
+    }, true);
   };
 
   const savePreviewPhotos = async (photos: string[]) => {
@@ -355,10 +386,24 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
     }
   };
 
-  const handleUpdateConnection = async (id: string, status: 'ACCEPTED' | 'DECLINED' | 'CANCELLED') => {
+  const handleDismissSuggestion = async (receiverId: string) => {
+    if (!selectedEventId || dismissing) return;
+    setDismissing(receiverId);
+    setSuggestions((prev) => prev.filter((s) => s.userId !== receiverId));
+    try {
+      await apiPost('/social-match/suggestions/dismiss', { eventId: selectedEventId, receiverId });
+    } catch (err: any) {
+      await loadSuggestions(selectedEventId);
+      Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo ocultar el perfil', 'Could not hide profile'));
+    } finally {
+      setDismissing('');
+    }
+  };
+
+  const handleUpdateConnection = async (id: string, status: 'accepted' | 'declined' | 'cancelled') => {
     const prev = connections.find((c) => c.id === id);
     if (!prev) return;
-    if (status === 'DECLINED' || status === 'CANCELLED') {
+    if (status === 'declined' || status === 'cancelled') {
       setConnections((current) => current.filter((c) => c.id !== id));
     } else {
       setConnections((current) => current.map((c) => c.id === id ? { ...c, status } : c));
@@ -598,33 +643,51 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
           {suggestions.length === 0 && (
             <Text style={styles.emptyCopy}>{t('Sin sugerencias por ahora.', 'No suggestions yet.')}</Text>
           )}
-          {suggestions.map((suggestion, index) => (
-            <View key={`${suggestion.userId || 'suggestion'}-${index}`} style={styles.suggestionCard}>
-              <View style={styles.suggestionTop}>
-                <View style={styles.scoreBadge}><Text style={styles.scoreText}>{suggestion.score}%</Text></View>
-                <View style={styles.suggestionCopy}>
-                  <Text style={styles.suggestionName} numberOfLines={1}>{suggestion.displayName}</Text>
-                  <Text style={styles.suggestionMeta} numberOfLines={1}>{suggestion.sharedInterests.length} {t('intereses en común', 'shared interests')}</Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.connectButton, requesting === suggestion.userId && { opacity: 0.6 }]}
-                  onPress={() => handleRequestConnection(suggestion.userId)}
-                  disabled={!!requesting}
-                >
-                  <Text style={styles.connectText}>{requesting === suggestion.userId ? '...' : t('SOLICITAR', 'REQUEST')}</Text>
-                </TouchableOpacity>
-              </View>
-              {suggestion.sharedInterests.length > 0 && (
-                <View style={styles.tagRow}>
-                  {suggestion.sharedInterests.map((tag, tagIndex) => (
-                    <View key={`${tag}-${tagIndex}`} style={styles.tag}>
-                      <Text style={styles.tagText}>{tag.replace(/_/g, ' ')}</Text>
+          {suggestions.length > 0 && (
+            <ScrollView
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={suggestions.length > 3}
+              contentContainerStyle={styles.suggestionsContent}
+              style={styles.suggestionsScroll}
+            >
+              {suggestions.map((suggestion, index) => (
+                <View key={`${suggestion.userId || 'suggestion'}-${index}`} style={styles.suggestionCard}>
+                  <View style={styles.suggestionTop}>
+                    <View style={styles.scoreBadge}><Text style={styles.scoreText}>{suggestion.score}%</Text></View>
+                    <View style={styles.suggestionCopy}>
+                      <Text style={styles.suggestionName} numberOfLines={1}>{suggestion.displayName}</Text>
+                      <Text style={styles.suggestionMeta} numberOfLines={1}>{suggestion.sharedInterests.length} {t('intereses en común', 'shared interests')}</Text>
                     </View>
-                  ))}
+                    <View style={styles.suggestionActions}>
+                      <TouchableOpacity
+                        style={[styles.dismissButton, dismissing === suggestion.userId && { opacity: 0.6 }]}
+                        onPress={() => handleDismissSuggestion(suggestion.userId)}
+                        disabled={!!dismissing}
+                      >
+                        <FontAwesome5 name="times" size={14} color="#F8FAFC" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.connectButton, requesting === suggestion.userId && { opacity: 0.6 }]}
+                        onPress={() => handleRequestConnection(suggestion.userId)}
+                        disabled={!!requesting}
+                      >
+                        <Text style={styles.connectText}>{requesting === suggestion.userId ? '...' : t('SOLICITAR', 'REQUEST')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  {suggestion.sharedInterests.length > 0 && (
+                    <View style={styles.tagRow}>
+                      {suggestion.sharedInterests.map((tag, tagIndex) => (
+                        <View key={`${tag}-${tagIndex}`} style={styles.tag}>
+                          <Text style={styles.tagText}>{tag.replace(/_/g, ' ')}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
-          ))}
+              ))}
+            </ScrollView>
+          )}
         </View>
       )}
       </>
@@ -646,22 +709,22 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
               <Text style={styles.connectionName}>{connection.otherUserName}</Text>
               <Text style={styles.connectionMeta}>{connection.eventTitle} - {connection.status}</Text>
             </View>
-            {connection.status === 'PENDING' && connection.direction === 'incoming' && (
+            {connection.status === 'pending' && connection.direction === 'incoming' && (
               <View style={styles.connectionActions}>
-                <TouchableOpacity onPress={() => handleUpdateConnection(connection.id, 'ACCEPTED')} style={styles.acceptButton}>
+                <TouchableOpacity onPress={() => handleUpdateConnection(connection.id, 'accepted')} style={styles.acceptButton}>
                   <Text style={styles.acceptText}>{t('ACEPTAR', 'ACCEPT')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleUpdateConnection(connection.id, 'DECLINED')} style={styles.rejectButton}>
+                <TouchableOpacity onPress={() => handleUpdateConnection(connection.id, 'declined')} style={styles.rejectButton}>
                   <Text style={styles.rejectText}>No</Text>
                 </TouchableOpacity>
               </View>
             )}
-            {connection.status === 'PENDING' && connection.direction === 'outgoing' && (
-              <TouchableOpacity onPress={() => handleUpdateConnection(connection.id, 'CANCELLED')} style={styles.rejectButton}>
+            {connection.status === 'pending' && connection.direction === 'outgoing' && (
+              <TouchableOpacity onPress={() => handleUpdateConnection(connection.id, 'cancelled')} style={styles.rejectButton}>
                 <Text style={styles.rejectText}>{t('CANCELAR', 'CANCEL')}</Text>
               </TouchableOpacity>
             )}
-            {connection.status === 'ACCEPTED' && (
+            {connection.status === 'accepted' && (
               <TouchableOpacity onPress={() => setActiveChatId(connection.id)} style={styles.chatButton}>
                 <Text style={styles.chatText}>Chat</Text>
               </TouchableOpacity>
@@ -683,11 +746,20 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
           </View>
 
           <View style={styles.messagesBox}>
-            {messages.map((message, index) => (
-              <View key={`${message.id || 'message'}-${index}`} style={[styles.messageBubble, message.isMine ? styles.messageMine : styles.messageTheirs]}>
-                <Text style={[styles.messageText, message.isMine && styles.messageTextMine]}>{message.message}</Text>
-              </View>
-            ))}
+            <ScrollView
+              ref={messageScrollRef}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={messages.length > 5}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.messagesContent}
+              onContentSizeChange={() => messageScrollRef.current?.scrollToEnd({ animated: true })}
+            >
+              {messages.map((message, index) => (
+                <View key={`${message.id || 'message'}-${index}`} style={[styles.messageBubble, message.isMine ? styles.messageMine : styles.messageTheirs]}>
+                  <Text style={[styles.messageText, message.isMine && styles.messageTextMine]}>{message.message}</Text>
+                </View>
+              ))}
+            </ScrollView>
           </View>
 
           <View style={styles.chatComposer}>
@@ -698,6 +770,10 @@ export function SocialMatchMobile({ tab }: { tab?: 'social' | 'messages' }) {
               style={styles.chatInput}
               placeholder={messagePlaceholder}
               placeholderTextColor="#9CA3AF"
+              multiline
+              scrollEnabled
+              textAlignVertical="top"
+              onFocus={onComposerFocus}
             />
             <TouchableOpacity onPress={handleSendMessage} disabled={sendingMsg} style={[styles.sendButton, sendingMsg && { opacity: 0.6 }]}>
               <Text style={styles.sendText}>{t('ENVIAR', 'SEND')}</Text>
@@ -977,9 +1053,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.14)',
     backgroundColor: '#030B14',
     padding: 11,
-    marginBottom: 10,
     gap: 9,
   },
+  suggestionsScroll: { maxHeight: 344 },
+  suggestionsContent: { gap: 10, paddingBottom: 2 },
   suggestionTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   scoreBadge: {
     width: 46,
@@ -1009,6 +1086,17 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   tagText: { color: '#F8FAFC', fontSize: 9.5, fontWeight: '600', textAlign: 'center' },
+  suggestionActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  dismissButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: '#030B14',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   connectButton: { width: 92, backgroundColor: colors.orange, borderRadius: 14, paddingHorizontal: 8, height: 38, alignItems: 'center', justifyContent: 'center' },
   connectText: { color: '#FFFFFF', fontSize: 12, letterSpacing: 0, fontWeight: '600' },
   connectionCard: {
@@ -1038,26 +1126,41 @@ const styles = StyleSheet.create({
   chatName: { color: '#F8FAFC', fontSize: 20, fontWeight: '600' },
   closeChat: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, paddingVertical: 9 },
   closeChatText: { color: '#F8FAFC', fontSize: 10, fontWeight: '600' },
-  messagesBox: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 12, gap: 9, marginBottom: 12 },
+  messagesBox: {
+    maxHeight: 292,
+    minHeight: 150,
+    backgroundColor: '#030B14',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    padding: 12,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  messagesContent: { gap: 9, paddingBottom: 2 },
   messageBubble: { maxWidth: '82%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 },
   messageMine: { alignSelf: 'flex-end', backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(249,115,22,0.36)' },
   messageTheirs: { alignSelf: 'flex-start', backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
   messageText: { color: '#F8FAFC', fontSize: 13, fontWeight: '400', lineHeight: 18 },
   messageTextMine: { color: '#FFFFFF' },
-  chatComposer: { flexDirection: 'row', gap: 8 },
+  chatComposer: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   chatInput: {
     flex: 1,
-    height: 50,
+    minHeight: 50,
+    maxHeight: 92,
     borderRadius: 15,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
     backgroundColor: '#030B14',
     paddingHorizontal: 14,
+    paddingTop: 13,
+    paddingBottom: 10,
     color: '#F8FAFC',
     fontSize: 14,
     fontWeight: '600',
+    lineHeight: 21,
   },
-  sendButton: { width: 76, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
+  sendButton: { width: 76, minHeight: 50, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
   sendText: { color: '#FFFFFF', fontSize: 14, letterSpacing: 0, fontWeight: '600' },
   emptyCard: { backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', padding: 24, alignItems: 'center' },
   emptyIcon: { width: 60, height: 60, borderRadius: 20, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },

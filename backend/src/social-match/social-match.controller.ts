@@ -42,6 +42,11 @@ export class SocialMatchController {
     return this.socialMatchService.requestConnection(req.user.id, dto.eventId, dto.receiverId);
   }
 
+  @Post('suggestions/dismiss')
+  dismissSuggestion(@Request() req: any, @Body() dto: { eventId: string; receiverId: string }) {
+    return this.socialMatchService.dismissSuggestion(req.user.id, dto.eventId, dto.receiverId);
+  }
+
   @Put('connections/:connectionId')
   updateConnection(
     @Request() req: any,

@@ -14,7 +14,7 @@ type Props = {
   suggestions: SocialMatchSuggestion[];
   lang: 'es' | 'en';
   onConnect: (userId: string) => Promise<void>;
-  onSkip?: (userId: string) => void;
+  onSkip?: (userId: string) => Promise<void> | void;
 };
 
 export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip }: Props) {
@@ -45,7 +45,7 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
       if (action === 'connect') {
         await onConnect(currentCard.userId);
       } else {
-        onSkip?.(currentCard.userId);
+        await onSkip?.(currentCard.userId);
       }
     } catch {
       // handled by parent

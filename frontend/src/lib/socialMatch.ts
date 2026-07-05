@@ -87,6 +87,11 @@ export async function requestSocialMatchConnection(eventId: string, receiverId: 
   return data;
 }
 
+export async function dismissSocialMatchSuggestion(eventId: string, receiverId: string) {
+  const { data } = await api.post('/social-match/suggestions/dismiss', { eventId, receiverId });
+  return data;
+}
+
 export async function updateSocialMatchConnection(connectionId: string, status: 'accepted' | 'declined' | 'cancelled') {
   const { data } = await api.put(`/social-match/connections/${connectionId}`, { status });
   return data;

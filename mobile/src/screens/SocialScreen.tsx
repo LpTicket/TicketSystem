@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SocialMatchMobile } from '../components/profile/SocialMatchMobile';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -28,6 +28,13 @@ export function SocialScreen({ scrollToTopSignal = 0 }: Props) {
       Animated.spring(pillX, { toValue: layout.x, useNativeDriver: false, damping: 22, stiffness: 300, mass: 0.6 }),
       Animated.spring(pillW, { toValue: layout.width, useNativeDriver: false, damping: 22, stiffness: 300, mass: 0.6 }),
     ]).start();
+  };
+
+  const scrollChatComposerIntoView = () => {
+    const scrollToBottom = () => scrollRef.current?.scrollToEnd({ animated: true });
+    setTimeout(scrollToBottom, 120);
+    setTimeout(scrollToBottom, 360);
+    setTimeout(scrollToBottom, 620);
   };
 
   const onTabLayout = (tab: Tab, x: number, width: number) => {
@@ -90,23 +97,35 @@ export function SocialScreen({ scrollToTopSignal = 0 }: Props) {
         </View>
       </View>
 
-      <ScrollView ref={scrollRef} style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>Social match</Text>
-          <Text style={styles.title}>
-            {activeTab === 'social'
-              ? t('Conexiones del evento', 'Event connections')
-              : t('Mensajes', 'Messages')}
-          </Text>
-          <Text style={styles.subtitle}>
-            {activeTab === 'social'
-              ? t('Encuentra asistentes compatibles, solicitudes y chats de tus eventos.', 'Find compatible attendees, requests and chats from your events.')
-              : t('Tus solicitudes y conversaciones con otros asistentes.', 'Your requests and conversations with other attendees.')}
-          </Text>
-        </View>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={48}
+      >
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.content}
+        >
+          <View style={styles.header}>
+            <Text style={styles.eyebrow}>Social match</Text>
+            <Text style={styles.title}>
+              {activeTab === 'social'
+                ? t('Conexiones del evento', 'Event connections')
+                : t('Mensajes', 'Messages')}
+            </Text>
+            <Text style={styles.subtitle}>
+              {activeTab === 'social'
+                ? t('Encuentra asistentes compatibles, solicitudes y chats de tus eventos.', 'Find compatible attendees, requests and chats from your events.')
+                : t('Tus solicitudes y conversaciones con otros asistentes.', 'Your requests and conversations with other attendees.')}
+            </Text>
+          </View>
 
-        <SocialMatchMobile tab={activeTab} />
-      </ScrollView>
+          <SocialMatchMobile tab={activeTab} onComposerFocus={scrollChatComposerIntoView} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -158,6 +177,7 @@ const styles = StyleSheet.create({
   tabLabelActive: {
     color: '#FFFFFF',
   },
+  keyboardAvoider: { flex: 1 },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 132 },
   header: {

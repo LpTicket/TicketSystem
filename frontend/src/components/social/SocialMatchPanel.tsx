@@ -19,6 +19,7 @@ import {
   getMySocialMatch,
   getSocialMatchSuggestions,
   getSocialMatchMessages,
+  dismissSocialMatchSuggestion,
   requestSocialMatchConnection,
   saveSocialMatchPreference,
   sendSocialMatchMessage,
@@ -244,6 +245,19 @@ export default function SocialMatchPanel({ lang }: Props) {
     } catch (error) {
       console.error(error);
       toast.error(lang === 'es' ? 'No se pudo enviar la solicitud' : 'Could not send request');
+    }
+  };
+
+  const handleDismissSuggestion = async (receiverId: string) => {
+    if (!selectedEventId) return;
+    try {
+      await dismissSocialMatchSuggestion(selectedEventId, receiverId);
+      await loadSocialMatch();
+      await loadSuggestions(selectedEventId);
+    } catch (error) {
+      console.error(error);
+      toast.error(lang === 'es' ? 'No se pudo ocultar el perfil' : 'Could not hide profile');
+      throw error;
     }
   };
 
@@ -630,6 +644,9 @@ export default function SocialMatchPanel({ lang }: Props) {
                 lang={lang}
                 onConnect={async (userId) => {
                   await handleRequestConnection(userId);
+                }}
+                onSkip={async (userId) => {
+                  await handleDismissSuggestion(userId);
                 }}
               />
             ) : (
