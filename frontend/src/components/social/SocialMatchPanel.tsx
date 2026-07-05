@@ -694,9 +694,9 @@ export default function SocialMatchPanel({ lang }: Props) {
       </div>
 
       {activeChatConnection && (
-        <div className="fixed inset-0 z-[120] bg-slate-900/45 px-4 py-6 flex items-end sm:items-center justify-center">
-          <div className="w-full max-w-lg max-h-[86vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col">
-            <div className="flex items-center gap-3 px-4 py-3 bg-[#0A375A] text-white shrink-0">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-slate-950/78 px-4 py-6 backdrop-blur-md">
+          <div className="w-full max-w-lg max-h-[86vh] overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl shadow-black/50 flex flex-col">
+            <div className="flex items-center gap-3 px-4 py-3 bg-[#061f34] text-white shrink-0">
               <div className="w-10 h-10 rounded-2xl bg-white/15 overflow-hidden shrink-0 flex items-center justify-center text-sm font-black">
                 {activeChatConnection.profile?.photos?.[0]
                   ? <img src={activeChatConnection.profile.photos[0]} alt="" className="w-full h-full object-cover" />
@@ -717,11 +717,11 @@ export default function SocialMatchPanel({ lang }: Props) {
             </div>
 
             {(activeChatConnection.profile?.interests || []).length > 0 && (
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex gap-1.5 overflow-x-auto shrink-0">
+              <div className="px-4 py-3 border-b border-white/10 bg-slate-900 flex gap-1.5 overflow-x-auto shrink-0">
                 {(activeChatConnection.profile?.interests || []).map((id) => {
                   const opt = socialMatchInterestOptions.find((item) => item.id === id);
                   return (
-                    <span key={id} className="rounded-full bg-white border border-orange-100 px-2.5 py-1 text-[10px] font-bold text-[#F97316] whitespace-nowrap">
+                    <span key={id} className="rounded-full border border-orange-400/25 bg-orange-400/10 px-2.5 py-1 text-[10px] font-bold text-orange-200 whitespace-nowrap">
                       {opt ? (lang === 'es' ? opt.es : opt.en) : id}
                     </span>
                   );
@@ -729,18 +729,18 @@ export default function SocialMatchPanel({ lang }: Props) {
               </div>
             )}
 
-            <div className="min-h-[260px] max-h-[52vh] overflow-y-auto px-4 py-4 space-y-2 bg-gray-50/60">
+            <div className="min-h-[260px] max-h-[52vh] overflow-y-auto px-4 py-4 space-y-2 bg-slate-900/95">
               {loadingChat ? (
                 <div className="space-y-2">
-                  {[1, 2, 3].map((item) => <div key={item} className="h-9 bg-white rounded-2xl animate-pulse" />)}
+                  {[1, 2, 3].map((item) => <div key={item} className="h-9 bg-white/10 rounded-2xl animate-pulse" />)}
                 </div>
               ) : chatMessages.length === 0 ? (
                 <div className="h-48 flex flex-col items-center justify-center text-center">
-                  <HiOutlineChatAlt2 className="w-9 h-9 text-gray-200 mb-2" />
-                  <p className="text-sm font-semibold text-gray-400">
+                  <HiOutlineChatAlt2 className="w-9 h-9 text-white/20 mb-2" />
+                  <p className="text-sm font-semibold text-white/55">
                     {lang === 'es' ? 'Aún no hay mensajes.' : 'No messages yet.'}
                   </p>
-                  <p className="text-xs text-gray-300 mt-1">
+                  <p className="text-xs text-white/35 mt-1">
                     {lang === 'es' ? 'Empieza la conversación con tu match.' : 'Start the conversation with your match.'}
                   </p>
                 </div>
@@ -750,7 +750,7 @@ export default function SocialMatchPanel({ lang }: Props) {
                     <div className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-snug ${
                       message.isMine
                         ? 'bg-[#0A375A] text-white rounded-br-md'
-                        : 'bg-white text-gray-800 border border-gray-100 rounded-bl-md'
+                        : 'bg-white/10 text-white border border-white/10 rounded-bl-md'
                     }`}>
                       {message.message}
                     </div>
@@ -760,7 +760,7 @@ export default function SocialMatchPanel({ lang }: Props) {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="flex items-center gap-2 p-3 border-t border-gray-100 bg-white shrink-0">
+            <div className="flex items-center gap-2 p-3 border-t border-white/10 bg-slate-950 shrink-0">
               <input
                 value={chatDraft}
                 onChange={(event) => setChatDraft(event.target.value)}
@@ -771,7 +771,7 @@ export default function SocialMatchPanel({ lang }: Props) {
                   }
                 }}
                 placeholder={lang === 'es' ? 'Escribe un mensaje...' : 'Write a message...'}
-                className="flex-1 min-w-0 text-sm px-3 py-2.5 rounded-2xl bg-gray-50 border border-gray-200 outline-none focus:border-orange-300 transition-colors"
+                className="flex-1 min-w-0 text-sm px-3 py-2.5 rounded-2xl bg-white/10 border border-white/10 text-white placeholder:text-white/40 outline-none focus:border-orange-300 transition-colors"
               />
               <button
                 type="button"

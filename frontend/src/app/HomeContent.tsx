@@ -109,19 +109,20 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
     const activeBanners = initialBanners
       .filter((banner) => banner.isMarketingBanner)
       .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
-    const onceBanners = activeBanners.filter((banner) => (banner.displayMode || 'once') === 'once');
+    const every1Banners = activeBanners.filter((banner) => (banner.displayMode || 'once') === 'once');
     const every3Banners = activeBanners.filter((banner) => banner.displayMode === 'every3');
     const every5Banners = activeBanners.filter((banner) => banner.displayMode === 'every5');
     const mixedEvents: HomeBannerItem[] = [];
 
     eventBanners.forEach((event, index) => {
       mixedEvents.push(event);
+      every1Banners.forEach((banner) => mixedEvents.push(banner));
       if ((index + 1) % 3 === 0) every3Banners.forEach((banner) => mixedEvents.push(banner));
       if ((index + 1) % 5 === 0) every5Banners.forEach((banner) => mixedEvents.push(banner));
     });
 
-    if (!mixedEvents.length && onceBanners.length) return onceBanners;
-    return [...onceBanners, ...mixedEvents];
+    if (!mixedEvents.length) return activeBanners;
+    return mixedEvents;
   }, [initialEvents, initialBanners]);
 
   const bannerEvent = bannerEvents.length > 0 ? bannerEvents[currentBannerIdx % bannerEvents.length] : null;
