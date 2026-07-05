@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Polygon } from 'react-native-svg';
-import { EventCardSkeleton } from '../components/Skeleton';
+import { EventCardSkeleton, Skeleton } from '../components/Skeleton';
 import { GradientButton } from '../components/GradientButton';
 import { getPublicEvents } from '../services/events';
 import { apiGet, getImageUrl } from '../services/api';
@@ -71,6 +71,7 @@ type ApiHomeBanner = {
 type HomeCache = {
   events?: MobileEvent[];
   categories?: ApiCategory[];
+  banners?: ApiHomeBanner[];
   savedAt?: number;
 };
 
@@ -159,6 +160,8 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const categoryFrameX = useRef(new Animated.Value(0)).current;
   const heroFade = useRef(new Animated.Value(1)).current;
   const heroScale = useRef(new Animated.Value(1)).current;
+  const heroBaseFade = useRef(new Animated.Value(0)).current;
+  const heroBaseOut = useRef(new Animated.Value(1)).current;
   const heroCleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventSearchPlaceholder = t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...') || (lang === 'es' ? 'Conciertos, teatro, talleres...' : 'Concerts, theater, workshops...');
   const placeSearchPlaceholder = t('Ciudad o venue', 'City or venue') || (lang === 'es' ? 'Ciudad o venue' : 'City or venue');
@@ -330,6 +333,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
         const parsed: HomeCache = JSON.parse(cached);
         if (Array.isArray(parsed.events)) setEvents(parsed.events);
         if (Array.isArray(parsed.categories)) setRealCategories(parsed.categories);
+        if (Array.isArray(parsed.banners)) setHomeBanners(parsed.banners);
         if (Array.isArray(parsed.events) || Array.isArray(parsed.categories)) {
           setLoading(false);
         }
@@ -388,10 +392,12 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
     apiGet<ApiHomeBanner[]>('/marketing/banners/home')
       .then((banners) => {
         if (!mounted) return;
-        setHomeBanners(Array.isArray(banners) ? banners : []);
+        const nextBanners = Array.isArray(banners) ? banners : [];
+        setHomeBanners(nextBanners);
+        saveHomeCache({ banners: nextBanners });
       })
       .catch(() => {
-        if (mounted) setHomeBanners([]);
+        if (mounted) setHomeBanners((current) => (current.length > 0 ? current : []));
       });
 
     return () => {
@@ -438,6 +444,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
       }
       heroFade.stopAnimation();
       heroScale.stopAnimation();
+      heroBaseOut.stopAnimation();
       heroFade.setValue(0);
       heroScale.setValue(1.02);
       setIncomingHeroSnapshot(event);
@@ -446,18 +453,26 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
         Animated.parallel([
           Animated.timing(heroFade, {
             toValue: 1,
-            duration: 1200,
+            duration: 900,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
           Animated.timing(heroScale, {
             toValue: 1,
-            duration: 1200,
+            duration: 900,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(heroBaseOut, {
+            toValue: 0,
+            duration: 700,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
         ]).start(({ finished }) => {
           if (!finished) return;
+          heroBaseFade.setValue(1);
+          heroBaseOut.setValue(1);
           setHeroIndex(index);
           heroFade.setValue(1);
           heroScale.setValue(1);
@@ -518,11 +533,26 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
       <View pointerEvents="none" style={styles.bgGridA} />
       <View pointerEvents="none" style={styles.bgGridB} />
       <View style={[styles.heroWrap, { height: heroHeight }]}>
-        <Image
-          source={getHeroImageSource(heroEvent)}
-          style={[styles.heroImageLayer, !getHeroImageUrl(heroEvent) && styles.heroFallbackLogo]}
-          resizeMode="contain"
-        />
+        {!getHeroImageUrl(heroEvent) && !incomingHeroEvent && (
+          <Skeleton width="100%" height={heroHeight} borderRadius={0} />
+        )}
+        {!!getHeroImageUrl(heroEvent) && (
+          <Animated.Image
+            key={`base-${heroEvent?.id || heroIndex}`}
+            source={{ uri: getHeroImageUrl(heroEvent) }}
+            style={[styles.heroImageLayer, { opacity: Animated.multiply(heroBaseFade, heroBaseOut) }]}
+            resizeMode="contain"
+            onLoad={() => {
+              heroBaseFade.setValue(0);
+              Animated.timing(heroBaseFade, {
+                toValue: 1,
+                duration: 500,
+                easing: Easing.out(Easing.ease),
+                useNativeDriver: true,
+              }).start();
+            }}
+          />
+        )}
         {incomingHeroEvent ? (
         <Animated.Image
           key={`${incomingHeroEvent?.id || 'hero'}-${incomingHeroIndex}`}
