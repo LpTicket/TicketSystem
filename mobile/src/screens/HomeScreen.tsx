@@ -162,6 +162,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const heroScale = useRef(new Animated.Value(1)).current;
   const heroBaseFade = useRef(new Animated.Value(0)).current;
   const heroBaseOut = useRef(new Animated.Value(1)).current;
+  const heroBaseLoaded = useRef(false);
   const heroCleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventSearchPlaceholder = t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...') || (lang === 'es' ? 'Conciertos, teatro, talleres...' : 'Concerts, theater, workshops...');
   const placeSearchPlaceholder = t('Ciudad o venue', 'City or venue') || (lang === 'es' ? 'Ciudad o venue' : 'City or venue');
@@ -473,6 +474,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
           if (!finished) return;
           heroBaseFade.setValue(1);
           heroBaseOut.setValue(1);
+          heroBaseLoaded.current = false;
           setHeroIndex(index);
           heroFade.setValue(1);
           heroScale.setValue(1);
@@ -533,17 +535,20 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
       <View pointerEvents="none" style={styles.bgGridA} />
       <View pointerEvents="none" style={styles.bgGridB} />
       <View style={[styles.heroWrap, { height: heroHeight }]}>
-        {!getHeroImageUrl(heroEvent) && !incomingHeroEvent && (
+        {!getHeroImageUrl(heroEvent) && !getHeroImageUrl(incomingHeroEvent || undefined) && (
           <Skeleton width="100%" height={heroHeight} borderRadius={0} />
         )}
         {!!getHeroImageUrl(heroEvent) && (
           <Animated.Image
-            key={`base-${heroEvent?.id || heroIndex}`}
             source={{ uri: getHeroImageUrl(heroEvent) }}
             style={[styles.heroImageLayer, { opacity: Animated.multiply(heroBaseFade, heroBaseOut) }]}
             resizeMode="contain"
             onLoad={() => {
-              heroBaseFade.setValue(0);
+              if (heroBaseLoaded.current) {
+                heroBaseFade.setValue(1);
+                return;
+              }
+              heroBaseLoaded.current = true;
               Animated.timing(heroBaseFade, {
                 toValue: 1,
                 duration: 500,
@@ -553,15 +558,15 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
             }}
           />
         )}
-        {incomingHeroEvent ? (
+        {incomingHeroEvent && !!getHeroImageUrl(incomingHeroEvent) ? (
         <Animated.Image
-          key={`${incomingHeroEvent?.id || 'hero'}-${incomingHeroIndex}`}
-          source={getHeroImageSource(incomingHeroEvent)}
+          key={`incoming-${incomingHeroEvent.id || incomingHeroIndex}`}
+          source={{ uri: getHeroImageUrl(incomingHeroEvent) }}
           style={[
             styles.heroImageLayer,
             {
               opacity: heroFade,
-              transform: [{ scale: incomingHeroScale }],
+              transform: [{ scale: heroScale }],
             },
           ]}
           resizeMode="contain"
