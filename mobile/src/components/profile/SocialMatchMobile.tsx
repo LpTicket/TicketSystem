@@ -83,6 +83,19 @@ const DEFAULT_PREF: Preference = {
 };
 const PREVIEW_EVENT_ID = '__social_match_preview__';
 const PREVIEW_PREF_KEY = 'lp_social_match_preview_pref';
+const USER_KEY = 'lp_auth_user';
+const SOCIAL_MATCH_CACHE_PREFIX = 'lp_mobile_social_match_cache';
+
+async function getUserCacheKey(prefix: string) {
+  try {
+    const raw = await AsyncStorage.getItem(USER_KEY);
+    const user = raw ? JSON.parse(raw) : null;
+    const id = user?.id || user?.email || 'anonymous';
+    return `${prefix}:${id}`;
+  } catch {
+    return `${prefix}:anonymous`;
+  }
+}
 
 export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | 'messages'; onComposerFocus?: () => void }) {
   const { lang, t } = useLanguage();
@@ -107,6 +120,8 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const photoPreviewAnim = useRef(new Animated.Value(0)).current;
   const messageScrollRef = useRef<ScrollView>(null);
+  const socialMatchRequestRef = useRef(false);
+  const messagesRequestRef = useRef<string | null>(null);
 
   const hasEligibleEvent = eligibleEvents.length > 0;
   const currentPref = prefMap[selectedEventId] ?? DEFAULT_PREF;
@@ -153,8 +168,47 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
     else openPhotoPreview(photo);
   };
 
+  const loadSuggestions = useCallback(async (eventId: string) => {
+    try {
+      const data = await apiGet<{ suggestions: Suggestion[] }>(`/social-match/events/${eventId}/suggestions`);
+      setSuggestions(data.suggestions || []);
+      setLoadedSuggestionsFor(eventId);
+      return data.suggestions || [];
+    } catch {
+      setSuggestions([]);
+      return [];
+    }
+  }, []);
+
   const loadSocialMatch = useCallback(async (showLoader = false, silent = false) => {
-    if (showLoader) setLoading(true);
+    if (socialMatchRequestRef.current) return;
+    socialMatchRequestRef.current = true;
+    const cacheKey = await getUserCacheKey(SOCIAL_MATCH_CACHE_PREFIX);
+    if (showLoader) {
+      try {
+        const cached = await AsyncStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed?.eligibleEvents)) setEligibleEvents(parsed.eligibleEvents);
+          if (parsed?.prefMap && typeof parsed.prefMap === 'object') setPrefMap(parsed.prefMap);
+          if (Array.isArray(parsed?.connections)) setConnections(parsed.connections);
+          if (Array.isArray(parsed?.suggestions)) setSuggestions(parsed.suggestions);
+          if (typeof parsed?.selectedEventId === 'string') setSelectedEventId(parsed.selectedEventId);
+          if (typeof parsed?.loadedSuggestionsFor === 'string') setLoadedSuggestionsFor(parsed.loadedSuggestionsFor);
+          const cachedPref = parsed?.prefMap?.[parsed?.selectedEventId];
+          if (cachedPref) {
+            setEditInterests(cachedPref.interests || []);
+            setEditIndustry(cachedPref.industry || '');
+            setEditInstagram(cachedPref.instagram || '');
+          }
+          setLoading(false);
+        } else {
+          setLoading(true);
+        }
+      } catch {
+        setLoading(true);
+      }
+    }
     try {
       const data = await apiGet<{
         eligibleEvents: EligibleEvent[];
@@ -176,25 +230,52 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
       }
       setPrefMap(map);
       const firstId = events[0]?.id || PREVIEW_EVENT_ID;
-      setSelectedEventId((current) => (current && (current === PREVIEW_EVENT_ID || events.some((event) => event.id === current)) ? current : firstId));
-      if (firstId && map[firstId]) {
-        setEditInterests(map[firstId].interests || []);
-        setEditIndustry(map[firstId].industry || '');
-        setEditInstagram(map[firstId].instagram || '');
+      const nextSelectedEventId = selectedEventId && (selectedEventId === PREVIEW_EVENT_ID || events.some((event) => event.id === selectedEventId)) ? selectedEventId : firstId;
+      setSelectedEventId(nextSelectedEventId);
+      const nextPref = map[nextSelectedEventId] || map[firstId];
+      if (nextSelectedEventId && nextPref) {
+        setEditInterests(nextPref.interests || []);
+        setEditIndustry(nextPref.industry || '');
+        setEditInstagram(nextPref.instagram || '');
       }
+      let nextSuggestions: Suggestion[] = [];
+      let nextLoadedSuggestionsFor = '';
+      if (nextSelectedEventId && nextPref?.isActive && !nextPref?.invisibleMode && nextSelectedEventId !== PREVIEW_EVENT_ID) {
+        nextSuggestions = await loadSuggestions(nextSelectedEventId);
+        nextLoadedSuggestionsFor = nextSelectedEventId;
+      } else {
+        setSuggestions([]);
+        setLoadedSuggestionsFor('');
+      }
+      try {
+        await AsyncStorage.setItem(cacheKey, JSON.stringify({
+          eligibleEvents: events,
+          prefMap: map,
+          connections: data.connections || [],
+          suggestions: nextSuggestions,
+          selectedEventId: nextSelectedEventId,
+          loadedSuggestionsFor: nextLoadedSuggestionsFor,
+          savedAt: Date.now(),
+        }));
+      } catch {}
     } catch (err: any) {
       if (!silent) Alert.alert('Error', err?.message || 'Could not load Social Match');
     } finally {
+      socialMatchRequestRef.current = false;
       if (showLoader) setLoading(false);
     }
-  }, []);
+  }, [loadSuggestions, selectedEventId]);
 
   const loadMessages = useCallback(async (connectionId: string, silent = false) => {
+    if (messagesRequestRef.current === connectionId) return;
+    messagesRequestRef.current = connectionId;
     try {
       const data = await apiGet<{ messages: Message[] }>(`/social-match/connections/${connectionId}/messages`);
       setMessages(data.messages || []);
     } catch {
       if (!silent) setMessages([]);
+    } finally {
+      if (messagesRequestRef.current === connectionId) messagesRequestRef.current = null;
     }
   }, []);
 
@@ -228,7 +309,7 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
     if (pref?.isActive && !pref?.invisibleMode && loadedSuggestionsFor !== selectedEventId) {
       loadSuggestions(selectedEventId);
     }
-  }, [selectedEventId]);
+  }, [loadedSuggestionsFor, loadSuggestions, prefMap, selectedEventId]);
 
   // Load messages when chat opens
   useEffect(() => {
@@ -243,16 +324,6 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
     }, 5000);
     return () => clearInterval(interval);
   }, [activeChatId, loadMessages, tab]);
-
-  const loadSuggestions = async (eventId: string) => {
-    try {
-      const data = await apiGet<{ suggestions: Suggestion[] }>(`/social-match/events/${eventId}/suggestions`);
-      setSuggestions(data.suggestions || []);
-      setLoadedSuggestionsFor(eventId);
-    } catch {
-      setSuggestions([]);
-    }
-  };
 
   const savePref = async (updates: Partial<Preference>, showSavedMessage = false) => {
     if (!selectedEventId || savingPref) return false;
@@ -662,7 +733,7 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
                       <TouchableOpacity
                         style={[styles.dismissButton, dismissing === suggestion.userId && { opacity: 0.6 }]}
                         onPress={() => handleDismissSuggestion(suggestion.userId)}
-                        disabled={!!dismissing}
+                        disabled={dismissing === suggestion.userId}
                       >
                         <FontAwesome5 name="times" size={14} color="#F8FAFC" />
                       </TouchableOpacity>

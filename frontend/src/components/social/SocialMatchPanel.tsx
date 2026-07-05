@@ -250,14 +250,14 @@ export default function SocialMatchPanel({ lang }: Props) {
 
   const handleDismissSuggestion = async (receiverId: string) => {
     if (!selectedEventId) return;
+    const eventId = selectedEventId;
+    setSuggestions((current) => current.filter((suggestion) => suggestion.userId !== receiverId));
     try {
-      await dismissSocialMatchSuggestion(selectedEventId, receiverId);
-      await loadSocialMatch();
-      await loadSuggestions(selectedEventId);
+      await dismissSocialMatchSuggestion(eventId, receiverId);
     } catch (error) {
       console.error(error);
       toast.error(lang === 'es' ? 'No se pudo ocultar el perfil' : 'Could not hide profile');
-      throw error;
+      await loadSuggestions(eventId);
     }
   };
 

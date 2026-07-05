@@ -10,6 +10,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image, Keyboard, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Polygon } from 'react-native-svg';
@@ -29,6 +30,7 @@ const CATEGORY_CARD_GAP = 11;
 const HERO_PROGRESS_STEP = 15;
 const HERO_PROGRESS_ACTIVE_WIDTH = 16;
 const HERO_PROGRESS_DOT_WIDTH = 7;
+const HOME_CACHE_KEY = 'lp_mobile_home_cache';
 
 type Props = {
   onOpenEvent: (event: MobileEvent) => void;
@@ -64,6 +66,17 @@ type ApiHomeBanner = {
   displayMode?: string | null;
   sortOrder?: number | null;
   isActive?: boolean;
+};
+
+type HomeCache = {
+  events?: MobileEvent[];
+  categories?: ApiCategory[];
+  savedAt?: number;
+};
+
+type PendingHero = {
+  event: MobileEvent;
+  index: number;
 };
 
 function resolveHomeBannerImage(value?: string | null) {
@@ -133,6 +146,8 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const [homeBanners, setHomeBanners] = useState<ApiHomeBanner[]>([]);
   const [heroIndex, setHeroIndex] = useState(0);
   const [incomingHeroIndex, setIncomingHeroIndex] = useState<number | null>(null);
+  const [incomingHeroSnapshot, setIncomingHeroSnapshot] = useState<MobileEvent | null>(null);
+  const [pendingHero, setPendingHero] = useState<PendingHero | null>(null);
   const [query, setQuery] = useState('');
   const [place, setPlace] = useState('');
   const [category, setCategory] = useState('All');
@@ -212,7 +227,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   }, [homeBanners, heroEvents]);
   const safeHeroLength = Math.max(heroSlides.length, 1);
   const heroEvent = heroSlides[heroIndex % safeHeroLength] || events[0];
-  const incomingHeroEvent = incomingHeroIndex !== null ? heroSlides[incomingHeroIndex % safeHeroLength] : null;
+  const incomingHeroEvent = incomingHeroSnapshot;
   const heroHeight = Math.max(120, Math.round((width - 32) / 2.63));
   const heroProgressTrackWidth = HERO_PROGRESS_ACTIVE_WIDTH + (safeHeroLength - 1) * HERO_PROGRESS_STEP;
   const heroProgressWidth = Math.max(78, heroProgressTrackWidth + 16);
@@ -308,12 +323,37 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   useEffect(() => {
     let mounted = true;
 
+    const loadCachedHome = async () => {
+      try {
+        const cached = await AsyncStorage.getItem(HOME_CACHE_KEY);
+        if (!cached || !mounted) return;
+        const parsed: HomeCache = JSON.parse(cached);
+        if (Array.isArray(parsed.events)) setEvents(parsed.events);
+        if (Array.isArray(parsed.categories)) setRealCategories(parsed.categories);
+        if (Array.isArray(parsed.events) || Array.isArray(parsed.categories)) {
+          setLoading(false);
+        }
+      } catch {}
+    };
+
+    const saveHomeCache = async (updates: Partial<HomeCache>) => {
+      try {
+        const cached = await AsyncStorage.getItem(HOME_CACHE_KEY);
+        const previous = cached ? JSON.parse(cached) : {};
+        await AsyncStorage.setItem(HOME_CACHE_KEY, JSON.stringify({ ...previous, ...updates, savedAt: Date.now() }));
+      } catch {}
+    };
+
+    loadCachedHome();
+
     getPublicEvents()
       .then((items) => {
-        if (mounted) setEvents(items);
+        if (!mounted) return;
+        setEvents(items);
+        saveHomeCache({ events: items });
       })
       .catch(() => {
-        if (mounted) setEvents([]);
+        if (mounted) setEvents((current) => (current.length > 0 ? current : []));
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -322,10 +362,13 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
     const fetchCategories = () =>
       apiGet<ApiCategory[]>('/categories')
         .then((categoryItems) => {
-          if (mounted) setRealCategories(Array.isArray(categoryItems) ? categoryItems : []);
+          if (!mounted) return;
+          const nextCategories = Array.isArray(categoryItems) ? categoryItems : [];
+          setRealCategories(nextCategories);
+          saveHomeCache({ categories: nextCategories });
         })
         .catch(() => {
-          if (mounted) setRealCategories([]);
+          if (mounted) setRealCategories((current) => (current.length > 0 ? current : []));
         });
 
     fetchCategories();
@@ -381,13 +424,14 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const changeHero = (nextIndex: number) => {
     if (heroSlides.length <= 1) return;
     if (incomingHeroIndex !== null) return;
+    if (pendingHero) return;
 
     const normalizedIndex = ((nextIndex % heroSlides.length) + heroSlides.length) % heroSlides.length;
     if (normalizedIndex === heroIndex) return;
     const nextEvent = heroSlides[normalizedIndex];
     const nextImageUrl = getHeroImageUrl(nextEvent);
 
-    const showNextHero = () => {
+    const showNextHero = (event: MobileEvent, index: number) => {
       if (heroCleanupTimer.current) {
         clearTimeout(heroCleanupTimer.current);
         heroCleanupTimer.current = null;
@@ -396,7 +440,8 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
       heroScale.stopAnimation();
       heroFade.setValue(0);
       heroScale.setValue(1.02);
-      setIncomingHeroIndex(normalizedIndex);
+      setIncomingHeroSnapshot(event);
+      setIncomingHeroIndex(index);
       setTimeout(() => {
         Animated.parallel([
           Animated.timing(heroFade, {
@@ -413,23 +458,28 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
           }),
         ]).start(({ finished }) => {
           if (!finished) return;
-          setHeroIndex(normalizedIndex);
+          setHeroIndex(index);
           heroFade.setValue(1);
           heroScale.setValue(1);
           heroCleanupTimer.current = setTimeout(() => {
             setIncomingHeroIndex(null);
+            setIncomingHeroSnapshot(null);
             heroCleanupTimer.current = null;
-          }, 520);
+          }, 360);
         });
       }, 0);
     };
 
     if (nextImageUrl) {
+      setPendingHero({ event: nextEvent, index: normalizedIndex });
       Image.prefetch(nextImageUrl)
         .catch(() => false)
-        .finally(showNextHero);
+        .finally(() => {
+          setPendingHero(null);
+          showNextHero(nextEvent, normalizedIndex);
+        });
     } else {
-      showNextHero();
+      showNextHero(nextEvent, normalizedIndex);
     }
   };
 
@@ -651,7 +701,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
         </View>
       ) : null}
 
-      {!loading && filteredEvents.map((event, index) => (
+      {filteredEvents.map((event, index) => (
         <TouchableOpacity key={`${event.id || event.slug || event.title || 'event'}-${index}`} style={styles.eventCard} onPress={() => onOpenEvent(event)}>
           <View style={styles.eventPoster}>
             <Image source={getPosterImageSource(event)} style={styles.eventPosterImage} resizeMode="cover" />

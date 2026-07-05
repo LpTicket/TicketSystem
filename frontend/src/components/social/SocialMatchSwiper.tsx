@@ -45,7 +45,9 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
       if (action === 'connect') {
         await onConnect(currentCard.userId);
       } else {
-        await onSkip?.(currentCard.userId);
+        Promise.resolve(onSkip?.(currentCard.userId)).catch(() => {
+          // Parent surfaces the error if needed; the card should still feel instant.
+        });
       }
     } catch {
       // handled by parent

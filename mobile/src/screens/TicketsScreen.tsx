@@ -5,8 +5,9 @@
  * ES: Los tickets del comprador — lista los tickets comprados con códigos QR y
  *     acciones para añadir a wallet, compartir o reenviar el correo del ticket.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, Linking, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -15,6 +16,8 @@ import { TicketCardSkeleton } from '../components/Skeleton';
 import { GradientButton } from '../components/GradientButton';
 
 const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://www.lpticket.com').replace(/\/$/, '');
+const USER_KEY = 'lp_auth_user';
+const TICKETS_CACHE_PREFIX = 'lp_mobile_tickets_cache';
 
 type TicketStatus = 'active' | 'used' | 'cancelled' | string;
 
@@ -45,6 +48,17 @@ type TicketsResponse = {
 type Props = {
   scrollToTopSignal?: number;
 };
+
+async function getUserCacheKey(prefix: string) {
+  try {
+    const raw = await AsyncStorage.getItem(USER_KEY);
+    const user = raw ? JSON.parse(raw) : null;
+    const id = user?.id || user?.email || 'anonymous';
+    return `${prefix}:${id}`;
+  } catch {
+    return `${prefix}:anonymous`;
+  }
+}
 
 function statusMeta(status: TicketStatus, t: (es: string, en: string) => string) {
   if (status === 'active') return { label: t('Activo', 'Active'), bg: 'rgba(34,197,94,0.14)', color: '#86EFAC' };
@@ -97,25 +111,45 @@ export function TicketsScreen({ scrollToTopSignal = 0 }: Props) {
   const [loading, setLoading] = useState(true);
   const [resending, setResending] = useState<string | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
+  const loadTickets = useCallback(async (mountedRef: { current: boolean }) => {
+    const cacheKey = await getUserCacheKey(TICKETS_CACHE_PREFIX);
+    try {
+      const cached = await AsyncStorage.getItem(cacheKey);
+      if (cached && mountedRef.current) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed?.tickets)) {
+          setTickets(parsed.tickets);
+          setLoading(false);
+        }
+      }
+    } catch {}
 
-    apiGet<TicketsResponse>('/orders/my-tickets?page=1&limit=12')
-      .then((response) => {
-        if (!mounted) return;
-        setTickets(response.data || response.tickets || []);
-      })
-      .catch(() => {
-        if (mounted) setTickets([]);
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
+    try {
+      const response = await apiGet<TicketsResponse>('/orders/my-tickets?page=1&limit=12');
+      const nextTickets = response.data || response.tickets || [];
+      if (!mountedRef.current) return;
+      setTickets(nextTickets);
+      setLoading(false);
+      try {
+        await AsyncStorage.setItem(cacheKey, JSON.stringify({ tickets: nextTickets, savedAt: Date.now() }));
+      } catch {}
+    } catch {
+      if (!mountedRef.current) return;
+      setTickets((current) => {
+        if (current.length > 0) return current;
+        return [];
       });
-
-    return () => {
-      mounted = false;
-    };
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    const mountedRef = { current: true };
+    loadTickets(mountedRef);
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [loadTickets]);
 
   useEffect(() => {
     if (!scrollToTopSignal) return;
