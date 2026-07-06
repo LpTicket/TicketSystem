@@ -315,7 +315,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
           <Ionicons name="arrow-back" size={16} color="rgba(226,232,240,0.8)" />
           <Text style={st.backText}>{t('Eventos', 'Events')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={st.shareBtn} onPress={() => Share.share({ title: detail.title, message: `${detail.title}\nhttps://lpticket.com/events/${detail.slug || detail.id}` })}>
+        <TouchableOpacity style={st.shareBtn} onPress={() => Share.share({ title: detail.title, message: `${detail.title}\nhttps://www.lpticket.com/events/${detail.slug || detail.id}` })}>
           <Ionicons name="share-social-outline" size={18} color={colors.orange} />
         </TouchableOpacity>
       </View>

@@ -218,7 +218,7 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.shareBtn}
-          onPress={() => Share.share({ title: event.title, message: `${event.title}\nhttps://lpticket.com/events/${event.slug || event.id}` })}
+          onPress={() => Share.share({ title: event.title, message: `${event.title}\nhttps://www.lpticket.com/events/${event.slug || event.id}` })}
         >
           <Ionicons name="share-social-outline" size={18} color={colors.orange} />
         </TouchableOpacity>
