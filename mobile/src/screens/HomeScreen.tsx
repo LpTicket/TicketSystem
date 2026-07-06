@@ -44,6 +44,7 @@ type ApiCategory = {
   labelEn?: string;
   subtitleEs?: string | null;
   subtitleEn?: string | null;
+  icon?: string | null;
   imageData?: string | null;
   imageUrl?: string | null;
   isActive?: boolean;
@@ -54,6 +55,7 @@ type HomeCategory = {
   slug: string;
   label: string;
   subtitle: string;
+  icon: string;
   imageUrl: string;
 };
 
@@ -112,17 +114,6 @@ function SharePointIcon() {
   );
 }
 
-function categoryDesc(item: string, t: (es: string, en: string) => string) {
-  const s = item.toLowerCase();
-  if (item === 'All') return t('Explora todo ahora.', 'Explore everything now.');
-  if (/concert|concierto|music|música|musica|festival/.test(s)) return t('Música en vivo y shows.', 'Live music and shows.');
-  if (/sport|deporte|partido/.test(s)) return t('Vive cada partido.', 'Feel every game.');
-  if (/comed/.test(s)) return t('Risas y buen ambiente.', 'Laughs and good energy.');
-  if (/theat|teatro|arte|art|show/.test(s)) return t('Escena, arte y cultura.', 'Stage, art, and culture.');
-  if (/infantil|kids/.test(s)) return t('Planes para toda la familia.', 'Family-friendly plans.');
-  if (/network|negocio|business|vip|conf|conferencia/.test(s)) return t('Experiencias para conectar.', 'Experiences to connect.');
-  return t('Eventos seleccionados.', 'Curated events.');
-}
 
 function normalizeCategory(value?: string | null) {
   return (value || '')
@@ -261,8 +252,9 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
       slug: item.slug || item.labelEs || item.labelEn || 'category',
       label: lang === 'es' ? item.labelEs || item.labelEn || item.slug || '' : item.labelEn || item.labelEs || item.slug || '',
       subtitle: lang === 'es'
-        ? item.subtitleEs || item.subtitleEn || categoryDesc(item.slug || item.labelEs || '', t)
-        : item.subtitleEn || item.subtitleEs || categoryDesc(item.slug || item.labelEn || '', t),
+        ? item.subtitleEs || item.subtitleEn || ''
+        : item.subtitleEn || item.subtitleEs || '',
+      icon: item.icon || '🎫',
       imageUrl: getImageUrl(item.imageUrl || item.imageData || ''),
     }));
 
@@ -271,7 +263,8 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
         id: 'all',
         slug: 'All',
         label: t('Todos', 'All'),
-        subtitle: categoryDesc('All', t),
+        subtitle: lang === 'es' ? (allCategory?.subtitleEs || allCategory?.subtitleEn || 'Explora todo ahora.') : (allCategory?.subtitleEn || allCategory?.subtitleEs || 'Explore everything now.'),
+        icon: allCategory?.icon || '🎫',
         imageUrl: getImageUrl(allCategory?.imageUrl || allCategory?.imageData || ''),
       },
       ...liveCategories,
@@ -693,8 +686,9 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
                     </Animated.View>
                   )}
                   <View style={styles.catContent}>
+                    {!!item.icon && <Text style={styles.catIcon}>{item.icon}</Text>}
                     <Text style={styles.catTitle} numberOfLines={2}>{item.label}</Text>
-                    <Text style={styles.catDesc} numberOfLines={1}>{item.subtitle || categoryDesc(item.slug, t)}</Text>
+                    {!!item.subtitle && <Text style={styles.catDesc} numberOfLines={1}>{item.subtitle}</Text>}
                   </View>
                 </TouchableOpacity>
               );
@@ -870,8 +864,9 @@ const styles = StyleSheet.create({
   catImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', opacity: 0.72 },
   catImageActive: { opacity: 0.9 },
   catShine: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 4 },
-  catContent: { position: 'absolute', left: 8, right: 8, bottom: 8, gap: 3, zIndex: 5 },
-  catTitle: { color: '#FFFFFF', fontSize: 8.5, fontWeight: '600', lineHeight: 10.5, minHeight: 21 },
+  catContent: { position: 'absolute', left: 8, right: 8, bottom: 8, gap: 2, zIndex: 5 },
+  catIcon: { fontSize: 14, lineHeight: 17 },
+  catTitle: { color: '#FFFFFF', fontSize: 8.5, fontWeight: '600', lineHeight: 10.5 },
   catDesc: { color: 'rgba(255,255,255,0.76)', fontSize: 9, fontWeight: '600', lineHeight: 11 },
   emptyEvents: { marginHorizontal: 16, marginTop: 24, padding: 22, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   emptyEventsText: { color: 'rgba(226,232,240,0.72)', fontSize: 15, textAlign: 'center', lineHeight: 22 },
