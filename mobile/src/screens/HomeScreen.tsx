@@ -9,7 +9,7 @@
  *     en tiempo real.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image, Keyboard, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Image, Keyboard, Linking, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -67,6 +67,7 @@ type ApiHomeBanner = {
   bannerType?: string | null;
   displayMode?: string | null;
   sortOrder?: number | null;
+  linkUrl?: string | null;
   isActive?: boolean;
 };
 
@@ -200,6 +201,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
             currency: 'USD',
             minPrice: 0,
             isMarketingBanner: true,
+            bannerLinkUrl: banner.linkUrl || null,
           } as MobileEvent,
         };
       })
@@ -545,7 +547,20 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
       <View pointerEvents="none" style={styles.bgAccentBlue} />
       <View pointerEvents="none" style={styles.bgGridA} />
       <View pointerEvents="none" style={styles.bgGridB} />
-      <View style={[styles.heroWrap, { height: heroHeight }]}>
+      <TouchableOpacity
+        activeOpacity={0.92}
+        style={[styles.heroWrap, { height: heroHeight }]}
+        onPress={() => {
+          const current = incomingHeroEvent || heroEvent;
+          if (!current) return;
+          const link = (current as any).bannerLinkUrl;
+          if (link) {
+            Linking.openURL(link).catch(() => {});
+          } else if (!(current as any).isMarketingBanner) {
+            onOpenEvent(current);
+          }
+        }}
+      >
         {!getHeroImageUrl(heroEvent) && !getHeroImageUrl(incomingHeroEvent || undefined) && (
           <Skeleton width="100%" height={heroHeight} borderRadius={0} />
         )}
@@ -585,7 +600,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
           fadeDuration={0}
         />
         ) : null}
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.heroControls}>
         <TouchableOpacity style={styles.heroControlButton} onPress={goPrevHero}>
