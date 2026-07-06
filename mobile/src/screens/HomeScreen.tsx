@@ -164,6 +164,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const heroBaseOut = useRef(new Animated.Value(1)).current;
   const heroBaseLoaded = useRef(false);
   const heroCleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefetchedHeroImages = useRef(new Set<string>());
   const eventSearchPlaceholder = t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...') || (lang === 'es' ? 'Conciertos, teatro, talleres...' : 'Concerts, theater, workshops...');
   const placeSearchPlaceholder = t('Ciudad o venue', 'City or venue') || (lang === 'es' ? 'Ciudad o venue' : 'City or venue');
 
@@ -207,27 +208,29 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
             description: '',
             currency: 'USD',
             minPrice: 0,
+            isMarketingBanner: true,
           } as MobileEvent,
         };
       })
       .filter(Boolean) as { id: string; displayMode: string; event: MobileEvent }[];
 
-    const onceSlides = bannerSlides.filter((item) => item.displayMode === 'once').map((item) => item.event);
+    const every1 = bannerSlides.filter((item) => item.displayMode === 'once');
     const every3 = bannerSlides.filter((item) => item.displayMode === 'every3');
     const every5 = bannerSlides.filter((item) => item.displayMode === 'every5');
     const mixedEvents: MobileEvent[] = [];
 
     heroEvents.forEach((event, index) => {
       mixedEvents.push(event);
+      every1.forEach((item) => mixedEvents.push(item.event));
       if ((index + 1) % 3 === 0) every3.forEach((item) => mixedEvents.push(item.event));
       if ((index + 1) % 5 === 0) every5.forEach((item) => mixedEvents.push(item.event));
     });
 
-    if (!mixedEvents.length && onceSlides.length) {
-      return onceSlides;
+    if (!mixedEvents.length) {
+      return bannerSlides.map((item) => item.event);
     }
 
-    return [...onceSlides, ...mixedEvents];
+    return mixedEvents;
   }, [homeBanners, heroEvents]);
   const safeHeroLength = Math.max(heroSlides.length, 1);
   const heroEvent = heroSlides[heroIndex % safeHeroLength] || events[0];
@@ -236,7 +239,19 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const heroProgressTrackWidth = HERO_PROGRESS_ACTIVE_WIDTH + (safeHeroLength - 1) * HERO_PROGRESS_STEP;
   const heroProgressWidth = Math.max(78, heroProgressTrackWidth + 16);
   const activeHeroIndex = incomingHeroIndex ?? heroIndex;
-  const incomingHeroScale = Animated.multiply(heroScale, getHeroImageUrl(incomingHeroEvent || undefined) ? 1 : 0.88);
+  const incomingHeroTransform = (incomingHeroEvent as any)?.isMarketingBanner ? [] : [{ scale: heroScale }];
+
+  useEffect(() => {
+    const urls = Array.from(new Set(heroSlides.map((item) => getHeroImageUrl(item)).filter((url) => /^https?:\/\//i.test(url)))).slice(0, 24);
+    urls.forEach((url) => {
+      if (prefetchedHeroImages.current.has(url)) return;
+      prefetchedHeroImages.current.add(url);
+      Image.prefetch(url).catch(() => {
+        prefetchedHeroImages.current.delete(url);
+        return false;
+      });
+    });
+  }, [heroSlides]);
 
   const categories = useMemo<HomeCategory[]>(() => {
     const allCategory = realCategories.find((item) => item.slug === 'todos' || item.slug === 'todas');
@@ -482,7 +497,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
             setIncomingHeroIndex(null);
             setIncomingHeroSnapshot(null);
             heroCleanupTimer.current = null;
-          }, 360);
+          }, 950);
         });
       }, 0);
     };
@@ -543,6 +558,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
             source={{ uri: getHeroImageUrl(heroEvent) }}
             style={[styles.heroImageLayer, { opacity: Animated.multiply(heroBaseFade, heroBaseOut) }]}
             resizeMode="contain"
+            fadeDuration={0}
             onLoad={() => {
               if (heroBaseLoaded.current) {
                 heroBaseFade.setValue(1);
@@ -566,10 +582,11 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
             styles.heroImageLayer,
             {
               opacity: heroFade,
-              transform: [{ scale: heroScale }],
+              transform: incomingHeroTransform,
             },
           ]}
           resizeMode="contain"
+          fadeDuration={0}
         />
         ) : null}
       </View>

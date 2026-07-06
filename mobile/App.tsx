@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { LogBox, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Animated, AppState, Linking, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Animated, AppState, Easing, Linking, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 
 // react-native-web fires this warning whenever the canvas responder wins over
 // the parent ScrollView — it's a known RNW quirk, harmless on native. The console
@@ -66,6 +66,10 @@ function AppContent() {
   const adminNavIndicatorX = useRef(new Animated.Value(0)).current;
   const navPillX = useRef(new Animated.Value(0)).current;
   const adminNavPillX = useRef(new Animated.Value(0)).current;
+  const navPressProgress = useRef(new Animated.Value(1)).current;
+  const navCompactProgress = useRef(new Animated.Value(0)).current;
+  const navTouchStartY = useRef<number | null>(null);
+  const navCompactState = useRef(false);
   const [tab, setTab] = useState<Tab>('events');
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -437,6 +441,14 @@ function AppContent() {
 
   const handleBottomNavPress = (action: () => void, isActive?: boolean) => {
     if (menuOpen) setMenuOpen(false);
+    navPressProgress.stopAnimation();
+    navPressProgress.setValue(0);
+    Animated.timing(navPressProgress, {
+      toValue: 1,
+      duration: 920,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
     if (isActive && !selectedEvent && !scanOpen && !authReturn) {
       setScrollToTopSignal((signal) => signal + 1);
       return;
@@ -479,6 +491,47 @@ function AppContent() {
   const navItemWidth = (width - navOuterMargin * 2 - navPadding * 2) / navItems.length;
   const navPillWidth = Math.max(54, navItemWidth - 10);
   const navPillTargetX = navPadding + navItemWidth * activeBottomIndex + 5;
+  const navPressScaleX = navPressProgress.interpolate({
+    inputRange: [0, 0.22, 0.52, 0.78, 1],
+    outputRange: [1, 0.972, 1.021, 0.995, 1],
+  });
+  const navPressScaleY = navPressProgress.interpolate({
+    inputRange: [0, 0.22, 0.52, 0.78, 1],
+    outputRange: [1, 1.029, 0.984, 1.005, 1],
+  });
+  const navCompactScale = navCompactProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.92],
+  });
+  const navCompactTranslateY = navCompactProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 9],
+  });
+
+  const setNavCompact = (compact: boolean) => {
+    if (navCompactState.current === compact) return;
+    navCompactState.current = compact;
+    Animated.spring(navCompactProgress, {
+      toValue: compact ? 1 : 0,
+      useNativeDriver: true,
+      damping: 18,
+      stiffness: 170,
+      mass: 0.72,
+    }).start();
+  };
+
+  const handleAppTouchStart = (event: any) => {
+    navTouchStartY.current = event?.nativeEvent?.pageY ?? null;
+  };
+
+  const handleAppTouchMove = (event: any) => {
+    const startY = navTouchStartY.current;
+    const currentY = event?.nativeEvent?.pageY;
+    if (typeof startY !== 'number' || typeof currentY !== 'number') return;
+    const deltaY = currentY - startY;
+    if (deltaY < -16) setNavCompact(true);
+    if (deltaY > 16) setNavCompact(false);
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -530,7 +583,11 @@ function AppContent() {
       <ScreenBackground />
       <SafeAreaView style={[styles.safe, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
         <StatusBar style="light" />
-        <View style={[styles.app, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
+        <View
+          style={[styles.app, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}
+          onTouchStart={handleAppTouchStart}
+          onTouchMove={handleAppTouchMove}
+        >
         <View pointerEvents="none" style={styles.appGridVertical} />
         <View pointerEvents="none" style={styles.appGridHorizontal} />
 
@@ -582,7 +639,18 @@ function AppContent() {
           <AiChatScreen scrollToTopSignal={scrollToTopSignal} />
         ) : null}
 
-        <View style={styles.bottomNav}>
+        <Animated.View
+          style={[
+            styles.bottomNav,
+            {
+              transform: [
+                { translateY: navCompactTranslateY },
+                { scaleX: Animated.multiply(navPressScaleX, navCompactScale) },
+                { scaleY: Animated.multiply(navPressScaleY, navCompactScale) },
+              ],
+            },
+          ]}
+        >
             <View pointerEvents="none" style={styles.bottomNavShield} />
             <LinearGradient
               pointerEvents="none"
@@ -655,7 +723,7 @@ function AppContent() {
                 ))}
               </>
             )}
-        </View>
+        </Animated.View>
 
         {/* Cart drawer */}
         <Modal visible={cartDrawerOpen} transparent animationType="slide" onRequestClose={() => setCartDrawerOpen(false)}>
