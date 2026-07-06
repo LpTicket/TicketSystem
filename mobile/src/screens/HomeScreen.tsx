@@ -451,11 +451,12 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
         clearTimeout(heroCleanupTimer.current);
         heroCleanupTimer.current = null;
       }
+      const isMarketingTransition = !!(event as any).isMarketingBanner || !!(heroEvent as any)?.isMarketingBanner;
       heroFade.stopAnimation();
       heroScale.stopAnimation();
       heroBaseOut.stopAnimation();
       heroFade.setValue(0);
-      heroScale.setValue(1.02);
+      heroScale.setValue(isMarketingTransition ? 1 : 1.02);
       setIncomingHeroSnapshot(event);
       setIncomingHeroIndex(index);
       setTimeout(() => {
@@ -466,18 +467,20 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
-          Animated.timing(heroScale, {
-            toValue: 1,
-            duration: 900,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(heroBaseOut, {
-            toValue: 0,
-            duration: 700,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
+          ...(isMarketingTransition ? [] : [
+            Animated.timing(heroScale, {
+              toValue: 1,
+              duration: 900,
+              easing: Easing.inOut(Easing.ease),
+              useNativeDriver: true,
+            }),
+            Animated.timing(heroBaseOut, {
+              toValue: 0,
+              duration: 700,
+              easing: Easing.inOut(Easing.ease),
+              useNativeDriver: true,
+            }),
+          ]),
         ]).start(({ finished }) => {
           if (!finished) return;
           heroBaseFade.setValue(1);
