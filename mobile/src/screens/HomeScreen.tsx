@@ -814,7 +814,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
                 style={styles.shareButton}
                 onPress={() => Share.share({
                   title: event.title,
-                  message: `${event.title} — ${event.date}\n${event.venue}\n\nhttps://www.lpticket.com/events/${event.slug || event.id}`,
+                  message: `${event.title} — ${event.date}\n${event.venue}\n\nlpticket://events/${event.slug || event.id}\nhttps://www.lpticket.com/events/${event.slug || event.id}`,
                 })}
               >
                 <SharePointIcon />
