@@ -553,7 +553,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
           <Animated.Image
             source={{ uri: getHeroImageUrl(heroEvent) }}
             style={[styles.heroImageLayer, { opacity: Animated.multiply(heroBaseFade, heroBaseOut) }]}
-            resizeMode="contain"
+            resizeMode="cover"
             fadeDuration={0}
             onLoad={() => {
               if (heroBaseLoaded.current) {
@@ -581,7 +581,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
               transform: incomingHeroTransform,
             },
           ]}
-          resizeMode="contain"
+          resizeMode="cover"
           fadeDuration={0}
         />
         ) : null}
