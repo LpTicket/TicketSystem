@@ -842,6 +842,7 @@ function AppContent() {
           canOrganize={canOrganize}
           canAdmin={canAdmin}
           viewMode={viewMode}
+          activeClientTab={['events', 'tickets', 'profile', 'social', 'aichat'].includes(tab) ? tab as any : undefined}
           onSetMode={setMode}
           adminSection={adminSection}
           onGoAdminSection={(s) => { goAdminSection(s); }}

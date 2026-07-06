@@ -34,6 +34,7 @@ type Props = {
   canOrganize?: boolean;
   canAdmin?: boolean;
   viewMode?: AppMode;
+  activeClientTab?: 'events' | 'tickets' | 'profile' | 'social' | 'aichat';
   onSetMode?: (mode: AppMode) => void;
   // Admin panel section navigation
   adminSection?: AdminSectionId;
@@ -67,7 +68,7 @@ const orgSections: { id: OrgSectionId; labelEs: string; labelEn: string; icon: I
 export function MenuDrawer({
   visible, onClose, onGoEvents, onGoHome, onGoTickets, onGoProfile, onGoScan, onGoAiChat,
   onGoEmployeeScan, onGoEmployeeDoorSale, onGoDoorSale, onGoSocialMatch, onGoOrganizer, onGoAdmin, onGoContact, onGoAbout, onGoSupport, onGoLegal, onLogout,
-  isLoggedIn, canOrganize, canAdmin, viewMode = 'client', onSetMode,
+  isLoggedIn, canOrganize, canAdmin, viewMode = 'client', activeClientTab, onSetMode,
   adminSection, onGoAdminSection,
   orgSection, onGoOrgSection,
 }: Props) {
@@ -114,7 +115,7 @@ export function MenuDrawer({
                 <Text style={styles.sectionLabel}>{t('ACCESO EN PUERTA', 'DOOR ACCESS')}</Text>
               </View>
               <Row icon="scan-outline" label={t('Scan entradas empleados', 'Staff ticket scan')} onPress={() => go(onGoEmployeeScan)} />
-              <Row icon="card-outline" label={t('Venta en puerta empleados', 'Staff door sale')} onPress={() => go(onGoEmployeeDoorSale || onGoEmployeeScan)} />
+              <Row icon="card-outline" label={t('Ventas en puerta', 'Door sales')} onPress={() => go(onGoEmployeeDoorSale || onGoEmployeeScan)} />
             </View>
           )}
 
@@ -166,11 +167,11 @@ export function MenuDrawer({
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionLabel}>{t('MI CUENTA', 'MY ACCOUNT')}</Text>
               </View>
-              <Row icon="calendar-outline" label={t('Eventos', 'Events')} onPress={() => go(onGoEvents)} />
-              <Row icon="ticket-outline" label={t('Mis tickets', 'My tickets')} onPress={() => go(onGoTickets)} />
-              <Row icon="person-outline" label={t('Mi perfil', 'My profile')} onPress={() => go(onGoProfile)} />
-              <Row icon="people-outline" label={t('Social Match', 'Social Match')} onPress={() => go(onGoSocialMatch)} />
-              <Row icon="chatbubble-ellipses-outline" label={t('AI Chat', 'AI Chat')} onPress={() => go(onGoAiChat)} />
+              <Row icon="calendar-outline" label={t('Eventos', 'Events')} active={activeClientTab === 'events'} onPress={() => go(onGoEvents)} />
+              <Row icon="ticket-outline" label={t('Mis tickets', 'My tickets')} active={activeClientTab === 'tickets'} onPress={() => go(onGoTickets)} />
+              <Row icon="person-outline" label={t('Mi perfil', 'My profile')} active={activeClientTab === 'profile'} onPress={() => go(onGoProfile)} />
+              <Row icon="people-outline" label={t('Social Match', 'Social Match')} active={activeClientTab === 'social'} onPress={() => go(onGoSocialMatch)} />
+              <Row icon="chatbubble-ellipses-outline" label={t('AI Chat', 'AI Chat')} active={activeClientTab === 'aichat'} onPress={() => go(onGoAiChat)} />
             </View>
           )}
 
