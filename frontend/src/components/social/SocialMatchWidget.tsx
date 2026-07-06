@@ -259,18 +259,18 @@ export default function SocialMatchWidget() {
 
           {/* Connections list */}
           {!activeChatConn && (
-            <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+            <div className="max-h-72 overflow-y-auto divide-y divide-white/10 bg-[#071727]/70">
               {loading ? (
                 <div className="flex flex-col gap-2 p-4">
-                  {[1, 2].map((i) => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />)}
+                  {[1, 2].map((i) => <div key={i} className="h-12 bg-white/10 rounded-xl animate-pulse" />)}
                 </div>
               ) : accepted.length === 0 ? (
                 <div className="py-10 px-6 text-center">
-                  <HiOutlineMailOpen className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                  <p className="text-sm text-gray-400 font-medium">
+                  <HiOutlineMailOpen className="w-8 h-8 text-white/25 mx-auto mb-2" />
+                  <p className="text-sm text-white/70 font-medium">
                     {lang === 'es' ? 'Aún no tienes matches' : 'No matches yet'}
                   </p>
-                  <p className="text-xs text-gray-300 mt-1">
+                  <p className="text-xs text-white/40 mt-1">
                     {lang === 'es' ? 'Activa Social Match para conectar' : 'Activate Social Match to connect'}
                   </p>
                 </div>
@@ -280,7 +280,7 @@ export default function SocialMatchWidget() {
                   return (
                       <div
                         key={conn.id}
-                        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-orange-50 transition-colors text-left group"
+                        className="w-full flex items-center gap-2 px-4 py-3 bg-white/[0.035] hover:bg-white/[0.075] transition-colors text-left group"
                       >
                         <button
                           type="button"
@@ -291,10 +291,10 @@ export default function SocialMatchWidget() {
                             {conn.otherUserName.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm truncate ${unread > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-900'}`}>
+                            <p className={`text-sm truncate ${unread > 0 ? 'font-black text-white' : 'font-bold text-white/88'}`}>
                               {conn.otherUserName}
                             </p>
-                            <p className="text-xs text-gray-400 truncate">{conn.eventTitle}</p>
+                            <p className="text-xs text-white/50 truncate">{conn.eventTitle}</p>
                           </div>
                           {unread > 0 ? (
                             <span className="min-w-[20px] h-5 px-1 bg-orange-500 text-white rounded-full text-[10px] font-black flex items-center justify-center shrink-0">
@@ -309,7 +309,7 @@ export default function SocialMatchWidget() {
                         <button
                           type="button"
                           onClick={() => handleDeleteChat(conn)}
-                          className="shrink-0 rounded-full border border-red-100 bg-red-50 px-2.5 py-1.5 text-[10px] font-black text-red-500 hover:bg-red-100 transition-colors"
+                          className="shrink-0 rounded-full border border-red-400/30 bg-red-500/10 px-2.5 py-1.5 text-[10px] font-black text-red-200 hover:bg-red-500/20 hover:text-white transition-colors"
                         >
                           {lang === 'es' ? 'Eliminar' : 'Delete'}
                         </button>
