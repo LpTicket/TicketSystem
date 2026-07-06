@@ -73,7 +73,7 @@ export default function SocialMatchPanel({ lang }: Props) {
   const [loadingChat, setLoadingChat] = useState(false);
   const [sendingChat, setSendingChat] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesListRef = useRef<HTMLDivElement>(null);
   const { user } = useAuthStore();
 
   const selectedPreference = useMemo(() => {
@@ -132,8 +132,19 @@ export default function SocialMatchPanel({ lang }: Props) {
   }, [selectedEventId, selectedPreference?.isActive]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = messagesListRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   }, [chatMessages, activeChatConnection]);
+
+  useEffect(() => {
+    if (!activeChatConnection) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [activeChatConnection]);
 
 
   const loadSocialMatch = async () => {
@@ -332,55 +343,55 @@ export default function SocialMatchPanel({ lang }: Props) {
 
   if (loading) {
     return (
-      <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)]">
-        <div className="h-6 w-40 bg-gray-100 rounded mb-4 animate-pulse" />
-        <div className="h-24 bg-gray-100 rounded-2xl animate-pulse" />
+      <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-8 shadow-[0_20px_70px_rgba(2,6,23,0.22)] backdrop-blur-xl">
+        <div className="h-6 w-40 bg-white/10 rounded mb-4 animate-pulse" />
+        <div className="h-24 bg-white/10 rounded-2xl animate-pulse" />
       </div>
     );
   }
 
   if (events.length === 0) {
     return (
-      <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)] text-center">
-        <HiOutlineUserGroup className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-        <h3 className="font-bold text-xl text-gray-900">{copy.title}</h3>
-        <p className="text-gray-500 mt-2">{copy.noEvents}</p>
+      <div className="rounded-2xl border border-white/10 bg-slate-950/80 p-8 text-center shadow-[0_20px_70px_rgba(2,6,23,0.22)] backdrop-blur-xl">
+        <HiOutlineUserGroup className="w-12 h-12 text-white/25 mx-auto mb-4" />
+        <h3 className="font-bold text-xl text-white">{copy.title}</h3>
+        <p className="text-white/55 mt-2">{copy.noEvents}</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-6 sm:p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)]">
+    <div className="rounded-2xl border border-white/10 bg-slate-950/82 p-6 sm:p-8 shadow-[0_24px_80px_rgba(2,6,23,0.28)] backdrop-blur-xl">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-50 text-[#F97316] text-xs font-bold uppercase tracking-wider mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-orange-400/25 bg-orange-400/10 text-orange-200 text-xs font-bold uppercase tracking-wider mb-3">
             <HiOutlineSparkles className="w-4 h-4" />
             Premium
           </div>
-          <h3 className="font-bold text-2xl text-gray-900">{copy.title}</h3>
-          <p className="text-gray-500 text-sm mt-1 max-w-xl">{copy.subtitle}</p>
+          <h3 className="font-bold text-2xl text-white">{copy.title}</h3>
+          <p className="text-white/58 text-sm mt-1 max-w-xl">{copy.subtitle}</p>
         </div>
         <label className="flex items-center gap-3 cursor-pointer select-none">
-          <span className="text-sm font-bold text-gray-700">{copy.active}</span>
+          <span className="text-sm font-bold text-white/80">{copy.active}</span>
           <input type="checkbox" checked={Boolean(selectedPreference?.isActive)} onChange={(event) => updatePreference({ isActive: event.target.checked })} className="w-5 h-5 accent-orange-500" />
         </label>
       </div>
 
       <div className="space-y-5">
         <div>
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{copy.event}</label>
-          <select value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)} className="input bg-gray-50 border-gray-200">
+          <label className="block text-xs font-bold text-white/45 uppercase tracking-wider mb-2">{copy.event}</label>
+          <select value={selectedEventId} onChange={(event) => setSelectedEventId(event.target.value)} className="input border-white/10 bg-white/10 text-white">
             {events.map((event) => <option key={event.id} value={event.id}>{event.title}</option>)}
           </select>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{copy.interests}</label>
+          <label className="block text-xs font-bold text-white/45 uppercase tracking-wider mb-3">{copy.interests}</label>
           <div className="flex flex-wrap gap-2">
             {socialMatchInterestOptions.map((interest) => {
               const selected = (selectedPreference?.interests || []).includes(interest.id);
               return (
-                <button key={interest.id} type="button" onClick={() => toggleInterest(interest.id)} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${selected ? 'bg-[#0A375A] border-[#0A375A] text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-[rgba(249,115,22,0.42)] hover:text-[#F97316]'}`}>
+                <button key={interest.id} type="button" onClick={() => toggleInterest(interest.id)} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${selected ? 'bg-[#F97316] border-[#F97316] text-white shadow-lg shadow-orange-500/20' : 'bg-white/8 border-white/10 text-white/70 hover:border-orange-300/50 hover:bg-orange-400/10 hover:text-orange-100'}`}>
                   {lang === 'es' ? interest.es : interest.en}
                 </button>
               );
@@ -390,41 +401,41 @@ export default function SocialMatchPanel({ lang }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{copy.industry}</label>
-            <input value={selectedPreference?.industry || ''} onChange={(event) => updatePreference({ industry: event.target.value })} className="input bg-gray-50 border-gray-200" placeholder={lang === 'es' ? 'Ej. Música, finanzas, real estate' : 'Ex. Music, finance, real estate'} />
+            <label className="block text-xs font-bold text-white/45 uppercase tracking-wider mb-2">{copy.industry}</label>
+            <input value={selectedPreference?.industry || ''} onChange={(event) => updatePreference({ industry: event.target.value })} className="input border-white/10 bg-white/10 text-white placeholder:text-white/35" placeholder={lang === 'es' ? 'Ej. Música, finanzas, real estate' : 'Ex. Music, finance, real estate'} />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">{copy.instagram}</label>
-            <input value={selectedPreference?.instagram || ''} onChange={(event) => updatePreference({ instagram: event.target.value })} className="input bg-gray-50 border-gray-200" placeholder="@lpticket" />
+            <label className="block text-xs font-bold text-white/45 uppercase tracking-wider mb-2">{copy.instagram}</label>
+            <input value={selectedPreference?.instagram || ''} onChange={(event) => updatePreference({ instagram: event.target.value })} className="input border-white/10 bg-white/10 text-white placeholder:text-white/35" placeholder="@lpticket" />
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 cursor-pointer">
+          <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 p-4 cursor-pointer transition hover:border-orange-300/35 hover:bg-white/12">
             <input type="checkbox" checked={Boolean(selectedPreference?.privateMode)} onChange={(event) => updatePreference({ privateMode: event.target.checked })} className="w-4 h-4 accent-orange-500" />
-            <HiOutlineUserGroup className="w-5 h-5 text-[#0A375A]" />
-            <span className="text-sm font-semibold text-gray-700">{lang === 'es' ? 'Modo privado' : 'Private mode'}</span>
+            <HiOutlineUserGroup className="w-5 h-5 text-orange-200" />
+            <span className="text-sm font-semibold text-white/75">{lang === 'es' ? 'Modo privado' : 'Private mode'}</span>
           </label>
-          <label className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 cursor-pointer">
+          <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 p-4 cursor-pointer transition hover:border-orange-300/35 hover:bg-white/12">
             <input type="checkbox" checked={Boolean(selectedPreference?.invisibleMode)} onChange={(event) => updatePreference({ invisibleMode: event.target.checked })} className="w-4 h-4 accent-orange-500" />
-            <HiOutlineEyeOff className="w-5 h-5 text-[#0A375A]" />
-            <span className="text-sm font-semibold text-gray-700">{lang === 'es' ? 'Modo invisible' : 'Invisible mode'}</span>
+            <HiOutlineEyeOff className="w-5 h-5 text-orange-200" />
+            <span className="text-sm font-semibold text-white/75">{lang === 'es' ? 'Modo invisible' : 'Invisible mode'}</span>
           </label>
-          <label className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 cursor-pointer">
+          <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 p-4 cursor-pointer transition hover:border-orange-300/35 hover:bg-white/12">
             <input type="checkbox" checked={Boolean(selectedPreference?.shareInstagram)} onChange={(event) => updatePreference({ shareInstagram: event.target.checked })} className="w-4 h-4 accent-orange-500" />
-            <HiOutlineSparkles className="w-5 h-5 text-[#0A375A]" />
-            <span className="text-sm font-semibold text-gray-700">{lang === 'es' ? 'Compartir Instagram solo si ambos aceptan' : 'Share Instagram only if both accept'}</span>
+            <HiOutlineSparkles className="w-5 h-5 text-orange-200" />
+            <span className="text-sm font-semibold text-white/75">{lang === 'es' ? 'Compartir Instagram solo si ambos aceptan' : 'Share Instagram only if both accept'}</span>
           </label>
-          <label className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 cursor-pointer">
+          <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 p-4 cursor-pointer transition hover:border-orange-300/35 hover:bg-white/12">
             <input type="checkbox" checked={Boolean(selectedPreference?.shareLocation)} onChange={(event) => updatePreference({ shareLocation: event.target.checked })} className="w-4 h-4 accent-orange-500" />
-            <HiOutlineLocationMarker className="w-5 h-5 text-[#0A375A]" />
-            <span className="text-sm font-semibold text-gray-700">{lang === 'es' ? 'Permitir ubicación aproximada solo si ambos aceptan' : 'Allow approximate location only if both accept'}</span>
+            <HiOutlineLocationMarker className="w-5 h-5 text-orange-200" />
+            <span className="text-sm font-semibold text-white/75">{lang === 'es' ? 'Permitir ubicación aproximada solo si ambos aceptan' : 'Allow approximate location only if both accept'}</span>
           </label>
         </div>
 
         {/* Photo gallery */}
         <div>
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+          <label className="block text-xs font-bold text-white/45 uppercase tracking-wider mb-3">
             {lang === 'es' ? `Mis fotos (${myPhotos.length}/6)` : `My photos (${myPhotos.length}/6)`}
           </label>
           <div className="flex flex-wrap gap-3">
@@ -441,9 +452,9 @@ export default function SocialMatchPanel({ lang }: Props) {
               </div>
             ))}
             {myPhotos.length < 6 && (
-              <label className={`w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-all ${uploadingPhoto ? 'opacity-50 pointer-events-none' : ''}`}>
-                <HiOutlineCamera className="w-6 h-6 text-gray-400" />
-                <span className="text-[10px] text-gray-400 mt-1">{uploadingPhoto ? '...' : (lang === 'es' ? 'Agregar' : 'Add')}</span>
+              <label className={`w-20 h-20 rounded-xl border-2 border-dashed border-white/15 bg-white/8 flex flex-col items-center justify-center cursor-pointer hover:border-orange-300/60 hover:bg-orange-400/10 transition-all ${uploadingPhoto ? 'opacity-50 pointer-events-none' : ''}`}>
+                <HiOutlineCamera className="w-6 h-6 text-white/45" />
+                <span className="text-[10px] text-white/45 mt-1">{uploadingPhoto ? '...' : (lang === 'es' ? 'Agregar' : 'Add')}</span>
                 <input
                   ref={photoInputRef}
                   type="file"
@@ -464,10 +475,10 @@ export default function SocialMatchPanel({ lang }: Props) {
           const displayName = isPrivate ? 'Asistente' : `${user?.firstName || ''} ${(user?.lastName || '')[0] || ''}.`.trim();
           return (
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+              <label className="block text-xs font-bold text-white/45 uppercase tracking-wider mb-3">
                 {lang === 'es' ? 'Así te ven los demás' : 'How others see you'}
               </label>
-              <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm max-w-xs">
+              <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/8 shadow-[0_18px_50px_rgba(0,0,0,0.22)] max-w-xs">
                 {allPhotos.length > 0 ? (
                   <div className="relative h-[560px] bg-[#0A375A]">
                     <img
@@ -504,15 +515,15 @@ export default function SocialMatchPanel({ lang }: Props) {
                   </div>
                 )}
                 {(selectedPreference?.interests || []).length > 0 && (
-                  <div className="px-4 pt-4 pb-3 bg-white">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2.5">
+                  <div className="px-4 pt-4 pb-3 bg-slate-950/88">
+                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2.5">
                       {lang === 'es' ? 'Intereses' : 'Interests'}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {(selectedPreference?.interests || []).map((id) => {
                         const opt = socialMatchInterestOptions.find((o) => o.id === id);
                         return (
-                          <span key={id} className="px-3 py-1.5 rounded-xl bg-orange-50 text-[#F97316] text-xs font-bold border border-orange-200">
+                          <span key={id} className="px-3 py-1.5 rounded-xl border border-orange-300/25 bg-orange-400/10 text-orange-100 text-xs font-bold">
                             {opt ? (lang === 'es' ? opt.es : opt.en) : id}
                           </span>
                         );
@@ -521,11 +532,11 @@ export default function SocialMatchPanel({ lang }: Props) {
                   </div>
                 )}
                 {selectedPreference?.instagram && (
-                  <div className="px-4 pb-4 bg-white">
-                    <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-orange-50 to-pink-50 border border-orange-200">
+                  <div className="px-4 pb-4 bg-slate-950/88">
+                    <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-orange-300/25 bg-white/8">
                       <FaInstagram className="w-4 h-4 text-[#E1306C] shrink-0" />
-                      <span className="text-sm font-black text-gray-800">@{selectedPreference.instagram.replace(/^@/, '')}</span>
-                      <span className="text-[10px] text-gray-400 ml-auto shrink-0">{lang === 'es' ? 'solo si ambos aceptan' : 'only if both accept'}</span>
+                      <span className="text-sm font-black text-white">@{selectedPreference.instagram.replace(/^@/, '')}</span>
+                      <span className="text-[10px] text-white/40 ml-auto shrink-0">{lang === 'es' ? 'solo si ambos aceptan' : 'only if both accept'}</span>
                     </div>
                   </div>
                 )}
@@ -535,30 +546,30 @@ export default function SocialMatchPanel({ lang }: Props) {
         })()}
 
         {selectedSummary && (
-          <div className="rounded-2xl border border-[rgba(249,115,22,0.22)] bg-orange-50/60 p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#F97316] mb-2">{lang === 'es' ? 'Sugerencias compatibles' : 'Compatible suggestions'}</p>
+          <div className="rounded-2xl border border-orange-300/25 bg-orange-400/10 p-4 backdrop-blur-md">
+            <p className="text-xs font-bold uppercase tracking-wider text-orange-200 mb-2">{lang === 'es' ? 'Sugerencias compatibles' : 'Compatible suggestions'}</p>
             <div className="space-y-1">
-              {selectedSummary.messages.map((message) => <p key={message} className="text-sm font-semibold text-gray-800">{message}</p>)}
+              {selectedSummary.messages.map((message) => <p key={message} className="text-sm font-semibold text-white/75">{message}</p>)}
             </div>
           </div>
         )}
 
 
-        <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-4 border-b border-gray-100 bg-gray-50/70">
+        <div className="rounded-2xl border border-white/10 bg-white/8 overflow-hidden backdrop-blur-md">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-4 border-b border-white/10 bg-white/8">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-[#0A375A]">{copy.myConnections}</p>
-              <p className="text-xs text-gray-500 mt-1">{copy.myConnectionsSubtitle}</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-orange-200">{copy.myConnections}</p>
+              <p className="text-xs text-white/50 mt-1">{copy.myConnectionsSubtitle}</p>
             </div>
-            <span className="w-fit rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-[#F97316] border border-orange-100">
+            <span className="w-fit rounded-full border border-orange-300/25 bg-orange-400/10 px-3 py-1 text-xs font-black text-orange-200">
               {acceptedConnections.length}
             </span>
           </div>
 
           {acceptedConnections.length === 0 ? (
             <div className="px-4 py-8 text-center">
-              <HiOutlineChatAlt2 className="w-9 h-9 text-gray-200 mx-auto mb-2" />
-              <p className="text-sm font-semibold text-gray-500">{copy.noConnections}</p>
+              <HiOutlineChatAlt2 className="w-9 h-9 text-white/20 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-white/55">{copy.noConnections}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 p-4">
@@ -569,7 +580,7 @@ export default function SocialMatchPanel({ lang }: Props) {
                 return (
                   <div
                     key={connection.id}
-                    className="group text-left rounded-2xl border border-gray-100 bg-white hover:border-orange-200 hover:shadow-[0_16px_34px_rgba(15,23,42,0.08)] transition-all overflow-hidden"
+                    className="group text-left rounded-2xl border border-white/10 bg-slate-950/72 hover:border-orange-300/40 hover:bg-white/10 hover:shadow-[0_16px_34px_rgba(0,0,0,0.22)] transition-all overflow-hidden"
                   >
                     <button
                       type="button"
@@ -583,8 +594,8 @@ export default function SocialMatchPanel({ lang }: Props) {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-sm font-black text-gray-900 truncate">{connection.otherUserName}</p>
-                            <p className="text-xs text-gray-500 truncate">{connection.eventTitle}</p>
+                            <p className="text-sm font-black text-white truncate">{connection.otherUserName}</p>
+                            <p className="text-xs text-white/50 truncate">{connection.eventTitle}</p>
                           </div>
                           <span className="hidden sm:inline-flex shrink-0 items-center gap-1 rounded-full bg-[#0A375A] px-2.5 py-1 text-[10px] font-black text-white group-hover:bg-[#F97316] transition-colors">
                             <HiOutlineChatAlt2 className="w-3.5 h-3.5" />
@@ -593,7 +604,7 @@ export default function SocialMatchPanel({ lang }: Props) {
                         </div>
 
                         {connection.profile?.industry && (
-                          <p className="text-xs text-gray-400 mt-1 truncate">{connection.profile.industry}</p>
+                          <p className="text-xs text-white/40 mt-1 truncate">{connection.profile.industry}</p>
                         )}
 
                         {interests.length > 0 && (
@@ -601,13 +612,13 @@ export default function SocialMatchPanel({ lang }: Props) {
                             {interests.slice(0, 3).map((id) => {
                               const opt = socialMatchInterestOptions.find((item) => item.id === id);
                               return (
-                                <span key={id} className="rounded-full bg-orange-50 px-2 py-1 text-[10px] font-bold text-[#F97316]">
+                                <span key={id} className="rounded-full border border-orange-300/20 bg-orange-400/10 px-2 py-1 text-[10px] font-bold text-orange-200">
                                   {opt ? (lang === 'es' ? opt.es : opt.en) : id}
                                 </span>
                               );
                             })}
                             {interests.length > 3 && (
-                              <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold text-gray-500">
+                              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold text-white/50">
                                 +{interests.length - 3}
                               </span>
                             )}
@@ -616,7 +627,7 @@ export default function SocialMatchPanel({ lang }: Props) {
                       </div>
                     </div>
                     </button>
-                    <div className="flex items-center justify-end gap-2 border-t border-gray-50 px-3 py-2">
+                    <div className="flex items-center justify-end gap-2 border-t border-white/10 px-3 py-2">
                       <button
                         type="button"
                         onClick={() => handleDeleteConnectionChat(connection)}
@@ -634,10 +645,10 @@ export default function SocialMatchPanel({ lang }: Props) {
         </div>
 
         {selectedPreference?.isActive && (
-          <div className="rounded-2xl border border-gray-100 bg-white p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#0A375A] mb-3">{copy.suggestions}</p>
+          <div className="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+            <p className="text-xs font-bold uppercase tracking-wider text-orange-200 mb-3">{copy.suggestions}</p>
             {loadingSuggestions ? (
-              <div className="h-16 bg-gray-50 rounded-xl animate-pulse" />
+              <div className="h-16 bg-white/10 rounded-xl animate-pulse" />
             ) : suggestions.length > 0 ? (
               <SocialMatchSwiper
                 suggestions={suggestions}
@@ -651,33 +662,33 @@ export default function SocialMatchPanel({ lang }: Props) {
               />
             ) : (
               <div className="py-8 text-center">
-                <p className="text-sm font-semibold text-gray-500">{lang === 'es' ? 'No hay perfiles pendientes por descubrir' : 'No pending profiles to discover'}</p>
-                <p className="text-xs text-gray-400 mt-1">{lang === 'es' ? 'Vuelve más tarde, nuevos asistentes podrían unirse.' : 'Check back later, new attendees might join.'}</p>
+                <p className="text-sm font-semibold text-white/55">{lang === 'es' ? 'No hay perfiles pendientes por descubrir' : 'No pending profiles to discover'}</p>
+                <p className="text-xs text-white/35 mt-1">{lang === 'es' ? 'Vuelve más tarde, nuevos asistentes podrían unirse.' : 'Check back later, new attendees might join.'}</p>
               </div>
             )}
           </div>
         )}
 
         {connections.some((c) => c.status === 'pending') && (
-          <div className="rounded-2xl border border-gray-100 bg-white p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#0A375A] mb-3">{copy.requests}</p>
+          <div className="rounded-2xl border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+            <p className="text-xs font-bold uppercase tracking-wider text-orange-200 mb-3">{copy.requests}</p>
             <div className="space-y-3">
               {connections.filter((c) => c.status === 'pending').map((connection) => (
-                <div key={connection.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <div key={connection.id} className="rounded-xl border border-white/10 bg-slate-950/70 p-4">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-bold text-gray-900">{connection.otherUserName}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{connection.eventTitle} · {connection.direction === 'incoming' ? (lang === 'es' ? 'quiere conectar contigo' : 'wants to connect') : (lang === 'es' ? 'solicitud enviada' : 'request sent')}</p>
+                      <p className="font-bold text-white">{connection.otherUserName}</p>
+                      <p className="text-xs text-white/50 mt-0.5">{connection.eventTitle} · {connection.direction === 'incoming' ? (lang === 'es' ? 'quiere conectar contigo' : 'wants to connect') : (lang === 'es' ? 'solicitud enviada' : 'request sent')}</p>
                     </div>
                     <div className="flex gap-2 shrink-0">
                       {connection.direction === 'incoming' && (
                         <>
                           <button type="button" onClick={() => handleUpdateConnection(connection.id, 'accepted')} className="px-3 py-2 rounded-lg bg-[#0A375A] text-white text-xs font-bold">{copy.accept}</button>
-                          <button type="button" onClick={() => handleUpdateConnection(connection.id, 'declined')} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 text-xs font-bold">{copy.decline}</button>
+                          <button type="button" onClick={() => handleUpdateConnection(connection.id, 'declined')} className="px-3 py-2 rounded-lg border border-white/10 bg-white/8 text-white/70 text-xs font-bold hover:bg-white/12">{copy.decline}</button>
                         </>
                       )}
                       {connection.direction === 'outgoing' && (
-                        <button type="button" onClick={() => handleUpdateConnection(connection.id, 'cancelled')} className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 text-xs font-bold">{copy.cancel}</button>
+                        <button type="button" onClick={() => handleUpdateConnection(connection.id, 'cancelled')} className="px-3 py-2 rounded-lg border border-white/10 bg-white/8 text-white/70 text-xs font-bold hover:bg-white/12">{copy.cancel}</button>
                       )}
                     </div>
                   </div>
@@ -729,7 +740,7 @@ export default function SocialMatchPanel({ lang }: Props) {
               </div>
             )}
 
-            <div className="min-h-[260px] max-h-[52vh] overflow-y-auto px-4 py-4 space-y-2 bg-slate-900/95">
+            <div ref={messagesListRef} className="min-h-[260px] max-h-[52vh] overflow-y-auto px-4 py-4 space-y-2 bg-slate-900/95">
               {loadingChat ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map((item) => <div key={item} className="h-9 bg-white/10 rounded-2xl animate-pulse" />)}
@@ -757,7 +768,6 @@ export default function SocialMatchPanel({ lang }: Props) {
                   </div>
                 ))
               )}
-              <div ref={messagesEndRef} />
             </div>
 
             <div className="flex items-center gap-2 p-3 border-t border-white/10 bg-slate-950 shrink-0">

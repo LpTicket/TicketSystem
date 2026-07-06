@@ -69,13 +69,13 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
   if (!currentCard) {
     return (
       <div className="text-center py-16 px-6">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-orange-100 to-orange-50 flex items-center justify-center">
-          <HiOutlineSparkles className="w-9 h-9 text-[#F97316]" />
+        <div className="w-20 h-20 mx-auto mb-6 rounded-full border border-orange-300/25 bg-orange-400/10 flex items-center justify-center">
+          <HiOutlineSparkles className="w-9 h-9 text-orange-200" />
         </div>
-        <h3 className="font-bold text-xl text-gray-900 mb-2">
+        <h3 className="font-bold text-xl text-white mb-2">
           {lang === 'es' ? '¡No hay más perfiles!' : 'No more profiles!'}
         </h3>
-        <p className="text-sm text-gray-500 max-w-xs mx-auto">
+        <p className="text-sm text-white/55 max-w-xs mx-auto">
           {lang === 'es'
             ? 'Ya revisaste todos los perfiles compatibles para este evento. Vuelve más tarde, nuevos asistentes podrían unirse.'
             : 'You\'ve reviewed all compatible profiles for this event. Come back later, new attendees might join.'}
@@ -90,12 +90,12 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
       <div className="relative w-full max-w-lg mx-auto" style={{ height: 720 }}>
         {/* Next card (behind) */}
         {nextCard && (
-          <div className="absolute inset-0 rounded-3xl bg-white border border-gray-100 shadow-md" style={{ transform: 'scale(0.95) translateY(12px)', opacity: 0.6 }} />
+          <div className="absolute inset-0 rounded-3xl border border-white/10 bg-slate-950/55 shadow-md" style={{ transform: 'scale(0.95) translateY(12px)', opacity: 0.6 }} />
         )}
 
         {/* Current card */}
         <div
-          className="absolute inset-0 rounded-3xl bg-white border border-gray-100 shadow-[0_20px_60px_rgba(0,0,0,0.08)] flex flex-col overflow-hidden transition-transform duration-300 ease-out"
+          className="absolute inset-0 rounded-3xl border border-white/10 bg-slate-950/88 shadow-[0_22px_70px_rgba(0,0,0,0.28)] flex flex-col overflow-hidden transition-transform duration-300 ease-out backdrop-blur-md"
           style={{
             transform: animating === 'left'
               ? 'translateX(-120%) rotate(-15deg)'
@@ -195,7 +195,7 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
             {/* All interests — shared ones highlighted */}
             {(currentCard.interests || []).length > 0 && (
               <div>
-                <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3">
+                <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-3">
                   {lang === 'es' ? 'Intereses' : 'Interests'}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -206,8 +206,8 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
                         key={interest}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold border ${
                           isShared
-                            ? 'bg-orange-50 text-[#F97316] border-orange-300 shadow-sm shadow-orange-100'
-                            : 'bg-gray-50 text-gray-500 border-gray-200'
+                            ? 'bg-orange-400/10 text-orange-100 border-orange-300/35 shadow-sm shadow-orange-950/20'
+                            : 'bg-white/8 text-white/55 border-white/10'
                         }`}
                       >
                         {isShared && <span className="mr-1 font-black">✓</span>}{interestLabel(interest)}
@@ -221,18 +221,18 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
             {/* Info chips */}
             <div className="flex flex-wrap gap-2">
               {currentCard.industryMatch && (
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-50 text-[#0A375A] border border-blue-100">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-blue-300/20 bg-blue-400/10 text-blue-100">
                   <HiOutlineBriefcase className="w-4 h-4" />
                   <span className="text-xs font-bold">{lang === 'es' ? 'Misma industria' : 'Same industry'}</span>
                 </div>
               )}
               {currentCard.canShareLocationLater && (
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-green-50 text-green-700 border border-green-100">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-green-300/20 bg-green-400/10 text-green-100">
                   <HiOutlineLocationMarker className="w-4 h-4" />
                   <span className="text-xs font-bold">{lang === 'es' ? 'Ubicación disponible' : 'Location available'}</span>
                 </div>
               )}
-              <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-orange-50 text-[#F97316] border border-orange-200 ml-auto">
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-orange-300/25 bg-orange-400/10 text-orange-100 ml-auto">
                 <HiOutlineSparkles className="w-4 h-4" />
                 <span className="text-xs font-black">{getCompatibility(currentCard.score)}% match</span>
               </div>
@@ -248,7 +248,7 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
           type="button"
           onClick={() => handleAction('skip')}
           disabled={processing}
-          className="w-16 h-16 rounded-full bg-white border-2 border-red-200 flex items-center justify-center text-red-400 hover:bg-red-50 hover:border-red-300 hover:text-red-500 hover:scale-110 active:scale-95 transition-all shadow-lg shadow-red-100/50 disabled:opacity-50 cursor-pointer"
+          className="w-16 h-16 rounded-full border-2 border-red-300/30 bg-red-400/10 flex items-center justify-center text-red-200 hover:bg-red-400/16 hover:border-red-300/50 hover:text-red-100 hover:scale-110 active:scale-95 transition-all shadow-lg shadow-black/20 disabled:opacity-50 cursor-pointer"
         >
           <HiOutlineX className="w-7 h-7" strokeWidth={2.5} />
         </button>
@@ -265,7 +265,7 @@ export default function SocialMatchSwiper({ suggestions, lang, onConnect, onSkip
       </div>
 
       {/* Card counter */}
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+      <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
         {deck.length} {lang === 'es' ? 'perfiles restantes' : 'profiles remaining'}
       </p>
     </div>
