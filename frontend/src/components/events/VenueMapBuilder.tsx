@@ -292,6 +292,22 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     }));
   }, []);
 
+  const applySeatBlockState = useCallback((sectionId: string, seatId: string | undefined, seatKey: string, blocked: boolean) => {
+    updateSeatConfig(sectionId, seatKey, 'reserved', blocked);
+    if (!seatId) return;
+    setSections((prev) => prev.map((sec) => {
+      if (sec.id !== sectionId) return sec;
+      return {
+        ...sec,
+        seats: (sec.seats || []).map((s) => (
+          s.id === seatId
+            ? { ...s, status: (blocked ? 'locked' : 'available') as any, lockExpiresAt: undefined }
+            : s
+        )),
+      };
+    }));
+  }, [updateSeatConfig]);
+
   const updateSeatBlock = async (section: Partial<VenueSection>, seatKey: string, blocked: boolean) => {
     const seat = findSeatByKey(section, seatKey);
     if (!seat) {
@@ -299,21 +315,15 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       return;
     }
     const isBlocked = seat.status === 'locked' && !seat.lockExpiresAt;
+    applySeatBlockState(section.id!, seat.id, seatKey, blocked);
     if (isBlocked !== blocked) {
-      await api.post(`/orders/seats/${seat.id}/toggle-block`);
+      try {
+        await api.post(`/orders/seats/${seat.id}/toggle-block`);
+      } catch (err) {
+        applySeatBlockState(section.id!, seat.id, seatKey, isBlocked);
+        throw err;
+      }
     }
-    updateSeatConfig(section.id!, seatKey, 'reserved', blocked);
-    setSections((prev) => prev.map((sec) => {
-      if (sec.id !== section.id) return sec;
-      return {
-        ...sec,
-        seats: (sec.seats || []).map((s) => (
-          s.id === seat.id
-            ? { ...s, status: (blocked ? 'locked' : 'available') as any, lockExpiresAt: undefined }
-            : s
-        )),
-      };
-    }));
   };
 
   // Apply the CSS transform without a React re-render
@@ -1772,15 +1782,17 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                     }
 
                     try {
+                      const blockUpdates: Promise<void>[] = [];
                       for(let r=1; r<=rows; r++) {
                         const rowLabel: string = selectedSection?.sectionType === 'table' ? 'Mesa' : String.fromCharCode(64 + r);
                         for(let s=1; s<=seatsPerRow; s++) {
                           const key = selectedSection?.sectionType === 'table' ? `seat-${s}` : `${rowLabel}-${s}`;
                           if (getSeatStatus(selectedSection, key) !== 'sold' && getSeatStatus(selectedSection, key) !== 'held') {
-                            await updateSeatBlock(selectedSection, key, anyUnreserved);
+                            blockUpdates.push(updateSeatBlock(selectedSection, key, anyUnreserved));
                           }
                         }
                       }
+                      await Promise.all(blockUpdates);
                     } catch (err: any) {
                       toast.error(err.response?.data?.message || (lang === 'es' ? 'Error al actualizar bloqueos' : 'Error updating blocks'));
                     }
