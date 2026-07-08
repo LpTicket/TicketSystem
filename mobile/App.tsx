@@ -102,6 +102,24 @@ function AppContent() {
     setSalesRefreshKey((key) => key + 1);
   }, []);
 
+  const resetToClientHome = useCallback(() => {
+    setSelectedEvent(null);
+    setMenuOpen(false);
+    setEmployeeScanBackToMenu(false);
+    setScanOpen(false);
+    setPurchaseOpen(false);
+    setPreSelectedSeats([]);
+    setPreSelectedGa(undefined);
+    setPreSelectedGaQty(1);
+    setCheckoutInfoOpen(false);
+    setOrderSummaryOpen(false);
+    setCartDrawerOpen(false);
+    setLoginAfterPurchase(false);
+    setAuthReturn(null);
+    setViewMode('client');
+    setTab('events');
+  }, []);
+
   // Read cart from AsyncStorage — mirrors web localStorage(`selectedSeats_${eventId}`)
   const loadCartFromStorage = useCallback(async (eventId?: string) => {
     let eid = eventId || selectedEvent?.id;
@@ -224,47 +242,25 @@ function AppContent() {
     });
   }, []);
 
-  // ── Navigation persistence ────────────────────────────────────────────────
-  // Remember where the user was (tab + view mode + organizer/admin section) so
-  // backgrounding the app and returning shortly after doesn't dump them on the
-  // home screen. Only restored if they come back within NAV_RESTORE_WINDOW.
-  const NAV_RESTORE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
-  const navRestoredRef = useRef(false);
-
-  // Restore navigation once on launch.
+  // Always start from the client Events home. We keep the login/session, but do
+  // not restore organizer/admin/map screens after the app was closed.
   useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem('lp_nav_state');
-        if (!raw) { navRestoredRef.current = true; return; }
-        const saved = JSON.parse(raw);
-        if (saved && typeof saved.ts === 'number' && Date.now() - saved.ts < NAV_RESTORE_WINDOW_MS) {
-          if (saved.viewMode) setViewMode(saved.viewMode);
-          if (saved.tab) setTab(saved.tab);
-          if (saved.organizerSection) setOrganizerSection(saved.organizerSection);
-          if (saved.adminSection) setAdminSection(saved.adminSection);
-        }
-      } catch {}
-      navRestoredRef.current = true;
-    })();
-  }, []);
+    AsyncStorage.removeItem('lp_nav_state').catch(() => {});
+    resetToClientHome();
+  }, [resetToClientHome]);
 
-  // Save navigation whenever it changes (after the initial restore).
+  // If iOS keeps the app in memory and brings it back, also return to Home.
   useEffect(() => {
-    if (!navRestoredRef.current) return;
-    AsyncStorage.setItem('lp_nav_state', JSON.stringify({ tab, viewMode, organizerSection, adminSection, ts: Date.now() })).catch(() => {});
-  }, [tab, viewMode, organizerSection, adminSection]);
-
-  // Refresh the timestamp when the app goes to the background, so the 10-min
-  // window counts from when you LEFT (not from the last navigation change).
-  useEffect(() => {
+    const previousState = { current: AppState.currentState };
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'background' || state === 'inactive') {
-        AsyncStorage.setItem('lp_nav_state', JSON.stringify({ tab, viewMode, organizerSection, adminSection, ts: Date.now() })).catch(() => {});
+      if (state === 'active' && previousState.current !== 'active') {
+        resetToClientHome();
+        AsyncStorage.removeItem('lp_nav_state').catch(() => {});
       }
+      previousState.current = state;
     });
     return () => sub.remove();
-  }, [tab, viewMode, organizerSection, adminSection]);
+  }, [resetToClientHome]);
 
   // Load cart on mount from last active event, and reload whenever selected event changes
   useEffect(() => {

@@ -679,9 +679,11 @@ export class EventsService {
                   if (seat.status === SeatStatus.SOLD) continue;
 
                   const key = `seat-${s}`;
-                  const isReservedInConfig = overrides[key]?.reserved || false;
-                  const customLabel = overrides[key]?.rowLabel || 'Mesa';
-                  const customSeatNumber = overrides[key]?.seatNumber !== undefined ? overrides[key].seatNumber : s;
+                  const legacyKey = `seat-${seat.seatNumber}`;
+                  const override = overrides[key] || overrides[legacyKey] || {};
+                  const isReservedInConfig = override.reserved || false;
+                  const customLabel = override.rowLabel || 'Mesa';
+                  const customSeatNumber = override.seatNumber !== undefined ? override.seatNumber : s;
 
                   seat.rowLabel = customLabel;
                   seat.seatNumber = customSeatNumber;
@@ -703,9 +705,11 @@ export class EventsService {
                     if (seat.status === SeatStatus.SOLD) continue;
 
                     const key = `${defaultRowLabel}-${s}`;
-                    const isReservedInConfig = overrides[key]?.reserved || false;
-                    const customLabel = overrides[key]?.rowLabel || defaultRowLabel;
-                    const customSeatNumber = overrides[key]?.seatNumber !== undefined ? overrides[key].seatNumber : s;
+                    const legacyKey = `${seat.rowLabel}-${seat.seatNumber}`;
+                    const override = overrides[key] || overrides[legacyKey] || {};
+                    const isReservedInConfig = override.reserved || false;
+                    const customLabel = override.rowLabel || defaultRowLabel;
+                    const customSeatNumber = override.seatNumber !== undefined ? override.seatNumber : s;
 
                     seat.rowLabel = customLabel;
                     seat.seatNumber = customSeatNumber;

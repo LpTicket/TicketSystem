@@ -1,4 +1,4 @@
-import { Alert, Animated, Dimensions, Easing, GestureResponderEvent, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Dimensions, Easing, GestureResponderEvent, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -33,12 +33,18 @@ function sectionToItem(s: any): VenueItem {
   const type = SECTION_TO_TYPE[String(s.sectionType).toLowerCase()] || 'table';
   const seatConfig = parseSeatConfig(s.seatsConfig);
   if (Array.isArray(s.seats)) {
-    s.seats.forEach((seat: any) => {
-      const key = type === 'table' ? `seat-${seat.seatNumber}` : `${seat.rowLabel || 'A'}-${seat.seatNumber}`;
+    const rows = Math.max(1, Number(s.rows) || 1);
+    const seatsPerRow = Math.max(1, Number(s.seatsPerRow) || 1);
+    s.seats.forEach((seat: any, index: number) => {
+      const canonicalSeat = type === 'table' ? index + 1 : (index % seatsPerRow) + 1;
+      const canonicalRowIndex = type === 'table' ? 1 : Math.floor(index / seatsPerRow) + 1;
+      const canonicalRow = String.fromCharCode(64 + Math.min(canonicalRowIndex, rows));
+      const key = type === 'table' ? `seat-${canonicalSeat}` : `${canonicalRow}-${canonicalSeat}`;
+      const legacyKey = type === 'table' ? `seat-${seat.seatNumber}` : `${seat.rowLabel || canonicalRow}-${seat.seatNumber}`;
       const status = String(seat.status || '').toLowerCase();
       const lockExpiresAt = seat.lockExpiresAt ? new Date(seat.lockExpiresAt).getTime() : null;
       const isActiveHold = status === 'locked' && lockExpiresAt && lockExpiresAt > Date.now();
-      const next = { ...(seatConfig[key] || {}) } as SeatOverride;
+      const next = { ...(seatConfig[key] || seatConfig[legacyKey] || {}) } as SeatOverride;
       if (status === 'sold') next.status = 'sold';
       else if (status === 'locked') {
         next.status = isActiveHold ? 'held' : 'reserved';
@@ -48,7 +54,14 @@ function sectionToItem(s: any): VenueItem {
         delete next.reserved;
       }
       const buyerName = seat.buyerName || seat.attendeeName || seat.userName || seat.ownerName;
+      if (seat.id) next.backendSeatId = seat.id;
       if (buyerName) next.buyerName = buyerName;
+      const defaultRowLabel = type === 'table' ? 'Mesa' : canonicalRow;
+      const persistedRowLabel = seat.rowLabel;
+      const persistedSeatNumber = seat.seatNumber;
+      if (persistedRowLabel && persistedRowLabel !== defaultRowLabel) next.rowLabel = persistedRowLabel;
+      if (persistedSeatNumber !== undefined && String(persistedSeatNumber) !== String(canonicalSeat)) next.seatNumber = String(persistedSeatNumber);
+      if (legacyKey !== key) delete seatConfig[legacyKey];
       if (Object.keys(next).length > 0) seatConfig[key] = next;
     });
   }
@@ -85,6 +98,16 @@ function parseSeatConfig(raw: any): Record<string, SeatOverride> {
   }
 }
 
+function serializeSeatConfig(config: Record<string, SeatOverride> | undefined) {
+  if (!config || Object.keys(config).length === 0) return undefined;
+  const clean: Record<string, Omit<SeatOverride, 'backendSeatId'>> = {};
+  Object.entries(config).forEach(([key, value]) => {
+    const { backendSeatId: _backendSeatId, ...rest } = value;
+    if (Object.keys(rest).length > 0) clean[key] = rest;
+  });
+  return Object.keys(clean).length ? JSON.stringify(clean) : undefined;
+}
+
 // Map an editor item onto the backend /sections/bulk payload shape.
 function itemToSection(item: VenueItem, index: number) {
   const section: any = {
@@ -103,7 +126,7 @@ function itemToSection(item: VenueItem, index: number) {
     tableShape: item.shape || 'round',
     rotation: Number(item.rotation) || 0,
     tablePurchaseMode: item.saleMode === 'whole' ? 'whole' : 'individual',
-    seatsConfig: item.seatConfig && Object.keys(item.seatConfig).length ? JSON.stringify(item.seatConfig) : undefined,
+    seatsConfig: serializeSeatConfig(item.seatConfig),
     sortOrder: index,
   };
   // Only send the id for rows that already exist in the database.
@@ -130,6 +153,7 @@ function seatKeysForItem(item: VenueItem) {
 
 // Per-seat overrides keyed by seat id ("row-col"), mirroring the web seatsConfig.
 type SeatOverride = {
+  backendSeatId?: string;
   isWheelchair?: boolean;
   reserved?: boolean;   // blocked / reserved for sale
   disabled?: boolean;   // hidden seat
@@ -180,12 +204,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 // Matches the web editor's SECTION_COLORS so sections look the same on both.
 const palette = ['#3b82f6', '#f97316', '#10b981', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#6366f1'];
 
-const initialItems: VenueItem[] = [
-  { id: 'bar-1', type: 'bar', name: 'BAR', x: 95, y: 130, width: 260, height: 120, color: '#ff8138', price: 0, rows: 0, seatsPerRow: 0, fontSize: 18, shape: 'rectangle', saleMode: 'whole', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
-  { id: 'area-1', type: 'area', name: 'General Area', x: 135, y: 290, width: 205, height: 62, color: '#64748b', price: 25, rows: 0, seatsPerRow: 0, fontSize: 15, shape: 'soft', saleMode: 'seat', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
-  { id: 'table-31', type: 'table', name: '31', x: 500, y: 355, width: 86, height: 58, color: '#16b981', price: 100, rows: 2, seatsPerRow: 3, fontSize: 10, shape: 'rectangle', saleMode: 'whole', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
-  { id: 'table-30', type: 'table', name: '30', x: 650, y: 275, width: 96, height: 64, color: '#f59e0b', price: 100, rows: 2, seatsPerRow: 5, fontSize: 10, shape: 'rectangle', saleMode: 'seat', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
-];
+const initialItems: VenueItem[] = [];
 
 type Props = {
   eventId?: string;
@@ -211,7 +230,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   // Saved venue templates (reusable layouts).
   const [templates, setTemplates] = useState<{ id: string; name: string; sections: any[] }[]>([]);
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState(initialItems[2].id);
+  const [selectedId, setSelectedId] = useState('');
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; pageX: number; pageY: number } | null>(null);
   // Mirror of `drag` for gesture callbacks (they run outside React's render cycle
@@ -220,6 +239,8 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   const setDragSafe = (d: typeof drag) => { dragRef.current = d; setDrag(d); };
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [mapLoading, setMapLoading] = useState(true);
+  const [mapLoadError, setMapLoadError] = useState(false);
   const [zoomPct, setZoomPct] = useState(50); // for the % label only
 
   // ── Pan/zoom system ported from ClientVenueMap ──────────────────────────
@@ -537,14 +558,21 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   const canvasTranslateX = useRef(Animated.add(animPanX, Animated.multiply(halfCanvasW, Animated.add(negOne, animZoom)))).current;
   const canvasTranslateY = useRef(Animated.add(animPanY, Animated.multiply(halfCanvasH, Animated.add(negOne, animZoom)))).current;
 
-  // Fit default items on first render.
-  useEffect(() => { fitToContent(initialItems); }, [fitToContent]);
-
   // Load the persisted seat map for the selected event.
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId) {
+      setItems([]);
+      setSelectedId('');
+      setSelectedSeat(null);
+      setMapLoading(false);
+      setMapLoadError(false);
+      fitToContent([]);
+      return;
+    }
     let mounted = true;
     const loadMap = async () => {
+      setMapLoading(true);
+      setMapLoadError(false);
       try {
         let data: any[] = [];
         try {
@@ -553,14 +581,23 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
           data = await apiGet<any[]>(`/events/${eventId}/sections`);
         }
         if (!mounted) return;
-        const loaded = Array.isArray(data) && data.length > 0 ? data.map(sectionToItem) : initialItems;
+        const loaded = Array.isArray(data) && data.length > 0 ? data.map(sectionToItem) : [];
         setItems(loaded);
-        setSelectedId(loaded[0].id);
+        setSelectedId(loaded[0]?.id || '');
         setSelectedSeat(null);
         setSaved(true);
+        setMapLoading(false);
+        setMapLoadError(false);
         fitToContent(loaded);
       } catch {
-        if (mounted) fitToContent(initialItems);
+        if (mounted) {
+          setItems([]);
+          setSelectedId('');
+          setSelectedSeat(null);
+          setMapLoading(false);
+          setMapLoadError(true);
+          fitToContent([]);
+        }
       }
     };
     loadMap();
@@ -575,6 +612,11 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     } catch { setTemplates([]); }
   }, []);
   useEffect(() => { loadTemplates(); }, [loadTemplates]);
+
+  const isCanceledRequest = (err: any) => {
+    const message = String(err?.message || '').toLowerCase();
+    return err?.name === 'AbortError' || message.includes('canceled') || message.includes('cancelled');
+  };
 
   // Apply a template's sections to the editor (replaces current items).
   const applyTemplate = (tmpl: { id: string; name: string; sections: any[] }) => {
@@ -638,6 +680,10 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
       }
       setSaved(true);
     } catch (err: any) {
+      if (isCanceledRequest(err)) {
+        setSaved(true);
+        return;
+      }
       Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo guardar el mapa', 'Could not save the map'));
     } finally {
       setSaving(false);
@@ -662,6 +708,13 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   const updateSelected = (patch: Partial<VenueItem>) => {
     if (!selected) return;
     setSaved(false);
+    setItems((current) => current.map((item) => item.id === selected.id ? { ...item, ...patch } : item));
+  };
+
+  const updateSelectedPersisted = (patch: Partial<VenueItem>) => {
+    if (!selected) return;
+    setSaving(false);
+    setSaved(true);
     setItems((current) => current.map((item) => item.id === selected.id ? { ...item, ...patch } : item));
   };
 
@@ -873,11 +926,25 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   };
 
   // Update one override field for the currently selected seat.
+  const showBlockError = (err: any) => {
+    if (isCanceledRequest(err)) return;
+    Alert.alert('Error', err?.message || t('No se pudo actualizar el bloqueo.', 'Could not update the block.'));
+  };
+
+  const persistSeatBlocks = (seatIds: string[], blocked: boolean) => {
+    const uniqueSeatIds = Array.from(new Set(seatIds.filter(Boolean)));
+    if (uniqueSeatIds.length === 0) return;
+    apiPost('/orders/seats/toggle-block-bulk', { seatIds: uniqueSeatIds, blocked }, 30000)
+      .catch(showBlockError);
+  };
+
   const updateSeatOverride = (field: keyof SeatOverride, value: any) => {
     if (!selected || !selectedSeat) return;
     const next = { ...(selected.seatConfig || {}) };
     const cur = { ...(next[selectedSeat] || {}) } as SeatOverride;
+    const backendSeatId = cur.backendSeatId;
     if (field === 'reserved') {
+      if (String(cur.status) === 'sold' || String(cur.status) === 'held') return;
       if (value) {
         cur.reserved = true;
         cur.status = 'reserved';
@@ -889,7 +956,12 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     else (cur as any)[field] = value;
     if (Object.keys(cur).length === 0) delete next[selectedSeat];
     else next[selectedSeat] = cur;
-    updateSelected({ seatConfig: next });
+    if (field === 'reserved' && backendSeatId) {
+      updateSelectedPersisted({ seatConfig: next });
+      persistSeatBlocks([backendSeatId], !!value);
+    } else {
+      updateSelected({ seatConfig: next });
+    }
   };
 
   const toggleAllSelectedSeatsReserved = () => {
@@ -903,9 +975,14 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     });
     const shouldBlock = !allBlocked;
     const next = { ...current };
+    const seatIdsToToggle: string[] = [];
     keys.forEach((key) => {
       const cur = { ...(next[key] || {}) } as SeatOverride;
       if (cur.status === 'sold') return;
+      const currentlyBlocked = !!cur.reserved || cur.status === 'reserved';
+      if (cur.backendSeatId && String(cur.status) !== 'held' && currentlyBlocked !== shouldBlock) {
+        seatIdsToToggle.push(cur.backendSeatId);
+      }
       if (shouldBlock) {
         cur.reserved = true;
         cur.status = 'reserved';
@@ -916,7 +993,8 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
       if (Object.keys(cur).length === 0) delete next[key];
       else next[key] = cur;
     });
-    updateSelected({ seatConfig: next, locked: false });
+    updateSelectedPersisted({ seatConfig: next, locked: false });
+    persistSeatBlocks(seatIdsToToggle, shouldBlock);
   };
 
   const selectedSeatKeys = selected ? seatKeysForItem(selected) : [];
@@ -924,6 +1002,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     const ov = selected?.seatConfig?.[key] || {};
     return !!ov.reserved || ov.status === 'reserved';
   });
+  const showEmptyMapState = !mapLoading && !mapLoadError && items.length === 0 && !editMode;
 
   const resetSeatOverride = () => {
     if (!selected || !selectedSeat) return;
@@ -1010,10 +1089,29 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
       )}
 
       <View style={styles.workbench}>
-          {/* The VIEWPORT captures panning, so you can drag from anywhere in the
+        {mapLoading ? (
+          <View style={styles.mapStatePanel}>
+            <ActivityIndicator color="#F97316" />
+            <Text style={styles.mapStateTitle}>{t('Cargando mapa real...', 'Loading saved map...')}</Text>
+            <Text style={styles.mapStateCopy}>{t('Espera un momento mientras traemos el mapa guardado de este evento.', 'Please wait while the saved venue map loads.')}</Text>
+          </View>
+        ) : mapLoadError ? (
+          <View style={styles.mapStatePanel}>
+            <Ionicons name="warning-outline" size={26} color="#fb923c" />
+            <Text style={styles.mapStateTitle}>{t('No se pudo cargar el mapa', 'Could not load the map')}</Text>
+            <Text style={styles.mapStateCopy}>{t('Cierra esta vista y vuelve a entrar para traer el mapa real del evento.', 'Close this view and reopen it to load the real event map.')}</Text>
+          </View>
+        ) : showEmptyMapState ? (
+          <View style={styles.mapStatePanel}>
+            <Ionicons name="map-outline" size={26} color="#60a5fa" />
+            <Text style={styles.mapStateTitle}>{t('Este evento no tiene mapa guardado', 'No saved map for this event')}</Text>
+            <Text style={styles.mapStateCopy}>{t('Toca Editar para crear uno. No se mostrará un mapa falso o vacío como si fuera real.', 'Tap Edit to create one. A fake or empty map will not be shown as real.')}</Text>
+          </View>
+        ) : (
+          /* The VIEWPORT captures panning, so you can drag from anywhere in the
               visible area — including outside the content — not only from an
               empty spot on the moving canvas. Items still grab their own touches
-              (in edit mode), so dragging an item doesn't also pan. */}
+              (in edit mode), so dragging an item doesn't also pan. */
           <View
             ref={canvasVpRef}
             // touchAction:'none' (web only) stops the browser from scrolling/zooming
@@ -1164,6 +1262,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
               );
             })()}
           </View>
+        )}
       </View>
 
       {editMode && (
@@ -1851,6 +1950,9 @@ const styles = StyleSheet.create({
   toolsRow: { flexDirection: 'row', alignItems: 'stretch', gap: 7, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   zoomGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
   workbench: { height: VP_H, backgroundColor: '#0d2138' },
+  mapStatePanel: { flex: 1, minHeight: VP_H, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 26, backgroundColor: '#0d2138' },
+  mapStateTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '800', textAlign: 'center', marginTop: 12 },
+  mapStateCopy: { color: 'rgba(226,232,240,0.66)', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7, maxWidth: 320 },
   leftRail: { display: 'none', width: 0 },
   tool: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.22)', backgroundColor: 'rgba(249,115,22,0.06)' },
   toolIcon: { width: 22, height: 16, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },

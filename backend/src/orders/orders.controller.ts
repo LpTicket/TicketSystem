@@ -333,6 +333,16 @@ export class OrdersController {
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Post('seats/toggle-block-bulk')
+  setBlockSeats(
+    @Body() body: { seatIds?: string[]; blocked?: boolean },
+    @Request() req: any
+  ) {
+    return this.ordersService.setBlockSeats(body.seatIds || [], !!body.blocked, req.user.id);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
   @Post('seats/:seatId/toggle-block')
   toggleBlockSeat(
     @Param('seatId') seatId: string,

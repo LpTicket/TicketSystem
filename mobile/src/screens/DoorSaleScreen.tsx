@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { GradientButton } from '../components/GradientButton';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser, apiGet, getImageUrl } from '../services/api';
@@ -30,6 +31,7 @@ type DoorEvent = {
 type PaymentMethod = 'qr' | 'link' | 'tap';
 
 const DEFAULT_DOOR_SALE_AMOUNT = '20';
+const TAP_TO_PAY_GUIDE_SEEN_KEY = 'lp_tap_to_pay_guide_seen_v1';
 
 function listFrom(payload: any): any[] {
   if (Array.isArray(payload)) return payload;
@@ -82,6 +84,8 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   const [error, setError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('qr');
   const [tapStatus, setTapStatus] = useState('');
+  const [showTapGuide, setShowTapGuide] = useState(false);
+  const [tapGuideSeen, setTapGuideSeen] = useState(false);
   const [eventQuery, setEventQuery] = useState('');
   const eventSearchPlaceholder = t('Buscar evento', 'Search event') || (lang === 'es' ? 'Buscar evento' : 'Search event');
 
@@ -145,6 +149,18 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   }, [selectedEventId]);
 
   useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(TAP_TO_PAY_GUIDE_SEEN_KEY)
+      .then((seen) => {
+        if (!mounted) return;
+        setTapGuideSeen(Boolean(seen));
+        if (!seen) setShowTapGuide(true);
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
     if (!eventQuery.trim()) return;
     if (filteredEvents.length === 1 && filteredEvents[0].id !== selectedEventId) {
       setSelectedEventId(filteredEvents[0].id);
@@ -182,7 +198,18 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     ? t('CREAR QR DE PAGO', 'CREATE PAYMENT QR')
     : paymentMethod === 'link'
       ? t('CREAR LINK DE PAGO', 'CREATE PAYMENT LINK')
-      : t('COBRAR CON TAP TO PAY', 'CHARGE WITH TAP TO PAY');
+      : t('Toca para pagar en iPhone', 'Tap to Pay on iPhone');
+
+  const acknowledgeTapGuide = () => {
+    setShowTapGuide(false);
+    setTapGuideSeen(true);
+    AsyncStorage.setItem(TAP_TO_PAY_GUIDE_SEEN_KEY, '1').catch(() => {});
+  };
+
+  const selectTapToPay = () => {
+    setPaymentMethod('tap');
+    if (!tapGuideSeen) setShowTapGuide(true);
+  };
 
   const resetSaleForm = () => {
     setAmount(DEFAULT_DOOR_SALE_AMOUNT);
@@ -205,7 +232,10 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           merchantDisplayName: selectedEvent?.title || 'LPTicket',
           onStatus: setTapStatus,
         });
-        resetSaleForm();
+        setAmount(DEFAULT_DOOR_SALE_AMOUNT);
+        setQuantity(1);
+        setCheckout(null);
+        setTapStatus(t('Pago aprobado. Entradas emitidas.', 'Payment approved. Tickets issued.'));
         onSaleCompleted?.();
         return;
       }
@@ -342,6 +372,21 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
 
       <View style={styles.payMethodCard}>
         <Text style={styles.eyebrow}>{t('FORMA DE COBRO', 'PAYMENT METHOD')}</Text>
+        <TouchableOpacity style={styles.tapGuideCard} onPress={() => setShowTapGuide(true)} activeOpacity={0.82}>
+          <View style={styles.tapGuideIcon}>
+            <Ionicons name="phone-portrait-outline" size={18} color="#F97316" />
+          </View>
+          <View style={styles.tapGuideText}>
+            <Text style={styles.tapGuideTitle}>{t('Tap to Pay en iPhone disponible', 'Tap to Pay on iPhone available')}</Text>
+            <Text style={styles.tapGuideCopy}>
+              {t(
+                'Acepta pagos sin contacto con tarjeta, Apple Pay y wallets digitales desde este iPhone.',
+                'Accept contactless cards, Apple Pay, and digital wallets from this iPhone.'
+              )}
+            </Text>
+          </View>
+          <Text style={styles.tapGuideLink}>{t('Guía', 'Guide')}</Text>
+        </TouchableOpacity>
         <PaymentOption
           icon="qr-code-outline"
           title={t('QR de pago', 'Payment QR')}
@@ -364,7 +409,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           copy={t('Cobra acercando tarjeta o teléfono al iPhone.', 'Charge by tapping a card or phone on the iPhone.')}
           status={paymentMethod === 'tap' ? t('Seleccionado', 'Selected') : t('App nativa', 'Native app')}
           active={paymentMethod === 'tap'}
-          onPress={() => setPaymentMethod('tap')}
+          onPress={selectTapToPay}
         />
         {tapStatus ? <Text style={styles.tapStatus}>{tapStatus}</Text> : null}
       </View>
@@ -396,7 +441,76 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           </TouchableOpacity>
         </View>
       )}
+      <Modal visible={showTapGuide} transparent animationType="fade" onRequestClose={acknowledgeTapGuide}>
+        <View style={styles.tapModalOverlay}>
+          <View style={styles.tapModal}>
+            <View style={styles.tapModalHeader}>
+              <View style={styles.tapModalIcon}>
+                <Ionicons name="phone-portrait-outline" size={22} color="#FFFFFF" />
+              </View>
+              <View style={styles.tapModalHeaderText}>
+                <Text style={styles.tapModalTitle}>{t('Configura Tap to Pay en iPhone', 'Set up Tap to Pay on iPhone')}</Text>
+                <Text style={styles.tapModalSubtitle}>{t('Guía rápida para vender en puerta.', 'Quick guide for door sales.')}</Text>
+              </View>
+              <TouchableOpacity style={styles.tapModalClose} onPress={acknowledgeTapGuide} activeOpacity={0.78}>
+                <Ionicons name="close" size={18} color="#CBD5E1" />
+              </TouchableOpacity>
+            </View>
+
+            <TapGuideStep
+              icon="checkmark-circle-outline"
+              title={t('Acepta los términos', 'Accept the terms')}
+              copy={t(
+                'El administrador u organizador autorizado debe aceptar los términos de Tap to Pay en iPhone cuando Apple los muestre.',
+                'An authorized admin or organizer must accept the Tap to Pay on iPhone terms when Apple shows them.'
+              )}
+            />
+            <TapGuideStep
+              icon="wifi-outline"
+              title={t('Cobra sin contacto', 'Accept contactless payments')}
+              copy={t(
+                'Pide al cliente acercar tarjeta, Apple Pay u otra wallet digital a la parte superior del iPhone.',
+                'Ask the customer to hold their card, Apple Pay, or another digital wallet near the top of the iPhone.'
+              )}
+            />
+            <TapGuideStep
+              icon="card-outline"
+              title={t('Usa respaldo si hace falta', 'Use a backup if needed')}
+              copy={t(
+                'Si una tarjeta no se lee, usa otra tarjeta sin contacto, Apple Pay, QR o link de pago.',
+                'If a card cannot be read, use another contactless card, Apple Pay, payment QR, or payment link.'
+              )}
+            />
+            <TapGuideStep
+              icon="receipt-outline"
+              title={t('Confirma el resultado', 'Confirm the result')}
+              copy={t(
+                'La app mostrará si el pago fue aprobado o falló antes de emitir las entradas.',
+                'The app shows whether the payment was approved or failed before issuing tickets.'
+              )}
+            />
+
+            <GradientButton height={48} onPress={acknowledgeTapGuide} style={{ marginTop: 8 }}>
+              <Text style={styles.tapModalButtonText}>{t('ENTENDIDO', 'GOT IT')}</Text>
+            </GradientButton>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
+  );
+}
+
+function TapGuideStep({ icon, title, copy }: { icon: keyof typeof Ionicons.glyphMap; title: string; copy: string }) {
+  return (
+    <View style={styles.tapStep}>
+      <View style={styles.tapStepIcon}>
+        <Ionicons name={icon} size={17} color="#F97316" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.tapStepTitle}>{title}</Text>
+        <Text style={styles.tapStepCopy}>{copy}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -486,6 +600,12 @@ const styles = StyleSheet.create({
   totalValue: { color: '#F97316', fontSize: 22, fontWeight: '600' },
   estimateText: { color: 'rgba(251,146,60,0.78)', fontSize: 11, fontWeight: '600', marginTop: 4 },
   payMethodCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: '#030B14', padding: 14, gap: 10 },
+  tapGuideCard: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 82, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', backgroundColor: 'rgba(249,115,22,0.08)', padding: 12 },
+  tapGuideIcon: { width: 40, height: 40, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(249,115,22,0.32)', backgroundColor: 'rgba(249,115,22,0.10)' },
+  tapGuideText: { flex: 1 },
+  tapGuideTitle: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
+  tapGuideCopy: { color: 'rgba(226,232,240,0.62)', fontSize: 11, lineHeight: 15, marginTop: 4, fontWeight: '600' },
+  tapGuideLink: { color: '#F97316', fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
   paymentOption: { flexDirection: 'row', alignItems: 'center', gap: 11, minHeight: 74, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.025)', padding: 12 },
   paymentOptionActive: { borderColor: 'rgba(249,115,22,0.34)', backgroundColor: 'rgba(249,115,22,0.08)' },
   paymentIcon: { width: 38, height: 38, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center' },
@@ -503,4 +623,17 @@ const styles = StyleSheet.create({
   qrImage: { width: 228, height: 228, borderRadius: 18, marginTop: 14, backgroundColor: '#FFFFFF' },
   shareButton: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12, minHeight: 38, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(249,115,22,0.36)', backgroundColor: '#030B14' },
   shareText: { color: '#F97316', fontSize: 12, fontWeight: '600' },
+  tapModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.64)', padding: 18, alignItems: 'center', justifyContent: 'center' },
+  tapModal: { width: '100%', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', backgroundColor: '#030B14', padding: 16, gap: 12, shadowColor: '#000000', shadowOpacity: 0.32, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 14 },
+  tapModalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },
+  tapModalIcon: { width: 44, height: 44, borderRadius: 17, backgroundColor: '#F97316', alignItems: 'center', justifyContent: 'center' },
+  tapModalHeaderText: { flex: 1 },
+  tapModalTitle: { color: '#FFFFFF', fontSize: 17, lineHeight: 22, fontWeight: '600' },
+  tapModalSubtitle: { color: 'rgba(226,232,240,0.58)', fontSize: 12, fontWeight: '600', marginTop: 3 },
+  tapModalClose: { width: 34, height: 34, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.06)' },
+  tapStep: { flexDirection: 'row', gap: 10, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.025)', padding: 12 },
+  tapStepIcon: { width: 31, height: 31, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249,115,22,0.10)' },
+  tapStepTitle: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
+  tapStepCopy: { color: 'rgba(226,232,240,0.60)', fontSize: 11, lineHeight: 16, marginTop: 3, fontWeight: '600' },
+  tapModalButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
 });

@@ -1722,6 +1722,60 @@ export class OrdersService {
     return { status: seat.status, message: seat.status === SeatStatus.LOCKED ? 'Seat blocked permanently' : 'Seat unblocked' };
   }
 
+  async setBlockSeats(seatIds: string[], blocked: boolean, userId: string) {
+    const uniqueSeatIds = Array.from(new Set((seatIds || []).filter(Boolean)));
+    if (uniqueSeatIds.length === 0) {
+      throw new BadRequestException('No seats selected');
+    }
+
+    const seats = await this.seatRepo.find({
+      where: { id: In(uniqueSeatIds) },
+      relations: ['section', 'section.event'],
+    });
+
+    if (seats.length !== uniqueSeatIds.length) {
+      throw new NotFoundException('Some seats were not found');
+    }
+
+    const user = await this.eventRepo.manager.findOne('User' as any, { where: { id: userId } }) as any;
+    for (const seat of seats) {
+      if (seat.section.event.organizerId !== userId && user?.role !== 'admin') {
+        throw new ForbiddenException('No permission to block seats for this event');
+      }
+      if (seat.status === SeatStatus.SOLD) {
+        throw new BadRequestException('One or more seats are already sold and cannot be blocked');
+      }
+    }
+
+    const updateQuery = this.seatRepo
+      .createQueryBuilder()
+      .update(Seat)
+      .where('id IN (:...seatIds)', { seatIds: uniqueSeatIds });
+
+    if (blocked) {
+      const result = await updateQuery
+        .set({
+          status: SeatStatus.LOCKED,
+          lockedBy: userId,
+          lockExpiresAt: null as any,
+        })
+        .execute();
+      return { updated: result.affected || 0, blocked };
+    }
+
+    const result = await updateQuery
+      .set({
+        status: SeatStatus.AVAILABLE,
+        lockedBy: null as any,
+        lockExpiresAt: null as any,
+      })
+      .andWhere('status = :locked', { locked: SeatStatus.LOCKED })
+      .andWhere('lockExpiresAt IS NULL')
+      .execute();
+
+    return { updated: result.affected || 0, blocked };
+  }
+
   /**
    * Organizer tool to issue free tickets (Invitations).
    * Creates a dummy PAID order with $0 total and sends QR tickets to recipient.
