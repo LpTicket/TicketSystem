@@ -1,4 +1,4 @@
-import { Alert, Animated, Dimensions, Easing, GestureResponderEvent, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Dimensions, Easing, GestureResponderEvent, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -204,12 +204,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 // Matches the web editor's SECTION_COLORS so sections look the same on both.
 const palette = ['#3b82f6', '#f97316', '#10b981', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#6366f1'];
 
-const initialItems: VenueItem[] = [
-  { id: 'bar-1', type: 'bar', name: 'BAR', x: 95, y: 130, width: 260, height: 120, color: '#ff8138', price: 0, rows: 0, seatsPerRow: 0, fontSize: 18, shape: 'rectangle', saleMode: 'whole', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
-  { id: 'area-1', type: 'area', name: 'General Area', x: 135, y: 290, width: 205, height: 62, color: '#64748b', price: 25, rows: 0, seatsPerRow: 0, fontSize: 15, shape: 'soft', saleMode: 'seat', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
-  { id: 'table-31', type: 'table', name: '31', x: 500, y: 355, width: 86, height: 58, color: '#16b981', price: 100, rows: 2, seatsPerRow: 3, fontSize: 10, shape: 'rectangle', saleMode: 'whole', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
-  { id: 'table-30', type: 'table', name: '30', x: 650, y: 275, width: 96, height: 64, color: '#f59e0b', price: 100, rows: 2, seatsPerRow: 5, fontSize: 10, shape: 'rectangle', saleMode: 'seat', rotation: 0, locked: false, blockedSeats: [], seatConfig: {} },
-];
+const initialItems: VenueItem[] = [];
 
 type Props = {
   eventId?: string;
@@ -235,7 +230,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   // Saved venue templates (reusable layouts).
   const [templates, setTemplates] = useState<{ id: string; name: string; sections: any[] }[]>([]);
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState(initialItems[2].id);
+  const [selectedId, setSelectedId] = useState('');
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ id: string; x: number; y: number; pageX: number; pageY: number } | null>(null);
   // Mirror of `drag` for gesture callbacks (they run outside React's render cycle
@@ -244,6 +239,8 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   const setDragSafe = (d: typeof drag) => { dragRef.current = d; setDrag(d); };
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [mapLoading, setMapLoading] = useState(true);
+  const [mapLoadError, setMapLoadError] = useState(false);
   const [zoomPct, setZoomPct] = useState(50); // for the % label only
 
   // ── Pan/zoom system ported from ClientVenueMap ──────────────────────────
@@ -561,14 +558,21 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   const canvasTranslateX = useRef(Animated.add(animPanX, Animated.multiply(halfCanvasW, Animated.add(negOne, animZoom)))).current;
   const canvasTranslateY = useRef(Animated.add(animPanY, Animated.multiply(halfCanvasH, Animated.add(negOne, animZoom)))).current;
 
-  // Fit default items on first render.
-  useEffect(() => { fitToContent(initialItems); }, [fitToContent]);
-
   // Load the persisted seat map for the selected event.
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId) {
+      setItems([]);
+      setSelectedId('');
+      setSelectedSeat(null);
+      setMapLoading(false);
+      setMapLoadError(false);
+      fitToContent([]);
+      return;
+    }
     let mounted = true;
     const loadMap = async () => {
+      setMapLoading(true);
+      setMapLoadError(false);
       try {
         let data: any[] = [];
         try {
@@ -577,14 +581,23 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
           data = await apiGet<any[]>(`/events/${eventId}/sections`);
         }
         if (!mounted) return;
-        const loaded = Array.isArray(data) && data.length > 0 ? data.map(sectionToItem) : initialItems;
+        const loaded = Array.isArray(data) && data.length > 0 ? data.map(sectionToItem) : [];
         setItems(loaded);
-        setSelectedId(loaded[0].id);
+        setSelectedId(loaded[0]?.id || '');
         setSelectedSeat(null);
         setSaved(true);
+        setMapLoading(false);
+        setMapLoadError(false);
         fitToContent(loaded);
       } catch {
-        if (mounted) fitToContent(initialItems);
+        if (mounted) {
+          setItems([]);
+          setSelectedId('');
+          setSelectedSeat(null);
+          setMapLoading(false);
+          setMapLoadError(true);
+          fitToContent([]);
+        }
       }
     };
     loadMap();
@@ -989,6 +1002,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     const ov = selected?.seatConfig?.[key] || {};
     return !!ov.reserved || ov.status === 'reserved';
   });
+  const showEmptyMapState = !mapLoading && !mapLoadError && items.length === 0 && !editMode;
 
   const resetSeatOverride = () => {
     if (!selected || !selectedSeat) return;
@@ -1075,10 +1089,29 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
       )}
 
       <View style={styles.workbench}>
-          {/* The VIEWPORT captures panning, so you can drag from anywhere in the
+        {mapLoading ? (
+          <View style={styles.mapStatePanel}>
+            <ActivityIndicator color="#F97316" />
+            <Text style={styles.mapStateTitle}>{t('Cargando mapa real...', 'Loading saved map...')}</Text>
+            <Text style={styles.mapStateCopy}>{t('Espera un momento mientras traemos el mapa guardado de este evento.', 'Please wait while the saved venue map loads.')}</Text>
+          </View>
+        ) : mapLoadError ? (
+          <View style={styles.mapStatePanel}>
+            <Ionicons name="warning-outline" size={26} color="#fb923c" />
+            <Text style={styles.mapStateTitle}>{t('No se pudo cargar el mapa', 'Could not load the map')}</Text>
+            <Text style={styles.mapStateCopy}>{t('Cierra esta vista y vuelve a entrar para traer el mapa real del evento.', 'Close this view and reopen it to load the real event map.')}</Text>
+          </View>
+        ) : showEmptyMapState ? (
+          <View style={styles.mapStatePanel}>
+            <Ionicons name="map-outline" size={26} color="#60a5fa" />
+            <Text style={styles.mapStateTitle}>{t('Este evento no tiene mapa guardado', 'No saved map for this event')}</Text>
+            <Text style={styles.mapStateCopy}>{t('Toca Editar para crear uno. No se mostrará un mapa falso o vacío como si fuera real.', 'Tap Edit to create one. A fake or empty map will not be shown as real.')}</Text>
+          </View>
+        ) : (
+          /* The VIEWPORT captures panning, so you can drag from anywhere in the
               visible area — including outside the content — not only from an
               empty spot on the moving canvas. Items still grab their own touches
-              (in edit mode), so dragging an item doesn't also pan. */}
+              (in edit mode), so dragging an item doesn't also pan. */
           <View
             ref={canvasVpRef}
             // touchAction:'none' (web only) stops the browser from scrolling/zooming
@@ -1229,6 +1262,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
               );
             })()}
           </View>
+        )}
       </View>
 
       {editMode && (
@@ -1916,6 +1950,9 @@ const styles = StyleSheet.create({
   toolsRow: { flexDirection: 'row', alignItems: 'stretch', gap: 7, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   zoomGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
   workbench: { height: VP_H, backgroundColor: '#0d2138' },
+  mapStatePanel: { flex: 1, minHeight: VP_H, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 26, backgroundColor: '#0d2138' },
+  mapStateTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '800', textAlign: 'center', marginTop: 12 },
+  mapStateCopy: { color: 'rgba(226,232,240,0.66)', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7, maxWidth: 320 },
   leftRail: { display: 'none', width: 0 },
   tool: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(249,115,22,0.22)', backgroundColor: 'rgba(249,115,22,0.06)' },
   toolIcon: { width: 22, height: 16, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
