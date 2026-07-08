@@ -33,12 +33,18 @@ function sectionToItem(s: any): VenueItem {
   const type = SECTION_TO_TYPE[String(s.sectionType).toLowerCase()] || 'table';
   const seatConfig = parseSeatConfig(s.seatsConfig);
   if (Array.isArray(s.seats)) {
-    s.seats.forEach((seat: any) => {
-      const key = type === 'table' ? `seat-${seat.seatNumber}` : `${seat.rowLabel || 'A'}-${seat.seatNumber}`;
+    const rows = Math.max(1, Number(s.rows) || 1);
+    const seatsPerRow = Math.max(1, Number(s.seatsPerRow) || 1);
+    s.seats.forEach((seat: any, index: number) => {
+      const canonicalSeat = type === 'table' ? index + 1 : (index % seatsPerRow) + 1;
+      const canonicalRowIndex = type === 'table' ? 1 : Math.floor(index / seatsPerRow) + 1;
+      const canonicalRow = String.fromCharCode(64 + Math.min(canonicalRowIndex, rows));
+      const key = type === 'table' ? `seat-${canonicalSeat}` : `${canonicalRow}-${canonicalSeat}`;
+      const legacyKey = type === 'table' ? `seat-${seat.seatNumber}` : `${seat.rowLabel || canonicalRow}-${seat.seatNumber}`;
       const status = String(seat.status || '').toLowerCase();
       const lockExpiresAt = seat.lockExpiresAt ? new Date(seat.lockExpiresAt).getTime() : null;
       const isActiveHold = status === 'locked' && lockExpiresAt && lockExpiresAt > Date.now();
-      const next = { ...(seatConfig[key] || {}) } as SeatOverride;
+      const next = { ...(seatConfig[key] || seatConfig[legacyKey] || {}) } as SeatOverride;
       if (status === 'sold') next.status = 'sold';
       else if (status === 'locked') {
         next.status = isActiveHold ? 'held' : 'reserved';
@@ -49,6 +55,12 @@ function sectionToItem(s: any): VenueItem {
       }
       const buyerName = seat.buyerName || seat.attendeeName || seat.userName || seat.ownerName;
       if (buyerName) next.buyerName = buyerName;
+      const defaultRowLabel = type === 'table' ? 'Mesa' : canonicalRow;
+      const persistedRowLabel = seat.rowLabel;
+      const persistedSeatNumber = seat.seatNumber;
+      if (persistedRowLabel && persistedRowLabel !== defaultRowLabel) next.rowLabel = persistedRowLabel;
+      if (persistedSeatNumber !== undefined && String(persistedSeatNumber) !== String(canonicalSeat)) next.seatNumber = String(persistedSeatNumber);
+      if (legacyKey !== key) delete seatConfig[legacyKey];
       if (Object.keys(next).length > 0) seatConfig[key] = next;
     });
   }
