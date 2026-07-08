@@ -116,6 +116,20 @@ function SharePointIcon() {
 }
 
 
+const CATEGORY_VISUALS: { keys: string[]; image: string }[] = [
+  { keys: ['concert', 'concierto', 'music', 'musica', 'música', 'festival'], image: 'https://www.lpticket.com/demo/concert.png' },
+  { keys: ['sport', 'deporte', 'game', 'partido'], image: 'https://www.lpticket.com/demo/sports.png' },
+  { keys: ['comedy', 'comedia', 'standup', 'stand-up'], image: 'https://www.lpticket.com/demo/comedy.png' },
+  { keys: ['theater', 'teatro', 'arte', 'art', 'show'], image: 'https://www.lpticket.com/demo/theater.png' },
+  { keys: ['network', 'negocio', 'business', 'vip', 'conference', 'conferencia'], image: 'https://www.lpticket.com/demo/concert.png' },
+];
+
+function getCategoryFallbackImage(slug: string, label: string) {
+  const haystack = `${slug} ${label}`.toLowerCase();
+  const match = CATEGORY_VISUALS.find((item) => item.keys.some((key) => haystack.includes(key)));
+  return match?.image || 'https://www.lpticket.com/demo/theater.png';
+}
+
 function normalizeCategory(value?: string | null) {
   return (value || '')
     .normalize('NFD')
@@ -267,7 +281,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
         label: t('Todos', 'All'),
         subtitle: lang === 'es' ? (allCategory?.subtitleEs || allCategory?.subtitleEn || 'Explora todo ahora.') : (allCategory?.subtitleEn || allCategory?.subtitleEs || 'Explore everything now.'),
         icon: allCategory?.icon || '🎫',
-        imageUrl: getImageUrl(allCategory?.imageUrl || allCategory?.imageData || ''),
+        imageUrl: getImageUrl(allCategory?.imageUrl || allCategory?.imageData || '') || 'https://www.lpticket.com/demo/concert.png',
       },
       ...liveCategories,
     ];
@@ -666,14 +680,11 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
             {categories.map((item, index) => {
               const active = category === item.slug;
-              const match = item.slug === 'All'
-                ? undefined
-                : events.find((e) => eventMatchesCategory(e, item.slug) && (e.imageUrl || e.bannerImageUrl));
-              const img = item.imageUrl || match?.imageUrl || match?.bannerImageUrl || '';
+              const img = item.imageUrl || getCategoryFallbackImage(item.slug, item.label);
               return (
                 <TouchableOpacity key={`${item.id || item.slug || item.label || 'category'}-${index}`} activeOpacity={0.85} onPress={() => handleCategoryPress(item)} style={[styles.catCard, active && styles.catCardActive]}>
                   <Animated.Image
-                    source={img ? { uri: img } : fallbackEventImage}
+                    source={{ uri: img }}
                     style={[styles.catImage, active && styles.catImageActive, active && { transform: [{ scale: categoryImageScale }] }]}
                     resizeMode="cover"
                   />
