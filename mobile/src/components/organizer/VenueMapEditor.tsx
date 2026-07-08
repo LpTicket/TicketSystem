@@ -605,24 +605,6 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     return err?.name === 'AbortError' || message.includes('canceled') || message.includes('cancelled');
   };
 
-  const reloadSeatMap = useCallback(async () => {
-    if (!eventId) return;
-    try {
-      const freshSeatMap = await apiGet<any[]>(`/events/${eventId}/seatmap`);
-      if (!Array.isArray(freshSeatMap) || freshSeatMap.length === 0) return;
-      const reloaded = freshSeatMap.map(sectionToItem);
-      setItems(reloaded);
-      setSelectedId((prev) => (reloaded.some((r) => r.id === prev) ? prev : reloaded[0].id));
-      setSaved(true);
-    } catch {
-      /* Keep the optimistic state visible; the next screen open will refresh it. */
-    }
-  }, [eventId]);
-
-  const refreshSeatMapSoon = () => {
-    setTimeout(() => { reloadSeatMap(); }, 1200);
-  };
-
   // Apply a template's sections to the editor (replaces current items).
   const applyTemplate = (tmpl: { id: string; name: string; sections: any[] }) => {
     const loaded = (tmpl.sections || []).map((s) => sectionToItem({ ...s, id: undefined }));
@@ -687,7 +669,6 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     } catch (err: any) {
       if (isCanceledRequest(err)) {
         setSaved(true);
-        refreshSeatMapSoon();
         return;
       }
       Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo guardar el mapa', 'Could not save the map'));
@@ -933,10 +914,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
 
   // Update one override field for the currently selected seat.
   const showBlockError = (err: any) => {
-    if (isCanceledRequest(err)) {
-      refreshSeatMapSoon();
-      return;
-    }
+    if (isCanceledRequest(err)) return;
     Alert.alert('Error', err?.message || t('No se pudo actualizar el bloqueo.', 'Could not update the block.'));
   };
 
@@ -944,7 +922,6 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     const uniqueSeatIds = Array.from(new Set(seatIds.filter(Boolean)));
     if (uniqueSeatIds.length === 0) return;
     apiPost('/orders/seats/toggle-block-bulk', { seatIds: uniqueSeatIds, blocked }, 30000)
-      .then(refreshSeatMapSoon)
       .catch(showBlockError);
   };
 

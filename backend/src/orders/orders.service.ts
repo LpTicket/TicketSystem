@@ -1747,21 +1747,33 @@ export class OrdersService {
       }
     }
 
-    const updatedSeats = seats.map((seat) => {
-      if (blocked) {
-        seat.status = SeatStatus.LOCKED;
-        seat.lockedBy = userId;
-        seat.lockExpiresAt = null as any;
-      } else if (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt) {
-        seat.status = SeatStatus.AVAILABLE;
-        seat.lockedBy = null as any;
-        seat.lockExpiresAt = null as any;
-      }
-      return seat;
-    });
+    const updateQuery = this.seatRepo
+      .createQueryBuilder()
+      .update(Seat)
+      .where('id IN (:...seatIds)', { seatIds: uniqueSeatIds });
 
-    await this.seatRepo.save(updatedSeats);
-    return { updated: updatedSeats.length, blocked };
+    if (blocked) {
+      const result = await updateQuery
+        .set({
+          status: SeatStatus.LOCKED,
+          lockedBy: userId,
+          lockExpiresAt: null as any,
+        })
+        .execute();
+      return { updated: result.affected || 0, blocked };
+    }
+
+    const result = await updateQuery
+      .set({
+        status: SeatStatus.AVAILABLE,
+        lockedBy: null as any,
+        lockExpiresAt: null as any,
+      })
+      .andWhere('status = :locked', { locked: SeatStatus.LOCKED })
+      .andWhere('lockExpiresAt IS NULL')
+      .execute();
+
+    return { updated: result.affected || 0, blocked };
   }
 
   /**
