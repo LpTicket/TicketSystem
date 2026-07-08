@@ -292,7 +292,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
                           <HiOutlineTicket className="h-6 w-6" />
                         </span>
                         <span className="home-category-title">{t('catAll')}</span>
-                        <span className="home-category-description">{lang === 'es' ? 'Explora todo ahora.' : 'Explore everything now.'}</span>
+                        <span className="home-category-description">{lang === 'es' ? ((allCat as any)?.subtitleEs || (allCat as any)?.subtitleEn || 'Explora todo ahora.') : ((allCat as any)?.subtitleEn || (allCat as any)?.subtitleEs || 'Explore everything now.')}</span>
                       </span>
                     </button>
                   );
@@ -301,6 +301,9 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
                   const label = lang === 'en' ? cat.labelEn : cat.labelEs;
                   const visual = getCategoryVisual(cat.slug, label, lang);
                   const image = getImageUrl((cat as typeof cat & { imageData?: string; imageUrl?: string }).imageUrl || (cat as typeof cat & { imageData?: string }).imageData) || visual.image;
+                  const subtitle = lang === 'es'
+                    ? (cat as any).subtitleEs || (cat as any).subtitleEn || visual.description
+                    : (cat as any).subtitleEn || (cat as any).subtitleEs || visual.description;
 
                   return (
                     <button key={cat.id} onClick={() => setActiveCategory(activeCategory === cat.slug ? '' : cat.slug)} className={`home-category-card ${activeCategory === cat.slug ? 'active' : ''}`} aria-pressed={activeCategory === cat.slug}>
@@ -309,7 +312,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
                       <span className="home-category-content">
                         <span className="home-category-icon">{cat.icon}</span>
                         <span className="home-category-title">{label}</span>
-                        <span className="home-category-description">{visual.description}</span>
+                        <span className="home-category-description">{subtitle}</span>
                       </span>
                     </button>
                   );
