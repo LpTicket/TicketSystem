@@ -600,6 +600,29 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   }, []);
   useEffect(() => { loadTemplates(); }, [loadTemplates]);
 
+  const isCanceledRequest = (err: any) => {
+    const message = String(err?.message || '').toLowerCase();
+    return err?.name === 'AbortError' || message.includes('canceled') || message.includes('cancelled');
+  };
+
+  const reloadSeatMap = useCallback(async () => {
+    if (!eventId) return;
+    try {
+      const freshSeatMap = await apiGet<any[]>(`/events/${eventId}/seatmap`);
+      if (!Array.isArray(freshSeatMap) || freshSeatMap.length === 0) return;
+      const reloaded = freshSeatMap.map(sectionToItem);
+      setItems(reloaded);
+      setSelectedId((prev) => (reloaded.some((r) => r.id === prev) ? prev : reloaded[0].id));
+      setSaved(true);
+    } catch {
+      /* Keep the optimistic state visible; the next screen open will refresh it. */
+    }
+  }, [eventId]);
+
+  const refreshSeatMapSoon = () => {
+    setTimeout(() => { reloadSeatMap(); }, 1200);
+  };
+
   // Apply a template's sections to the editor (replaces current items).
   const applyTemplate = (tmpl: { id: string; name: string; sections: any[] }) => {
     const loaded = (tmpl.sections || []).map((s) => sectionToItem({ ...s, id: undefined }));
@@ -662,6 +685,11 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
       }
       setSaved(true);
     } catch (err: any) {
+      if (isCanceledRequest(err)) {
+        setSaved(true);
+        refreshSeatMapSoon();
+        return;
+      }
       Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo guardar el mapa', 'Could not save the map'));
     } finally {
       setSaving(false);
@@ -686,6 +714,13 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   const updateSelected = (patch: Partial<VenueItem>) => {
     if (!selected) return;
     setSaved(false);
+    setItems((current) => current.map((item) => item.id === selected.id ? { ...item, ...patch } : item));
+  };
+
+  const updateSelectedPersisted = (patch: Partial<VenueItem>) => {
+    if (!selected) return;
+    setSaving(false);
+    setSaved(true);
     setItems((current) => current.map((item) => item.id === selected.id ? { ...item, ...patch } : item));
   };
 
@@ -897,20 +932,29 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   };
 
   // Update one override field for the currently selected seat.
-  const updateSeatOverride = async (field: keyof SeatOverride, value: any) => {
+  const showBlockError = (err: any) => {
+    if (isCanceledRequest(err)) {
+      refreshSeatMapSoon();
+      return;
+    }
+    Alert.alert('Error', err?.message || t('No se pudo actualizar el bloqueo.', 'Could not update the block.'));
+  };
+
+  const persistSeatBlocks = (seatIds: string[], blocked: boolean) => {
+    const uniqueSeatIds = Array.from(new Set(seatIds.filter(Boolean)));
+    if (uniqueSeatIds.length === 0) return;
+    apiPost('/orders/seats/toggle-block-bulk', { seatIds: uniqueSeatIds, blocked }, 30000)
+      .then(refreshSeatMapSoon)
+      .catch(showBlockError);
+  };
+
+  const updateSeatOverride = (field: keyof SeatOverride, value: any) => {
     if (!selected || !selectedSeat) return;
     const next = { ...(selected.seatConfig || {}) };
     const cur = { ...(next[selectedSeat] || {}) } as SeatOverride;
+    const backendSeatId = cur.backendSeatId;
     if (field === 'reserved') {
       if (String(cur.status) === 'sold' || String(cur.status) === 'held') return;
-      if (cur.backendSeatId) {
-        try {
-          await apiPost(`/orders/seats/${cur.backendSeatId}/toggle-block`, {});
-        } catch (err: any) {
-          Alert.alert('Error', err?.message || t('No se pudo actualizar el bloqueo.', 'Could not update the block.'));
-          return;
-        }
-      }
       if (value) {
         cur.reserved = true;
         cur.status = 'reserved';
@@ -922,10 +966,15 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     else (cur as any)[field] = value;
     if (Object.keys(cur).length === 0) delete next[selectedSeat];
     else next[selectedSeat] = cur;
-    updateSelected({ seatConfig: next });
+    if (field === 'reserved' && backendSeatId) {
+      updateSelectedPersisted({ seatConfig: next });
+      persistSeatBlocks([backendSeatId], !!value);
+    } else {
+      updateSelected({ seatConfig: next });
+    }
   };
 
-  const toggleAllSelectedSeatsReserved = async () => {
+  const toggleAllSelectedSeatsReserved = () => {
     if (!selected || (selected.type !== 'table' && selected.type !== 'seat')) return;
     const keys = seatKeysForItem(selected);
     if (keys.length === 0) return;
@@ -936,21 +985,14 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     });
     const shouldBlock = !allBlocked;
     const next = { ...current };
-    try {
-      for (const key of keys) {
-        const cur = { ...(next[key] || {}) } as SeatOverride;
-        const currentlyBlocked = !!cur.reserved || cur.status === 'reserved';
-        if (cur.backendSeatId && String(cur.status) !== 'sold' && String(cur.status) !== 'held' && currentlyBlocked !== shouldBlock) {
-          await apiPost(`/orders/seats/${cur.backendSeatId}/toggle-block`, {});
-        }
-      }
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || t('No se pudo actualizar el bloqueo.', 'Could not update the block.'));
-      return;
-    }
+    const seatIdsToToggle: string[] = [];
     keys.forEach((key) => {
       const cur = { ...(next[key] || {}) } as SeatOverride;
       if (cur.status === 'sold') return;
+      const currentlyBlocked = !!cur.reserved || cur.status === 'reserved';
+      if (cur.backendSeatId && String(cur.status) !== 'held' && currentlyBlocked !== shouldBlock) {
+        seatIdsToToggle.push(cur.backendSeatId);
+      }
       if (shouldBlock) {
         cur.reserved = true;
         cur.status = 'reserved';
@@ -961,7 +1003,8 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
       if (Object.keys(cur).length === 0) delete next[key];
       else next[key] = cur;
     });
-    updateSelected({ seatConfig: next, locked: false });
+    updateSelectedPersisted({ seatConfig: next, locked: false });
+    persistSeatBlocks(seatIdsToToggle, shouldBlock);
   };
 
   const selectedSeatKeys = selected ? seatKeysForItem(selected) : [];

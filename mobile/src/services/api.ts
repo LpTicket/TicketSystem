@@ -169,7 +169,7 @@ async function refreshAuthTokens() {
   }
 }
 
-async function requestWithAuth(url: string, options: RequestInit = {}, retryAuth = true) {
+async function requestWithAuth(url: string, options: RequestInit = {}, retryAuth = true, timeoutMs = REQUEST_TIMEOUT_MS) {
   await ensureAuthTokens();
   // Rebuild headers after ensureAuthTokens so the token is always injected.
   const headersWithAuth = authHeaders(
@@ -179,20 +179,24 @@ async function requestWithAuth(url: string, options: RequestInit = {}, retryAuth
       ),
     ),
   );
-  let response = await fetchWithTimeout(url, { ...options, headers: headersWithAuth });
+  let response = await fetchWithTimeout(url, { ...options, headers: headersWithAuth }, timeoutMs);
   if (response.status === 401 && retryAuth) {
     const refreshed = await refreshAuthTokens();
     if (refreshed) {
-      response = await fetchWithTimeout(url, {
-        ...options,
-        headers: authHeaders(
-          Object.fromEntries(
-            Object.entries((options.headers as Record<string, string>) || {}).filter(
-              ([k]) => k.toLowerCase() !== 'authorization',
+      response = await fetchWithTimeout(
+        url,
+        {
+          ...options,
+          headers: authHeaders(
+            Object.fromEntries(
+              Object.entries((options.headers as Record<string, string>) || {}).filter(
+                ([k]) => k.toLowerCase() !== 'authorization',
+              ),
             ),
           ),
-        ),
-      });
+        },
+        timeoutMs,
+      );
     }
   }
   return response;
@@ -251,15 +255,20 @@ export async function apiGet<T>(path: string, params?: Record<string, any>): Pro
   return readJsonResponse<T>(response);
 }
 
-export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+export async function apiPost<T>(path: string, body?: unknown, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
   if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  const response = await requestWithAuth(`${API_URL}${cleanPath}`, {
-    method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(body === undefined ? {} : body),
-  });
+  const response = await requestWithAuth(
+    `${API_URL}${cleanPath}`,
+    {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body === undefined ? {} : body),
+    },
+    true,
+    timeoutMs,
+  );
 
   if (!response.ok) {
     let message: string | undefined;
