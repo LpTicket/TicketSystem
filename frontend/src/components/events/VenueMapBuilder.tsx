@@ -211,6 +211,22 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     }
   };
 
+  const findSeatByKey = (section: Partial<VenueSection>, seatKey: string) => {
+    const seats = section.seats || [];
+    if (!seats.length) return null;
+    if (section.sectionType === 'table') {
+      const num = parseInt(seatKey.replace('seat-', ''), 10);
+      return seats.find((s) => s.seatNumber === num) || seats[num - 1] || null;
+    }
+    const [row, rawNum] = seatKey.split('-');
+    const num = parseInt(rawNum, 10);
+    const direct = seats.find((s) => s.rowLabel === row && s.seatNumber === num);
+    if (direct) return direct;
+    const rowIndex = Math.max(0, row.charCodeAt(0) - 65);
+    const seatIndex = rowIndex * (Number(section.seatsPerRow) || 1) + num - 1;
+    return seats[seatIndex] || null;
+  };
+
   const getSeatStatus = (section: Partial<VenueSection>, seatKey: string) => {
     const overrides = getSeatsConfig(section);
     const seatOverride = overrides[seatKey] || {};
@@ -275,6 +291,30 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       };
     }));
   }, []);
+
+  const updateSeatBlock = async (section: Partial<VenueSection>, seatKey: string, blocked: boolean) => {
+    const seat = findSeatByKey(section, seatKey);
+    if (!seat) {
+      updateSeatConfig(section.id!, seatKey, 'reserved', blocked);
+      return;
+    }
+    const isBlocked = seat.status === 'locked' && !seat.lockExpiresAt;
+    if (isBlocked !== blocked) {
+      await api.post(`/orders/seats/${seat.id}/toggle-block`);
+    }
+    updateSeatConfig(section.id!, seatKey, 'reserved', blocked);
+    setSections((prev) => prev.map((sec) => {
+      if (sec.id !== section.id) return sec;
+      return {
+        ...sec,
+        seats: (sec.seats || []).map((s) => (
+          s.id === seat.id
+            ? { ...s, status: (blocked ? 'locked' : 'available') as any, lockExpiresAt: undefined }
+            : s
+        )),
+      };
+    }));
+  };
 
   // Apply the CSS transform without a React re-render
   const applyTransform = useCallback(() => {
@@ -1445,7 +1485,13 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                       <input 
                         type="checkbox"
                         checked={getSeatStatus(selectedSection, seatKey) === 'reserved'}
-                        onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'reserved', e.target.checked)}
+                        onChange={async (e) => {
+                          try {
+                            await updateSeatBlock(selectedSection, seatKey, e.target.checked);
+                          } catch (err: any) {
+                            toast.error(err.response?.data?.message || (lang === 'es' ? 'Error al actualizar bloqueo' : 'Error updating block'));
+                          }
+                        }}
                         className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
                       />
                       <span className="text-[12px] font-bold text-gray-700">
@@ -1709,13 +1755,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
                 {selectedSection.sectionType !== 'stage' && selectedSection.sectionType !== 'decor' && (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     const allReserved = !selectedSection.isWheelchair; // Using isWheelchair as a proxy for "All Blocked" for now or just toggle
                     // Actually, let's just toggle a new property or iterate all seats
                     // For simplicity, let's add a button that updates the seatsConfig for ALL seats
                     const rows = selectedSection.rows || 1;
                     const seatsPerRow = selectedSection.seatsPerRow || 1;
-                    const config = { ...getSeatsConfig(selectedSection) };
                     
                     let anyUnreserved = false;
                     for(let r=1; r<=rows; r++) {
@@ -1726,14 +1771,19 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                       }
                     }
 
-                    for(let r=1; r<=rows; r++) {
-                      const rowLabel: string = selectedSection?.sectionType === 'table' ? 'Mesa' : String.fromCharCode(64 + r);
-                      for(let s=1; s<=seatsPerRow; s++) {
-                        const key = selectedSection?.sectionType === 'table' ? `seat-${s}` : `${rowLabel}-${s}`;
-                        config[key] = { ...config[key], reserved: anyUnreserved };
+                    try {
+                      for(let r=1; r<=rows; r++) {
+                        const rowLabel: string = selectedSection?.sectionType === 'table' ? 'Mesa' : String.fromCharCode(64 + r);
+                        for(let s=1; s<=seatsPerRow; s++) {
+                          const key = selectedSection?.sectionType === 'table' ? `seat-${s}` : `${rowLabel}-${s}`;
+                          if (getSeatStatus(selectedSection, key) !== 'sold' && getSeatStatus(selectedSection, key) !== 'held') {
+                            await updateSeatBlock(selectedSection, key, anyUnreserved);
+                          }
+                        }
                       }
+                    } catch (err: any) {
+                      toast.error(err.response?.data?.message || (lang === 'es' ? 'Error al actualizar bloqueos' : 'Error updating blocks'));
                     }
-                    updateSelected('seatsConfig', JSON.stringify(config));
                   }}
                   className="w-full py-2 bg-orange-50 text-orange-600 border border-orange-200 rounded text-xs font-bold hover:bg-orange-100 transition-colors"
                 >

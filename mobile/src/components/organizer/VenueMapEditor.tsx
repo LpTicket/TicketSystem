@@ -54,6 +54,7 @@ function sectionToItem(s: any): VenueItem {
         delete next.reserved;
       }
       const buyerName = seat.buyerName || seat.attendeeName || seat.userName || seat.ownerName;
+      if (seat.id) next.backendSeatId = seat.id;
       if (buyerName) next.buyerName = buyerName;
       const defaultRowLabel = type === 'table' ? 'Mesa' : canonicalRow;
       const persistedRowLabel = seat.rowLabel;
@@ -97,6 +98,16 @@ function parseSeatConfig(raw: any): Record<string, SeatOverride> {
   }
 }
 
+function serializeSeatConfig(config: Record<string, SeatOverride> | undefined) {
+  if (!config || Object.keys(config).length === 0) return undefined;
+  const clean: Record<string, Omit<SeatOverride, 'backendSeatId'>> = {};
+  Object.entries(config).forEach(([key, value]) => {
+    const { backendSeatId: _backendSeatId, ...rest } = value;
+    if (Object.keys(rest).length > 0) clean[key] = rest;
+  });
+  return Object.keys(clean).length ? JSON.stringify(clean) : undefined;
+}
+
 // Map an editor item onto the backend /sections/bulk payload shape.
 function itemToSection(item: VenueItem, index: number) {
   const section: any = {
@@ -115,7 +126,7 @@ function itemToSection(item: VenueItem, index: number) {
     tableShape: item.shape || 'round',
     rotation: Number(item.rotation) || 0,
     tablePurchaseMode: item.saleMode === 'whole' ? 'whole' : 'individual',
-    seatsConfig: item.seatConfig && Object.keys(item.seatConfig).length ? JSON.stringify(item.seatConfig) : undefined,
+    seatsConfig: serializeSeatConfig(item.seatConfig),
     sortOrder: index,
   };
   // Only send the id for rows that already exist in the database.
@@ -142,6 +153,7 @@ function seatKeysForItem(item: VenueItem) {
 
 // Per-seat overrides keyed by seat id ("row-col"), mirroring the web seatsConfig.
 type SeatOverride = {
+  backendSeatId?: string;
   isWheelchair?: boolean;
   reserved?: boolean;   // blocked / reserved for sale
   disabled?: boolean;   // hidden seat
@@ -885,11 +897,20 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   };
 
   // Update one override field for the currently selected seat.
-  const updateSeatOverride = (field: keyof SeatOverride, value: any) => {
+  const updateSeatOverride = async (field: keyof SeatOverride, value: any) => {
     if (!selected || !selectedSeat) return;
     const next = { ...(selected.seatConfig || {}) };
     const cur = { ...(next[selectedSeat] || {}) } as SeatOverride;
     if (field === 'reserved') {
+      if (String(cur.status) === 'sold' || String(cur.status) === 'held') return;
+      if (cur.backendSeatId) {
+        try {
+          await apiPost(`/orders/seats/${cur.backendSeatId}/toggle-block`, {});
+        } catch (err: any) {
+          Alert.alert('Error', err?.message || t('No se pudo actualizar el bloqueo.', 'Could not update the block.'));
+          return;
+        }
+      }
       if (value) {
         cur.reserved = true;
         cur.status = 'reserved';
@@ -904,7 +925,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     updateSelected({ seatConfig: next });
   };
 
-  const toggleAllSelectedSeatsReserved = () => {
+  const toggleAllSelectedSeatsReserved = async () => {
     if (!selected || (selected.type !== 'table' && selected.type !== 'seat')) return;
     const keys = seatKeysForItem(selected);
     if (keys.length === 0) return;
@@ -915,6 +936,18 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     });
     const shouldBlock = !allBlocked;
     const next = { ...current };
+    try {
+      for (const key of keys) {
+        const cur = { ...(next[key] || {}) } as SeatOverride;
+        const currentlyBlocked = !!cur.reserved || cur.status === 'reserved';
+        if (cur.backendSeatId && String(cur.status) !== 'sold' && String(cur.status) !== 'held' && currentlyBlocked !== shouldBlock) {
+          await apiPost(`/orders/seats/${cur.backendSeatId}/toggle-block`, {});
+        }
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || t('No se pudo actualizar el bloqueo.', 'Could not update the block.'));
+      return;
+    }
     keys.forEach((key) => {
       const cur = { ...(next[key] || {}) } as SeatOverride;
       if (cur.status === 'sold') return;
