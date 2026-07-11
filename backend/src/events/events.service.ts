@@ -663,14 +663,15 @@ export class EventsService {
             // Only metadata (prices/offsets/custom labels) changed, sync custom labels and permanent blocks
             const overrides = sectionData.seatsConfig ? JSON.parse(sectionData.seatsConfig) : null;
             if (overrides) {
-              const currentSeats = await this.seatRepo.find({ 
+              const currentSeats = await this.seatRepo.find({
                 where: { sectionId: data.id },
                 order: { id: 'ASC' }
               });
-              
+
               let seatIndex = 0;
               const rows = exists.rows || 1;
               const seatsPerRow = exists.seatsPerRow || 1;
+              const seatsToUpdate: Seat[] = [];
 
               if (exists.sectionType === 'table') {
                 for (let s = 1; s <= seatsPerRow; s++) {
@@ -689,12 +690,11 @@ export class EventsService {
                   seat.seatNumber = customSeatNumber;
 
                   if (seat.status === SeatStatus.AVAILABLE || (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt)) {
-                    const newStatus = isReservedInConfig ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
-                    seat.status = newStatus;
+                    seat.status = isReservedInConfig ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
                     seat.lockedBy = isReservedInConfig ? userId : null as any;
                     seat.lockExpiresAt = null;
                   }
-                  await this.seatRepo.save(seat);
+                  seatsToUpdate.push(seat);
                 }
               } else {
                 for (let r = 1; r <= rows; r++) {
@@ -715,15 +715,15 @@ export class EventsService {
                     seat.seatNumber = customSeatNumber;
 
                     if (seat.status === SeatStatus.AVAILABLE || (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt)) {
-                      const newStatus = isReservedInConfig ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
-                      seat.status = newStatus;
+                      seat.status = isReservedInConfig ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
                       seat.lockedBy = isReservedInConfig ? userId : null as any;
                       seat.lockExpiresAt = null;
                     }
-                    await this.seatRepo.save(seat);
+                    seatsToUpdate.push(seat);
                   }
                 }
               }
+              if (seatsToUpdate.length > 0) await this.seatRepo.save(seatsToUpdate);
             }
           }
         }
@@ -732,6 +732,18 @@ export class EventsService {
 
     // Post-sync: recalculate global event price range for the marketplace search
     const finalSections = await this.sectionRepo.find({ where: { eventId } });
+    const finalSectionIds = finalSections.map(s => s.id);
+    const { In: InOp } = require('typeorm');
+    const allFinalSeats = finalSectionIds.length > 0
+      ? await this.seatRepo.find({ where: { sectionId: InOp(finalSectionIds) } })
+      : [];
+    const seatsBySectionId = new Map<string, typeof allFinalSeats>();
+    for (const seat of allFinalSeats) {
+      const arr = seatsBySectionId.get(seat.sectionId) || [];
+      arr.push(seat);
+      seatsBySectionId.set(seat.sectionId, arr);
+    }
+
     let minPrice = Infinity;
     let maxPrice = -Infinity;
 
@@ -740,18 +752,16 @@ export class EventsService {
       let config: any = {};
       try { if (s.seatsConfig) config = JSON.parse(s.seatsConfig); } catch (e) {}
 
-      const hasSeats = await this.seatRepo.count({ where: { sectionId: s.id } });
-      if (hasSeats === 0) {
+      const seats = seatsBySectionId.get(s.id) || [];
+      if (seats.length === 0) {
         const p = Number(s.price);
         if (p > 0 && p < minPrice) minPrice = p;
         if (p > maxPrice) maxPrice = p;
       } else {
-        const seats = await this.seatRepo.find({ where: { sectionId: s.id } });
         for (const seat of seats) {
           const key = s.sectionType === 'table' ? `seat-${seat.seatNumber}` : `${seat.rowLabel}-${seat.seatNumber}`;
-          const seatPrice = (config[key] && config[key].price !== undefined && config[key].price !== null) 
+          const seatPrice = (config[key] && config[key].price !== undefined && config[key].price !== null)
             ? Number(config[key].price) : Number(s.price);
-            
           if (seatPrice > 0 && seatPrice < minPrice) minPrice = seatPrice;
           if (seatPrice > maxPrice) maxPrice = seatPrice;
         }

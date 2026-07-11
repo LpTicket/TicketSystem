@@ -285,7 +285,7 @@ export class MarketingService {
         }
       }
     }
-    return { sent, failed, total: phones.length, error: failed > 0 && sent === 0 ? lastError.slice(0, 300) : undefined };
+    return { sent, failed, total: phones.length, error: failed > 0 ? lastError.slice(0, 300) : undefined };
   }
 
   sendSmsCampaign(message: string, recipients?: string[]) {

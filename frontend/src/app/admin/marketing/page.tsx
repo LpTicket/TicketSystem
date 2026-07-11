@@ -245,10 +245,12 @@ export default function AdminMarketingPage() {
         recipients,
         ...(channel === 'whatsapp' ? { lang: waLang } : {}),
       });
-      if (data.error) {
+      if (data.error && data.sent === 0) {
         toast.error(data.error);
+      } else if (data.failed > 0) {
+        toast.error(`Enviado: ${data.sent}. Fallaron ${data.failed}: ${data.error || 'Error desconocido'}`);
       } else {
-        toast.success(`Enviado: ${data.sent}/${data.total} (${data.failed} fallidos)`);
+        toast.success(`Enviado correctamente a ${data.sent} números.`);
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Error al enviar');
