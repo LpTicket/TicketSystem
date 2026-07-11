@@ -872,13 +872,35 @@ export class EventsService {
       maxPrice: maxPrice === -Infinity ? 0 : maxPrice,
     });
 
-    // Invalidate both caches: seatmap structure changed, and event detail price range changed
+    // Invalidate caches — don't await sequentially, fire in parallel
     const updatedEvent = await this.findById(eventId);
-    await this.cache.del(`event:seatmap:${eventId}`);
-    await this.cache.del(`event:slug:${updatedEvent.slug}`);
-    await this.invalidateEventsCache();
+    await Promise.all([
+      this.cache.del(`event:seatmap:${eventId}`),
+      this.cache.del(`event:slug:${updatedEvent.slug}`),
+      this.invalidateEventsCache(),
+    ]);
 
-    return this.getSeatMap(eventId);
+    // Build the seatmap response from data already in memory — avoids 2 extra DB queries
+    const { In: InTicket } = require('typeorm');
+    const ticketRows = finalSectionIds.length > 0
+      ? await this.ticketRepo
+          .createQueryBuilder('t')
+          .select('t.sectionId', 'sectionId')
+          .addSelect('COUNT(t.id)', 'count')
+          .where('t.sectionId IN (:...ids)', { ids: finalSectionIds })
+          .andWhere('t.status IN (:...st)', { st: [TicketStatus.ACTIVE, TicketStatus.USED] })
+          .groupBy('t.sectionId')
+          .getRawMany()
+      : [];
+    const soldBySection = new Map<string, number>(
+      ticketRows.map((r: any) => [r.sectionId, Number(r.count) || 0]),
+    );
+
+    return finalSections.map(section => ({
+      ...section,
+      seats: allFinalSeats.filter(s => s.sectionId === section.id),
+      soldTickets: soldBySection.get(section.id) || 0,
+    }));
   }
 
   async getSeats(sectionId: string) {
