@@ -121,13 +121,7 @@ function DashboardPageBody() {
       setOrdersPagination(o.data.pagination);
       setOrdersPage(orderPage);
 
-      try {
-        const social = await api.get('/social-match/me');
-        const pending = (social.data.connections || []).filter((connection: any) => connection.status === 'pending' && connection.direction === 'incoming').length;
-        setPendingSocialRequests(pending);
-      } catch (error) {
-        console.error(error);
-      }
+      // Pending social requests badge is handled by SocialMatchWidget (lazy-loaded)
     } catch (err) { console.error(err); }
   };
 

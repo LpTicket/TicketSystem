@@ -1179,21 +1179,18 @@ export class OrdersService {
    */
   async getUserOrders(userId: string, page: number = 1, limit: number = 20) {
     const skip = (page - 1) * limit;
-    const [orders, total] = await this.orderRepo.findAndCount({
-      where: { userId },
-      relations: ['event'],
-      order: { paidAt: 'DESC', createdAt: 'DESC' },
-      skip,
-      take: limit,
-    });
+    const [orders, total] = await this.orderRepo
+      .createQueryBuilder('o')
+      .leftJoin('o.event', 'e')
+      .addSelect(['o', 'e.id', 'e.title', 'e.slug', 'e.eventDate', 'e.venueName', 'e.imageUrl', 'e.status'])
+      .where('o.userId = :userId', { userId })
+      .orderBy('COALESCE(o.paidAt, o.createdAt)', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
     return {
       data: orders,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     };
   }
 
@@ -1201,29 +1198,25 @@ export class OrdersService {
    * Retrieves all tickets for a specific user, optionally filtered by Stripe Session ID.
    */
   async getUserTickets(userId: string, sessionId?: string, page: number = 1, limit: number = 12) {
-    const where: any = { userId };
-    if (sessionId) {
-      const order = await this.orderRepo.findOne({ where: { stripeSessionId: sessionId } });
-      if (order) {
-        where.orderId = order.id;
-      }
-    }
     const skip = (page - 1) * limit;
-    const [tickets, total] = await this.ticketRepo.findAndCount({
-      where,
-      relations: ['event'],
-      order: { createdAt: 'DESC' },
-      skip,
-      take: limit,
-    });
+    const qb = this.ticketRepo
+      .createQueryBuilder('t')
+      .leftJoin('t.event', 'e')
+      .addSelect(['t', 'e.id', 'e.title', 'e.slug', 'e.eventDate', 'e.venueName', 'e.venueAddress', 'e.imageUrl', 'e.status', 'e.eventTimezone', 'e.currency'])
+      .where('t.userId = :userId', { userId })
+      .orderBy('t.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+
+    if (sessionId) {
+      const order = await this.orderRepo.findOne({ where: { stripeSessionId: sessionId }, select: ['id'] });
+      if (order) qb.andWhere('t.orderId = :orderId', { orderId: order.id });
+    }
+
+    const [tickets, total] = await qb.getManyAndCount();
     return {
       data: tickets,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     };
   }
 
