@@ -53,6 +53,9 @@ export class AdminService {
   }
 
   async getDashboardStats() {
+    const cached = await this.cache.get<any>('admin:stats');
+    if (cached) return cached;
+
     // Run all aggregate counts in parallel — these are independent reads.
     const [
       totalUsers,
@@ -95,7 +98,7 @@ export class AdminService {
       : 0;
     const lpticketProfit = +(serviceFees - stripeFees).toFixed(2); // LPTicket net after Stripe
 
-    return {
+    const result = {
       totalUsers,
       clients,
       admins,
@@ -113,6 +116,8 @@ export class AdminService {
       lpticketProfit,
       totalTickets,
     };
+    await this.cache.set('admin:stats', result, 60_000);
+    return result;
   }
 
   /**
@@ -120,6 +125,9 @@ export class AdminService {
    * LPTicket fees, estimated Stripe fees and net profit — one row per event.
    */
   async getEventsFinancials() {
+    const cached = await this.cache.get<any>('admin:financials');
+    if (cached) return cached;
+
     const STRIPE_PERCENT = 0.029;
     const STRIPE_FIXED = 0.30;
 
@@ -168,7 +176,9 @@ export class AdminService {
       };
     });
 
-    return { events: result, stripePercent: STRIPE_PERCENT, stripeFixed: STRIPE_FIXED };
+    const response = { events: result, stripePercent: STRIPE_PERCENT, stripeFixed: STRIPE_FIXED };
+    await this.cache.set('admin:financials', response, 60_000);
+    return response;
   }
 
   async getUsers(page: number, limit: number, role?: string) {

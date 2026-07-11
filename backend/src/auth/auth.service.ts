@@ -1,4 +1,6 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -19,6 +21,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly marketingService: MarketingService,
     private readonly mailService: MailService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -72,10 +75,33 @@ export class AuthService {
   }
 
   async getProfile(userId: string) {
+    const cacheKey = `profile:${userId}`;
+    const cached = await this.cache.get<any>(cacheKey);
+    if (cached) return cached;
+
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new UnauthorizedException();
     const { passwordHash, ...profile } = user;
-    return profile;
+    // Route base64 avatar to a dedicated endpoint to avoid sending 600kB on every profile fetch
+    const result = {
+      ...profile,
+      avatarUrl: profile.avatarUrl?.startsWith('data:') ? `/api/auth/avatar/${userId}` : profile.avatarUrl,
+    };
+    await this.cache.set(cacheKey, result, 60_000);
+    return result;
+  }
+
+  async getAvatarById(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId }, select: ['avatarUrl'] });
+    const raw = user?.avatarUrl;
+    if (!raw?.startsWith('data:')) return null;
+    const match = raw.match(/^data:([^;]+);base64,(.+)$/s);
+    if (!match) return null;
+    return { mimeType: match[1], buffer: Buffer.from(match[2], 'base64') };
+  }
+
+  async invalidateProfileCache(userId: string) {
+    await this.cache.del(`profile:${userId}`);
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -94,6 +120,7 @@ export class AuthService {
     }
     
     await this.userRepo.update(userId, updateData);
+    await this.invalidateProfileCache(userId);
     return this.getProfile(userId);
   }
 

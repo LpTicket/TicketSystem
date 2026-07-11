@@ -3,12 +3,14 @@ import {
   Post,
   Get,
   Patch,
+  Param,
   Body,
   UseGuards,
   Request,
   UploadedFile,
   UseInterceptors,
   Res,
+  NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
@@ -157,6 +159,15 @@ export class AuthController {
   @Post('delete-account')
   deleteAccount(@Request() req: any) {
     return this.authService.deleteAccount(req.user.id);
+  }
+
+  @Get('avatar/:userId')
+  async getAvatar(@Param('userId') userId: string, @Res() res: any) {
+    const avatar = await this.authService.getAvatarById(userId);
+    if (!avatar) throw new NotFoundException('Avatar no encontrado');
+    res.header('Content-Type', avatar.mimeType);
+    res.header('Cache-Control', 'public, max-age=86400');
+    res.send(avatar.buffer);
   }
 
   @UseGuards(AuthGuard('jwt'))
