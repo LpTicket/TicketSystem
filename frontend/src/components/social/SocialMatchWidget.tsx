@@ -66,7 +66,13 @@ export default function SocialMatchWidget() {
   const [sending, setSending] = useState(false);
   const [viewingProfile, setViewingProfile] = useState(false);
   const [profilePhotoIdx, setProfilePhotoIdx] = useState(0);
-  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  // Seed unread badge from localStorage immediately — no network call needed on mount.
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>(() => {
+    try {
+      const cached = localStorage.getItem('sm_unread_counts');
+      return cached ? JSON.parse(cached) : {};
+    } catch { return {}; }
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socialShellRef = useRef<HTMLDivElement>(null);
   const activeChatConnRef = useRef<SocialMatchConnection | null>(null);
@@ -77,7 +83,10 @@ export default function SocialMatchWidget() {
     window.dispatchEvent(new CustomEvent(FLOATING_PANEL_EVENT, { detail: panel }));
   };
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
-  useEffect(() => { setUnreadCount(totalUnread); }, [totalUnread]);
+  useEffect(() => {
+    setUnreadCount(totalUnread);
+    try { localStorage.setItem('sm_unread_counts', JSON.stringify(unreadCounts)); } catch {}
+  }, [totalUnread]);
 
   useEffect(() => { activeChatConnRef.current = activeChatConn; }, [activeChatConn]);
 
@@ -101,13 +110,11 @@ export default function SocialMatchWidget() {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [isOpen]);
 
-  useEffect(() => {
-    if (isAuthenticated) loadConnections();
-  }, [isAuthenticated]);
-
+  // Only load when the widget is opened — avoids a network call on every page
+  // navigation just to show the unread badge (badge uses localStorage instead).
   useEffect(() => {
     if (isOpen && isAuthenticated) loadConnections();
-  }, [isOpen]);
+  }, [isOpen, isAuthenticated]);
 
   // Poll active chat messages
   useEffect(() => {
