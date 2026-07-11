@@ -635,143 +635,198 @@ export class EventsService {
       await this.sectionRepo.remove(toDelete);
     }
 
-    // 2. Process incoming sections
+    // 2. Classify sections and bulk-save updates in one pass
+    const newSections: Partial<VenueSection>[] = [];
+    const sectionsToUpdate: Partial<VenueSection>[] = [];
+    // Track which existing sections need layout regeneration vs metadata-only sync
+    const layoutRegenIds: string[] = [];
+    const metadataSyncIds: string[] = [];
+
     for (const data of sectionsData) {
       const isNew = !data.id || data.id.startsWith('temp-');
       const sectionData = { ...data };
       if (isNew) delete sectionData.id;
 
-      // GA/standing sections must have a non-zero capacity so the scanner counts them.
       if (String(sectionData.sectionType).toLowerCase() === 'standing' && !Number(sectionData.capacity)) {
         sectionData.capacity = 100;
       }
 
       if (isNew) {
-        await this.createSection(eventId, sectionData, userId);
+        newSections.push({ ...sectionData, eventId });
       } else {
         const exists = existingSections.find(s => s.id === data.id);
         if (exists) {
-          // Check if structural changes (rows/cols) require seat regeneration
           const layoutChanged =
             exists.rows !== sectionData.rows ||
             exists.seatsPerRow !== sectionData.seatsPerRow ||
             exists.sectionType !== sectionData.sectionType;
 
-          await this.sectionRepo.update(data.id, sectionData);
+          sectionsToUpdate.push({ id: data.id, ...sectionData });
 
           if (layoutChanged) {
-            // Re-generate entire seat set for this section
-            await this.seatRepo.delete({ sectionId: data.id });
-            
-            const updated = await this.sectionRepo.findOne({ where: { id: data.id } });
-            if (updated && (updated.sectionType === 'seated' || updated.sectionType === 'vip' || updated.sectionType === 'table')) {
-               const seats: Partial<Seat>[] = [];
-               const overrides = updated.seatsConfig ? JSON.parse(updated.seatsConfig) : {};
-               
-               if (updated.sectionType === 'table') {
-                  const seatCount = updated.seatsPerRow || 6;
-                  for (let s = 1; s <= seatCount; s++) {
-                    const key = `seat-${s}`;
-                    const isReserved = overrides[key]?.reserved || false;
-                    const customLabel = overrides[key]?.rowLabel || 'Mesa';
-                    const customSeatNumber = overrides[key]?.seatNumber !== undefined ? overrides[key].seatNumber : s;
-                    seats.push({ 
-                      sectionId: updated.id, 
-                      rowLabel: customLabel, 
-                      seatNumber: customSeatNumber, 
-                      status: isReserved ? SeatStatus.LOCKED : SeatStatus.AVAILABLE,
-                      lockExpiresAt: null
-                    });
-                  }
-                } else {
-                  for (let r = 1; r <= updated.rows; r++) {
-                    const defaultRowLabel = String.fromCharCode(64 + r);
-                    for (let s = 1; s <= updated.seatsPerRow; s++) {
-                      const key = `${defaultRowLabel}-${s}`;
-                      const isReserved = overrides[key]?.reserved || false;
-                      const customLabel = overrides[key]?.rowLabel || defaultRowLabel;
-                      const customSeatNumber = overrides[key]?.seatNumber !== undefined ? overrides[key].seatNumber : s;
-                      seats.push({ 
-                        sectionId: updated.id, 
-                        rowLabel: customLabel, 
-                        seatNumber: customSeatNumber, 
-                        status: isReserved ? SeatStatus.LOCKED : SeatStatus.AVAILABLE,
-                        lockExpiresAt: null
-                      });
-                    }
-                  }
-                }
-                if (seats.length > 0) await this.seatRepo.save(seats);
-            }
+            layoutRegenIds.push(data.id);
           } else {
-            // Only metadata (prices/offsets/custom labels) changed, sync custom labels and permanent blocks
-            const overrides = sectionData.seatsConfig ? JSON.parse(sectionData.seatsConfig) : null;
-            if (overrides) {
-              const currentSeats = await this.seatRepo.find({
-                where: { sectionId: data.id },
-                order: { id: 'ASC' }
+            metadataSyncIds.push(data.id);
+          }
+        }
+      }
+    }
+
+    // Bulk-create new sections
+    let savedNewSections: VenueSection[] = [];
+    if (newSections.length > 0) {
+      savedNewSections = await this.sectionRepo.save(newSections.map(s => this.sectionRepo.create(s)));
+    }
+
+    // Bulk-update existing sections (one query via TypeORM save with ids)
+    if (sectionsToUpdate.length > 0) {
+      await this.sectionRepo.save(sectionsToUpdate as VenueSection[]);
+    }
+
+    // 3. Generate seats for new sections (all in one bulk save per section type)
+    const newSeatRows: Partial<Seat>[] = [];
+    for (const saved of savedNewSections) {
+      if (saved.sectionType === 'seated' || saved.sectionType === 'vip' || saved.sectionType === 'table') {
+        const overrides = saved.seatsConfig ? JSON.parse(saved.seatsConfig) : {};
+        if (saved.sectionType === 'table') {
+          const seatCount = saved.seatsPerRow || 6;
+          for (let s = 1; s <= seatCount; s++) {
+            const key = `seat-${s}`;
+            newSeatRows.push({
+              sectionId: saved.id,
+              rowLabel: overrides[key]?.rowLabel || 'Mesa',
+              seatNumber: overrides[key]?.seatNumber ?? s,
+              status: overrides[key]?.reserved ? SeatStatus.LOCKED : SeatStatus.AVAILABLE,
+              lockExpiresAt: null,
+            });
+          }
+        } else {
+          for (let r = 1; r <= saved.rows; r++) {
+            const defaultRowLabel = String.fromCharCode(64 + r);
+            for (let s = 1; s <= saved.seatsPerRow; s++) {
+              const key = `${defaultRowLabel}-${s}`;
+              newSeatRows.push({
+                sectionId: saved.id,
+                rowLabel: overrides[key]?.rowLabel || defaultRowLabel,
+                seatNumber: overrides[key]?.seatNumber ?? s,
+                status: overrides[key]?.reserved ? SeatStatus.LOCKED : SeatStatus.AVAILABLE,
+                lockExpiresAt: null,
               });
-
-              let seatIndex = 0;
-              const rows = exists.rows || 1;
-              const seatsPerRow = exists.seatsPerRow || 1;
-              const seatsToUpdate: Seat[] = [];
-
-              if (exists.sectionType === 'table') {
-                for (let s = 1; s <= seatsPerRow; s++) {
-                  const seat = currentSeats[seatIndex++];
-                  if (!seat) break;
-                  if (seat.status === SeatStatus.SOLD) continue;
-
-                  const key = `seat-${s}`;
-                  const legacyKey = `seat-${seat.seatNumber}`;
-                  const override = overrides[key] || overrides[legacyKey] || {};
-                  const isReservedInConfig = override.reserved || false;
-                  const customLabel = override.rowLabel || 'Mesa';
-                  const customSeatNumber = override.seatNumber !== undefined ? override.seatNumber : s;
-
-                  seat.rowLabel = customLabel;
-                  seat.seatNumber = customSeatNumber;
-
-                  if (seat.status === SeatStatus.AVAILABLE || (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt)) {
-                    seat.status = isReservedInConfig ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
-                    seat.lockedBy = isReservedInConfig ? userId : null as any;
-                    seat.lockExpiresAt = null;
-                  }
-                  seatsToUpdate.push(seat);
-                }
-              } else {
-                for (let r = 1; r <= rows; r++) {
-                  const defaultRowLabel = String.fromCharCode(64 + r);
-                  for (let s = 1; s <= seatsPerRow; s++) {
-                    const seat = currentSeats[seatIndex++];
-                    if (!seat) break;
-                    if (seat.status === SeatStatus.SOLD) continue;
-
-                    const key = `${defaultRowLabel}-${s}`;
-                    const legacyKey = `${seat.rowLabel}-${seat.seatNumber}`;
-                    const override = overrides[key] || overrides[legacyKey] || {};
-                    const isReservedInConfig = override.reserved || false;
-                    const customLabel = override.rowLabel || defaultRowLabel;
-                    const customSeatNumber = override.seatNumber !== undefined ? override.seatNumber : s;
-
-                    seat.rowLabel = customLabel;
-                    seat.seatNumber = customSeatNumber;
-
-                    if (seat.status === SeatStatus.AVAILABLE || (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt)) {
-                      seat.status = isReservedInConfig ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
-                      seat.lockedBy = isReservedInConfig ? userId : null as any;
-                      seat.lockExpiresAt = null;
-                    }
-                    seatsToUpdate.push(seat);
-                  }
-                }
-              }
-              if (seatsToUpdate.length > 0) await this.seatRepo.save(seatsToUpdate);
             }
           }
         }
       }
+    }
+    if (newSeatRows.length > 0) await this.seatRepo.save(newSeatRows);
+
+    // 4. Layout regen: delete old seats and regenerate in bulk
+    for (const sectionId of layoutRegenIds) {
+      await this.seatRepo.delete({ sectionId });
+    }
+    if (layoutRegenIds.length > 0) {
+      const regenSections = await this.sectionRepo.find({ where: { id: require('typeorm').In(layoutRegenIds) } });
+      const regenSeats: Partial<Seat>[] = [];
+      for (const sec of regenSections) {
+        if (sec.sectionType !== 'seated' && sec.sectionType !== 'vip' && sec.sectionType !== 'table') continue;
+        const overrides = sec.seatsConfig ? JSON.parse(sec.seatsConfig) : {};
+        if (sec.sectionType === 'table') {
+          const seatCount = sec.seatsPerRow || 6;
+          for (let s = 1; s <= seatCount; s++) {
+            const key = `seat-${s}`;
+            regenSeats.push({
+              sectionId: sec.id,
+              rowLabel: overrides[key]?.rowLabel || 'Mesa',
+              seatNumber: overrides[key]?.seatNumber ?? s,
+              status: overrides[key]?.reserved ? SeatStatus.LOCKED : SeatStatus.AVAILABLE,
+              lockExpiresAt: null,
+            });
+          }
+        } else {
+          for (let r = 1; r <= sec.rows; r++) {
+            const defaultRowLabel = String.fromCharCode(64 + r);
+            for (let s = 1; s <= sec.seatsPerRow; s++) {
+              const key = `${defaultRowLabel}-${s}`;
+              regenSeats.push({
+                sectionId: sec.id,
+                rowLabel: overrides[key]?.rowLabel || defaultRowLabel,
+                seatNumber: overrides[key]?.seatNumber ?? s,
+                status: overrides[key]?.reserved ? SeatStatus.LOCKED : SeatStatus.AVAILABLE,
+                lockExpiresAt: null,
+              });
+            }
+          }
+        }
+      }
+      if (regenSeats.length > 0) await this.seatRepo.save(regenSeats);
+    }
+
+    // 5. Metadata-only sync: load all seats for affected sections in one query, update in bulk
+    if (metadataSyncIds.length > 0) {
+      const { In: InSync } = require('typeorm');
+      const allCurrentSeats = await this.seatRepo.find({
+        where: { sectionId: InSync(metadataSyncIds) },
+        order: { id: 'ASC' },
+      });
+      const seatsBySectionId = new Map<string, Seat[]>();
+      for (const seat of allCurrentSeats) {
+        const arr = seatsBySectionId.get(seat.sectionId) || [];
+        arr.push(seat);
+        seatsBySectionId.set(seat.sectionId, arr);
+      }
+
+      const allSeatsToUpdate: Seat[] = [];
+      for (const sectionId of metadataSyncIds) {
+        const incoming = sectionsToUpdate.find(s => s.id === sectionId);
+        const exists = existingSections.find(s => s.id === sectionId);
+        if (!incoming || !exists) continue;
+        const overrides = (incoming as any).seatsConfig ? JSON.parse((incoming as any).seatsConfig) : null;
+        if (!overrides) continue;
+
+        const currentSeats = seatsBySectionId.get(sectionId) || [];
+        let seatIndex = 0;
+        const rows = exists.rows || 1;
+        const seatsPerRow = exists.seatsPerRow || 1;
+
+        if (exists.sectionType === 'table') {
+          for (let s = 1; s <= seatsPerRow; s++) {
+            const seat = currentSeats[seatIndex++];
+            if (!seat) break;
+            if (seat.status === SeatStatus.SOLD) continue;
+            const key = `seat-${s}`;
+            const legacyKey = `seat-${seat.seatNumber}`;
+            const override = overrides[key] || overrides[legacyKey] || {};
+            seat.rowLabel = override.rowLabel || 'Mesa';
+            seat.seatNumber = override.seatNumber ?? s;
+            if (seat.status === SeatStatus.AVAILABLE || (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt)) {
+              seat.status = override.reserved ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
+              seat.lockedBy = override.reserved ? userId : null as any;
+              seat.lockExpiresAt = null;
+            }
+            allSeatsToUpdate.push(seat);
+          }
+        } else {
+          for (let r = 1; r <= rows; r++) {
+            const defaultRowLabel = String.fromCharCode(64 + r);
+            for (let s = 1; s <= seatsPerRow; s++) {
+              const seat = currentSeats[seatIndex++];
+              if (!seat) break;
+              if (seat.status === SeatStatus.SOLD) continue;
+              const key = `${defaultRowLabel}-${s}`;
+              const legacyKey = `${seat.rowLabel}-${seat.seatNumber}`;
+              const override = overrides[key] || overrides[legacyKey] || {};
+              seat.rowLabel = override.rowLabel || defaultRowLabel;
+              seat.seatNumber = override.seatNumber ?? s;
+              if (seat.status === SeatStatus.AVAILABLE || (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt)) {
+                seat.status = override.reserved ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
+                seat.lockedBy = override.reserved ? userId : null as any;
+                seat.lockExpiresAt = null;
+              }
+              allSeatsToUpdate.push(seat);
+            }
+          }
+        }
+      }
+      if (allSeatsToUpdate.length > 0) await this.seatRepo.save(allSeatsToUpdate);
     }
 
     // Post-sync: recalculate global event price range for the marketplace search
