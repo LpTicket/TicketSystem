@@ -62,7 +62,10 @@ export class SocialMatchService {
     const cached = await this.cache.get<any>(cacheKey);
     if (cached) return cached;
 
-    const eligibleEvents = await this.getEligibleEvents(userId);
+    const [eligibleEvents, connections] = await Promise.all([
+      this.getEligibleEvents(userId),
+      this.getConnections(userId),
+    ]);
     const eventIds = eligibleEvents.map((event) => event.id);
     const preferences = eventIds.length
       ? await this.preferenceRepo.find({ where: { userId, eventId: In(eventIds) } })
@@ -72,7 +75,6 @@ export class SocialMatchService {
     let summaries: any[] = [];
     if (activePrefs.length > 0) {
       const activeEventIds = [...new Set(activePrefs.map((p) => p.eventId))];
-      // Batch: 1 query per event for compatible prefs, 1 query for all events
       const [allCompatible, allEvents] = await Promise.all([
         this.preferenceRepo.find({ where: { eventId: In(activeEventIds), isActive: true, invisibleMode: false } }),
         this.eventRepo.find({ where: { id: In(activeEventIds) }, select: ['id', 'title'] }),
@@ -90,8 +92,6 @@ export class SocialMatchService {
         }),
       );
     }
-
-    const connections = await this.getConnections(userId);
     const result = { eligibleEvents, preferences, summaries, connections, interests: Object.values(SocialMatchInterest) };
     await this.cache.set(cacheKey, result, 30_000);
     return result;
@@ -363,14 +363,19 @@ export class SocialMatchService {
   }
 
   private async getEligibleEvents(userId: string) {
-    const tickets = await this.ticketRepo.find({
-      where: { userId, status: In(socialMatchTicketStatuses) },
-      relations: ['event'],
-      order: { createdAt: 'DESC' },
-    });
+    // Use a join query to select only the event fields we need — avoids loading
+    // full Event objects (with imageData, description, etc.) via the relation.
+    const rows = await this.ticketRepo
+      .createQueryBuilder('t')
+      .innerJoin('t.event', 'e')
+      .select(['t.eventId', 'e.id', 'e.title', 'e.eventDate', 'e.venueName', 'e.imageUrl', 'e.status'])
+      .where('t.userId = :userId', { userId })
+      .andWhere('t.status IN (:...statuses)', { statuses: socialMatchTicketStatuses })
+      .orderBy('t.createdAt', 'DESC')
+      .getMany();
 
     const seen = new Set<string>();
-    return tickets
+    return rows
       .map((ticket) => ticket.event)
       .filter((event): event is Event => Boolean(event))
       .filter((event) => {
@@ -401,14 +406,17 @@ export class SocialMatchService {
   }
 
   private async getConnections(userId: string) {
-    const connections = await this.connectionRepo.find({
-      where: [
-        { requesterId: userId },
-        { receiverId: userId },
-      ],
-      relations: ['event', 'requester', 'receiver'],
-      order: { updatedAt: 'DESC' },
-    });
+    // Select only the columns we actually use — avoids loading passwordHash,
+    // avatarUrl base64, and full event descriptions from the joined tables.
+    const connections = await this.connectionRepo
+      .createQueryBuilder('c')
+      .leftJoin('c.event', 'e')
+      .leftJoin('c.requester', 'req')
+      .leftJoin('c.receiver', 'rec')
+      .addSelect(['c', 'e.id', 'e.title', 'req.id', 'req.firstName', 'req.lastName', 'rec.id', 'rec.firstName', 'rec.lastName'])
+      .where('c.requesterId = :userId OR c.receiverId = :userId', { userId })
+      .orderBy('c.updatedAt', 'DESC')
+      .getMany();
 
     const accepted = connections.filter((c) => c.status === SocialMatchConnectionStatus.ACCEPTED);
     const otherPrefConditions = accepted.map((c) => ({
