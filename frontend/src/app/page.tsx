@@ -10,7 +10,7 @@
 import { Event } from '@/types';
 import HomeContent from './HomeContent';
 
-export const revalidate = 10;
+export const dynamic = 'force-dynamic';
 
 type MarketingHomeBanner = {
   id: string;
@@ -32,8 +32,8 @@ async function loadHomeData() {
 
   try {
     const [eventsRes, bannerRes] = await Promise.all([
-      fetch(`${baseUrl}/events?limit=16`, { next: { revalidate: 60 } }),
-      fetch(`${baseUrl}/marketing/banners/home`, { next: { revalidate: 120 } }),
+      fetch(`${baseUrl}/events?limit=16`, { cache: 'no-store' }),
+      fetch(`${baseUrl}/marketing/banners/home`, { cache: 'no-store' }),
     ]);
 
     const events: Event[] = eventsRes.ok ? (await eventsRes.json()).events || [] : [];
