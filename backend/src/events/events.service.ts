@@ -8,7 +8,9 @@
  *     eventos del organizador y encaminar solicitudes de cambio de precio/comisión.
  *     Aplica la propiedad de organizador/admin.
  */
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import * as fs from 'fs';
@@ -38,7 +40,16 @@ export class EventsService {
     private readonly seatRepo: Repository<Seat>,
     @InjectRepository(Ticket)
     private readonly ticketRepo: Repository<Ticket>,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
+
+  async invalidateEventsCache() {
+    await this.cache.del('events:featured');
+    // findAll keys vary by query params; clear all with a prefix scan approach:
+    // cache-manager v5 doesn't support pattern deletes, so we store a version counter.
+    const v = ((await this.cache.get<number>('events:list:v') || 0) + 1);
+    await this.cache.set('events:list:v', v, 0);
+  }
 
   /**
    * generateSlug
@@ -119,6 +130,16 @@ export class EventsService {
     const limit = query.limit || 12;
     const skip = (page - 1) * limit;
 
+    // Cache simple browse requests (no filters, page 1).
+    const isSimple = !query.category && !query.search && !query.minPrice && !query.maxPrice
+      && !query.startDate && !query.endDate && !query.includePast && page === 1;
+    if (isSimple) {
+      const v = (await this.cache.get<number>('events:list:v') || 0);
+      const cacheKey = `events:list:${v}:${limit}`;
+      const cached = await this.cache.get<any>(cacheKey);
+      if (cached) return cached;
+    }
+
     const qb = this.eventRepo
       .createQueryBuilder('event')
       .where('event.status = :status', { status: EventStatus.PUBLISHED })
@@ -166,12 +187,19 @@ export class EventsService {
       .take(limit)
       .getManyAndCount();
 
-    return {
+    const result = {
       events: events.map((event) => this.routeBase64EventImages(event)),
       total,
       page,
       totalPages: Math.ceil(total / limit),
     };
+
+    if (isSimple) {
+      const v = (await this.cache.get<number>('events:list:v') || 0);
+      await this.cache.set(`events:list:${v}:${limit}`, result, 60_000);
+    }
+
+    return result;
   }
 
   /**
@@ -179,13 +207,14 @@ export class EventsService {
    * Returns a limited list of active events marked as featured for the homepage.
    */
   async findFeatured() {
+    const cached = await this.cache.get<any[]>('events:featured');
+    if (cached) return cached;
+
     const events = await this.eventRepo
       .createQueryBuilder('event')
       .where('event.status = :status', { status: EventStatus.PUBLISHED })
       .andWhere('event.isFeatured = :isFeatured', { isFeatured: true })
       .andWhere('event.publicVisible = :publicVisible', { publicVisible: true })
-      // Same visibility rule as findAll: keep an event until its (explicit or
-      // grace-period) end has passed, not the instant it starts.
       .andWhere(
         `COALESCE(event."eventEndDate", event."eventDate" + (:graceHours * INTERVAL '1 hour')) >= :now`,
         { graceHours: EVENT_VISIBILITY_GRACE_HOURS, now: new Date() },
@@ -193,7 +222,9 @@ export class EventsService {
       .orderBy('event.eventDate', 'ASC')
       .take(6)
       .getMany();
-    return events.map((event) => this.routeBase64EventImages(event));
+    const result = events.map((event) => this.routeBase64EventImages(event));
+    await this.cache.set('events:featured', result, 60_000);
+    return result;
   }
 
   /**
@@ -335,6 +366,7 @@ export class EventsService {
       await this.eventRepo.update(id, cleanDto);
     }
 
+    await this.invalidateEventsCache();
     return this.findById(id);
   }
 
@@ -352,6 +384,7 @@ export class EventsService {
     await this.eventRepo.update(id, {
       status: EventStatus.PENDING_APPROVAL,
     });
+    await this.invalidateEventsCache();
     return this.findById(id);
   }
 
@@ -380,7 +413,8 @@ export class EventsService {
       
       await manager.delete(Event, { id });
     });
-    
+
+    await this.invalidateEventsCache();
     return { message: 'Evento eliminado' };
   }
 

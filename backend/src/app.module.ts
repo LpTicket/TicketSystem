@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { CacheModule } from '@nestjs/cache-manager';
 import { APP_GUARD } from '@nestjs/core';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
@@ -51,6 +52,9 @@ import { ScannerAccess } from './database/entities';
       },
     }),
     ScheduleModule.forRoot(),
+    // In-memory cache for public read endpoints (events, categories, banners).
+    // TTL 60s — fresh enough for the home page, avoids N Postgres hits per page load.
+    CacheModule.register({ isGlobal: true, ttl: 60_000 }),
     // Global rate limiting: 120 requests / minute per IP by default.
     // Sensitive auth routes add their own stricter @Throttle() on top.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),

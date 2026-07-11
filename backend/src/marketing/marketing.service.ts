@@ -7,7 +7,9 @@
  *     / push a listas de destinatarios, además del registro de tokens de push y
  *     los mensajes de bienvenida transaccionales del registro.
  */
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -29,6 +31,7 @@ export class MarketingService {
     private readonly userRepo: Repository<User>,
     private readonly mailService: MailService,
     private readonly config: ConfigService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   /** Active users we can reach (have an email/phone). */
@@ -395,11 +398,22 @@ export class MarketingService {
   }
 
   async getHomeBanners(includeData = false) {
+    const cacheKey = 'banners:home';
+    if (!includeData) {
+      const cached = await this.cache.get<any[]>(cacheKey);
+      if (cached) return cached;
+    }
     const banners = await this.bannerRepo.find({
       where: { placement: 'home', isActive: true },
       order: { sortOrder: 'ASC', updatedAt: 'DESC' },
     });
-    return banners.map((banner) => this.serializeHomeBanner(banner, includeData));
+    const result = banners.map((banner) => this.serializeHomeBanner(banner, includeData));
+    if (!includeData) await this.cache.set(cacheKey, result, 120_000);
+    return result;
+  }
+
+  private async invalidateBannersCache() {
+    await this.cache.del('banners:home');
   }
 
   async getHomeBannerImage(variant: 'desktop' | 'mobile' = 'desktop', id?: string) {
@@ -451,6 +465,7 @@ export class MarketingService {
       await this.bannerRepo.save(mobileBanner);
     }
 
+    await this.invalidateBannersCache();
     return savedDesktop;
   }
 
@@ -486,10 +501,12 @@ export class MarketingService {
     if (data.id) {
       await this.bannerRepo.update({ id: data.id }, payload);
       const updated = await this.bannerRepo.findOne({ where: { id: data.id } });
+      await this.invalidateBannersCache();
       if (updated) return this.serializeHomeBanner(updated, true);
     }
 
     const saved = await this.bannerRepo.save(this.bannerRepo.create(payload));
+    await this.invalidateBannersCache();
     return this.serializeHomeBanner(saved, true);
   }
 
@@ -520,11 +537,13 @@ export class MarketingService {
     await this.bannerRepo.update({ id }, next);
     const updated = await this.bannerRepo.findOne({ where: { id } });
     if (!updated) throw new BadRequestException('Banner no disponible');
+    await this.invalidateBannersCache();
     return this.serializeHomeBanner(updated, true);
   }
 
   async removeHomeBannerItem(id: string) {
     await this.bannerRepo.update({ id }, { isActive: false });
+    await this.invalidateBannersCache();
     return { ok: true };
   }
 
@@ -533,7 +552,7 @@ export class MarketingService {
       { placement: 'home', isActive: true },
       { isActive: false },
     );
-
+    await this.invalidateBannersCache();
     return { ok: true };
   }
 
@@ -542,7 +561,7 @@ export class MarketingService {
       { placement: 'home-mobile', isActive: true },
       { isActive: false },
     );
-
+    await this.invalidateBannersCache();
     return { ok: true };
   }
 }

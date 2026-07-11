@@ -9,7 +9,9 @@
  *     web y mobile puedan sondear y mantenerse sincronizados casi en tiempo real.
  *     Ejecuta parches idempotentes de columnas al arrancar.
  */
-import { Injectable, NotFoundException, ConflictException, OnModuleInit } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, OnModuleInit, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { EventCategoryEntity } from '../database/entities';
@@ -41,6 +43,7 @@ export class CategoriesService implements OnModuleInit {
     @InjectRepository(EventCategoryEntity)
     private readonly categoryRepo: Repository<EventCategoryEntity>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   /**
@@ -100,10 +103,20 @@ export class CategoriesService implements OnModuleInit {
   }
 
   async findAll(includeInactive = false) {
+    if (!includeInactive) {
+      const cached = await this.cache.get<ReturnType<typeof this.toPublicCategory>[]>('categories:public');
+      if (cached) return cached;
+    }
     const where = includeInactive ? {} : { isActive: true };
     const categories = await this.categoryRepo.find({ where, order: { sortOrder: 'ASC', labelEs: 'ASC' } });
     if (includeInactive) return categories;
-    return categories.map((cat) => this.toPublicCategory(cat));
+    const result = categories.map((cat) => this.toPublicCategory(cat));
+    await this.cache.set('categories:public', result, 300_000);
+    return result;
+  }
+
+  private async invalidateCategoriesCache() {
+    await this.cache.del('categories:public');
   }
 
   private toPublicCategory(cat: EventCategoryEntity) {
@@ -155,12 +168,15 @@ export class CategoriesService implements OnModuleInit {
   }>) {
     const cat = await this.findOne(id);
     Object.assign(cat, dto);
-    return this.categoryRepo.save(cat);
+    const result = await this.categoryRepo.save(cat);
+    await this.invalidateCategoriesCache();
+    return result;
   }
 
   async remove(id: string) {
     const cat = await this.findOne(id);
     await this.categoryRepo.remove(cat);
+    await this.invalidateCategoriesCache();
     return { deleted: true };
   }
 }
