@@ -5,7 +5,9 @@
  * ES: Función social/de emparejamiento opcional entre asistentes — preferencias,
  *     conexiones (like/match) y mensajería entre usuarios emparejados.
  */
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Not, Repository } from 'typeorm';
 import {
@@ -52,9 +54,14 @@ export class SocialMatchService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Order)
     private readonly orderRepo: Repository<Order>,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   async getMySocialMatch(userId: string) {
+    const cacheKey = `social:me:${userId}`;
+    const cached = await this.cache.get<any>(cacheKey);
+    if (cached) return cached;
+
     const eligibleEvents = await this.getEligibleEvents(userId);
     const eventIds = eligibleEvents.map((event) => event.id);
     const preferences = eventIds.length
@@ -66,7 +73,13 @@ export class SocialMatchService {
     );
 
     const connections = await this.getConnections(userId);
-    return { eligibleEvents, preferences, summaries, connections, interests: Object.values(SocialMatchInterest) };
+    const result = { eligibleEvents, preferences, summaries, connections, interests: Object.values(SocialMatchInterest) };
+    await this.cache.set(cacheKey, result, 30_000);
+    return result;
+  }
+
+  private async invalidateSocialCache(userId: string) {
+    await this.cache.del(`social:me:${userId}`);
   }
 
   async updatePreference(userId: string, eventId: string, dto: UpdateSocialMatchDto) {
@@ -89,6 +102,7 @@ export class SocialMatchService {
     preference.shareLocation = Boolean(dto.shareLocation);
 
     const saved = await this.preferenceRepo.save(preference);
+    await this.invalidateSocialCache(userId);
     const summary = saved.isActive ? await this.buildSummary(saved) : null;
     return { preference: saved, summary };
   }
@@ -185,17 +199,21 @@ export class SocialMatchService {
         existing.requesterId = userId;
         existing.receiverId = receiverId;
         existing.status = SocialMatchConnectionStatus.PENDING;
-        return this.connectionRepo.save(existing);
+        const saved = await this.connectionRepo.save(existing);
+        await Promise.all([this.invalidateSocialCache(userId), this.invalidateSocialCache(receiverId)]);
+        return saved;
       }
       return existing;
     }
 
-    return this.connectionRepo.save(this.connectionRepo.create({
+    const newConn = await this.connectionRepo.save(this.connectionRepo.create({
       eventId,
       requesterId: userId,
       receiverId,
       status: SocialMatchConnectionStatus.PENDING,
     }));
+    await Promise.all([this.invalidateSocialCache(userId), this.invalidateSocialCache(receiverId)]);
+    return newConn;
   }
 
   async dismissSuggestion(userId: string, eventId: string, receiverId: string) {
@@ -242,17 +260,20 @@ export class SocialMatchService {
     if (status === SocialMatchConnectionStatus.CANCELLED) {
       const isMember = connection.requesterId === userId || connection.receiverId === userId;
       if (!isMember) throw new ForbiddenException('No tienes acceso a esta conexión.');
-      // Pending: only requester can cancel. Accepted: either party can unmatch.
       if (connection.status === SocialMatchConnectionStatus.PENDING && connection.requesterId !== userId) {
         throw new ForbiddenException('Solo quien envió la solicitud puede cancelarla.');
       }
       connection.status = SocialMatchConnectionStatus.CANCELLED;
-      return this.connectionRepo.save(connection);
+      const saved = await this.connectionRepo.save(connection);
+      await Promise.all([this.invalidateSocialCache(connection.requesterId), this.invalidateSocialCache(connection.receiverId)]);
+      return saved;
     }
 
     if (connection.receiverId !== userId) throw new ForbiddenException('Solo quien recibe la solicitud puede responderla.');
     connection.status = status;
-    return this.connectionRepo.save(connection);
+    const saved = await this.connectionRepo.save(connection);
+    await Promise.all([this.invalidateSocialCache(connection.requesterId), this.invalidateSocialCache(connection.receiverId)]);
+    return saved;
   }
 
   async hideChat(userId: string, connectionId: string) {
