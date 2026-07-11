@@ -43,10 +43,11 @@ export class EventsService {
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
-  async invalidateEventsCache(slug?: string, eventId?: string) {
+  async invalidateEventsCache(slug?: string, eventId?: string, organizerId?: string) {
     await this.cache.del('events:featured');
     if (slug) await this.cache.del(`event:slug:${slug}`);
     if (eventId) await this.cache.del(`event:seatmap:${eventId}`);
+    if (organizerId) await this.cache.del(`organizer:events:${organizerId}`);
     const v = ((await this.cache.get<number>('events:list:v') || 0) + 1);
     await this.cache.set('events:list:v', v, 0);
   }
@@ -372,7 +373,7 @@ export class EventsService {
       await this.eventRepo.update(id, cleanDto);
     }
 
-    await this.invalidateEventsCache();
+    await this.invalidateEventsCache(event.slug, id, event.organizerId);
     return this.findById(id);
   }
 
@@ -390,7 +391,7 @@ export class EventsService {
     await this.eventRepo.update(id, {
       status: EventStatus.PENDING_APPROVAL,
     });
-    await this.invalidateEventsCache();
+    await this.invalidateEventsCache(event.slug, id, event.organizerId);
     return this.findById(id);
   }
 
@@ -405,22 +406,22 @@ export class EventsService {
     if (event.organizerId !== userId && user?.role !== 'admin') {
       throw new ForbiddenException();
     }
-    
+
     await this.eventRepo.manager.transaction(async (manager) => {
       await manager.delete(Ticket, { eventId: id });
       await manager.delete(Order, { eventId: id });
-      
+
       const sections = await manager.find(VenueSection, { where: { eventId: id } });
       if (sections.length > 0) {
         const sectionIds = sections.map(s => s.id);
         await manager.createQueryBuilder().delete().from(Seat).where("sectionId IN (:...sectionIds)", { sectionIds }).execute();
         await manager.delete(VenueSection, { eventId: id });
       }
-      
+
       await manager.delete(Event, { id });
     });
 
-    await this.invalidateEventsCache();
+    await this.invalidateEventsCache(event.slug, id, event.organizerId);
     return { message: 'Evento eliminado' };
   }
 
@@ -491,6 +492,10 @@ export class EventsService {
   }
 
   async getOrganizerEvents(organizerId: string) {
+    const cacheKey = `organizer:events:${organizerId}`;
+    const cached = await this.cache.get<any>(cacheKey);
+    if (cached) return cached;
+
     const events = await this.eventRepo.find({
       where: { organizerId },
       order: { createdAt: 'DESC' },
@@ -522,7 +527,7 @@ export class EventsService {
       : [];
     const catBySlug = new Map(categoryEntities.map((c) => [c.slug, c]));
 
-    return events.map((event) => {
+    const result = events.map((event) => {
       const cat = catBySlug.get(event.category);
       return {
         ...this.routeBase64EventImages(event),
@@ -532,6 +537,8 @@ export class EventsService {
         categoryNameEn: cat?.labelEn || event.category,
       };
     });
+    await this.cache.set(cacheKey, result, 30_000);
+    return result;
   }
 
   // --- Seat Map & Inventory Management ---

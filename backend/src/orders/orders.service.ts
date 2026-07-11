@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -49,6 +51,7 @@ export class OrdersService {
     private readonly scannerAccessRepo: Repository<ScannerAccess>,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {
     const mode = this.configService.get('STRIPE_MODE') || 'test';
     const key = mode === 'production'
@@ -479,6 +482,14 @@ export class OrdersService {
         relations: ['user', 'event', 'event.organizer'],
       });
       if (fullOrder && fullOrder.user && createdTickets.length > 0) {
+        // Invalidate organizer caches so their panel reflects the new sale immediately.
+        const organizerId = fullOrder.event?.organizerId;
+        if (organizerId) {
+          await Promise.all([
+            this.cache.del(`organizer:events:${organizerId}`),
+            this.cache.del(`organizer:stats:${organizerId}`),
+          ]);
+        }
         await this.mailService.sendTicketEmail(
           buyerEmail || fullOrder.user.email,
           buyerName || fullOrder.user.firstName,
@@ -1467,23 +1478,53 @@ export class OrdersService {
    * Replaces N+1 of getEventSales() calls from the dashboard.
    */
   async getOrganizerStats(organizerId: string) {
+    const cacheKey = `organizer:stats:${organizerId}`;
+    const cached = await this.cache.get<any>(cacheKey);
+    if (cached) return cached;
+
     const STRIPE_PERCENT = 0.029;
     const STRIPE_FIXED = 0.30;
 
-    // 1) Money + counts totals (paid orders across all the organizer's events).
-    const result = await this.orderRepo
-      .createQueryBuilder('o')
-      .innerJoin('events', 'e', 'e.id = o."eventId"')
-      .where('e."organizerId" = :organizerId', { organizerId })
-      .andWhere('o.status = :status', { status: OrderStatus.PAID })
-      .select('COALESCE(SUM(o.subtotal), 0)', 'totalRevenue')
-      .addSelect('COALESCE(SUM(o.total), 0)', 'totalCharged')
-      .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'totalTickets')
-      .addSelect('COUNT(o.id)', 'totalOrders')
-      .getRawOne();
+    const since = new Date();
+    since.setDate(since.getDate() - 13);
+    since.setHours(0, 0, 0, 0);
 
-    const totalRevenue = Number(result?.totalRevenue) || 0; // ticket sales (organizer)
-    const totalCharged = Number(result?.totalCharged) || 0; // what buyers paid
+    // Run all 3 aggregate queries in parallel — they are independent reads.
+    const [result, dayRows, checkin] = await Promise.all([
+      this.orderRepo
+        .createQueryBuilder('o')
+        .innerJoin('events', 'e', 'e.id = o."eventId"')
+        .where('e."organizerId" = :organizerId', { organizerId })
+        .andWhere('o.status = :status', { status: OrderStatus.PAID })
+        .select('COALESCE(SUM(o.subtotal), 0)', 'totalRevenue')
+        .addSelect('COALESCE(SUM(o.total), 0)', 'totalCharged')
+        .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'totalTickets')
+        .addSelect('COUNT(o.id)', 'totalOrders')
+        .getRawOne(),
+      this.orderRepo
+        .createQueryBuilder('o')
+        .innerJoin('events', 'e', 'e.id = o."eventId"')
+        .where('e."organizerId" = :organizerId', { organizerId })
+        .andWhere('o.status = :status', { status: OrderStatus.PAID })
+        .andWhere('COALESCE(o."paidAt", o."createdAt") >= :since', { since })
+        .select(`TO_CHAR(COALESCE(o."paidAt", o."createdAt"), 'YYYY-MM-DD')`, 'date')
+        .addSelect('COUNT(o.id)', 'orders')
+        .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'tickets')
+        .addSelect('COALESCE(SUM(o.subtotal), 0)', 'revenue')
+        .groupBy('date')
+        .orderBy('date', 'ASC')
+        .getRawMany(),
+      this.ticketRepo
+        .createQueryBuilder('t')
+        .innerJoin('events', 'e', 'e.id = t."eventId"')
+        .where('e."organizerId" = :organizerId', { organizerId })
+        .select(`COUNT(CASE WHEN t.status = 'used' THEN 1 END)`, 'scanned')
+        .addSelect(`COUNT(CASE WHEN t.status = 'active' THEN 1 END)`, 'pending')
+        .getRawOne(),
+    ]);
+
+    const totalRevenue = Number(result?.totalRevenue) || 0;
+    const totalCharged = Number(result?.totalCharged) || 0;
     const totalOrders = Number(result?.totalOrders) || 0;
     const serviceFees = Math.max(0, +(totalCharged - totalRevenue).toFixed(2));
     const stripeFees = totalCharged > 0
@@ -1491,44 +1532,7 @@ export class OrdersService {
       : 0;
     const netEstimated = +Math.max(0, totalRevenue - stripeFees).toFixed(2);
 
-    // 2) Sales per day for the last 14 days.
-    const since = new Date();
-    since.setDate(since.getDate() - 13);
-    since.setHours(0, 0, 0, 0);
-    const dayRows = await this.orderRepo
-      .createQueryBuilder('o')
-      .innerJoin('events', 'e', 'e.id = o."eventId"')
-      .where('e."organizerId" = :organizerId', { organizerId })
-      .andWhere('o.status = :status', { status: OrderStatus.PAID })
-      .andWhere('COALESCE(o."paidAt", o."createdAt") >= :since', { since })
-      .select(`TO_CHAR(COALESCE(o."paidAt", o."createdAt"), 'YYYY-MM-DD')`, 'date')
-      .addSelect('COUNT(o.id)', 'orders')
-      .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'tickets')
-      .addSelect('COALESCE(SUM(o.subtotal), 0)', 'revenue')
-      .groupBy('date')
-      .orderBy('date', 'ASC')
-      .getRawMany();
-
-    const salesByDay = dayRows.map((r) => ({
-      date: r.date,
-      orders: Number(r.orders) || 0,
-      tickets: Number(r.tickets) || 0,
-      revenue: Number(r.revenue) || 0,
-    }));
-
-    // 3) Check-in summary (scanned vs pending tickets across all events).
-    const checkin = await this.ticketRepo
-      .createQueryBuilder('t')
-      .innerJoin('events', 'e', 'e.id = t."eventId"')
-      .where('e."organizerId" = :organizerId', { organizerId })
-      .select(`COUNT(CASE WHEN t.status = 'used' THEN 1 END)`, 'scanned')
-      .addSelect(`COUNT(CASE WHEN t.status = 'active' THEN 1 END)`, 'pending')
-      .getRawOne();
-
-    const scannedTickets = Number(checkin?.scanned) || 0;
-    const pendingTickets = Number(checkin?.pending) || 0;
-
-    return {
+    const stats = {
       totalRevenue,
       totalCharged,
       serviceFees,
@@ -1538,10 +1542,17 @@ export class OrdersService {
       stripeFixed: STRIPE_FIXED,
       totalTickets: Number(result?.totalTickets) || 0,
       totalOrders,
-      scannedTickets,
-      pendingTickets,
-      salesByDay,
+      scannedTickets: Number(checkin?.scanned) || 0,
+      pendingTickets: Number(checkin?.pending) || 0,
+      salesByDay: dayRows.map((r) => ({
+        date: r.date,
+        orders: Number(r.orders) || 0,
+        tickets: Number(r.tickets) || 0,
+        revenue: Number(r.revenue) || 0,
+      })),
     };
+    await this.cache.set(cacheKey, stats, 30_000);
+    return stats;
   }
 
   /**
