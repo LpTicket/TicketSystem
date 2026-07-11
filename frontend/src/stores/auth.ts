@@ -46,6 +46,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { data } = await api.post<AuthResponse>('/auth/login', { email, password });
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
+    localStorage.setItem('cachedUser', JSON.stringify(data.user));
     set({ user: data.user, isAuthenticated: true, isLoading: false });
   },
 
@@ -53,6 +54,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const { data } = await api.post<AuthResponse>('/auth/register', formData);
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
+    localStorage.setItem('cachedUser', JSON.stringify(data.user));
     set({ user: data.user, isAuthenticated: true, isLoading: false });
   },
 
