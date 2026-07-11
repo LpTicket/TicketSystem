@@ -8,7 +8,9 @@
  *     tarifas, precios y comisiones de creador, además de órdenes y desglose
  *     financiero por evento.
  */
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -22,6 +24,7 @@ export class AdminService {
     @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
     @InjectRepository(Ticket) private readonly ticketRepo: Repository<Ticket>,
     @InjectRepository(VenueSection) private readonly sectionRepo: Repository<VenueSection>,
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
   private routeBase64EventImage(slug: string, url: string | null, kind: 'image' | 'banner') {
@@ -346,19 +349,31 @@ export class AdminService {
     };
   }
 
+  private async invalidateEventCache(event: Event) {
+    await this.cache.del(`event:slug:${event.slug}`);
+    await this.cache.del(`event:seatmap:${event.id}`);
+    await this.cache.del('events:featured');
+    const v = ((await this.cache.get<number>('events:list:v') || 0) + 1);
+    await this.cache.set('events:list:v', v, 0);
+  }
+
   async approveEvent(eventId: string) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Evento no encontrado');
 
     event.status = EventStatus.PUBLISHED;
-    return this.eventRepo.save(event);
+    const result = await this.eventRepo.save(event);
+    await this.invalidateEventCache(event);
+    return result;
   }
 
   async rejectEvent(eventId: string) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Evento no encontrado');
     event.status = EventStatus.CANCELLED;
-    return this.eventRepo.save(event);
+    const result = await this.eventRepo.save(event);
+    await this.invalidateEventCache(event);
+    return result;
   }
 
   async approveField(eventId: string, field: string) {
@@ -418,7 +433,9 @@ export class AdminService {
         throw new BadRequestException('Campo inválido para aprobar');
     }
 
-    return this.eventRepo.save(event);
+    const saved = await this.eventRepo.save(event);
+    await this.invalidateEventCache(event);
+    return saved;
   }
 
   async rejectField(eventId: string, field: string) {
@@ -454,14 +471,18 @@ export class AdminService {
         throw new BadRequestException('Campo inválido para rechazar');
     }
 
-    return this.eventRepo.save(event);
+    const saved = await this.eventRepo.save(event);
+    await this.invalidateEventCache(event);
+    return saved;
   }
 
   async toggleFeatured(eventId: string) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Evento no encontrado');
     event.isFeatured = !event.isFeatured;
-    return this.eventRepo.save(event);
+    const result = await this.eventRepo.save(event);
+    await this.invalidateEventCache(event);
+    return result;
   }
 
   async togglePublicVisibility(eventId: string) {
@@ -469,7 +490,9 @@ export class AdminService {
     if (!event) throw new NotFoundException('Evento no encontrado');
     event.publicVisible = event.publicVisible === false;
     if (!event.publicVisible) event.isFeatured = false;
-    return this.eventRepo.save(event);
+    const result = await this.eventRepo.save(event);
+    await this.invalidateEventCache(event);
+    return result;
   }
 
   async deleteEvent(eventId: string) {

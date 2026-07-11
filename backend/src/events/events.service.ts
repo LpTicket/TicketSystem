@@ -43,10 +43,10 @@ export class EventsService {
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
-  async invalidateEventsCache() {
+  async invalidateEventsCache(slug?: string, eventId?: string) {
     await this.cache.del('events:featured');
-    // findAll keys vary by query params; clear all with a prefix scan approach:
-    // cache-manager v5 doesn't support pattern deletes, so we store a version counter.
+    if (slug) await this.cache.del(`event:slug:${slug}`);
+    if (eventId) await this.cache.del(`event:seatmap:${eventId}`);
     const v = ((await this.cache.get<number>('events:list:v') || 0) + 1);
     await this.cache.set('events:list:v', v, 0);
   }
@@ -232,6 +232,10 @@ export class EventsService {
    * Retrieves full event details and sections for the public event page.
    */
   async findBySlug(slug: string) {
+    const cacheKey = `event:slug:${slug}`;
+    const cached = await this.cache.get<any>(cacheKey);
+    if (cached) return cached;
+
     const event = await this.eventRepo.findOne({
       where: { slug },
       relations: ['organizer'],
@@ -248,12 +252,14 @@ export class EventsService {
       : null;
 
     const cleaned = this.routeBase64EventImages(event);
-    return {
+    const result = {
       ...cleaned,
       categoryName: categoryEntity?.labelEs || event.category,
       categoryNameEn: categoryEntity?.labelEn || event.category,
       sections,
     };
+    await this.cache.set(cacheKey, result, 60_000);
+    return result;
   }
 
   async findById(id: string) {
@@ -433,6 +439,7 @@ export class EventsService {
       await this.eventRepo.update(id, { pendingImageUrl: imageUrl });
     } else {
       await this.eventRepo.update(id, { imageUrl });
+      await this.cache.del(`event:slug:${event.slug}`);
     }
     return { imageUrl };
   }
@@ -441,13 +448,14 @@ export class EventsService {
     const event = await this.findById(id);
     const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
     if (event.organizerId !== userId && user?.role !== 'admin') throw new ForbiddenException();
-    
+
     const bannerImageUrl = (url.startsWith('http') || url.startsWith('data:') || url.startsWith('/')) ? url : `/uploads/${url}`;
 
     if (event.status === EventStatus.PUBLISHED && user?.role !== 'admin') {
       await this.eventRepo.update(id, { pendingBannerImageUrl: bannerImageUrl });
     } else {
       await this.eventRepo.update(id, { bannerImageUrl });
+      await this.cache.del(`event:slug:${event.slug}`);
     }
     return { bannerImageUrl };
   }
@@ -461,6 +469,7 @@ export class EventsService {
       event.pendingImageUrl = null;
     } else {
       event.imageUrl = null;
+      await this.cache.del(`event:slug:${event.slug}`);
     }
     await this.eventRepo.save(event);
     return { success: true };
@@ -475,6 +484,7 @@ export class EventsService {
       event.pendingBannerImageUrl = null;
     } else {
       event.bannerImageUrl = null;
+      await this.cache.del(`event:slug:${event.slug}`);
     }
     await this.eventRepo.save(event);
     return { success: true };
@@ -802,10 +812,16 @@ export class EventsService {
       }
     }
 
-    await this.eventRepo.update(eventId, { 
-      minPrice: minPrice === Infinity ? 0 : minPrice, 
-      maxPrice: maxPrice === -Infinity ? 0 : maxPrice 
+    await this.eventRepo.update(eventId, {
+      minPrice: minPrice === Infinity ? 0 : minPrice,
+      maxPrice: maxPrice === -Infinity ? 0 : maxPrice,
     });
+
+    // Invalidate both caches: seatmap structure changed, and event detail price range changed
+    const updatedEvent = await this.findById(eventId);
+    await this.cache.del(`event:seatmap:${eventId}`);
+    await this.cache.del(`event:slug:${updatedEvent.slug}`);
+    await this.invalidateEventsCache();
 
     return this.getSeatMap(eventId);
   }
@@ -823,6 +839,8 @@ export class EventsService {
    * CRITICAL: Automatically clears expired temporary locks before returning data.
    */
   async getSeatMap(eventId: string) {
+    const cacheKey = `event:seatmap:${eventId}`;
+
     const sections = await this.sectionRepo.find({
       where: { eventId },
       order: { sortOrder: 'ASC' },
@@ -835,27 +853,27 @@ export class EventsService {
     const now = new Date();
 
     // Cleanup expired holds from users who abandoned their carts
-    await this.seatRepo.update(
-      {
-        sectionId: In(sectionIds),
-        status: SeatStatus.LOCKED,
-        lockExpiresAt: LessThan(now),
-      },
-      {
-        status: SeatStatus.AVAILABLE,
-        lockedBy: null as any,
-        lockExpiresAt: null as any,
-      }
-    );
+    const expiredCount = await this.seatRepo.count({
+      where: { sectionId: In(sectionIds), status: SeatStatus.LOCKED, lockExpiresAt: LessThan(now) },
+    });
+    if (expiredCount > 0) {
+      await this.seatRepo.update(
+        { sectionId: In(sectionIds), status: SeatStatus.LOCKED, lockExpiresAt: LessThan(now) },
+        { status: SeatStatus.AVAILABLE, lockedBy: null as any, lockExpiresAt: null as any },
+      );
+      // Invalidate stale cache after releasing expired holds
+      await this.cache.del(cacheKey);
+    }
+
+    const cached = await this.cache.get<any>(cacheKey);
+    if (cached) return cached;
 
     const allSeats = await this.seatRepo.find({
       where: { sectionId: In(sectionIds) },
       order: { rowLabel: 'ASC', seatNumber: 'ASC' },
     });
 
-    // Count sold tickets per section. Seated sections track sales via seat status,
-    // but general-admission (standing) areas have no seats — their sales only exist
-    // as Ticket rows, so we count those to report "Vendidas" correctly.
+    // Count sold tickets per section (GA/standing areas have no seat rows).
     const ticketRows = await this.ticketRepo
       .createQueryBuilder('t')
       .select('t.sectionId', 'sectionId')
@@ -868,11 +886,15 @@ export class EventsService {
       ticketRows.map((r: any) => [r.sectionId, Number(r.count) || 0]),
     );
 
-    return sections.map(section => ({
+    const result = sections.map(section => ({
       ...section,
       seats: allSeats.filter(s => s.sectionId === section.id),
       soldTickets: soldBySection.get(section.id) || 0,
     }));
+
+    // Short TTL: seat availability changes on every purchase/lock
+    await this.cache.set(cacheKey, result, 15_000);
+    return result;
   }
 
   /**
@@ -941,6 +963,10 @@ export class EventsService {
       }
     }
 
+    // Invalidate seatmap cache so the next viewer sees updated seat availability
+    const eventId = firstSeat.section?.event?.id;
+    if (eventId) await this.cache.del(`event:seatmap:${eventId}`);
+
     return { message: 'Asientos bloqueados', expiresAt: lockExpiry };
   }
 
@@ -949,12 +975,23 @@ export class EventsService {
    * Explicitly releases all temporary holds for a specific user (e.g., on cart clear).
    */
   async unlockUserSeats(userId: string) {
+    // Find affected events before releasing, to invalidate their seatmap caches
+    const lockedSeats = await this.seatRepo.find({
+      where: { lockedBy: userId, status: SeatStatus.LOCKED },
+      relations: ['section'],
+    });
+    const affectedEventIds = [...new Set(lockedSeats.map(s => s.section?.eventId).filter(Boolean))];
+
     await this.seatRepo
       .createQueryBuilder()
       .update(Seat)
       .set({ status: SeatStatus.AVAILABLE, lockedBy: null as any, lockExpiresAt: null as any })
       .where('lockedBy = :userId', { userId })
       .execute();
+
+    for (const eid of affectedEventIds) {
+      await this.cache.del(`event:seatmap:${eid}`);
+    }
   }
 
   async requestCreatorCommissionChange(eventId: string, amount: number, userId: string) {
