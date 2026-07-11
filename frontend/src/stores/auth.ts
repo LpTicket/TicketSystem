@@ -59,6 +59,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('cachedUser');
     set({ user: null, isAuthenticated: false, isLoading: false });
   },
 
@@ -69,15 +70,27 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ isLoading: false });
         return;
       }
+      // Hydrate instantly from cache so the UI never blocks on a network round-trip
+      const cached = localStorage.getItem('cachedUser');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached) as User;
+          set({ user: parsed, isAuthenticated: true, isLoading: false });
+        } catch {}
+      }
+      // Refresh in the background — update state when it arrives
       const { data } = await api.get<User>('/auth/profile');
+      localStorage.setItem('cachedUser', JSON.stringify(data));
       set({ user: data, isAuthenticated: true, isLoading: false });
     } catch {
+      localStorage.removeItem('cachedUser');
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
 
   updateProfile: async (profileData) => {
     const { data } = await api.patch<User>('/auth/profile', profileData);
+    localStorage.setItem('cachedUser', JSON.stringify(data));
     set({ user: data });
   },
   
