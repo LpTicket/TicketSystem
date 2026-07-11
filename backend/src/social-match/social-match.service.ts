@@ -68,9 +68,28 @@ export class SocialMatchService {
       ? await this.preferenceRepo.find({ where: { userId, eventId: In(eventIds) } })
       : [];
 
-    const summaries = await Promise.all(
-      preferences.filter((preference) => preference.isActive).map((preference) => this.buildSummary(preference)),
-    );
+    const activePrefs = preferences.filter((p) => p.isActive);
+    let summaries: any[] = [];
+    if (activePrefs.length > 0) {
+      const activeEventIds = [...new Set(activePrefs.map((p) => p.eventId))];
+      // Batch: 1 query per event for compatible prefs, 1 query for all events
+      const [allCompatible, allEvents] = await Promise.all([
+        this.preferenceRepo.find({ where: { eventId: In(activeEventIds), isActive: true, invisibleMode: false } }),
+        this.eventRepo.find({ where: { id: In(activeEventIds) }, select: ['id', 'title'] }),
+      ]);
+      const compatibleByEvent = new Map<string, SocialMatchPreference[]>();
+      for (const p of allCompatible) {
+        if (!compatibleByEvent.has(p.eventId)) compatibleByEvent.set(p.eventId, []);
+        compatibleByEvent.get(p.eventId)!.push(p);
+      }
+      const eventById = new Map(allEvents.map((e) => [e.id, e]));
+      summaries = await Promise.all(
+        activePrefs.map((pref) => {
+          const compatible = (compatibleByEvent.get(pref.eventId) || []).filter((p) => p.userId !== pref.userId);
+          return this.buildSummary(pref, compatible, eventById.get(pref.eventId));
+        }),
+      );
+    }
 
     const connections = await this.getConnections(userId);
     const result = { eligibleEvents, preferences, summaries, connections, interests: Object.values(SocialMatchInterest) };
@@ -419,7 +438,8 @@ export class SocialMatchService {
           industry: otherPref?.industry ?? null,
           interests: otherPref?.interests ?? [],
           instagram: otherPref?.instagram ?? null,
-          photos: otherPref?.photos ?? [],
+          // Strip base64 photos from connections list to avoid sending MBs of data
+          photos: (otherPref?.photos ?? []).map((p) => (p?.startsWith('data:') ? '' : p)).filter(Boolean),
         };
       }
 
@@ -432,6 +452,8 @@ export class SocialMatchService {
         otherUserName: isAccepted && profile
           ? profile.fullName
           : (otherUser ? `${otherUser.firstName} ${otherUser.lastName?.[0] || ''}.`.trim() : 'Asistente'),
+        // Strip sensitive/heavy fields — only expose avatar URL (not base64)
+        otherUserAvatar: otherUser?.avatarUrl?.startsWith('data:') ? null : (otherUser?.avatarUrl ?? null),
         profile,
         createdAt: connection.createdAt,
         updatedAt: connection.updatedAt,
@@ -448,9 +470,9 @@ export class SocialMatchService {
     return cleaned ? cleaned.slice(0, 80) : null;
   }
 
-  private async buildSummary(preference: SocialMatchPreference) {
+  private async buildSummary(preference: SocialMatchPreference, preloadedCompatible?: SocialMatchPreference[], preloadedEvent?: Event) {
     const interests = preference.interests || [];
-    const compatible = await this.preferenceRepo.find({
+    const compatible = preloadedCompatible ?? await this.preferenceRepo.find({
       where: {
         eventId: preference.eventId,
         isActive: true,
@@ -458,7 +480,7 @@ export class SocialMatchService {
         userId: Not(preference.userId),
       },
     });
-    const event = await this.eventRepo.findOne({ where: { id: preference.eventId } });
+    const event = preloadedEvent ?? await this.eventRepo.findOne({ where: { id: preference.eventId } });
 
     const sharedInterestMatches = compatible.filter((item) =>
       (item.interests || []).some((interest) => interests.includes(interest)),
