@@ -33,7 +33,7 @@ async function loadHomeData() {
   try {
     const [eventsRes, bannerRes] = await Promise.all([
       fetch(`${baseUrl}/events?limit=16`, { next: { revalidate: 60 } }),
-      fetch(`${baseUrl}/marketing/banners/home`, { cache: 'no-store' }),
+      fetch(`${baseUrl}/marketing/banners/home`, { next: { revalidate: 120 } }),
     ]);
 
     const events: Event[] = eventsRes.ok ? (await eventsRes.json()).events || [] : [];
