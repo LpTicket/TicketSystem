@@ -715,9 +715,9 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
                     </Animated.View>
                   )}
                   <View style={styles.catContent}>
-                    {!!item.icon && <Text style={styles.catIcon}>{item.icon}</Text>}
-                    <Text style={styles.catTitle} numberOfLines={2}>{item.label}</Text>
-                    {!!item.subtitle && <Text style={styles.catDesc} numberOfLines={1}>{item.subtitle}</Text>}
+                    {!!item.icon && <Text style={[styles.catIcon, item.slug === 'All' && { fontSize: 28, marginBottom: 0 }]}>{item.icon}</Text>}
+                    {item.slug !== 'All' && <Text style={styles.catTitle} numberOfLines={2}>{item.label}</Text>}
+                    {item.slug !== 'All' && !!item.subtitle && <Text style={styles.catDesc} numberOfLines={1}>{item.subtitle}</Text>}
                   </View>
                 </TouchableOpacity>
               );
