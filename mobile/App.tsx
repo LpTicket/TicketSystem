@@ -618,7 +618,7 @@ function AppContent() {
         ) : tab === 'social' ? (
           isLoggedIn ? <SocialScreen scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'profile' ? (
-          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} canOrganize={canOrganize} canAdmin={canAdmin} viewMode={viewMode} onSetMode={(mode) => setViewMode(mode)} scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
+          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} canOrganize={canOrganize} canAdmin={canAdmin} viewMode={viewMode} onSetMode={(mode) => setViewMode(mode)} onOpenTapToPay={() => { setViewMode('organizer'); goToTab('doorSale'); }} scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'organizer' ? (
           isLoggedIn ? <OrganizerPanelScreen section={organizerSection} onSectionChange={setOrganizerSection} refreshKey={salesRefreshKey} scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'admin' ? (

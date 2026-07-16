@@ -333,10 +333,32 @@ export class OrdersService {
     return locationId;
   }
 
-  async createDoorSaleTapToPayIntent(user: any, eventId: string, amount: number, quantity = 1) {
+  async getDoorSaleTapToPayConfig(user: any, eventId: string) {
+    await this.ensureCanSellAtDoor(user, eventId);
+    return { locationId: await this.getTerminalLocationId() };
+  }
+
+  async createDoorSaleTapToPayIntent(
+    user: any,
+    eventId: string,
+    amount: number,
+    quantity = 1,
+    buyerEmail?: string,
+    buyerName?: string,
+  ) {
     if (!this.stripe) throw new BadRequestException('Stripe not configured');
     const event = await this.ensureCanSellAtDoor(user, eventId);
     const invoice = this.calculateDoorSaleFees(event, amount, quantity, null);
+    const checkoutBuyerEmail = buyerEmail?.trim();
+    const checkoutBuyerName = buyerName?.trim();
+
+    // Tap to Pay is an in-person sale. Requiring the buyer's email keeps the
+    // receipt and QR tickets private instead of sending them to the seller.
+    if (!checkoutBuyerEmail || !isValidEmailFormat(checkoutBuyerEmail)) {
+      throw new BadRequestException('Ingresa un correo válido para enviar el recibo y las entradas al cliente.');
+    }
+    const suggestion = suggestEmailFix(checkoutBuyerEmail);
+    if (suggestion) throw new BadRequestException(`Revisa el correo del cliente: ¿quisiste decir ${suggestion}?`);
     const seatsInfo = Array.from({ length: invoice.quantity }, (_, index) => ({
       seatId: '',
       sectionId: null,
@@ -370,6 +392,8 @@ export class OrdersService {
         orderId: order.id,
         userId: user.id,
         eventId,
+        buyerEmail: checkoutBuyerEmail,
+        buyerName: checkoutBuyerName || '',
         source: 'door_sale_tap_to_pay',
       },
     });
@@ -420,7 +444,12 @@ export class OrdersService {
       throw new BadRequestException(`Payment is not complete: ${paymentIntent.status}`);
     }
 
-    await this.finalizePaidOrder(orderId, paymentIntentId);
+    await this.finalizePaidOrder(
+      orderId,
+      paymentIntentId,
+      paymentIntent.metadata?.buyerEmail || undefined,
+      paymentIntent.metadata?.buyerName || undefined,
+    );
     return { success: true, orderId };
   }
 

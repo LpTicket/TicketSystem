@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { SymbolView } from 'expo-symbols';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
@@ -8,7 +9,8 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser, apiGet, getImageUrl } from '../services/api';
 import { createDoorSaleCheckout, DoorSaleCheckout, DoorSalePreview, previewDoorSale } from '../services/doorSales';
 import { getMyScannerAccess } from '../services/scannerAccess';
-import { runDoorSaleTapToPay } from '../services/tapToPay';
+import { presentTapToPayEducation } from '../services/tapToPayEducation';
+import { prepareDoorSaleTapToPay, releaseDoorSaleTapToPay, runDoorSaleTapToPay } from '../services/tapToPay';
 
 type Props = {
   user?: AuthUser | null;
@@ -29,6 +31,7 @@ type DoorEvent = {
 };
 
 type PaymentMethod = 'qr' | 'link' | 'tap';
+type TapFlowPhase = 'idle' | 'preparing' | 'ready' | 'collecting' | 'processing' | 'complete' | 'failed';
 
 const DEFAULT_DOOR_SALE_AMOUNT = '20';
 const TAP_TO_PAY_GUIDE_SEEN_KEY = 'lp_tap_to_pay_guide_seen_v1';
@@ -86,6 +89,10 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   const [tapStatus, setTapStatus] = useState('');
   const [showTapGuide, setShowTapGuide] = useState(false);
   const [tapGuideSeen, setTapGuideSeen] = useState(false);
+  const [buyerEmail, setBuyerEmail] = useState('');
+  const [buyerName, setBuyerName] = useState('');
+  const [tapPhase, setTapPhase] = useState<TapFlowPhase>('idle');
+  const [tapResult, setTapResult] = useState<{ success: boolean; message: string } | null>(null);
   const [eventQuery, setEventQuery] = useState('');
   const eventSearchPlaceholder = t('Buscar evento', 'Search event') || (lang === 'es' ? 'Buscar evento' : 'Search event');
 
@@ -154,11 +161,13 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
       .then((seen) => {
         if (!mounted) return;
         setTapGuideSeen(Boolean(seen));
-        if (!seen) setShowTapGuide(true);
+        if (!seen && user?.role === 'admin') setShowTapGuide(true);
       })
       .catch(() => {});
     return () => { mounted = false; };
-  }, []);
+  }, [user?.role]);
+
+  useEffect(() => () => { releaseDoorSaleTapToPay().catch(() => {}); }, []);
 
   useEffect(() => {
     if (!eventQuery.trim()) return;
@@ -198,7 +207,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     ? t('CREAR QR DE PAGO', 'CREATE PAYMENT QR')
     : paymentMethod === 'link'
       ? t('CREAR LINK DE PAGO', 'CREATE PAYMENT LINK')
-      : t('Toca para pagar en iPhone', 'Tap to Pay on iPhone');
+      : t('Tap to Pay en iPhone', 'Tap to Pay on iPhone');
 
   const acknowledgeTapGuide = () => {
     setShowTapGuide(false);
@@ -208,7 +217,33 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
 
   const selectTapToPay = () => {
     setPaymentMethod('tap');
-    if (!tapGuideSeen) setShowTapGuide(true);
+    if (!tapGuideSeen && user?.role === 'admin') setShowTapGuide(true);
+    else void prepareTapToPay();
+  };
+
+  const openTapEducation = async () => {
+    try {
+      await presentTapToPayEducation();
+    } catch (err: any) {
+      setError(err?.message || t('No se pudo abrir la educación de Tap to Pay.', 'Could not open Tap to Pay education.'));
+    }
+  };
+
+  const prepareTapToPay = async () => {
+    if (!selectedEventId) return;
+    setError('');
+    try {
+      await prepareDoorSaleTapToPay({
+        eventId: selectedEventId,
+        merchantDisplayName: selectedEvent?.title || 'LPTicket',
+        canAcceptTerms: user?.role === 'admin',
+        onStatus: setTapStatus,
+        onPhase: (phase) => setTapPhase(phase),
+      });
+    } catch (err: any) {
+      setTapPhase('failed');
+      setError(err?.message || t('No se pudo preparar Tap to Pay.', 'Could not prepare Tap to Pay.'));
+    }
   };
 
   const resetSaleForm = () => {
@@ -216,6 +251,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     setQuantity(1);
     setCheckout(null);
     setTapStatus('');
+    setTapPhase('idle');
   };
 
   const makeCheckout = async () => {
@@ -223,19 +259,32 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     setCreating(true);
     setError('');
     setTapStatus('');
+    setTapResult(null);
     try {
       if (paymentMethod === 'tap') {
+        if (!buyerEmail.trim()) {
+          throw new Error(t('Ingresa el correo del cliente para enviar su recibo y entradas privadas.', 'Enter the customer email to send their private receipt and tickets.'));
+        }
+        setTapPhase('preparing');
         await runDoorSaleTapToPay({
           eventId: selectedEventId,
           amount: Number(amount),
           quantity,
+          buyerEmail: buyerEmail.trim(),
+          buyerName: buyerName.trim(),
+          canAcceptTerms: user?.role === 'admin',
           merchantDisplayName: selectedEvent?.title || 'LPTicket',
           onStatus: setTapStatus,
+          onPhase: (phase) => setTapPhase(phase),
         });
         setAmount(DEFAULT_DOOR_SALE_AMOUNT);
         setQuantity(1);
         setCheckout(null);
         setTapStatus(t('Pago aprobado. Entradas emitidas.', 'Payment approved. Tickets issued.'));
+        setTapResult({
+          success: true,
+          message: t(`Pago aprobado. El recibo y las entradas fueron enviados a ${buyerEmail.trim()}.`, `Payment approved. The receipt and tickets were sent to ${buyerEmail.trim()}.`),
+        });
         onSaleCompleted?.();
         return;
       }
@@ -250,7 +299,10 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         Share.share({ message: data.url }).catch(() => {});
       }
     } catch (err: any) {
-      setError(err?.message || t('No se pudo crear el cobro.', 'Could not create payment.'));
+      const message = err?.message || t('No se pudo crear el cobro.', 'Could not create payment.');
+      setTapPhase(paymentMethod === 'tap' ? 'failed' : 'idle');
+      setError(message);
+      if (paymentMethod === 'tap') setTapResult({ success: false, message });
     } finally {
       setCreating(false);
     }
@@ -374,7 +426,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         <Text style={styles.eyebrow}>{t('FORMA DE COBRO', 'PAYMENT METHOD')}</Text>
         <TouchableOpacity style={styles.tapGuideCard} onPress={() => setShowTapGuide(true)} activeOpacity={0.82}>
           <View style={styles.tapGuideIcon}>
-            <Ionicons name="phone-portrait-outline" size={18} color="#F97316" />
+            <SymbolView name="wave.3.right.circle.fill" size={20} tintColor="#F97316" />
           </View>
           <View style={styles.tapGuideText}>
             <Text style={styles.tapGuideTitle}>{t('Tap to Pay en iPhone disponible', 'Tap to Pay on iPhone available')}</Text>
@@ -404,7 +456,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           onPress={() => setPaymentMethod('link')}
         />
         <PaymentOption
-          icon="phone-portrait-outline"
+          icon="wave.3.right.circle.fill"
           title={t('Tap to Pay en iPhone', 'Tap to Pay on iPhone')}
           copy={t('Cobra acercando tarjeta o teléfono al iPhone.', 'Charge by tapping a card or phone on the iPhone.')}
           status={paymentMethod === 'tap' ? t('Seleccionado', 'Selected') : t('App nativa', 'Native app')}
@@ -413,6 +465,30 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         />
         {tapStatus ? <Text style={styles.tapStatus}>{tapStatus}</Text> : null}
       </View>
+
+      {paymentMethod === 'tap' ? (
+        <View style={styles.buyerReceiptCard}>
+          <Text style={styles.eyebrow}>{t('RECIBO DEL CLIENTE', 'CUSTOMER RECEIPT')}</Text>
+          <Text style={styles.buyerReceiptCopy}>{t('El recibo y las entradas se envían de forma privada al correo del cliente después del pago.', 'The receipt and tickets are sent privately to the customer after payment.')}</Text>
+          <TextInput
+            value={buyerName}
+            onChangeText={setBuyerName}
+            placeholder={t('Nombre del cliente (opcional)', 'Customer name (optional)')}
+            placeholderTextColor="rgba(226,232,240,0.42)"
+            style={styles.buyerInput}
+          />
+          <TextInput
+            value={buyerEmail}
+            onChangeText={setBuyerEmail}
+            placeholder={t('Correo del cliente para el recibo', 'Customer email for receipt')}
+            placeholderTextColor="rgba(226,232,240,0.42)"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={styles.buyerInput}
+          />
+        </View>
+      ) : null}
 
       <GradientButton height={56} onPress={makeCheckout} disabled={creating || !preview}>
         {creating ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>{primaryLabel}</Text>}
@@ -446,7 +522,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           <View style={styles.tapModal}>
             <View style={styles.tapModalHeader}>
               <View style={styles.tapModalIcon}>
-                <Ionicons name="phone-portrait-outline" size={22} color="#FFFFFF" />
+                <SymbolView name="wave.3.right.circle.fill" size={24} tintColor="#FFFFFF" />
               </View>
               <View style={styles.tapModalHeaderText}>
                 <Text style={styles.tapModalTitle}>{t('Configura Tap to Pay en iPhone', 'Set up Tap to Pay on iPhone')}</Text>
@@ -459,10 +535,14 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
 
             <TapGuideStep
               icon="checkmark-circle-outline"
-              title={t('Acepta los términos', 'Accept the terms')}
+              title={t('Configuración autorizada', 'Authorized setup')}
               copy={t(
-                'El administrador u organizador autorizado debe aceptar los términos de Tap to Pay en iPhone cuando Apple los muestre.',
-                'An authorized admin or organizer must accept the Tap to Pay on iPhone terms when Apple shows them.'
+                user?.role === 'admin'
+                  ? 'Como administrador de LPTicket, acepta los términos oficiales cuando iPhone los muestre antes de cobrar.'
+                  : 'El administrador principal de LPTicket debe configurar Tap to Pay antes de que el personal pueda cobrar.',
+                user?.role === 'admin'
+                  ? 'As the LPTicket administrator, accept the official terms when iPhone displays them before taking payments.'
+                  : 'The primary LPTicket administrator must configure Tap to Pay before staff can take payments.'
               )}
             />
             <TapGuideStep
@@ -490,8 +570,40 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
               )}
             />
 
-            <GradientButton height={48} onPress={acknowledgeTapGuide} style={{ marginTop: 8 }}>
-              <Text style={styles.tapModalButtonText}>{t('ENTENDIDO', 'GOT IT')}</Text>
+            <GradientButton height={48} onPress={openTapEducation} style={{ marginTop: 2 }}>
+              <Text style={styles.tapModalButtonText}>{t('VER EDUCACIÓN OFICIAL', 'VIEW OFFICIAL EDUCATION')}</Text>
+            </GradientButton>
+            <TouchableOpacity
+              style={[styles.tapGuideContinue, !selectedEventId && styles.tapGuideContinueDisabled]}
+              onPress={() => { acknowledgeTapGuide(); void prepareTapToPay(); }}
+              disabled={!selectedEventId}
+            >
+              <Text style={styles.tapGuideContinueText}>
+                {selectedEventId
+                  ? t('CONTINUAR A CONFIGURACIÓN', 'CONTINUE TO SETUP')
+                  : t('SELECCIONA UN EVENTO PRIMERO', 'SELECT AN EVENT FIRST')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={creating && paymentMethod === 'tap'} transparent animationType="fade">
+        <View style={styles.tapModalOverlay}>
+          <View style={styles.tapProgressModal}>
+            <ActivityIndicator size="large" color="#F97316" />
+            <Text style={styles.tapProgressTitle}>{tapPhase === 'processing' ? t('Procesando pago', 'Processing payment') : t('Preparando Tap to Pay', 'Preparing Tap to Pay')}</Text>
+            <Text style={styles.tapProgressCopy}>{tapStatus || t('No cierres esta pantalla mientras se confirma la transacción.', 'Do not close this screen while the transaction is confirmed.')}</Text>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={Boolean(tapResult)} transparent animationType="fade" onRequestClose={() => setTapResult(null)}>
+        <View style={styles.tapModalOverlay}>
+          <View style={styles.tapProgressModal}>
+            <Ionicons name={tapResult?.success ? 'checkmark-circle' : 'close-circle'} size={42} color={tapResult?.success ? '#34D399' : '#FCA5A5'} />
+            <Text style={styles.tapProgressTitle}>{tapResult?.success ? t('Pago aprobado', 'Payment approved') : t('Pago no completado', 'Payment not completed')}</Text>
+            <Text style={styles.tapProgressCopy}>{tapResult?.message}</Text>
+            <GradientButton height={48} onPress={() => setTapResult(null)} style={{ alignSelf: 'stretch', marginTop: 6 }}>
+              <Text style={styles.tapModalButtonText}>{t('LISTO', 'DONE')}</Text>
             </GradientButton>
           </View>
         </View>
@@ -514,11 +626,13 @@ function TapGuideStep({ icon, title, copy }: { icon: keyof typeof Ionicons.glyph
   );
 }
 
-function PaymentOption({ icon, title, copy, status, active, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; copy: string; status: string; active?: boolean; onPress: () => void }) {
+function PaymentOption({ icon, title, copy, status, active, onPress }: { icon: keyof typeof Ionicons.glyphMap | 'wave.3.right.circle.fill'; title: string; copy: string; status: string; active?: boolean; onPress: () => void }) {
   return (
     <TouchableOpacity style={[styles.paymentOption, active && styles.paymentOptionActive]} onPress={onPress} activeOpacity={0.78}>
       <View style={[styles.paymentIcon, active && styles.paymentIconActive]}>
-        <Ionicons name={icon} size={20} color={active ? '#FFFFFF' : 'rgba(226,232,240,0.58)'} />
+        {icon === 'wave.3.right.circle.fill'
+          ? <SymbolView name="wave.3.right.circle.fill" size={20} tintColor={active ? '#FFFFFF' : 'rgba(226,232,240,0.58)'} />
+          : <Ionicons name={icon} size={20} color={active ? '#FFFFFF' : 'rgba(226,232,240,0.58)'} />}
       </View>
       <View style={styles.paymentText}>
         <Text style={styles.paymentTitle}>{title}</Text>
@@ -616,6 +730,9 @@ const styles = StyleSheet.create({
   paymentStatus: { color: 'rgba(226,232,240,0.54)', fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
   paymentStatusActive: { color: '#F97316' },
   tapStatus: { color: 'rgba(226,232,240,0.72)', fontSize: 12, lineHeight: 17, fontWeight: '600', paddingHorizontal: 4 },
+  buyerReceiptCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', backgroundColor: 'rgba(249,115,22,0.06)', padding: 14, gap: 10 },
+  buyerReceiptCopy: { color: 'rgba(226,232,240,0.68)', fontSize: 12, lineHeight: 17, fontWeight: '600' },
+  buyerInput: { minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', backgroundColor: '#030B14', paddingHorizontal: 13, color: '#F8FAFC', fontSize: 13, fontWeight: '600', outlineStyle: 'none' as any },
   primaryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   qrCard: { borderRadius: 24, borderWidth: 1, borderColor: 'rgba(249,115,22,0.30)', backgroundColor: 'rgba(249,115,22,0.08)', padding: 16, alignItems: 'center' },
   qrTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '600' },
@@ -636,4 +753,10 @@ const styles = StyleSheet.create({
   tapStepTitle: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
   tapStepCopy: { color: 'rgba(226,232,240,0.60)', fontSize: 11, lineHeight: 16, marginTop: 3, fontWeight: '600' },
   tapModalButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
+  tapGuideContinue: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(249,115,22,0.36)', backgroundColor: 'rgba(255,255,255,0.04)' },
+  tapGuideContinueDisabled: { opacity: 0.45 },
+  tapGuideContinueText: { color: '#FDBA74', fontSize: 11, fontWeight: '600' },
+  tapProgressModal: { width: '100%', maxWidth: 360, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(249,115,22,0.32)', backgroundColor: '#030B14', padding: 24, alignItems: 'center', gap: 12 },
+  tapProgressTitle: { color: '#FFFFFF', fontSize: 19, fontWeight: '600', textAlign: 'center' },
+  tapProgressCopy: { color: 'rgba(226,232,240,0.68)', fontSize: 13, lineHeight: 19, textAlign: 'center', fontWeight: '600' },
 });

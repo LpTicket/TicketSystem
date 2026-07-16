@@ -107,9 +107,16 @@ export class OrdersController {
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Get('door-sale/tap-to-pay-config')
+  getDoorSaleTapToPayConfig(@Query('eventId') eventId: string, @Request() req: any) {
+    return this.ordersService.getDoorSaleTapToPayConfig(req.user, eventId);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
   @Post('door-sale/tap-to-pay-intent')
   createDoorSaleTapToPayIntent(
-    @Body() body: { eventId: string; amount: number; quantity?: number },
+    @Body() body: { eventId: string; amount: number; quantity?: number; buyerEmail?: string; buyerName?: string },
     @Request() req: any,
   ) {
     return this.ordersService.createDoorSaleTapToPayIntent(
@@ -117,6 +124,8 @@ export class OrdersController {
       body.eventId,
       Number(body.amount || 0),
       body.quantity || 1,
+      body.buyerEmail,
+      body.buyerName,
     );
   }
 

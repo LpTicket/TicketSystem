@@ -46,6 +46,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/withTapToPayEducation",
       "expo-apple-authentication",
       "expo-notifications",
       "expo-web-browser",

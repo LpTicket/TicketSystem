@@ -40,6 +40,14 @@ export type DoorSaleTapToPayIntent = {
   event?: DoorSalePreview['event'];
 };
 
+export type DoorSaleTapToPayConfig = {
+  locationId: string;
+};
+
+export async function getDoorSaleTapToPayConfig(eventId: string): Promise<DoorSaleTapToPayConfig> {
+  return apiGet<DoorSaleTapToPayConfig>('/orders/door-sale/tap-to-pay-config', { eventId });
+}
+
 export async function previewDoorSale(params: {
   eventId: string;
   amount: number;
@@ -64,6 +72,8 @@ export async function createDoorSaleTapToPayIntent(payload: {
   eventId: string;
   amount: number;
   quantity?: number;
+  buyerEmail: string;
+  buyerName?: string;
 }): Promise<DoorSaleTapToPayIntent> {
   return apiPost<DoorSaleTapToPayIntent>('/orders/door-sale/tap-to-pay-intent', payload);
 }

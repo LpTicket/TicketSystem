@@ -6,6 +6,8 @@
  *     entre vistas comprador/organizador/admin y cerrar sesión.
  */
 import { useEffect, useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { SymbolView } from 'expo-symbols';
 import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { AppMode } from '../components/ModeSelector';
@@ -16,6 +18,7 @@ import { AccountMobile } from '../components/profile/AccountMobile';
 import { MySpecialCodesMobile } from '../components/profile/MySpecialCodesMobile';
 import { OrdersMobile } from '../components/profile/OrdersMobile';
 import { PaymentMethodsMobile } from '../components/profile/PaymentMethodsMobile';
+import { presentTapToPayEducation } from '../services/tapToPayEducation';
 
 type ProfileTab = 'account' | 'payments' | 'codes';
 
@@ -28,16 +31,18 @@ type Props = {
   canAdmin?: boolean;
   viewMode?: AppMode;
   onSetMode?: (mode: AppMode) => void;
+  onOpenTapToPay?: () => void;
   scrollToTopSignal?: number;
 };
 
-export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onLogout, canOrganize, canAdmin, viewMode = 'client', onSetMode, scrollToTopSignal = 0 }: Props) {
+export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onLogout, canOrganize, canAdmin, viewMode = 'client', onSetMode, onOpenTapToPay, scrollToTopSignal = 0 }: Props) {
   const { t } = useLanguage();
   const scrollRef = useRef<ScrollView>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
   const [tabShellWidth, setTabShellWidth] = useState(0);
+  const [tapEducationError, setTapEducationError] = useState('');
   const tabIndicatorX = useRef(new Animated.Value(0)).current;
   const [profile, setProfile] = useState({
     firstName: user.firstName || '',
@@ -146,6 +151,21 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
         <>
           <AccountMobile user={user} onUserUpdated={onUserUpdated} onAccountDeleted={onLogout} tabs={tabs} showSections={false} />
 
+          {canAdmin ? (
+            <TapToPaySettingsCard
+              onOpenDoorSale={onOpenTapToPay}
+              onOpenEducation={async () => {
+                setTapEducationError('');
+                try {
+                  await presentTapToPayEducation();
+                } catch (error: any) {
+                  setTapEducationError(error?.message || t('No se pudo abrir la educación oficial.', 'Could not open the official education.'));
+                }
+              }}
+              error={tapEducationError}
+              t={t}
+            />
+          ) : null}
           <PaymentMethodsMobile />
           <OrdersMobile />
         </>
@@ -162,6 +182,42 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
         <Text style={styles.logoutText}>{t('CERRAR SESIÓN', 'LOG OUT')}</Text>
       </TouchableOpacity>
     </ScrollView>
+  );
+}
+
+function TapToPaySettingsCard({
+  onOpenDoorSale,
+  onOpenEducation,
+  error,
+  t,
+}: {
+  onOpenDoorSale?: () => void;
+  onOpenEducation: () => void;
+  error: string;
+  t: (es: string, en: string) => string;
+}) {
+  return (
+    <View style={styles.tapToPayCard}>
+      <View style={styles.tapToPayHeader}>
+        <View style={styles.tapToPayIcon}>
+          <SymbolView name="wave.3.right.circle.fill" size={26} tintColor="#FB923C" />
+        </View>
+        <View style={styles.tapToPayCopy}>
+          <Text style={styles.cardLabel}>{t('TAP TO PAY EN IPHONE', 'TAP TO PAY ON IPHONE')}</Text>
+          <Text style={styles.tapToPayTitle}>{t('Configuración de cobro presencial', 'In-person payment setup')}</Text>
+          <Text style={styles.tapToPayText}>{t('Configura esta función antes de aceptar pagos. Solo el administrador principal de LPTicket puede aceptar los términos oficiales.', 'Set up this feature before accepting payments. Only the primary LPTicket administrator can accept the official terms.')}</Text>
+        </View>
+      </View>
+      <TouchableOpacity style={styles.tapEducationButton} onPress={onOpenEducation}>
+        <Ionicons name="play-circle-outline" size={18} color="#FDBA74" />
+        <Text style={styles.tapEducationButtonText}>{t('VER EDUCACIÓN OFICIAL', 'VIEW OFFICIAL EDUCATION')}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.tapSetupButton} onPress={onOpenDoorSale}>
+        <Text style={styles.tapSetupButtonText}>{t('IR A CONFIGURAR', 'GO TO SETUP')}</Text>
+        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+      </TouchableOpacity>
+      {error ? <Text style={styles.tapToPayError}>{error}</Text> : null}
+    </View>
   );
 }
 
@@ -408,6 +464,17 @@ const styles = StyleSheet.create({
   paymentTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '600', marginBottom: 3 },
   paymentSub: { color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '400' },
   paymentAction: { color: colors.orange, fontSize: 11, letterSpacing: 0, fontWeight: '600' },
+  tapToPayCard: { borderRadius: 20, borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', backgroundColor: 'rgba(249,115,22,0.065)', padding: 16, marginBottom: 12, gap: 12 },
+  tapToPayHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  tapToPayIcon: { width: 48, height: 48, borderRadius: 15, backgroundColor: 'rgba(249,115,22,0.12)', alignItems: 'center', justifyContent: 'center' },
+  tapToPayCopy: { flex: 1 },
+  tapToPayTitle: { color: '#F8FAFC', fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  tapToPayText: { color: 'rgba(226,232,240,0.66)', fontSize: 12, lineHeight: 18, fontWeight: '600' },
+  tapEducationButton: { height: 44, borderRadius: 13, borderWidth: 1, borderColor: 'rgba(249,115,22,0.34)', backgroundColor: 'rgba(255,255,255,0.035)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  tapEducationButtonText: { color: '#FDBA74', fontSize: 11, fontWeight: '600' },
+  tapSetupButton: { height: 44, borderRadius: 13, backgroundColor: colors.orange, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  tapSetupButtonText: { color: '#FFFFFF', fontSize: 11, fontWeight: '600' },
+  tapToPayError: { color: '#FCA5A5', fontSize: 12, lineHeight: 17, fontWeight: '600' },
   logoutButton: {
     height: 54,
     borderRadius: 16,
