@@ -1,194 +1,237 @@
-# LPTicket — Architecture Guide / Guía de Arquitectura
+# LPTicket - Arquitectura Comprobada
 
-> Bilingual (English / Español). Each section is given in English first, then Spanish.
-> Bilingüe (Inglés / Español). Cada sección se da primero en inglés y luego en español.
+**Proyecto:** LPTicket / TicketSystem
+**Repositorio principal:** `/Users/sundingalue/Documents/TicketSystem`
+**Última revisión documental:** 2026-07-19
 
----
+## Vista General
 
-## 1. Overview / Visión general
+LPTicket es una plataforma de gestión de eventos y venta de entradas. Reúne una aplicación móvil para clientes, organizadores y administradores, una plataforma web y un backend compartido.
 
-**EN —** LPTicket is an event ticketing platform with three independent applications that share one backend API:
+La arquitectura busca mantener una única fuente de verdad para datos críticos, una experiencia consistente entre móvil y web, y una separación clara entre interfaz, reglas de negocio y almacenamiento.
 
-- **`backend/`** — NestJS + Fastify REST API (TypeScript), PostgreSQL via TypeORM. Handles auth, events, seat maps, orders/payments (Stripe), tickets, marketing, analytics and admin.
-- **`frontend/`** — Next.js (App Router) web app for buyers, organizers and admins.
-- **`mobile/`** — React Native + Expo app (iOS/Android) mirroring the web features.
-
-The web and mobile clients talk to the same API. The backend is the single source of truth.
-
-**ES —** LPTicket es una plataforma de venta de entradas para eventos con tres aplicaciones independientes que comparten una sola API de backend:
-
-- **`backend/`** — API REST en NestJS + Fastify (TypeScript), PostgreSQL mediante TypeORM. Gestiona autenticación, eventos, mapas de asientos, órdenes/pagos (Stripe), tickets, marketing, analítica y administración.
-- **`frontend/`** — App web en Next.js (App Router) para compradores, organizadores y administradores.
-- **`mobile/`** — App en React Native + Expo (iOS/Android) que replica las funciones de la web.
-
-Los clientes web y mobile consumen la misma API. El backend es la única fuente de verdad.
-
----
-
-## 2. High-level flow / Flujo de alto nivel
-
-```
-[ mobile (Expo) ]  ──┐
-                     ├──►  [ backend API (NestJS/Fastify) ]  ──►  [ PostgreSQL ]
-[ frontend (Next) ] ─┘                  │
-                                        ├──►  Stripe (payments / webhooks)
-                                        ├──►  Email (nodemailer)
-                                        └──►  WhatsApp / Push (marketing)
+```text
+Cliente web / App móvil
+        |
+        v
+Backend NestJS + Fastify
+        |
+        v
+PostgreSQL + servicios externos
 ```
 
-**EN —** Buyers browse events, pick seats, pay via Stripe, and receive a QR ticket (Apple/Google Wallet supported). Organizers manage their events, seat maps, pricing, attendees, blocks/invites and reminders. Admins manage users, events, fees, categories, marketing and payouts.
+## Estructura del Repositorio
 
-**ES —** Los compradores exploran eventos, eligen asientos, pagan con Stripe y reciben un ticket con QR (compatible con Apple/Google Wallet). Los organizadores gestionan sus eventos, mapas de asientos, precios, asistentes, bloqueos/invitaciones y recordatorios. Los administradores gestionan usuarios, eventos, tarifas, categorías, marketing y pagos.
+| Área | Ruta absoluta | Tecnología principal |
+|---|---|---|
+| Repositorio | `/Users/sundingalue/Documents/TicketSystem` | Git |
+| Aplicación móvil | `/Users/sundingalue/Documents/TicketSystem/mobile` | React Native, Expo, TypeScript |
+| Aplicación web | `/Users/sundingalue/Documents/TicketSystem/frontend` | Next.js, React, TypeScript |
+| Backend | `/Users/sundingalue/Documents/TicketSystem/backend` | NestJS, Fastify, TypeORM, PostgreSQL |
 
----
+## Principios Arquitectónicos
 
-## 3. Backend modules / Módulos del backend
+1. **Una fuente de verdad para datos críticos.** Pagos, órdenes, tickets, disponibilidad, mapas, bloqueos y permisos deben confirmarse en el backend. Ninguna interfaz debe asumir éxito antes de recibir la respuesta válida del servidor.
+2. **Paridad funcional entre clientes.** Móvil y web pueden tener interfaces diferentes, pero deben usar las mismas reglas de negocio y reflejar el mismo estado cuando una función aplica a ambos.
+3. **Límites claros de responsabilidad.** La interfaz presenta y solicita acciones; el backend valida, autoriza y persiste; la base de datos conserva el estado definitivo.
+4. **Cambios compatibles y pequeños.** Mantener contratos de API existentes, DTOs, roles, entidades y flujos actuales. Cualquier modificación de un contrato compartido requiere revisar ambos clientes y el backend.
+5. **Seguridad por defecto.** La autorización y validación deben ocurrir en el servidor, incluso cuando la interfaz ya limita una acción.
+6. **Rendimiento sin sacrificar exactitud.** Usar caché de lectura para mejorar la carga, pero invalidar o refrescar datos después de cambios críticos. Nunca mostrar disponibilidad, pagos o bloqueos falsos por una caché desactualizada.
+7. **Observabilidad y recuperación.** Los errores deben ser trazables, explicables al usuario sin exponer datos sensibles y recuperables con una nueva consulta al estado real.
 
-**EN —** Each folder under `backend/src/` is a NestJS module (controller + service + DTOs):
+### Cambios que Requieren Especial Cuidado
 
-| Module | Responsibility |
-| --- | --- |
-| `auth` | Registration, login, JWT access/refresh, Google/Facebook OAuth, password reset, profile. |
-| `events` | Events CRUD, publishing, seat maps/sections, images, organizer-owned listings, price/commission change requests. |
-| `orders` | Stripe checkout, webhooks, ticket issuance & validation (scanning), sales/attendees, door sales, reminders, free invites, seat blocking. |
-| `payments` | Stored payment methods for a user. |
-| `admin` | Admin dashboard, user/event management, fees, prices, payouts. |
-| `categories` | Event categories (+ realtime version polling for web/mobile sync). |
-| `marketing` | Home banners, email/SMS/WhatsApp/push campaigns, push tokens. |
-| `analytics` | Page-view tracking and summaries. |
-| `special-codes` | Promoter/creator codes and commission payouts. |
-| `scanner-access` | Door-scanner access requests/approvals for staff. |
-| `social-match` | Optional social/matchmaking feature between attendees. |
-| `venue-templates` | Reusable venue/seat-map templates. |
-| `common` | Shared guards, decorators, filters, services (mail, storage, wallet). |
-| `database` | TypeORM entities and one-off migration/fix scripts. |
+Los siguientes cambios deben investigarse, probarse y revisarse de forma ampliada antes de integrarse:
 
-**ES —** Cada carpeta dentro de `backend/src/` es un módulo de NestJS (controlador + servicio + DTOs):
+- Entidades TypeORM, relaciones, columnas, `synchronize`, migraciones o consultas de PostgreSQL.
+- Endpoints de autenticación, autorización, roles, tokens, CORS, sesiones, validación o rate limiting.
+- Órdenes, pagos, Stripe, Tap to Pay on iPhone, Apple Pay, reembolsos, recibos y venta en puerta.
+- Disponibilidad de tickets, mapas de venue, bloqueo/desbloqueo de asientos o mesas y escaneo.
+- Variables de entorno, secretos, dominios, Railway, almacenamiento de archivos y proveedores externos.
+- Cambios que alteren una respuesta consumida por móvil y web.
+- Configuración nativa de iOS, Expo, `app.json`, plugins, capacidades Xcode y perfiles de firma.
 
-| Módulo | Responsabilidad |
-| --- | --- |
-| `auth` | Registro, login, JWT de acceso/refresco, OAuth de Google/Facebook, restablecimiento de contraseña, perfil. |
-| `events` | CRUD de eventos, publicación, mapas de asientos/secciones, imágenes, listados del organizador, solicitudes de cambio de precio/comisión. |
-| `orders` | Checkout de Stripe, webhooks, emisión y validación de tickets (escaneo), ventas/asistentes, ventas en puerta, recordatorios, invitaciones gratis, bloqueo de asientos. |
-| `payments` | Métodos de pago guardados de un usuario. |
-| `admin` | Panel de administración, gestión de usuarios/eventos, tarifas, precios, pagos. |
-| `categories` | Categorías de eventos (+ sondeo de versión en tiempo real para sincronizar web/mobile). |
-| `marketing` | Banners de inicio, campañas de email/SMS/WhatsApp/push, tokens de push. |
-| `analytics` | Registro y resúmenes de vistas de página. |
-| `special-codes` | Códigos de promotor/creador y pagos de comisiones. |
-| `scanner-access` | Solicitudes/aprobaciones de acceso al escáner de puerta para el personal. |
-| `social-match` | Función social/de emparejamiento opcional entre asistentes. |
-| `venue-templates` | Plantillas reutilizables de recinto/mapa de asientos. |
-| `common` | Guards, decoradores, filtros y servicios compartidos (correo, almacenamiento, wallet). |
-| `database` | Entidades de TypeORM y scripts puntuales de migración/corrección. |
+## Backend
 
-### Request lifecycle / Ciclo de vida de una petición
+### Base Técnica
 
-**EN —** `main.ts` boots Fastify with: a 10MB body limit, `@fastify/helmet` (security headers), `@fastify/secure-session`, static `/uploads`, a global `ValidationPipe` (`whitelist` + `forbidNonWhitelisted`), a strict CORS allow-list, the `/api` global prefix, and a global exception filter. Rate limiting is applied globally via `@nestjs/throttler` (see `app.module.ts`), with stricter per-route limits on auth endpoints.
+- **Framework:** NestJS con adaptador Fastify.
+- **ORM:** TypeORM.
+- **Base de datos:** PostgreSQL.
+- **Punto de entrada:** `/Users/sundingalue/Documents/TicketSystem/backend/src/main.ts`.
+- **Prefijo API:** `/api`.
 
-**ES —** `main.ts` arranca Fastify con: límite de cuerpo de 10MB, `@fastify/helmet` (cabeceras de seguridad), `@fastify/secure-session`, `/uploads` estáticos, un `ValidationPipe` global (`whitelist` + `forbidNonWhitelisted`), una lista blanca estricta de CORS, el prefijo global `/api` y un filtro global de excepciones. El rate limiting se aplica globalmente con `@nestjs/throttler` (ver `app.module.ts`), con límites más estrictos por ruta en los endpoints de autenticación.
+### Módulos Principales
 
----
+El backend contiene módulos para autenticación, usuarios, eventos, categorías, órdenes, pagos, administración, marketing, analítica, escáner, acceso de puerta, Social Match, códigos especiales, plantillas de venue, soporte con IA y servicios comunes.
 
-## 4. Authentication / Autenticación
+Las áreas de mayor impacto son:
 
-**EN —**
-- JWT **access** token (short-lived, default 1h) + **refresh** token (default 7d, separate secret).
-- Tokens are issued by `AuthService.generateTokens()` and validated by `JwtStrategy`.
-- Routes are protected with `@UseGuards(AuthGuard('jwt'))`; role-restricted routes add `RolesGuard` + `@Roles(UserRole.ADMIN | CLIENT)`.
-- **Security:** the server refuses to start without `JWT_SECRET` / `JWT_REFRESH_SECRET` in production (no insecure fallbacks). Self-registration is always `CLIENT` — `role` is never accepted from the client.
-- **Clients:** web stores tokens in `localStorage`; mobile stores them in `AsyncStorage` and sends `Authorization: Bearer`. See `SECURITY.md` for the deferred httpOnly-cookie migration.
+- **Auth y Users:** acceso, identidad, roles y permisos.
+- **Events y Venue Templates:** eventos, mapas, inventario de asientos, mesas y zonas.
+- **Orders y Payments:** compras, cobros, tickets y estados de pago.
+- **Scanner Access y Door Sale:** validación de entradas y ventas presenciales.
+- **Social Match:** perfiles, sugerencias, conexiones y mensajería.
+- **Admin, Marketing y Analytics:** operación interna, campañas y métricas.
 
-**ES —**
-- Token JWT de **acceso** (corta duración, 1h por defecto) + token de **refresco** (7d por defecto, con secreto separado).
-- Los tokens los emite `AuthService.generateTokens()` y los valida `JwtStrategy`.
-- Las rutas se protegen con `@UseGuards(AuthGuard('jwt'))`; las rutas restringidas por rol añaden `RolesGuard` + `@Roles(UserRole.ADMIN | CLIENT)`.
-- **Seguridad:** el servidor se niega a arrancar sin `JWT_SECRET` / `JWT_REFRESH_SECRET` en producción (sin valores por defecto inseguros). El auto-registro siempre es `CLIENT` — el `role` nunca se acepta desde el cliente.
-- **Clientes:** la web guarda los tokens en `localStorage`; el mobile los guarda en `AsyncStorage` y envía `Authorization: Bearer`. Ver `SECURITY.md` para la migración pendiente a cookies httpOnly.
+### Ciclo de una Solicitud
 
----
+1. Web o móvil realiza una solicitud a `/api`.
+2. El backend aplica límites de tamaño, seguridad HTTP, CORS, validación y autenticación según el endpoint.
+3. Los controladores reciben DTOs validados.
+4. Los servicios aplican las reglas de negocio y autorización.
+5. TypeORM consulta o modifica PostgreSQL.
+6. El backend devuelve una respuesta compatible con el cliente consumidor.
 
-## 5. Frontend (web) / Frontend (web)
+### Controles Actuales Relevantes
 
-**EN —** Next.js App Router under `frontend/src/app/`. Key areas:
+De acuerdo con el arranque del backend, se mantienen estos controles:
 
-- Public: `/` (home), `/events`, `/events/[slug]` (detail + purchase), `/login`, `/register`, `/verify/[code]` (gate verification), legal pages.
-- Authenticated: `/dashboard` (my tickets), `/orders`, `/checkout/*`.
-- Organizer: `/organizer`, `/organizer/events/[id]` (the full event editor with 7 tabs).
-- Admin: `/admin/*` (users, events, categories, marketing, special-codes, analytics).
-- API helper: `frontend/src/lib/api.ts` (axios instance + token interceptor). Error messages: `frontend/src/lib/apiError.ts` (friendly 429 / network / server messages).
-- State: `frontend/src/stores/auth.ts` (Zustand). i18n: `frontend/src/context/LanguageContext.tsx`.
+- Límite aproximado de 10 MB para cuerpos de solicitud.
+- Cabeceras de seguridad con Helmet.
+- Sesión segura y contenido estático de cargas bajo `/uploads`.
+- `ValidationPipe` con `whitelist` y rechazo de campos no permitidos.
+- CORS restringido a orígenes configurados.
+- Filtro global de excepciones y limitación global de solicitudes.
 
-**ES —** App Router de Next.js bajo `frontend/src/app/`. Áreas clave:
+No se deben relajar estos controles para resolver un problema de interfaz sin investigar primero su causa real.
 
-- Público: `/` (inicio), `/events`, `/events/[slug]` (detalle + compra), `/login`, `/register`, `/verify/[code]` (verificación en puerta), páginas legales.
-- Autenticado: `/dashboard` (mis tickets), `/orders`, `/checkout/*`.
-- Organizador: `/organizer`, `/organizer/events/[id]` (el editor completo de evento con 7 pestañas).
-- Admin: `/admin/*` (usuarios, eventos, categorías, marketing, códigos especiales, analítica).
-- Helper de API: `frontend/src/lib/api.ts` (instancia de axios + interceptor de token). Mensajes de error: `frontend/src/lib/apiError.ts` (mensajes amigables de 429 / red / servidor).
-- Estado: `frontend/src/stores/auth.ts` (Zustand). i18n: `frontend/src/context/LanguageContext.tsx`.
+### Roles
 
----
+Los roles y permisos se controlan desde el backend. La interfaz no debe convertirse en la única barrera de acceso. Antes de cambiar un flujo de cliente, organizador o administrador, verificar cómo se autoriza en guards, servicios y entidades.
 
-## 6. Mobile / Mobile
+## Base de Datos y Estado
 
-**EN —** React Native + Expo. Screens live in `mobile/src/screens/`, reusable UI in `mobile/src/components/`, and API access in `mobile/src/services/`:
+PostgreSQL conserva el estado definitivo de usuarios, eventos, órdenes, tickets, relaciones sociales, disponibilidad y operaciones administrativas.
 
-- `services/api.ts` — fetch wrapper with token injection, refresh-on-401, retries, and `ApiError` (carries HTTP status + `retryAfter`).
-- `services/auth.ts` — login/register/profile + token persistence in `AsyncStorage`.
-- `services/biometricAuth.ts` — Face ID / fingerprint login via the stored refresh token.
-- `services/doorSales.ts`, `tapToPay.ts` — in-person door sales (Stripe Terminal / Tap to Pay).
-- Key screens: `HomeScreen`, `EventDetailScreen`, `PurchaseScreen`, `TicketsScreen`, `ScanScreen`, `OrganizerPanelScreen`, `AdminPanelScreen`, `ProfileScreen`.
+### Reglas de Integridad
 
-**ES —** React Native + Expo. Las pantallas viven en `mobile/src/screens/`, la UI reutilizable en `mobile/src/components/` y el acceso a la API en `mobile/src/services/`:
+- Las operaciones de compra, bloqueo y desbloqueo deben ser idempotentes cuando sea posible.
+- La disponibilidad final siempre se valida en servidor.
+- Los cambios de mapa deben reflejarse para organizadores y compradores después de que el backend confirma la operación.
+- Las respuestas de error no deben dejar al cliente mostrando un estado local como definitivo.
 
-- `services/api.ts` — envoltura de fetch con inyección de token, refresco ante 401, reintentos y `ApiError` (lleva el status HTTP + `retryAfter`).
-- `services/auth.ts` — login/registro/perfil + persistencia de tokens en `AsyncStorage`.
-- `services/biometricAuth.ts` — inicio de sesión con Face ID / huella usando el refresh token guardado.
-- `services/doorSales.ts`, `tapToPay.ts` — ventas presenciales en puerta (Stripe Terminal / Tap to Pay).
-- Pantallas clave: `HomeScreen`, `EventDetailScreen`, `PurchaseScreen`, `TicketsScreen`, `ScanScreen`, `OrganizerPanelScreen`, `AdminPanelScreen`, `ProfileScreen`.
+### Datos y Archivos
 
----
+Hay datos visuales y cargas asociadas a eventos. Antes de modificar almacenamiento, formato de imágenes o tamaño de payloads, evaluar el impacto en base de datos, red y rendimiento de dispositivos.
 
-## 7. Running locally / Ejecución local
+## Frontend Web
 
-**EN —**
+**Ruta:** `/Users/sundingalue/Documents/TicketSystem/frontend`
+**Framework:** Next.js con React y TypeScript.
+
+La web consume el mismo backend que móvil. Sus responsabilidades principales son presentación, interacción, navegación y manejo de estado de interfaz. Las reglas críticas no se deben duplicar sólo en componentes.
+
+Áreas sensibles de la web:
+
+- Compra y verificación de tickets.
+- Paneles de organizador y administrador.
+- Mapas y disponibilidad de eventos.
+- Marketing y banners.
+- Social Match y chat.
+
+Después de modificar la web debe ejecutarse:
+
 ```bash
-# Backend (needs PostgreSQL + a .env, see backend/.env.example)
-cd backend && npm install && npm run start:dev      # http://localhost:3001/api
-
-# Frontend
-cd frontend && npm install && npm run dev            # http://localhost:3000
-
-# Mobile (Expo)
-cd mobile && npm install && npx expo start
-# Point the app at a local API with EXPO_PUBLIC_API_URL=http://<your-ip>:3001/api
+cd /Users/sundingalue/Documents/TicketSystem/frontend
+npm run build
 ```
 
-**ES —**
+## Aplicación Móvil
+
+**Ruta:** `/Users/sundingalue/Documents/TicketSystem/mobile`
+**Tecnología:** React Native, Expo y TypeScript.
+
+La app contiene experiencias de cliente, organizador y administrador. El estado temporal puede residir localmente, pero los datos críticos se consultan y confirman contra el backend.
+
+### Estado Local y Caché
+
+La caché móvil debe:
+
+- Usar claves separadas por usuario autenticado.
+- Mostrar datos previos sólo como mejora de carga cuando sea seguro.
+- Refrescar en segundo plano.
+- Invalidarse después de acciones que cambian disponibilidad, órdenes, perfiles, mensajes o permisos.
+- No reemplazar la confirmación del backend para pagos, bloqueos, ventas o tickets.
+
+### Tap to Pay on iPhone
+
+La implementación de Tap to Pay se relaciona con:
+
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/services/tapToPay.ts`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/services/doorSales.ts`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/services/tapToPayEducation.ts`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/screens/DoorSaleScreen.tsx`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/plugins/withTapToPayEducation`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/app.json`
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/orders/orders.service.ts`
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/orders/orders.controller.ts`
+
+Este flujo requiere una compilación nativa; no puede validarse completamente desde Expo Go. La disponibilidad de la capacidad de Apple y la configuración externa de Stripe deben considerarse **no comprobadas** hasta que se prueben en un dispositivo físico y sean aprobadas por los proveedores correspondientes.
+
+Después de modificar móvil debe ejecutarse:
+
 ```bash
-# Backend (requiere PostgreSQL + un .env, ver backend/.env.example)
-cd backend && npm install && npm run start:dev      # http://localhost:3001/api
-
-# Frontend
-cd frontend && npm install && npm run dev            # http://localhost:3000
-
-# Mobile (Expo)
-cd mobile && npm install && npx expo start
-# Apunta la app a una API local con EXPO_PUBLIC_API_URL=http://<tu-ip>:3001/api
+cd /Users/sundingalue/Documents/TicketSystem/mobile
+npx tsc --noEmit
 ```
 
----
+## Rendimiento y Caché
 
-## 8. Environment variables / Variables de entorno
+La plataforma usa caché de lectura para mejorar cargas frecuentes. Los tiempos deben ser cortos y los datos deben actualizarse después de mutaciones relevantes.
 
-**EN —** See `backend/.env.example` for the full list. Required in production: `JWT_SECRET`, `JWT_REFRESH_SECRET`, database connection (`DATABASE_URL` or `DB_*`), and Stripe keys. Optional hardening: `SESSION_SECRET`, `SESSION_SALT`, `CORS_ORIGINS`. Frontend uses `NEXT_PUBLIC_API_URL`; mobile uses `EXPO_PUBLIC_API_URL`.
+Valores de referencia actuales revisados en el proyecto:
 
-**ES —** Ver `backend/.env.example` para la lista completa. Requeridas en producción: `JWT_SECRET`, `JWT_REFRESH_SECRET`, conexión a la base de datos (`DATABASE_URL` o `DB_*`) y claves de Stripe. Endurecimiento opcional: `SESSION_SECRET`, `SESSION_SALT`, `CORS_ORIGINS`. El frontend usa `NEXT_PUBLIC_API_URL`; el mobile usa `EXPO_PUBLIC_API_URL`.
+| Recurso | Tiempo de caché aproximado |
+|---|---:|
+| Eventos públicos, destacados y detalle | 60 segundos |
+| Mapa de asientos | 15 segundos |
+| Eventos y estadísticas de organizador | 30 segundos |
+| Estadísticas y finanzas administrativas | 60 segundos |
+| Social Match | 30 segundos |
 
----
+Estos valores son una guía, no una autorización para ocultar cambios críticos. Si un usuario bloquea un asiento, compra un ticket o modifica un mapa, los clientes relacionados deben actualizar su estado de forma segura.
 
-## 9. Related docs / Documentos relacionados
+## Integraciones Externas
 
-- `SECURITY.md` — security hardening done and the deferred httpOnly-cookie migration. / Endurecimiento de seguridad realizado y la migración pendiente a cookies httpOnly.
-- `backend/.env.example` — annotated environment variables. / Variables de entorno anotadas.
+Las integraciones se administran por variables de entorno y proveedores externos. Nunca almacenar valores secretos en documentación, código cliente ni commits.
+
+| Integración | Uso esperado | Cuidado requerido |
+|---|---|---|
+| Railway | Ejecución del backend | Revisar logs, variables y despliegue antes de producción |
+| Stripe | Pagos y cobros | Probar estados aprobados, rechazados y recibos |
+| Apple / Tap to Pay | Cobros presenciales en iPhone | Requiere capacidad, aprobación y dispositivo físico |
+| Twilio / WhatsApp | Mensajería | Plantillas, consentimiento y estados de entrega |
+| Email | Notificaciones y recibos | Revisar destinatario, contenido y datos privados |
+
+Las variables se declaran en los archivos de entorno correspondientes de cada área. Documentar sus nombres, nunca sus valores.
+
+## Pruebas y Despliegue
+
+Las pruebas mínimas se ejecutan según el área modificada. El typecheck o build confirma compilación, pero no sustituye pruebas funcionales de pagos, mapas, caché, animaciones, proveedores externos o flujos de usuario.
+
+Antes de cualquier despliegue o publicación:
+
+```bash
+cd /Users/sundingalue/Documents/TicketSystem
+git fetch origin
+git status --short
+git diff --stat
+git diff
+```
+
+Luego ejecutar las validaciones adecuadas y revisar si `origin/main` contiene cambios nuevos antes de integrar.
+
+## Decisiones Pendientes
+
+- Mantener y ampliar pruebas automatizadas para órdenes, pagos, disponibilidad y permisos.
+- Definir una estrategia formal de migraciones antes de cambios de esquema de alto impacto.
+- Revisar métricas de rendimiento y errores de producción antes de reducir tiempos de caché o cambiar reintentos.
+- Confirmar con Apple y Stripe el estado externo de Tap to Pay antes de declararlo disponible en producción.
+
+## Referencias Operativas
+
+- Guía de trabajo: `/Users/sundingalue/Documents/TicketSystem/AGENTS.md`
+- Estado actual: `/Users/sundingalue/Documents/TicketSystem/PROJECT_STATUS.md`
+- Historial: `/Users/sundingalue/Documents/TicketSystem/CHANGELOG.md`
+- Plan futuro: `/Users/sundingalue/Documents/TicketSystem/ROADMAP.md`
