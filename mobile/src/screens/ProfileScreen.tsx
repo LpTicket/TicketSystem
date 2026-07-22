@@ -203,7 +203,7 @@ function TapToPaySettingsCard({
           <SymbolView name="wave.3.right.circle.fill" size={26} tintColor="#FB923C" />
         </View>
         <View style={styles.tapToPayCopy}>
-          <Text style={styles.cardLabel}>{t('TAP TO PAY EN IPHONE', 'TAP TO PAY ON IPHONE')}</Text>
+          <Text style={styles.cardLabel}>Tap to Pay on iPhone</Text>
           <Text style={styles.tapToPayTitle}>{t('Configuración de cobro presencial', 'In-person payment setup')}</Text>
           <Text style={styles.tapToPayText}>{t('Configura esta función antes de aceptar pagos. Solo el administrador principal de LPTicket puede aceptar los términos oficiales.', 'Set up this feature before accepting payments. Only the primary LPTicket administrator can accept the official terms.')}</Text>
         </View>

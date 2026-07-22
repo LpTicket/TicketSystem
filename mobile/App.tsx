@@ -67,9 +67,11 @@ function AppContent() {
   const navPillX = useRef(new Animated.Value(0)).current;
   const adminNavPillX = useRef(new Animated.Value(0)).current;
   const navPressProgress = useRef(new Animated.Value(1)).current;
+  const navIconBounce = useRef(new Animated.Value(1)).current;
   const navCompactProgress = useRef(new Animated.Value(0)).current;
   const navTouchStartY = useRef<number | null>(null);
   const navCompactState = useRef(false);
+  const pendingNavPillTarget = useRef<number | null>(null);
   const [tab, setTab] = useState<Tab>('events');
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -435,7 +437,7 @@ function AppContent() {
     setTab('events');
   };
 
-  const handleBottomNavPress = (action: () => void, isActive?: boolean) => {
+  const handleBottomNavPress = (action: () => void, isActive?: boolean, targetIndex?: number) => {
     if (menuOpen) setMenuOpen(false);
     navPressProgress.stopAnimation();
     navPressProgress.setValue(0);
@@ -445,6 +447,27 @@ function AppContent() {
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
+    navIconBounce.stopAnimation();
+    navIconBounce.setValue(0);
+    Animated.timing(navIconBounce, {
+      toValue: 1,
+      duration: 720,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+    if (!isActive && typeof targetIndex === 'number') {
+      const targetX = navPadding + navItemWidth * targetIndex + 5;
+      const activePill = viewMode === 'admin' ? adminNavPillX : navPillX;
+      pendingNavPillTarget.current = targetX;
+      activePill.stopAnimation();
+      Animated.spring(activePill, {
+        toValue: targetX,
+        useNativeDriver: true,
+        damping: 18,
+        stiffness: 210,
+        mass: 0.68,
+      }).start();
+    }
     if (isActive && !selectedEvent && !scanOpen && !authReturn) {
       setScrollToTopSignal((signal) => signal + 1);
       return;
@@ -495,6 +518,14 @@ function AppContent() {
     inputRange: [0, 0.22, 0.52, 0.78, 1],
     outputRange: [1, 1.029, 0.984, 1.005, 1],
   });
+  const navIconBounceScale = navIconBounce.interpolate({
+    inputRange: [0, 0.32, 0.68, 1],
+    outputRange: [0.97, 1.16, 0.985, 1],
+  });
+  const navIconBounceY = navIconBounce.interpolate({
+    inputRange: [0, 0.32, 0.68, 1],
+    outputRange: [1, -7, 1, 0],
+  });
   const navCompactScale = navCompactProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [1, 0.92],
@@ -530,6 +561,10 @@ function AppContent() {
   };
 
   useEffect(() => {
+    if (viewMode !== 'admin' && pendingNavPillTarget.current === navPillTargetX) {
+      pendingNavPillTarget.current = null;
+      return;
+    }
     Animated.parallel([
       Animated.spring(navIndicatorX, {
         toValue: navPadding + navItemWidth * activeBottomIndex + navItemWidth / 2 - NAV_LINE_WIDTH / 2,
@@ -550,6 +585,10 @@ function AppContent() {
 
   useEffect(() => {
     if (viewMode !== 'admin') return;
+    if (pendingNavPillTarget.current === navPillTargetX) {
+      pendingNavPillTarget.current = null;
+      return;
+    }
     Animated.parallel([
       Animated.spring(adminNavIndicatorX, {
         toValue: navPadding + navItemWidth * activeBottomIndex + navItemWidth / 2 - NAV_LINE_WIDTH / 2,
@@ -687,14 +726,16 @@ function AppContent() {
                   style={[styles.navFixedSlidingLine, { transform: [{ translateX: adminNavIndicatorX }] }]}
                 />
                 {navItems.map((item, index) => (
-                  <TouchableOpacity key={`${item.key}-${index}`} onPress={() => handleBottomNavPress(item.onPress, item.active)} style={styles.navItem}>
+                  <TouchableOpacity key={`${item.key}-${index}`} onPress={() => handleBottomNavPress(item.onPress, item.active, index)} style={styles.navItem}>
                     <View style={[styles.navItemContent, styles.navItemContentAdmin]}>
-                      <Ionicons
-                        name={(item.active ? item.icon : `${item.icon}-outline`) as any}
-                        size={NAV_ICON_SIZE}
-                        color={item.active ? colors.orange : 'rgba(226,232,240,0.58)'}
-                        style={styles.navIcon}
-                      />
+                      <Animated.View style={item.active ? { transform: [{ translateY: navIconBounceY }, { scale: navIconBounceScale }] } : undefined}>
+                        <Ionicons
+                          name={(item.active ? item.icon : `${item.icon}-outline`) as any}
+                          size={NAV_ICON_SIZE}
+                          color={item.active ? colors.orange : 'rgba(226,232,240,0.58)'}
+                          style={styles.navIcon}
+                        />
+                      </Animated.View>
                       <Text style={[styles.navText, styles.navTextAdmin, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
                     </View>
                   </TouchableOpacity>
@@ -705,14 +746,16 @@ function AppContent() {
               <>
                 <Animated.View style={[styles.navSlidingLine, { transform: [{ translateX: navIndicatorX }] }]} />
                 {navItems.map((item, index) => (
-                  <TouchableOpacity key={`${item.key}-${index}`} onPress={() => handleBottomNavPress(item.onPress, item.active)} style={styles.navItem}>
+                  <TouchableOpacity key={`${item.key}-${index}`} onPress={() => handleBottomNavPress(item.onPress, item.active, index)} style={styles.navItem}>
                     <View style={styles.navItemContent}>
-                      <Ionicons
-                        name={(item.active ? item.icon : `${item.icon}-outline`) as any}
-                        size={NAV_ICON_SIZE}
-                        color={item.active ? colors.orange : 'rgba(226,232,240,0.60)'}
-                        style={styles.navIcon}
-                      />
+                      <Animated.View style={item.active ? { transform: [{ translateY: navIconBounceY }, { scale: navIconBounceScale }] } : undefined}>
+                        <Ionicons
+                          name={(item.active ? item.icon : `${item.icon}-outline`) as any}
+                          size={NAV_ICON_SIZE}
+                          color={item.active ? colors.orange : 'rgba(226,232,240,0.60)'}
+                          style={styles.navIcon}
+                        />
+                      </Animated.View>
                       <Text style={[styles.navText, item.active && styles.navActiveText]} numberOfLines={1}>{item.label}</Text>
                     </View>
                   </TouchableOpacity>

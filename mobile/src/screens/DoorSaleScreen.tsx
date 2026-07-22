@@ -207,7 +207,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     ? t('CREAR QR DE PAGO', 'CREATE PAYMENT QR')
     : paymentMethod === 'link'
       ? t('CREAR LINK DE PAGO', 'CREATE PAYMENT LINK')
-      : t('Tap to Pay en iPhone', 'Tap to Pay on iPhone');
+      : 'Tap to Pay on iPhone';
 
   const acknowledgeTapGuide = () => {
     setShowTapGuide(false);
@@ -429,7 +429,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
             <SymbolView name="wave.3.right.circle.fill" size={20} tintColor="#F97316" />
           </View>
           <View style={styles.tapGuideText}>
-            <Text style={styles.tapGuideTitle}>{t('Tap to Pay en iPhone disponible', 'Tap to Pay on iPhone available')}</Text>
+            <Text style={styles.tapGuideTitle}>{t('Tap to Pay on iPhone disponible', 'Tap to Pay on iPhone available')}</Text>
             <Text style={styles.tapGuideCopy}>
               {t(
                 'Acepta pagos sin contacto con tarjeta, Apple Pay y wallets digitales desde este iPhone.',
@@ -457,7 +457,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         />
         <PaymentOption
           icon="wave.3.right.circle.fill"
-          title={t('Tap to Pay en iPhone', 'Tap to Pay on iPhone')}
+          title="Tap to Pay on iPhone"
           copy={t('Cobra acercando tarjeta o teléfono al iPhone.', 'Charge by tapping a card or phone on the iPhone.')}
           status={paymentMethod === 'tap' ? t('Seleccionado', 'Selected') : t('App nativa', 'Native app')}
           active={paymentMethod === 'tap'}
@@ -525,7 +525,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
                 <SymbolView name="wave.3.right.circle.fill" size={24} tintColor="#FFFFFF" />
               </View>
               <View style={styles.tapModalHeaderText}>
-                <Text style={styles.tapModalTitle}>{t('Configura Tap to Pay en iPhone', 'Set up Tap to Pay on iPhone')}</Text>
+                <Text style={styles.tapModalTitle}>{t('Configura Tap to Pay on iPhone', 'Set up Tap to Pay on iPhone')}</Text>
                 <Text style={styles.tapModalSubtitle}>{t('Guía rápida para vender en puerta.', 'Quick guide for door sales.')}</Text>
               </View>
               <TouchableOpacity style={styles.tapModalClose} onPress={acknowledgeTapGuide} activeOpacity={0.78}>
