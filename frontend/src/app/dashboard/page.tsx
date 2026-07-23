@@ -56,6 +56,8 @@ function DashboardPageBody() {
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersPagination, setOrdersPagination] = useState({ total: 0, pages: 1 });
   const [loadingMoreOrders, setLoadingMoreOrders] = useState(false);
+  const [ordersLoaded, setOrdersLoaded] = useState(false);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [profileForm, setProfileForm] = useState({ 
     firstName: '', 
     lastName: '', 
@@ -75,7 +77,7 @@ function DashboardPageBody() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      loadData();
+      loadTickets();
       if (user) {
         setProfileForm({
           firstName: user.firstName,
@@ -99,16 +101,17 @@ function DashboardPageBody() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'orders' && !ordersLoaded && !ordersLoading) {
+      loadOrders();
+    }
+  }, [isAuthenticated, activeTab, ordersLoaded, ordersLoading]);
 
-  const loadData = async (ticketPage: number = 1, orderPage: number = 1) => {
+  const loadTickets = async (ticketPage: number = 1) => {
     setTicketsError('');
-    const [ticketsResult, ordersResult] = await Promise.allSettled([
-      api.get('/orders/my-tickets', { params: { page: ticketPage, limit: 12 } }),
-      api.get('/orders/my-orders', { params: { page: orderPage, limit: 20 } })
-    ]);
+    try {
+      const t = await api.get('/orders/my-tickets', { params: { page: ticketPage, limit: 12 } });
 
-    if (ticketsResult.status === 'fulfilled') {
-      const t = ticketsResult.value;
       if (ticketPage === 1) {
         setTickets(t.data.data);
       } else {
@@ -116,13 +119,16 @@ function DashboardPageBody() {
       }
       setTicketsPagination(t.data.pagination);
       setTicketsPage(ticketPage);
-    } else {
-      console.error('No se pudieron cargar los tickets:', ticketsResult.reason);
+    } catch (error) {
+      console.error('No se pudieron cargar los tickets:', error);
       setTicketsError(lang === 'es' ? 'No pudimos cargar tus tickets. Verifica tu conexión e inténtalo de nuevo.' : 'We could not load your tickets. Check your connection and try again.');
     }
+  };
 
-    if (ordersResult.status === 'fulfilled') {
-      const o = ordersResult.value;
+  const loadOrders = async (orderPage: number = 1) => {
+    setOrdersLoading(true);
+    try {
+      const o = await api.get('/orders/my-orders', { params: { page: orderPage, limit: 20 } });
       if (orderPage === 1) {
         setOrders(o.data.data);
       } else {
@@ -130,11 +136,12 @@ function DashboardPageBody() {
       }
       setOrdersPagination(o.data.pagination);
       setOrdersPage(orderPage);
-    } else {
-      console.error('No se pudieron cargar los recibos:', ordersResult.reason);
+      setOrdersLoaded(true);
+    } catch (error) {
+      console.error('No se pudieron cargar los recibos:', error);
+    } finally {
+      setOrdersLoading(false);
     }
-
-    // Pending social requests badge is handled by SocialMatchWidget (lazy-loaded)
   };
 
   const loadMoreTickets = async () => {
@@ -142,7 +149,7 @@ function DashboardPageBody() {
     if (nextPage <= ticketsPagination.pages) {
       setLoadingMoreTickets(true);
       try {
-        await loadData(nextPage, ordersPage);
+        await loadTickets(nextPage);
       } finally {
         setLoadingMoreTickets(false);
       }
@@ -154,7 +161,7 @@ function DashboardPageBody() {
     if (nextPage <= ordersPagination.pages) {
       setLoadingMoreOrders(true);
       try {
-        await loadData(ticketsPage, nextPage);
+        await loadOrders(nextPage);
       } finally {
         setLoadingMoreOrders(false);
       }
@@ -279,7 +286,7 @@ function DashboardPageBody() {
             <HiOutlineTicket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 font-medium mb-4">{ticketsError}</p>
             <button
-              onClick={() => loadData(1, ordersPage)}
+              onClick={() => loadTickets(1)}
               className="btn-primary text-sm inline-flex"
             >
               {lang === 'es' ? 'Reintentar' : 'Try again'}
@@ -402,7 +409,12 @@ function DashboardPageBody() {
 
       {/* Orders */}
       {activeTab === 'orders' && (
-        orders.length > 0 ? (
+        ordersLoading && !ordersLoaded ? (
+          <div className="dashboard-premium-card text-center py-16">
+            <div className="w-7 h-7 mx-auto border-2 border-[#0A375A] border-t-transparent rounded-full animate-spin" />
+            <p className="text-gray-600 font-medium mt-4">{lang === 'es' ? 'Cargando recibos...' : 'Loading receipts...'}</p>
+          </div>
+        ) : orders.length > 0 ? (
           <div className="space-y-4">
             <div className="dashboard-premium-card overflow-hidden">
               <div className="divide-y divide-white/[0.05]">
