@@ -1208,18 +1208,21 @@ export class OrdersService {
    */
   async getUserOrders(userId: string, page: number = 1, limit: number = 20) {
     const skip = (page - 1) * limit;
-    const [orders, total] = await this.orderRepo
-      .createQueryBuilder('o')
-      .leftJoin('o.event', 'e')
-      .addSelect(['o', 'e.id', 'e.title', 'e.slug', 'e.eventDate', 'e.venueName', 'e.imageUrl', 'e.status'])
-      .where('o.userId = :userId', { userId })
-      .orderBy('COALESCE(o.paidAt, o.createdAt)', 'DESC')
-      .skip(skip)
-      .take(limit)
-      .getManyAndCount();
+    const [orders, total] = await this.orderRepo.findAndCount({
+      where: { userId },
+      relations: ['event'],
+      order: { paidAt: 'DESC', createdAt: 'DESC' },
+      skip,
+      take: limit,
+    });
     return {
       data: orders,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
     };
   }
 
