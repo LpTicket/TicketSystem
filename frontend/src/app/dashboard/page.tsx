@@ -52,6 +52,7 @@ function DashboardPageBody() {
   const [ticketsPage, setTicketsPage] = useState(1);
   const [ticketsPagination, setTicketsPagination] = useState({ total: 0, pages: 1 });
   const [loadingMoreTickets, setLoadingMoreTickets] = useState(false);
+  const [ticketsError, setTicketsError] = useState('');
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersPagination, setOrdersPagination] = useState({ total: 0, pages: 1 });
   const [loadingMoreOrders, setLoadingMoreOrders] = useState(false);
@@ -100,11 +101,14 @@ function DashboardPageBody() {
 
 
   const loadData = async (ticketPage: number = 1, orderPage: number = 1) => {
-    try {
-      const [t, o] = await Promise.all([
-        api.get('/orders/my-tickets', { params: { page: ticketPage, limit: 12 } }),
-        api.get('/orders/my-orders', { params: { page: orderPage, limit: 20 } })
-      ]);
+    setTicketsError('');
+    const [ticketsResult, ordersResult] = await Promise.allSettled([
+      api.get('/orders/my-tickets', { params: { page: ticketPage, limit: 12 } }),
+      api.get('/orders/my-orders', { params: { page: orderPage, limit: 20 } })
+    ]);
+
+    if (ticketsResult.status === 'fulfilled') {
+      const t = ticketsResult.value;
       if (ticketPage === 1) {
         setTickets(t.data.data);
       } else {
@@ -112,7 +116,13 @@ function DashboardPageBody() {
       }
       setTicketsPagination(t.data.pagination);
       setTicketsPage(ticketPage);
+    } else {
+      console.error('No se pudieron cargar los tickets:', ticketsResult.reason);
+      setTicketsError(lang === 'es' ? 'No pudimos cargar tus tickets. Verifica tu conexión e inténtalo de nuevo.' : 'We could not load your tickets. Check your connection and try again.');
+    }
 
+    if (ordersResult.status === 'fulfilled') {
+      const o = ordersResult.value;
       if (orderPage === 1) {
         setOrders(o.data.data);
       } else {
@@ -120,9 +130,11 @@ function DashboardPageBody() {
       }
       setOrdersPagination(o.data.pagination);
       setOrdersPage(orderPage);
+    } else {
+      console.error('No se pudieron cargar los recibos:', ordersResult.reason);
+    }
 
-      // Pending social requests badge is handled by SocialMatchWidget (lazy-loaded)
-    } catch (err) { console.error(err); }
+    // Pending social requests badge is handled by SocialMatchWidget (lazy-loaded)
   };
 
   const loadMoreTickets = async () => {
@@ -262,7 +274,18 @@ function DashboardPageBody() {
 
       {/* Tickets */}
       {activeTab === 'tickets' && (
-        tickets.length > 0 ? (
+        ticketsError ? (
+          <div className="dashboard-premium-card text-center py-16">
+            <HiOutlineTicket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-600 font-medium mb-4">{ticketsError}</p>
+            <button
+              onClick={() => loadData(1, ordersPage)}
+              className="btn-primary text-sm inline-flex"
+            >
+              {lang === 'es' ? 'Reintentar' : 'Try again'}
+            </button>
+          </div>
+        ) : tickets.length > 0 ? (
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {tickets.map((ticket) => {
