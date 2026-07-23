@@ -58,6 +58,7 @@ function DashboardPageBody() {
   const [loadingMoreOrders, setLoadingMoreOrders] = useState(false);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState('');
   const [profileForm, setProfileForm] = useState({ 
     firstName: '', 
     lastName: '', 
@@ -102,15 +103,18 @@ function DashboardPageBody() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (isAuthenticated && activeTab === 'orders' && !ordersLoaded && !ordersLoading) {
+    if (isAuthenticated && activeTab === 'orders' && !ordersLoaded && !ordersLoading && !ordersError) {
       loadOrders();
     }
-  }, [isAuthenticated, activeTab, ordersLoaded, ordersLoading]);
+  }, [isAuthenticated, activeTab, ordersLoaded, ordersLoading, ordersError]);
 
   const loadTickets = async (ticketPage: number = 1) => {
     setTicketsError('');
     try {
-      const t = await api.get('/orders/my-tickets', { params: { page: ticketPage, limit: 12 } });
+      const t = await api.get('/orders/my-tickets', {
+        params: { page: ticketPage, limit: 12 },
+        timeout: 12_000,
+      });
 
       if (ticketPage === 1) {
         setTickets(t.data.data);
@@ -126,9 +130,13 @@ function DashboardPageBody() {
   };
 
   const loadOrders = async (orderPage: number = 1) => {
+    if (orderPage === 1) setOrdersError('');
     setOrdersLoading(true);
     try {
-      const o = await api.get('/orders/my-orders', { params: { page: orderPage, limit: 20 } });
+      const o = await api.get('/orders/my-orders', {
+        params: { page: orderPage, limit: 20 },
+        timeout: 12_000,
+      });
       if (orderPage === 1) {
         setOrders(o.data.data);
       } else {
@@ -139,9 +147,20 @@ function DashboardPageBody() {
       setOrdersLoaded(true);
     } catch (error) {
       console.error('No se pudieron cargar los recibos:', error);
+      if (orderPage === 1) {
+        setOrdersError(lang === 'es'
+          ? 'No pudimos cargar tus recibos. Inténtalo de nuevo.'
+          : 'We could not load your receipts. Please try again.');
+      }
     } finally {
       setOrdersLoading(false);
     }
+  };
+
+  const retryOrders = () => {
+    setOrdersLoaded(false);
+    setOrdersError('');
+    loadOrders(1);
   };
 
   const loadMoreTickets = async () => {
@@ -409,7 +428,15 @@ function DashboardPageBody() {
 
       {/* Orders */}
       {activeTab === 'orders' && (
-        ordersLoading && !ordersLoaded ? (
+        ordersError ? (
+          <div className="dashboard-premium-card text-center py-16">
+            <HiOutlineShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-600 font-medium mb-4">{ordersError}</p>
+            <button onClick={retryOrders} className="btn-primary text-sm inline-flex">
+              {lang === 'es' ? 'Reintentar' : 'Try again'}
+            </button>
+          </div>
+        ) : ordersLoading && !ordersLoaded ? (
           <div className="dashboard-premium-card text-center py-16">
             <div className="w-7 h-7 mx-auto border-2 border-[#0A375A] border-t-transparent rounded-full animate-spin" />
             <p className="text-gray-600 font-medium mt-4">{lang === 'es' ? 'Cargando recibos...' : 'Loading receipts...'}</p>
