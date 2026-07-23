@@ -34,6 +34,7 @@ type PaymentMethod = 'qr' | 'link' | 'tap';
 type TapFlowPhase = 'idle' | 'preparing' | 'ready' | 'collecting' | 'processing' | 'complete' | 'failed';
 
 const DEFAULT_DOOR_SALE_AMOUNT = '20';
+const DEFAULT_DOOR_SALE_RECEIPT_EMAIL = 'info@lpticket.com';
 const TAP_TO_PAY_GUIDE_SEEN_KEY = 'lp_tap_to_pay_guide_seen_v1';
 
 function listFrom(payload: any): any[] {
@@ -89,7 +90,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   const [tapStatus, setTapStatus] = useState('');
   const [showTapGuide, setShowTapGuide] = useState(false);
   const [tapGuideSeen, setTapGuideSeen] = useState(false);
-  const [buyerEmail, setBuyerEmail] = useState('');
+  const [buyerEmail, setBuyerEmail] = useState(DEFAULT_DOOR_SALE_RECEIPT_EMAIL);
   const [buyerName, setBuyerName] = useState('');
   const [tapPhase, setTapPhase] = useState<TapFlowPhase>('idle');
   const [tapResult, setTapResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -250,6 +251,8 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     setAmount(DEFAULT_DOOR_SALE_AMOUNT);
     setQuantity(1);
     setCheckout(null);
+    setBuyerEmail(DEFAULT_DOOR_SALE_RECEIPT_EMAIL);
+    setBuyerName('');
     setTapStatus('');
     setTapPhase('idle');
   };
@@ -262,7 +265,8 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     setTapResult(null);
     try {
       if (paymentMethod === 'tap') {
-        if (!buyerEmail.trim()) {
+        const receiptEmail = buyerEmail.trim();
+        if (!receiptEmail) {
           throw new Error(t('Ingresa el correo del cliente para enviar su recibo y entradas privadas.', 'Enter the customer email to send their private receipt and tickets.'));
         }
         setTapPhase('preparing');
@@ -270,21 +274,19 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           eventId: selectedEventId,
           amount: Number(amount),
           quantity,
-          buyerEmail: buyerEmail.trim(),
+          buyerEmail: receiptEmail,
           buyerName: buyerName.trim(),
           canAcceptTerms: user?.role === 'admin',
           merchantDisplayName: selectedEvent?.title || 'LPTicket',
           onStatus: setTapStatus,
           onPhase: (phase) => setTapPhase(phase),
         });
-        setAmount(DEFAULT_DOOR_SALE_AMOUNT);
-        setQuantity(1);
-        setCheckout(null);
-        setTapStatus(t('Pago aprobado. Entradas emitidas.', 'Payment approved. Tickets issued.'));
         setTapResult({
           success: true,
-          message: t(`Pago aprobado. El recibo y las entradas fueron enviados a ${buyerEmail.trim()}.`, `Payment approved. The receipt and tickets were sent to ${buyerEmail.trim()}.`),
+          message: t(`Pago aprobado. El recibo y las entradas fueron enviados a ${receiptEmail}.`, `Payment approved. The receipt and tickets were sent to ${receiptEmail}.`),
         });
+        resetSaleForm();
+        setTapStatus(t('Pago aprobado. Entradas emitidas.', 'Payment approved. Tickets issued.'));
         onSaleCompleted?.();
         return;
       }
@@ -468,8 +470,8 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
 
       {paymentMethod === 'tap' ? (
         <View style={styles.buyerReceiptCard}>
-          <Text style={styles.eyebrow}>{t('RECIBO DEL CLIENTE', 'CUSTOMER RECEIPT')}</Text>
-          <Text style={styles.buyerReceiptCopy}>{t('El recibo y las entradas se envían de forma privada al correo del cliente después del pago.', 'The receipt and tickets are sent privately to the customer after payment.')}</Text>
+          <Text style={styles.eyebrow}>{t('ENTREGA DEL RECIBO', 'RECEIPT DELIVERY')}</Text>
+          <Text style={styles.buyerReceiptCopy}>{t('Por defecto, el recibo y las entradas llegan a info@lpticket.com. Reemplaza el correo si deseas enviarlos al cliente.', 'By default, the receipt and tickets go to info@lpticket.com. Replace the email to send them to the customer.')}</Text>
           <TextInput
             value={buyerName}
             onChangeText={setBuyerName}
@@ -480,7 +482,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           <TextInput
             value={buyerEmail}
             onChangeText={setBuyerEmail}
-            placeholder={t('Correo del cliente para el recibo', 'Customer email for receipt')}
+            placeholder={t('Correo para recibir recibo y entradas', 'Email to receive receipt and tickets')}
             placeholderTextColor="rgba(226,232,240,0.42)"
             keyboardType="email-address"
             autoCapitalize="none"

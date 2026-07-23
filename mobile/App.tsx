@@ -251,11 +251,12 @@ function AppContent() {
     resetToClientHome();
   }, [resetToClientHome]);
 
-  // If iOS keeps the app in memory and brings it back, also return to Home.
+  // Only reset after a real background return. Face ID temporarily marks iOS as
+  // inactive, and resetting on that transition would dismiss the login form.
   useEffect(() => {
     const previousState = { current: AppState.currentState };
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && previousState.current !== 'active') {
+      if (state === 'active' && previousState.current === 'background') {
         resetToClientHome();
         AsyncStorage.removeItem('lp_nav_state').catch(() => {});
       }

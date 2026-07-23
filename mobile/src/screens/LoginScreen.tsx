@@ -249,7 +249,7 @@ export function LoginScreen({ onSignIn }: Props) {
         fallback: t('Usar código', 'Use passcode'),
         noSavedLogin: t('Primero inicia sesión con email y contraseña para activar Face ID.', 'Sign in with email and password first to enable Face ID.'),
         unavailable: t('Face ID no está configurado en este dispositivo.', 'Face ID is not configured on this device.'),
-        failed: t('No pudimos validar Face ID.', 'We could not verify Face ID.'),
+        failed: t('Face ID no se pudo validar. Puedes iniciar sesión con tu email y contraseña.', 'Face ID could not be verified. You can sign in with your email and password.'),
       });
       onSignIn(user);
     } catch (err: any) {
