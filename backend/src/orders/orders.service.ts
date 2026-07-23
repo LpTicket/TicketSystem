@@ -19,6 +19,7 @@ import { isValidEmailFormat, suggestEmailFix } from '../common/utils/email-typo'
 const LPTICKET_FEE_RATE = 0.12; // 12% platform fee
 const STRIPE_PERCENTAGE = 0.029; // 2.9% Stripe variable fee
 const STRIPE_FIXED = 0.30; // $0.30 Stripe fixed fee per transaction
+const USER_PURCHASES_CACHE_TTL = 30_000;
 
 /**
  * OrdersService
@@ -150,6 +151,17 @@ export class OrdersService {
     return baseUrl.replace(/\/$/, '').replace(/\/api$/, '');
   }
 
+  private getUserPurchasesCacheKey(kind: 'tickets' | 'orders', userId: string) {
+    return `purchases:${kind}:${userId}:page:1`;
+  }
+
+  private async invalidateUserPurchasesCache(userId: string) {
+    await Promise.all([
+      this.cache.del(this.getUserPurchasesCacheKey('tickets', userId)),
+      this.cache.del(this.getUserPurchasesCacheKey('orders', userId)),
+    ]);
+  }
+
   private getStripeCheckoutEventImages(event: Event) {
     const image = event.bannerImageUrl || event.imageUrl;
     if (!image || image.startsWith('data:')) {
@@ -224,6 +236,7 @@ export class OrdersService {
       ticketCount: invoice.quantity,
       seatsData: JSON.stringify(seatsInfo),
     }));
+    await this.invalidateUserPurchasesCache(user.id);
 
     const appUrl = this.getPublicAppUrl();
     const currency = (event.currency || 'USD').toLowerCase();
@@ -380,6 +393,7 @@ export class OrdersService {
       ticketCount: invoice.quantity,
       seatsData: JSON.stringify(seatsInfo),
     }));
+    await this.invalidateUserPurchasesCache(user.id);
 
     const currency = (event.currency || 'USD').toLowerCase();
     const paymentIntent = await this.stripe.paymentIntents.create({
@@ -504,6 +518,8 @@ export class OrdersService {
         });
       }
     }
+
+    await this.invalidateUserPurchasesCache(order.userId);
 
     try {
       const fullOrder = await this.orderRepo.findOne({
@@ -799,6 +815,7 @@ export class OrdersService {
       specialCodeOwnerId: resolvedCodeOwnerId,
     });
     const savedOrder = await this.orderRepo.save(order);
+    await this.invalidateUserPurchasesCache(userId);
 
     // Determine correct redirect URL based on environment
     const rawAppUrl = this.configService.get('APP_URL');
@@ -1207,15 +1224,33 @@ export class OrdersService {
    * Retrieves all orders for a specific user.
    */
   async getUserOrders(userId: string, page: number = 1, limit: number = 20) {
+    const cacheKey = page === 1 && limit === 20
+      ? this.getUserPurchasesCacheKey('orders', userId)
+      : null;
+    if (cacheKey) {
+      const cached = await this.cache.get<any>(cacheKey);
+      if (cached) return cached;
+    }
+
     const skip = (page - 1) * limit;
-    const [orders, total] = await this.orderRepo.findAndCount({
-      where: { userId },
-      relations: ['event'],
-      order: { paidAt: 'DESC', createdAt: 'DESC' },
-      skip,
-      take: limit,
-    });
-    return {
+    const ordersQuery = this.orderRepo
+      .createQueryBuilder('o')
+      .leftJoin('o.event', 'e')
+      .select([
+        'o.id', 'o.userId', 'o.eventId', 'o.subtotal', 'o.lpFee', 'o.processingFee',
+        'o.total', 'o.status', 'o.ticketCount', 'o.paidAt', 'o.createdAt',
+        'e.id', 'e.title', 'e.slug', 'e.eventDate', 'e.venueName', 'e.status', 'e.currency',
+      ])
+      .where('o.userId = :userId', { userId })
+      .orderBy('o.paidAt', 'DESC', 'NULLS LAST')
+      .addOrderBy('o.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+    const [orders, total] = await Promise.all([
+      ordersQuery.getMany(),
+      this.orderRepo.count({ where: { userId } }),
+    ]);
+    const result = {
       data: orders,
       pagination: {
         page,
@@ -1224,17 +1259,27 @@ export class OrdersService {
         pages: Math.ceil(total / limit),
       },
     };
+    if (cacheKey) await this.cache.set(cacheKey, result, USER_PURCHASES_CACHE_TTL);
+    return result;
   }
 
   /**
    * Retrieves all tickets for a specific user, optionally filtered by Stripe Session ID.
    */
   async getUserTickets(userId: string, sessionId?: string, page: number = 1, limit: number = 12) {
+    const cacheKey = !sessionId && page === 1 && limit === 12
+      ? this.getUserPurchasesCacheKey('tickets', userId)
+      : null;
+    if (cacheKey) {
+      const cached = await this.cache.get<any>(cacheKey);
+      if (cached) return cached;
+    }
+
     const skip = (page - 1) * limit;
     const qb = this.ticketRepo
       .createQueryBuilder('t')
       .leftJoin('t.event', 'e')
-      .addSelect(['t', 'e.id', 'e.title', 'e.slug', 'e.eventDate', 'e.venueName', 'e.venueAddress', 'e.imageUrl', 'e.status', 'e.eventTimezone', 'e.currency'])
+      .addSelect(['t', 'e.id', 'e.title', 'e.slug', 'e.eventDate', 'e.venueName', 'e.venueAddress', 'e.status', 'e.eventTimezone', 'e.currency'])
       .where('t.userId = :userId', { userId })
       .orderBy('t.createdAt', 'DESC')
       .skip(skip)
@@ -1246,10 +1291,12 @@ export class OrdersService {
     }
 
     const [tickets, total] = await qb.getManyAndCount();
-    return {
+    const result = {
       data: tickets,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) },
     };
+    if (cacheKey) await this.cache.set(cacheKey, result, USER_PURCHASES_CACHE_TTL);
+    return result;
   }
 
   /**
@@ -1896,6 +1943,8 @@ export class OrdersService {
       const savedTicket = await this.ticketRepo.save(ticket);
       createdTickets.push(savedTicket);
     }
+
+    await this.invalidateUserPurchasesCache(recipientUser.id);
 
     // Send the invitations via email to the recipient
     const ticketEmailParams = {
