@@ -424,6 +424,34 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         ) : null}
       </View>
 
+      {paymentMethod === 'tap' ? (
+        <GradientButton height={56} onPress={makeCheckout} disabled={creating || !preview}>
+          {creating ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>Tap to Pay on iPhone</Text>}
+        </GradientButton>
+      ) : null}
+
+      <View style={styles.buyerReceiptCard}>
+        <Text style={styles.eyebrow}>{t('ENTREGA DEL RECIBO', 'RECEIPT DELIVERY')}</Text>
+        <Text style={styles.buyerReceiptCopy}>{t('Por defecto, el recibo y las entradas llegan a info@lpticket.com. Reemplaza el correo si deseas enviarlos al cliente.', 'By default, the receipt and tickets go to info@lpticket.com. Replace the email to send them to the customer.')}</Text>
+        <TextInput
+          value={buyerName}
+          onChangeText={setBuyerName}
+          placeholder={t('Nombre del cliente (opcional)', 'Customer name (optional)')}
+          placeholderTextColor="rgba(226,232,240,0.42)"
+          style={styles.buyerInput}
+        />
+        <TextInput
+          value={buyerEmail}
+          onChangeText={setBuyerEmail}
+          placeholder={t('Correo para recibir recibo y entradas', 'Email to receive receipt and tickets')}
+          placeholderTextColor="rgba(226,232,240,0.42)"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={styles.buyerInput}
+        />
+      </View>
+
       <View style={styles.payMethodCard}>
         <Text style={styles.eyebrow}>{t('FORMA DE COBRO', 'PAYMENT METHOD')}</Text>
         <TouchableOpacity style={styles.tapGuideCard} onPress={() => setShowTapGuide(true)} activeOpacity={0.82}>
@@ -442,6 +470,14 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           <Text style={styles.tapGuideLink}>{t('Guía', 'Guide')}</Text>
         </TouchableOpacity>
         <PaymentOption
+          icon="wave.3.right.circle.fill"
+          title="Tap to Pay on iPhone"
+          copy={t('Cobra acercando tarjeta o teléfono al iPhone.', 'Charge by tapping a card or phone on the iPhone.')}
+          status={paymentMethod === 'tap' ? t('Seleccionado', 'Selected') : t('App nativa', 'Native app')}
+          active={paymentMethod === 'tap'}
+          onPress={selectTapToPay}
+        />
+        <PaymentOption
           icon="qr-code-outline"
           title={t('QR de pago', 'Payment QR')}
           copy={t('El cliente escanea y paga con Apple Pay o tarjeta.', 'Customer scans and pays with Apple Pay or card.')}
@@ -457,44 +493,14 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           active={paymentMethod === 'link'}
           onPress={() => setPaymentMethod('link')}
         />
-        <PaymentOption
-          icon="wave.3.right.circle.fill"
-          title="Tap to Pay on iPhone"
-          copy={t('Cobra acercando tarjeta o teléfono al iPhone.', 'Charge by tapping a card or phone on the iPhone.')}
-          status={paymentMethod === 'tap' ? t('Seleccionado', 'Selected') : t('App nativa', 'Native app')}
-          active={paymentMethod === 'tap'}
-          onPress={selectTapToPay}
-        />
         {tapStatus ? <Text style={styles.tapStatus}>{tapStatus}</Text> : null}
       </View>
 
-      {paymentMethod === 'tap' ? (
-        <View style={styles.buyerReceiptCard}>
-          <Text style={styles.eyebrow}>{t('ENTREGA DEL RECIBO', 'RECEIPT DELIVERY')}</Text>
-          <Text style={styles.buyerReceiptCopy}>{t('Por defecto, el recibo y las entradas llegan a info@lpticket.com. Reemplaza el correo si deseas enviarlos al cliente.', 'By default, the receipt and tickets go to info@lpticket.com. Replace the email to send them to the customer.')}</Text>
-          <TextInput
-            value={buyerName}
-            onChangeText={setBuyerName}
-            placeholder={t('Nombre del cliente (opcional)', 'Customer name (optional)')}
-            placeholderTextColor="rgba(226,232,240,0.42)"
-            style={styles.buyerInput}
-          />
-          <TextInput
-            value={buyerEmail}
-            onChangeText={setBuyerEmail}
-            placeholder={t('Correo para recibir recibo y entradas', 'Email to receive receipt and tickets')}
-            placeholderTextColor="rgba(226,232,240,0.42)"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={styles.buyerInput}
-          />
-        </View>
+      {paymentMethod !== 'tap' ? (
+        <GradientButton height={56} onPress={makeCheckout} disabled={creating || !preview}>
+          {creating ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>{primaryLabel}</Text>}
+        </GradientButton>
       ) : null}
-
-      <GradientButton height={56} onPress={makeCheckout} disabled={creating || !preview}>
-        {creating ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>{primaryLabel}</Text>}
-      </GradientButton>
 
       {checkout && paymentMethod === 'qr' && (
         <View style={styles.qrCard}>
