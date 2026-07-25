@@ -545,14 +545,6 @@ function AppContent() {
     inputRange: [0, 0.20, 0.55, 0.80, 1],
     outputRange: [1.08, 0.90, 1.06, 0.98, 1],
   });
-  const navIconBounceScale = navIconBounce.interpolate({
-    inputRange: [0, 0.32, 0.68, 1],
-    outputRange: [0.97, 1.16, 0.985, 1],
-  });
-  const navIconBounceY = navIconBounce.interpolate({
-    inputRange: [0, 0.32, 0.68, 1],
-    outputRange: [1, -7, 1, 0],
-  });
   const navCompactScale = navCompactProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [1, 0.88],
