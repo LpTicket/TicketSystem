@@ -24,17 +24,28 @@ Las tres aplicaciones comparten el backend como fuente de verdad.
 
 ## Experiencia Buscada
 
-La experiencia debe sentirse premium, rápida, oscura, elegante, clara y confiable. Debe ser consistente entre móvil y web, incluso para personas sin conocimientos técnicos.
+La experiencia debe sentirse premium, rápida, oscura, elegante, clara, innovadora y confiable. Debe mantener una identidad visual coherente entre móvil y web, aun cuando cada plataforma requiera adaptaciones específicas.
+
+La plataforma debe percibirse como un producto tecnológico profesional, diseñado con intención comercial y atención al detalle; nunca como una plantilla genérica, un panel básico o un prototipo incompleto. Cada pantalla debe facilitar una decisión, transmitir confianza y poder ser entendida por personas sin conocimientos técnicos.
 
 ## Prioridades del Proyecto
 
 1. Nunca romper producción.
 2. Nunca comprometer la seguridad.
 3. Mantener la mejor experiencia del usuario.
-4. Reutilizar código existente antes de crear código nuevo.
-5. Mantener una arquitectura limpia y escalable.
-6. Mantener alto rendimiento.
-7. Documentar correctamente los cambios.
+4. Mantener una calidad visual premium y consistente.
+5. Reutilizar código existente antes de crear código nuevo.
+6. Mantener una arquitectura limpia y escalable.
+7. Mantener alto rendimiento.
+8. Documentar correctamente los cambios.
+9. Evitar soluciones genéricas, improvisadas o no comprobadas.
+10. Verificar el trabajo antes de declararlo terminado.
+
+## Estándar Profesional para Diseño
+
+Al diseñar o modificar una interfaz, Codex debe actuar como diseñador de producto digital senior, arquitecto de experiencia, especialista UX/UI, accesibilidad y frontend. Toda decisión visual debe responder a una razón funcional, comercial o de experiencia; no se diseña por decoración ni para seguir tendencias sin propósito.
+
+El objetivo es una identidad propia de LPTicket que combine claridad, elegancia, tecnología, confianza, velocidad, simplicidad, sofisticación, jerarquía y consistencia. Se pueden estudiar patrones exitosos, pero nunca copiar literalmente el estilo de otra empresa.
 
 ## Lectura Obligatoria Antes de Cada Tarea
 
@@ -56,13 +67,87 @@ git status --short
 ## Principios de Diseño
 
 - Mantener el diseño premium existente.
+- Mejorar sin destruir la identidad actual.
+- Diseñar con intención, jerarquía clara y composición equilibrada.
 - Usar fondos oscuros, superficies translúcidas y texto legible.
 - Evitar pantallas vacías, saltos visuales, flashes y cargas bloqueantes.
 - No modificar animaciones existentes sin una solicitud clara.
 - Diseñar para móvil primero, sin descuidar web.
 - Mantener consistencia visual entre cliente, organizador y administrador.
+- Adaptar la experiencia según el rol sin fragmentar la identidad de LPTicket.
 - No introducir componentes, librerías o estilos innecesarios.
 - No realizar cambios visuales fuera del alcance solicitado.
+- No convertir cada sección, dato o texto en una tarjeta.
+- No usar efectos, sombras, transparencias, gradientes o animaciones sin propósito.
+- No sacrificar usabilidad por estética ni estética por rapidez de implementación.
+- No llenar espacios vacíos con elementos innecesarios.
+- No confundir diseño premium con texto gigante, negritas excesivas, sombras fuertes o gradientes intensos.
+
+## Sistema Visual y Accesibilidad
+
+### Tipografía y jerarquía
+
+- Usar la tipografía existente como herramienta de claridad, no de decoración.
+- Mantener una escala tipográfica consistente; preferir `Regular`, `Medium`, `SemiBold` y `Bold`.
+- Reservar pesos muy gruesos para casos excepcionales y evitar mayúsculas sostenidas en textos largos.
+- Cada pantalla debe dejar claro qué se ve primero, qué se entiende después y cuál es la acción principal.
+- No hacer competir varios botones principales; las acciones secundarias deben tener menor peso visual.
+- No usar color como único indicador de estado ni iconos ambiguos para acciones importantes.
+
+### Espaciado, superficies y color
+
+- Mantener una escala de espaciado, alineaciones y radios consistente.
+- Respetar áreas seguras, teclado, notch, Dynamic Island, navegación fija y tamaños pequeños/grandes.
+- Evitar tarjetas dentro de tarjetas, bordes en todos los componentes y sombras brillantes o excesivas.
+- Mantener una jerarquía visible entre fondo, superficie principal y superficie secundaria.
+- Usar la paleta existente, acentos moderados y contraste suficiente; éxito, advertencia y error solo para estados reales.
+- No usar rojo, verde, transparencia o gradientes como decoración que reduzca legibilidad.
+
+### Botones, formularios e iconos
+
+- Usar textos de acción breves y claros: `Comprar`, `Guardar`, `Continuar`, `Confirmar`, `Reintentar` o `Escanear`.
+- Mantener áreas táctiles adecuadas, estados de carga y estados deshabilitados comprensibles.
+- Confirmar acciones irreversibles y evitar envíos, clics o toques duplicados.
+- Los formularios deben tener etiquetas claras, teclado adecuado, validación útil, errores accionables y conservación de los datos ingresados.
+- Usar una librería de iconos coherente. Los iconos no reemplazan texto cuando la acción es crítica o ambigua.
+- No usar emojis como sustitutos de iconos profesionales dentro de la interfaz principal.
+
+### Imágenes, contenido y animación
+
+- Mantener proporciones correctas, carga progresiva y contraste legible sobre imágenes.
+- Optimizar peso y resolución; no usar imágenes Base64 pesadas ni recursos genéricos sin relación con el evento.
+- Las animaciones deben explicar un cambio de estado, ser suaves y rápidas, y nunca retrasar pagos, escaneo, validación o navegación crítica.
+- Evitar rebotes exagerados, parpadeos, flashes, movimientos de toda la pantalla y animaciones constantes.
+- Respetar reducción de movimiento cuando sea posible.
+
+### Responsive y accesibilidad
+
+- Para cambios visuales, comprobar móvil pequeño, estándar y grande; web estrecha y escritorio amplio; tablet y horizontal cuando aplique.
+- No permitir cortes, solapamientos, desbordamiento horizontal, botones inaccesibles ni títulos críticos truncados.
+- Usar contraste adecuado, orden de foco lógico, etiquetas accesibles y soporte de teclado en web.
+- No depender solo de color, hover o animación para comunicar información importante.
+- Revisar texto largo, nombres reales, precios altos, datos incompletos, conexión lenta, estados vacíos, errores y teclado abierto en móvil.
+
+### Flujos de compra y estados de interfaz
+
+- Los flujos de compra deben mostrar evento, fecha, ubicación, ticket, cantidad, cargos, total, método de pago, procesamiento, resultado y comprobante cuando corresponda.
+- Nunca declarar pago exitoso antes de la confirmación del backend ni ocultar costos, disponibilidad o errores relevantes.
+- Los estados vacíos deben explicar la situación y proponer una acción clara; no usar mensajes técnicos como `No data`.
+- Las cargas deben evitar saltos visuales, bloqueos globales innecesarios y esperas infinitas. Diferenciar carga inicial de actualización.
+- Los errores deben ser humanos, accionables, seguros y conservar los datos del usuario cuando sea posible.
+
+## Control de Calidad Visual
+
+Antes de entregar una modificación visual, verificar internamente:
+
+1. Que la pantalla tenga identidad propia y no parezca una plantilla genérica.
+2. Que la acción principal sea evidente en pocos segundos.
+3. Que tipografía, espaciado, contraste, alineación e iconos sean intencionales y consistentes.
+4. Que funcione con contenido real, texto largo, errores, estados vacíos, carga y tamaños distintos.
+5. Que no se hayan alterado componentes, animaciones o zonas fuera del alcance.
+6. Que la solución sea accesible, rápida y compatible con el diseño existente.
+
+Si la calidad visual, jerarquía, legibilidad, consistencia, confianza, adaptación responsive o accesibilidad no alcanza un estándar profesional, revisar antes de declarar la tarea terminada.
 
 ## Principios de Programación
 
@@ -130,10 +215,11 @@ git status --short
 2. Ejecutar `git status --short` desde `/Users/sundingalue/Documents/TicketSystem`.
 3. Leer los archivos exactos involucrados.
 4. Revisar API, DTOs, servicios y entidades si el dato se comparte.
-5. Explicar qué se verificó, qué falla, qué cambio concreto se hará y qué riesgo existe.
-6. Editar solo lo necesario.
-7. Ejecutar las pruebas correspondientes.
-8. Actualizar documentación y CHANGELOG cuando sea una tarea importante.
+5. Si la tarea es visual, revisar pantalla actual, componentes, estilos, tokens, estados y comportamiento móvil/web.
+6. Explicar qué se verificó, qué falla, qué cambio concreto se hará y qué riesgo existe.
+7. Editar solo lo necesario.
+8. Ejecutar las pruebas correspondientes y la revisión visual cuando aplique.
+9. Actualizar documentación y CHANGELOG cuando sea una tarea importante.
 
 ## Validaciones Obligatorias
 
@@ -191,6 +277,8 @@ Analizar y pedir confirmación explícita antes de actuar en:
 - Bloqueos de mapas, tickets, QR, ventas y escaneo.
 - Email, SMS, WhatsApp, push y envíos masivos.
 - Borrado de usuarios, eventos, órdenes o tickets.
+- Cambios globales de diseño, tipografía, colores, sistema visual o librerías de interfaz.
+- Rediseños completos o cambios que afecten checkout, compra o selección de asientos.
 
 ## Git y Producción
 
@@ -216,6 +304,8 @@ Después de cada tarea importante, actualizar:
 - `/Users/sundingalue/Documents/TicketSystem/CHANGELOG.md`
 - `/Users/sundingalue/Documents/TicketSystem/ROADMAP.md` cuando cambien prioridades.
 - `/Users/sundingalue/Documents/TicketSystem/ARCHITECTURE.md` cuando cambien módulos, flujos, datos o integraciones.
+- `/Users/sundingalue/Documents/TicketSystem/SECURITY.md` cuando cambien autenticación, tokens, permisos o seguridad.
+- La documentación del sistema de diseño cuando cambien componentes, tokens o patrones visuales globales.
 
 Nunca documentar una función como terminada si no fue comprobada. Usar siempre uno de estos estados:
 
@@ -227,3 +317,20 @@ Nunca documentar una función como terminada si no fue comprobada. Usar siempre 
 - `BLOQUEADO`
 - `NO COMPROBADO`
 - `NO ENCONTRADA`
+
+## Formato Obligatorio de Entrega
+
+Al finalizar una tarea, informar de forma clara y breve:
+
+1. **Qué verificó:** archivos, flujos, APIs, logs o documentación revisados.
+2. **Qué encontró:** causa comprobada o incertidumbre pendiente de validación.
+3. **Qué cambió:** archivos modificados y finalidad de cada cambio.
+4. **Qué no cambió:** áreas protegidas fuera del alcance.
+5. **Qué pruebas ejecutó:** comandos exactos y resultado.
+6. **Qué falta comprobar:** validación manual, visual, externa o de producción pendiente.
+7. **Riesgo actual:** `Bajo`, `Medio`, `Alto` o `Crítico`.
+8. **Estado final:** uno de los estados oficiales definidos en este documento.
+
+## Regla Final de Calidad
+
+Una tarea no está terminada solo porque compila. Debe haber una causa investigada, un cambio dentro del alcance, compatibilidad con la arquitectura, seguridad y experiencia existente, validación proporcional al riesgo y documentación cuando corresponda. Codex no debe entregar soluciones mediocres, genéricas, incompletas o improvisadas cuando sea posible una solución profesional y comprobable.

@@ -43,6 +43,104 @@ comando ejecutado
 
 ## Historial
 
+## 2026-07-21 - Entitlement de Tap to Pay concedido y build iOS 30 iniciado
+
+### Funcionalidad desarrollada
+- Se confirmó en Apple Developer que `Tap to Pay on iPhone` está habilitado para `com.inhoustontexas.lpticket`.
+- Se alinearon los números de compilación locales a `30` y se inició una compilación iOS de producción en EAS.
+
+### Archivos modificados
+- `/Users/sundingalue/Documents/TicketSystem/mobile/app.json`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/ios/LPTicket/Info.plist`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/ios/LPTicket.xcodeproj/project.pbxproj`
+
+### Problema solucionado
+- La versión declarada por Expo no coincidía con la versión remota y nativa de iOS, lo que podía causar confusión al preparar una compilación para Apple.
+
+### Riesgos encontrados
+- La compilación y la capacidad concedida no prueban por sí solas un cobro real: aún requiere un iPhone físico compatible, Stripe Terminal configurado y una transacción aprobada.
+
+### Estado de pruebas
+- IMPLEMENTADO, NO PROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/mobile
+npx tsc --noEmit
+```
+
+Resultado: pasó sin errores.
+
+### Observaciones
+- Build iOS de producción `30` iniciado en EAS; estado externo en curso al momento de este registro.
+
+## 2026-07-21 - Refuerzo del estándar de diseño y calidad
+
+### Funcionalidad desarrollada
+- Se amplió la guía oficial con principios de diseño premium, sistema visual, accesibilidad, responsive, flujos de compra y control de calidad visual.
+
+### Archivos modificados
+- `/Users/sundingalue/Documents/TicketSystem/AGENTS.md`
+- `/Users/sundingalue/Documents/TicketSystem/CHANGELOG.md`
+
+### Problema solucionado
+- La guía anterior establecía diseño premium, pero no detallaba de forma suficiente cómo revisar jerarquía, tipografía, composición, estados, accesibilidad y consistencia antes de entregar una interfaz.
+
+### Riesgos encontrados
+- Un estándar visual más amplio no sustituye la revisión en dispositivos y datos reales; cada cambio seguirá requiriendo validación proporcional a su alcance.
+
+### Estado de pruebas
+- IMPLEMENTADO Y COMPROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem
+git diff --check
+```
+
+Resultado: pasó sin errores.
+
+### Observaciones
+- No se modificó código de móvil, web ni backend.
+- Se conservaron las reglas existentes de arquitectura, seguridad, validación, Git y producción.
+
+## 2026-07-20 - Ajuste visual de Tap to Pay para revision de Apple
+
+### Funcionalidad desarrollada
+- Se normalizo la etiqueta visible de Perfil al nombre oficial `Tap to Pay on iPhone`.
+- Se confirmo que la pantalla de venta en puerta ya usa `wave.3.right.circle.fill`, uno de los SF Symbols solicitados por Apple.
+- Se fijó el botón final de cobro al nombre oficial sin traducir: `Tap to Pay on iPhone`.
+- Se fijaron también el acceso de Perfil y las etiquetas visibles de Venta en puerta al nombre oficial, para que la app en español no cambie la marca.
+
+### Archivos modificados
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/screens/ProfileScreen.tsx`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/screens/DoorSaleScreen.tsx`
+- `/Users/sundingalue/Documents/TicketSystem/PROJECT_STATUS.md`
+- `/Users/sundingalue/Documents/TicketSystem/CHANGELOG.md`
+
+### Problema solucionado
+- Apple indico que la grabacion enviada mostraba capitalizacion no oficial y un icono distinto al requerido para Tap to Pay on iPhone.
+
+### Riesgos encontrados
+- La correccion solo puede validarse visualmente en una compilacion nativa nueva instalada en un iPhone real.
+- No se debe asumir que una grabacion anterior refleja este codigo.
+
+### Estado de pruebas
+- IMPLEMENTADO, PENDIENTE DE VALIDACION VISUAL NATIVA
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/mobile
+npx tsc --noEmit
+```
+
+Resultado: pasó sin errores.
+
+### Observaciones
+- Se sincronizaron los Pods de iOS y `ExpoSymbols (56.0.6)` quedó integrado para que Xcode pueda renderizar el SF Symbol oficial.
+- No se modificaron Stripe, backend, términos ni intents.
+- El cambio local previo en `DoorSaleScreen.tsx` se conserva fuera de esta correccion.
+
 ## 2026-07-16 - Flujo móvil de Tap to Pay
 
 ### Funcionalidad desarrollada

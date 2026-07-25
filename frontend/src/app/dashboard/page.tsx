@@ -115,7 +115,6 @@ function DashboardPageBody() {
         params: { page: ticketPage, limit: 12 },
         timeout: 12_000,
       });
-
       if (ticketPage === 1) {
         setTickets(t.data.data);
       } else {

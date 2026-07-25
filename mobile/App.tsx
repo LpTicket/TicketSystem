@@ -8,6 +8,7 @@ import { Animated, AppState, Easing, Linking, Modal, SafeAreaView, ScrollView, S
 // filter for it lives in index.ts (must run before expo wraps console.error).
 LogBox.ignoreLogs(["ScrollView doesn't take rejection well"]);
 import { StatusBar } from 'expo-status-bar';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from './src/components/AppHeader';
@@ -56,8 +57,8 @@ type AuthReturnState = {
 };
 const NAV_LINE_WIDTH = 22;
 const NAV_LINE_TOP = 10;
-const NAV_ICON_SIZE = 20;
-const NAV_ICON_RAISE = 2;
+const NAV_ICON_SIZE = 18;
+const NAV_ICON_RAISE = 1;
 
 function AppContent() {
   const { t } = useLanguage();
@@ -68,6 +69,7 @@ function AppContent() {
   const adminNavPillX = useRef(new Animated.Value(0)).current;
   const navPressProgress = useRef(new Animated.Value(1)).current;
   const navIconBounce = useRef(new Animated.Value(1)).current;
+  const navPillBounce = useRef(new Animated.Value(1)).current;
   const navCompactProgress = useRef(new Animated.Value(0)).current;
   const navTouchStartY = useRef<number | null>(null);
   const navCompactState = useRef(false);
@@ -444,7 +446,7 @@ function AppContent() {
     navPressProgress.setValue(0);
     Animated.timing(navPressProgress, {
       toValue: 1,
-      duration: 920,
+      duration: 640,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
@@ -452,12 +454,20 @@ function AppContent() {
     navIconBounce.setValue(0);
     Animated.timing(navIconBounce, {
       toValue: 1,
-      duration: 720,
+      duration: 600,
       easing: Easing.inOut(Easing.cubic),
       useNativeDriver: true,
     }).start();
+    navPillBounce.stopAnimation();
+    navPillBounce.setValue(0);
+    Animated.timing(navPillBounce, {
+      toValue: 1,
+      duration: 620,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
     if (!isActive && typeof targetIndex === 'number') {
-      const targetX = navPadding + navItemWidth * targetIndex + 5;
+      const targetX = navPadding + navItemWidth * targetIndex + 1;
       const activePill = viewMode === 'admin' ? adminNavPillX : navPillX;
       pendingNavPillTarget.current = targetX;
       activePill.stopAnimation();
@@ -509,15 +519,31 @@ function AppContent() {
       ];
   const activeBottomIndex = Math.max(0, navItems.findIndex((i) => i.active));
   const navItemWidth = (width - navOuterMargin * 2 - navPadding * 2) / navItems.length;
-  const navPillWidth = Math.max(54, navItemWidth - 10);
-  const navPillTargetX = navPadding + navItemWidth * activeBottomIndex + 5;
+  const navPillWidth = Math.max(62, navItemWidth - 2);
+  const navPillTargetX = navPadding + navItemWidth * activeBottomIndex + 1;
   const navPressScaleX = navPressProgress.interpolate({
     inputRange: [0, 0.22, 0.52, 0.78, 1],
-    outputRange: [1, 0.972, 1.021, 0.995, 1],
+    outputRange: [1, 0.978, 1.018, 0.994, 1],
   });
   const navPressScaleY = navPressProgress.interpolate({
     inputRange: [0, 0.22, 0.52, 0.78, 1],
-    outputRange: [1, 1.029, 0.984, 1.005, 1],
+    outputRange: [1, 1.026, 0.988, 1.008, 1],
+  });
+  const navIconBounceScale = navIconBounce.interpolate({
+    inputRange: [0, 0.24, 0.60, 0.82, 1],
+    outputRange: [0.90, 1.23, 0.95, 1.05, 1],
+  });
+  const navIconBounceY = navIconBounce.interpolate({
+    inputRange: [0, 0.24, 0.60, 0.82, 1],
+    outputRange: [2, -10, 2, -2, 0],
+  });
+  const navPillBounceScaleX = navPillBounce.interpolate({
+    inputRange: [0, 0.20, 0.55, 0.80, 1],
+    outputRange: [0.94, 1.16, 0.94, 1.045, 1],
+  });
+  const navPillBounceScaleY = navPillBounce.interpolate({
+    inputRange: [0, 0.20, 0.55, 0.80, 1],
+    outputRange: [1.08, 0.90, 1.06, 0.98, 1],
   });
   const navIconBounceScale = navIconBounce.interpolate({
     inputRange: [0, 0.32, 0.68, 1],
@@ -529,11 +555,11 @@ function AppContent() {
   });
   const navCompactScale = navCompactProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 0.92],
+    outputRange: [1, 0.88],
   });
   const navCompactTranslateY = navCompactProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 9],
+    outputRange: [0, 12],
   });
 
   const setNavCompact = (compact: boolean) => {
@@ -688,9 +714,10 @@ function AppContent() {
           ]}
         >
             <View pointerEvents="none" style={styles.bottomNavShield} />
+            <BlurView pointerEvents="none" intensity={42} tint="systemUltraThinMaterial" style={styles.bottomNavBlur} />
             <LinearGradient
               pointerEvents="none"
-              colors={['rgba(38,42,50,0.88)', 'rgba(18,23,31,0.90)', 'rgba(2,8,15,0.93)']}
+              colors={['rgba(58,65,78,0.18)', 'rgba(16,22,32,0.22)', 'rgba(2,8,15,0.28)']}
               locations={[0, 0.30, 1]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
@@ -698,7 +725,7 @@ function AppContent() {
             />
             <LinearGradient
               pointerEvents="none"
-              colors={['rgba(255,255,255,0.34)', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0)']}
+              colors={['rgba(255,255,255,0.28)', 'rgba(255,255,255,0.06)', 'rgba(255,255,255,0)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 0, y: 1 }}
               style={styles.bottomNavGlass}
@@ -709,7 +736,11 @@ function AppContent() {
                 styles.navLiquidPill,
                 {
                   width: navPillWidth,
-                  transform: [{ translateX: viewMode === 'admin' ? adminNavPillX : navPillX }],
+                  transform: [
+                    { translateX: viewMode === 'admin' ? adminNavPillX : navPillX },
+                    { scaleX: navPillBounceScaleX },
+                    { scaleY: navPillBounceScaleY },
+                  ],
                 },
               ]}
             >
@@ -994,21 +1025,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 18,
     right: 18,
-    bottom: 12,
+    bottom: 16,
     zIndex: 60,
     elevation: 60,
-    height: 76,
-    paddingTop: 9,
-    paddingBottom: 11,
+    height: 58,
+    paddingTop: 7,
+    paddingBottom: 7,
     paddingHorizontal: 7,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(2,8,15,0.33)',
+    backgroundColor: 'rgba(2,8,15,0.025)',
     borderRadius: 38,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.20)',
+    borderColor: 'rgba(255,255,255,0.26)',
     shadowColor: '#000000',
     shadowOpacity: 0.58,
     shadowRadius: 26,
@@ -1020,10 +1051,10 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: 'rgba(2,8,15,0.13)',
+    backgroundColor: 'rgba(2,8,15,0.015)',
     zIndex: 0,
   },
-  bottomNavBg: {
+  bottomNavBlur: {
     position: 'absolute',
     left: 0,
     right: 0,
@@ -1031,19 +1062,27 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 1,
   },
+  bottomNavBg: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 2,
+  },
   bottomNavGlass: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
     height: 34,
-    zIndex: 2,
+    zIndex: 3,
   },
   navLiquidPill: {
     position: 'absolute',
     left: 0,
-    top: 9,
-    bottom: 11,
+    top: 7,
+    bottom: 7,
     borderRadius: 30,
     overflow: 'hidden',
     borderWidth: 1,
@@ -1053,7 +1092,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
     shadowRadius: 0,
     shadowOffset: { width: 0, height: 0 },
-    zIndex: 3,
+    zIndex: 4,
   },
   navLiquidFill: {
     position: 'absolute',
@@ -1064,7 +1103,7 @@ const styles = StyleSheet.create({
   },
   navItem: {
     flex: 1,
-    height: 54,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -1074,7 +1113,7 @@ const styles = StyleSheet.create({
   navItemContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3,
   },
   navItemContentAdmin: {},
   navIcon: {
@@ -1113,8 +1152,8 @@ const styles = StyleSheet.create({
   navText: {
     color: 'rgba(226,232,240,0.62)',
     fontWeight: '600',
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: 8,
+    lineHeight: 10,
   },
   navTextAdmin: {
     transform: [{ translateY: 0 }],

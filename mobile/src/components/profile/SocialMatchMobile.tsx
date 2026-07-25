@@ -119,6 +119,7 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
   const [editInstagram, setEditInstagram] = useState('');
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const photoPreviewAnim = useRef(new Animated.Value(0)).current;
+  const chatPanelProgress = useRef(new Animated.Value(0)).current;
   const messageScrollRef = useRef<ScrollView>(null);
   const socialMatchRequestRef = useRef(false);
   const messagesRequestRef = useRef<string | null>(null);
@@ -126,6 +127,14 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
   const hasEligibleEvent = eligibleEvents.length > 0;
   const currentPref = prefMap[selectedEventId] ?? DEFAULT_PREF;
   const activeConnection = connections.find((c) => c.id === activeChatId);
+  const chatPanelTranslateY = chatPanelProgress.interpolate({
+    inputRange: [0, 0.72, 1],
+    outputRange: [28, -2, 0],
+  });
+  const chatPanelScale = chatPanelProgress.interpolate({
+    inputRange: [0, 0.72, 1],
+    outputRange: [0.976, 1.006, 1],
+  });
   const visibleConnections = connections.filter((c) => c.status === 'pending' || c.status === 'accepted');
   const selectedEvent = eligibleEvents.find((e) => e.id === selectedEventId);
   const myPhotos = (currentPref.photos || []).filter(Boolean);
@@ -490,6 +499,33 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
     }
   };
 
+  const openChat = (connectionId: string) => {
+    chatPanelProgress.stopAnimation();
+    chatPanelProgress.setValue(0);
+    setActiveChatId(connectionId);
+    requestAnimationFrame(() => {
+      Animated.spring(chatPanelProgress, {
+        toValue: 1,
+        damping: 19,
+        stiffness: 220,
+        mass: 0.72,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  const closeChat = () => {
+    chatPanelProgress.stopAnimation();
+    Animated.timing(chatPanelProgress, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setActiveChatId(null);
+    });
+  };
+
   const handleSendMessage = async () => {
     const text = chatDraft.trim();
     if (!text || !activeChatId || sendingMsg) return;
@@ -796,7 +832,7 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
               </TouchableOpacity>
             )}
             {connection.status === 'accepted' && (
-              <TouchableOpacity onPress={() => setActiveChatId(connection.id)} style={styles.chatButton}>
+              <TouchableOpacity onPress={() => openChat(connection.id)} style={styles.chatButton}>
                 <Text style={styles.chatText}>Chat</Text>
               </TouchableOpacity>
             )}
@@ -805,13 +841,22 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
       </View>
 
       {activeConnection && (
+        <Animated.View
+          style={[
+            styles.chatPanel,
+            {
+              opacity: chatPanelProgress,
+              transform: [{ translateY: chatPanelTranslateY }, { scale: chatPanelScale }],
+            },
+          ]}
+        >
         <View style={styles.card}>
           <View style={styles.chatHeader}>
             <View>
               <Text style={styles.sectionLabel}>Chat</Text>
               <Text style={styles.chatName}>{activeConnection.otherUserName}</Text>
             </View>
-            <TouchableOpacity onPress={() => setActiveChatId(null)} style={styles.closeChat}>
+            <TouchableOpacity onPress={closeChat} style={styles.closeChat}>
               <Text style={styles.closeChatText}>{t('CERRAR', 'CLOSE')}</Text>
             </TouchableOpacity>
           </View>
@@ -851,6 +896,7 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
             </TouchableOpacity>
           </View>
         </View>
+        </Animated.View>
       )}
       </>
       )}
@@ -1193,6 +1239,7 @@ const styles = StyleSheet.create({
   rejectText: { color: '#F8FAFC', fontSize: 12, fontWeight: '600' },
   chatButton: { width: 78, height: 40, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
   chatText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
+  chatPanel: { marginTop: 2 },
   chatHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   chatName: { color: '#F8FAFC', fontSize: 20, fontWeight: '600' },
   closeChat: { backgroundColor: '#030B14', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, paddingVertical: 9 },

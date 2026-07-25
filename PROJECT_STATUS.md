@@ -1,7 +1,7 @@
 # LPTicket - Estado del Proyecto
 
-Última revisión documental: 2026-07-19  
-Fuente: revisión de código local.  
+Última revisión documental: 2026-07-20
+Fuente: revisión de código local y respuesta de Apple Tap to Pay.
 Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explícita.
 
 ## Estado Git Actual
@@ -37,7 +37,7 @@ El backend es la fuente de verdad para eventos, mapas, asientos, bloqueos, órde
 | Tickets QR y validación | IMPLEMENTADO | QR, escaneo, asistentes y estadísticas presentes. |
 | Apple Wallet y Google Wallet | IMPLEMENTADO, NO PROBADO | Servicios y endpoints presentes; dependen de credenciales externas. |
 | Ventas en puerta | IMPLEMENTADO | Preview, checkout, facturación y tickets presentes. |
-| Tap to Pay en iPhone | IMPLEMENTADO, NO PROBADO | Código nativo y backend presentes; depende de Apple, Stripe y pruebas físicas. |
+| Tap to Pay en iPhone | IMPLEMENTADO, NO PROBADO | Entitlement de Apple concedido y perfil renovado para el build iOS 30; pendiente prueba física con Stripe Terminal. |
 | Métodos de pago | IMPLEMENTADO | Módulo de pagos presente. |
 | Social Match y chat | IMPLEMENTADO | Preferencias, sugerencias, conexiones, descartes y mensajes presentes. |
 | Escáner de empleados | IMPLEMENTADO | Solicitudes, aprobación, búsqueda y validación presentes. |
@@ -106,7 +106,8 @@ Implementado en código:
 
 Pendiente externo:
 
-- Aprobación Apple.
+- Entitlement de Apple: CONCEDIDO; compilación iOS 30 finalizada en EAS, pendiente de instalación y prueba física.
+- Apple solicitó verificar en compilación nativa el icono SF Symbol oficial y el texto exacto `Tap to Pay on iPhone` antes de reenviar grabaciones.
 - Configuración Stripe Terminal.
 - Ubicación de Stripe Terminal.
 - Prueba real en dispositivo autorizado.

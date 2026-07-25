@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { SymbolView } from 'expo-symbols';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { GradientButton } from '../components/GradientButton';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser, apiGet, getImageUrl } from '../services/api';
@@ -86,7 +86,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('qr');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('tap');
   const [tapStatus, setTapStatus] = useState('');
   const [showTapGuide, setShowTapGuide] = useState(false);
   const [tapGuideSeen, setTapGuideSeen] = useState(false);
@@ -95,7 +95,12 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   const [tapPhase, setTapPhase] = useState<TapFlowPhase>('idle');
   const [tapResult, setTapResult] = useState<{ success: boolean; message: string } | null>(null);
   const [eventQuery, setEventQuery] = useState('');
+  const scrollRef = useRef<ScrollView>(null);
   const eventSearchPlaceholder = t('Buscar evento', 'Search event') || (lang === 'es' ? 'Buscar evento' : 'Search event');
+
+  const revealBuyerReceiptFields = () => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+  };
 
   const selectedEvent = useMemo(() => events.find((event) => event.id === selectedEventId), [events, selectedEventId]);
   const filteredEvents = useMemo(() => {
@@ -222,6 +227,14 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     else void prepareTapToPay();
   };
 
+  const handleTapPrimaryPress = () => {
+    if (paymentMethod !== 'tap') {
+      selectTapToPay();
+      return;
+    }
+    void makeCheckout();
+  };
+
   const openTapEducation = async () => {
     try {
       await presentTapToPayEducation();
@@ -311,7 +324,19 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      style={styles.keyboardAvoidingView}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+    >
+      <ScrollView
+        ref={scrollRef}
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
       <View style={styles.topRow}>
         <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.78}>
           <Ionicons name="chevron-back" size={18} color="#F8FAFC" />
@@ -424,11 +449,9 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         ) : null}
       </View>
 
-      {paymentMethod === 'tap' ? (
-        <GradientButton height={56} onPress={makeCheckout} disabled={creating || !preview}>
+      <GradientButton height={56} onPress={handleTapPrimaryPress} disabled={creating || !preview}>
           {creating ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>Tap to Pay on iPhone</Text>}
-        </GradientButton>
-      ) : null}
+      </GradientButton>
 
       <View style={styles.buyerReceiptCard}>
         <Text style={styles.eyebrow}>{t('ENTREGA DEL RECIBO', 'RECEIPT DELIVERY')}</Text>
@@ -501,7 +524,6 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           {creating ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>{primaryLabel}</Text>}
         </GradientButton>
       ) : null}
-
       {checkout && paymentMethod === 'qr' && (
         <View style={styles.qrCard}>
           <Text style={styles.qrTitle}>{t('QR listo para pagar', 'QR ready to pay')}</Text>
@@ -616,7 +638,8 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           </View>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -661,6 +684,7 @@ function Line({ label, value, total }: { label: string; value: string; total?: b
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoidingView: { flex: 1 },
   screen: { flex: 1, backgroundColor: 'transparent' },
   content: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 132, gap: 16 },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },

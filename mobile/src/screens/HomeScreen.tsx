@@ -78,11 +78,6 @@ type HomeCache = {
   savedAt?: number;
 };
 
-type PendingHero = {
-  event: MobileEvent;
-  index: number;
-};
-
 function resolveHomeBannerImage(value?: string | null) {
   if (!value) return '';
   if (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://')) return value;
@@ -154,7 +149,6 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const [heroIndex, setHeroIndex] = useState(0);
   const [incomingHeroIndex, setIncomingHeroIndex] = useState<number | null>(null);
   const [incomingHeroSnapshot, setIncomingHeroSnapshot] = useState<MobileEvent | null>(null);
-  const [pendingHero, setPendingHero] = useState<PendingHero | null>(null);
   const [query, setQuery] = useState('');
   const [place, setPlace] = useState('');
   const [category, setCategory] = useState('All');
@@ -165,11 +159,11 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const categoryImageScale = useRef(new Animated.Value(1.12)).current;
   const categoryFrameX = useRef(new Animated.Value(0)).current;
   const heroFade = useRef(new Animated.Value(1)).current;
-  const heroScale = useRef(new Animated.Value(1)).current;
   const heroBaseFade = useRef(new Animated.Value(0)).current;
   const heroBaseOut = useRef(new Animated.Value(1)).current;
   const heroBaseLoaded = useRef(false);
-  const heroCleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startIncomingHeroTransition = useRef<(() => void) | null>(null);
+  const heroTransitionStarted = useRef(false);
   const prefetchedHeroImages = useRef(new Set<string>());
   const eventSearchPlaceholder = t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...') || (lang === 'es' ? 'Conciertos, teatro, talleres...' : 'Concerts, theater, workshops...');
   const placeSearchPlaceholder = t('Ciudad o venue', 'City or venue') || (lang === 'es' ? 'Ciudad o venue' : 'City or venue');
@@ -178,10 +172,6 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
     if (!scrollToTopSignal) return;
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [scrollToTopSignal]);
-
-  useEffect(() => () => {
-    if (heroCleanupTimer.current) clearTimeout(heroCleanupTimer.current);
-  }, []);
 
   const trustItems: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string }[] = [
     { icon: 'card-outline', title: t('Pagos seguros', 'Secure payments'), subtitle: t('Procesado por Stripe.', 'Processed by Stripe') },
@@ -246,7 +236,6 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const heroProgressTrackWidth = HERO_PROGRESS_ACTIVE_WIDTH + (safeHeroLength - 1) * HERO_PROGRESS_STEP;
   const heroProgressWidth = Math.max(78, heroProgressTrackWidth + 16);
   const activeHeroIndex = incomingHeroIndex ?? heroIndex;
-  const incomingHeroTransform = (incomingHeroEvent as any)?.isMarketingBanner ? [] : [{ scale: heroScale }];
 
   useEffect(() => {
     const urls = Array.from(new Set(heroSlides.map((item) => getHeroImageUrl(item)).filter((url) => /^https?:\/\//i.test(url)))).slice(0, 24);
@@ -455,76 +444,48 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
   const changeHero = (nextIndex: number) => {
     if (heroSlides.length <= 1) return;
     if (incomingHeroIndex !== null) return;
-    if (pendingHero) return;
 
     const normalizedIndex = ((nextIndex % heroSlides.length) + heroSlides.length) % heroSlides.length;
     if (normalizedIndex === heroIndex) return;
     const nextEvent = heroSlides[normalizedIndex];
-    const nextImageUrl = getHeroImageUrl(nextEvent);
 
     const showNextHero = (event: MobileEvent, index: number) => {
-      if (heroCleanupTimer.current) {
-        clearTimeout(heroCleanupTimer.current);
-        heroCleanupTimer.current = null;
-      }
-      const isMarketingTransition = !!(event as any).isMarketingBanner || !!(heroEvent as any)?.isMarketingBanner;
       heroFade.stopAnimation();
-      heroScale.stopAnimation();
       heroBaseOut.stopAnimation();
       heroFade.setValue(0);
-      heroScale.setValue(isMarketingTransition ? 1 : 1.02);
-      setIncomingHeroSnapshot(event);
-      setIncomingHeroIndex(index);
-      setTimeout(() => {
+      heroTransitionStarted.current = false;
+      startIncomingHeroTransition.current = () => {
+        if (heroTransitionStarted.current) return;
+        heroTransitionStarted.current = true;
+        heroBaseFade.setValue(1);
         Animated.parallel([
           Animated.timing(heroFade, {
             toValue: 1,
-            duration: 900,
+            duration: 1000,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
-          ...(isMarketingTransition ? [] : [
-            Animated.timing(heroScale, {
-              toValue: 1,
-              duration: 900,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: true,
-            }),
-            Animated.timing(heroBaseOut, {
-              toValue: 0,
-              duration: 700,
-              easing: Easing.inOut(Easing.ease),
-              useNativeDriver: true,
-            }),
-          ]),
+          Animated.timing(heroBaseOut, {
+            toValue: 0,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
         ]).start(({ finished }) => {
           if (!finished) return;
-          heroBaseFade.setValue(1);
-          heroBaseOut.setValue(1);
           heroBaseLoaded.current = false;
           setHeroIndex(index);
           heroFade.setValue(1);
-          heroScale.setValue(1);
-          heroCleanupTimer.current = setTimeout(() => {
-            setIncomingHeroIndex(null);
-            setIncomingHeroSnapshot(null);
-            heroCleanupTimer.current = null;
-          }, 950);
+          startIncomingHeroTransition.current = null;
         });
-      }, 0);
+      };
+      setIncomingHeroSnapshot(event);
+      setIncomingHeroIndex(index);
     };
 
-    if (nextImageUrl) {
-      setPendingHero({ event: nextEvent, index: normalizedIndex });
-      Image.prefetch(nextImageUrl)
-        .catch(() => false)
-        .finally(() => {
-          setPendingHero(null);
-          showNextHero(nextEvent, normalizedIndex);
-        });
-    } else {
-      showNextHero(nextEvent, normalizedIndex);
-    }
+    // The incoming layer waits for its own onLoad before the protected
+    // crossover starts. Do not block manual arrows on a second prefetch.
+    showNextHero(nextEvent, normalizedIndex);
   };
 
   const goNextHero = () => {
@@ -585,6 +546,15 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
             resizeMode="cover"
             fadeDuration={0}
             onLoad={() => {
+              const isIncomingBase = incomingHeroIndex !== null && heroIndex === incomingHeroIndex;
+              if (isIncomingBase) {
+                heroBaseLoaded.current = true;
+                heroBaseFade.setValue(1);
+                heroBaseOut.setValue(1);
+                setIncomingHeroIndex(null);
+                setIncomingHeroSnapshot(null);
+                return;
+              }
               if (heroBaseLoaded.current) {
                 heroBaseFade.setValue(1);
                 return;
@@ -607,17 +577,29 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
             styles.heroImageLayer,
             {
               opacity: heroFade,
-              transform: incomingHeroTransform,
             },
           ]}
           resizeMode="cover"
           fadeDuration={0}
+          onLoad={() => startIncomingHeroTransition.current?.()}
+          onError={() => {
+            if (heroTransitionStarted.current) return;
+            startIncomingHeroTransition.current = null;
+            setIncomingHeroIndex(null);
+            setIncomingHeroSnapshot(null);
+          }}
         />
         ) : null}
       </TouchableOpacity>
 
       <View style={styles.heroControls}>
-        <TouchableOpacity style={styles.heroControlButton} onPress={goPrevHero}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('Banner anterior', 'Previous banner')}
+          hitSlop={8}
+          style={styles.heroControlButton}
+          onPress={goPrevHero}
+        >
           <Ionicons name="chevron-back" size={18} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={[styles.heroProgressRail, { width: heroProgressWidth }]}>
@@ -637,7 +619,13 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
             ))}
           </View>
         </View>
-        <TouchableOpacity style={styles.heroControlButton} onPress={goNextHero}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('Siguiente banner', 'Next banner')}
+          hitSlop={8}
+          style={styles.heroControlButton}
+          onPress={goNextHero}
+        >
           <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
