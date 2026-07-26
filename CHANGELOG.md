@@ -47,7 +47,7 @@ comando ejecutado
 
 ### Funcionalidad desarrollada
 - Se reemplazó el intento de Poster Event Ticket por una composición clásica compatible con el QR necesario para validar entradas.
-- El pase toma el flyer principal del evento como fondo oscuro y legible, añade una miniatura nítida del flyer, y muestra como prioridad evento, fecha, hora real del evento, titular, venue y asiento.
+- El pase toma el flyer principal del evento como fondo oscuro y legible, añade una miniatura nítida del flyer, y muestra como prioridad el título del evento sin etiqueta, fecha, hora real del evento, titular, venue y asiento.
 - La app abre el pase desde una ruta de `lpticket.com`, sin mostrar la URL de Railway al cliente.
 
 ### Archivos modificados

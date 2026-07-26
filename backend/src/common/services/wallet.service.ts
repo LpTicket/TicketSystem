@@ -255,7 +255,7 @@ export class WalletService {
 
       pass.primaryFields.push({
         key: 'event',
-        label: 'EVENT',
+        label: '',
         value: eventTitle,
       });
 
