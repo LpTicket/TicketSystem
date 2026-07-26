@@ -83,7 +83,7 @@ export class WalletService {
     return readUrl(`${publicApiBaseUrl}/${image}`);
   }
 
-  private async getAppleWalletBackgroundBuffers(ticket: any, walletAssetDir: string) {
+  private async getAppleWalletEventImageBuffers(ticket: any, walletAssetDir: string) {
     const sharp = require('sharp');
     const fallback = readFileSync(join(walletAssetDir, 'strip@2x.png'));
 
@@ -108,10 +108,23 @@ export class WalletService {
           .toBuffer();
       };
 
+      const createThumbnail = (width: number, height: number) =>
+        sharp(source)
+          .resize(width, height, {
+            fit: 'contain',
+            position: 'center',
+            background: { r: 3, g: 24, b: 64, alpha: 1 },
+          })
+          .png({ compressionLevel: 9, palette: true, quality: 90, colours: 256 })
+          .toBuffer();
+
       return {
         background: await createBackground(180, 220),
         background2x: await createBackground(360, 440),
         background3x: await createBackground(540, 660),
+        thumbnail: await createThumbnail(90, 90),
+        thumbnail2x: await createThumbnail(180, 180),
+        thumbnail3x: await createThumbnail(270, 270),
       };
     } catch (err) {
       console.warn('[WalletService] Could not build Apple Wallet background. Using fallback.', err);
@@ -119,6 +132,9 @@ export class WalletService {
         background: await sharp(fallback).resize(180, 220, { fit: 'cover', position: 'center' }).png().toBuffer(),
         background2x: await sharp(fallback).resize(360, 440, { fit: 'cover', position: 'center' }).png().toBuffer(),
         background3x: await sharp(fallback).resize(540, 660, { fit: 'cover', position: 'center' }).png().toBuffer(),
+        thumbnail: await sharp(fallback).resize(90, 90, { fit: 'contain', position: 'center' }).png().toBuffer(),
+        thumbnail2x: await sharp(fallback).resize(180, 180, { fit: 'contain', position: 'center' }).png().toBuffer(),
+        thumbnail3x: await sharp(fallback).resize(270, 270, { fit: 'contain', position: 'center' }).png().toBuffer(),
       };
     }
   }
@@ -141,9 +157,6 @@ export class WalletService {
 
       const appUrl = (this.configService.get<string>('APP_URL') || 'https://lpticket.com').replace(/\/$/, '');
       const eventDate = ticket.event?.eventDate ? new Date(ticket.event.eventDate) : null;
-      const eventTime = ticket.event?.doorsOpen
-        ? new Date(ticket.event.doorsOpen)
-        : eventDate;
 
       const formattedDate = eventDate
         ? eventDate.toLocaleDateString('en-US', {
@@ -155,8 +168,8 @@ export class WalletService {
           })
         : 'To be confirmed';
 
-      const formattedTime = eventTime
-        ? eventTime.toLocaleTimeString('en-US', {
+      const formattedTime = eventDate
+        ? eventDate.toLocaleTimeString('en-US', {
             timeZone: 'America/Chicago',
             hour: 'numeric',
             minute: '2-digit',
@@ -232,10 +245,19 @@ export class WalletService {
       pass.addBuffer('icon@2x.png', readFileSync(join(walletAssetDir, 'icon@2x.png')));
       pass.addBuffer('logo.png', readFileSync(join(walletAssetDir, 'logo.png')));
       pass.addBuffer('logo@2x.png', readFileSync(join(walletAssetDir, 'logo@2x.png')));
-      const walletBackground = await this.getAppleWalletBackgroundBuffers(ticket, walletAssetDir);
-      pass.addBuffer('background.png', walletBackground.background);
-      pass.addBuffer('background@2x.png', walletBackground.background2x);
-      pass.addBuffer('background@3x.png', walletBackground.background3x);
+      const walletImages = await this.getAppleWalletEventImageBuffers(ticket, walletAssetDir);
+      pass.addBuffer('background.png', walletImages.background);
+      pass.addBuffer('background@2x.png', walletImages.background2x);
+      pass.addBuffer('background@3x.png', walletImages.background3x);
+      pass.addBuffer('thumbnail.png', walletImages.thumbnail);
+      pass.addBuffer('thumbnail@2x.png', walletImages.thumbnail2x);
+      pass.addBuffer('thumbnail@3x.png', walletImages.thumbnail3x);
+
+      pass.primaryFields.push({
+        key: 'event',
+        label: 'EVENT',
+        value: eventTitle,
+      });
 
       pass.secondaryFields.push(
         {
@@ -255,6 +277,11 @@ export class WalletService {
           key: 'buyer',
           label: 'TICKET HOLDER',
           value: buyerName,
+        },
+        {
+          key: 'venue',
+          label: 'VENUE',
+          value: venueName,
         },
       );
 

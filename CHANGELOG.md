@@ -47,7 +47,7 @@ comando ejecutado
 
 ### Funcionalidad desarrollada
 - Se reemplazó el intento de Poster Event Ticket por una composición clásica compatible con el QR necesario para validar entradas.
-- El pase toma el flyer principal del evento como fondo oscuro y legible, reduce los datos visibles a fecha, hora, titular y asiento, y elimina recursos de imagen innecesariamente pesados.
+- El pase toma el flyer principal del evento como fondo oscuro y legible, añade una miniatura nítida del flyer, y muestra como prioridad evento, fecha, hora real del evento, titular, venue y asiento.
 - La app abre el pase desde una ruta de `lpticket.com`, sin mostrar la URL de Railway al cliente.
 
 ### Archivos modificados
@@ -59,6 +59,7 @@ comando ejecutado
 
 ### Problema solucionado
 - El intento anterior generaba un pase de aproximadamente 5 MB y tardaba cerca de cinco segundos porque añadió recursos de Poster Event Ticket que Apple no muestra cuando el pase contiene un QR.
+- Apple Wallet usaba incorrectamente la hora de apertura (`doorsOpen`) en lugar de la hora real del evento (`eventDate`).
 
 ### Riesgos encontrados
 - Apple no permite el formato Poster Event Ticket cuando un pase requiere QR o código de barras para entrar; el QR se mantiene para no afectar la validación de entradas.
