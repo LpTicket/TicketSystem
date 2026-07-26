@@ -43,6 +43,40 @@ comando ejecutado
 
 ## Historial
 
+## 2026-07-26 - Diseño Poster Event Ticket para Apple Wallet
+
+### Funcionalidad desarrollada
+- Se preparó localmente el pase moderno de Apple Wallet con formato vertical tipo póster.
+- El pase toma primero el flyer principal del evento y genera las tres resoluciones de `artwork` requeridas para Wallet.
+- Se añadieron los datos semánticos del evento, asistente y asiento para que iOS organice la fecha, hora y ubicación de asiento en el formato nuevo.
+- El pase clásico con su banner horizontal se conserva como respaldo para dispositivos que no muestren el diseño nuevo.
+
+### Archivos modificados
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/common/services/wallet.service.ts`
+- `/Users/sundingalue/Documents/TicketSystem/PROJECT_STATUS.md`
+- `/Users/sundingalue/Documents/TicketSystem/CHANGELOG.md`
+
+### Problema solucionado
+- El diseño anterior solo incluía una franja horizontal y no podía aprovechar la composición vertical de flyer ni la jerarquía visual de los Poster Event Tickets de Apple.
+
+### Riesgos encontrados
+- Apple Wallet decide el renderizado final según la versión de iOS y los datos disponibles del evento.
+- Para ver el cambio en un iPhone real, se debe publicar el backend y volver a añadir un pase recién generado.
+
+### Estado de pruebas
+- IMPLEMENTADO, NO PROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/backend
+./node_modules/.bin/tsc -p tsconfig.build.json --noEmit --pretty false
+```
+
+Resultado: pasó sin errores.
+
+### Observaciones
+- No se modificó Google Wallet, pagos, tickets, credenciales ni la aplicación móvil.
+
 ## 2026-07-21 - Entitlement de Tap to Pay concedido y build iOS 30 iniciado
 
 ### Funcionalidad desarrollada

@@ -94,13 +94,52 @@ export class WalletService {
       const imageBuffer = await this.readEventImageBuffer(ticket.event?.bannerImageUrl || ticket.event?.imageUrl);
       if (!imageBuffer) return fallback;
 
+      // Keep the Home/Event banner fully visible. Any unused space is filled
+      // with the same navy blue used by the Apple Wallet pass.
+      const stripResizeOptions = {
+        fit: 'contain' as const,
+        position: 'center' as const,
+        background: { r: 3, g: 24, b: 64, alpha: 1 },
+      };
+
       return {
-        strip: await sharp(imageBuffer).resize(375, 123, { fit: 'cover', position: 'center' }).png().toBuffer(),
-        strip2x: await sharp(imageBuffer).resize(750, 246, { fit: 'cover', position: 'center' }).png().toBuffer(),
+        strip: await sharp(imageBuffer).resize(375, 123, stripResizeOptions).png().toBuffer(),
+        strip2x: await sharp(imageBuffer).resize(750, 246, stripResizeOptions).png().toBuffer(),
       };
     } catch (err) {
       console.warn('[WalletService] Could not build event Apple Wallet banner. Using fallback.', err);
       return fallback;
+    }
+  }
+
+  private async getAppleWalletPosterBuffers(ticket: any, walletAssetDir: string) {
+    const sharp = require('sharp');
+    const fallback = readFileSync(join(walletAssetDir, 'strip@2x.png'));
+
+    try {
+      // Poster Event Tickets use the event flyer rather than the wide Home banner.
+      // The poster intentionally fills the full portrait area, so flyers may crop at
+      // the edges when their proportions differ from Apple's artwork canvas.
+      const imageBuffer = await this.readEventImageBuffer(ticket.event?.imageUrl || ticket.event?.bannerImageUrl);
+      const source = imageBuffer || fallback;
+      const artworkResizeOptions = {
+        fit: 'cover' as const,
+        position: 'center' as const,
+      };
+
+      return {
+        artwork: await sharp(source).resize(358, 448, artworkResizeOptions).png().toBuffer(),
+        artwork2x: await sharp(source).resize(716, 896, artworkResizeOptions).png().toBuffer(),
+        artwork3x: await sharp(source).resize(1074, 1344, artworkResizeOptions).png().toBuffer(),
+      };
+    } catch (err) {
+      console.warn('[WalletService] Could not build Apple Wallet poster artwork. Using fallback.', err);
+
+      return {
+        artwork: await sharp(fallback).resize(358, 448, { fit: 'cover', position: 'center' }).png().toBuffer(),
+        artwork2x: await sharp(fallback).resize(716, 896, { fit: 'cover', position: 'center' }).png().toBuffer(),
+        artwork3x: await sharp(fallback).resize(1074, 1344, { fit: 'cover', position: 'center' }).png().toBuffer(),
+      };
     }
   }
 
@@ -153,6 +192,35 @@ export class WalletService {
       ].filter(Boolean).join(' ').trim() || ticket.user?.username || ticket.user?.email || 'Guest';
       const verifyUrl = `${appUrl}/verify/${ticket.ticketCode}`;
 
+      let rowValue = ticket.rowLabel || '';
+      let seatValue = String(ticket.seatNumber || '');
+      let sectionValue = ticket.sectionName || '';
+      let rowLabelText = 'ROW';
+      let seatLabelText = 'SEAT';
+
+      const seatMesaMatch = seatValue.trim().match(/^(mesa|table)\s*(\d+)$/i);
+      const mesaMatch = rowValue.trim().match(/^(mesa|table)\s*(\d+)$/i);
+
+      if (seatMesaMatch) {
+        rowLabelText = 'MESA';
+        seatLabelText = 'SILLA';
+        seatValue = seatMesaMatch[2];
+      } else if (mesaMatch) {
+        rowLabelText = 'MESA';
+        seatLabelText = 'SILLA';
+        rowValue = mesaMatch[2];
+      } else if (/^(mesa|table)\b/i.test(rowValue.trim())) {
+        rowLabelText = 'MESA';
+        seatLabelText = 'SILLA';
+        rowValue = sectionValue;
+      }
+
+      const seatingSemantics = (ticket.rowLabel || ticket.seatNumber) ? [{
+        seatSection: sectionValue || undefined,
+        seatRow: rowValue || undefined,
+        seatNumber: seatValue || undefined,
+      }] : undefined;
+
       const barcodePayload = {
         message: verifyUrl,
         format: 'PKBarcodeFormatQR',
@@ -179,10 +247,19 @@ export class WalletService {
           labelColor: 'rgb(255,138,38)',
           barcode: barcodePayload,
           barcodes: [barcodePayload],
+          semantics: {
+            attendeeName: buyerName,
+            eventName: eventTitle,
+            eventStartDate: eventDate?.toISOString(),
+            eventType: 'PKEventTypeLivePerformance',
+            seats: seatingSemantics,
+            venueName,
+          },
         }
       );
 
       pass.type = 'eventTicket';
+      pass.preferredStyleSchemes = ['posterEventTicket', 'eventTicket'];
       pass.setBarcodes(barcodePayload);
 
       const walletAssetDir = join(__dirname, '../assets/apple-wallet');
@@ -193,6 +270,10 @@ export class WalletService {
       const walletStrip = await this.getAppleWalletStripBuffers(ticket, walletAssetDir);
       pass.addBuffer('strip.png', walletStrip.strip);
       pass.addBuffer('strip@2x.png', walletStrip.strip2x);
+      const walletPoster = await this.getAppleWalletPosterBuffers(ticket, walletAssetDir);
+      pass.addBuffer('artwork.png', walletPoster.artwork);
+      pass.addBuffer('artwork@2x.png', walletPoster.artwork2x);
+      pass.addBuffer('artwork@3x.png', walletPoster.artwork3x);
 
       pass.secondaryFields.push(
         {
@@ -226,41 +307,16 @@ export class WalletService {
       );
 
       if (ticket.rowLabel || ticket.seatNumber) {
-        let rowVal = ticket.rowLabel || '-';
-        let seatVal = String(ticket.seatNumber || '-');
-        let rowLabelText = 'ROW';
-        let seatLabelText = 'SEAT';
-
-        const seatMesaMatch = String(ticket.seatNumber || '').trim().match(/^(mesa|table)\s*(\d+)$/i);
-        const mesaMatch = String(ticket.rowLabel || '').trim().match(/^(mesa|table)\s*(\d+)$/i);
-
-        if (seatMesaMatch) {
-          rowLabelText = 'MESA';
-          seatLabelText = 'SILLA';
-          rowVal = ticket.rowLabel || '-';
-          seatVal = seatMesaMatch[2];
-        } else if (mesaMatch) {
-          rowLabelText = 'MESA';
-          seatLabelText = 'SILLA';
-          rowVal = mesaMatch[2];
-          seatVal = String(ticket.seatNumber || '-');
-        } else if (/^(mesa|table)\b/i.test(String(ticket.rowLabel || '').trim())) {
-          rowLabelText = 'MESA';
-          seatLabelText = 'SILLA';
-          rowVal = ticket.sectionName || '-';
-          seatVal = String(ticket.seatNumber || '-');
-        }
-
         pass.headerFields.push(
           {
             key: 'row',
             label: rowLabelText,
-            value: rowVal,
+            value: rowValue || '-',
           },
           {
             key: 'seat',
             label: seatLabelText,
-            value: seatVal,
+            value: seatValue || '-',
           },
         );
       }
