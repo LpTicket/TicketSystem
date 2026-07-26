@@ -96,8 +96,8 @@ function ticketVerifyUrl(code: string) {
   return `${SITE_URL}/verify/${code}`;
 }
 
-function ticketApiUrl(code: string, path: string) {
-  return `${API_URL.replace(/\/$/, '')}/orders/ticket/${code}/${path}`;
+function appleWalletUrl(code: string) {
+  return `${SITE_URL}/api/wallet/${encodeURIComponent(code)}`;
 }
 
 function openAppleWallet(url: string) {
@@ -253,7 +253,7 @@ export function TicketsScreen({ scrollToTopSignal = 0 }: Props) {
 
               <View style={styles.actions}>
                 <ActionButton label={t('VER TICKET', 'VIEW TICKET')} primary onPress={() => openUrl(ticketVerifyUrl(ticket.ticketCode))} />
-                <ActionButton label="APPLE WALLET" onPress={() => openAppleWallet(ticketApiUrl(ticket.ticketCode, 'apple-wallet'))} />
+                <ActionButton label="APPLE WALLET" onPress={() => openAppleWallet(appleWalletUrl(ticket.ticketCode))} />
                 <ActionButton label="GOOGLE WALLET" onPress={() => openGoogleWallet(ticket.ticketCode)} />
                 <ActionButton
                   label={resending === ticket.ticketCode ? t('ENVIANDO...', 'SENDING...') : t('REENVIAR AL CORREO', 'RESEND EMAIL')}

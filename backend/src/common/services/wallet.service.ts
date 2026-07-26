@@ -83,62 +83,42 @@ export class WalletService {
     return readUrl(`${publicApiBaseUrl}/${image}`);
   }
 
-  private async getAppleWalletStripBuffers(ticket: any, walletAssetDir: string) {
-    const sharp = require('sharp');
-    const fallback = {
-      strip: readFileSync(join(walletAssetDir, 'strip.png')),
-      strip2x: readFileSync(join(walletAssetDir, 'strip@2x.png')),
-    };
-
-    try {
-      const imageBuffer = await this.readEventImageBuffer(ticket.event?.bannerImageUrl || ticket.event?.imageUrl);
-      if (!imageBuffer) return fallback;
-
-      // Keep the Home/Event banner fully visible. Any unused space is filled
-      // with the same navy blue used by the Apple Wallet pass.
-      const stripResizeOptions = {
-        fit: 'contain' as const,
-        position: 'center' as const,
-        background: { r: 3, g: 24, b: 64, alpha: 1 },
-      };
-
-      return {
-        strip: await sharp(imageBuffer).resize(375, 123, stripResizeOptions).png().toBuffer(),
-        strip2x: await sharp(imageBuffer).resize(750, 246, stripResizeOptions).png().toBuffer(),
-      };
-    } catch (err) {
-      console.warn('[WalletService] Could not build event Apple Wallet banner. Using fallback.', err);
-      return fallback;
-    }
-  }
-
-  private async getAppleWalletPosterBuffers(ticket: any, walletAssetDir: string) {
+  private async getAppleWalletBackgroundBuffers(ticket: any, walletAssetDir: string) {
     const sharp = require('sharp');
     const fallback = readFileSync(join(walletAssetDir, 'strip@2x.png'));
 
     try {
-      // Poster Event Tickets use the event flyer rather than the wide Home banner.
-      // The poster intentionally fills the full portrait area, so flyers may crop at
-      // the edges when their proportions differ from Apple's artwork canvas.
-      const imageBuffer = await this.readEventImageBuffer(ticket.event?.imageUrl || ticket.event?.bannerImageUrl);
-      const source = imageBuffer || fallback;
-      const artworkResizeOptions = {
-        fit: 'cover' as const,
-        position: 'center' as const,
+      // QR event tickets use Apple's legacy layout. A background lets the flyer
+      // be the visual focus while preserving Wallet's QR-based entry flow.
+      const source = await this.readEventImageBuffer(ticket.event?.imageUrl || ticket.event?.bannerImageUrl) || fallback;
+      const createBackground = async (width: number, height: number) => {
+        const overlay = await sharp({
+          create: {
+            width,
+            height,
+            channels: 4,
+            background: { r: 3, g: 24, b: 64, alpha: 0.56 },
+          },
+        }).png().toBuffer();
+
+        return sharp(source)
+          .resize(width, height, { fit: 'cover', position: 'center' })
+          .composite([{ input: overlay }])
+          .png({ compressionLevel: 9, palette: true, quality: 88, colours: 256 })
+          .toBuffer();
       };
 
       return {
-        artwork: await sharp(source).resize(358, 448, artworkResizeOptions).png().toBuffer(),
-        artwork2x: await sharp(source).resize(716, 896, artworkResizeOptions).png().toBuffer(),
-        artwork3x: await sharp(source).resize(1074, 1344, artworkResizeOptions).png().toBuffer(),
+        background: await createBackground(180, 220),
+        background2x: await createBackground(360, 440),
+        background3x: await createBackground(540, 660),
       };
     } catch (err) {
-      console.warn('[WalletService] Could not build Apple Wallet poster artwork. Using fallback.', err);
-
+      console.warn('[WalletService] Could not build Apple Wallet background. Using fallback.', err);
       return {
-        artwork: await sharp(fallback).resize(358, 448, { fit: 'cover', position: 'center' }).png().toBuffer(),
-        artwork2x: await sharp(fallback).resize(716, 896, { fit: 'cover', position: 'center' }).png().toBuffer(),
-        artwork3x: await sharp(fallback).resize(1074, 1344, { fit: 'cover', position: 'center' }).png().toBuffer(),
+        background: await sharp(fallback).resize(180, 220, { fit: 'cover', position: 'center' }).png().toBuffer(),
+        background2x: await sharp(fallback).resize(360, 440, { fit: 'cover', position: 'center' }).png().toBuffer(),
+        background3x: await sharp(fallback).resize(540, 660, { fit: 'cover', position: 'center' }).png().toBuffer(),
       };
     }
   }
@@ -215,12 +195,6 @@ export class WalletService {
         rowValue = sectionValue;
       }
 
-      const seatingSemantics = (ticket.rowLabel || ticket.seatNumber) ? [{
-        seatSection: sectionValue || undefined,
-        seatRow: rowValue || undefined,
-        seatNumber: seatValue || undefined,
-      }] : undefined;
-
       const barcodePayload = {
         message: verifyUrl,
         format: 'PKBarcodeFormatQR',
@@ -247,19 +221,10 @@ export class WalletService {
           labelColor: 'rgb(255,138,38)',
           barcode: barcodePayload,
           barcodes: [barcodePayload],
-          semantics: {
-            attendeeName: buyerName,
-            eventName: eventTitle,
-            eventStartDate: eventDate?.toISOString(),
-            eventType: 'PKEventTypeLivePerformance',
-            seats: seatingSemantics,
-            venueName,
-          },
         }
       );
 
       pass.type = 'eventTicket';
-      pass.preferredStyleSchemes = ['posterEventTicket', 'eventTicket'];
       pass.setBarcodes(barcodePayload);
 
       const walletAssetDir = join(__dirname, '../assets/apple-wallet');
@@ -267,13 +232,10 @@ export class WalletService {
       pass.addBuffer('icon@2x.png', readFileSync(join(walletAssetDir, 'icon@2x.png')));
       pass.addBuffer('logo.png', readFileSync(join(walletAssetDir, 'logo.png')));
       pass.addBuffer('logo@2x.png', readFileSync(join(walletAssetDir, 'logo@2x.png')));
-      const walletStrip = await this.getAppleWalletStripBuffers(ticket, walletAssetDir);
-      pass.addBuffer('strip.png', walletStrip.strip);
-      pass.addBuffer('strip@2x.png', walletStrip.strip2x);
-      const walletPoster = await this.getAppleWalletPosterBuffers(ticket, walletAssetDir);
-      pass.addBuffer('artwork.png', walletPoster.artwork);
-      pass.addBuffer('artwork@2x.png', walletPoster.artwork2x);
-      pass.addBuffer('artwork@3x.png', walletPoster.artwork3x);
+      const walletBackground = await this.getAppleWalletBackgroundBuffers(ticket, walletAssetDir);
+      pass.addBuffer('background.png', walletBackground.background);
+      pass.addBuffer('background@2x.png', walletBackground.background2x);
+      pass.addBuffer('background@3x.png', walletBackground.background3x);
 
       pass.secondaryFields.push(
         {
@@ -286,23 +248,13 @@ export class WalletService {
           label: 'TIME',
           value: formattedTime,
         },
-        {
-          key: 'buyer',
-          label: 'BUYER',
-          value: buyerName,
-        },
       );
 
       pass.auxiliaryFields.push(
         {
-          key: 'event',
-          label: 'EVENT',
-          value: eventTitle,
-        },
-        {
-          key: 'venue',
-          label: 'VENUE',
-          value: venueName,
+          key: 'buyer',
+          label: 'TICKET HOLDER',
+          value: buyerName,
         },
       );
 

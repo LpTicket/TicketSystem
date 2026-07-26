@@ -35,7 +35,7 @@ El backend es la fuente de verdad para eventos, mapas, asientos, bloqueos, órde
 | Bloqueo y desbloqueo | IMPLEMENTADO, NO PROBADO | Endpoint e invalidación de caché presentes; validar móvil-web-cliente en cada cambio sensible. |
 | Compra de tickets | IMPLEMENTADO | Stripe Checkout y emisión de tickets presentes. |
 | Tickets QR y validación | IMPLEMENTADO | QR, escaneo, asistentes y estadísticas presentes. |
-| Apple Wallet y Google Wallet | IMPLEMENTADO, NO PROBADO | Servicios y endpoints presentes; Apple Wallet incluye Poster Event Ticket con flyer vertical; pendiente de prueba física. |
+| Apple Wallet y Google Wallet | IMPLEMENTADO, NO PROBADO | Servicios y endpoints presentes; Apple Wallet conserva QR y usa un fondo premium generado desde el flyer; pendiente de prueba física. |
 | Ventas en puerta | IMPLEMENTADO | Preview, checkout, facturación y tickets presentes. |
 | Tap to Pay en iPhone | IMPLEMENTADO, NO PROBADO | Entitlement de Apple concedido y perfil renovado para el build iOS 30; pendiente prueba física con Stripe Terminal. |
 | Métodos de pago | IMPLEMENTADO | Módulo de pagos presente. |

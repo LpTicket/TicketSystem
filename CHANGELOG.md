@@ -43,25 +43,26 @@ comando ejecutado
 
 ## Historial
 
-## 2026-07-26 - Diseño Poster Event Ticket para Apple Wallet
+## 2026-07-26 - Diseño Apple Wallet compatible con QR
 
 ### Funcionalidad desarrollada
-- Se preparó localmente el pase moderno de Apple Wallet con formato vertical tipo póster.
-- El pase toma primero el flyer principal del evento y genera las tres resoluciones de `artwork` requeridas para Wallet.
-- Se añadieron los datos semánticos del evento, asistente y asiento para que iOS organice la fecha, hora y ubicación de asiento en el formato nuevo.
-- El pase clásico con su banner horizontal se conserva como respaldo para dispositivos que no muestren el diseño nuevo.
+- Se reemplazó el intento de Poster Event Ticket por una composición clásica compatible con el QR necesario para validar entradas.
+- El pase toma el flyer principal del evento como fondo oscuro y legible, reduce los datos visibles a fecha, hora, titular y asiento, y elimina recursos de imagen innecesariamente pesados.
+- La app abre el pase desde una ruta de `lpticket.com`, sin mostrar la URL de Railway al cliente.
 
 ### Archivos modificados
 - `/Users/sundingalue/Documents/TicketSystem/backend/src/common/services/wallet.service.ts`
+- `/Users/sundingalue/Documents/TicketSystem/frontend/src/app/api/wallet/[code]/route.ts`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/screens/TicketsScreen.tsx`
 - `/Users/sundingalue/Documents/TicketSystem/PROJECT_STATUS.md`
 - `/Users/sundingalue/Documents/TicketSystem/CHANGELOG.md`
 
 ### Problema solucionado
-- El diseño anterior solo incluía una franja horizontal y no podía aprovechar la composición vertical de flyer ni la jerarquía visual de los Poster Event Tickets de Apple.
+- El intento anterior generaba un pase de aproximadamente 5 MB y tardaba cerca de cinco segundos porque añadió recursos de Poster Event Ticket que Apple no muestra cuando el pase contiene un QR.
 
 ### Riesgos encontrados
-- Apple Wallet decide el renderizado final según la versión de iOS y los datos disponibles del evento.
-- Para ver el cambio en un iPhone real, se debe publicar el backend y volver a añadir un pase recién generado.
+- Apple no permite el formato Poster Event Ticket cuando un pase requiere QR o código de barras para entrar; el QR se mantiene para no afectar la validación de entradas.
+- Para ver el cambio en un iPhone real, se debe publicar backend y web, y volver a añadir un pase recién generado.
 
 ### Estado de pruebas
 - IMPLEMENTADO, NO PROBADO
@@ -70,12 +71,18 @@ comando ejecutado
 ```bash
 cd /Users/sundingalue/Documents/TicketSystem/backend
 ./node_modules/.bin/tsc -p tsconfig.build.json --noEmit --pretty false
+
+cd /Users/sundingalue/Documents/TicketSystem/mobile
+npx tsc --noEmit
+
+cd /Users/sundingalue/Documents/TicketSystem/frontend
+npm run build
 ```
 
 Resultado: pasó sin errores.
 
 ### Observaciones
-- No se modificó Google Wallet, pagos, tickets, credenciales ni la aplicación móvil.
+- No se modificó Google Wallet, pagos, tickets existentes ni credenciales.
 
 ## 2026-07-21 - Entitlement de Tap to Pay concedido y build iOS 30 iniciado
 
