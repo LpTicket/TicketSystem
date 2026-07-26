@@ -4,13 +4,14 @@ import type { ReactNode } from 'react';
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.lpticket.com';
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://ticketsystembackend.up.railway.app/api';
 
-function resolveImage(url?: string | null) {
-  if (!url) return `${siteUrl}/logo.png`;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('data:')) return `${siteUrl}/logo.png`;
+function resolveImage(slug?: string | null, version?: string) {
+  if (!slug) return `${siteUrl}/logo.png`;
 
-  const backendBase = apiUrl.replace(/\/api\/?$/, '');
-  return `${backendBase}${url.startsWith('/') ? url : `/${url}`}`;
+  // Event flyers are often stored as Base64 in the backend. Social crawlers
+  // cannot use a data URL, so always use the existing public image route.
+  const imageUrl = new URL(`${siteUrl}/events/${encodeURIComponent(slug)}/og-image`);
+  if (version) imageUrl.searchParams.set('v', version);
+  return imageUrl.toString();
 }
 
 export async function generateMetadata({
@@ -29,7 +30,7 @@ export async function generateMetadata({
 
     const ticket = await response.json();
     const event = ticket.event;
-    const image = resolveImage(event?.bannerImageUrl || event?.imageUrl);
+    const image = resolveImage(event?.slug, code);
     const title = event?.title ? `Entrada para ${event.title}` : 'Entrada LPTicket';
 
     return {
