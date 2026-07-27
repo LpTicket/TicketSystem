@@ -34,8 +34,6 @@ type Suggestion = {
   score: number;
   interests: string[];
   sharedInterests: string[];
-  industryMatch: boolean;
-  industry: string | null;
   canShareLocationLater: boolean;
 };
 
@@ -57,17 +55,6 @@ type Message = {
   isMine: boolean;
   createdAt: string;
 };
-
-const INTEREST_OPTIONS = [
-  { id: 'professional_networking', label: 'Networking' },
-  { id: 'make_friends', label: 'Friends' },
-  { id: 'music_party', label: 'Music' },
-  { id: 'business', label: 'Business' },
-  { id: 'collaborations', label: 'Collabs' },
-  { id: 'singles', label: 'Singles' },
-  { id: 'vip_experience', label: 'VIP' },
-  { id: 'other', label: 'Other' },
-];
 
 const DEFAULT_PREF: Preference = {
   eventId: '',
@@ -115,7 +102,6 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
   const [requesting, setRequesting] = useState('');
   const [dismissing, setDismissing] = useState('');
   const [editInterests, setEditInterests] = useState<string[]>([]);
-  const [editIndustry, setEditIndustry] = useState('');
   const [editInstagram, setEditInstagram] = useState('');
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const photoPreviewAnim = useRef(new Animated.Value(0)).current;
@@ -138,7 +124,17 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
   const visibleConnections = connections.filter((c) => c.status === 'pending' || c.status === 'accepted');
   const selectedEvent = eligibleEvents.find((e) => e.id === selectedEventId);
   const myPhotos = (currentPref.photos || []).filter(Boolean);
-  const industryPlaceholder = t('Música, finanzas, bienes raíces...', 'Music, finance, real estate...') || (lang === 'es' ? 'Música, finanzas, bienes raíces...' : 'Music, finance, real estate...');
+  const interestOptions = useMemo(() => [
+    { id: 'professional_networking', label: t('Networking', 'Networking'), icon: 'handshake' as const },
+    { id: 'make_friends', label: t('Amistades', 'Friends'), icon: 'user-friends' as const },
+    { id: 'music_party', label: t('Música', 'Music'), icon: 'music' as const },
+    { id: 'business', label: t('Negocios', 'Business'), icon: 'briefcase' as const },
+    { id: 'collaborations', label: t('Colaboraciones', 'Collabs'), icon: 'users' as const },
+    { id: 'singles', label: t('Solteros', 'Singles'), icon: 'heart' as const },
+    { id: 'vip_experience', label: 'VIP', icon: 'crown' as const },
+    { id: 'other', label: t('Otro', 'Other'), icon: 'ellipsis-h' as const },
+  ], [t]);
+  const interestLabels = useMemo(() => new Map(interestOptions.map((interest) => [interest.id, interest.label])), [interestOptions]);
   const messagePlaceholder = t('Escribe un mensaje...', 'Write a message...') || (lang === 'es' ? 'Escribe un mensaje...' : 'Write a message...');
   const previewEvent: EligibleEvent = {
     id: PREVIEW_EVENT_ID,
@@ -207,7 +203,6 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
           const cachedPref = parsed?.prefMap?.[parsed?.selectedEventId];
           if (cachedPref) {
             setEditInterests(cachedPref.interests || []);
-            setEditIndustry(cachedPref.industry || '');
             setEditInstagram(cachedPref.instagram || '');
           }
           setLoading(false);
@@ -244,7 +239,6 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
       const nextPref = map[nextSelectedEventId] || map[firstId];
       if (nextSelectedEventId && nextPref) {
         setEditInterests(nextPref.interests || []);
-        setEditIndustry(nextPref.industry || '');
         setEditInstagram(nextPref.instagram || '');
       }
       let nextSuggestions: Suggestion[] = [];
@@ -313,7 +307,6 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
     if (!selectedEventId) return;
     const pref = prefMap[selectedEventId];
     setEditInterests(pref?.interests || []);
-    setEditIndustry(pref?.industry || '');
     setEditInstagram(pref?.instagram || '');
     if (pref?.isActive && !pref?.invisibleMode && loadedSuggestionsFor !== selectedEventId) {
       loadSuggestions(selectedEventId);
@@ -358,7 +351,7 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
       const result = await apiPut<{ preference: Preference }>(`/social-match/events/${selectedEventId}/preferences`, {
         isActive: merged.isActive,
         interests: merged.interests,
-        industry: merged.industry || null,
+        industry: null,
         instagram: merged.instagram || null,
         privateMode: merged.privateMode,
         invisibleMode: merged.invisibleMode,
@@ -386,7 +379,7 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
   const saveEditedPref = () => {
     savePref({
       interests: editInterests,
-      industry: editIndustry || null,
+      industry: null,
       instagram: editInstagram || null,
       isActive: hasEligibleEvent && editInterests.length > 0 ? true : currentPref.isActive,
     }, true);
@@ -615,7 +608,7 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
         </ScrollView>
 
         <TouchableOpacity
-          onPress={() => savePref({ isActive: !currentPref.isActive, interests: editInterests, industry: editIndustry || null, instagram: editInstagram || null })}
+          onPress={() => savePref({ isActive: !currentPref.isActive, interests: editInterests, industry: null, instagram: editInstagram || null })}
           style={[styles.activation, currentPref.isActive && styles.activationActive]}
           disabled={savingPref || !hasEligibleEvent}
         >
@@ -694,8 +687,16 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
           )}
         </View>
 
+        <View style={styles.interestIntro}>
+          <View style={styles.interestIntroIcon}><FontAwesome5 name="compass" size={14} color={colors.orange} /></View>
+          <View style={styles.interestIntroCopy}>
+            <Text style={styles.interestIntroTitle}>{t('¿Qué buscas en este evento?', 'What are you looking for at this event?')}</Text>
+            <Text style={styles.interestIntroHint}>{t('Elige tus intereses para descubrir asistentes compatibles.', 'Choose your interests to discover compatible attendees.')}</Text>
+          </View>
+        </View>
+
         <View style={styles.chipGrid}>
-          {INTEREST_OPTIONS.map((interest) => {
+          {interestOptions.map((interest) => {
             const selected = editInterests.includes(interest.id);
             return (
               <TouchableOpacity
@@ -703,15 +704,14 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
                 onPress={() => setEditInterests((prev) => prev.includes(interest.id) ? prev.filter((i) => i !== interest.id) : [...prev, interest.id])}
                 style={[styles.interestChip, selected && styles.interestChipActive]}
               >
+                <View style={[styles.interestIcon, selected && styles.interestIconActive]}>
+                  <FontAwesome5 name={interest.icon} size={11} color={selected ? '#FFFFFF' : colors.orange} />
+                </View>
                 <Text style={[styles.interestText, selected && styles.interestTextActive]}>{interest.label}</Text>
+                {selected && <FontAwesome5 name="check" size={10} color={colors.orange} />}
               </TouchableOpacity>
             );
           })}
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>{t('Industria o área', 'Industry or field')}</Text>
-          <TextInput key={`social-industry-${lang}`} value={editIndustry} onChangeText={setEditIndustry} style={styles.input} placeholder={industryPlaceholder} placeholderTextColor="#9CA3AF" />
         </View>
 
         <View style={styles.inputGroup}>
@@ -786,7 +786,7 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
                     <View style={styles.tagRow}>
                       {suggestion.sharedInterests.map((tag, tagIndex) => (
                         <View key={`${tag}-${tagIndex}`} style={styles.tag}>
-                          <Text style={styles.tagText}>{tag.replace(/_/g, ' ')}</Text>
+                          <Text style={styles.tagText}>{interestLabels.get(tag) || tag.replace(/_/g, ' ')}</Text>
                         </View>
                       ))}
                     </View>
@@ -906,12 +906,22 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
 
 function ToggleRow({ title, subtitle, value, onPress }: { title: string; subtitle: string; value: boolean; onPress: () => void }) {
   return (
-    <TouchableOpacity onPress={onPress} style={styles.toggleRow}>
+    <TouchableOpacity
+      onPress={onPress}
+      style={styles.toggleRow}
+      activeOpacity={0.84}
+      accessibilityRole="switch"
+      accessibilityLabel={title}
+      accessibilityState={{ checked: value }}
+    >
       <View style={styles.toggleCopy}>
         <Text style={styles.toggleTitle}>{title}</Text>
         <Text style={styles.toggleSub}>{subtitle}</Text>
       </View>
       <View style={[styles.toggleTrack, value && styles.toggleTrackActive]}>
+        <Text style={[styles.toggleStateText, value ? styles.toggleStateTextActive : styles.toggleStateTextInactive]}>
+          {value ? 'ON' : 'OFF'}
+        </Text>
         <View style={[styles.toggleDot, value && styles.toggleDotActive]} />
       </View>
     </TouchableOpacity>
@@ -1103,6 +1113,28 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   photoAddText: { color: colors.orange, fontSize: 10.5, fontWeight: '600' },
+  interestIntro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(249,115,22,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(249,115,22,0.18)',
+    marginBottom: 12,
+  },
+  interestIntroIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: 'rgba(249,115,22,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  interestIntroCopy: { flex: 1 },
+  interestIntroTitle: { color: '#F8FAFC', fontSize: 13, fontWeight: '700', marginBottom: 2 },
+  interestIntroHint: { color: 'rgba(226,232,240,0.62)', fontSize: 11, lineHeight: 15 },
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 16 },
   interestChip: {
     width: '48%',
@@ -1112,11 +1144,21 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.14)',
     backgroundColor: '#030B14',
     paddingHorizontal: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  interestChipActive: { backgroundColor: '#030B14', borderColor: 'rgba(249,115,22,0.62)' },
+  interestIcon: {
+    width: 23,
+    height: 23,
+    borderRadius: 8,
+    backgroundColor: 'rgba(249,115,22,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  interestChipActive: { backgroundColor: '#030B14', borderColor: 'rgba(249,115,22,0.62)' },
-  interestText: { color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '600' },
+  interestIconActive: { backgroundColor: 'rgba(249,115,22,0.72)' },
+  interestText: { flex: 1, color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '600' },
   interestTextActive: { color: '#FFFFFF' },
   inputGroup: { gap: 7, marginBottom: 12 },
   inputLabel: { color: 'rgba(226,232,240,0.64)', fontSize: 13, fontWeight: '400' },
@@ -1151,10 +1193,13 @@ const styles = StyleSheet.create({
   toggleCopy: { flex: 1, paddingRight: 12 },
   toggleTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '600', marginBottom: 4 },
   toggleSub: { color: 'rgba(226,232,240,0.64)', fontSize: 12, lineHeight: 17, fontWeight: '400' },
-  toggleTrack: { width: 48, height: 28, borderRadius: 999, backgroundColor: '#cbd5e1', padding: 3 },
+  toggleTrack: { width: 60, height: 30, borderRadius: 999, backgroundColor: '#E2E8F0', padding: 3, justifyContent: 'center', position: 'relative' },
   toggleTrackActive: { backgroundColor: colors.orange },
-  toggleDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.018)' },
-  toggleDotActive: { transform: [{ translateX: 20 }] },
+  toggleStateText: { position: 'absolute', fontSize: 9, fontWeight: '700', letterSpacing: 0.35 },
+  toggleStateTextInactive: { right: 7, color: '#334155' },
+  toggleStateTextActive: { left: 8, color: '#FFFFFF' },
+  toggleDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFFFFF', shadowColor: '#0F172A', shadowOpacity: 0.16, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
+  toggleDotActive: { transform: [{ translateX: 30 }] },
   summaryCard: {
     backgroundColor: 'rgba(255,255,255,0.018)',
     borderRadius: 24,

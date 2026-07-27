@@ -113,7 +113,9 @@ export class SocialMatchService {
 
     preference.isActive = Boolean(dto.isActive);
     preference.interests = interests;
-    preference.industry = this.cleanOptionalText(dto.industry);
+    // Interests are the single matching criterion shown to attendees. Keep the
+    // legacy column empty so an old industry value cannot affect suggestions.
+    preference.industry = null;
     preference.instagram = this.cleanOptionalText(dto.instagram);
     preference.privateMode = dto.privateMode !== false;
     preference.invisibleMode = Boolean(dto.invisibleMode);
@@ -167,15 +169,14 @@ export class SocialMatchService {
       .filter((t) => {
         if (connectedUserIds.has(t.userId)) return false;
         const pref = prefMap.get(t.userId);
-        if (pref?.invisibleMode) return false;
-        return true;
+        if (!pref?.isActive || pref.invisibleMode) return false;
+        return (pref.interests || []).some((interest) => myInterests.includes(interest));
       })
       .map((t) => {
         const pref = prefMap.get(t.userId);
         const sharedInterests = pref ? (pref.interests || []).filter((interest) => myInterests.includes(interest)) : [];
-        const industryMatch = Boolean(myPreference.industry && pref?.industry && pref.industry.toLowerCase() === myPreference.industry.toLowerCase());
         const canShareLocationLater = Boolean(pref?.shareLocation && myPreference.shareLocation);
-        const score = sharedInterests.length + (industryMatch ? 2 : 0) + (canShareLocationLater ? 1 : 0);
+        const score = sharedInterests.length + (canShareLocationLater ? 1 : 0);
         // Show name unless user explicitly set privateMode; no preference = show name
         const isPrivate = pref ? pref.privateMode : false;
 
@@ -186,8 +187,6 @@ export class SocialMatchService {
           photos: pref?.photos || [],
           interests: pref?.interests || [],
           sharedInterests,
-          industryMatch,
-          industry: pref?.industry || null,
           canShareLocationLater,
           score,
         };
@@ -493,25 +492,20 @@ export class SocialMatchService {
     const sharedInterestMatches = compatible.filter((item) =>
       (item.interests || []).some((interest) => interests.includes(interest)),
     );
-    const industryMatches = compatible.filter((item) =>
-      Boolean(preference.industry && item.industry && item.industry.toLowerCase() === preference.industry.toLowerCase()),
-    );
     const locationReadyMatches = compatible.filter((item) => item.shareLocation && preference.shareLocation);
 
     return {
       eventId: preference.eventId,
       eventTitle: event?.title || 'Evento',
       compatibleCount: sharedInterestMatches.length,
-      industryCount: industryMatches.length,
       locationReadyCount: locationReadyMatches.length,
-      messages: this.buildMessages(sharedInterestMatches.length, industryMatches.length, locationReadyMatches.length),
+      messages: this.buildMessages(sharedInterestMatches.length, locationReadyMatches.length),
     };
   }
 
-  private buildMessages(compatibleCount: number, industryCount: number, locationReadyCount: number) {
+  private buildMessages(compatibleCount: number, locationReadyCount: number) {
     const messages: string[] = [];
     if (compatibleCount > 0) messages.push(`${compatibleCount} personas compatibles asistirán`);
-    if (industryCount > 0) messages.push(`${industryCount} asistentes comparten tu industria`);
     if (locationReadyCount > 0) messages.push(`${locationReadyCount} conexiones podrían compartir ubicación si ambos aceptan`);
     if (messages.length === 0) messages.push('Activado. Te avisaremos cuando aparezcan perfiles compatibles.');
     return messages;

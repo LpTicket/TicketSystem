@@ -43,6 +43,43 @@ comando ejecutado
 
 ## Historial
 
+## 2026-07-26 - Intereses y sugerencias de Social Match
+
+### Funcionalidad desarrollada
+- Se tradujeron los intereses visibles de Social Match, manteniendo `Networking` igual en español e inglés.
+- Se retiró el campo visible de industria o área y se dejó de usar como criterio de sugerencias.
+- Se rediseñó el selector de intereses con iconos, jerarquía y estado seleccionado más claro.
+- Las sugerencias ahora requieren que ambas personas tengan Social Match activo en el mismo evento y compartan al menos un interés.
+
+### Archivos modificados
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/components/profile/SocialMatchMobile.tsx`
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/social-match/social-match.service.ts`
+- `/Users/sundingalue/Documents/TicketSystem/PROJECT_STATUS.md`
+- `/Users/sundingalue/Documents/TicketSystem/CHANGELOG.md`
+
+### Problema solucionado
+- La lógica anterior mostraba a otros compradores del evento aunque no hubieran activado Social Match ni seleccionado intereses compartidos; el campo industria también podía alterar el orden de compatibilidad.
+
+### Riesgos encontrados
+- El backend y la interfaz ya compilan, pero se requiere una prueba con dos cuentas y un evento compartido para confirmar el filtrado visual real.
+
+### Estado de pruebas
+- IMPLEMENTADO, NO PROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/mobile
+npx tsc --noEmit
+
+cd /Users/sundingalue/Documents/TicketSystem/backend
+./node_modules/.bin/tsc -p tsconfig.build.json --noEmit --pretty false
+```
+
+Resultado: pasó sin errores.
+
+### Observaciones
+- No se modificaron pagos, tickets, mapas, conexiones existentes ni la base de datos.
+
 ## 2026-07-26 - Diseño Apple Wallet compatible con QR
 
 ### Funcionalidad desarrollada
