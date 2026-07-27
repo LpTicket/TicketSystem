@@ -1162,7 +1162,7 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
   const toggleEventFeaturedApi = async (id: string) => {
     try {
       setEventActionId(id);
-      const updated = await apiPatch<any>(`/admin/events/${id}/toggle-featured`);
+      const updated = await apiPatch<any>(`/admin/events/${id}/toggle-featured`, {});
       syncAdminEventAction(id, updated);
       Alert.alert(
         t('Listo', 'Done'),
@@ -1180,7 +1180,7 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
   const toggleEventVisibilityApi = async (id: string) => {
     try {
       setEventActionId(id);
-      const updated = await apiPatch<any>(`/admin/events/${id}/toggle-public-visibility`);
+      const updated = await apiPatch<any>(`/admin/events/${id}/toggle-public-visibility`, {});
       syncAdminEventAction(id, updated);
       Alert.alert(
         t('Listo', 'Done'),
