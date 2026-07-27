@@ -25,4 +25,9 @@ export class PaymentsController {
   deletePaymentMethod(@Request() req: any, @Param('id') id: string) {
     return this.paymentsService.deletePaymentMethod(req.user.id, id);
   }
+
+  @Post('setup-session')
+  createSetupSession(@Request() req: any) {
+    return this.paymentsService.createSetupSession(req.user.id);
+  }
 }

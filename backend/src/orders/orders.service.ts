@@ -7,7 +7,8 @@ import { In, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require('stripe');
-import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, EventStatus, VenueSection, SpecialCode, ScannerAccess, ScannerAccessStatus, UserRole } from '../database/entities';
+import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, EventStatus, VenueSection, SpecialCode, ScannerAccess, ScannerAccessStatus, UserRole, PaymentMethod, PaymentMethodType } from '../database/entities';
+import { User } from '../database/entities/user.entity';
 import { nanoid } from 'nanoid';
 import * as QRCode from 'qrcode';
 import { MailService } from '../common/services/mail.service';
@@ -50,6 +51,8 @@ export class OrdersService {
     private readonly specialCodeRepo: Repository<SpecialCode>,
     @InjectRepository(ScannerAccess)
     private readonly scannerAccessRepo: Repository<ScannerAccess>,
+    @InjectRepository(PaymentMethod)
+    private readonly paymentMethodRepo: Repository<PaymentMethod>,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
@@ -64,6 +67,23 @@ export class OrdersService {
         apiVersion: '2024-12-18.acacia' as any,
       });
     }
+  }
+
+  private async getOrCreateStripeCustomer(userId: string, email?: string): Promise<string | null> {
+    if (!this.stripe) return null;
+    const user = await this.orderRepo.manager.findOne(User, {
+      where: { id: userId },
+      select: ['id', 'email', 'firstName', 'lastName', 'stripeCustomerId'],
+    });
+    if (!user) return null;
+    if (user.stripeCustomerId) return user.stripeCustomerId;
+    const customer = await this.stripe.customers.create({
+      email: email || user.email,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      metadata: { userId },
+    });
+    await this.orderRepo.manager.update(User, userId, { stripeCustomerId: customer.id });
+    return customer.id;
   }
 
   /**
@@ -521,6 +541,29 @@ export class OrdersService {
 
     await this.invalidateUserPurchasesCache(order.userId);
 
+    // Persist the real Stripe payment method after a successful payment
+    const finalPaymentIntent = stripePaymentIntent || order.stripePaymentIntent;
+    if (this.stripe && finalPaymentIntent && order.userId) {
+      try {
+        const pi = await this.stripe.paymentIntents.retrieve(finalPaymentIntent, { expand: ['payment_method'] });
+        const pm = pi.payment_method;
+        if (pm && typeof pm === 'object' && pm.card) {
+          const existing = await this.paymentMethodRepo.findOne({ where: { providerId: pm.id } });
+          if (!existing) {
+            const count = await this.paymentMethodRepo.count({ where: { userId: order.userId } });
+            await this.paymentMethodRepo.save(this.paymentMethodRepo.create({
+              userId: order.userId,
+              type: PaymentMethodType.CREDIT_CARD,
+              brand: pm.card.brand || 'card',
+              last4: pm.card.last4 || '****',
+              providerId: pm.id,
+              isDefault: count === 0,
+            }));
+          }
+        }
+      } catch { /* non-critical */ }
+    }
+
     try {
       const fullOrder = await this.orderRepo.findOne({
         where: { id: orderId },
@@ -837,12 +880,19 @@ export class OrdersService {
       }
     }
 
+    const stripeCustomerId = await this.getOrCreateStripeCustomer(userId, checkoutBuyerEmail);
+
     const session = await this.stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      ...(checkoutBuyerEmail ? { customer_email: checkoutBuyerEmail } : {}),
+      ...(stripeCustomerId
+        ? { customer: stripeCustomerId }
+        : checkoutBuyerEmail
+          ? { customer_email: checkoutBuyerEmail }
+          : {}),
+      payment_intent_data: { setup_future_usage: 'on_session' },
       line_items: lineItems,
       mode: 'payment',
-      expires_at: Math.floor(Date.now() / 1000) + (30 * 60), 
+      expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
       success_url: `${appUrl.replace(/\/$/, '')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl.replace(/\/$/, '')}/checkout/cancel`,
       metadata: {
@@ -1010,8 +1060,34 @@ export class OrdersService {
   async handleStripeWebhook(event: any) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as any;
-      const orderId = session.metadata?.orderId;
 
+      // Setup mode: usuario guardó tarjeta sin comprar
+      if (session.mode === 'setup' && session.setup_intent && session.metadata?.userId) {
+        const userId = session.metadata.userId;
+        try {
+          const si = await this.stripe.setupIntents.retrieve(session.setup_intent, { expand: ['payment_method'] });
+          const pm = si.payment_method;
+          if (pm && typeof pm === 'object' && pm.card) {
+            const existing = await this.paymentMethodRepo.findOne({ where: { providerId: pm.id } });
+            if (!existing) {
+              const count = await this.paymentMethodRepo.count({ where: { userId } });
+              await this.paymentMethodRepo.save(this.paymentMethodRepo.create({
+                userId,
+                type: PaymentMethodType.CREDIT_CARD,
+                brand: pm.card.brand || 'card',
+                last4: pm.card.last4 || '****',
+                providerId: pm.id,
+                isDefault: count === 0,
+              }));
+            }
+          }
+        } catch (err) {
+          console.error('Error saving card from setup session:', err);
+        }
+        return;
+      }
+
+      const orderId = session.metadata?.orderId;
       if (!orderId) return;
 
       const order = await this.orderRepo.findOne({ where: { id: orderId } });

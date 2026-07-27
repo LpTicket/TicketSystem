@@ -65,6 +65,9 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ nullable: true, length: 100, default: null })
+  stripeCustomerId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
