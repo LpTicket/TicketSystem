@@ -880,16 +880,9 @@ export class OrdersService {
       }
     }
 
-    // Attach Stripe Customer silently — never block checkout if it fails
-    const stripeCustomerId = await this.getOrCreateStripeCustomer(userId, checkoutBuyerEmail).catch(() => null);
-
     const session = await this.stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      ...(stripeCustomerId
-        ? { customer: stripeCustomerId }
-        : checkoutBuyerEmail
-          ? { customer_email: checkoutBuyerEmail }
-          : {}),
+      ...(checkoutBuyerEmail ? { customer_email: checkoutBuyerEmail } : {}),
       line_items: lineItems,
       mode: 'payment',
       expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
