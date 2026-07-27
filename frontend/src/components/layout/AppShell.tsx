@@ -17,6 +17,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // site header/footer/floating widgets that would overlap the ticket.
   const standalone = pathname.startsWith('/verify/');
 
+  // Checkout pages have their own wizard nav — hide the global header/footer
+  // so they don't collide with the sticky wizard breadcrumb.
+  const isCheckout = pathname.endsWith('/purchase');
+
   // The organizer event editor (esp. the venue-map tab) has its own dense toolbar
   // and floating controls; the global chat/social widgets overlap it and break the
   // layout on small screens (e.g. iPhone SE). Hide them there.
@@ -28,12 +32,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {!standalone && <Header />}
+      {!standalone && !isCheckout && <Header />}
       <Suspense fallback={null}>
         <AnalyticsTracker />
       </Suspense>
       <main className="min-h-screen w-full max-w-full overflow-x-clip">{children}</main>
-      {!standalone && <Footer />}
+      {!standalone && !isCheckout && <Footer />}
       {!standalone && !hideFloatingWidgets && <Chatbot />}
       {!standalone && !hideFloatingWidgets && <SocialMatchWidget />}
     </>

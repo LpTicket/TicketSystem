@@ -880,7 +880,7 @@ export class OrdersService {
       }
     }
 
-    const stripeCustomerId = await this.getOrCreateStripeCustomer(userId, checkoutBuyerEmail);
+    const stripeCustomerId = await this.getOrCreateStripeCustomer(userId, checkoutBuyerEmail).catch(() => null);
 
     const session = await this.stripe.checkout.sessions.create({
       payment_method_types: ['card'],
