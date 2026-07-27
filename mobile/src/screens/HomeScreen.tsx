@@ -35,6 +35,8 @@ const HOME_CACHE_KEY = 'lp_mobile_home_cache';
 type Props = {
   onOpenEvent: (event: MobileEvent) => void;
   scrollToTopSignal?: number;
+  initialScrollOffset?: number;
+  onScrollOffsetChange?: (offset: number) => void;
 };
 
 type ApiCategory = {
@@ -110,6 +112,101 @@ function SharePointIcon() {
   );
 }
 
+function PremiumEventCard({ event, onOpenEvent, t }: { event: MobileEvent; onOpenEvent: (event: MobileEvent) => void; t: (es: string, en: string) => string }) {
+  const pressProgress = useRef(new Animated.Value(0)).current;
+  const [pressed, setPressed] = useState(false);
+  const scale = pressProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.985] });
+  const translateY = pressProgress.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
+
+  const animatePress = (nextPressed: boolean) => {
+    setPressed(nextPressed);
+    Animated.spring(pressProgress, {
+      toValue: nextPressed ? 1 : 0,
+      useNativeDriver: true,
+      damping: nextPressed ? 20 : 14,
+      stiffness: nextPressed ? 280 : 240,
+      mass: 0.58,
+    }).start();
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ translateY }, { scale }] }}>
+      <TouchableOpacity
+        style={[styles.eventCard, pressed && styles.eventCardPressed]}
+        onPress={() => onOpenEvent(event)}
+        onPressIn={() => animatePress(true)}
+        onPressOut={() => animatePress(false)}
+        activeOpacity={1}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('Ver evento', 'View event')}: ${event.title}`}
+      >
+        <View style={styles.eventPoster}>
+          <Image source={getPosterImageSource(event)} style={styles.eventPosterImage} resizeMode="cover" />
+          <View style={styles.posterShade} />
+          <Animated.View pointerEvents="none" style={[styles.posterPressGlow, { opacity: pressProgress }]} />
+          <View style={styles.privateBadge}><Text style={styles.privateBadgeText}>● {event.tag}</Text></View>
+          <View style={styles.featuredBadge}>
+            <LinearGradient
+              colors={['#ff8a18', '#f46c00', '#c93f00']}
+              locations={[0, 0.46, 1]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View pointerEvents="none" style={styles.featuredShine}>
+              <LinearGradient
+                colors={['rgba(255,235,205,0)', 'rgba(255,235,205,0.85)', 'rgba(255,235,205,0)']}
+                locations={[0, 0.5, 1]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </View>
+            <Text style={styles.featuredText}>{t('DESTACADO', 'FEATURED')}</Text>
+          </View>
+        </View>
+        <View style={styles.eventInfo}>
+          <Text style={styles.eventName} numberOfLines={2}>{event.title}</Text>
+          <View style={styles.metaRow}>
+            <Ionicons name="calendar-outline" size={15} color="#F97316" />
+            <Text style={styles.eventMeta} numberOfLines={1}>{event.date}</Text>
+          </View>
+          <View style={styles.metaRow}>
+            <Ionicons name="location-outline" size={15} color="#F97316" />
+            <View style={styles.metaCol}>
+              <Text style={styles.eventMeta} numberOfLines={1}>{event.venue}</Text>
+              {!!event.address && <Text style={styles.eventAddress} numberOfLines={1}>{event.address}</Text>}
+            </View>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.metaRow}>
+            <Ionicons name="pricetag-outline" size={15} color="#F97316" />
+            <Text style={styles.price}>{t('Desde', 'From')} {event.price}</Text>
+          </View>
+          <View style={styles.ctaRow}>
+            <TouchableOpacity
+              style={styles.shareButton}
+              onPress={() => Share.share({
+                title: event.title,
+                message: `${event.title} — ${event.date}\n${event.venue}\n\nlpticket://events/${event.slug || event.id}\nhttps://www.lpticket.com/events/${event.slug || event.id}`,
+              })}
+            >
+              <SharePointIcon />
+            </TouchableOpacity>
+            <GradientButton
+              onPress={() => onOpenEvent(event)}
+              height={56}
+              style={styles.buyButton}
+              textStyle={styles.buyText}
+              label={t('VER EVENTO', 'VIEW EVENT')}
+            />
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 
 const CATEGORY_VISUALS: { keys: string[]; image: string }[] = [
   { keys: ['concert', 'concierto', 'music', 'musica', 'música', 'festival'], image: 'https://www.lpticket.com/demo/concert.png' },
@@ -138,10 +235,11 @@ function eventMatchesCategory(event: MobileEvent, categorySlug: string) {
   return [event.category, event.categoryName, event.tag].some((value) => normalizeCategory(value) === selected);
 }
 
-export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
+export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0, initialScrollOffset = 0, onScrollOffsetChange }: Props) {
   const { lang, t } = useLanguage();
   const { width } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
+  const restoredScrollPosition = useRef(false);
   const [events, setEvents] = useState<MobileEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [realCategories, setRealCategories] = useState<ApiCategory[]>([]);
@@ -172,6 +270,15 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
     if (!scrollToTopSignal) return;
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [scrollToTopSignal]);
+
+  useEffect(() => {
+    if (loading || restoredScrollPosition.current || initialScrollOffset <= 0) return;
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: initialScrollOffset, animated: false });
+      restoredScrollPosition.current = true;
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [initialScrollOffset, loading]);
 
   const trustItems: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string }[] = [
     { icon: 'card-outline', title: t('Pagos seguros', 'Secure payments'), subtitle: t('Procesado por Stripe.', 'Processed by Stripe') },
@@ -516,7 +623,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
 
   return (
     <View style={styles.root}>
-    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} scrollEventThrottle={16} onScroll={(event) => onScrollOffsetChange?.(event.nativeEvent.contentOffset.y)}>
       <View pointerEvents="none" style={styles.bgBaseLayer} />
       <View pointerEvents="none" style={styles.bgAccentOrange} />
       <View pointerEvents="none" style={styles.bgAccentBlue} />
@@ -765,69 +872,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0 }: Props) {
       ) : null}
 
       {filteredEvents.map((event, index) => (
-        <TouchableOpacity key={`${event.id || event.slug || event.title || 'event'}-${index}`} style={styles.eventCard} onPress={() => onOpenEvent(event)}>
-          <View style={styles.eventPoster}>
-            <Image source={getPosterImageSource(event)} style={styles.eventPosterImage} resizeMode="cover" />
-            <View style={styles.posterShade} />
-            <View style={styles.privateBadge}><Text style={styles.privateBadgeText}>● {event.tag}</Text></View>
-            <View style={styles.featuredBadge}>
-              <LinearGradient
-                colors={['#ff8a18', '#f46c00', '#c93f00']}
-                locations={[0, 0.46, 1]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <View pointerEvents="none" style={styles.featuredShine}>
-                <LinearGradient
-                  colors={['rgba(255,235,205,0)', 'rgba(255,235,205,0.85)', 'rgba(255,235,205,0)']}
-                  locations={[0, 0.5, 1]}
-                  start={{ x: 0, y: 0.5 }}
-                  end={{ x: 1, y: 0.5 }}
-                  style={StyleSheet.absoluteFill}
-                />
-              </View>
-              <Text style={styles.featuredText}>{t('DESTACADO', 'FEATURED')}</Text>
-            </View>
-          </View>
-          <View style={styles.eventInfo}>
-            <Text style={styles.eventName} numberOfLines={2}>{event.title}</Text>
-            <View style={styles.metaRow}>
-              <Ionicons name="calendar-outline" size={15} color="#F97316" />
-              <Text style={styles.eventMeta} numberOfLines={1}>{event.date}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Ionicons name="location-outline" size={15} color="#F97316" />
-              <View style={styles.metaCol}>
-                <Text style={styles.eventMeta} numberOfLines={1}>{event.venue}</Text>
-                {!!event.address && <Text style={styles.eventAddress} numberOfLines={1}>{event.address}</Text>}
-              </View>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.metaRow}>
-              <Ionicons name="pricetag-outline" size={15} color="#F97316" />
-              <Text style={styles.price}>{t('Desde', 'From')} {event.price}</Text>
-            </View>
-            <View style={styles.ctaRow}>
-              <TouchableOpacity
-                style={styles.shareButton}
-                onPress={() => Share.share({
-                  title: event.title,
-                  message: `${event.title} — ${event.date}\n${event.venue}\n\nlpticket://events/${event.slug || event.id}\nhttps://www.lpticket.com/events/${event.slug || event.id}`,
-                })}
-              >
-                <SharePointIcon />
-              </TouchableOpacity>
-              <GradientButton
-                onPress={() => onOpenEvent(event)}
-                height={56}
-                style={styles.buyButton}
-                textStyle={styles.buyText}
-                label={t('VER EVENTO', 'VIEW EVENT')}
-              />
-            </View>
-          </View>
-        </TouchableOpacity>
+        <PremiumEventCard key={`${event.id || event.slug || event.title || 'event'}-${index}`} event={event} onOpenEvent={onOpenEvent} t={t} />
       ))}
 
       {trustSection}
@@ -914,9 +959,11 @@ const styles = StyleSheet.create({
   eventsTitle: { color: '#FFFFFF', fontSize: 32, lineHeight: 36, fontWeight: '600' },
   eventsCount: { color: 'rgba(203,213,225,0.72)', fontSize: 16, fontWeight: '400', marginTop: 12 },
   eventCard: { marginHorizontal: 16, marginTop: 18, backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
+  eventCardPressed: { borderColor: 'rgba(249,115,22,0.78)', shadowColor: '#F97316', shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
   eventPoster: { width: '100%', aspectRatio: 3 / 4, position: 'relative', backgroundColor: 'rgba(255,255,255,0.012)' },
   eventPosterImage: { width: '100%', height: '100%' },
   posterShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(5,24,44,0.12)' },
+  posterPressGlow: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(249,115,22,0.10)' },
   privateBadge: { position: 'absolute', top: 16, left: 14, backgroundColor: 'rgba(16,185,129,0.18)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(16,185,129,0.46)', paddingHorizontal: 12, paddingVertical: 8, shadowColor: '#10B981', shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   privateBadgeText: { color: '#D1FAE5', fontSize: 12, fontWeight: '600', letterSpacing: 0 },
   featuredBadge: { position: 'absolute', top: 16, right: 14, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,151,45,0.62)', shadowColor: '#ff6800', shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 12 }, elevation: 6 },

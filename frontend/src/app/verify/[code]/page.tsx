@@ -39,6 +39,7 @@ export default function VerifyTicketPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const openedFromMobileApp = searchParams.get('source') === 'mobile-app';
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
   const [shareLabel, setShareLabel] = useState('Compartir');
@@ -614,12 +615,14 @@ export default function VerifyTicketPage() {
       {/* Screen-only action bar */}
       <div className="no-print w-full bg-white border-b border-gray-100 shadow-sm sticky top-0 z-10 px-4">
         <div className="max-w-2xl mx-auto py-3 flex justify-between items-center gap-3">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors font-medium shrink-0"
-          >
-            <HiOutlineArrowLeft className="w-4 h-4" /> Volver
-          </button>
+          {!openedFromMobileApp && (
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors font-medium shrink-0"
+            >
+              <HiOutlineArrowLeft className="w-4 h-4" /> Volver
+            </button>
+          )}
 
           <div className="flex items-center gap-2 shrink-0">
             <button

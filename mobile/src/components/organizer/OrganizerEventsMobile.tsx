@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Image, PanResponder, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../../theme/colors';
@@ -22,6 +22,7 @@ type Props = {
   goTo: (section: 'dashboard' | 'create' | 'details' | 'map' | 'attendees' | 'blocks') => void;
   onOpen?: (event: OrganizerEventItem, section: EventSection) => void;
   onTogglePublish?: (event: OrganizerEventItem) => void;
+  onFilterGestureChange?: (active: boolean) => void;
 };
 
 type OrganizerEventItem = {
@@ -47,10 +48,8 @@ function isPastEvent(value: string) {
   return !Number.isNaN(d.getTime()) && d.getTime() < Date.now();
 }
 
-export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, events, errorMessage, setEventStatus, goTo, onOpen, onTogglePublish }: Props) {
+export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, events, errorMessage, setEventStatus, goTo, onOpen, onTogglePublish, onFilterGestureChange }: Props) {
   const { t, lang } = useLanguage();
-  const filterIndicatorX = useRef(new Animated.Value(0)).current;
-  const filterIndicatorWidth = useRef(new Animated.Value(64)).current;
   const filterScrollRef = useRef<ScrollView>(null);
   const [filter, setFilter] = useState<FilterKey>('published');
   const [search, setSearch] = useState('');
@@ -103,48 +102,42 @@ export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, eve
     { key: 'cancelled', label: t('Cancelado', 'Cancelled') },
   ];
   const activeFilterIndex = Math.max(0, FILTERS.findIndex((item) => item.key === filter));
+  const filterSelectionWidth = Math.min(
+    Math.max(filterLayouts[filter]?.width ?? 62, 62),
+    Math.max(62, filterViewportWidth * 0.78),
+  );
 
   useEffect(() => {
     const layout = filterLayouts[filter];
-    if (!layout) return;
+    if (!layout || filterViewportWidth <= 0) return;
 
-    Animated.parallel([
-      Animated.spring(filterIndicatorX, {
-        toValue: layout.x,
-        useNativeDriver: false,
-        damping: 18,
-        stiffness: 210,
-        mass: 0.68,
-      }),
-      Animated.spring(filterIndicatorWidth, {
-        toValue: layout.width,
-        useNativeDriver: false,
-        damping: 18,
-        stiffness: 210,
-        mass: 0.68,
-      }),
-    ]).start();
-
-    if (filterViewportWidth > 0) {
-      const targetX = Math.max(0, layout.x + layout.width / 2 - filterViewportWidth / 2);
-      filterScrollRef.current?.scrollTo({ x: targetX, animated: true });
-    }
-  }, [filter, filterIndicatorWidth, filterIndicatorX, filterLayouts, filterViewportWidth]);
+    const targetX = Math.max(0, layout.x + layout.width / 2 - filterViewportWidth / 2);
+    filterScrollRef.current?.scrollTo({ x: targetX, animated: true });
+  }, [filter, filterLayouts, filterViewportWidth]);
 
   const selectFilter = (key: FilterKey) => {
     setFilter(key);
-    const layout = filterLayouts[key];
-    if (layout && filterViewportWidth > 0) {
-      const targetX = Math.max(0, layout.x + layout.width / 2 - filterViewportWidth / 2);
-      filterScrollRef.current?.scrollTo({ x: targetX, animated: true });
-    }
   };
 
-  const stepFilter = (direction: -1 | 1) => {
-    const nextIndex = Math.max(0, Math.min(FILTERS.length - 1, activeFilterIndex + direction));
-    const next = FILTERS[nextIndex];
-    if (next) selectFilter(next.key);
-  };
+  const filterStepPanResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponderCapture: (_event, gesture) => (
+      Math.abs(gesture.dx) > 6 && Math.abs(gesture.dx) > Math.abs(gesture.dy)
+    ),
+    onPanResponderGrant: () => onFilterGestureChange?.(true),
+    onPanResponderRelease: (_event, gesture) => {
+      onFilterGestureChange?.(false);
+      if (Math.abs(gesture.dx) < 18) return;
+      const nextIndex = Math.max(
+        0,
+        Math.min(FILTERS.length - 1, activeFilterIndex + (gesture.dx < 0 ? 1 : -1)),
+      );
+      const next = FILTERS[nextIndex];
+      if (next) selectFilter(next.key);
+    },
+    onPanResponderTerminate: () => onFilterGestureChange?.(false),
+    onPanResponderTerminationRequest: () => false,
+  }), [FILTERS, activeFilterIndex, onFilterGestureChange]);
 
   return (
     <View>
@@ -178,41 +171,26 @@ export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, eve
 
       {/* Filter chips */}
       <View style={styles.filterWrap}>
-        <View style={styles.filterRow}>
-          <TouchableOpacity
-            style={[styles.filterArrowBtn, activeFilterIndex <= 0 && styles.filterArrowBtnDisabled]}
-            disabled={activeFilterIndex <= 0}
-            onPress={() => stepFilter(-1)}
-            activeOpacity={0.65}
+          <View
+            style={styles.filterShell}
+            onLayout={(event) => setFilterViewportWidth(event.nativeEvent.layout.width)}
+            {...filterStepPanResponder.panHandlers}
           >
-            <Ionicons
-              name="chevron-back"
-              size={18}
-              color={activeFilterIndex <= 0 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.86)'}
-            />
-          </TouchableOpacity>
-
-          <View style={styles.filterShell} onLayout={(event) => setFilterViewportWidth(event.nativeEvent.layout.width)}>
             <ScrollView
               ref={filterScrollRef}
               horizontal
+              scrollEnabled={false}
+              directionalLockEnabled
+              alwaysBounceVertical={false}
+              bounces={false}
+              overScrollMode="never"
               showsHorizontalScrollIndicator={false}
               style={styles.filterScroller}
-              contentContainerStyle={styles.filterContent}
-              scrollEventThrottle={16}
+              contentContainerStyle={[
+                styles.filterContent,
+                { paddingHorizontal: filterViewportWidth / 2 },
+              ]}
             >
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.filterSlidingPill,
-                  {
-                    left: filterIndicatorX,
-                    width: filterIndicatorWidth,
-                  },
-                ]}
-              >
-                <View style={styles.filterSlidingShine} />
-              </Animated.View>
               {FILTERS.map((f, index) => {
                 const activeFilter = filter === f.key;
                 return (
@@ -245,27 +223,11 @@ export function OrganizerEventsMobile({ eventTitle, eventVenue, eventStatus, eve
               end={{ x: 1, y: 0.5 }}
               style={[styles.filterFade, styles.filterFadeRight]}
             />
+            <View pointerEvents="none" style={[styles.filterFixedSelection, { width: filterSelectionWidth }]}>
+              <View style={styles.filterFixedSelectionShine} />
+            </View>
           </View>
-
-          <TouchableOpacity
-            style={[styles.filterArrowBtn, activeFilterIndex >= FILTERS.length - 1 && styles.filterArrowBtnDisabled]}
-            disabled={activeFilterIndex >= FILTERS.length - 1}
-            onPress={() => stepFilter(1)}
-            activeOpacity={0.65}
-          >
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={activeFilterIndex >= FILTERS.length - 1 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.86)'}
-            />
-          </TouchableOpacity>
         </View>
-        <View pointerEvents="none" style={styles.filterDots}>
-          {FILTERS.map((f, index) => (
-            <View key={`${f.key}-dot-${index}`} style={[styles.filterDot, activeFilterIndex === index && styles.filterDotActive]} />
-          ))}
-        </View>
-      </View>
 
       {/* Search */}
       <View style={styles.searchBox}>
@@ -467,31 +429,23 @@ const styles = StyleSheet.create({
 
   // Filter chips
   filterWrap: { marginBottom: 10 },
-  filterRow: { height: 46, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 1 },
-  filterArrowBtn: { width: 22, height: 40, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  filterArrowBtnDisabled: { opacity: 0.55 },
-  filterShell: { flex: 1, height: 42, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(3,11,20,0.86)', overflow: 'hidden' },
+  filterShell: { height: 44, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(3,11,20,0.86)', overflow: 'hidden', position: 'relative', justifyContent: 'center' },
   filterScroller: { flex: 1 },
-  filterContent: { minHeight: 40, paddingHorizontal: 4, gap: 4, flexDirection: 'row', alignItems: 'center' },
+  filterContent: { minHeight: 44, gap: 4, flexDirection: 'row', alignItems: 'center' },
   filterFade: { position: 'absolute', top: 1, bottom: 1, width: 34, zIndex: 3 },
   filterFadeLeft: { left: 1 },
   filterFadeRight: { right: 1 },
-  filterSlidingPill: { position: 'absolute', top: 4, height: 32, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.16)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.55)', overflow: 'hidden' },
-  filterSlidingShine: { position: 'absolute', top: 2, left: 10, right: 10, height: 1, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.32)' },
-  filterDots: { height: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 2, marginBottom: 8 },
-  filterDot: { width: 4, height: 4, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.24)' },
-  filterDotActive: { width: 14, backgroundColor: 'rgba(249,115,22,0.72)' },
   filterChip: {
     height: 32,
     borderRadius: 12,
     paddingHorizontal: 13,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1,
   },
-  filterChipActive: {},
   filterChipText: { color: 'rgba(226,232,240,0.62)', fontSize: 12, fontWeight: '600', maxWidth: 112 },
   filterChipTextActive: { color: '#FFFFFF' },
+  filterFixedSelection: { position: 'absolute', alignSelf: 'center', top: 5, bottom: 5, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.18)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.62)', overflow: 'hidden', zIndex: 4 },
+  filterFixedSelectionShine: { position: 'absolute', top: 2, left: 12, right: 12, height: 1, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.34)' },
 
   // Search
   searchBox: {

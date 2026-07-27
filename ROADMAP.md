@@ -31,6 +31,7 @@
 
 ## Funcionalidades Planificadas
 
+- Efecto táctil premium para tarjetas de eventos: presión sutil tipo cristal, borde y halo naranja, sin oscurecer el flyer.
 - Migraciones TypeORM versionadas.
 - Pruebas automatizadas para pagos, tickets, mapas y permisos.
 - Mejor manejo de imágenes pesadas.

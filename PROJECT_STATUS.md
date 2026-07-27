@@ -38,7 +38,7 @@ El backend es la fuente de verdad para eventos, mapas, asientos, bloqueos, órde
 | Apple Wallet y Google Wallet | IMPLEMENTADO, NO PROBADO | Servicios y endpoints presentes; Apple Wallet conserva QR, usa el flyer como fondo y miniatura, y muestra evento, titular y venue; pendiente de prueba física. |
 | Ventas en puerta | IMPLEMENTADO | Preview, checkout, facturación y tickets presentes. |
 | Tap to Pay en iPhone | IMPLEMENTADO, NO PROBADO | Entitlement de Apple concedido y perfil renovado para el build iOS 30; pendiente prueba física con Stripe Terminal. |
-| Métodos de pago | IMPLEMENTADO | Módulo de pagos presente. |
+| Métodos de pago | IMPLEMENTADO | Compra online mediante Stripe Checkout; no se añadió un módulo nativo adicional. |
 | Social Match y chat | IMPLEMENTADO, NO PROBADO | Intereses traducidos, sugerencias solo entre asistentes activos con intereses compartidos, conexiones, descartes y mensajes presentes; pendiente de prueba móvil. |
 | Escáner de empleados | IMPLEMENTADO | Solicitudes, aprobación, búsqueda y validación presentes. |
 | Panel organizador | IMPLEMENTADO | Eventos, asistentes, analítica, bloques, comisiones y escaneo presentes. |

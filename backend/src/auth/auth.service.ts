@@ -145,6 +145,8 @@ export class AuthService {
       isActive: false,
     } as any);
 
+    await this.invalidateProfileCache(userId);
+
     return { success: true };
   }
 

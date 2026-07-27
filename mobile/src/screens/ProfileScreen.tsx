@@ -17,7 +17,6 @@ import { updateProfile as updateProfileRequest } from '../services/auth';
 import { AccountMobile } from '../components/profile/AccountMobile';
 import { MySpecialCodesMobile } from '../components/profile/MySpecialCodesMobile';
 import { OrdersMobile } from '../components/profile/OrdersMobile';
-import { PaymentMethodsMobile } from '../components/profile/PaymentMethodsMobile';
 import { presentTapToPayEducation } from '../services/tapToPayEducation';
 
 type ProfileTab = 'account' | 'payments' | 'codes';
@@ -33,11 +32,14 @@ type Props = {
   onSetMode?: (mode: AppMode) => void;
   onOpenTapToPay?: () => void;
   scrollToTopSignal?: number;
+  initialScrollOffset?: number;
+  onScrollOffsetChange?: (offset: number) => void;
 };
 
-export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onLogout, canOrganize, canAdmin, viewMode = 'client', onSetMode, onOpenTapToPay, scrollToTopSignal = 0 }: Props) {
+export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onLogout, canOrganize, canAdmin, viewMode = 'client', onSetMode, onOpenTapToPay, scrollToTopSignal = 0, initialScrollOffset = 0, onScrollOffsetChange }: Props) {
   const { t } = useLanguage();
   const scrollRef = useRef<ScrollView>(null);
+  const restoredScrollPosition = useRef(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
@@ -72,6 +74,15 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [scrollToTopSignal]);
 
+  useEffect(() => {
+    if (restoredScrollPosition.current || initialScrollOffset <= 0) return;
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: initialScrollOffset, animated: false });
+      restoredScrollPosition.current = true;
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [initialScrollOffset]);
+
   const updateProfile = (key: keyof typeof profile, value: string) => {
     setProfile((current) => ({ ...current, [key]: value }));
   };
@@ -96,7 +107,7 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
 
   if (editing) {
     return (
-      <ScrollView ref={scrollRef} style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView ref={scrollRef} style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} scrollEventThrottle={16} onScroll={(event) => onScrollOffsetChange?.(event.nativeEvent.contentOffset.y)}>
         <View style={styles.editHeader}>
           <Text style={styles.eyebrow}>{t('PERFIL', 'PROFILE')}</Text>
           <Text style={styles.editTitle}>{t('Editar información', 'Edit information')}</Text>
@@ -144,7 +155,7 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
   );
 
   return (
-    <ScrollView ref={scrollRef} style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+    <ScrollView ref={scrollRef} style={styles.root} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} scrollEventThrottle={16} onScroll={(event) => onScrollOffsetChange?.(event.nativeEvent.contentOffset.y)}>
       {activeTab === 'account' && <AccountMobile user={user} onUserUpdated={onUserUpdated} onAccountDeleted={onLogout} tabs={tabs} />}
 
       {activeTab === 'payments' && (
@@ -166,7 +177,6 @@ export function ProfileScreen({ initialTab = 'account', user, onUserUpdated, onL
               t={t}
             />
           ) : null}
-          <PaymentMethodsMobile />
           <OrdersMobile />
         </>
       )}

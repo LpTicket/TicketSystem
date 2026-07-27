@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { AuthUser, getImageUrl } from '../../services/api';
+import { AuthUser, getApiErrorMessage, getImageUrl } from '../../services/api';
 import { deleteAccount as deleteAccountRequest, updateProfile as updateProfileRequest, uploadAvatar as uploadAvatarRequest } from '../../services/auth';
 import { GradientButton } from '../GradientButton';
 
@@ -28,22 +28,30 @@ type Props = {
   showSections?: boolean;
 };
 
-export function AccountMobile({ user, onUserUpdated, onAccountDeleted, tabs, showSections = true }: Props) {
-  const { t } = useLanguage();
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [deletingAccount, setDeletingAccount] = useState(false);
-  const [account, setAccount] = useState<AccountForm>({
+function accountFromUser(user: AuthUser): AccountForm {
+  return {
     firstName: user.firstName || '',
     lastName: user.lastName || '',
     username: user.username || '',
     email: user.email || '',
     phone: user.phone || '',
-    address: '',
+    address: user.address || '',
     password: '',
     confirmPassword: '',
-  });
+  };
+}
+
+export function AccountMobile({ user, onUserUpdated, onAccountDeleted, tabs, showSections = true }: Props) {
+  const { lang, t } = useLanguage();
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [account, setAccount] = useState<AccountForm>(() => accountFromUser(user));
+
+  useEffect(() => {
+    if (!editing) setAccount(accountFromUser(user));
+  }, [editing, user]);
 
   const initials = `${account.firstName[0] || ''}${account.lastName[0] || ''}`.toUpperCase();
   const avatarUrl = getImageUrl(user.avatarUrl);
@@ -69,17 +77,26 @@ export function AccountMobile({ user, onUserUpdated, onAccountDeleted, tabs, sho
         username: account.username || undefined,
         email: account.email,
         phone: account.phone,
-        ...(account.address ? { address: account.address } : {}),
+        address: account.address,
         ...(account.password ? { password: account.password } : {}),
       });
       onUserUpdated?.(updated);
-      setAccount((c) => ({ ...c, password: '', confirmPassword: '' }));
+      setAccount(accountFromUser(updated));
       setEditing(false);
-    } catch {
-      /* keep editing on error */
+      Alert.alert(t('Perfil actualizado', 'Profile updated'), t('Tus cambios se guardaron correctamente.', 'Your changes were saved successfully.'));
+    } catch (err: any) {
+      Alert.alert(
+        t('No se pudo guardar', 'Could not save'),
+        getApiErrorMessage(err, lang, t('Revisa los datos e inténtalo de nuevo.', 'Review your details and try again.')),
+      );
     } finally {
       setSaving(false);
     }
+  };
+
+  const cancelEdit = () => {
+    setAccount(accountFromUser(user));
+    setEditing(false);
   };
 
   const changeAvatar = async () => {
@@ -225,7 +242,7 @@ export function AccountMobile({ user, onUserUpdated, onAccountDeleted, tabs, sho
               </View>
 
               {editing ? (
-                <TouchableOpacity style={styles.cancelSmall} onPress={() => setEditing(false)}>
+                <TouchableOpacity style={styles.cancelSmall} onPress={cancelEdit}>
                   <Text style={styles.cancelSmallText}>CANCEL</Text>
                 </TouchableOpacity>
               ) : (

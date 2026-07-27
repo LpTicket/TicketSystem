@@ -47,6 +47,10 @@ type TicketsResponse = {
 
 type Props = {
   scrollToTopSignal?: number;
+  initialScrollOffset?: number;
+  onScrollOffsetChange?: (offset: number) => void;
+  onOpenExternalUrl?: (url: string) => void;
+  onPrepareExternalNavigation?: () => void;
 };
 
 async function getUserCacheKey(prefix: string) {
@@ -87,26 +91,33 @@ function seatText(ticket: MobileTicket, t: (es: string, en: string) => string) {
   return parts.length ? parts.join(' · ') : t('Entrada general', 'General admission');
 }
 
-function openUrl(url?: string | null) {
+function openUrl(url?: string | null, onOpenExternalUrl?: (url: string) => void) {
   if (!url) return;
+  if (onOpenExternalUrl) {
+    onOpenExternalUrl(url);
+    return;
+  }
   Linking.openURL(url).catch(() => {});
 }
 
-function ticketVerifyUrl(code: string) {
-  return `${SITE_URL}/verify/${code}`;
+function ticketVerifyUrl(code: string, fromMobileApp = false) {
+  const url = `${SITE_URL}/verify/${code}`;
+  return fromMobileApp ? `${url}?source=mobile-app` : url;
 }
 
 function appleWalletUrl(code: string) {
   return `${SITE_URL}/api/wallet/${encodeURIComponent(code)}`;
 }
 
-function openAppleWallet(url: string) {
+function openAppleWallet(url: string, onPrepareExternalNavigation?: () => void) {
+  onPrepareExternalNavigation?.();
   WebBrowser.openBrowserAsync(url).catch(() => openUrl(url));
 }
 
-export function TicketsScreen({ scrollToTopSignal = 0 }: Props) {
+export function TicketsScreen({ scrollToTopSignal = 0, initialScrollOffset = 0, onScrollOffsetChange, onOpenExternalUrl, onPrepareExternalNavigation }: Props) {
   const { t, lang } = useLanguage();
   const scrollRef = useRef<ScrollView>(null);
+  const restoredScrollPosition = useRef(false);
   const [tickets, setTickets] = useState<MobileTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [resending, setResending] = useState<string | null>(null);
@@ -156,14 +167,23 @@ export function TicketsScreen({ scrollToTopSignal = 0 }: Props) {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [scrollToTopSignal]);
 
+  useEffect(() => {
+    if (loading || restoredScrollPosition.current || initialScrollOffset <= 0) return;
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: initialScrollOffset, animated: false });
+      restoredScrollPosition.current = true;
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [initialScrollOffset, loading]);
+
   const visibleTickets = tickets;
 
   const openGoogleWallet = async (code: string) => {
     try {
       const response = await apiGet<{ url?: string }>(`/orders/ticket/${code}/google-wallet`);
-      openUrl(response.url);
+      openUrl(response.url, onOpenExternalUrl);
     } catch {
-      openUrl(ticketVerifyUrl(code));
+      openUrl(ticketVerifyUrl(code, true), onOpenExternalUrl);
     }
   };
 
@@ -187,7 +207,7 @@ export function TicketsScreen({ scrollToTopSignal = 0 }: Props) {
   };
 
   return (
-    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} scrollEventThrottle={16} onScroll={(event) => onScrollOffsetChange?.(event.nativeEvent.contentOffset.y)}>
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>{t('MIS TICKETS', 'MY TICKETS')}</Text>
         <Text style={styles.title}>{t('Tickets digitales', 'Digital tickets')}</Text>
@@ -252,8 +272,8 @@ export function TicketsScreen({ scrollToTopSignal = 0 }: Props) {
               </View>
 
               <View style={styles.actions}>
-                <ActionButton label={t('VER TICKET', 'VIEW TICKET')} primary onPress={() => openUrl(ticketVerifyUrl(ticket.ticketCode))} />
-                <ActionButton label="APPLE WALLET" onPress={() => openAppleWallet(appleWalletUrl(ticket.ticketCode))} />
+                <ActionButton label={t('VER TICKET', 'VIEW TICKET')} primary onPress={() => openUrl(ticketVerifyUrl(ticket.ticketCode, true), onOpenExternalUrl)} />
+                <ActionButton label="APPLE WALLET" onPress={() => openAppleWallet(appleWalletUrl(ticket.ticketCode), onPrepareExternalNavigation)} />
                 <ActionButton label="GOOGLE WALLET" onPress={() => openGoogleWallet(ticket.ticketCode)} />
                 <ActionButton
                   label={resending === ticket.ticketCode ? t('ENVIANDO...', 'SENDING...') : t('REENVIAR AL CORREO', 'RESEND EMAIL')}

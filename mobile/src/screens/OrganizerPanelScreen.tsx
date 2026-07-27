@@ -179,10 +179,11 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
   const mapScrollLockRef = useRef(false);
   // Locked while dragging/zooming the venue map, so the page doesn't scroll.
   const [mapScrollLock, setMapScrollLockState] = useState(false);
+  const [eventsFilterGestureActive, setEventsFilterGestureActive] = useState(false);
   const [internalSection, setInternalSection] = useState<Section>(adminEvent ? 'details' : 'dashboard');
   const active = section ?? internalSection;
   const setActive = (s: Section) => { setInternalSection(s); onSectionChange?.(s); };
-  const panelScrollEnabled = !mapScrollLock;
+  const panelScrollEnabled = !mapScrollLock && !eventsFilterGestureActive;
   const [tabLayouts, setTabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
   const [tabsViewportWidth, setTabsViewportWidth] = useState(0);
   const [tabsContentWidth, setTabsContentWidth] = useState(0);
@@ -773,6 +774,7 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
             goTo={setActive}
             onOpen={(ev, toSection) => openEvent(ev, toSection)}
             onTogglePublish={handleTogglePublish}
+            onFilterGestureChange={setEventsFilterGestureActive}
           />
         )}
 

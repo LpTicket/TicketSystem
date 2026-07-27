@@ -74,6 +74,8 @@ function AppContent() {
   const navTouchStartY = useRef<number | null>(null);
   const navCompactState = useRef(false);
   const pendingNavPillTarget = useRef<number | null>(null);
+  const preserveNavigationOnNextForeground = useRef(false);
+  const screenScrollOffsets = useRef({ events: 0, eventDetail: 0, tickets: 0, social: 0, profile: 0 });
   const [tab, setTab] = useState<Tab>('events');
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -102,6 +104,10 @@ function AppContent() {
   const [scrollToTopSignal, setScrollToTopSignal] = useState(0);
   const [legalDoc, setLegalDoc] = useState<LegalKey>('terms');
   const goToLegal = (key: LegalKey) => { setLegalDoc(key); goToTab('legal'); };
+  const openEvent = (event: MobileEvent) => {
+    screenScrollOffsets.current.eventDetail = 0;
+    setSelectedEvent(event);
+  };
   const notifyDoorSaleCompleted = useCallback(() => {
     setSalesRefreshKey((key) => key + 1);
   }, []);
@@ -123,6 +129,19 @@ function AppContent() {
     setViewMode('client');
     setTab('events');
   }, []);
+
+  const dismissTransientFlow = () => {
+    setMenuOpen(false);
+    setEmployeeScanBackToMenu(false);
+    setScanOpen(false);
+    setPurchaseOpen(false);
+    setCheckoutInfoOpen(false);
+    setOrderSummaryOpen(false);
+    setPaymentSuccessOpen(false);
+    setCartDrawerOpen(false);
+    setLoginAfterPurchase(false);
+    setAuthReturn(null);
+  };
 
   // Read cart from AsyncStorage — mirrors web localStorage(`selectedSeats_${eventId}`)
   const loadCartFromStorage = useCallback(async (eventId?: string) => {
@@ -259,8 +278,12 @@ function AppContent() {
     const previousState = { current: AppState.currentState };
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active' && previousState.current === 'background') {
-        resetToClientHome();
-        AsyncStorage.removeItem('lp_nav_state').catch(() => {});
+        if (preserveNavigationOnNextForeground.current) {
+          preserveNavigationOnNextForeground.current = false;
+        } else {
+          resetToClientHome();
+          AsyncStorage.removeItem('lp_nav_state').catch(() => {});
+        }
       }
       previousState.current = state;
     });
@@ -417,8 +440,22 @@ function AppContent() {
       setTab(nextTab);
       return;
     }
+    const remembersClientPlace = viewMode === 'client'
+      && ['events', 'tickets', 'social', 'aichat', 'profile'].includes(nextTab);
+    if (remembersClientPlace) {
+      dismissTransientFlow();
+      setTab(nextTab);
+      return;
+    }
     clearFlow();
     setTab(nextTab);
+  };
+
+  const openExternalUrlFromClient = (url: string) => {
+    preserveNavigationOnNextForeground.current = true;
+    Linking.openURL(url).catch(() => {
+      preserveNavigationOnNextForeground.current = false;
+    });
   };
 
   const goToEmployeeScanFromMenu = () => {
@@ -659,12 +696,31 @@ function AppContent() {
           <CheckoutInfoScreen event={selectedEvent} user={currentUser} onBack={() => clearTicketSelection(selectedEvent.id)} onPaid={() => { clearFlow(); setTab('tickets'); }} seats={preSelectedSeats} gaSection={preSelectedGa} gaQty={preSelectedGaQty} />
         ) : selectedEvent && loginAfterPurchase ? (
           <LoginScreen onSignIn={(user) => { setCurrentUser(user); setLoginAfterPurchase(false); setCheckoutInfoOpen(true); }} />
-        ) : selectedEvent ? (
-          <EventDetailScreen event={selectedEvent} cartSyncToken={cartSyncToken} onBack={async () => { await clearTicketSelection(selectedEvent.id); setSelectedEvent(null); }} onSelectionCountChange={setCartSelectionCount} isLoggedIn={isLoggedIn} onRequestLogin={() => requestLoginFromCurrentPlace({ tab: 'events', selectedEvent, viewMode: 'client', checkoutInfoOpen: false })} onBuy={(seats, ga, gaQty) => { setPreSelectedSeats(seats); setPreSelectedGa(ga); setPreSelectedGaQty(gaQty ?? 1); if (isLoggedIn) { setCheckoutInfoOpen(true); } else { setLoginAfterPurchase(true); } }} />
+        ) : tab === 'events' && selectedEvent ? (
+          <EventDetailScreen
+            event={selectedEvent}
+            cartSyncToken={cartSyncToken}
+            initialScrollOffset={screenScrollOffsets.current.eventDetail}
+            onScrollOffsetChange={(offset) => { screenScrollOffsets.current.eventDetail = offset; }}
+            onBack={async () => {
+              await clearTicketSelection(selectedEvent.id);
+              screenScrollOffsets.current.eventDetail = 0;
+              setSelectedEvent(null);
+            }}
+            onSelectionCountChange={setCartSelectionCount}
+            isLoggedIn={isLoggedIn}
+            onRequestLogin={() => requestLoginFromCurrentPlace({ tab: 'events', selectedEvent, viewMode: 'client', checkoutInfoOpen: false })}
+            onBuy={(seats, ga, gaQty) => {
+              setPreSelectedSeats(seats);
+              setPreSelectedGa(ga);
+              setPreSelectedGaQty(gaQty ?? 1);
+              if (isLoggedIn) { setCheckoutInfoOpen(true); } else { setLoginAfterPurchase(true); }
+            }}
+          />
         ) : tab === 'events' ? (
-          <HomeScreen onOpenEvent={setSelectedEvent} scrollToTopSignal={scrollToTopSignal} />
+          <HomeScreen onOpenEvent={openEvent} scrollToTopSignal={scrollToTopSignal} initialScrollOffset={screenScrollOffsets.current.events} onScrollOffsetChange={(offset) => { screenScrollOffsets.current.events = offset; }} />
         ) : tab === 'tickets' ? (
-          isLoggedIn ? <TicketsScreen scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
+          isLoggedIn ? <TicketsScreen scrollToTopSignal={scrollToTopSignal} initialScrollOffset={screenScrollOffsets.current.tickets} onScrollOffsetChange={(offset) => { screenScrollOffsets.current.tickets = offset; }} onOpenExternalUrl={openExternalUrlFromClient} onPrepareExternalNavigation={() => { preserveNavigationOnNextForeground.current = true; }} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'scan' ? (
           <ScanScreen onBack={() => goToTab('events')} user={currentUser} scrollToTopSignal={scrollToTopSignal} />
         ) : tab === 'employeeScan' ? (
@@ -674,9 +730,9 @@ function AppContent() {
         ) : tab === 'doorSale' ? (
           isLoggedIn ? <DoorSaleScreen user={currentUser} onBack={() => goToTab('events')} onSaleCompleted={notifyDoorSaleCompleted} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'social' ? (
-          isLoggedIn ? <SocialScreen scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
+          isLoggedIn ? <SocialScreen scrollToTopSignal={scrollToTopSignal} initialScrollOffset={screenScrollOffsets.current.social} onScrollOffsetChange={(offset) => { screenScrollOffsets.current.social = offset; }} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'profile' ? (
-          isLoggedIn ? <ProfileScreen key="profile" initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} canOrganize={canOrganize} canAdmin={canAdmin} viewMode={viewMode} onSetMode={(mode) => setViewMode(mode)} onOpenTapToPay={() => { setViewMode('organizer'); goToTab('doorSale'); }} scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
+          isLoggedIn ? <ProfileScreen initialTab="account" user={currentUser!} onUserUpdated={setCurrentUser} onLogout={handleLogout} canOrganize={canOrganize} canAdmin={canAdmin} viewMode={viewMode} onSetMode={(mode) => setViewMode(mode)} onOpenTapToPay={() => { setViewMode('organizer'); goToTab('doorSale'); }} scrollToTopSignal={scrollToTopSignal} initialScrollOffset={screenScrollOffsets.current.profile} onScrollOffsetChange={(offset) => { screenScrollOffsets.current.profile = offset; }} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'organizer' ? (
           isLoggedIn ? <OrganizerPanelScreen section={organizerSection} onSectionChange={setOrganizerSection} refreshKey={salesRefreshKey} scrollToTopSignal={scrollToTopSignal} /> : <LoginScreen onSignIn={handleSignIn} />
         ) : tab === 'admin' ? (

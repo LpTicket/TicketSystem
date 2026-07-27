@@ -79,6 +79,7 @@ export type AuthUser = {
   firstName?: string;
   lastName?: string;
   phone?: string | null;
+  address?: string | null;
   role?: 'client' | 'admin' | string;
   isActive?: boolean;
   avatarUrl?: string | null;

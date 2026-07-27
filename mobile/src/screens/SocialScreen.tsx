@@ -8,11 +8,14 @@ type Tab = 'social' | 'messages';
 
 type Props = {
   scrollToTopSignal?: number;
+  initialScrollOffset?: number;
+  onScrollOffsetChange?: (offset: number) => void;
 };
 
-export function SocialScreen({ scrollToTopSignal = 0 }: Props) {
+export function SocialScreen({ scrollToTopSignal = 0, initialScrollOffset = 0, onScrollOffsetChange }: Props) {
   const { t } = useLanguage();
   const scrollRef = useRef<ScrollView>(null);
+  const restoredScrollPosition = useRef(false);
   const [activeTab, setActiveTab] = useState<Tab>('social');
   const pillX = useRef(new Animated.Value(0)).current;
   const pillW = useRef(new Animated.Value(0)).current;
@@ -57,6 +60,15 @@ export function SocialScreen({ scrollToTopSignal = 0 }: Props) {
     if (!scrollToTopSignal) return;
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [scrollToTopSignal]);
+
+  useEffect(() => {
+    if (restoredScrollPosition.current || initialScrollOffset <= 0) return;
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: initialScrollOffset, animated: false });
+      restoredScrollPosition.current = true;
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [initialScrollOffset]);
 
   return (
     <View style={styles.root}>
@@ -108,6 +120,8 @@ export function SocialScreen({ scrollToTopSignal = 0 }: Props) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
+          scrollEventThrottle={16}
+          onScroll={(event) => onScrollOffsetChange?.(event.nativeEvent.contentOffset.y)}
         >
           <View style={styles.header}>
             <Text style={styles.eyebrow}>Social match</Text>

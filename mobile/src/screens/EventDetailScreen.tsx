@@ -27,6 +27,8 @@ type Props = {
   isLoggedIn?: boolean;
   onRequestLogin?: () => void;
   cartSyncToken?: number;
+  initialScrollOffset?: number;
+  onScrollOffsetChange?: (offset: number) => void;
 };
 
 type ApiEventDetail = {
@@ -107,8 +109,9 @@ function seatPrice(seat: ClientSeat, section: ClientVenueSection): number {
 }
 
 const MAX_PER_TX = 10;
+const DETAIL_SIDE_GUTTER = 19;
 
-export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange, isLoggedIn, onRequestLogin, cartSyncToken = 0 }: Props) {
+export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange, isLoggedIn, onRequestLogin, cartSyncToken = 0, initialScrollOffset = 0, onScrollOffsetChange }: Props) {
   const { t, lang } = useLanguage();
   const { width } = useWindowDimensions();
   const [detail, setDetail] = useState(event);
@@ -117,6 +120,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
   const [mapLoading, setMapLoading] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const scrollRef = useRef<any>(null);
+  const restoredScrollPosition = useRef(false);
   const scrollUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Seat selection state (lives here, mirroring web behavior)
@@ -307,8 +311,28 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
     if (scrollUnlockTimerRef.current) clearTimeout(scrollUnlockTimerRef.current);
   }, []);
 
+  const restoreScrollPosition = useCallback(() => {
+    if (restoredScrollPosition.current || initialScrollOffset <= 0 || loading || mapLoading) return;
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: initialScrollOffset, animated: false });
+      restoredScrollPosition.current = true;
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [initialScrollOffset, loading, mapLoading]);
+
+  useEffect(() => restoreScrollPosition(), [restoreScrollPosition]);
+
   return (
-    <ScrollView ref={scrollRef} style={st.screen} contentContainerStyle={st.content} showsVerticalScrollIndicator={false} scrollEnabled={scrollEnabled}>
+    <ScrollView
+      ref={scrollRef}
+      style={st.screen}
+      contentContainerStyle={st.content}
+      showsVerticalScrollIndicator={false}
+      scrollEnabled={scrollEnabled}
+      scrollEventThrottle={16}
+      onScroll={(event) => onScrollOffsetChange?.(event.nativeEvent.contentOffset.y)}
+      onContentSizeChange={restoreScrollPosition}
+    >
       {/* Back + share row */}
       <View style={st.topRow}>
         <TouchableOpacity onPress={onBack} style={st.backButton}>
@@ -549,16 +573,16 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
 const st = StyleSheet.create({
   screen: { flex: 1, backgroundColor: 'transparent' },
   content: { paddingTop: 10, paddingBottom: 130 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 10 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: DETAIL_SIDE_GUTTER, marginBottom: 10 },
   backButton: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.035)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
   backText: { color: 'rgba(226,232,240,0.85)', fontWeight: '600', fontSize: 14 },
   shareBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(249,115,22,0.10)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', alignItems: 'center', justifyContent: 'center' },
-  pageTitle: { color: '#FFFFFF', fontSize: 30, fontWeight: '600', lineHeight: 36, marginHorizontal: 16, marginBottom: 12 },
-  hero: { alignSelf: 'stretch', borderRadius: 16, overflow: 'hidden', marginHorizontal: 16, marginBottom: 14, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(148,163,184,0.20)' },
+  pageTitle: { color: '#FFFFFF', fontSize: 30, fontWeight: '600', lineHeight: 36, marginHorizontal: DETAIL_SIDE_GUTTER, marginBottom: 12 },
+  hero: { alignSelf: 'stretch', borderRadius: 16, overflow: 'hidden', marginHorizontal: DETAIL_SIDE_GUTTER, marginBottom: 14, backgroundColor: '#030B14', borderWidth: 1, borderColor: 'rgba(148,163,184,0.20)' },
   heroImage: { width: '100%', height: '100%' },
   heroBadge: { position: 'absolute', top: 12, left: 12, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: 'rgba(16,185,129,0.18)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.46)', shadowColor: '#10B981', shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   heroBadgeText: { color: '#D1FAE5', fontSize: 12, fontWeight: '600', letterSpacing: 0 },
-  panel: { marginHorizontal: 16, borderRadius: 16, padding: 18, backgroundColor: 'rgba(255,255,255,0.025)', borderWidth: 1, borderColor: 'rgba(148,163,184,0.18)', marginBottom: 14 },
+  panel: { marginHorizontal: DETAIL_SIDE_GUTTER, borderRadius: 16, padding: 18, backgroundColor: 'rgba(255,255,255,0.025)', borderWidth: 1, borderColor: 'rgba(148,163,184,0.18)', marginBottom: 14 },
   eyebrow: { color: colors.orange, fontSize: 11, fontWeight: '600', marginBottom: 6 },
   title: { color: '#FFFFFF', fontSize: 26, fontWeight: '600', lineHeight: 31, marginBottom: 14 },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 8 },
@@ -568,8 +592,8 @@ const st = StyleSheet.create({
   divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.10)', marginVertical: 16 },
   sectionTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '600', marginBottom: 6 },
   description: { color: 'rgba(203,213,225,0.78)', fontSize: 14, lineHeight: 21 },
-  mapWrap: { marginHorizontal: 16, marginBottom: 14 },
-  mapLoading: { marginHorizontal: 16, height: 80, alignItems: 'center', justifyContent: 'center', gap: 10, flexDirection: 'row', borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.025)', borderWidth: 1, borderColor: 'rgba(148,163,184,0.18)', marginBottom: 14 },
+  mapWrap: { marginHorizontal: DETAIL_SIDE_GUTTER, marginBottom: 14 },
+  mapLoading: { marginHorizontal: DETAIL_SIDE_GUTTER, height: 80, alignItems: 'center', justifyContent: 'center', gap: 10, flexDirection: 'row', borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.025)', borderWidth: 1, borderColor: 'rgba(148,163,184,0.18)', marginBottom: 14 },
   mapLoadingText: { color: 'rgba(203,213,225,0.55)', fontSize: 13 },
   gaCard: { marginBottom: 10, backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.goldBorder, padding: 16, flexDirection: 'row', justifyContent: 'space-between', gap: 14, alignItems: 'center' },
   gaCardActive: { borderColor: colors.orange, borderWidth: 2, backgroundColor: 'rgba(249,115,22,0.06)' },
@@ -584,7 +608,7 @@ const st = StyleSheet.create({
   qtyBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(249,115,22,0.12)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.3)', alignItems: 'center', justifyContent: 'center' },
   qtyBtnText: { color: colors.orange, fontSize: 20, fontWeight: '600', lineHeight: 24 },
   qtyVal: { color: colors.textPrimary, fontSize: 22, fontWeight: '600', minWidth: 28, textAlign: 'center' },
-  purchaseCard: { marginHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(8,20,36,0.90)', padding: 18, gap: 10 },
+  purchaseCard: { marginHorizontal: DETAIL_SIDE_GUTTER, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(8,20,36,0.90)', padding: 18, gap: 10 },
   purchaseTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '600', marginBottom: 4 },
   seatsList: { gap: 8 },
   seatsLabel: { color: 'rgba(203,213,225,0.55)', fontSize: 11, fontWeight: '600', letterSpacing: 0.3, marginBottom: 2 },

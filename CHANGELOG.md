@@ -49,6 +49,7 @@ comando ejecutado
 - Se tradujeron los intereses visibles de Social Match, manteniendo `Networking` igual en español e inglés.
 - Se retiró el campo visible de industria o área y se dejó de usar como criterio de sugerencias.
 - Se rediseñó el selector de intereses con iconos, jerarquía y estado seleccionado más claro.
+- Se rediseñó el bloque Resumen/Summary con estados visuales para compatibilidad, intereses y ubicación.
 - Las sugerencias ahora requieren que ambas personas tengan Social Match activo en el mismo evento y compartan al menos un interés.
 
 ### Archivos modificados

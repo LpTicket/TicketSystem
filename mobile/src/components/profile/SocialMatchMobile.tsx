@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -336,6 +337,13 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
       eventId: selectedEventId,
       isActive: selectedEventId === PREVIEW_EVENT_ID ? false : updates.isActive ?? base.isActive,
     };
+    if (merged.isActive && merged.interests.length === 0) {
+      Alert.alert(
+        t('Selecciona intereses', 'Select interests'),
+        t('Elige al menos un interés antes de activar Social Match.', 'Choose at least one interest before activating Social Match.'),
+      );
+      return false;
+    }
     setPrefMap((prev) => ({ ...prev, [selectedEventId]: merged }));
 
     if (selectedEventId === PREVIEW_EVENT_ID) {
@@ -535,20 +543,53 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
     }
   };
 
-  const summary = useMemo(() => {
+  const summaryItems = useMemo(() => {
     if (!hasEligibleEvent) {
       return [
-        t('Desactivado hasta que compres un ticket.', 'Disabled until you buy a ticket.'),
-        t('Puedes preparar tu perfil ahora.', 'You can prepare your profile now.'),
+        {
+          icon: 'ticket-alt' as const,
+          label: t('ACCESO AL EVENTO', 'EVENT ACCESS'),
+          value: t('Pendiente', 'Pending'),
+          detail: t('Compra un ticket para activar Social Match.', 'Buy a ticket to activate Social Match.'),
+          muted: true,
+        },
       ];
     }
-    if (!currentPref.isActive) return [t('Social Match está desactivado para este evento.', 'Social Match is currently off for this event.')];
+    if (!currentPref.isActive) {
+      return [
+        {
+          icon: 'power-off' as const,
+          label: t('SOCIAL MATCH', 'SOCIAL MATCH'),
+          value: t('Desactivado', 'Off'),
+          detail: t('Actívalo cuando quieras descubrir personas compatibles.', 'Turn it on whenever you want to discover compatible people.'),
+          muted: true,
+        },
+      ];
+    }
     return [
-      `${suggestions.length} ${t('perfiles compatibles', 'compatible profiles')}`,
-      `${editInterests.length} ${t('intereses seleccionados', 'selected interests')}`,
-      currentPref.shareLocation
-        ? t('Ubicación lista tras aceptación mutua', 'Location sharing ready after mutual acceptance')
-        : t('Ubicación privada', 'Location sharing is private'),
+      {
+        icon: 'users' as const,
+        label: t('COMPATIBILIDAD', 'COMPATIBILITY'),
+        value: String(suggestions.length),
+        detail: t('perfiles compatibles', 'compatible profiles'),
+        muted: false,
+      },
+      {
+        icon: 'compass' as const,
+        label: t('INTERESES', 'INTERESTS'),
+        value: String(editInterests.length),
+        detail: t('intereses seleccionados', 'selected interests'),
+        muted: false,
+      },
+      {
+        icon: currentPref.shareLocation ? 'map-marker-alt' as const : 'lock' as const,
+        label: t('UBICACIÓN', 'LOCATION'),
+        value: currentPref.shareLocation ? t('Lista', 'Ready') : t('Privada', 'Private'),
+        detail: currentPref.shareLocation
+          ? t('Se comparte solo tras aceptación mutua.', 'Shared only after mutual acceptance.')
+          : t('Tu ubicación no se comparte.', 'Your location is not shared.'),
+        muted: !currentPref.shareLocation,
+      },
     ];
   }, [currentPref.isActive, currentPref.shareLocation, editInterests.length, hasEligibleEvent, suggestions.length, t]);
 
@@ -572,56 +613,32 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
     <View>
       {showSocial && (
       <>
-      <View style={[styles.statusCard, hasEligibleEvent && styles.statusCardActive]}>
-        <View style={styles.statusIcon}>
-          <FontAwesome5 name="handshake" size={22} color={hasEligibleEvent ? '#FFFFFF' : colors.orange} />
-        </View>
-        <View style={styles.statusCopy}>
-          <Text style={styles.statusTitle}>Social Match</Text>
-          <Text style={styles.statusText}>
-            {hasEligibleEvent
-              ? t('Activado para eventos con ticket comprado.', 'Enabled for events with purchased tickets.')
-              : t('Desactivado. Compra un ticket para activar matches reales.', 'Disabled. Buy a ticket to activate real matches.')}
-          </Text>
-        </View>
-        <View style={[styles.statusPill, hasEligibleEvent && styles.statusPillActive]}>
-          <Text style={[styles.statusPillText, hasEligibleEvent && styles.statusPillTextActive]}>
-            {hasEligibleEvent ? t('ACTIVADO', 'ACTIVE') : t('DESACTIVADO', 'OFF')}
-          </Text>
-        </View>
-      </View>
-
       <View style={styles.card}>
-        <Text style={styles.sectionLabel}>{hasEligibleEvent ? t('EVENTO ELEGIBLE', 'ELIGIBLE EVENT') : t('ESTADO', 'STATUS')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.eventRail}>
-          {displayEvents.map((event, index) => {
-            const selected = event.id === selectedEventId;
-            return (
-              <TouchableOpacity key={`${event.id || 'event'}-${index}`} onPress={() => hasEligibleEvent && setSelectedEventId(event.id)} style={[styles.eventChip, selected && styles.eventChipActive, !hasEligibleEvent && styles.eventChipDisabled]} activeOpacity={hasEligibleEvent ? 0.85 : 1}>
-                <Text style={[styles.eventTitle, selected && styles.eventTitleActive]}>{event.title}</Text>
-                <Text style={[styles.eventMeta, selected && styles.eventMetaActive]}>
-                  {event.eventDate ? `${formatDate(event.eventDate)}${event.venueName ? ` - ${event.venueName}` : ''}` : event.venueName}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <View style={styles.eventPickerShell}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.eventRail}>
+            {displayEvents.map((event, index) => {
+              const selected = event.id === selectedEventId;
+              return (
+                <TouchableOpacity key={`${event.id || 'event'}-${index}`} onPress={() => hasEligibleEvent && setSelectedEventId(event.id)} style={[styles.eventChip, selected && styles.eventChipActive, !hasEligibleEvent && styles.eventChipDisabled]} activeOpacity={hasEligibleEvent ? 0.85 : 1}>
+                  <Text style={[styles.eventTitle, selected && styles.eventTitleActive]}>{event.title}</Text>
+                  <Text style={[styles.eventMeta, selected && styles.eventMetaActive]}>
+                    {event.eventDate ? `${formatDate(event.eventDate)}${event.venueName ? ` - ${event.venueName}` : ''}` : event.venueName}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          <LinearGradient pointerEvents="none" colors={['#07121F', 'rgba(7,18,31,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={[styles.eventPickerFade, styles.eventPickerFadeLeft]} />
+          <LinearGradient pointerEvents="none" colors={['rgba(7,18,31,0)', '#07121F']} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={[styles.eventPickerFade, styles.eventPickerFadeRight]} />
+        </View>
 
-        <TouchableOpacity
-          onPress={() => savePref({ isActive: !currentPref.isActive, interests: editInterests, industry: null, instagram: editInstagram || null })}
-          style={[styles.activation, currentPref.isActive && styles.activationActive]}
+        <ToggleRow
+          title={currentPref.isActive ? t('Social Match activo', 'Social Match Active') : t('Social Match inactivo', 'Social Match Inactive')}
+          subtitle={selectedEvent?.title || t('Compra una entrada para activarlo.', 'Buy a ticket to activate it.')}
+          value={currentPref.isActive}
+          onPress={() => savePref({ isActive: !currentPref.isActive })}
           disabled={savingPref || !hasEligibleEvent}
-        >
-          <View>
-            <Text style={[styles.activationTitle, currentPref.isActive && styles.activationTitleActive]}>
-              {hasEligibleEvent && currentPref.isActive ? 'SOCIAL MATCH ACTIVE' : 'SOCIAL MATCH OFF'}
-            </Text>
-            <Text style={[styles.activationSub, currentPref.isActive && styles.activationSubActive]}>
-              {selectedEvent?.title || t('Se activará cuando tengas una compra.', 'It will activate when you have a purchase.')}
-            </Text>
-          </View>
-          <View style={[styles.switchKnob, currentPref.isActive && styles.switchKnobActive]} />
-        </TouchableOpacity>
+        />
       </View>
 
       <View style={styles.card}>
@@ -738,10 +755,27 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
       </View>
 
       <View style={styles.summaryCard}>
-        <Text style={styles.sectionLabel}>{t('RESUMEN', 'SUMMARY')}</Text>
-        {summary.map((item, index) => (
-          <Text key={`${item}-${index}`} style={styles.summaryText}>{item}</Text>
-        ))}
+        <View style={styles.summaryHeader}>
+          <View>
+            <Text style={styles.sectionLabel}>{t('RESUMEN', 'SUMMARY')}</Text>
+            <Text style={styles.summaryIntro}>{t('Tu estado para este evento', 'Your status for this event')}</Text>
+          </View>
+          <View style={styles.summaryHeaderIcon}><FontAwesome5 name="chart-line" size={13} color={colors.orange} /></View>
+        </View>
+        <View style={styles.summaryList}>
+          {summaryItems.map((item, index) => (
+            <View key={`${item.label}-${index}`} style={[styles.summaryRow, index < summaryItems.length - 1 && styles.summaryRowDivider]}>
+              <View style={[styles.summaryIcon, item.muted && styles.summaryIconMuted]}>
+                <FontAwesome5 name={item.icon} size={13} color={item.muted ? 'rgba(226,232,240,0.58)' : colors.orange} />
+              </View>
+              <View style={styles.summaryCopy}>
+                <Text style={styles.summaryLabel}>{item.label}</Text>
+                <Text style={styles.summaryDetail}>{item.detail}</Text>
+              </View>
+              <Text style={[styles.summaryValue, item.muted && styles.summaryValueMuted]}>{item.value}</Text>
+            </View>
+          ))}
+        </View>
       </View>
 
       {currentPref.isActive && !currentPref.invisibleMode && (
@@ -904,15 +938,16 @@ export function SocialMatchMobile({ tab, onComposerFocus }: { tab?: 'social' | '
   );
 }
 
-function ToggleRow({ title, subtitle, value, onPress }: { title: string; subtitle: string; value: boolean; onPress: () => void }) {
+function ToggleRow({ title, subtitle, value, onPress, disabled = false }: { title: string; subtitle: string; value: boolean; onPress: () => void; disabled?: boolean }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={styles.toggleRow}
+      disabled={disabled}
+      style={[styles.toggleRow, disabled && styles.toggleRowDisabled]}
       activeOpacity={0.84}
       accessibilityRole="switch"
       accessibilityLabel={title}
-      accessibilityState={{ checked: value }}
+      accessibilityState={{ checked: value, disabled }}
     >
       <View style={styles.toggleCopy}>
         <Text style={styles.toggleTitle}>{title}</Text>
@@ -1010,10 +1045,12 @@ const styles = StyleSheet.create({
   statusPillText: { color: 'rgba(226,232,240,0.72)', fontSize: 9, fontWeight: '600' },
   statusPillTextActive: { color: colors.orange },
   sectionLabel: { color: colors.orange, fontSize: 11, letterSpacing: 0, fontWeight: '600', marginBottom: 12 },
-  eventRail: { gap: 10, paddingRight: 4 },
+  eventPickerShell: { height: 94, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: '#07121F', overflow: 'hidden', marginBottom: 12, position: 'relative' },
+  eventRail: { gap: 10, paddingHorizontal: 12, alignItems: 'center' },
   eventChip: {
-    width: 230,
-    borderRadius: 16,
+    width: 238,
+    minHeight: 68,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
     backgroundColor: '#030B14',
@@ -1025,6 +1062,9 @@ const styles = StyleSheet.create({
   eventTitleActive: { color: '#FFFFFF' },
   eventMeta: { color: 'rgba(226,232,240,0.64)', fontSize: 12, fontWeight: '400' },
   eventMetaActive: { color: '#cbd5e1' },
+  eventPickerFade: { position: 'absolute', top: 1, bottom: 1, width: 28, zIndex: 2 },
+  eventPickerFadeLeft: { left: 1 },
+  eventPickerFadeRight: { right: 1 },
   activation: {
     marginTop: 14,
     minHeight: 62,
@@ -1190,6 +1230,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  toggleRowDisabled: { opacity: 0.62 },
   toggleCopy: { flex: 1, paddingRight: 12 },
   toggleTitle: { color: '#F8FAFC', fontSize: 15, fontWeight: '600', marginBottom: 4 },
   toggleSub: { color: 'rgba(226,232,240,0.64)', fontSize: 12, lineHeight: 17, fontWeight: '400' },
@@ -1201,14 +1242,26 @@ const styles = StyleSheet.create({
   toggleDot: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFFFFF', shadowColor: '#0F172A', shadowOpacity: 0.16, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 2 },
   toggleDotActive: { transform: [{ translateX: 30 }] },
   summaryCard: {
-    backgroundColor: 'rgba(255,255,255,0.018)',
+    backgroundColor: '#07121F',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: 'rgba(249,115,22,0.22)',
     padding: 16,
     marginBottom: 14,
   },
-  summaryText: { color: '#F8FAFC', fontSize: 14, lineHeight: 22, fontWeight: '400' },
+  summaryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  summaryIntro: { color: 'rgba(226,232,240,0.58)', fontSize: 11.5, marginTop: 3 },
+  summaryHeaderIcon: { width: 32, height: 32, borderRadius: 11, backgroundColor: 'rgba(249,115,22,0.10)', alignItems: 'center', justifyContent: 'center' },
+  summaryList: { borderRadius: 16, overflow: 'hidden', backgroundColor: 'rgba(3,11,20,0.76)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  summaryRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, gap: 10 },
+  summaryRowDivider: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  summaryIcon: { width: 32, height: 32, borderRadius: 11, backgroundColor: 'rgba(249,115,22,0.11)', alignItems: 'center', justifyContent: 'center' },
+  summaryIconMuted: { backgroundColor: 'rgba(148,163,184,0.12)' },
+  summaryCopy: { flex: 1, paddingRight: 4 },
+  summaryLabel: { color: 'rgba(226,232,240,0.56)', fontSize: 9.5, fontWeight: '700', letterSpacing: 0.65, marginBottom: 3 },
+  summaryDetail: { color: '#E2E8F0', fontSize: 12.5, fontWeight: '500', lineHeight: 17 },
+  summaryValue: { color: colors.orange, fontSize: 22, fontWeight: '700', textAlign: 'right' },
+  summaryValueMuted: { color: 'rgba(226,232,240,0.70)', fontSize: 13, fontWeight: '600' },
   suggestionCard: {
     borderRadius: 16,
     borderWidth: 1,
