@@ -7,8 +7,8 @@
  *     (CRUD, roles), moderación de eventos, categorías, campañas de marketing
  *     (email/SMS/WhatsApp/push + banners de inicio) y finanzas. Requiere rol admin.
  */
-import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Animated, Image, Modal, PanResponder, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -134,6 +134,14 @@ function resolveMarketingBannerImage(value?: string | null) {
   if (!value) return '';
   if (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://')) return value;
   return getImageUrl(value) || value;
+}
+
+function isAdminEventFeatured(event: any) {
+  return event?.isFeatured ?? event?.featured ?? false;
+}
+
+function isAdminEventPubliclyVisible(event: any) {
+  return event?.publicVisible !== false;
 }
 
 type FeeConfig = {
@@ -327,11 +335,7 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
   const adminIndicatorX = useRef(new Animated.Value(0)).current;
   const adminIndicatorWidth = useRef(new Animated.Value(118)).current;
   const userRoleIndicatorX = useRef(new Animated.Value(0)).current;
-  const financialIndicatorX = useRef(new Animated.Value(0)).current;
-  const financialIndicatorWidth = useRef(new Animated.Value(62)).current;
   const financialScrollRef = useRef<ScrollView>(null);
-  const eventFilterIndicatorX = useRef(new Animated.Value(0)).current;
-  const eventFilterIndicatorWidth = useRef(new Animated.Value(64)).current;
   const eventFilterScrollRef = useRef<ScrollView>(null);
   const adminScrollRef = useRef<ScrollView>(null);
   const active: Section = section ?? 'dashboard';
@@ -359,15 +363,17 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
   const [adminEvents, setAdminEvents] = useState<any[]>([]);
   const [eventFilter, setEventFilter] = useState<'all' | 'pending_approval' | 'draft' | 'published' | 'cancelled'>('published');
   const [eventSearch, setEventSearch] = useState('');
+  const [eventActionId, setEventActionId] = useState<string | null>(null);
   const [eventFilterLayouts, setEventFilterLayouts] = useState<Record<string, { x: number; width: number }>>({});
   const [eventFilterViewportWidth, setEventFilterViewportWidth] = useState(0);
   const [editingAdminEvent, setEditingAdminEvent] = useState<any | null>(null);
   const [editingAdminSection, setEditingAdminSection] = useState<OrganizerSection>('details');
   const [editingAdminMapScrollLock, setEditingAdminMapScrollLock] = useState(false);
+  const [selectorGestureActive, setSelectorGestureActive] = useState(false);
   const [adminEditTitle, setAdminEditTitle] = useState('');
   const [adminEditVenue, setAdminEditVenue] = useState('');
   const [adminEditStatus, setAdminEditStatus] = useState<'draft' | 'published' | 'cancelled'>('published');
-  const adminScrollEnabled = !editingAdminMapScrollLock;
+  const adminScrollEnabled = !editingAdminMapScrollLock && !selectorGestureActive;
 
   // Lazy-loaded section data
   const [analyticsDays, setAnalyticsDays] = useState(7);
@@ -677,49 +683,43 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
     { id: 'global', title: t('Global', 'Global') },
     ...eventFinancials.map((event) => ({ id: event.id, title: event.title })),
   ];
+  const financialSelectionWidth = Math.min(
+    Math.max(financialTabLayouts[selectedFinancialKey]?.width ?? 62, 62),
+    Math.max(62, financialViewportWidth * 0.78),
+  );
   const activeFinancialIndex = Math.max(0, financialOptions.findIndex((option) => option.id === selectedFinancialKey));
 
   useEffect(() => {
     const layout = financialTabLayouts[selectedFinancialKey];
-    if (!layout) return;
+    if (!layout || financialViewportWidth <= 0) return;
 
-    Animated.parallel([
-      Animated.spring(financialIndicatorX, {
-        toValue: layout.x,
-        useNativeDriver: false,
-        damping: 18,
-        stiffness: 210,
-        mass: 0.68,
-      }),
-      Animated.spring(financialIndicatorWidth, {
-        toValue: layout.width,
-        useNativeDriver: false,
-        damping: 18,
-        stiffness: 210,
-        mass: 0.68,
-      }),
-    ]).start();
-
-    if (financialViewportWidth > 0) {
-      const targetX = Math.max(0, layout.x + layout.width / 2 - financialViewportWidth / 2);
-      financialScrollRef.current?.scrollTo({ x: targetX, animated: true });
-    }
-  }, [financialIndicatorWidth, financialIndicatorX, financialTabLayouts, financialViewportWidth, selectedFinancialKey]);
+    const targetX = Math.max(0, layout.x + layout.width / 2 - financialViewportWidth / 2);
+    financialScrollRef.current?.scrollTo({ x: targetX, animated: true });
+  }, [financialTabLayouts, financialViewportWidth, selectedFinancialKey]);
 
   const selectFinancialEvent = (id: string) => {
     setSelectedFinancialEventId(id === 'global' ? '' : id);
-    const layout = financialTabLayouts[id];
-    if (layout && financialViewportWidth > 0) {
-      const targetX = Math.max(0, layout.x + layout.width / 2 - financialViewportWidth / 2);
-      financialScrollRef.current?.scrollTo({ x: targetX, animated: true });
-    }
   };
 
-  const stepFinancialEvent = (direction: -1 | 1) => {
-    const nextIndex = Math.max(0, Math.min(financialOptions.length - 1, activeFinancialIndex + direction));
-    const next = financialOptions[nextIndex];
-    if (next) selectFinancialEvent(next.id);
-  };
+  const financialStepPanResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponderCapture: (_event, gesture) => (
+      Math.abs(gesture.dx) > 6 && Math.abs(gesture.dx) > Math.abs(gesture.dy)
+    ),
+    onPanResponderGrant: () => setSelectorGestureActive(true),
+    onPanResponderRelease: (_event, gesture) => {
+      setSelectorGestureActive(false);
+      if (Math.abs(gesture.dx) < 18) return;
+      const nextIndex = Math.max(
+        0,
+        Math.min(financialOptions.length - 1, activeFinancialIndex + (gesture.dx < 0 ? 1 : -1)),
+      );
+      const next = financialOptions[nextIndex];
+      if (next) selectFinancialEvent(next.id);
+    },
+    onPanResponderTerminate: () => setSelectorGestureActive(false),
+    onPanResponderTerminationRequest: () => false,
+  }), [activeFinancialIndex, financialOptions]);
 
   const eventFilterOptions = [
     { key: 'all' as const, label: t('Todos', 'All') },
@@ -729,48 +729,42 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
     { key: 'cancelled' as const, label: t('Rechazados', 'Rejected') },
   ];
   const activeEventFilterIndex = Math.max(0, eventFilterOptions.findIndex((option) => option.key === eventFilter));
+  const eventFilterSelectionWidth = Math.min(
+    Math.max(eventFilterLayouts[eventFilter]?.width ?? 62, 62),
+    Math.max(62, eventFilterViewportWidth * 0.78),
+  );
 
   useEffect(() => {
     const layout = eventFilterLayouts[eventFilter];
-    if (!layout) return;
+    if (!layout || eventFilterViewportWidth <= 0) return;
 
-    Animated.parallel([
-      Animated.spring(eventFilterIndicatorX, {
-        toValue: layout.x,
-        useNativeDriver: false,
-        damping: 18,
-        stiffness: 210,
-        mass: 0.68,
-      }),
-      Animated.spring(eventFilterIndicatorWidth, {
-        toValue: layout.width,
-        useNativeDriver: false,
-        damping: 18,
-        stiffness: 210,
-        mass: 0.68,
-      }),
-    ]).start();
-
-    if (eventFilterViewportWidth > 0) {
-      const targetX = Math.max(0, layout.x + layout.width / 2 - eventFilterViewportWidth / 2);
-      eventFilterScrollRef.current?.scrollTo({ x: targetX, animated: true });
-    }
-  }, [eventFilter, eventFilterIndicatorWidth, eventFilterIndicatorX, eventFilterLayouts, eventFilterViewportWidth]);
+    const targetX = Math.max(0, layout.x + layout.width / 2 - eventFilterViewportWidth / 2);
+    eventFilterScrollRef.current?.scrollTo({ x: targetX, animated: true });
+  }, [eventFilter, eventFilterLayouts, eventFilterViewportWidth]);
 
   const selectEventFilter = (key: typeof eventFilter) => {
     setEventFilter(key);
-    const layout = eventFilterLayouts[key];
-    if (layout && eventFilterViewportWidth > 0) {
-      const targetX = Math.max(0, layout.x + layout.width / 2 - eventFilterViewportWidth / 2);
-      eventFilterScrollRef.current?.scrollTo({ x: targetX, animated: true });
-    }
   };
 
-  const stepEventFilter = (direction: -1 | 1) => {
-    const nextIndex = Math.max(0, Math.min(eventFilterOptions.length - 1, activeEventFilterIndex + direction));
-    const next = eventFilterOptions[nextIndex];
-    if (next) selectEventFilter(next.key);
-  };
+  const eventFilterStepPanResponder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponderCapture: (_event, gesture) => (
+      Math.abs(gesture.dx) > 6 && Math.abs(gesture.dx) > Math.abs(gesture.dy)
+    ),
+    onPanResponderGrant: () => setSelectorGestureActive(true),
+    onPanResponderRelease: (_event, gesture) => {
+      setSelectorGestureActive(false);
+      if (Math.abs(gesture.dx) < 18) return;
+      const nextIndex = Math.max(
+        0,
+        Math.min(eventFilterOptions.length - 1, activeEventFilterIndex + (gesture.dx < 0 ? 1 : -1)),
+      );
+      const next = eventFilterOptions[nextIndex];
+      if (next) selectEventFilter(next.key);
+    },
+    onPanResponderTerminate: () => setSelectorGestureActive(false),
+    onPanResponderTerminationRequest: () => false,
+  }), [activeEventFilterIndex, eventFilterOptions]);
 
   const [categories, setCategories] = useState<Category[]>([
     { id: '1', name: 'Concert', labelEs: 'Concierto', labelEn: 'Concert', subtitleEs: '', subtitleEn: '', slug: 'concierto', icon: '🎵', color: '#f97316', sortOrder: 0, active: true, featured: true },
@@ -1152,18 +1146,53 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
 
   // ── Event actions ──────────────────────────────────────────────────────────
 
+  const syncAdminEventAction = (id: string, updated: any) => {
+    setAdminEvents((current) => current.map((event) => (
+      event.id === id
+        ? {
+            ...event,
+            publicVisible: updated.publicVisible,
+            isFeatured: updated.isFeatured,
+            featured: updated.isFeatured,
+          }
+        : event
+    )));
+  };
+
   const toggleEventFeaturedApi = async (id: string) => {
     try {
-      await apiPatch(`/admin/events/${id}/toggle-featured`);
-      setAdminEvents((current) => current.map((e) => e.id === id ? { ...e, isFeatured: !e.isFeatured, featured: !e.featured } : e));
-    } catch {}
+      setEventActionId(id);
+      const updated = await apiPatch<any>(`/admin/events/${id}/toggle-featured`);
+      syncAdminEventAction(id, updated);
+      Alert.alert(
+        t('Listo', 'Done'),
+        updated.isFeatured
+          ? t('El evento ahora aparece como destacado.', 'The event is now featured.')
+          : t('El evento fue retirado de destacados.', 'The event was removed from featured.'),
+      );
+    } catch (error: any) {
+      Alert.alert(t('Error', 'Error'), error?.message || t('No se pudo actualizar el destacado.', 'Could not update featured status.'));
+    } finally {
+      setEventActionId(null);
+    }
   };
 
   const toggleEventVisibilityApi = async (id: string) => {
     try {
-      await apiPatch(`/admin/events/${id}/toggle-public-visibility`);
-      setAdminEvents((current) => current.map((e) => e.id === id ? { ...e, status: e.status === 'published' ? 'draft' : 'published' } : e));
-    } catch {}
+      setEventActionId(id);
+      const updated = await apiPatch<any>(`/admin/events/${id}/toggle-public-visibility`);
+      syncAdminEventAction(id, updated);
+      Alert.alert(
+        t('Listo', 'Done'),
+        updated.publicVisible === false
+          ? t('El evento quedó oculto del Home y Eventos públicos.', 'The event is now hidden from Home and public Events.')
+          : t('El evento volvió a mostrarse en Home y Eventos públicos.', 'The event is visible again in Home and public Events.'),
+      );
+    } catch (error: any) {
+      Alert.alert(t('Error', 'Error'), error?.message || t('No se pudo actualizar la visibilidad.', 'Could not update visibility.'));
+    } finally {
+      setEventActionId(null);
+    }
   };
 
   const deleteEventApi = (id: string) => {
@@ -1950,42 +1979,26 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
                   <Text style={styles.formEyebrow}>{t('DESGLOSE FINANCIERO', 'FINANCIAL BREAKDOWN')}</Text>
                   <Text style={styles.panelTitle}>{t('Finanzas', 'Finances')}</Text>
                   {eventFinancials.length > 0 && (
-                    <>
-                    <View style={styles.finTabsRow}>
-                      <TouchableOpacity
-                        style={[styles.finArrowBtn, activeFinancialIndex <= 0 && styles.finArrowBtnDisabled]}
-                        disabled={activeFinancialIndex <= 0}
-                        onPress={() => stepFinancialEvent(-1)}
-                        activeOpacity={0.65}
-                      >
-                        <Ionicons
-                          name="chevron-back"
-                          size={18}
-                          color={activeFinancialIndex <= 0 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.86)'}
-                        />
-                      </TouchableOpacity>
-
-                      <View style={styles.finTabsShell} onLayout={(event) => setFinancialViewportWidth(event.nativeEvent.layout.width)}>
+                    <View
+                      style={styles.finTabsShell}
+                      onLayout={(event) => setFinancialViewportWidth(event.nativeEvent.layout.width)}
+                      {...financialStepPanResponder.panHandlers}
+                    >
                         <ScrollView
                           ref={financialScrollRef}
                           horizontal
+                          scrollEnabled={false}
+                          directionalLockEnabled
+                          alwaysBounceVertical={false}
+                          bounces={false}
+                          overScrollMode="never"
                           showsHorizontalScrollIndicator={false}
                           style={styles.finTabsScroller}
-                          contentContainerStyle={styles.finTabsContent}
-                          scrollEventThrottle={16}
+                          contentContainerStyle={[
+                            styles.finTabsContent,
+                            { paddingHorizontal: financialViewportWidth / 2 },
+                          ]}
                         >
-                          <Animated.View
-                            pointerEvents="none"
-                            style={[
-                              styles.finSlidingPill,
-                              {
-                                left: financialIndicatorX,
-                                width: financialIndicatorWidth,
-                              },
-                            ]}
-                          >
-                            <View style={styles.finSlidingShine} />
-                          </Animated.View>
                           {financialOptions.map((option, index) => {
                             const activeFinancial = option.id === selectedFinancialKey;
                             return (
@@ -2017,27 +2030,10 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
                           end={{ x: 1, y: 0.5 }}
                           style={[styles.finTabsFade, styles.finTabsFadeRight]}
                         />
-                      </View>
-
-                      <TouchableOpacity
-                        style={[styles.finArrowBtn, activeFinancialIndex >= financialOptions.length - 1 && styles.finArrowBtnDisabled]}
-                        disabled={activeFinancialIndex >= financialOptions.length - 1}
-                        onPress={() => stepFinancialEvent(1)}
-                        activeOpacity={0.65}
-                      >
-                        <Ionicons
-                          name="chevron-forward"
-                          size={18}
-                          color={activeFinancialIndex >= financialOptions.length - 1 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.86)'}
-                        />
-                      </TouchableOpacity>
+                        <View pointerEvents="none" style={[styles.finFixedSelection, { width: financialSelectionWidth }]}>
+                          <View style={styles.finFixedSelectionShine} />
+                        </View>
                     </View>
-                    <View pointerEvents="none" style={styles.finTabsDots}>
-                      {financialOptions.map((option, index) => (
-                        <View key={`${option.id || 'financial-dot'}-${index}`} style={[styles.finTabsDot, activeFinancialIndex === index && styles.finTabsDotActive]} />
-                      ))}
-                    </View>
-                    </>
                   )}
                   {selEv && (
                     <Text style={[styles.copy, { marginBottom: 10, marginTop: -8, fontSize: 12 }]}>
@@ -2096,41 +2092,26 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
             <>
             {/* Status filter tabs */}
             <View style={styles.eventFilterWrap}>
-              <View style={styles.eventFilterRow}>
-                <TouchableOpacity
-                  style={[styles.eventFilterArrowBtn, activeEventFilterIndex <= 0 && styles.eventFilterArrowBtnDisabled]}
-                  disabled={activeEventFilterIndex <= 0}
-                  onPress={() => stepEventFilter(-1)}
-                  activeOpacity={0.65}
+                <View
+                  style={styles.eventFilterShell}
+                  onLayout={(event) => setEventFilterViewportWidth(event.nativeEvent.layout.width)}
+                  {...eventFilterStepPanResponder.panHandlers}
                 >
-                  <Ionicons
-                    name="chevron-back"
-                    size={18}
-                    color={activeEventFilterIndex <= 0 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.86)'}
-                  />
-                </TouchableOpacity>
-
-                <View style={styles.eventFilterShell} onLayout={(event) => setEventFilterViewportWidth(event.nativeEvent.layout.width)}>
                   <ScrollView
                     ref={eventFilterScrollRef}
                     horizontal
+                    scrollEnabled={false}
+                    directionalLockEnabled
+                    alwaysBounceVertical={false}
+                    bounces={false}
+                    overScrollMode="never"
                     showsHorizontalScrollIndicator={false}
                     style={styles.eventFilterScroller}
-                    contentContainerStyle={styles.eventFilterContent}
-                    scrollEventThrottle={16}
+                    contentContainerStyle={[
+                      styles.eventFilterContent,
+                      { paddingHorizontal: eventFilterViewportWidth / 2 },
+                    ]}
                   >
-                    <Animated.View
-                      pointerEvents="none"
-                      style={[
-                        styles.eventFilterSlidingPill,
-                        {
-                          left: eventFilterIndicatorX,
-                          width: eventFilterIndicatorWidth,
-                        },
-                      ]}
-                    >
-                      <View style={styles.eventFilterSlidingShine} />
-                    </Animated.View>
                     {eventFilterOptions.map((f, index) => {
                       const activeFilter = eventFilter === f.key;
                       return (
@@ -2162,27 +2143,11 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
                     end={{ x: 1, y: 0.5 }}
                     style={[styles.eventFilterFade, styles.eventFilterFadeRight]}
                   />
+                  <View pointerEvents="none" style={[styles.eventFilterFixedSelection, { width: eventFilterSelectionWidth }]}>
+                    <View style={styles.eventFilterFixedSelectionShine} />
+                  </View>
                 </View>
-
-                <TouchableOpacity
-                  style={[styles.eventFilterArrowBtn, activeEventFilterIndex >= eventFilterOptions.length - 1 && styles.eventFilterArrowBtnDisabled]}
-                  disabled={activeEventFilterIndex >= eventFilterOptions.length - 1}
-                  onPress={() => stepEventFilter(1)}
-                  activeOpacity={0.65}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color={activeEventFilterIndex >= eventFilterOptions.length - 1 ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.86)'}
-                  />
-                </TouchableOpacity>
               </View>
-              <View pointerEvents="none" style={styles.eventFilterDots}>
-                {eventFilterOptions.map((f, index) => (
-                  <View key={`${f.key}-dot-${index}`} style={[styles.eventFilterDot, activeEventFilterIndex === index && styles.eventFilterDotActive]} />
-                ))}
-              </View>
-            </View>
 
             {/* Search */}
             <View style={styles.userSearchBox}>
@@ -2236,7 +2201,8 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
                     <View style={styles.adminEventBadges}>
                       <StatusPill label={isAdminEventPast(item) ? t('PASADO', 'PAST') : t('ACTIVO', 'ACTIVE')} tone={isAdminEventPast(item) ? 'gray' : 'red'} compact />
                       <StatusPill label={(item.status || 'PUBLICADO').toUpperCase()} tone={item.status === 'draft' ? 'gray' : 'green'} compact />
-                      {item.featured || item.isFeatured ? <StatusPill label={t('DESTACADO', 'FEATURED')} tone="orange" compact /> : null}
+                      {!isAdminEventPubliclyVisible(item) ? <StatusPill label={t('OCULTO', 'HIDDEN')} tone="gray" compact /> : null}
+                      {isAdminEventFeatured(item) ? <StatusPill label={t('DESTACADO', 'FEATURED')} tone="orange" compact /> : null}
                     </View>
                   </View>
                 </View>
@@ -2264,16 +2230,17 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
 
                 <View style={styles.adminEventActions}>
                   <GradientButton
-                    label={item.featured || item.isFeatured ? t('QUITAR', 'UNFEATURE') : t('DESTACAR', 'FEATURE')}
+                    label={eventActionId === item.id ? t('ACTUALIZANDO...', 'UPDATING...') : (isAdminEventFeatured(item) ? t('QUITAR', 'UNFEATURE') : t('DESTACAR', 'FEATURE'))}
                     onPress={() => toggleEventFeaturedApi(item.id)}
                     height={34}
-                    style={styles.adminEventPrimaryAction}
+                    disabled={eventActionId === item.id}
+                    style={eventActionId === item.id ? [styles.adminEventPrimaryAction, styles.adminEventActionDisabled] : styles.adminEventPrimaryAction}
                     textStyle={styles.adminEventPrimaryText}
                   />
-                  <TouchableOpacity onPress={() => toggleEventVisibilityApi(item.id)} style={styles.adminEventSecondaryAction}>
-                    <Text style={styles.adminEventSecondaryText}>{item.status === 'published' ? t('OCULTAR', 'HIDE') : t('PUBLICAR', 'PUBLISH')}</Text>
+                  <TouchableOpacity disabled={eventActionId === item.id} onPress={() => toggleEventVisibilityApi(item.id)} style={[styles.adminEventSecondaryAction, eventActionId === item.id && styles.adminEventActionDisabled]}>
+                    <Text style={styles.adminEventSecondaryText}>{eventActionId === item.id ? t('ACTUALIZANDO...', 'UPDATING...') : (isAdminEventPubliclyVisible(item) ? t('OCULTAR', 'HIDE') : t('MOSTRAR', 'SHOW'))}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => deleteEventApi(item.id)} style={[styles.adminEventSecondaryAction, styles.adminEventDangerAction]}>
+                  <TouchableOpacity disabled={eventActionId === item.id} onPress={() => deleteEventApi(item.id)} style={[styles.adminEventSecondaryAction, styles.adminEventDangerAction, eventActionId === item.id && styles.adminEventActionDisabled]}>
                     <Text style={[styles.adminEventSecondaryText, styles.adminEventDangerText]}>{t('DEL', 'DEL')}</Text>
                   </TouchableOpacity>
                 </View>
@@ -4592,6 +4559,7 @@ const styles = StyleSheet.create({
   adminEventReportAction: { height: 42, borderRadius: 13, marginTop: 10, backgroundColor: '#F97316', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, shadowColor: '#F97316', shadowOpacity: 0.22, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 3 },
   adminEventReportActionText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700', letterSpacing: 0 },
   adminEventSecondaryAction: { flex: 1, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.025)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  adminEventActionDisabled: { opacity: 0.56 },
   adminEventSecondaryText: { color: '#F8FAFC', fontSize: 10, fontWeight: '600', letterSpacing: 0 },
   adminEventDangerAction: { flex: 0.72, borderColor: 'rgba(239,68,68,0.24)' },
   adminEventDangerText: { color: '#FCA5A5' },
@@ -4828,23 +4796,16 @@ const styles = StyleSheet.create({
   finCardLabel: { color: 'rgba(226,232,240,0.52)', fontSize: 9, fontWeight: '600', marginBottom: 6 },
   finCardValue: { fontSize: 20, fontWeight: '600', marginBottom: 4 },
   finCardNote: { color: 'rgba(226,232,240,0.44)', fontSize: 10, fontWeight: '500' },
-  finTabsRow: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
-  finArrowBtn: { width: 24, height: 40, alignItems: 'center', justifyContent: 'center' },
-  finArrowBtnDisabled: { opacity: 0.55 },
-  finTabsShell: { flex: 1, height: 40, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(3,11,20,0.86)', overflow: 'hidden' },
+  finTabsShell: { height: 44, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(3,11,20,0.86)', overflow: 'hidden', marginBottom: 14, position: 'relative', justifyContent: 'center' },
   finTabsScroller: { flex: 1 },
-  finTabsContent: { minHeight: 40, alignItems: 'center', paddingHorizontal: 4, gap: 4 },
+  finTabsContent: { minHeight: 44, alignItems: 'center', gap: 4 },
   finTabsFade: { position: 'absolute', top: 1, bottom: 1, width: 34, zIndex: 3 },
   finTabsFadeLeft: { left: 1 },
   finTabsFadeRight: { right: 1 },
-  finSlidingPill: { position: 'absolute', top: 4, height: 32, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.16)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.55)', overflow: 'hidden' },
-  finSlidingShine: { position: 'absolute', top: 2, left: 10, right: 10, height: 1, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.32)' },
-  finTabsDots: { height: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: -9, marginBottom: 12 },
-  finTabsDot: { width: 4, height: 4, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.24)' },
-  finTabsDotActive: { width: 14, backgroundColor: 'rgba(249,115,22,0.72)' },
-  finEventPill: { height: 32, borderRadius: 12, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
-  finEventPillActive: { backgroundColor: 'rgba(249,115,22,0.14)', borderColor: 'rgba(249,115,22,0.5)' },
+  finEventPill: { height: 32, borderRadius: 12, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
   finEventPillText: { color: 'rgba(226,232,240,0.62)', fontSize: 12, fontWeight: '600', maxWidth: 142 },
+  finFixedSelection: { position: 'absolute', alignSelf: 'center', top: 5, bottom: 5, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.18)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.62)', overflow: 'hidden', zIndex: 4 },
+  finFixedSelectionShine: { position: 'absolute', top: 2, left: 12, right: 12, height: 1, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.34)' },
   finEventPillTextActive: { color: '#FFFFFF' },
 
   // Analytics day selector
@@ -4919,25 +4880,17 @@ const styles = StyleSheet.create({
 
   // Event filter tabs
   eventFilterWrap: { marginBottom: 12 },
-  eventFilterRow: { height: 46, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  eventFilterArrowBtn: { width: 24, height: 40, alignItems: 'center', justifyContent: 'center' },
-  eventFilterArrowBtnDisabled: { opacity: 0.55 },
-  eventFilterShell: { flex: 1, height: 42, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(3,11,20,0.86)', overflow: 'hidden' },
+  eventFilterShell: { height: 44, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(3,11,20,0.86)', overflow: 'hidden', position: 'relative', justifyContent: 'center' },
   eventFilterScroller: { flex: 1 },
-  eventFilterContent: { minHeight: 40, paddingHorizontal: 4, gap: 4, flexDirection: 'row', alignItems: 'center' },
+  eventFilterContent: { minHeight: 44, gap: 4, flexDirection: 'row', alignItems: 'center' },
   eventFilterFade: { position: 'absolute', top: 1, bottom: 1, width: 34, zIndex: 3 },
   eventFilterFadeLeft: { left: 1 },
   eventFilterFadeRight: { right: 1 },
-  eventFilterSlidingPill: { position: 'absolute', top: 4, height: 32, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.16)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.55)', overflow: 'hidden' },
-  eventFilterSlidingShine: { position: 'absolute', top: 2, left: 10, right: 10, height: 1, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.32)' },
-  eventFilterDots: { height: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 2, marginBottom: 8 },
-  eventFilterDot: { width: 4, height: 4, borderRadius: 999, backgroundColor: 'rgba(226,232,240,0.24)' },
-  eventFilterDotActive: { width: 14, backgroundColor: 'rgba(249,115,22,0.72)' },
-  eventFilterPill: { height: 32, borderRadius: 12, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
-  eventFilterPillActive: { borderColor: 'rgba(255,151,45,0.62)', shadowColor: '#ff6800', shadowOpacity: 0.24, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
-  eventFilterShine: { position: 'absolute', left: 10, right: 10, top: 5, height: 1 },
-  eventFilterText: { color: 'rgba(226,232,240,0.62)', fontSize: 13, fontWeight: '600', zIndex: 1, maxWidth: 142 },
+  eventFilterPill: { height: 32, borderRadius: 12, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  eventFilterText: { color: 'rgba(226,232,240,0.62)', fontSize: 13, fontWeight: '600', maxWidth: 142 },
   eventFilterTextActive: { color: '#FFFFFF', textShadowColor: 'rgba(0,0,0,0.24)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
+  eventFilterFixedSelection: { position: 'absolute', alignSelf: 'center', top: 5, bottom: 5, borderRadius: 12, backgroundColor: 'rgba(249,115,22,0.18)', borderWidth: 1, borderColor: 'rgba(249,115,22,0.62)', overflow: 'hidden', zIndex: 4 },
+  eventFilterFixedSelectionShine: { position: 'absolute', top: 2, left: 12, right: 12, height: 1, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.34)' },
 
   // Owner user search (special codes)
   ownerSearchBox: { position: 'relative', marginBottom: 6 },
