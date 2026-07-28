@@ -880,22 +880,30 @@ export class OrdersService {
       }
     }
 
-    const session = await this.stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      ...(checkoutBuyerEmail ? { customer_email: checkoutBuyerEmail } : {}),
-      line_items: lineItems,
-      mode: 'payment',
-      expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
-      success_url: `${appUrl.replace(/\/$/, '')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl.replace(/\/$/, '')}/checkout/cancel`,
-      metadata: {
-        orderId: savedOrder.id,
-        userId,
-        eventId,
-        buyerEmail: checkoutBuyerEmail || '',
-        buyerName: checkoutBuyerName || '',
-      },
-    });
+    if (!this.stripe) throw new BadRequestException('Stripe no está configurado en el servidor.');
+
+    let session: any;
+    try {
+      session = await this.stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        ...(checkoutBuyerEmail ? { customer_email: checkoutBuyerEmail } : {}),
+        line_items: lineItems,
+        mode: 'payment',
+        expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
+        success_url: `${appUrl.replace(/\/$/, '')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appUrl.replace(/\/$/, '')}/checkout/cancel`,
+        metadata: {
+          orderId: savedOrder.id,
+          userId,
+          eventId,
+          buyerEmail: checkoutBuyerEmail || '',
+          buyerName: checkoutBuyerName || '',
+        },
+      });
+    } catch (stripeErr: any) {
+      console.error('[Checkout] Stripe session creation failed:', stripeErr?.message, stripeErr?.type, JSON.stringify(stripeErr?.raw || {}));
+      throw stripeErr;
+    }
 
     await this.orderRepo.update(savedOrder.id, { stripeSessionId: session.id });
 
