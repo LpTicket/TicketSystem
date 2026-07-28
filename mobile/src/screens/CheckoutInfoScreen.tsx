@@ -77,7 +77,10 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
     setError('');
     setPaying(true);
     try {
-      const payload = seatCount > 0
+      const isStandingSeats = seatCount > 0 && seats[0]?.id?.startsWith('standing-');
+      const payload = isStandingSeats
+        ? { eventId: event.id, sectionId: seats[0].sectionId, quantity: seats.length }
+        : seatCount > 0
         ? { eventId: event.id, seatIds: seats.map((s) => s.id) }
         : gaSection
         ? { eventId: event.id, sectionId: gaSection.id, quantity: gaQty }
