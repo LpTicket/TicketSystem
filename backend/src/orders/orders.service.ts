@@ -891,11 +891,16 @@ export class OrdersService {
 
     if (!this.stripe) throw new BadRequestException('Stripe no está configurado en el servidor.');
 
+    // Attach Stripe customer so saved cards appear pre-selected in Checkout
+    const stripeCustomerId = await this.getOrCreateStripeCustomer(userId, checkoutBuyerEmail);
+
     let session: any;
     try {
       session = await this.stripe.checkout.sessions.create({
         payment_method_types: ['card'],
-        ...(checkoutBuyerEmail ? { customer_email: checkoutBuyerEmail } : {}),
+        ...(stripeCustomerId
+          ? { customer: stripeCustomerId }
+          : checkoutBuyerEmail ? { customer_email: checkoutBuyerEmail } : {}),
         line_items: lineItems,
         mode: 'payment',
         expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
