@@ -154,6 +154,7 @@ function Chair({ seat, section, override, sel, size, cx, cy, onToggle, onToggleM
         zIndex: 20,
       }}
       onPress={() => {
+        if (Platform.OS === 'web') return;
         onInfo({
           title: seatInfoTitle(section, seat),
           subtitle: section.name || '',
@@ -291,6 +292,7 @@ function RowSection({ section, sel, onToggle, onInfo }: {
               opacity: unavail ? 0.45 : 1, zIndex: 20,
             }}
             onPress={() => {
+              if (Platform.OS === 'web') return;
               onInfo({
                 title: seatInfoTitle(section, seat),
                 subtitle: section.name || '',
