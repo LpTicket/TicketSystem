@@ -662,6 +662,15 @@ export class OrdersService {
       section?: any;
     }[] = [];
 
+    // Old App Store builds send fake standing-<sectionId>-<n>-<ts> IDs instead of sectionId+quantity.
+    // Detect and reroute so we don't pass invalid UUIDs to Postgres.
+    if (seatIds && seatIds.length > 0 && seatIds[0].startsWith('standing-')) {
+      const extractedSectionId = seatIds[0].slice('standing-'.length, 'standing-'.length + 36);
+      sectionId = sectionId || extractedSectionId;
+      quantity = quantity || seatIds.length;
+      seatIds = [];
+    }
+
     if (seatIds && seatIds.length > 0) {
       // Logic for Numbered/Seated events
       for (const seatId of seatIds) {

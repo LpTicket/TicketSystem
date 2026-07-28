@@ -988,6 +988,8 @@ export class EventsService {
    * Limits each user to 10 concurrent reservations.
    */
   async lockSeats(seatIds: string[], userId: string) {
+    // Standing sections use synthetic fake IDs (standing-<uuid>-...) — skip them, no real seat rows exist
+    seatIds = seatIds.filter(id => !id.startsWith('standing-'));
     if (seatIds.length === 0) return { message: 'No seats provided' };
     const { MoreThan, Not, In, IsNull } = require('typeorm');
     const now = new Date();
