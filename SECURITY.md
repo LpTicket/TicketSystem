@@ -29,7 +29,7 @@ This document tracks security hardening done on LPTicket and known follow-ups.
   through a truncated SHA-256 fingerprint; full contact values are not copied
   into the order delivery log.
 - **Single operational ticket copy** — Tap to Pay sends one administrative
-  record through `ADMIN_EMAIL`; a later customer delivery suppresses internal
+  record through `TICKET_ARCHIVE_EMAIL`; a later customer delivery suppresses internal
   BCC recipients so the same operational copy is not duplicated.
 - **Atomic gate validation** — a ticket changes from active to used in one
   conditional database update, preventing simultaneous double admission.

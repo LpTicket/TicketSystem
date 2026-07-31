@@ -627,7 +627,7 @@ export class OrdersService {
         }
         const buyerRecipient = buyerEmail?.trim();
         const operationalRecipient = String(
-          this.configService.get('ADMIN_EMAIL') || 'info@lpticket.com',
+          this.configService.get('TICKET_ARCHIVE_EMAIL') || 'info@lpticket.com',
         ).trim();
         const emailRecipient = buyerRecipient
           || (options?.allowFallbackEmail === false ? operationalRecipient : fullOrder.user.email);
@@ -649,6 +649,7 @@ export class OrdersService {
             total: Number(fullOrder.total || 0),
             organizerEmail: fullOrder.event.organizer?.email || null,
             },
+            { includeOperationalCopies: Boolean(buyerRecipient) },
           );
         }
       }

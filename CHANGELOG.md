@@ -46,7 +46,7 @@ comando ejecutado
 ## 2026-07-31 - Copia operativa única de ventas Tap to Pay
 
 ### Funcionalidad desarrollada
-- Cuando Tap to Pay confirma una venta sin correo del comprador, el backend prepara automáticamente una copia del ticket para `ADMIN_EMAIL`, con respaldo en `info@lpticket.com`.
+- Cuando Tap to Pay confirma una venta sin correo del comprador, el backend prepara automáticamente una copia del ticket para `TICKET_ARCHIVE_EMAIL`, con respaldo en `info@lpticket.com`.
 - Si posteriormente el vendedor envía el ticket al correo del cliente, ese envío no vuelve a copiar a LPTicket ni al organizador.
 - Si el pago ya contiene correo del comprador, se conserva el comportamiento existente: el comprador recibe el ticket y la copia operativa se envía mediante BCC.
 
@@ -63,7 +63,7 @@ comando ejecutado
 - Al hacer opcional el correo anterior al cobro, el flujo no invocaba el servicio de email y por eso tampoco se ejecutaba la copia administrativa configurada dentro de ese servicio.
 
 ### Riesgos encontrados
-- El envío real depende de la configuración SMTP y de que `ADMIN_EMAIL` apunte a la dirección operativa correcta en producción.
+- El envío real depende de la configuración SMTP; `TICKET_ARCHIVE_EMAIL` permite cambiar en el futuro la dirección de archivo sin modificar código.
 
 ### Estado de pruebas
 - IMPLEMENTADO, NO PROBADO

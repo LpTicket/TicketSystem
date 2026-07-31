@@ -197,7 +197,7 @@ describe('OrdersService critical ticket safeguards', () => {
     };
     const orderRepo = { findOne: jest.fn().mockResolvedValue(fullOrder) };
     const configService = {
-      get: jest.fn((key: string) => key === 'ADMIN_EMAIL' ? 'info@lpticket.com' : undefined),
+      get: jest.fn((key: string) => key === 'TICKET_ARCHIVE_EMAIL' ? 'info@lpticket.com' : undefined),
     };
     const { service, mailService } = buildService({ manager, orderRepo, configService });
 
@@ -216,6 +216,7 @@ describe('OrdersService critical ticket safeguards', () => {
       'Evento',
       expect.any(Array),
       expect.any(Object),
+      { includeOperationalCopies: false },
     );
   });
 });
