@@ -43,6 +43,36 @@ comando ejecutado
 
 ## Historial
 
+## 2026-07-31 - Entrada automática después de Tap to Pay
+
+### Funcionalidad desarrollada
+- Las entradas emitidas después de que Stripe confirma una venta presencial con Tap to Pay se guardan directamente como `used`, para contabilizar al comprador como persona admitida en el evento.
+- Las entradas compradas por web, Checkout, QR o enlace continúan como `active` hasta ser validadas en la puerta.
+
+### Archivos modificados
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/orders/orders.service.ts`
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/orders/orders.service.spec.ts`
+
+### Problema solucionado
+- Las ventas presenciales se emitían como pendientes aunque el comprador ya se encontraba físicamente en la entrada, provocando que las analíticas mostraran cero escaneados para `Entrada en puerta`.
+
+### Riesgos encontrados
+- El cambio modifica el estado inicial de los tickets únicamente para el canal `door_sale_tap_to_pay`; no corrige retrospectivamente ventas anteriores.
+
+### Estado de pruebas
+- IMPLEMENTADO Y COMPROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/backend
+npm test -- --runInBand --watchman=false src/orders/orders.service.spec.ts
+npm run build
+```
+
+### Observaciones
+- La entrada se marca usada solamente después de que el backend confirma el pago con Stripe.
+- Las pruebas automatizadas y la compilación del backend finalizaron correctamente; queda pendiente comprobar una compra real en un iPhone y su reflejo en las analíticas de producción.
+
 ## 2026-07-31 - Copia operativa única de ventas Tap to Pay
 
 ### Funcionalidad desarrollada

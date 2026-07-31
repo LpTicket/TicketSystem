@@ -158,6 +158,7 @@ describe('OrdersService critical ticket safeguards', () => {
           userId: 'user-1',
           eventId: 'event-1',
           status: OrderStatus.PENDING,
+          salesChannel: 'door_sale_tap_to_pay',
           seatsData: JSON.stringify([{
             seatId: '',
             sectionId: null,
@@ -210,6 +211,9 @@ describe('OrdersService critical ticket safeguards', () => {
     );
 
     expect(mailService.sendTicketEmail).toHaveBeenCalledTimes(1);
+    expect(transactionTicketRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ status: TicketStatus.USED }),
+    );
     expect(mailService.sendTicketEmail).toHaveBeenCalledWith(
       'info@lpticket.com',
       'Venta',
@@ -217,6 +221,53 @@ describe('OrdersService critical ticket safeguards', () => {
       expect.any(Array),
       expect.any(Object),
       { includeOperationalCopies: false },
+    );
+  });
+
+  it('keeps a regular paid ticket active until it is scanned at the gate', async () => {
+    const transactionTicketRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => ({ id: 'ticket-online-1', ...value })),
+    };
+    const transactionOrderRepo = {
+      createQueryBuilder: jest.fn(() => ({
+        setLock: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({
+          id: 'order-online-1',
+          userId: 'user-1',
+          eventId: 'event-1',
+          status: OrderStatus.PENDING,
+          salesChannel: 'online',
+          seatsData: JSON.stringify([{
+            seatId: '',
+            sectionId: null,
+            sectionName: 'General',
+            rowLabel: 'GA',
+            seatNumber: 1,
+            price: 20,
+          }]),
+        }),
+      })),
+      update: jest.fn(),
+    };
+    const manager = {
+      transaction: jest.fn(async (callback: any) => callback({
+        getRepository: (entity: any) => entity === Order
+          ? transactionOrderRepo
+          : entity === Ticket
+            ? transactionTicketRepo
+            : { findOne: jest.fn(), update: jest.fn() },
+      })),
+    };
+    const orderRepo = { findOne: jest.fn().mockResolvedValue(null) };
+    const { service } = buildService({ manager, orderRepo });
+
+    await (service as any).finalizePaidOrder('order-online-1', 'pi_online');
+
+    expect(transactionTicketRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ status: TicketStatus.ACTIVE }),
     );
   });
 });

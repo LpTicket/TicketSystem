@@ -39,6 +39,12 @@ PostgreSQL + servicios externos
 6. **Rendimiento sin sacrificar exactitud.** Usar caché de lectura para mejorar la carga, pero invalidar o refrescar datos después de cambios críticos. Nunca mostrar disponibilidad, pagos o bloqueos falsos por una caché desactualizada.
 7. **Observabilidad y recuperación.** Los errores deben ser trazables, explicables al usuario sin exponer datos sensibles y recuperables con una nueva consulta al estado real.
 
+### Admisión automática en ventas presenciales
+
+- Una orden con canal `door_sale_tap_to_pay` solo se completa después de confirmar el PaymentIntent con Stripe.
+- Los tickets creados para ese canal nacen con estado `used`, porque el comprador ya está físicamente en la puerta y debe contabilizarse como admitido.
+- Los tickets de Checkout, QR, enlace y compra online nacen con estado `active` y requieren validación posterior mediante el escáner.
+
 ### Cambios que Requieren Especial Cuidado
 
 Los siguientes cambios deben investigarse, probarse y revisarse de forma ampliada antes de integrarse:

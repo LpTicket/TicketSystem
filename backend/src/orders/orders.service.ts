@@ -544,6 +544,13 @@ export class OrdersService {
       });
 
       const seatsInfo = JSON.parse(order.seatsData || '[]');
+      // A Tap to Pay sale happens with the buyer physically at the entrance.
+      // Once Stripe has confirmed the payment, those tickets already represent
+      // admitted guests and must count as scanned. Checkout/QR/online sales stay
+      // active until staff validates them at the gate.
+      const initialTicketStatus = order.salesChannel === DOOR_SALE_TAP_TO_PAY_CHANNEL
+        ? TicketStatus.USED
+        : TicketStatus.ACTIVE;
       const createdTickets: Ticket[] = [];
       for (const seatInfo of seatsInfo) {
         const ticketCode = nanoid(12).toUpperCase();
@@ -567,7 +574,7 @@ export class OrdersService {
           seatNumber: seatInfo.seatNumber,
           qrData,
           price: seatInfo.price,
-          status: TicketStatus.ACTIVE,
+          status: initialTicketStatus,
         }));
         createdTickets.push(savedTicket);
 
