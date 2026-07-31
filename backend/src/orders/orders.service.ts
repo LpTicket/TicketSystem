@@ -625,8 +625,12 @@ export class OrdersService {
             this.cache.del(`organizer:stats:${organizerId}`),
           ]);
         }
-        const emailRecipient = buyerEmail?.trim()
-          || (options?.allowFallbackEmail === false ? '' : fullOrder.user.email);
+        const buyerRecipient = buyerEmail?.trim();
+        const operationalRecipient = String(
+          this.configService.get('ADMIN_EMAIL') || 'info@lpticket.com',
+        ).trim();
+        const emailRecipient = buyerRecipient
+          || (options?.allowFallbackEmail === false ? operationalRecipient : fullOrder.user.email);
         if (emailRecipient) {
           await this.mailService.sendTicketEmail(
             emailRecipient,
@@ -790,6 +794,7 @@ export class OrdersService {
             total: Number(order.total || 0),
             organizerEmail: order.event.organizer?.email || null,
           },
+          { includeOperationalCopies: false },
         );
       }
       await this.recordTicketDelivery(order, { channel, recipient, status: 'sent' });

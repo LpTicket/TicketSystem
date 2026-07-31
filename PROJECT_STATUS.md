@@ -6,9 +6,9 @@ Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explíc
 
 ## Estado Git Actual
 
-- Rama actual: `codex-unify-lpticket`, iniciada sobre `origin/main` en `217e126e` antes de este cambio.
-- Hay cambios locales sin commit para restringir la visualización pública de entradas a enlaces firmados de Tap to Pay.
-- No se debe asumir que estos cambios están desplegados ni probados con un SMS real hasta completar la publicación y la prueba física.
+- Rama actual: `codex-unify-lpticket`, iniciada sobre `origin/main` en `0a134e1c` antes de este cambio.
+- Hay cambios locales sin commit para crear una copia operativa única después de cada venta Tap to Pay.
+- No se debe asumir que este envío interno está desplegado ni probado con SMTP real hasta completar la publicación y la prueba física.
 
 ## Arquitectura Confirmada
 
@@ -35,7 +35,7 @@ El backend es la fuente de verdad para eventos, mapas, asientos, bloqueos, órde
 | Apple Wallet y Google Wallet | IMPLEMENTADO, NO PROBADO | Servicios y endpoints presentes; Apple Wallet conserva QR, usa el flyer como fondo y miniatura, y muestra evento, titular y venue; pendiente de prueba física. |
 | Ventas en puerta | IMPLEMENTADO | Preview, checkout, facturación y tickets presentes. |
 | Tap to Pay en iPhone | IMPLEMENTADO, NO PROBADO | Entitlement de Apple concedido y perfil renovado para el build iOS 30; pendiente prueba física con Stripe Terminal. |
-| Entrega postventa por SMS/correo | IMPLEMENTADO, NO PROBADO | La entrega se solicita después de confirmar el pago; reutiliza Twilio/SMTP, registra un historial enmascarado y genera enlaces firmados únicamente para ventas Tap to Pay. |
+| Entrega postventa por SMS/correo | IMPLEMENTADO, NO PROBADO | La entrega se solicita después de confirmar el pago; reutiliza Twilio/SMTP, registra un historial enmascarado, genera enlaces firmados únicamente para ventas Tap to Pay y prepara una copia operativa única para LPTicket. |
 | Métodos de pago | IMPLEMENTADO | Compra online mediante Stripe Checkout; no se añadió un módulo nativo adicional. |
 | Social Match y chat | IMPLEMENTADO, NO PROBADO | Intereses traducidos, sugerencias solo entre asistentes activos con intereses compartidos, conexiones, descartes y mensajes presentes; pendiente de prueba móvil. |
 | Escáner de empleados | IMPLEMENTADO | Solicitudes, aprobación, búsqueda y validación presentes. |

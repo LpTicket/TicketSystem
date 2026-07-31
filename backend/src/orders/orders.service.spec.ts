@@ -15,6 +15,7 @@ function buildService(overrides: Record<string, any> = {}) {
     manager: overrides.manager || { transaction: jest.fn() },
     ...overrides.orderRepo,
   };
+  const mailService = overrides.mailService || { sendTicketEmail: jest.fn() };
   const service = new OrdersService(
     orderRepo as any,
     ticketRepo as any,
@@ -25,11 +26,11 @@ function buildService(overrides: Record<string, any> = {}) {
     (overrides.scannerAccessRepo || {}) as any,
     (overrides.paymentMethodRepo || {}) as any,
     (overrides.configService || { get: jest.fn(() => undefined) }) as any,
-    ({ sendTicketEmail: jest.fn() }) as any,
+    mailService as any,
     ({ sendTransactionalSms: jest.fn() }) as any,
     ({ del: jest.fn(), get: jest.fn(), set: jest.fn() }) as any,
   );
-  return { service, ticketRepo, eventRepo, orderRepo };
+  return { service, ticketRepo, eventRepo, orderRepo, mailService };
 }
 
 describe('OrdersService critical ticket safeguards', () => {
@@ -140,5 +141,81 @@ describe('OrdersService critical ticket safeguards', () => {
 
     await expect(service.getGuestTicketByCode('ONLINE-CODE-1', `v1.${Math.floor(Date.now() / 1000) + 3600}.${'a'.repeat(64)}`))
       .rejects.toThrow('El enlace de la entrada no es válido o ya venció.');
+  });
+
+  it('sends one operational ticket copy when Tap to Pay has no buyer email', async () => {
+    const transactionTicketRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => ({ id: 'ticket-1', ...value })),
+    };
+    const transactionOrderRepo = {
+      createQueryBuilder: jest.fn(() => ({
+        setLock: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({
+          id: 'order-1',
+          userId: 'user-1',
+          eventId: 'event-1',
+          status: OrderStatus.PENDING,
+          seatsData: JSON.stringify([{
+            seatId: '',
+            sectionId: null,
+            sectionName: 'Entrada en puerta',
+            rowLabel: 'GA',
+            seatNumber: 1,
+            price: 20,
+          }]),
+        }),
+      })),
+      update: jest.fn(),
+    };
+    const transactionSeatRepo = { findOne: jest.fn(), update: jest.fn() };
+    const manager = {
+      transaction: jest.fn(async (callback: any) => callback({
+        getRepository: (entity: any) => entity === Order
+          ? transactionOrderRepo
+          : entity === Ticket
+            ? transactionTicketRepo
+            : transactionSeatRepo,
+      })),
+    };
+    const fullOrder = {
+      id: 'order-1',
+      userId: 'user-1',
+      subtotal: 20,
+      lpFee: 2.4,
+      processingFee: 0.7,
+      total: 23.1,
+      user: { firstName: 'Venta', email: 'account@example.com' },
+      event: {
+        id: 'event-1',
+        title: 'Evento',
+        organizerId: 'organizer-1',
+        organizer: { email: 'organizer@example.com' },
+      },
+    };
+    const orderRepo = { findOne: jest.fn().mockResolvedValue(fullOrder) };
+    const configService = {
+      get: jest.fn((key: string) => key === 'ADMIN_EMAIL' ? 'info@lpticket.com' : undefined),
+    };
+    const { service, mailService } = buildService({ manager, orderRepo, configService });
+
+    await (service as any).finalizePaidOrder(
+      'order-1',
+      'pi_1',
+      undefined,
+      undefined,
+      { allowFallbackEmail: false },
+    );
+
+    expect(mailService.sendTicketEmail).toHaveBeenCalledTimes(1);
+    expect(mailService.sendTicketEmail).toHaveBeenCalledWith(
+      'info@lpticket.com',
+      'Venta',
+      'Evento',
+      expect.any(Array),
+      expect.any(Object),
+    );
   });
 });

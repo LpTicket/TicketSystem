@@ -84,6 +84,7 @@ export class MailService {
       total?: number;
       organizerEmail?: string | null;
     },
+    deliveryOptions?: { includeOperationalCopies?: boolean },
   ) {
     const appUrl = this.getAppUrl();
     const eventAddress = [eventInfo?.venueName, eventInfo?.venueAddress].filter(Boolean).join(' — ');
@@ -329,13 +330,15 @@ export class MailService {
         };
       });
 
-    const bccRecipients = Array.from(new Set([
-      this.configService.get('ADMIN_EMAIL'),
-      eventInfo?.organizerEmail,
-    ]
-      .filter((email): email is string => Boolean(email && email.trim()))
-      .map((email) => email.trim())))
-      .filter((email) => email.toLowerCase() !== String(to || '').trim().toLowerCase());
+    const bccRecipients = deliveryOptions?.includeOperationalCopies === false
+      ? []
+      : Array.from(new Set([
+          this.configService.get('ADMIN_EMAIL'),
+          eventInfo?.organizerEmail,
+        ]
+          .filter((email): email is string => Boolean(email && email.trim()))
+          .map((email) => email.trim())))
+        .filter((email) => email.toLowerCase() !== String(to || '').trim().toLowerCase());
 
     try {
       await this.transporter.sendMail({

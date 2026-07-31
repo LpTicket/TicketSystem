@@ -173,6 +173,8 @@ Este flujo requiere una compilación nativa; no puede validarse completamente de
 
 Después de confirmar una venta presencial, el backend marca la orden con `salesChannel = door_sale_tap_to_pay`. Si el vendedor solicita entrega por SMS o correo, el backend crea por cada ticket una firma HMAC con vencimiento y la añade al enlace `/verify/:code?access=...`. La ruta pública acepta solamente esa firma y ese canal; la ruta normal `/orders/ticket/:code` requiere JWT y valida comprador o personal autorizado. El enlace no habilita validación, escaneo ni acceso a otras entradas.
 
+La emisión confirmada genera una sola copia operativa del ticket: si existe correo del comprador, LPTicket recibe la copia oculta habitual; si no existe, `ADMIN_EMAIL` es el destinatario principal. Una entrega solicitada posteriormente por el cliente suprime las copias operativas para evitar duplicados.
+
 Después de modificar móvil debe ejecutarse:
 
 ```bash

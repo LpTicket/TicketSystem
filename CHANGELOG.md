@@ -43,6 +43,45 @@ comando ejecutado
 
 ## Historial
 
+## 2026-07-31 - Copia operativa única de ventas Tap to Pay
+
+### Funcionalidad desarrollada
+- Cuando Tap to Pay confirma una venta sin correo del comprador, el backend prepara automáticamente una copia del ticket para `ADMIN_EMAIL`, con respaldo en `info@lpticket.com`.
+- Si posteriormente el vendedor envía el ticket al correo del cliente, ese envío no vuelve a copiar a LPTicket ni al organizador.
+- Si el pago ya contiene correo del comprador, se conserva el comportamiento existente: el comprador recibe el ticket y la copia operativa se envía mediante BCC.
+
+### Archivos modificados
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/common/services/mail.service.ts`
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/orders/orders.service.ts`
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/orders/orders.service.spec.ts`
+- `/Users/sundingalue/Documents/TicketSystem/PROJECT_STATUS.md`
+- `/Users/sundingalue/Documents/TicketSystem/CHANGELOG.md`
+- `/Users/sundingalue/Documents/TicketSystem/ARCHITECTURE.md`
+- `/Users/sundingalue/Documents/TicketSystem/SECURITY.md`
+
+### Problema solucionado
+- Al hacer opcional el correo anterior al cobro, el flujo no invocaba el servicio de email y por eso tampoco se ejecutaba la copia administrativa configurada dentro de ese servicio.
+
+### Riesgos encontrados
+- El envío real depende de la configuración SMTP y de que `ADMIN_EMAIL` apunte a la dirección operativa correcta en producción.
+
+### Estado de pruebas
+- IMPLEMENTADO, NO PROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/backend
+npx tsc -p tsconfig.build.json --noEmit
+npm test -- --runInBand --watchman=false src/orders/orders.service.spec.ts
+npm run build
+```
+
+Resultado: compilación correcta y 6 pruebas críticas de órdenes aprobadas.
+
+### Observaciones
+- Falta comprobar la recepción real en `info@lpticket.com` con una venta Tap to Pay nueva después del despliegue.
+- No se modificaron Stripe, importes, tickets, SMS, escaneo, frontend ni aplicación móvil.
+
 ## 2026-07-31 - Acceso invitado seguro para entradas Tap to Pay
 
 ### Funcionalidad desarrollada
