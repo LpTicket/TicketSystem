@@ -10,7 +10,7 @@ const Stripe = require('stripe');
 import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, EventStatus, VenueSection, SpecialCode, ScannerAccess, ScannerAccessStatus, UserRole, PaymentMethod, PaymentMethodType } from '../database/entities';
 import { User } from '../database/entities/user.entity';
 import { nanoid } from 'nanoid';
-import { createHash } from 'crypto';
+import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import * as QRCode from 'qrcode';
 import { MailService } from '../common/services/mail.service';
 import { isValidEmailFormat, suggestEmailFix } from '../common/utils/email-typo';
@@ -23,6 +23,7 @@ const LPTICKET_FEE_RATE = 0.12; // 12% platform fee
 const STRIPE_PERCENTAGE = 0.029; // 2.9% Stripe variable fee
 const STRIPE_FIXED = 0.30; // $0.30 Stripe fixed fee per transaction
 const USER_PURCHASES_CACHE_TTL = 30_000;
+const DOOR_SALE_TAP_TO_PAY_CHANNEL = 'door_sale_tap_to_pay';
 
 /**
  * OrdersService
@@ -416,6 +417,7 @@ export class OrdersService {
       status: OrderStatus.PENDING,
       ticketCount: invoice.quantity,
       seatsData: JSON.stringify(seatsInfo),
+      salesChannel: DOOR_SALE_TAP_TO_PAY_CHANNEL,
     }));
     await this.invalidateUserPurchasesCache(user.id);
 
@@ -668,6 +670,38 @@ export class OrdersService {
     return createHash('sha256').update(`${channel}:${recipient.trim().toLowerCase()}`).digest('hex').slice(0, 20);
   }
 
+  private getGuestTicketSecret() {
+    const secret = this.configService.get('TICKET_GUEST_LINK_SECRET') || this.configService.get('JWT_SECRET');
+    if (!secret) throw new BadRequestException('La entrega segura de entradas no está configurada.');
+    return String(secret);
+  }
+
+  private createGuestTicketAccess(ticket: Ticket, order: Order) {
+    if (order.salesChannel !== DOOR_SALE_TAP_TO_PAY_CHANNEL) {
+      throw new ForbiddenException('Esta entrada no admite acceso público.');
+    }
+    const eventTime = order.event?.eventDate ? new Date(order.event.eventDate).getTime() : 0;
+    const minimumExpiry = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    const expiresAt = Math.floor(Math.max(minimumExpiry, eventTime + 48 * 60 * 60 * 1000) / 1000);
+    const payload = `${ticket.ticketCode}:${order.id}:${expiresAt}`;
+    const signature = createHmac('sha256', this.getGuestTicketSecret()).update(payload).digest('hex');
+    return `v1.${expiresAt}.${signature}`;
+  }
+
+  private validateGuestTicketAccess(ticket: Ticket, access: string) {
+    const order = (ticket as any).order as Order | undefined;
+    if (!order || order.salesChannel !== DOOR_SALE_TAP_TO_PAY_CHANNEL) return false;
+    const [version, rawExpiry, signature] = String(access || '').split('.');
+    const expiresAt = Number(rawExpiry);
+    if (version !== 'v1' || !Number.isInteger(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) return false;
+    if (!/^[a-f0-9]{64}$/i.test(signature || '')) return false;
+    const payload = `${ticket.ticketCode}:${order.id}:${expiresAt}`;
+    const expected = createHmac('sha256', this.getGuestTicketSecret()).update(payload).digest('hex');
+    const actualBuffer = Buffer.from(signature, 'hex');
+    const expectedBuffer = Buffer.from(expected, 'hex');
+    return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+  }
+
   private async recordTicketDelivery(
     order: Order,
     entry: { channel: 'sms' | 'email'; recipient: string; status: 'sent' | 'failed'; detail?: string },
@@ -700,6 +734,9 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Orden no encontrada.');
     await this.ensureCanSellAtDoor(user, order.eventId);
     if (order.status !== OrderStatus.PAID) throw new BadRequestException('El pago todavía no está confirmado.');
+    if (order.salesChannel !== DOOR_SALE_TAP_TO_PAY_CHANNEL) {
+      throw new BadRequestException('La entrega pública solo está disponible para ventas con Tap to Pay.');
+    }
     const tickets = await this.ticketRepo.find({ where: { orderId }, order: { createdAt: 'ASC' } });
     if (tickets.length === 0) throw new BadRequestException('Las entradas todavía no están disponibles.');
 
@@ -720,7 +757,10 @@ export class OrdersService {
 
     try {
       if (channel === 'sms') {
-        const links = tickets.map((ticket) => `${this.getPublicAppUrl()}/verify/${ticket.ticketCode}`).join('\n');
+        const links = tickets.map((ticket) => {
+          const access = this.createGuestTicketAccess(ticket, order);
+          return `${this.getPublicAppUrl()}/verify/${ticket.ticketCode}?access=${encodeURIComponent(access)}`;
+        }).join('\n');
         const countLabel = tickets.length === 1 ? 'Tu entrada' : `Tus ${tickets.length} entradas`;
         await this.marketingService.sendTransactionalSms(
           recipient,
@@ -730,11 +770,14 @@ export class OrdersService {
         if (!isValidEmailFormat(recipient)) throw new BadRequestException('Ingresa un correo electrónico válido.');
         const suggestion = suggestEmailFix(recipient);
         if (suggestion) throw new BadRequestException(`Revisa el correo: ¿quisiste decir ${suggestion}?`);
+        const guestTickets = tickets.map((ticket) => Object.assign(ticket, {
+          guestAccess: this.createGuestTicketAccess(ticket, order),
+        }));
         await this.mailService.sendTicketEmail(
           recipient,
           customerName?.trim() || 'Cliente',
           order.event.title,
-          tickets,
+          guestTickets,
           {
             venueName: order.event.venueName,
             venueAddress: order.event.venueAddress,
@@ -1588,13 +1631,7 @@ export class OrdersService {
     return QRCode.toBuffer(`${appUrl}/verify/${ticket.ticketCode}`, { width: 320, margin: 1 });
   }
 
-  /**
-   * Public verification view — this endpoint is unauthenticated (gate scanning).
-   * Returns only the fields needed to display/verify a ticket, never the buyer's
-   * password hash, address, payment data or full order/user record.
-   */
-  async getPublicTicketByCode(code: string) {
-    const ticket = await this.getTicketByCode(code);
+  private sanitizeTicket(ticket: Ticket) {
     const u = ticket.user;
     const attendeeName =
       [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim() || 'Invitado';
@@ -1643,6 +1680,35 @@ export class OrdersService {
           }
         : null,
     };
+  }
+
+  async getTicketForViewer(code: string, user: any) {
+    const ticket = await this.getTicketByCode(code);
+    const isOwner = ticket.userId === user?.id;
+    const isOrganizer = ticket.event?.organizerId === user?.id;
+    const isAdmin = user?.role === UserRole.ADMIN;
+    let hasScannerAccess = false;
+    if (!isOwner && !isOrganizer && !isAdmin && user?.id) {
+      hasScannerAccess = !!(await this.scannerAccessRepo.findOne({
+        where: {
+          eventId: ticket.eventId,
+          userId: user.id,
+          status: ScannerAccessStatus.APPROVED,
+        },
+      }));
+    }
+    if (!isOwner && !isOrganizer && !isAdmin && !hasScannerAccess) {
+      throw new ForbiddenException('No tienes permiso para ver esta entrada.');
+    }
+    return this.sanitizeTicket(ticket);
+  }
+
+  async getGuestTicketByCode(code: string, access: string) {
+    const ticket = await this.getTicketByCode(code);
+    if (!this.validateGuestTicketAccess(ticket, access)) {
+      throw new ForbiddenException('El enlace de la entrada no es válido o ya venció.');
+    }
+    return this.sanitizeTicket(ticket);
   }
 
   /**

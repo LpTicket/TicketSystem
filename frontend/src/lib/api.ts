@@ -37,6 +37,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
+      // Ticket pages decide whether to show a guest-link error or request login.
+      if (window.location.pathname.startsWith('/verify/')) {
+        return Promise.reject(error);
+      }
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       // Don't redirect if already on auth pages

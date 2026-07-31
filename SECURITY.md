@@ -17,8 +17,10 @@ This document tracks security hardening done on LPTicket and known follow-ups.
 - **Security headers** — `@fastify/helmet` (HSTS in prod, nosniff, frameguard).
 - **No internal error leakage** — exception filter hides stack traces / internal
   messages in production.
-- **Public ticket lookup sanitized** — gate verification returns only the
-  fields needed, never password hash / address / full order or user record.
+- **Ticket lookup access-controlled** — the normal ticket route requires JWT
+  and ownership/event authorization. Only Tap to Pay door sales can create a
+  time-limited HMAC guest link; it returns a sanitized single-ticket view and
+  never grants scanning, account, contact or payment privileges.
 - **XSS in JSON-LD** — `<` is escaped so a crafted event title can't break out.
 - **429 UX** — web and mobile show a friendly "try again in N seconds" message.
 - **Door-sale delivery authorization** — only an admin, the event owner, or an

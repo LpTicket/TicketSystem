@@ -103,6 +103,10 @@ export class Order {
   @Column({ type: 'text', nullable: true })
   ticketDeliveryLog: string | null;
 
+  /** Identifies the checkout flow that originated the order. */
+  @Column({ type: 'varchar', length: 40, default: 'online' })
+  salesChannel: string;
+
   /** Special influencer/referral code used at checkout */
   @Column({ type: 'varchar', nullable: true, length: 40 })
   specialCode: string | null;

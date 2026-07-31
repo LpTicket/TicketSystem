@@ -13,6 +13,7 @@ import { toast } from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
+import axios from 'axios';
 import { formatSeatLabel } from '@/lib/seatLabel';
 import { Ticket } from '@/types';
 import { format } from 'date-fns';
@@ -40,20 +41,34 @@ export default function VerifyTicketPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const openedFromMobileApp = searchParams.get('source') === 'mobile-app';
+  const guestAccess = searchParams.get('access');
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [shareLabel, setShareLabel] = useState('Compartir');
 
   useEffect(() => { 
     loadTicket(); 
-  }, [code]);
+  }, [code, guestAccess]);
 
   const loadTicket = async () => {
     try { 
-      const { data } = await api.get(`/orders/ticket/${code}`); 
+      const endpoint = guestAccess
+        ? `/orders/guest-ticket/${code}?access=${encodeURIComponent(guestAccess)}`
+        : `/orders/ticket/${code}`;
+      const { data } = await api.get(endpoint);
       setTicket(data); 
-    } catch { 
+      setLoadError('');
+    } catch (error) {
       setTicket(null); 
+      if (!guestAccess && axios.isAxiosError(error) && error.response?.status === 401) {
+        const destination = `/verify/${encodeURIComponent(code)}`;
+        router.replace(`/login?redirect=${encodeURIComponent(destination)}`);
+        return;
+      }
+      setLoadError(guestAccess
+        ? 'Este enlace privado no es válido o ya venció. Solicita al vendedor que te envíe nuevamente la entrada.'
+        : 'No pudimos abrir esta entrada con tu cuenta.');
     } finally { 
       setLoading(false); 
     }
@@ -133,7 +148,7 @@ export default function VerifyTicketPage() {
         <div className="text-center bg-white p-8 rounded-3xl border border-gray-200 shadow-sm max-w-sm w-full">
           <HiOutlineXCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h1 className="font-extrabold text-2xl text-gray-900 mb-2">Ticket no encontrado</h1>
-          <p className="text-gray-500 text-sm mb-6">El código <span className="font-mono text-red-500 font-bold">{code}</span> no corresponde a un boleto activo.</p>
+          <p className="text-gray-500 text-sm mb-6">{loadError || <>El código <span className="font-mono text-red-500 font-bold">{code}</span> no corresponde a un boleto activo.</>}</p>
           <button onClick={() => router.push('/')} className="btn-primary w-full py-2.5 rounded-xl">Ir al Inicio</button>
         </div>
       </div>

@@ -43,6 +43,55 @@ comando ejecutado
 
 ## Historial
 
+## 2026-07-31 - Acceso invitado seguro para entradas Tap to Pay
+
+### Funcionalidad desarrollada
+- Las ventas presenciales Tap to Pay quedan identificadas por su canal de venta.
+- El SMS o correo postventa genera un enlace firmado y temporal para consultar exclusivamente esa entrada sin iniciar sesión.
+- La consulta normal por código ahora exige sesión y verifica que el usuario sea comprador, administrador, organizador o empleado aprobado del evento.
+- La web evita cargar la sesión global en la vista independiente de la entrada y distingue entre un enlace invitado inválido y una entrada que requiere login.
+
+### Archivos modificados
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/database/entities/order.entity.ts`
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/orders/orders.service.ts`
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/orders/orders.controller.ts`
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/orders/orders.service.spec.ts`
+- `/Users/sundingalue/Documents/TicketSystem/backend/src/common/services/mail.service.ts`
+- `/Users/sundingalue/Documents/TicketSystem/frontend/src/app/verify/[code]/page.tsx`
+- `/Users/sundingalue/Documents/TicketSystem/frontend/src/components/layout/AppShell.tsx`
+- `/Users/sundingalue/Documents/TicketSystem/frontend/src/lib/api.ts`
+- `/Users/sundingalue/Documents/TicketSystem/PROJECT_STATUS.md`
+- `/Users/sundingalue/Documents/TicketSystem/CHANGELOG.md`
+- `/Users/sundingalue/Documents/TicketSystem/ARCHITECTURE.md`
+- `/Users/sundingalue/Documents/TicketSystem/SECURITY.md`
+- `/Users/sundingalue/Documents/TicketSystem/ROADMAP.md`
+
+### Problema solucionado
+- El enlace postventa llevaba a una vista afectada por la carga de sesión y el endpoint general de tickets era público para cualquier código conocido.
+
+### Riesgos encontrados
+- La entidad `Order` añade `salesChannel`; el proyecto aún usa `synchronize: true`, por lo que Railway aplicará la columna al iniciar el backend.
+- Los enlaces enviados antes de este cambio no contienen firma y continuarán solicitando login.
+
+### Estado de pruebas
+- IMPLEMENTADO, NO PROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/backend
+npx tsc -p tsconfig.build.json --noEmit
+npm test -- --runInBand --watchman=false src/orders/orders.service.spec.ts
+
+cd /Users/sundingalue/Documents/TicketSystem/frontend
+npm run build
+```
+
+Resultado: backend y frontend compilaron; las 5 pruebas críticas de órdenes pasaron.
+
+### Observaciones
+- Falta comprobar un SMS nuevo desde un pago real Tap to Pay después del despliegue.
+- No se modificaron importes, cobros, webhooks, escaneo, Apple Wallet ni la aplicación móvil.
+
 ## 2026-07-26 - Intereses y sugerencias de Social Match
 
 ### Funcionalidad desarrollada

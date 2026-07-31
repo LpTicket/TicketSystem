@@ -1,6 +1,6 @@
 # LPTicket - Roadmap
 
-Última revisión: 2026-07-19
+Última revisión: 2026-07-31
 
 ## Funcionalidades Terminadas
 
@@ -26,6 +26,7 @@
 
 - Validación completa de Tap to Pay en iPhone.
 - Prueba física de emisión única, entrega opcional por SMS/correo y continuidad del escáner en puerta.
+- Prueba física del enlace invitado firmado generado después de una venta Tap to Pay.
 - Flujo de educación y términos de Tap to Pay.
 - Optimización de cargas de mapas, eventos y paneles.
 - Revisión de sincronización de bloqueos desde móvil, web y vista cliente.

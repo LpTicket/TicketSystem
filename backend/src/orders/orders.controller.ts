@@ -235,10 +235,17 @@ export class OrdersController {
     return this.ordersService.getUserTickets(userId);
   }
 
-  // Public (unauthenticated) gate verification — returns a sanitized view only.
+  // Normal ticket view requires an authenticated owner or authorized event staff.
+  @UseGuards(AuthGuard('jwt'))
   @Get('ticket/:code')
-  getTicketByCode(@Param('code') code: string) {
-    return this.ordersService.getPublicTicketByCode(code);
+  getTicketByCode(@Param('code') code: string, @Request() req: any) {
+    return this.ordersService.getTicketForViewer(code, req.user);
+  }
+
+  // Signed guest view created only after a successful Tap to Pay door sale.
+  @Get('guest-ticket/:code')
+  getGuestTicketByCode(@Param('code') code: string, @Query('access') access: string) {
+    return this.ordersService.getGuestTicketByCode(code, access);
   }
 
   // Public QR image for a ticket as a real PNG URL. Used as a robust fallback in

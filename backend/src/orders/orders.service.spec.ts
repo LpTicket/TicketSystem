@@ -24,7 +24,7 @@ function buildService(overrides: Record<string, any> = {}) {
     (overrides.specialCodeRepo || {}) as any,
     (overrides.scannerAccessRepo || {}) as any,
     (overrides.paymentMethodRepo || {}) as any,
-    ({ get: jest.fn(() => undefined) }) as any,
+    (overrides.configService || { get: jest.fn(() => undefined) }) as any,
     ({ sendTicketEmail: jest.fn() }) as any,
     ({ sendTransactionalSms: jest.fn() }) as any,
     ({ del: jest.fn(), get: jest.fn(), set: jest.fn() }) as any,
@@ -96,5 +96,49 @@ describe('OrdersService critical ticket safeguards', () => {
     expect(result).toEqual([existingTicket]);
     expect(orderQuery.setLock).toHaveBeenCalledWith('pessimistic_write');
     expect(transactionTicketRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('accepts a signed guest link only for a Tap to Pay door-sale ticket', async () => {
+    const configService = {
+      get: jest.fn((key: string) => key === 'TICKET_GUEST_LINK_SECRET' ? 'test-guest-secret' : undefined),
+    };
+    const { service, ticketRepo } = buildService({ configService });
+    const order = {
+      id: 'order-door-1',
+      salesChannel: 'door_sale_tap_to_pay',
+      event: { eventDate: new Date(Date.now() + 86_400_000) },
+    };
+    const ticket = {
+      id: 'ticket-door-1',
+      ticketCode: 'DOOR-CODE-1',
+      orderId: order.id,
+      order,
+      event: { id: 'event-1', title: 'Evento' },
+      user: { firstName: 'Cliente', lastName: 'Puerta' },
+    };
+    ticketRepo.findOne.mockResolvedValue(ticket);
+
+    const access = (service as any).createGuestTicketAccess(ticket, order);
+    const result = await service.getGuestTicketByCode(ticket.ticketCode, access);
+
+    expect(result).toMatchObject({ id: ticket.id, ticketCode: ticket.ticketCode });
+  });
+
+  it('rejects guest access for a regular online order', async () => {
+    const configService = {
+      get: jest.fn((key: string) => key === 'TICKET_GUEST_LINK_SECRET' ? 'test-guest-secret' : undefined),
+    };
+    const { service, ticketRepo } = buildService({ configService });
+    ticketRepo.findOne.mockResolvedValue({
+      id: 'ticket-online-1',
+      ticketCode: 'ONLINE-CODE-1',
+      orderId: 'order-online-1',
+      order: { id: 'order-online-1', salesChannel: 'online' },
+      event: { id: 'event-1' },
+      user: { firstName: 'Cliente', lastName: 'Web' },
+    });
+
+    await expect(service.getGuestTicketByCode('ONLINE-CODE-1', `v1.${Math.floor(Date.now() / 1000) + 3600}.${'a'.repeat(64)}`))
+      .rejects.toThrow('El enlace de la entrada no es válido o ya venció.');
   });
 });

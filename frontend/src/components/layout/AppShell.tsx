@@ -27,8 +27,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const hideFloatingWidgets = /^\/organizer\/events\/[^/]+/.test(pathname);
 
   useEffect(() => {
-    loadUser();
-  }, [loadUser]);
+    if (!standalone) loadUser();
+  }, [loadUser, standalone]);
 
   return (
     <>

@@ -169,7 +169,8 @@ export class MailService {
         !/^\d+$/.test(cleanSection); // hide purely numeric section names
 
       const qrCid = `qr-${t.ticketCode}`;
-      const ticketUrl = `${appUrl}/verify/${t.ticketCode}`;
+      const guestAccess = (t as any).guestAccess as string | undefined;
+      const ticketUrl = `${appUrl}/verify/${t.ticketCode}${guestAccess ? `?access=${encodeURIComponent(guestAccess)}` : ''}`;
       const whatsappShareUrl = `https://wa.me/?text=${encodeURIComponent(`Mi entrada para ${eventTitle}: ${ticketUrl}`)}`;
       // Apple Wallet pass (public endpoint). Works on iPhone once Apple Pass
       // certificates are configured on the server.

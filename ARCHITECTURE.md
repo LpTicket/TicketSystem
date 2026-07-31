@@ -171,6 +171,8 @@ La implementación de Tap to Pay se relaciona con:
 
 Este flujo requiere una compilación nativa; no puede validarse completamente desde Expo Go. La disponibilidad de la capacidad de Apple y la configuración externa de Stripe deben considerarse **no comprobadas** hasta que se prueben en un dispositivo físico y sean aprobadas por los proveedores correspondientes.
 
+Después de confirmar una venta presencial, el backend marca la orden con `salesChannel = door_sale_tap_to_pay`. Si el vendedor solicita entrega por SMS o correo, el backend crea por cada ticket una firma HMAC con vencimiento y la añade al enlace `/verify/:code?access=...`. La ruta pública acepta solamente esa firma y ese canal; la ruta normal `/orders/ticket/:code` requiere JWT y valida comprador o personal autorizado. El enlace no habilita validación, escaneo ni acceso a otras entradas.
+
 Después de modificar móvil debe ejecutarse:
 
 ```bash
