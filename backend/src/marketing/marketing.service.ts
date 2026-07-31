@@ -295,6 +295,21 @@ export class MarketingService {
     return this.sendMessagingCampaign(message, 'sms', recipients);
   }
 
+  /** Transactional SMS requested by a customer after a completed door sale. */
+  async sendTransactionalSms(rawPhone: string, message: string) {
+    const phone = this.normalizePhone(rawPhone);
+    if (!phone) throw new BadRequestException('Ingresa un número telefónico válido.');
+    if (!message?.trim()) throw new BadRequestException('El mensaje es obligatorio.');
+    const sid = this.config.get<string>('TWILIO_ACCOUNT_SID');
+    const token = this.config.get<string>('TWILIO_AUTH_TOKEN');
+    const fromSms = this.config.get<string>('TWILIO_SMS_FROM');
+    if (!sid || !token || !fromSms) {
+      throw new BadRequestException('El envío por SMS no está configurado temporalmente.');
+    }
+    await this.sendTwilioMessage(phone, 'sms', { body: message.trim() });
+    return { phone };
+  }
+
   sendWhatsappCampaign(message: string, recipients?: string[], lang?: 'es' | 'en') {
     return this.sendMessagingCampaign(message, 'whatsapp', recipients, lang);
   }

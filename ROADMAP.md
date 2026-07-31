@@ -25,6 +25,7 @@
 ## Funcionalidades en Desarrollo
 
 - Validación completa de Tap to Pay en iPhone.
+- Prueba física de emisión única, entrega opcional por SMS/correo y continuidad del escáner en puerta.
 - Flujo de educación y términos de Tap to Pay.
 - Optimización de cargas de mapas, eventos y paneles.
 - Revisión de sincronización de bloqueos desde móvil, web y vista cliente.

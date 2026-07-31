@@ -7,7 +7,7 @@ import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Scroll
 import { GradientButton } from '../components/GradientButton';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser, apiGet, getImageUrl } from '../services/api';
-import { createDoorSaleCheckout, DoorSaleCheckout, DoorSalePreview, previewDoorSale } from '../services/doorSales';
+import { createDoorSaleCheckout, DoorSaleCheckout, DoorSalePreview, previewDoorSale, sendDoorSaleTicketDelivery } from '../services/doorSales';
 import { getMyScannerAccess } from '../services/scannerAccess';
 import { presentTapToPayEducation } from '../services/tapToPayEducation';
 import { prepareDoorSaleTapToPay, releaseDoorSaleTapToPay, runDoorSaleTapToPay } from '../services/tapToPay';
@@ -34,7 +34,6 @@ type PaymentMethod = 'qr' | 'link' | 'tap';
 type TapFlowPhase = 'idle' | 'preparing' | 'ready' | 'collecting' | 'processing' | 'complete' | 'failed';
 
 const DEFAULT_DOOR_SALE_AMOUNT = '20';
-const DEFAULT_DOOR_SALE_RECEIPT_EMAIL = 'info@lpticket.com';
 const TAP_TO_PAY_GUIDE_SEEN_KEY = 'lp_tap_to_pay_guide_seen_v1';
 
 function listFrom(payload: any): any[] {
@@ -90,10 +89,13 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   const [tapStatus, setTapStatus] = useState('');
   const [showTapGuide, setShowTapGuide] = useState(false);
   const [tapGuideSeen, setTapGuideSeen] = useState(false);
-  const [buyerEmail, setBuyerEmail] = useState(DEFAULT_DOOR_SALE_RECEIPT_EMAIL);
-  const [buyerName, setBuyerName] = useState('');
   const [tapPhase, setTapPhase] = useState<TapFlowPhase>('idle');
-  const [tapResult, setTapResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [tapResult, setTapResult] = useState<{ success: boolean; message: string; orderId?: string } | null>(null);
+  const [deliveryMode, setDeliveryMode] = useState<'sms' | 'email' | null>(null);
+  const [deliveryRecipient, setDeliveryRecipient] = useState('');
+  const [deliverySending, setDeliverySending] = useState(false);
+  const [deliveryMessage, setDeliveryMessage] = useState('');
+  const [deliverySucceeded, setDeliverySucceeded] = useState(false);
   const [eventQuery, setEventQuery] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   const eventSearchPlaceholder = t('Buscar evento', 'Search event') || (lang === 'es' ? 'Buscar evento' : 'Search event');
@@ -264,8 +266,6 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     setAmount(DEFAULT_DOOR_SALE_AMOUNT);
     setQuantity(1);
     setCheckout(null);
-    setBuyerEmail(DEFAULT_DOOR_SALE_RECEIPT_EMAIL);
-    setBuyerName('');
     setTapStatus('');
     setTapPhase('idle');
   };
@@ -278,17 +278,13 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     setTapResult(null);
     try {
       if (paymentMethod === 'tap') {
-        const receiptEmail = buyerEmail.trim();
-        if (!receiptEmail) {
-          throw new Error(t('Ingresa el correo del cliente para enviar su recibo y entradas privadas.', 'Enter the customer email to send their private receipt and tickets.'));
-        }
         setTapPhase('preparing');
-        await runDoorSaleTapToPay({
+        const completed = await runDoorSaleTapToPay({
           eventId: selectedEventId,
           amount: Number(amount),
           quantity,
-          buyerEmail: receiptEmail,
-          buyerName: buyerName.trim(),
+          buyerEmail: undefined,
+          buyerName: undefined,
           canAcceptTerms: user?.role === 'admin',
           merchantDisplayName: selectedEvent?.title || 'LPTicket',
           onStatus: setTapStatus,
@@ -296,11 +292,11 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         });
         setTapResult({
           success: true,
-          message: t(`Pago aprobado. El recibo y las entradas fueron enviados a ${receiptEmail}.`, `Payment approved. The receipt and tickets were sent to ${receiptEmail}.`),
+          message: t('La venta quedó registrada y las entradas están listas.', 'The sale is recorded and the tickets are ready.'),
+          orderId: completed.orderId,
         });
         resetSaleForm();
         setTapStatus(t('Pago aprobado. Entradas emitidas.', 'Payment approved. Tickets issued.'));
-        onSaleCompleted?.();
         return;
       }
 
@@ -320,6 +316,38 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
       if (paymentMethod === 'tap') setTapResult({ success: false, message });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const finishSuccessfulSale = () => {
+    setTapResult(null);
+    setDeliveryMode(null);
+    setDeliveryRecipient('');
+    setDeliveryMessage('');
+    setDeliverySucceeded(false);
+    onSaleCompleted?.();
+  };
+
+  const deliverTickets = async () => {
+    if (!tapResult?.orderId || !deliveryMode || !deliveryRecipient.trim() || deliverySending) return;
+    setDeliverySending(true);
+    setDeliveryMessage('');
+    setDeliverySucceeded(false);
+    try {
+      await sendDoorSaleTicketDelivery({
+        orderId: tapResult.orderId,
+        channel: deliveryMode,
+        recipient: deliveryRecipient.trim(),
+        customerName: undefined,
+      });
+      setDeliveryMessage(deliveryMode === 'sms'
+        ? t('SMS enviado correctamente.', 'SMS sent successfully.')
+        : t('Correo enviado correctamente.', 'Email sent successfully.'));
+      setDeliverySucceeded(true);
+    } catch (err: any) {
+      setDeliveryMessage(err?.message || t('No se pudo enviar. Revisa el dato e inténtalo otra vez.', 'Could not send. Check the information and try again.'));
+    } finally {
+      setDeliverySending(false);
     }
   };
 
@@ -452,28 +480,6 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
       <GradientButton height={56} onPress={handleTapPrimaryPress} disabled={creating || !preview}>
           {creating ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>Tap to Pay on iPhone</Text>}
       </GradientButton>
-
-      <View style={styles.buyerReceiptCard}>
-        <Text style={styles.eyebrow}>{t('ENTREGA DEL RECIBO', 'RECEIPT DELIVERY')}</Text>
-        <Text style={styles.buyerReceiptCopy}>{t('Por defecto, el recibo y las entradas llegan a info@lpticket.com. Reemplaza el correo si deseas enviarlos al cliente.', 'By default, the receipt and tickets go to info@lpticket.com. Replace the email to send them to the customer.')}</Text>
-        <TextInput
-          value={buyerName}
-          onChangeText={setBuyerName}
-          placeholder={t('Nombre del cliente (opcional)', 'Customer name (optional)')}
-          placeholderTextColor="rgba(226,232,240,0.42)"
-          style={styles.buyerInput}
-        />
-        <TextInput
-          value={buyerEmail}
-          onChangeText={setBuyerEmail}
-          placeholder={t('Correo para recibir recibo y entradas', 'Email to receive receipt and tickets')}
-          placeholderTextColor="rgba(226,232,240,0.42)"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={styles.buyerInput}
-        />
-      </View>
 
       <View style={styles.payMethodCard}>
         <Text style={styles.eyebrow}>{t('FORMA DE COBRO', 'PAYMENT METHOD')}</Text>
@@ -626,15 +632,57 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           </View>
         </View>
       </Modal>
-      <Modal visible={Boolean(tapResult)} transparent animationType="fade" onRequestClose={() => setTapResult(null)}>
+      <Modal visible={Boolean(tapResult)} transparent animationType="fade" onRequestClose={() => tapResult?.success ? finishSuccessfulSale() : setTapResult(null)}>
         <View style={styles.tapModalOverlay}>
           <View style={styles.tapProgressModal}>
             <Ionicons name={tapResult?.success ? 'checkmark-circle' : 'close-circle'} size={42} color={tapResult?.success ? '#34D399' : '#FCA5A5'} />
             <Text style={styles.tapProgressTitle}>{tapResult?.success ? t('Pago aprobado', 'Payment approved') : t('Pago no completado', 'Payment not completed')}</Text>
             <Text style={styles.tapProgressCopy}>{tapResult?.message}</Text>
-            <GradientButton height={48} onPress={() => setTapResult(null)} style={{ alignSelf: 'stretch', marginTop: 6 }}>
-              <Text style={styles.tapModalButtonText}>{t('LISTO', 'DONE')}</Text>
-            </GradientButton>
+            {tapResult?.success && !deliveryMode && !deliveryMessage ? (
+              <View style={styles.deliveryOptions}>
+                <TouchableOpacity style={styles.deliveryOption} onPress={() => { setDeliveryMode('sms'); setDeliveryRecipient(''); }}>
+                  <Ionicons name="chatbubble-outline" size={18} color="#F97316" />
+                  <Text style={styles.deliveryOptionText}>{t('Enviar por SMS', 'Send by SMS')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.deliveryOption} onPress={() => { setDeliveryMode('email'); setDeliveryRecipient(''); }}>
+                  <Ionicons name="mail-outline" size={18} color="#F97316" />
+                  <Text style={styles.deliveryOptionText}>{t('Enviar por correo', 'Send by email')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.deliverySkip} onPress={finishSuccessfulSale}>
+                  <Text style={styles.deliverySkipText}>{t('NO ENVIAR · SIGUIENTE', 'DO NOT SEND · NEXT')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : tapResult?.success && deliveryMode && !deliveryMessage ? (
+              <View style={styles.deliveryForm}>
+                <TextInput
+                  value={deliveryRecipient}
+                  onChangeText={setDeliveryRecipient}
+                  placeholder={deliveryMode === 'sms' ? t('Número telefónico', 'Phone number') : t('Correo electrónico', 'Email address')}
+                  placeholderTextColor="rgba(226,232,240,0.42)"
+                  keyboardType={deliveryMode === 'sms' ? 'phone-pad' : 'email-address'}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={styles.buyerInput}
+                />
+                <GradientButton height={48} onPress={deliverTickets} disabled={!deliveryRecipient.trim() || deliverySending} style={{ alignSelf: 'stretch' }}>
+                  {deliverySending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.tapModalButtonText}>{t('ENVIAR ENTRADA', 'SEND TICKET')}</Text>}
+                </GradientButton>
+                <TouchableOpacity style={styles.deliverySkip} onPress={() => { setDeliveryMode(null); setDeliveryRecipient(''); }} disabled={deliverySending}>
+                  <Text style={styles.deliverySkipText}>{t('VOLVER', 'BACK')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : deliveryMessage ? (
+              <>
+                <Text style={styles.deliveryResult}>{deliveryMessage}</Text>
+                <GradientButton height={48} onPress={deliverySucceeded ? finishSuccessfulSale : deliverTickets} style={{ alignSelf: 'stretch', marginTop: 6 }}>
+                  <Text style={styles.tapModalButtonText}>{deliverySucceeded ? t('SIGUIENTE', 'NEXT') : t('REINTENTAR', 'TRY AGAIN')}</Text>
+                </GradientButton>
+              </>
+            ) : (
+              <GradientButton height={48} onPress={() => setTapResult(null)} style={{ alignSelf: 'stretch', marginTop: 6 }}>
+                <Text style={styles.tapModalButtonText}>{t('LISTO', 'DONE')}</Text>
+              </GradientButton>
+            )}
           </View>
         </View>
       </Modal>
@@ -765,6 +813,13 @@ const styles = StyleSheet.create({
   buyerReceiptCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(249,115,22,0.28)', backgroundColor: 'rgba(249,115,22,0.06)', padding: 14, gap: 10 },
   buyerReceiptCopy: { color: 'rgba(226,232,240,0.68)', fontSize: 12, lineHeight: 17, fontWeight: '600' },
   buyerInput: { minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', backgroundColor: '#030B14', paddingHorizontal: 13, color: '#F8FAFC', fontSize: 13, fontWeight: '600', outlineStyle: 'none' as any },
+  deliveryOptions: { alignSelf: 'stretch', gap: 9, marginTop: 4 },
+  deliveryOption: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(249,115,22,0.30)', backgroundColor: 'rgba(249,115,22,0.08)' },
+  deliveryOptionText: { color: '#F8FAFC', fontSize: 13, fontWeight: '600' },
+  deliverySkip: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
+  deliverySkipText: { color: 'rgba(226,232,240,0.62)', fontSize: 11, fontWeight: '600' },
+  deliveryForm: { alignSelf: 'stretch', gap: 9, marginTop: 4 },
+  deliveryResult: { color: '#E2E8F0', fontSize: 12, lineHeight: 18, textAlign: 'center', fontWeight: '600' },
   primaryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   qrCard: { borderRadius: 24, borderWidth: 1, borderColor: 'rgba(249,115,22,0.30)', backgroundColor: 'rgba(249,115,22,0.08)', padding: 16, alignItems: 'center' },
   qrTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '600' },

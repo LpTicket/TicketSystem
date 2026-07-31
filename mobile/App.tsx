@@ -77,6 +77,7 @@ function AppContent() {
   const preserveNavigationOnNextForeground = useRef(false);
   const screenScrollOffsets = useRef({ events: 0, eventDetail: 0, tickets: 0, social: 0, profile: 0 });
   const [tab, setTab] = useState<Tab>('events');
+  const activeTabRef = useRef<Tab>('events');
   const [selectedEvent, setSelectedEvent] = useState<MobileEvent | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [employeeScanBackToMenu, setEmployeeScanBackToMenu] = useState(false);
@@ -258,6 +259,10 @@ function AppContent() {
   };
   const [paymentSuccessOpen, setPaymentSuccessOpen] = useState(false);
 
+  useEffect(() => {
+    activeTabRef.current = tab;
+  }, [tab]);
+
   // Restore a saved session on launch so the user stays logged in.
   useEffect(() => {
     restoreSession().then((user) => {
@@ -278,7 +283,8 @@ function AppContent() {
     const previousState = { current: AppState.currentState };
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active' && previousState.current === 'background') {
-        if (preserveNavigationOnNextForeground.current) {
+        const isActiveDoorOperation = ['scan', 'employeeScan', 'employeeDoorSale', 'doorSale'].includes(activeTabRef.current);
+        if (preserveNavigationOnNextForeground.current || isActiveDoorOperation) {
           preserveNavigationOnNextForeground.current = false;
         } else {
           resetToClientHome();

@@ -241,6 +241,11 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
         }]}
         initialSelectedEventId={activeDoorSaleEvent.id}
         onBack={() => setActiveDoorSaleEvent(null)}
+        onSaleCompleted={() => {
+          const event = activeDoorSaleEvent;
+          setActiveDoorSaleEvent(null);
+          setActiveScanEvent(event);
+        }}
       />
     );
   }

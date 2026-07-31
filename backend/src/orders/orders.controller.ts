@@ -143,6 +143,23 @@ export class OrdersController {
     );
   }
 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Post('door-sale/:orderId/delivery')
+  sendDoorSaleTicketDelivery(
+    @Param('orderId') orderId: string,
+    @Body() body: { channel: 'sms' | 'email'; recipient: string; customerName?: string },
+    @Request() req: any,
+  ) {
+    return this.ordersService.sendDoorSaleTicketDelivery(
+      req.user,
+      orderId,
+      body.channel,
+      body.recipient,
+      body.customerName,
+    );
+  }
+
   @SkipThrottle()
   @Post('webhook')
   async handleWebhook(
@@ -242,8 +259,12 @@ export class OrdersController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('ticket/:code/validate')
-  validateTicket(@Param('code') code: string, @Request() req: any) {
-    return this.ordersService.validateTicket(code, req.user);
+  validateTicket(
+    @Param('code') code: string,
+    @Body() body: { eventId?: string },
+    @Request() req: any,
+  ) {
+    return this.ordersService.validateTicket(code, req.user, body?.eventId ? { eventId: body.eventId } : undefined);
   }
 
   @Get('ticket/:code/apple-wallet')

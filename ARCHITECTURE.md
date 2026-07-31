@@ -107,6 +107,8 @@ PostgreSQL conserva el estado definitivo de usuarios, eventos, órdenes, tickets
 ### Reglas de Integridad
 
 - Las operaciones de compra, bloqueo y desbloqueo deben ser idempotentes cuando sea posible.
+- La emisión de tickets serializa el cierre de cada orden mediante bloqueo transaccional para que dispositivo, webhook y recuperación no creen juegos duplicados.
+- La entrega posterior por SMS/correo solo se permite sobre órdenes pagadas y guarda un historial limitado con destinatarios enmascarados y huellas no reversibles.
 - La disponibilidad final siempre se valida en servidor.
 - Los cambios de mapa deben reflejarse para organizadores y compradores después de que el backend confirma la operación.
 - Las respuestas de error no deben dejar al cliente mostrando un estado local como definitivo.

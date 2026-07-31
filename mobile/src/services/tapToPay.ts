@@ -10,7 +10,7 @@ type TapToPayParams = {
   eventId: string;
   amount: number;
   quantity: number;
-  buyerEmail: string;
+  buyerEmail?: string;
   buyerName?: string;
   canAcceptTerms: boolean;
   merchantDisplayName?: string;
@@ -174,9 +174,9 @@ export async function runDoorSaleTapToPay({
     onStatus?.('Confirmando entradas...');
     onPhase?.('processing');
     const paymentIntentId = processed.paymentIntent.id || intent.paymentIntentId;
-    await completeDoorSaleTapToPay({ orderId: intent.orderId, paymentIntentId });
+    const completed = await completeDoorSaleTapToPay({ orderId: intent.orderId, paymentIntentId });
 
     onStatus?.('Pago aprobado. Entradas emitidas.');
     onPhase?.('complete');
-    return { orderId: intent.orderId, paymentIntentId };
+    return { ...completed, paymentIntentId };
 }

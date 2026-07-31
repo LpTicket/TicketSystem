@@ -1,17 +1,14 @@
 # LPTicket - Estado del Proyecto
 
-Última revisión documental: 2026-07-20
+Última revisión documental: 2026-07-31
 Fuente: revisión de código local y respuesta de Apple Tap to Pay.
 Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explícita.
 
 ## Estado Git Actual
 
-- Rama actual: `codex-unify-lpticket`.
-- Último commit visible: `7330f341 feat(mobile): complete Tap to Pay onboarding flow`.
-- Cambio local sin commit detectado:
-  - `/Users/sundingalue/Documents/TicketSystem/mobile/src/screens/DoorSaleScreen.tsx`
-
-No se debe asumir que ese cambio local está probado, subido o desplegado.
+- Rama actual: `codex-unify-lpticket`, sincronizada localmente con `origin/main` en `5444fb68` antes de iniciar estos cambios.
+- Hay cambios locales sin commit para robustecer venta en puerta, emisión, entrega y escaneo.
+- No se debe asumir que estos cambios están subidos, desplegados ni probados con Stripe/Twilio/iPhone.
 
 ## Arquitectura Confirmada
 
@@ -38,6 +35,7 @@ El backend es la fuente de verdad para eventos, mapas, asientos, bloqueos, órde
 | Apple Wallet y Google Wallet | IMPLEMENTADO, NO PROBADO | Servicios y endpoints presentes; Apple Wallet conserva QR, usa el flyer como fondo y miniatura, y muestra evento, titular y venue; pendiente de prueba física. |
 | Ventas en puerta | IMPLEMENTADO | Preview, checkout, facturación y tickets presentes. |
 | Tap to Pay en iPhone | IMPLEMENTADO, NO PROBADO | Entitlement de Apple concedido y perfil renovado para el build iOS 30; pendiente prueba física con Stripe Terminal. |
+| Entrega postventa por SMS/correo | IMPLEMENTADO, NO PROBADO | La entrega se solicita después de confirmar el pago; reutiliza Twilio/SMTP y registra un historial enmascarado por orden. |
 | Métodos de pago | IMPLEMENTADO | Compra online mediante Stripe Checkout; no se añadió un módulo nativo adicional. |
 | Social Match y chat | IMPLEMENTADO, NO PROBADO | Intereses traducidos, sugerencias solo entre asistentes activos con intereses compartidos, conexiones, descartes y mensajes presentes; pendiente de prueba móvil. |
 | Escáner de empleados | IMPLEMENTADO | Solicitudes, aprobación, búsqueda y validación presentes. |
@@ -136,7 +134,7 @@ Limitación actual: la prueba E2E localizada parece inicial y no cubre flujos cr
 
 ## Próximos Objetivos
 
-1. Validar completamente Tap to Pay en dispositivo físico autorizado.
+1. Validar en dispositivo físico el flujo completo Tap to Pay → emisión única → SMS/correo opcional → regreso al escáner.
 2. Mantener estable la sincronización de mapas, bloques y disponibilidad entre móvil, web y clientes.
 3. Crear migraciones versionadas antes de cambios futuros de base de datos.
 4. Ampliar pruebas reales para pagos, tickets, asientos, permisos y escaneo.

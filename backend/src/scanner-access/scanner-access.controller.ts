@@ -48,6 +48,11 @@ export class ScannerAccessController {
     return this.scannerAccessService.validateTicketForEmployee(eventId, code, req.user);
   }
 
+  @Get('events/:eventId/stats')
+  getEventStats(@Param('eventId') eventId: string, @Request() req: any) {
+    return this.scannerAccessService.getEventStatsForEmployee(eventId, req.user);
+  }
+
   // Gate search by name / email / code for an approved employee scanner.
   @Get('events/:eventId/search-tickets')
   searchTickets(@Param('eventId') eventId: string, @Query('q') q: string, @Request() req: any) {

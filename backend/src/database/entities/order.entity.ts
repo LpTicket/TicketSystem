@@ -96,6 +96,13 @@ export class Order {
   @Column({ type: 'timestamp', nullable: true })
   paidAt: Date | null;
 
+  /**
+   * Minimal audit trail for customer-requested ticket delivery after a door sale.
+   * Recipients are masked so the operational log does not duplicate full PII.
+   */
+  @Column({ type: 'text', nullable: true })
+  ticketDeliveryLog: string | null;
+
   /** Special influencer/referral code used at checkout */
   @Column({ type: 'varchar', nullable: true, length: 40 })
   specialCode: string | null;

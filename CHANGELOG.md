@@ -248,3 +248,30 @@ NO COMPROBADO EN ESTE REGISTRO
 
 ### Observaciones
 - La implementación en código no equivale a aprobación externa ni validación real de pago.
+# 2026-07-31 - Venta en puerta y escáner continuo
+
+### Funcionalidad desarrollada
+- Se hizo opcional el correo antes de Tap to Pay; la venta puede completarse sin datos de contacto.
+- Después del pago confirmado se puede enviar la entrada por SMS o correo, o continuar sin enviar.
+- El SMS transaccional reutiliza Twilio y los intentos quedan auditados con destinatarios enmascarados.
+- La emisión usa bloqueo transaccional para evitar tickets duplicados por confirmaciones concurrentes.
+- La validación de QR usa una transición atómica para impedir doble entrada simultánea.
+- El escáner diferencia ticket usado, cancelado, de otro evento, no encontrado, falta de permiso y falla de red.
+- La sesión de puerta conserva evento, conteo e historial local; el modo cámara se rearma después de cada lectura.
+- Los empleados autorizados pueden consultar el conteo del evento y regresan al escáner después de una venta.
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/backend
+npm run build
+npm test -- --runInBand --watchman=false src/orders/orders.service.spec.ts
+
+cd /Users/sundingalue/Documents/TicketSystem/mobile
+npx tsc --noEmit
+```
+
+Resultado: build y typecheck pasaron; 3 pruebas críticas pasaron. Stripe, Twilio y la experiencia física de iPhone permanecen `NO PROBADO`.
+
+### Observaciones
+- No se modificó el checkout web, no se desplegó Railway y no se realizó commit ni push.
+- Se añadió una columna nullable de auditoría de entrega a órdenes; debe revisarse el cambio de esquema antes del despliegue.

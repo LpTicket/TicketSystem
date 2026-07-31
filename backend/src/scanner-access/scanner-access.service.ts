@@ -156,6 +156,14 @@ export class ScannerAccessService {
     return this.ordersService.validateTicket(code, user, { eventId, allowScannerAccess: true });
   }
 
+  async getEventStatsForEmployee(eventId: string, user: any) {
+    const access = await this.scannerAccessRepo.findOne({
+      where: { eventId, userId: user.id, status: ScannerAccessStatus.APPROVED },
+    });
+    if (!access) throw new ForbiddenException('You do not have scanner access for this event');
+    return this.ordersService.getScannerEventStatsForApprovedEmployee(eventId);
+  }
+
   /** Gate search by name/email/code for an approved employee scanner. */
   async searchTicketsForEmployee(eventId: string, query: string, user: any) {
     const access = await this.scannerAccessRepo.findOne({

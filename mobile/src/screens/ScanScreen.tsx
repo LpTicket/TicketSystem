@@ -7,6 +7,7 @@
  */
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { GradientButton } from '../components/GradientButton';
@@ -53,6 +54,7 @@ type EventStats = {
 
 type ValidateResult = {
   valid: boolean;
+  reason?: 'accepted' | 'not_found' | 'wrong_event' | 'used' | 'cancelled' | 'forbidden' | 'network';
   message?: string;
   ticket?: TicketResult;
   eventStats?: EventStats;
@@ -128,6 +130,7 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<BuyerGroup[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const [expandedBuyer, setExpandedBuyer] = useState<string | null>(null);
 
   // Event selector + server stats
@@ -137,7 +140,11 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   const [eventStats, setEventStats] = useState<EventStats | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastQrCode = useRef<string>('');
+  const continuousScanRef = useRef(false);
+  const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scanAnim = useRef(new Animated.Value(0)).current;
+  const [sessionHydrated, setSessionHydrated] = useState(false);
+  const sessionStorageKey = user?.id ? `lp_scan_session_v2:${user.id}:${mode}` : null;
 
   const selectedEventTitle = myEvents.find((e) => e.id === selectedEventId)?.title ?? null;
 
@@ -145,6 +152,30 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
     if (!scrollToTopSignal) return;
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   }, [scrollToTopSignal]);
+
+  useEffect(() => {
+    if (!sessionStorageKey) return;
+    setSessionHydrated(false);
+    AsyncStorage.getItem(sessionStorageKey)
+      .then((raw) => {
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        if (saved?.selectedEventId && !initialSelectedEventId) setSelectedEventId(saved.selectedEventId);
+        if (saved?.sessionStats) setSessionStats(saved.sessionStats);
+        if (Array.isArray(saved?.recentScans)) setRecentScans(saved.recentScans.slice(0, 10));
+      })
+      .catch(() => {})
+      .finally(() => setSessionHydrated(true));
+  }, [initialSelectedEventId, sessionStorageKey]);
+
+  useEffect(() => {
+    if (!sessionStorageKey || !sessionHydrated) return;
+    AsyncStorage.setItem(sessionStorageKey, JSON.stringify({ selectedEventId, sessionStats, recentScans })).catch(() => {});
+  }, [recentScans, selectedEventId, sessionHydrated, sessionStats, sessionStorageKey]);
+
+  useEffect(() => () => {
+    if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -192,12 +223,14 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
     setEventStats(null);
     if (!selectedEventId) return;
     const fetchStats = () =>
-      apiGet<EventStats>(`/orders/event/${selectedEventId}/scanner-stats`)
+      apiGet<EventStats>(mode === 'employee'
+        ? `/scanner-access/events/${selectedEventId}/stats`
+        : `/orders/event/${selectedEventId}/scanner-stats`)
         .then(setEventStats).catch(() => {});
     fetchStats();
     pollRef.current = setInterval(fetchStats, 15000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [selectedEventId]);
+  }, [mode, selectedEventId]);
 
   useEffect(() => {
     if (scanState !== 'scanning') { scanAnim.stopAnimation(); scanAnim.setValue(0); return; }
@@ -245,16 +278,37 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
       const path = mode === 'employee' && selectedEventId
         ? `/scanner-access/events/${selectedEventId}/ticket/${clean}/validate`
         : `/orders/ticket/${clean}/validate`;
-      const res = await apiPost<ValidateResult>(path, mode === 'employee' ? { eventId: selectedEventId } : {});
+      const res = await apiPost<ValidateResult>(path, { eventId: selectedEventId });
       setScanResult(res);
       if (res.eventStats) setEventStats(res.eventStats);
       registerScan(res, clean);
       setScanState(res.valid ? 'approved' : 'denied');
     } catch (err: any) {
-      const res: ValidateResult = { valid: false, message: err?.message };
+      const message = err?.message || t('No se pudo verificar por un problema de conexión.', 'Could not verify due to a connection problem.');
+      const res: ValidateResult = {
+        valid: false,
+        reason: /permission|permiso|forbidden/i.test(message) ? 'forbidden' : 'network',
+        message,
+      };
       setScanResult(res);
       registerScan(res, clean);
       setScanState('denied');
+    } finally {
+      if (selectedEventId) {
+        const statsPath = mode === 'employee'
+          ? `/scanner-access/events/${selectedEventId}/stats`
+          : `/orders/event/${selectedEventId}/scanner-stats`;
+        apiGet<EventStats>(statsPath).then(setEventStats).catch(() => {});
+      }
+      if (continuousScanRef.current) {
+        if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+        resultTimerRef.current = setTimeout(() => {
+          setManualCode('');
+          setScanResult(null);
+          lastQrCode.current = '';
+          setScanState('scanning');
+        }, 3200);
+      }
     }
   }, [mode, registerScan, selectedEventId, t]);
 
@@ -267,14 +321,16 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
       return;
     }
     setSearching(true);
+    setSearchError('');
     try {
       const path = mode === 'employee'
         ? `/scanner-access/events/${selectedEventId}/search-tickets`
         : `/orders/event/${selectedEventId}/search-tickets`;
       const res = await apiGet<typeof searchResults>(path, { q });
       setSearchResults(Array.isArray(res) ? res : []);
-    } catch {
+    } catch (err: any) {
       setSearchResults([]);
+      setSearchError(err?.message || t('No se pudo buscar. Revisa la conexión.', 'Search failed. Check the connection.'));
     } finally {
       setSearching(false);
     }
@@ -287,10 +343,20 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   }, [searchQuery, runSearch]);
 
   const resetScanner = () => {
+    continuousScanRef.current = false;
+    if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
     setManualCode('');
     setScanResult(null);
     lastQrCode.current = '';
     setScanState('idle');
+  };
+
+  const continueScanning = () => {
+    if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+    setManualCode('');
+    setScanResult(null);
+    lastQrCode.current = '';
+    setScanState(continuousScanRef.current ? 'scanning' : 'idle');
   };
 
   const handleQrScanned = useCallback(({ data }: { data: string }) => {
@@ -313,11 +379,23 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
     }
     lastQrCode.current = '';
     setScanResult(null);
+    continuousScanRef.current = true;
     setScanState('scanning');
   };
 
   const isApproved = scanState === 'approved';
   const isDenied = scanState === 'denied';
+  const deniedTitle = scanResult?.reason === 'wrong_event'
+    ? t('Evento incorrecto', 'Wrong event')
+    : scanResult?.reason === 'used'
+      ? t('Ticket ya utilizado', 'Ticket already used')
+      : scanResult?.reason === 'cancelled'
+        ? t('Ticket cancelado', 'Ticket cancelled')
+        : scanResult?.reason === 'network'
+          ? t('No se pudo verificar', 'Could not verify')
+          : scanResult?.reason === 'forbidden'
+            ? t('Sin autorización', 'Not authorized')
+            : t('Código no reconocido', 'Code not recognized');
   const showIdle = !isApproved && !isDenied && scanState !== 'validating';
 
   return (
@@ -483,7 +561,7 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
           </View>
           <Text style={styles.validationLabel}>{isApproved ? t('APROBADO', 'APPROVED') : t('DENEGADO', 'DENIED')}</Text>
           <Text style={styles.validationTitle}>
-            {isApproved ? t('Entrada confirmada', 'Entry confirmed') : t('Boleto inválido', 'Invalid ticket')}
+            {isApproved ? t('Entrada confirmada', 'Entry confirmed') : deniedTitle}
           </Text>
           <Text style={styles.validationCopy}>
             {scanResult?.message || (isApproved
@@ -502,7 +580,7 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
               <Detail label={t('CÓDIGO', 'CODE')} value={scanResult?.ticket?.ticketCode || manualCode} orange />
             </View>
           </View>
-          <TouchableOpacity style={styles.nextButton} onPress={resetScanner}>
+          <TouchableOpacity style={styles.nextButton} onPress={continueScanning}>
             <Text style={styles.nextButtonText}>{t('VALIDAR SIGUIENTE', 'VALIDATE NEXT')}</Text>
           </TouchableOpacity>
         </View>
@@ -553,6 +631,7 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
             />
           </View>
           {searching && <Text style={styles.searchHint}>{t('Buscando…', 'Searching…')}</Text>}
+          {!!searchError && <Text style={styles.searchError}>{searchError}</Text>}
           {!searching && searchQuery.trim().length >= 2 && selectedEventId && searchResults.length === 0 && (
             <Text style={styles.searchHint}>{t('Sin coincidencias.', 'No matches.')}</Text>
           )}
@@ -862,6 +941,7 @@ const styles = StyleSheet.create({
   validateBtnText: { color: '#F97316', fontSize: 12, fontWeight: '600' },
 
   searchHint: { color: 'rgba(148,163,184,0.85)', fontSize: 12, marginTop: 8, textAlign: 'center' },
+  searchError: { color: '#FCA5A5', fontSize: 12, lineHeight: 17, marginTop: 8, textAlign: 'center', fontWeight: '600' },
   searchResultRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 14,

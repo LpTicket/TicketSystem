@@ -72,7 +72,7 @@ export async function createDoorSaleTapToPayIntent(payload: {
   eventId: string;
   amount: number;
   quantity?: number;
-  buyerEmail: string;
+  buyerEmail?: string;
   buyerName?: string;
 }): Promise<DoorSaleTapToPayIntent> {
   return apiPost<DoorSaleTapToPayIntent>('/orders/door-sale/tap-to-pay-intent', payload);
@@ -81,8 +81,21 @@ export async function createDoorSaleTapToPayIntent(payload: {
 export async function completeDoorSaleTapToPay(payload: {
   orderId: string;
   paymentIntentId: string;
-}): Promise<{ success: boolean; orderId: string }> {
-  return apiPost<{ success: boolean; orderId: string }>('/orders/door-sale/tap-to-pay-complete', payload);
+}): Promise<{ success: boolean; orderId: string; ticketCount?: number; eventStats?: Record<string, number> }> {
+  return apiPost<{ success: boolean; orderId: string; ticketCount?: number; eventStats?: Record<string, number> }>('/orders/door-sale/tap-to-pay-complete', payload);
+}
+
+export async function sendDoorSaleTicketDelivery(payload: {
+  orderId: string;
+  channel: 'sms' | 'email';
+  recipient: string;
+  customerName?: string;
+}): Promise<{ success: boolean; channel: 'sms' | 'email'; recipient: string; alreadySent?: boolean }> {
+  return apiPost(`/orders/door-sale/${payload.orderId}/delivery`, {
+    channel: payload.channel,
+    recipient: payload.recipient,
+    customerName: payload.customerName,
+  });
 }
 
 export async function getTerminalConnectionToken(): Promise<{ secret: string }> {

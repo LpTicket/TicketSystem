@@ -21,6 +21,13 @@ This document tracks security hardening done on LPTicket and known follow-ups.
   fields needed, never password hash / address / full order or user record.
 - **XSS in JSON-LD** — `<` is escaped so a crafted event title can't break out.
 - **429 UX** — web and mobile show a friendly "try again in N seconds" message.
+- **Door-sale delivery authorization** — only an admin, the event owner, or an
+  approved event employee can send a paid order's ticket after Tap to Pay.
+- **Minimal delivery audit** — phone/email recipients are masked and matched
+  through a truncated SHA-256 fingerprint; full contact values are not copied
+  into the order delivery log.
+- **Atomic gate validation** — a ticket changes from active to used in one
+  conditional database update, preventing simultaneous double admission.
 
 ## Known follow-up: tokens in localStorage → httpOnly cookies (deferred)
 

@@ -10,9 +10,11 @@ const Stripe = require('stripe');
 import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, EventStatus, VenueSection, SpecialCode, ScannerAccess, ScannerAccessStatus, UserRole, PaymentMethod, PaymentMethodType } from '../database/entities';
 import { User } from '../database/entities/user.entity';
 import { nanoid } from 'nanoid';
+import { createHash } from 'crypto';
 import * as QRCode from 'qrcode';
 import { MailService } from '../common/services/mail.service';
 import { isValidEmailFormat, suggestEmailFix } from '../common/utils/email-typo';
+import { MarketingService } from '../marketing/marketing.service';
 
 /**
  * Service constants for fee calculation.
@@ -55,6 +57,7 @@ export class OrdersService {
     private readonly paymentMethodRepo: Repository<PaymentMethod>,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly marketingService: MarketingService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {
     const mode = this.configService.get('STRIPE_MODE') || 'test';
@@ -385,12 +388,13 @@ export class OrdersService {
     const checkoutBuyerEmail = buyerEmail?.trim();
     const checkoutBuyerName = buyerName?.trim();
 
-    // Tap to Pay is an in-person sale. Requiring the buyer's email keeps the
-    // receipt and QR tickets private instead of sending them to the seller.
-    if (!checkoutBuyerEmail || !isValidEmailFormat(checkoutBuyerEmail)) {
+    // Contact delivery is optional and happens only after Stripe confirms the
+    // in-person payment. Legacy builds may still send an email here, so validate
+    // it when present without making it a requirement for charging.
+    if (checkoutBuyerEmail && !isValidEmailFormat(checkoutBuyerEmail)) {
       throw new BadRequestException('Ingresa un correo válido para enviar el recibo y las entradas al cliente.');
     }
-    const suggestion = suggestEmailFix(checkoutBuyerEmail);
+    const suggestion = checkoutBuyerEmail ? suggestEmailFix(checkoutBuyerEmail) : null;
     if (suggestion) throw new BadRequestException(`Revisa el correo del cliente: ¿quisiste decir ${suggestion}?`);
     const seatsInfo = Array.from({ length: invoice.quantity }, (_, index) => ({
       seatId: '',
@@ -426,7 +430,7 @@ export class OrdersService {
         orderId: order.id,
         userId: user.id,
         eventId,
-        buyerEmail: checkoutBuyerEmail,
+        buyerEmail: checkoutBuyerEmail || '',
         buyerName: checkoutBuyerName || '',
         source: 'door_sale_tap_to_pay',
       },
@@ -450,6 +454,7 @@ export class OrdersService {
   }
 
   async completeDoorSaleTapToPay(user: any, orderId: string, paymentIntentId: string) {
+    const startedAt = Date.now();
     if (!this.stripe) throw new BadRequestException('Stripe not configured');
     const order = await this.orderRepo.findOne({ where: { id: orderId }, relations: ['event'] });
     if (!order) throw new NotFoundException('Order not found');
@@ -469,6 +474,7 @@ export class OrdersService {
     }
 
     const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+    const stripeConfirmedAt = Date.now();
     if (paymentIntent.metadata?.orderId !== orderId) {
       throw new BadRequestException('PaymentIntent metadata does not match this order');
     }
@@ -478,66 +484,105 @@ export class OrdersService {
       throw new BadRequestException(`Payment is not complete: ${paymentIntent.status}`);
     }
 
-    await this.finalizePaidOrder(
+    const tickets = await this.finalizePaidOrder(
       orderId,
       paymentIntentId,
       paymentIntent.metadata?.buyerEmail || undefined,
       paymentIntent.metadata?.buyerName || undefined,
+      { allowFallbackEmail: false },
     );
-    return { success: true, orderId };
+    const fulfilledAt = Date.now();
+    console.log('[TapToPay] completion timing', {
+      stripeConfirmationMs: stripeConfirmedAt - startedAt,
+      ticketFulfillmentMs: fulfilledAt - stripeConfirmedAt,
+      totalMs: fulfilledAt - startedAt,
+      ticketCount: tickets.length,
+    });
+    return {
+      success: true,
+      orderId,
+      ticketCount: tickets.length,
+      eventStats: await this.computeScannerEventStats(order.eventId),
+    };
   }
 
-  private async finalizePaidOrder(orderId: string, stripePaymentIntent?: string, buyerEmail?: string, buyerName?: string) {
-    const order = await this.orderRepo.findOne({ where: { id: orderId } });
-    if (!order) return [];
-    const existingTickets = await this.ticketRepo.count({ where: { orderId } });
-    if (order.status === OrderStatus.PAID && existingTickets > 0) return this.ticketRepo.find({ where: { orderId } });
-    if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.PAID) return [];
+  private async finalizePaidOrder(
+    orderId: string,
+    stripePaymentIntent?: string,
+    buyerEmail?: string,
+    buyerName?: string,
+    options?: { allowFallbackEmail?: boolean },
+  ) {
+    // Stripe can confirm the same payment through the device, webhook and
+    // recovery job. Locking the order serializes those paths and guarantees one
+    // ticket set for one paid order.
+    const fulfillment = await this.orderRepo.manager.transaction(async (manager) => {
+      const orderRepo = manager.getRepository(Order);
+      const ticketRepo = manager.getRepository(Ticket);
+      const seatRepo = manager.getRepository(Seat);
+      const order = await orderRepo
+        .createQueryBuilder('order')
+        .setLock('pessimistic_write')
+        .where('order.id = :orderId', { orderId })
+        .getOne();
+      if (!order) return { order: null, tickets: [] as Ticket[], created: false };
 
-    await this.orderRepo.update(orderId, {
-      status: OrderStatus.PAID,
-      stripePaymentIntent: stripePaymentIntent || order.stripePaymentIntent,
-      paidAt: new Date(),
+      const existingTickets = await ticketRepo.find({ where: { orderId } });
+      if (existingTickets.length > 0) {
+        return { order, tickets: existingTickets, created: false };
+      }
+      if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.PAID) {
+        return { order, tickets: [] as Ticket[], created: false };
+      }
+
+      await orderRepo.update(orderId, {
+        status: OrderStatus.PAID,
+        stripePaymentIntent: stripePaymentIntent || order.stripePaymentIntent,
+        paidAt: order.paidAt || new Date(),
+      });
+
+      const seatsInfo = JSON.parse(order.seatsData || '[]');
+      const createdTickets: Ticket[] = [];
+      for (const seatInfo of seatsInfo) {
+        const ticketCode = nanoid(12).toUpperCase();
+        const qrData = await QRCode.toDataURL(`${this.getPublicAppUrl()}/verify/${ticketCode}`);
+
+        let validSeatId: string | null = seatInfo.seatId || null;
+        if (validSeatId) {
+          const seatExists = await seatRepo.findOne({ where: { id: validSeatId }, select: ['id'] });
+          if (!seatExists) validSeatId = null;
+        }
+
+        const savedTicket = await ticketRepo.save(ticketRepo.create({
+          ticketCode,
+          orderId,
+          eventId: order.eventId,
+          userId: order.userId,
+          seatId: validSeatId,
+          sectionId: seatInfo.sectionId,
+          sectionName: seatInfo.sectionName,
+          rowLabel: seatInfo.rowLabel,
+          seatNumber: seatInfo.seatNumber,
+          qrData,
+          price: seatInfo.price,
+          status: TicketStatus.ACTIVE,
+        }));
+        createdTickets.push(savedTicket);
+
+        if (validSeatId) {
+          await seatRepo.update(validSeatId, {
+            status: SeatStatus.SOLD,
+            lockedBy: null as any,
+            lockExpiresAt: null as any,
+          });
+        }
+      }
+      return { order, tickets: createdTickets, created: true };
     });
 
-    const seatsInfo = JSON.parse(order.seatsData || '[]');
-    const createdTickets: any[] = [];
-    for (const seatInfo of seatsInfo) {
-      const ticketCode = nanoid(12).toUpperCase();
-      const appUrl = this.configService.get('APP_URL');
-      const qrData = await QRCode.toDataURL(`${appUrl}/verify/${ticketCode}`);
-
-      let validSeatId: string | null = seatInfo.seatId || null;
-      if (validSeatId) {
-        const seatExists = await this.seatRepo.findOne({ where: { id: validSeatId }, select: ['id'] });
-        if (!seatExists) validSeatId = null;
-      }
-
-      const ticket = this.ticketRepo.create({
-        ticketCode,
-        orderId,
-        eventId: order.eventId,
-        userId: order.userId,
-        seatId: validSeatId,
-        sectionId: seatInfo.sectionId,
-        sectionName: seatInfo.sectionName,
-        rowLabel: seatInfo.rowLabel,
-        seatNumber: seatInfo.seatNumber,
-        qrData,
-        price: seatInfo.price,
-        status: TicketStatus.ACTIVE,
-      });
-      const savedTicket = await this.ticketRepo.save(ticket);
-      createdTickets.push(savedTicket);
-
-      if (seatInfo.seatId) {
-        await this.seatRepo.update(seatInfo.seatId, {
-          status: SeatStatus.SOLD,
-          lockedBy: null as any,
-          lockExpiresAt: null as any,
-        });
-      }
-    }
+    const order = fulfillment.order;
+    const createdTickets = fulfillment.tickets;
+    if (!order || !fulfillment.created) return createdTickets;
 
     await this.invalidateUserPurchasesCache(order.userId);
 
@@ -578,12 +623,15 @@ export class OrdersService {
             this.cache.del(`organizer:stats:${organizerId}`),
           ]);
         }
-        await this.mailService.sendTicketEmail(
-          buyerEmail || fullOrder.user.email,
-          buyerName || fullOrder.user.firstName,
-          fullOrder.event.title,
-          createdTickets,
-          {
+        const emailRecipient = buyerEmail?.trim()
+          || (options?.allowFallbackEmail === false ? '' : fullOrder.user.email);
+        if (emailRecipient) {
+          await this.mailService.sendTicketEmail(
+            emailRecipient,
+            buyerName || fullOrder.user.firstName,
+            fullOrder.event.title,
+            createdTickets,
+            {
             venueName: fullOrder.event.venueName,
             venueAddress: fullOrder.event.venueAddress,
             eventDate: fullOrder.event.eventDate?.toString(),
@@ -594,14 +642,127 @@ export class OrdersService {
             processingFee: Number(fullOrder.processingFee || 0),
             total: Number(fullOrder.total || 0),
             organizerEmail: fullOrder.event.organizer?.email || null,
-          },
-        );
+            },
+          );
+        }
       }
     } catch (err) {
       console.error('Error in post-payment email:', err);
     }
 
     return createdTickets;
+  }
+
+  private maskDeliveryRecipient(channel: 'sms' | 'email', recipient: string) {
+    const clean = recipient.trim();
+    if (channel === 'sms') {
+      const digits = clean.replace(/\D/g, '');
+      return digits.length >= 4 ? `***${digits.slice(-4)}` : '***';
+    }
+    const [local, domain] = clean.split('@');
+    if (!domain) return '***';
+    return `${local.slice(0, 1)}***@${domain}`;
+  }
+
+  private deliveryRecipientKey(channel: 'sms' | 'email', recipient: string) {
+    return createHash('sha256').update(`${channel}:${recipient.trim().toLowerCase()}`).digest('hex').slice(0, 20);
+  }
+
+  private async recordTicketDelivery(
+    order: Order,
+    entry: { channel: 'sms' | 'email'; recipient: string; status: 'sent' | 'failed'; detail?: string },
+  ) {
+    let history: any[] = [];
+    try { history = JSON.parse(order.ticketDeliveryLog || '[]'); } catch {}
+    history.push({
+      channel: entry.channel,
+      recipient: this.maskDeliveryRecipient(entry.channel, entry.recipient),
+      recipientKey: this.deliveryRecipientKey(entry.channel, entry.recipient),
+      status: entry.status,
+      detail: entry.detail?.slice(0, 180),
+      at: new Date().toISOString(),
+    });
+    await this.orderRepo.update(order.id, { ticketDeliveryLog: JSON.stringify(history.slice(-20)) });
+  }
+
+  async sendDoorSaleTicketDelivery(
+    user: any,
+    orderId: string,
+    channel: 'sms' | 'email',
+    rawRecipient: string,
+    customerName?: string,
+  ) {
+    if (channel !== 'sms' && channel !== 'email') throw new BadRequestException('Canal de entrega inválido.');
+    const recipient = rawRecipient?.trim();
+    if (!recipient) throw new BadRequestException('Ingresa el teléfono o correo del cliente.');
+
+    const order = await this.orderRepo.findOne({ where: { id: orderId }, relations: ['event', 'event.organizer', 'user'] });
+    if (!order) throw new NotFoundException('Orden no encontrada.');
+    await this.ensureCanSellAtDoor(user, order.eventId);
+    if (order.status !== OrderStatus.PAID) throw new BadRequestException('El pago todavía no está confirmado.');
+    const tickets = await this.ticketRepo.find({ where: { orderId }, order: { createdAt: 'ASC' } });
+    if (tickets.length === 0) throw new BadRequestException('Las entradas todavía no están disponibles.');
+
+    const maskedRecipient = this.maskDeliveryRecipient(channel, recipient);
+    const recipientKey = this.deliveryRecipientKey(channel, recipient);
+    try {
+      const history: any[] = JSON.parse(order.ticketDeliveryLog || '[]');
+      const recentDuplicate = history.some((entry) =>
+        entry?.channel === channel
+        && entry?.recipientKey === recipientKey
+        && entry?.status === 'sent'
+        && Date.now() - new Date(entry.at).getTime() < 90_000,
+      );
+      if (recentDuplicate) {
+        return { success: true, channel, recipient: maskedRecipient, alreadySent: true };
+      }
+    } catch {}
+
+    try {
+      if (channel === 'sms') {
+        const links = tickets.map((ticket) => `${this.getPublicAppUrl()}/verify/${ticket.ticketCode}`).join('\n');
+        const countLabel = tickets.length === 1 ? 'Tu entrada' : `Tus ${tickets.length} entradas`;
+        await this.marketingService.sendTransactionalSms(
+          recipient,
+          `LPTicket: ${countLabel} para ${order.event.title}. ${links}`,
+        );
+      } else {
+        if (!isValidEmailFormat(recipient)) throw new BadRequestException('Ingresa un correo electrónico válido.');
+        const suggestion = suggestEmailFix(recipient);
+        if (suggestion) throw new BadRequestException(`Revisa el correo: ¿quisiste decir ${suggestion}?`);
+        await this.mailService.sendTicketEmail(
+          recipient,
+          customerName?.trim() || 'Cliente',
+          order.event.title,
+          tickets,
+          {
+            venueName: order.event.venueName,
+            venueAddress: order.event.venueAddress,
+            eventDate: order.event.eventDate?.toString(),
+            eventTimezone: order.event.eventTimezone,
+            currency: order.event.currency || 'USD',
+            subtotal: Number(order.subtotal || 0),
+            lpFee: Number(order.lpFee || 0),
+            processingFee: Number(order.processingFee || 0),
+            total: Number(order.total || 0),
+            organizerEmail: order.event.organizer?.email || null,
+          },
+        );
+      }
+      await this.recordTicketDelivery(order, { channel, recipient, status: 'sent' });
+      return { success: true, channel, recipient: maskedRecipient, alreadySent: false };
+    } catch (error: any) {
+      await this.recordTicketDelivery(order, {
+        channel,
+        recipient,
+        status: 'failed',
+        detail: error?.message || 'Delivery failed',
+      });
+      if (error instanceof BadRequestException) throw error;
+      throw new BadRequestException(channel === 'sms'
+        ? 'No se pudo enviar el SMS. Verifica el número e inténtalo otra vez.'
+        : 'No se pudo enviar el correo. Verifica la dirección e inténtalo otra vez.');
+    }
   }
 
   /**
@@ -1507,6 +1668,11 @@ export class OrdersService {
     return this.computeScannerEventStats(eventId);
   }
 
+  /** Internal scanner-access bridge; caller must authorize the employee first. */
+  async getScannerEventStatsForApprovedEmployee(eventId: string) {
+    return this.computeScannerEventStats(eventId);
+  }
+
   // Internal stats computation without an ownership check — only called from
   // contexts that have already authorized the caller (e.g. validateTicket).
   private async computeScannerEventStats(eventId: string) {
@@ -1558,6 +1724,9 @@ export class OrdersService {
   }
 
   async validateTicket(code: string, user: any, options?: { eventId?: string; allowScannerAccess?: boolean }) {
+    if (options?.eventId && !options.allowScannerAccess) {
+      await this.assertEventAccess(options.eventId, user);
+    }
     // Lightweight lookup — only the fields needed to authorize + display the
     // scan result. The heavy event/order relations and per-event stats are NOT
     // loaded here, so the gate response is near-instant. The scanner UI keeps
@@ -1567,11 +1736,15 @@ export class OrdersService {
       relations: ['user', 'event'],
     });
     if (!ticket) {
-      return { valid: false, message: 'Ticket not found' };
+      return { valid: false, reason: 'not_found', message: 'No encontramos un ticket con este código.' };
     }
 
     if (options?.eventId && ticket.eventId !== options.eventId) {
-      throw new ForbiddenException('This ticket does not belong to the selected event');
+      return {
+        valid: false,
+        reason: 'wrong_event',
+        message: 'Este ticket está activo, pero pertenece a otro evento. Selecciona el evento correcto.',
+      };
     }
 
     // Authorization: admins, event organizer, or a pre-approved scanner access flow.
@@ -1580,16 +1753,23 @@ export class OrdersService {
     }
 
     if (ticket.status === TicketStatus.USED) {
-      return { valid: false, message: 'This ticket has already been used', ticket };
+      return { valid: false, reason: 'used', message: 'Este ticket ya fue escaneado anteriormente.', ticket };
     }
     if (ticket.status === TicketStatus.CANCELLED) {
-      return { valid: false, message: 'This ticket was cancelled', ticket };
+      return { valid: false, reason: 'cancelled', message: 'Este ticket fue cancelado y no permite entrada.', ticket };
     }
 
-    // Mark as USED to prevent double-entry.
-    await this.ticketRepo.update(ticket.id, { status: TicketStatus.USED });
+    // Atomic state transition prevents two devices from accepting the same QR
+    // at the same time during a busy entrance.
+    const update = await this.ticketRepo.update(
+      { id: ticket.id, status: TicketStatus.ACTIVE },
+      { status: TicketStatus.USED },
+    );
+    if (!update.affected) {
+      return { valid: false, reason: 'used', message: 'Este ticket acaba de ser escaneado en otro dispositivo.', ticket };
+    }
     ticket.status = TicketStatus.USED;
-    return { valid: true, message: 'Valid Ticket — entry confirmed', ticket };
+    return { valid: true, reason: 'accepted', message: 'Entrada confirmada.', ticket };
   }
 
   /**
