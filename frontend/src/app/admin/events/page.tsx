@@ -611,6 +611,13 @@ export default function AdminEventsPage() {
                             {lang === 'es' ? 'Fees' : 'Fees'}
                           </button>
                           <Link
+                            href={`/organizer/events/${ev.id}`}
+                            title={lang === 'es' ? 'Editar evento' : 'Edit event'}
+                            className="p-1.5 rounded-lg transition-colors bg-[#0A375A] text-white border border-[#0A375A] hover:bg-[#134c78] shadow-sm shrink-0"
+                          >
+                            <HiOutlinePencilAlt className="w-4 h-4" />
+                          </Link>
+                          <Link
                             href={`/admin/events/${ev.id}`}
                             title={lang === 'es' ? 'Ver detalle administrativo' : 'View admin detail'}
                             className="p-1.5 rounded-lg transition-colors bg-[#dbeafe] text-[#1d4ed8] border border-[#bfdbfe] hover:bg-[#bfdbfe] shadow-sm shrink-0"
@@ -741,6 +748,13 @@ export default function AdminEventsPage() {
                         <HiOutlineCog className="w-4 h-4" />
                         {lang === 'es' ? 'CONFIGURAR FEES' : 'CONFIG FEES'}
                       </button>
+                      <Link
+                        href={`/organizer/events/${ev.id}`}
+                        title={lang === 'es' ? 'Editar evento' : 'Edit event'}
+                        className="p-2 bg-[#0A375A] text-white border border-[#0A375A] rounded-lg flex items-center justify-center active:scale-95 transition-all"
+                      >
+                        <HiOutlinePencilAlt className="w-4.5 h-4.5" />
+                      </Link>
                       <Link
                         href={`/admin/events/${ev.id}`}
                         title={lang === 'es' ? 'Ver detalle administrativo' : 'View admin detail'}
