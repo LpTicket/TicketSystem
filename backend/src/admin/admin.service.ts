@@ -14,7 +14,7 @@ import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User, UserRole, Event, EventStatus, Order, OrderStatus, Ticket, VenueSection, Seat } from '../database/entities';
+import { User, UserRole, Event, EventStatus, Order, OrderStatus, Ticket, VenueSection, Seat, SeatStatus } from '../database/entities';
 
 @Injectable()
 export class AdminService {
@@ -24,6 +24,7 @@ export class AdminService {
     @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
     @InjectRepository(Ticket) private readonly ticketRepo: Repository<Ticket>,
     @InjectRepository(VenueSection) private readonly sectionRepo: Repository<VenueSection>,
+    @InjectRepository(Seat) private readonly seatRepo: Repository<Seat>,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
@@ -203,11 +204,11 @@ export class AdminService {
         where: { eventId },
         order: { createdAt: 'ASC' },
       }),
-      this.sectionRepo
-        .createQueryBuilder('section')
-        .innerJoin('section.seats', 'seat')
+      this.seatRepo
+        .createQueryBuilder('seat')
+        .innerJoin('seat.section', 'section')
         .where('section.eventId = :eventId', { eventId })
-        .andWhere('seat.status = :status', { status: 'locked' })
+        .andWhere('seat.status = :status', { status: SeatStatus.LOCKED })
         .getCount(),
     ]);
 
