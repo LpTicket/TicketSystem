@@ -181,6 +181,119 @@ export class AdminService {
     return response;
   }
 
+  /**
+   * Admin-only audit view for one event. The expected ticket quantity always
+   * comes from paid orders; issued tickets are counted separately so legacy
+   * duplicate issuance is visible instead of inflating financial totals.
+   */
+  async getEventFinancialDetail(eventId: string) {
+    const event = await this.eventRepo.findOne({
+      where: { id: eventId },
+      relations: ['organizer'],
+    });
+    if (!event) throw new NotFoundException('Evento no encontrado');
+
+    const [orders, eventTickets, lockedSeats] = await Promise.all([
+      this.orderRepo.find({
+        where: { eventId, status: OrderStatus.PAID },
+        relations: ['user'],
+        order: { paidAt: 'DESC', createdAt: 'DESC' },
+      }),
+      this.ticketRepo.find({
+        where: { eventId },
+        order: { createdAt: 'ASC' },
+      }),
+      this.sectionRepo
+        .createQueryBuilder('section')
+        .innerJoin('section.seats', 'seat')
+        .where('section.eventId = :eventId', { eventId })
+        .andWhere('seat.status = :status', { status: 'locked' })
+        .getCount(),
+    ]);
+
+    const paidOrderIds = new Set(orders.map((order) => order.id));
+    const paidTickets = eventTickets.filter((ticket) => paidOrderIds.has(ticket.orderId));
+    const activeIssuedTickets = paidTickets.filter((ticket) => ticket.status !== 'cancelled');
+    const ticketsByOrder = new Map<string, Ticket[]>();
+    activeIssuedTickets.forEach((ticket) => {
+      const items = ticketsByOrder.get(ticket.orderId) || [];
+      items.push(ticket);
+      ticketsByOrder.set(ticket.orderId, items);
+    });
+
+    const expectedTickets = orders.reduce((sum, order) => sum + Number(order.ticketCount || 0), 0);
+    const issuedTickets = activeIssuedTickets.length;
+    const ticketRevenue = orders.reduce((sum, order) => sum + Number(order.subtotal || 0), 0);
+    const lpFees = orders.reduce((sum, order) => sum + Number(order.lpFee || 0), 0);
+    const processingFees = orders.reduce((sum, order) => sum + Number(order.processingFee || 0), 0);
+    const grossCharged = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const scannedTickets = activeIssuedTickets.filter((ticket) => ticket.status === 'used').length;
+    const pendingTickets = activeIssuedTickets.filter((ticket) => ticket.status === 'active').length;
+    const cancelledTickets = paidTickets.filter((ticket) => ticket.status === 'cancelled').length;
+    const buyers = new Set(orders.map((order) => order.userId)).size;
+
+    const sectionMap = new Map<string, { name: string; issued: number; scanned: number; pending: number }>();
+    activeIssuedTickets.forEach((ticket) => {
+      const name = ticket.sectionName || 'General';
+      const entry = sectionMap.get(name) || { name, issued: 0, scanned: 0, pending: 0 };
+      entry.issued += 1;
+      if (ticket.status === 'used') entry.scanned += 1;
+      if (ticket.status === 'active') entry.pending += 1;
+      sectionMap.set(name, entry);
+    });
+
+    return {
+      event: {
+        id: event.id,
+        title: event.title,
+        eventDate: event.eventDate,
+        eventTimezone: event.eventTimezone,
+        venueName: event.venueName,
+        currency: event.currency || 'USD',
+        organizer: event.organizer ? this.toSafeOrganizer(event.organizer) : null,
+      },
+      summary: {
+        paidOrders: orders.length,
+        buyers,
+        expectedTickets,
+        issuedTickets,
+        extraIssuedTickets: Math.max(issuedTickets - expectedTickets, 0),
+        missingTickets: Math.max(expectedTickets - issuedTickets, 0),
+        cancelledTickets,
+        scannedTickets,
+        pendingTickets,
+        lockedSeats,
+        ticketRevenue,
+        lpFees,
+        processingFees,
+        grossCharged,
+      },
+      sections: Array.from(sectionMap.values()).sort((a, b) => b.issued - a.issued),
+      orders: orders.map((order) => {
+        const issued = ticketsByOrder.get(order.id) || [];
+        const prices = issued.reduce<Record<string, number>>((acc, ticket) => {
+          const key = Number(ticket.price || 0).toFixed(2);
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {});
+        return {
+          id: order.id,
+          paidAt: order.paidAt || order.createdAt,
+          buyer: order.user ? this.toSafeOrganizer(order.user) : null,
+          expectedTickets: Number(order.ticketCount || 0),
+          issuedTickets: issued.length,
+          extraIssuedTickets: Math.max(issued.length - Number(order.ticketCount || 0), 0),
+          subtotal: Number(order.subtotal || 0),
+          lpFee: Number(order.lpFee || 0),
+          processingFee: Number(order.processingFee || 0),
+          total: Number(order.total || 0),
+          salesChannel: order.salesChannel || null,
+          ticketPrices: prices,
+        };
+      }),
+    };
+  }
+
   async getUsers(page: number, limit: number, role?: string) {
     const where: any = {};
     if (role && ['client', 'admin'].includes(role)) {

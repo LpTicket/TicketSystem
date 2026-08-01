@@ -111,6 +111,11 @@ export class AdminController {
     return this.ordersService.getPostEventReportPreview(id);
   }
 
+  @Get('events/:id/financial-detail')
+  getEventFinancialDetail(@Param('id') id: string) {
+    return this.adminService.getEventFinancialDetail(id);
+  }
+
   @Post('events/:id/post-event-report/send')
   sendPostEventReport(@Param('id') id: string, @Body('email') email?: string) {
     return this.ordersService.sendManualPostEventReport(id, email);

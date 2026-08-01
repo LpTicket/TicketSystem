@@ -1086,6 +1086,10 @@ export default function EventDetailPage() {
   const totalRevenue = Number(sales?.totalRevenue || 0);
   const paidOrders = salesOrders.filter((order: any) => Number(order.subtotal ?? order.total ?? 0) > 0);
   const totalOrders = paidOrders.length;
+  // Keep the organizer's two revenue figures explicit: ticket revenue is the
+  // price of the entries, while gross charged includes the fees paid by buyers.
+  const totalCharged = paidOrders.reduce((sum: number, order: any) => sum + Number(order.total || 0), 0);
+  const totalFeesCharged = Math.max(0, totalCharged - totalRevenue);
   const issuedTickets = Math.max(Number(sales?.totalTickets || 0), attendees.length);
   const paidTickets = salesOrders.reduce((sum: number, order: any) => {
     const orderTotal = Number(order.subtotal ?? order.total ?? 0);
@@ -1187,6 +1191,8 @@ export default function EventDetailPage() {
     const rows = [
       [lang === 'es' ? 'Métrica' : 'Metric', lang === 'es' ? 'Valor' : 'Value'],
       [lang === 'es' ? 'Ingresos por entradas' : 'Ticket revenue', totalRevenue.toFixed(2)],
+      [lang === 'es' ? 'Ingresos cobrados (con fees)' : 'Gross revenue (with fees)', totalCharged.toFixed(2)],
+      [lang === 'es' ? 'Fees cobrados al cliente' : 'Fees charged to buyer', totalFeesCharged.toFixed(2)],
       [lang === 'es' ? 'Órdenes' : 'Orders', String(totalOrders)],
       [lang === 'es' ? 'Tickets vendidos pagados' : 'Paid tickets sold', String(paidTickets)],
       [lang === 'es' ? 'Tickets bloqueados / sin ingreso' : 'Blocked / no-revenue tickets', String(blockedTickets)],
@@ -1369,12 +1375,18 @@ export default function EventDetailPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-6">
               {[
                 {
                   label: lang === 'es' ? 'Ingresos por entradas' : 'Ticket revenue',
                   value: `$${totalRevenue.toFixed(2)}`,
-                  note: `${totalOrders} ${lang === 'es' ? 'órdenes · lo que recibes' : 'orders · what you receive'}`,
+                  note: `${totalOrders} ${lang === 'es' ? 'órdenes · sin fees' : 'orders · excluding fees'}`,
+                  icon: HiOutlineCurrencyDollar,
+                },
+                {
+                  label: lang === 'es' ? 'Ingresos cobrados (con fees)' : 'Gross revenue (with fees)',
+                  value: `$${totalCharged.toFixed(2)}`,
+                  note: `$${totalFeesCharged.toFixed(2)} ${lang === 'es' ? 'en fees cobrados' : 'in fees charged'}`,
                   icon: HiOutlineCurrencyDollar,
                 },
                 {

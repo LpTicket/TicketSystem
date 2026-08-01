@@ -23,6 +23,7 @@ import {
   HiOutlineEye,
   HiOutlineEyeOff,
   HiOutlineMail,
+  HiOutlineDocumentText,
 } from 'react-icons/hi';
 import Link from 'next/link';
 
@@ -610,10 +611,11 @@ export default function AdminEventsPage() {
                             {lang === 'es' ? 'Fees' : 'Fees'}
                           </button>
                           <Link
-                            href={`/organizer/events/${ev.id}`}
+                            href={`/admin/events/${ev.id}`}
+                            title={lang === 'es' ? 'Ver detalle administrativo' : 'View admin detail'}
                             className="p-1.5 rounded-lg transition-colors bg-[#dbeafe] text-[#1d4ed8] border border-[#bfdbfe] hover:bg-[#bfdbfe] shadow-sm shrink-0"
                           >
-                            <HiOutlinePencilAlt className="w-4 h-4" />
+                            <HiOutlineDocumentText className="w-4 h-4" />
                           </Link>
                           <button
                             onClick={() => handleDelete(ev.id, ev.title)}
@@ -740,10 +742,11 @@ export default function AdminEventsPage() {
                         {lang === 'es' ? 'CONFIGURAR FEES' : 'CONFIG FEES'}
                       </button>
                       <Link
-                        href={`/organizer/events/${ev.id}`}
+                        href={`/admin/events/${ev.id}`}
+                        title={lang === 'es' ? 'Ver detalle administrativo' : 'View admin detail'}
                         className="p-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg flex items-center justify-center active:scale-95 transition-all"
                       >
-                        <HiOutlinePencilAlt className="w-4.5 h-4.5" />
+                        <HiOutlineDocumentText className="w-4.5 h-4.5" />
                       </Link>
                       <button
                         onClick={() => handleDelete(ev.id, ev.title)}
