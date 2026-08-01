@@ -10,6 +10,7 @@
  */
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
+import { formatDateInTimezone } from '@/lib/dateUtils';
 import { useLang } from '@/context/LanguageContext';
 import {
   HiOutlineUsers,
@@ -45,6 +46,7 @@ interface EventFinancial {
   slug: string;
   status: string;
   eventDate: string;
+  eventTimezone?: string;
   totalCharged: number;
   ticketSales: number;
   serviceFees: number;
@@ -115,6 +117,16 @@ export default function AdminDashboard() {
         stripeFees: stats.stripeFees,
         lpticketProfit: stats.lpticketProfit,
       };
+
+  const eventOptionLabel = (event: EventFinancial) => {
+    const date = formatDateInTimezone(
+      event.eventDate,
+      event.eventTimezone || 'America/Chicago',
+      lang === 'es' ? 'es-US' : 'en-US',
+      { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' },
+    );
+    return `${event.title} — ${date}`;
+  };
 
   return (
     <div className="premium-shell p-6 lg:p-8 space-y-6 animate-fade-in">
@@ -196,11 +208,11 @@ export default function AdminDashboard() {
           <select
             value={selectedEventId}
             onChange={(e) => setSelectedEventId(e.target.value)}
-            className="input text-sm max-w-full sm:max-w-[320px]"
+            className="input text-sm max-w-full sm:max-w-[440px]"
           >
             <option value="">{lang === 'es' ? 'Todos los eventos (global)' : 'All events (global)'}</option>
             {eventFinancials.map((ev) => (
-              <option key={ev.id} value={ev.id}>{ev.title}</option>
+              <option key={ev.id} value={ev.id}>{eventOptionLabel(ev)}</option>
             ))}
           </select>
         </div>

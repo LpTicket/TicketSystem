@@ -146,7 +146,7 @@ export class AdminService {
     const byId = new Map(rows.map((r) => [r.eventId, r]));
 
     const events = await this.eventRepo.find({
-      select: ['id', 'title', 'slug', 'status', 'eventDate'],
+      select: ['id', 'title', 'slug', 'status', 'eventDate', 'eventTimezone'],
       order: { createdAt: 'DESC' },
     });
 
@@ -167,6 +167,7 @@ export class AdminService {
         slug: ev.slug,
         status: ev.status,
         eventDate: ev.eventDate,
+        eventTimezone: ev.eventTimezone,
         totalCharged,
         ticketSales,
         serviceFees,
