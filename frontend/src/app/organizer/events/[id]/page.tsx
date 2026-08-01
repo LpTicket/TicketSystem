@@ -64,17 +64,6 @@ interface Attendee {
   user?: { firstName: string; lastName: string; email: string };
 }
 
-interface AdminEventFinancial {
-  id: string;
-  totalCharged: number;
-  ticketSales: number;
-  serviceFees: number;
-  stripeFees: number;
-  lpticketProfit: number;
-  ticketsSold: number;
-  orders: number;
-}
-
 const TIMEZONE_GROUPS = [
   {
     region: 'Americas - North & Central',
@@ -663,7 +652,6 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<Event | null>(null);
   const [sections, setSections] = useState<VenueSection[]>([]);
   const [sales, setSales] = useState<SalesReport | null>(null);
-  const [adminFinancial, setAdminFinancial] = useState<AdminEventFinancial | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders' | 'commission'>('analytics');
   const tabRestoredRef = useRef(false);
@@ -802,20 +790,6 @@ export default function EventDetailPage() {
         const { data: salesData } = await api.get(`/orders/event/${id}/sales`);
         setSales(salesData);
       } catch {}
-
-      // Financial fees belong to the platform, not to the organizer. They are
-      // intentionally loaded and rendered only for an administrator viewing
-      // this same editor.
-      if (user?.role === 'admin') {
-        try {
-          const { data: financials } = await api.get('/admin/events/financials');
-          setAdminFinancial((financials?.events || []).find((item: AdminEventFinancial) => item.id === id) || null);
-        } catch {
-          setAdminFinancial(null);
-        }
-      } else {
-        setAdminFinancial(null);
-      }
 
       // Load attendees
       try {
@@ -1443,68 +1417,6 @@ export default function EventDetailPage() {
               ))}
             </div>
           </div>
-
-          {user?.role === 'admin' && adminFinancial && (
-            <div className="overflow-hidden rounded-2xl border border-[rgba(10,55,90,0.10)] bg-white shadow-sm">
-              <div className="flex flex-col gap-1 border-b border-gray-100 bg-gradient-to-r from-[#0A375A] to-[#0A375A] px-5 py-4 text-white">
-                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-orange-300">
-                  {lang === 'es' ? 'Solo administración' : 'Administration only'}
-                </p>
-                <h2 className="text-lg font-black">
-                  {lang === 'es' ? 'Desglose financiero del evento' : 'Event financial breakdown'}
-                </h2>
-                <p className="text-xs font-semibold text-white/70">
-                  {lang === 'es'
-                    ? 'Esta información no se muestra al organizador.'
-                    : 'This information is not shown to the organizer.'}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
-                {[
-                  {
-                    label: lang === 'es' ? 'Total cobrado' : 'Total charged',
-                    value: `$${adminFinancial.totalCharged.toFixed(2)}`,
-                    note: lang === 'es' ? 'Lo que pagaron los compradores' : 'What buyers paid',
-                    tone: 'border-[rgba(10,55,90,0.14)] bg-[rgba(10,55,90,0.06)] text-[#0A375A]',
-                  },
-                  {
-                    label: lang === 'es' ? 'Venta de entradas' : 'Ticket sales',
-                    value: `$${adminFinancial.ticketSales.toFixed(2)}`,
-                    note: lang === 'es' ? 'Para el organizador, sin fees' : 'To organizer, excluding fees',
-                    tone: 'border-blue-100 bg-blue-50 text-blue-700',
-                  },
-                  {
-                    label: lang === 'es' ? 'Comisión LPTicket' : 'LPTicket fees',
-                    value: `$${adminFinancial.serviceFees.toFixed(2)}`,
-                    note: lang === 'es' ? 'Cargo sobre el precio base' : 'Markup over base price',
-                    tone: 'border-orange-100 bg-orange-50 text-[#F97316]',
-                  },
-                  {
-                    label: lang === 'es' ? 'Comisión Stripe' : 'Stripe fees',
-                    value: `-$${adminFinancial.stripeFees.toFixed(2)}`,
-                    note: lang === 'es' ? 'Estimación por cobro confirmado' : 'Estimate per confirmed charge',
-                    tone: 'border-[rgba(168,85,247,0.3)] bg-[rgba(168,85,247,0.12)] text-purple-700',
-                  },
-                  {
-                    label: lang === 'es' ? 'Ganancia LPTicket' : 'LPTicket profit',
-                    value: `$${adminFinancial.lpticketProfit.toFixed(2)}`,
-                    note: lang === 'es' ? 'Comisión menos Stripe' : 'Fees minus Stripe',
-                    tone: 'border-green-200 bg-green-50 text-green-700',
-                  },
-                ].map((card) => (
-                  <div key={card.label} className={`rounded-2xl border p-4 ${card.tone}`}>
-                    <p className="text-[11px] font-black uppercase tracking-wider">{card.label}</p>
-                    <p className="mt-2 text-2xl font-black">{card.value}</p>
-                    <p className="mt-1 text-xs font-semibold text-gray-500">{card.note}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="px-4 pb-4 text-[11px] font-medium text-gray-400">
-                {adminFinancial.ticketsSold} {lang === 'es' ? 'boletos pagados' : 'paid tickets'} · {adminFinancial.orders} {lang === 'es' ? 'órdenes pagadas' : 'paid orders'} · {lang === 'es' ? 'Stripe se estima con tarifa estándar.' : 'Stripe uses the standard fee estimate.'}
-              </p>
-            </div>
-          )}
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
             <div className="premium-section-card p-5 transition-all">

@@ -107,9 +107,17 @@ export default function AdminEventFinancialDetailPage() {
   }
 
   const { summary } = detail;
+  const lpticketFees = Math.max(0, summary.grossCharged - summary.ticketRevenue);
+  const estimatedStripeFees = summary.grossCharged > 0
+    ? +(summary.grossCharged * 0.029 + summary.paidOrders * 0.30).toFixed(2)
+    : 0;
+  const lpticketProfit = +(lpticketFees - estimatedStripeFees).toFixed(2);
   const cards = [
-    { label: lang === 'es' ? 'Ingresos por entradas' : 'Ticket revenue', value: money(summary.ticketRevenue), note: lang === 'es' ? 'Precio de entradas, sin fees' : 'Ticket prices, excluding fees', icon: HiOutlineCurrencyDollar },
     { label: lang === 'es' ? 'Ingresos cobrados (con fees)' : 'Gross revenue (with fees)', value: money(summary.grossCharged), note: `${money(summary.lpFees + summary.processingFees)} ${lang === 'es' ? 'en fees cobrados' : 'in fees charged'}`, icon: HiOutlineCurrencyDollar },
+    { label: lang === 'es' ? 'Ingresos por entradas' : 'Ticket revenue', value: money(summary.ticketRevenue), note: lang === 'es' ? 'Precio de entradas, sin fees' : 'Ticket prices, excluding fees', icon: HiOutlineCurrencyDollar },
+    { label: lang === 'es' ? 'Comisión LPTicket' : 'LPTicket fees', value: money(lpticketFees), note: lang === 'es' ? 'Cargo sobre el precio base' : 'Markup over base price', icon: HiOutlineCurrencyDollar },
+    { label: lang === 'es' ? 'Comisión Stripe' : 'Stripe fees', value: `-${money(estimatedStripeFees)}`, note: lang === 'es' ? 'Estimación estándar por pago' : 'Standard estimate per payment', icon: HiOutlineCurrencyDollar },
+    { label: lang === 'es' ? 'Ganancia LPTicket' : 'LPTicket profit', value: money(lpticketProfit), note: lang === 'es' ? 'Comisión menos Stripe' : 'Fees minus Stripe', icon: HiOutlineCurrencyDollar },
     { label: lang === 'es' ? 'Órdenes pagadas' : 'Paid orders', value: String(summary.paidOrders), note: `${summary.buyers} ${lang === 'es' ? 'compradores únicos' : 'unique buyers'}`, icon: HiOutlineClipboardList },
     { label: lang === 'es' ? 'Entradas pagadas' : 'Paid tickets', value: String(summary.expectedTickets), note: lang === 'es' ? 'Cantidad confirmada en órdenes' : 'Quantity confirmed in orders', icon: HiOutlineTicket },
     { label: lang === 'es' ? 'Entradas emitidas' : 'Issued tickets', value: String(summary.issuedTickets), note: `${summary.scannedTickets} ${lang === 'es' ? 'escaneadas ·' : 'scanned ·'} ${summary.pendingTickets} ${lang === 'es' ? 'pendientes' : 'pending'}`, icon: HiOutlineCheckCircle },
