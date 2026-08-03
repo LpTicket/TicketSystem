@@ -252,7 +252,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
         </section>
       )}
 
-      <section className="relative z-20 -mt-8 mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8">
+      <section className="relative z-20 -mt-3 mx-auto max-w-[1320px] px-4 sm:px-6 lg:px-8">
         <div className="home-discovery-panel">
           <form onSubmit={handleSearch} className="grid gap-3 lg:grid-cols-[1.35fr_0.85fr_auto]">
             <label className="home-search-field">
