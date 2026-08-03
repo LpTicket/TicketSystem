@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
-import { HiOutlineMenu, HiOutlineX, HiOutlineUser, HiOutlineLogout, HiOutlineCog, HiOutlineTicket, HiOutlineShoppingCart, HiOutlineQrcode } from 'react-icons/hi';
+import { HiOutlineMenu, HiOutlineX, HiOutlineUser, HiOutlineLogout, HiOutlineCog, HiOutlineTicket, HiOutlineShoppingCart, HiOutlineQrcode, HiOutlineDownload } from 'react-icons/hi';
 import { formatSeatLabel } from '@/lib/seatLabel';
 
 const FLOATING_PANEL_EVENT = 'lpticket-floating-panel-open';
@@ -185,6 +185,16 @@ export default function Header() {
                 className="relative z-10 h-[2.12rem] md:h-[2.03rem] w-auto object-contain transition-all duration-300 group-hover:scale-[1.035] group-active:scale-[0.98]"
               />
             </Link>
+            <a
+              href="https://apps.apple.com/us/app/lpticket/id6777589448?l=es-MX"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-md border border-primary-500/60 bg-primary-500 text-white shadow-[0_8px_18px_rgba(249,115,22,0.24)] transition-all hover:bg-primary-600 hover:-translate-y-0.5 active:scale-95 lg:hidden"
+              aria-label={lang === 'es' ? 'Descargar la app de LPTicket' : 'Download the LPTicket app'}
+              title={lang === 'es' ? 'Descargar app' : 'Download app'}
+            >
+              <HiOutlineDownload className="h-4 w-4" />
+            </a>
           </div>
 
           {/* Navigation Links: Fixed widths to prevent layout shifting */}
@@ -224,6 +234,17 @@ export default function Header() {
                 EN
               </button>
             </div>
+
+            <a
+              href="https://apps.apple.com/us/app/lpticket/id6777589448?l=es-MX"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-8 items-center justify-center gap-2 rounded-lg bg-primary-500 px-3 text-[10px] font-black uppercase tracking-wider text-white shadow-[0_8px_18px_rgba(249,115,22,0.24)] transition-all hover:-translate-y-0.5 hover:bg-primary-600 active:scale-95"
+              aria-label={lang === 'es' ? 'Descargar la app de LPTicket' : 'Download the LPTicket app'}
+            >
+              <HiOutlineDownload className="h-3.5 w-3.5" />
+              {lang === 'es' ? 'Descargar app' : 'Download app'}
+            </a>
 
             {/* 2. SCAN Button (if Auth) or Login Button (if Guest) */}
             {isAuthenticated ? (
