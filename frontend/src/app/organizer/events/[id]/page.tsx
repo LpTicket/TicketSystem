@@ -2582,7 +2582,7 @@ export default function EventDetailPage() {
               {/* Cover Image Upload */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Foto de Portada' : 'Cover Image'}</label>
-                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Tamaño recomendado: 900 x 1200 px (3:4)' : 'Recommended size: 900 x 1200 px (3:4)'}</p>
+                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Formato móvil: 1080 x 1440 px' : 'Mobile format: 1080 x 1440 px'}</p>
                 
                 {/* Active Preview */}
                 {(imageFile || event.imageUrl) && (
@@ -2639,7 +2639,7 @@ export default function EventDetailPage() {
               {/* Banner Image Upload */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Foto de Banner de Inicio' : 'Homepage Banner Image'}</label>
-                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Tamaño recomendado: 2520 x 960 px (21:8)' : 'Recommended size: 2520 x 960 px (21:8)'}</p>
+                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Formato escritorio: 1080 x 600 px' : 'Desktop format: 1080 x 600 px'}</p>
 
                 {/* Active Preview */}
                 {(bannerFile || event?.bannerImageUrl) && (
