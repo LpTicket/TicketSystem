@@ -20,6 +20,7 @@ type MarketingHomeBanner = {
   mobileImageUrl?: string | null;
   fileName?: string;
   mobileFileName?: string | null;
+  linkUrl?: string | null;
   bannerType?: string | null;
   displayMode?: string | null;
   sortOrder?: number | null;
@@ -50,6 +51,7 @@ async function loadHomeData() {
           mobileImageUrl: item.mobileImageUrl || null,
           fileName: item.fileName || 'Banner publicitario LPTicket',
           mobileFileName: item.mobileFileName || null,
+          linkUrl: item.linkUrl || null,
           bannerType: item.bannerType || 'banner',
           displayMode: item.displayMode || 'once',
           sortOrder: item.sortOrder || index,

@@ -20,6 +20,7 @@ type MarketingHomeBanner = {
   mobileImageUrl?: string | null;
   fileName?: string;
   mobileFileName?: string | null;
+  linkUrl?: string | null;
   bannerType?: string | null;
   displayMode?: string | null;
   sortOrder?: number | null;
@@ -126,6 +127,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
   }, [initialEvents, initialBanners]);
 
   const bannerEvent = bannerEvents.length > 0 ? bannerEvents[currentBannerIdx % bannerEvents.length] : null;
+  const marketingBannerLink = bannerEvent && isMarketingBanner(bannerEvent) ? bannerEvent.linkUrl?.trim() : '';
 
   const nextBanner = () => setCurrentBannerIdx((prev) => (prev + 1) % bannerEvents.length);
   const prevBanner = () => setCurrentBannerIdx((prev) => (prev - 1 + bannerEvents.length) % bannerEvents.length);
@@ -150,7 +152,14 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
         <section className="home-hero-shell">
           <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
             <div className="home-hero-frame group">
-              <Link href={isMarketingBanner(bannerEvent) ? '#' : `/events/${bannerEvent.slug}`} className="absolute inset-0 z-[5] block overflow-hidden" aria-label={isMarketingBanner(bannerEvent) ? (bannerEvent.fileName || 'Banner publicitario LPTicket') : bannerEvent.title}>
+              <Link
+                href={isMarketingBanner(bannerEvent) ? marketingBannerLink || '#' : `/events/${bannerEvent.slug}`}
+                onClick={(event) => {
+                  if (isMarketingBanner(bannerEvent) && !marketingBannerLink) event.preventDefault();
+                }}
+                className="absolute inset-0 z-[5] block overflow-hidden"
+                aria-label={isMarketingBanner(bannerEvent) ? (bannerEvent.fileName || 'Banner publicitario LPTicket') : bannerEvent.title}
+              >
                 {/* Shimmer skeleton behind the banner image while it loads */}
                 {!isMarketingBanner(bannerEvent) && <span className="absolute inset-0 z-0 animate-shimmer" aria-hidden="true" />}
                 <AnimatePresence initial={false}>

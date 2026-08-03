@@ -683,7 +683,8 @@ html {
 
 .home-hero-frame {
   position: relative;
-  min-height: 31rem;
+  aspect-ratio: 3 / 1;
+  min-height: 0;
   overflow: hidden;
   border-radius: 0 0 1.35rem 1.35rem;
   border: 1px solid rgba(15, 74, 120, 0.08);
@@ -849,7 +850,8 @@ html {
 
 @media (max-width: 639px) {
   .home-hero-frame {
-    min-height: 30rem;
+    aspect-ratio: 3 / 4;
+    min-height: 0;
     border-radius: 0 0 1rem 1rem;
   }
 

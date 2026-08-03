@@ -33,6 +33,7 @@ type MarketingHomeBanner = {
   mobileImageUrl?: string | null;
   fileName?: string | null;
   mobileFileName?: string | null;
+  linkUrl?: string | null;
   bannerType?: BannerType | string | null;
   displayMode?: BannerDisplayMode | string | null;
   sortOrder?: number | null;
@@ -75,6 +76,7 @@ export default function AdminMarketingPage() {
   const [bannerFileName, setBannerFileName] = useState('');
   const [mobileBannerPreview, setMobileBannerPreview] = useState('');
   const [mobileBannerFileName, setMobileBannerFileName] = useState('');
+  const [bannerLinkUrl, setBannerLinkUrl] = useState('');
   const [bannerStatus, setBannerStatus] = useState<BannerStatus>('draft');
   const [marketingBanners, setMarketingBanners] = useState<MarketingHomeBanner[]>([]);
   const [selectedBannerId, setSelectedBannerId] = useState<string | null>(null);
@@ -332,6 +334,7 @@ export default function AdminMarketingPage() {
         setBannerFileName(first.fileName || 'banner-home');
         setMobileBannerPreview(first.mobileImageData || first.mobileImageUrl || '');
         setMobileBannerFileName(first.mobileFileName || '');
+        setBannerLinkUrl(first.linkUrl || '');
         setBannerStatus(first.isActive === false ? 'draft' : 'active');
       })
       .catch((error: unknown) => {
@@ -396,6 +399,7 @@ export default function AdminMarketingPage() {
     setBannerFileName(item.fileName || 'banner-home');
     setMobileBannerPreview(item.mobileImageData || item.mobileImageUrl || '');
     setMobileBannerFileName(item.mobileFileName || '');
+    setBannerLinkUrl(item.linkUrl || '');
     setBannerStatus(item.isActive === false ? 'draft' : 'active');
   };
 
@@ -407,6 +411,7 @@ export default function AdminMarketingPage() {
     setBannerFileName('');
     setMobileBannerPreview('');
     setMobileBannerFileName('');
+    setBannerLinkUrl('');
     setBannerStatus('draft');
   };
 
@@ -459,6 +464,11 @@ export default function AdminMarketingPage() {
 
   const publishBanner = async () => {
     if (!bannerPreview) return;
+    const normalizedLinkUrl = bannerLinkUrl.trim();
+    if (normalizedLinkUrl && !/^(https?:\/\/|\/)/i.test(normalizedLinkUrl)) {
+      toast.error('Usa un enlace que comience con https:// o /.');
+      return;
+    }
 
     try {
       const { data } = await api.post('/marketing/admin/banners/home', {
@@ -471,6 +481,7 @@ export default function AdminMarketingPage() {
         bannerType,
         displayMode: bannerDisplayMode,
         sortOrder: marketingBanners.length,
+        linkUrl: normalizedLinkUrl || null,
         isActive: true,
       });
 
@@ -977,7 +988,7 @@ export default function AdminMarketingPage() {
                   <HiOutlineUpload className="h-6 w-6" />
                 </div>
                 <p className="mt-2 text-sm font-black text-gray-950">{bannerType === 'ad' ? 'Nueva publicidad' : 'Nuevo banner'}</p>
-                <p className="text-xs font-bold text-gray-400">Escritorio · Subir foto</p>
+                  <p className="text-xs font-bold text-gray-400">Escritorio · 1800 × 600 px</p>
               </button>
               <button
                 type="button"
@@ -991,7 +1002,7 @@ export default function AdminMarketingPage() {
                   <HiOutlineDeviceMobile className="h-6 w-6" />
                 </div>
                 <p className="mt-2 text-sm font-black text-gray-950">{bannerType === 'ad' ? 'Nueva publicidad' : 'Nuevo banner'}</p>
-                <p className="text-xs font-bold text-gray-400">Móvil · Subir foto</p>
+                  <p className="text-xs font-bold text-gray-400">Móvil · 1080 × 1440 px</p>
               </button>
               {visibleMarketingBanners.map((item, index) => {
                 const img = item.imageData || item.imageUrl || '';
@@ -1022,16 +1033,16 @@ export default function AdminMarketingPage() {
               <div className="mb-3">
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wide text-gray-500">Escritorio</h3>
-                  <p className="text-xs text-gray-400">Banner horizontal para app y web desktop.</p>
+                  <p className="text-xs text-gray-400">Proporción 3:1 · recomendado 1800 × 600 px.</p>
                 </div>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleBannerFile(event.target.files?.[0])} />
               {bannerPreview ? (
                 <div className="overflow-hidden rounded-2xl bg-black shadow-sm">
-                  <img src={bannerPreview} alt="Preview del banner publicitario" className="aspect-[3.05/1] w-full object-cover" />
+                  <img src={bannerPreview} alt="Preview del banner publicitario" className="aspect-[3/1] w-full object-cover" />
                 </div>
               ) : (
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="flex aspect-[3.05/1] w-full items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white text-sm font-bold text-gray-400">
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="flex aspect-[3/1] w-full items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white text-sm font-bold text-gray-400">
                   Subir banner horizontal
                 </button>
               )}
@@ -1042,7 +1053,7 @@ export default function AdminMarketingPage() {
               <div className="mb-3">
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wide text-gray-500">Móvil</h3>
-                  <p className="text-xs text-gray-400">Flyer vertical para web móvil.</p>
+                  <p className="text-xs text-gray-400">Proporción 3:4 · recomendado 1080 × 1440 px.</p>
                 </div>
               </div>
               <input ref={mobileFileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleMobileBannerFile(event.target.files?.[0])} />
@@ -1082,6 +1093,21 @@ export default function AdminMarketingPage() {
                 </button>
               ))}
             </div>
+            <div className="mt-5 border-t border-gray-200 pt-4">
+              <label htmlFor="marketing-banner-link" className="block text-xs font-black uppercase tracking-wide text-gray-500">
+                Enlace al abrir el banner <span className="normal-case font-bold text-gray-400">(opcional)</span>
+              </label>
+              <input
+                id="marketing-banner-link"
+                type="url"
+                value={bannerLinkUrl}
+                onChange={(event) => setBannerLinkUrl(event.target.value)}
+                placeholder="https://... o /eventos/..."
+                className="mt-2 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+              />
+              <p className="mt-2 text-xs text-gray-400">Al tocar el banner, las personas irán a este enlace. Déjalo vacío si no debe abrir nada.</p>
+            </div>
+
             <div className="mt-4 flex flex-col gap-3 sm:flex-row">
               <button type="button" onClick={publishBanner} disabled={!bannerPreview} className="rounded-2xl bg-[#0A375A] px-5 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300">
                 {selectedBannerId ? 'Guardar cambios' : 'Publicar banner'}
