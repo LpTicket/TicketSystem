@@ -967,14 +967,31 @@ export default function AdminMarketingPage() {
             <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
               <button
                 type="button"
-                onClick={() => createNewMarketingBanner(bannerType)}
+                onClick={() => {
+                  if (selectedBannerId) createNewMarketingBanner(bannerType);
+                  fileInputRef.current?.click();
+                }}
                 className={`min-w-[150px] rounded-2xl border p-3 text-left transition ${!selectedBannerId ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white hover:border-orange-200'}`}
               >
                 <div className="flex h-16 items-center justify-center rounded-xl border border-dashed border-orange-200 bg-orange-50 text-[#F97316]">
                   <HiOutlineUpload className="h-6 w-6" />
                 </div>
                 <p className="mt-2 text-sm font-black text-gray-950">{bannerType === 'ad' ? 'Nueva publicidad' : 'Nuevo banner'}</p>
-                <p className="text-xs font-bold text-gray-400">Subir fotos</p>
+                <p className="text-xs font-bold text-gray-400">Escritorio · Subir foto</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedBannerId) createNewMarketingBanner(bannerType);
+                  mobileFileInputRef.current?.click();
+                }}
+                className={`min-w-[150px] rounded-2xl border p-3 text-left transition ${!selectedBannerId ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white hover:border-orange-200'}`}
+              >
+                <div className="flex h-16 items-center justify-center rounded-xl border border-dashed border-orange-200 bg-orange-50 text-[#F97316]">
+                  <HiOutlineDeviceMobile className="h-6 w-6" />
+                </div>
+                <p className="mt-2 text-sm font-black text-gray-950">{bannerType === 'ad' ? 'Nueva publicidad' : 'Nuevo banner'}</p>
+                <p className="text-xs font-bold text-gray-400">Móvil · Subir foto</p>
               </button>
               {visibleMarketingBanners.map((item, index) => {
                 const img = item.imageData || item.imageUrl || '';
@@ -1002,14 +1019,11 @@ export default function AdminMarketingPage() {
 
           <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_340px]">
             <div className="rounded-3xl bg-gray-50 p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="mb-3">
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wide text-gray-500">Escritorio</h3>
                   <p className="text-xs text-gray-400">Banner horizontal para app y web desktop.</p>
                 </div>
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700">
-                  {bannerPreview ? 'Cambiar foto' : 'Subir desde fotos'}
-                </button>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleBannerFile(event.target.files?.[0])} />
               {bannerPreview ? (
@@ -1025,14 +1039,11 @@ export default function AdminMarketingPage() {
             </div>
 
             <div className="rounded-3xl bg-gray-50 p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="mb-3">
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wide text-gray-500">Móvil</h3>
                   <p className="text-xs text-gray-400">Flyer vertical para web móvil.</p>
                 </div>
-                <button type="button" onClick={() => mobileFileInputRef.current?.click()} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700">
-                  {mobileBannerPreview ? 'Cambiar foto' : 'Subir desde fotos'}
-                </button>
               </div>
               <input ref={mobileFileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleMobileBannerFile(event.target.files?.[0])} />
               {mobileBannerPreview ? (

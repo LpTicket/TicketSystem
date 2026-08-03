@@ -185,16 +185,6 @@ export default function Header() {
                 className="relative z-10 h-[2.12rem] md:h-[2.03rem] w-auto object-contain transition-all duration-300 group-hover:scale-[1.035] group-active:scale-[0.98]"
               />
             </Link>
-            <a
-              href="https://apps.apple.com/us/app/lpticket/id6777589448?l=es-MX"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-md border border-primary-500/60 bg-primary-500 text-white shadow-[0_8px_18px_rgba(249,115,22,0.24)] transition-all hover:bg-primary-600 hover:-translate-y-0.5 active:scale-95 lg:hidden"
-              aria-label={lang === 'es' ? 'Descargar la app de LPTicket' : 'Download the LPTicket app'}
-              title={lang === 'es' ? 'Descargar app' : 'Download app'}
-            >
-              <HiOutlineDownload className="h-4 w-4" />
-            </a>
           </div>
 
           {/* Navigation Links: Fixed widths to prevent layout shifting */}
@@ -455,6 +445,16 @@ export default function Header() {
             
             {/* Nav Links */}
             <div className="hamburger-menu-card space-y-1 p-2">
+              <a
+                href="https://apps.apple.com/us/app/lpticket/id6777589448?l=es-MX"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMenuOpen(false)}
+                className="hamburger-nav-link flex items-center gap-3 text-[#F97316]"
+              >
+                <HiOutlineDownload className="h-5 w-5" />
+                <span className="relative z-10">{lang === 'es' ? 'Descargar app' : 'Download app'}</span>
+              </a>
               {navItems.map((item) => {
                 const active = item.match(pathname);
                 return (
