@@ -68,7 +68,7 @@ export class OrdersController {
   @Roles(UserRole.CLIENT, UserRole.ADMIN)
   @Get('door-sale/preview')
   previewDoorSale(
-    @Query() query: { eventId: string; amount: string; quantity?: string; sectionId?: string },
+    @Query() query: { eventId: string; amount: string; quantity?: string; sectionId?: string; paymentMethod?: 'tap' | 'qr' | 'link' },
     @Request() req: any,
   ) {
     return this.ordersService.previewDoorSale(
@@ -77,6 +77,7 @@ export class OrdersController {
       Number(query.amount || 0),
       query.quantity ? parseInt(query.quantity, 10) : 1,
       query.sectionId,
+      query.paymentMethod,
     );
   }
 

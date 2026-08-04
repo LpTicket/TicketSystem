@@ -1440,8 +1440,8 @@ export default function AdminEventsPage() {
                   <form onSubmit={handleSaveEventFees} className="space-y-6 animate-fade-in">
                     <div className="bg-[rgba(10,55,90,0.05)] border border-[rgba(10,55,90,0.10)] rounded-2xl p-4 text-xs text-[#0A375A] leading-relaxed">
                       {lang === 'es'
-                        ? 'Configura los porcentajes y cargos fijos globales para este evento. Si dejas un campo vacío, se aplicarán los valores por defecto del sistema (12% LPTicket, 2.9% + $0.30 Stripe).'
-                        : 'Configure global percentages and fixed fees for this event. If left empty, system defaults will apply (12% LPTicket, 2.9% + $0.30 Stripe).'}
+                        ? 'Si dejas un campo vacío, se aplicarán los valores por defecto: LPTicket 3.02% + $1.98 por entrada; Stripe 2.9% + $0.30 una vez por orden.'
+                        : 'If left empty, the defaults apply: LPTicket 3.02% + $1.98 per ticket; Stripe 2.9% + $0.30 once per order.'}
                     </div>
 
                     <div className="space-y-5">
@@ -1455,7 +1455,7 @@ export default function AdminEventsPage() {
                             <input
                               type="number"
                               step="0.0001"
-                              placeholder="0.12 (12%)"
+                              placeholder="0.0302 (3.02%)"
                               value={eventFeeConfig.event.serviceFeePercent}
                               onChange={(e) => setEventFeeConfig({
                                 ...eventFeeConfig,
@@ -1463,9 +1463,9 @@ export default function AdminEventsPage() {
                               })}
                               className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[rgba(10,55,90,0.05)]0 bg-white"
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold">ej: 0.12</span>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold">ej: 0.0302</span>
                           </div>
-                          <p className="text-[10px] text-gray-400">{lang === 'es' ? 'Decimal (0.12 = 12%)' : 'Decimal (0.12 = 12%)'}</p>
+                          <p className="text-[10px] text-gray-400">{lang === 'es' ? 'Decimal (0.0302 = 3.02%)' : 'Decimal (0.0302 = 3.02%)'}</p>
                         </div>
 
                         {/* Service Fee Fixed */}
@@ -1478,7 +1478,7 @@ export default function AdminEventsPage() {
                             <input
                               type="number"
                               step="0.01"
-                              placeholder="0.00"
+                              placeholder="1.98"
                               value={eventFeeConfig.event.serviceFeeFixedPerTicket}
                               onChange={(e) => setEventFeeConfig({
                                 ...eventFeeConfig,
@@ -1519,7 +1519,7 @@ export default function AdminEventsPage() {
                         {/* Processing Fee Fixed */}
                         <div className="space-y-1.5">
                           <label className="text-xs font-bold text-gray-700 block">
-                            {lang === 'es' ? 'Tarifa Fija Procesamiento (por ticket)' : 'Fixed Processing Fee (per ticket)'}
+                            {lang === 'es' ? 'Tarifa Fija Procesamiento (por orden)' : 'Fixed Processing Fee (per order)'}
                           </label>
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-bold">$</span>
@@ -1588,7 +1588,7 @@ export default function AdminEventsPage() {
                               <input
                                 type="number"
                                 step="0.0001"
-                                placeholder={eventFeeConfig.event.serviceFeePercent !== '' ? `${eventFeeConfig.event.serviceFeePercent} (Global)` : '0.12 (Defecto)'}
+                                placeholder={eventFeeConfig.event.serviceFeePercent !== '' ? `${eventFeeConfig.event.serviceFeePercent} (Global)` : '0.0302 (Defecto)'}
                                 value={sec.serviceFeePercent}
                                 onChange={(e) => {
                                   const updated = [...eventFeeConfig.sections];
@@ -1607,7 +1607,7 @@ export default function AdminEventsPage() {
                               <input
                                 type="number"
                                 step="0.01"
-                                placeholder={eventFeeConfig.event.serviceFeeFixedPerTicket !== '' ? `$${eventFeeConfig.event.serviceFeeFixedPerTicket} (Global)` : '$0.00 (Defecto)'}
+                                placeholder={eventFeeConfig.event.serviceFeeFixedPerTicket !== '' ? `$${eventFeeConfig.event.serviceFeeFixedPerTicket} (Global)` : '$1.98 (Defecto)'}
                                 value={sec.serviceFeeFixedPerTicket}
                                 onChange={(e) => {
                                   const updated = [...eventFeeConfig.sections];
@@ -1640,7 +1640,7 @@ export default function AdminEventsPage() {
                             {/* Processing Fee Fixed */}
                             <div className="space-y-1">
                               <label className="text-[11px] font-bold text-gray-600 block">
-                                {lang === 'es' ? 'Tarifa Fija Procesamiento' : 'Fixed Processing Fee'}
+                                {lang === 'es' ? 'Tarifa Fija Procesamiento (por orden)' : 'Fixed Processing Fee (per order)'}
                               </label>
                               <input
                                 type="number"

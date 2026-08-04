@@ -189,27 +189,32 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     if (!selectedEventId || value <= 0) { setPreview(null); return; }
     setLoading(true);
     const timer = setTimeout(() => {
-      previewDoorSale({ eventId: selectedEventId, amount: value, quantity })
+      previewDoorSale({ eventId: selectedEventId, amount: value, quantity, paymentMethod })
         .then((data) => {
           setPreview(data);
         })
         .catch(() => {
           const baseTotal = Math.round(value * quantity * 100) / 100;
-          const lpFee = Math.round(baseTotal * 0.12 * 100) / 100;
-          const processingFee = Math.round((baseTotal * 0.029 + 0.30 * quantity) * 100) / 100;
+          const lpFee = Math.round((baseTotal * 0.0302 + 1.98 * quantity) * 100) / 100;
+          const amountBeforeProcessing = baseTotal + lpFee;
+          const isTapToPay = paymentMethod === 'tap';
+          const processingPercent = isTapToPay ? 0.027 : 0.029;
+          const processingFixed = isTapToPay ? 0.15 : 0.30;
+          const total = Math.ceil((((amountBeforeProcessing + processingFixed) / (1 - processingPercent)) - Number.EPSILON) * 100) / 100;
+          const processingFee = Math.round((total - amountBeforeProcessing) * 100) / 100;
           setPreview({
             unitPrice: value,
             quantity,
             baseTotal,
             lpFee,
             processingFee,
-            total: Math.round((baseTotal + lpFee + processingFee) * 100) / 100,
+            total,
           });
         })
         .finally(() => setLoading(false));
     }, 220);
     return () => clearTimeout(timer);
-  }, [amount, quantity, selectedEventId, t]);
+  }, [amount, quantity, paymentMethod, selectedEventId, t]);
 
   const primaryLabel = paymentMethod === 'qr'
     ? t('CREAR QR DE PAGO', 'CREATE PAYMENT QR')

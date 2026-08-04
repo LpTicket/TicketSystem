@@ -53,6 +53,7 @@ export async function previewDoorSale(params: {
   amount: number;
   quantity?: number;
   sectionId?: string;
+  paymentMethod?: 'tap' | 'qr' | 'link';
 }): Promise<DoorSalePreview> {
   return apiGet<DoorSalePreview>('/orders/door-sale/preview', params);
 }
