@@ -130,6 +130,31 @@ function sectionColor(s: ClientVenueSection) {
   if (s.color) return s.color;
   return '#5667FF';
 }
+function hasManualTableSeatPositions(config: Record<string, any>) {
+  return Object.values(config).some((seat: any) => Number(seat?.xOffset) !== 0 || Number(seat?.yOffset) !== 0);
+}
+function getRectangularTableSeatPosition(index: number, count: number, useLegacyLayout = false) {
+  const safeCount = Math.max(1, count);
+  if (useLegacyLayout) {
+    const pos = index * ((2 * (1 + 0.55)) / safeCount);
+    if (pos < 1) return { x: 15 + pos * 70, y: 12 };
+    if (pos < 1.55) return { x: 88, y: 15 + ((pos - 1) / 0.55) * 70 };
+    if (pos < 2.55) return { x: 85 - (pos - 1.55) * 70, y: 88 };
+    return { x: 12, y: 85 - ((pos - 2.55) / 0.55) * 70 };
+  }
+  const seatsPerSide = safeCount >= 8 ? 1 + Math.floor((safeCount - 8) / 4) : 0;
+  const topCount = Math.ceil((safeCount - seatsPerSide * 2) / 2);
+  const bottomCount = safeCount - seatsPerSide * 2 - topCount;
+  const spread = (amount: number, start: number, end: number) => amount <= 1 ? [50] : Array.from({ length: amount }, (_, itemIndex) => start + ((end - start) * itemIndex) / (amount - 1));
+  const top = spread(topCount, 18, 82);
+  const right = spread(seatsPerSide, 26, 74);
+  const bottom = spread(bottomCount, 18, 82).reverse();
+  const left = spread(seatsPerSide, 26, 74).reverse();
+  if (index < topCount) return { x: top[index], y: 12 };
+  if (index < topCount + seatsPerSide) return { x: 88, y: right[index - topCount] };
+  if (index < topCount + seatsPerSide + bottomCount) return { x: bottom[index - topCount - seatsPerSide], y: 88 };
+  return { x: 12, y: left[index - topCount - seatsPerSide - bottomCount] };
+}
 
 // ─── Chair ──────────────────────────────────────────────────────────────────
 function Chair({ seat, section, override, sel, size, cx, cy, onToggle, onToggleMany, onInfo }: {
@@ -228,16 +253,11 @@ function TableSection({ section, sel, onToggle, onToggleMany, onInfo }: {
           })
         : (() => {
             const count = seats.length;
-            const step = (2 * (1 + 0.55)) / Math.max(1, count);
+            const useLegacyLayout = hasManualTableSeatPositions(cfg);
             return seats.map((seat, i) => {
               const ov = cfg[`seat-${seat.seatNumber}`] || {};
               if (ov.disabled) return null;
-              const pos = i * step;
-              let xPct = 50, yPct = 50;
-              if (pos < 1)         { xPct = 15 + pos * 70;           yPct = 12; }
-              else if (pos < 1.55) { xPct = 88;                      yPct = 15 + ((pos - 1) / 0.55) * 70; }
-              else if (pos < 2.55) { xPct = 85 - (pos - 1.55) * 70; yPct = 88; }
-              else                 { xPct = 12;                       yPct = 85 - ((pos - 2.55) / 0.55) * 70; }
+              const { x: xPct, y: yPct } = getRectangularTableSeatPosition(i, count, useLegacyLayout);
               return <Chair key={seat.id} seat={seat} section={section} override={ov} sel={sel} size={chairSize}
                 cx={w * xPct / 100 + (ov.xOffset || 0)} cy={h * yPct / 100 + (ov.yOffset || 0)}
                 onToggle={onToggle} onToggleMany={onToggleMany} onInfo={onInfo} />;
@@ -642,13 +662,7 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
             sx = w / 2 + w * 0.52 * Math.sin(rad);
             sy = h / 2 - h * 0.52 * Math.cos(rad);
           } else {
-            const step = (2 * (1 + 0.55)) / Math.max(1, seats.length);
-            const pos = index * step;
-            let xPct = 50, yPct = 50;
-            if (pos < 1)         { xPct = 15 + pos * 70;           yPct = 12; }
-            else if (pos < 1.55) { xPct = 88;                      yPct = 15 + ((pos - 1) / 0.55) * 70; }
-            else if (pos < 2.55) { xPct = 85 - (pos - 1.55) * 70; yPct = 88; }
-            else                 { xPct = 12;                       yPct = 85 - ((pos - 2.55) / 0.55) * 70; }
+            const { x: xPct, y: yPct } = getRectangularTableSeatPosition(index, seats.length, hasManualTableSeatPositions(cfg));
             sx = w * xPct / 100;
             sy = h * yPct / 100;
           }

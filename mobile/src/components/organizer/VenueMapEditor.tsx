@@ -28,6 +28,39 @@ const SECTION_TO_TYPE: Record<string, ItemType> = {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function hasManualTableSeatPositions(config: Record<string, SeatOverride>) {
+  return Object.values(config).some((seat) => Number(seat.xOffset) !== 0 || Number(seat.yOffset) !== 0);
+}
+
+function getRectangularTableSeatPosition(index: number, count: number, useLegacyLayout = false) {
+  const safeCount = Math.max(1, count);
+  if (useLegacyLayout) {
+    const pos = index * ((2 * (1 + 0.55)) / safeCount);
+    if (pos < 1) return { x: 15 + pos * 70, y: 12 };
+    if (pos < 1.55) return { x: 88, y: 15 + ((pos - 1) / 0.55) * 70 };
+    if (pos < 2.55) return { x: 85 - (pos - 1.55) * 70, y: 88 };
+    return { x: 12, y: 85 - ((pos - 2.55) / 0.55) * 70 };
+  }
+  const seatsPerSide = safeCount >= 8 ? 1 + Math.floor((safeCount - 8) / 4) : 0;
+  const topCount = Math.ceil((safeCount - seatsPerSide * 2) / 2);
+  const bottomCount = safeCount - seatsPerSide * 2 - topCount;
+  const spread = (amount: number, start: number, end: number) => amount <= 1 ? [50] : Array.from({ length: amount }, (_, itemIndex) => start + ((end - start) * itemIndex) / (amount - 1));
+  const top = spread(topCount, 18, 82);
+  const right = spread(seatsPerSide, 26, 74);
+  const bottom = spread(bottomCount, 18, 82).reverse();
+  const left = spread(seatsPerSide, 26, 74).reverse();
+  if (index < topCount) return { x: top[index], y: 12 };
+  if (index < topCount + seatsPerSide) return { x: 88, y: right[index - topCount] };
+  if (index < topCount + seatsPerSide + bottomCount) return { x: bottom[index - topCount - seatsPerSide], y: 88 };
+  return { x: 12, y: left[index - topCount - seatsPerSide - bottomCount] };
+}
+
+function getRectangularTableDimensions(seatCount: number) {
+  const safeCount = Math.max(1, seatCount);
+  const seatsPerSide = safeCount >= 8 ? 1 + Math.floor((safeCount - 8) / 4) : 0;
+  return { width: 80 + Math.max(0, safeCount - 4) * 8, height: 80 + Math.max(0, seatsPerSide - 1) * 12 };
+}
+
 // Map a persisted backend section onto the editor's local item shape.
 function sectionToItem(s: any): VenueItem {
   const type = SECTION_TO_TYPE[String(s.sectionType).toLowerCase()] || 'table';
@@ -715,6 +748,20 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     setItems((current) => current.map((item) => item.id === selected.id ? { ...item, ...patch } : item));
   };
 
+  const updateSelectedTableSeatCount = (seatsPerRow: number) => {
+    if (!selected) return;
+    const nextCount = Math.max(1, seatsPerRow || 1);
+    setSaved(false);
+    setItems((current) => current.map((item) => {
+      if (item.id !== selected.id) return item;
+      if (item.type !== 'table' || item.shape === 'round') return { ...item, seatsPerRow: nextCount };
+      const nextSize = getRectangularTableDimensions(nextCount);
+      const width = Math.max(item.width, nextSize.width);
+      const height = Math.max(item.height, nextSize.height);
+      return { ...item, seatsPerRow: nextCount, width, height, x: item.x - (width - item.width) / 2, y: item.y - (height - item.height) / 2 };
+    }));
+  };
+
   const updateSelectedPersisted = (patch: Partial<VenueItem>) => {
     if (!selected) return;
     setSaving(false);
@@ -1374,7 +1421,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
                     <Text style={styles.sectionLabel}>{t('DISEÑO (LAYOUT)', 'DESIGN (LAYOUT)')}</Text>
                     <View style={styles.row2}>
                       <Field label={t('Número de Filas', 'Number of Rows')} value={selected.rows} step={1} min={1} max={8} onChange={(rows) => updateSelected({ rows })} />
-                      <Field label={t('Asientos por Mesa', 'Seats per Table')} value={selected.seatsPerRow} step={1} min={1} max={16} onChange={(seatsPerRow) => updateSelected({ seatsPerRow })} />
+                      <Field label={t('Asientos por Mesa', 'Seats per Table')} value={selected.seatsPerRow} step={1} min={1} max={16} onChange={updateSelectedTableSeatCount} />
                     </View>
 
                     <Text style={styles.inputLabel}>{t('Forma de la Mesa', 'Table Shape')}</Text>
@@ -1678,15 +1725,7 @@ function SeatDots({ item, selectedSeat, selectedItemId, editMode, zoomRef, seatT
         cx = w / 2 + w * 0.52 * Math.sin(rad);
         cy = h / 2 - h * 0.52 * Math.cos(rad);
       } else {
-        // Same fixed perimeter formula as web VenueMapBuilder.
-        // xPct/yPct are percentages of w/h so they already scale with orientation.
-        const step = (2 * (1 + 0.55)) / Math.max(1, total);
-        const pos = i * step;
-        let xPct = 50; let yPct = 50;
-        if (pos < 1) { xPct = 15 + pos * 70; yPct = 12; }
-        else if (pos < 1.55) { xPct = 88; yPct = 15 + ((pos - 1) / 0.55) * 70; }
-        else if (pos < 2.55) { xPct = 85 - (pos - 1.55) * 70; yPct = 88; }
-        else { xPct = 12; yPct = 85 - ((pos - 2.55) / 0.55) * 70; }
+        const { x: xPct, y: yPct } = getRectangularTableSeatPosition(i, total, hasManualTableSeatPositions(item.seatConfig));
         cx = (w * xPct) / 100;
         cy = (h * yPct) / 100;
       }

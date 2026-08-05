@@ -43,6 +43,49 @@ const CANVAS_H = 600;
 const STAGE_X = (CANVAS_W - STAGE_W) / 2;
 const STAGE_Y = 60;
 
+type TableSeatPosition = { x: number; y: number };
+
+function hasManualTableSeatPositions(config: Record<string, { xOffset?: number; yOffset?: number }>) {
+  return Object.values(config).some((seat) => Number(seat.xOffset) !== 0 || Number(seat.yOffset) !== 0);
+}
+
+function getRectangularTableSeatPosition(index: number, count: number, useLegacyLayout = false): TableSeatPosition {
+  const safeCount = Math.max(1, count);
+  if (useLegacyLayout) {
+    const perimeter = 2 * (1 + 0.55);
+    const pos = index * (perimeter / safeCount);
+    if (pos < 1) return { x: 15 + pos * 70, y: 12 };
+    if (pos < 1.55) return { x: 88, y: 15 + ((pos - 1) / 0.55) * 70 };
+    if (pos < 2.55) return { x: 85 - (pos - 1.55) * 70, y: 88 };
+    return { x: 12, y: 85 - ((pos - 2.55) / 0.55) * 70 };
+  }
+
+  // Six chairs are a clean 3 × 2 arrangement. From eight chairs onward,
+  // the lateral seats are added symmetrically instead of drifting around the perimeter.
+  const seatsPerSide = safeCount >= 8 ? 1 + Math.floor((safeCount - 8) / 4) : 0;
+  const topCount = Math.ceil((safeCount - seatsPerSide * 2) / 2);
+  const bottomCount = safeCount - seatsPerSide * 2 - topCount;
+  const spread = (amount: number, start: number, end: number) => amount <= 1 ? [50] : Array.from({ length: amount }, (_, itemIndex) => start + ((end - start) * itemIndex) / (amount - 1));
+  const horizontal = spread(topCount, 18, 82);
+  const vertical = spread(seatsPerSide, 26, 74);
+  const bottom = spread(bottomCount, 18, 82).reverse();
+  const left = spread(seatsPerSide, 26, 74).reverse();
+
+  if (index < topCount) return { x: horizontal[index], y: 12 };
+  if (index < topCount + seatsPerSide) return { x: 88, y: vertical[index - topCount] };
+  if (index < topCount + seatsPerSide + bottomCount) return { x: bottom[index - topCount - seatsPerSide], y: 88 };
+  return { x: 12, y: left[index - topCount - seatsPerSide - bottomCount] };
+}
+
+function getRectangularTableDimensions(seatCount: number) {
+  const safeCount = Math.max(1, seatCount);
+  const seatsPerSide = safeCount >= 8 ? 1 + Math.floor((safeCount - 8) / 4) : 0;
+  return {
+    width: 80 + Math.max(0, safeCount - 4) * 8,
+    height: 80 + Math.max(0, seatsPerSide - 1) * 12,
+  };
+}
+
 export default function VenueMapBuilder({ eventId, initialSections, onSaved, onChange, event, isAdmin, seatBuyers }: VenueMapBuilderProps) {
   const { t, lang } = useLang();
   const [sections, setSections] = useState<Partial<VenueSection>[]>([]);
@@ -1060,6 +1103,29 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     setSections(prev => prev.map(s => s.id === selectedId ? { ...s, [field]: value } : s));
   };
 
+  const updateSelectedTableSeatCount = (value: number) => {
+    const nextCount = Math.max(1, value || 1);
+    setSections((current) => current.map((section) => {
+      if (section.id !== selectedId) return section;
+      if (section.sectionType !== 'table' || section.tableShape === 'round') {
+        return { ...section, seatsPerRow: nextCount };
+      }
+      const nextSize = getRectangularTableDimensions(nextCount);
+      const currentWidth = Number(section.mapWidth) || 80;
+      const currentHeight = Number(section.mapHeight) || 80;
+      const width = Math.max(currentWidth, nextSize.width);
+      const height = Math.max(currentHeight, nextSize.height);
+      return {
+        ...section,
+        seatsPerRow: nextCount,
+        mapWidth: width,
+        mapHeight: height,
+        mapX: (Number(section.mapX) || 0) - (width - currentWidth) / 2,
+        mapY: (Number(section.mapY) || 0) - (height - currentHeight) / 2,
+      };
+    }));
+  };
+
   const selectedPriceSections = sections.filter((section) => (
     section.id
     && selectedIds.has(section.id)
@@ -2004,7 +2070,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                     </div>
                     <div>
                       <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? (selectedSection.sectionType === 'table' ? 'Asientos por Mesa' : 'Asientos / Fila') : (selectedSection.sectionType === 'table' ? 'Seats per Table' : 'Seats/Row')}</label>
-                      <input type="number" min="1" value={selectedSection.seatsPerRow || 1} onChange={e => updateSelected('seatsPerRow', +e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] outline-none text-center" />
+                      <input type="number" min="1" value={selectedSection.seatsPerRow || 1} onChange={e => selectedSection.sectionType === 'table' ? updateSelectedTableSeatCount(+e.target.value) : updateSelected('seatsPerRow', +e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] outline-none text-center" />
                     </div>
                   </div>
                 )}
@@ -2601,25 +2667,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                           const seatKey = `seat-${seatNumber}`;
                           const overrides = getSeatsConfig(sec);
                           const seatOverride = overrides[seatKey] || {};
-
-                          const perimeter = 2 * (1 + 0.55);
-                          const step = perimeter / seatsCount;
-                          const pos = i * step;
-                          let x = 50;
-                          let y = 50;
-                          if (pos < 1) { // Top
-                            x = 15 + pos * 70;
-                            y = 12;
-                          } else if (pos < 1.55) { // Right
-                            x = 88;
-                            y = 15 + (pos - 1) / 0.55 * 70;
-                          } else if (pos < 2.55) { // Bottom
-                            x = 85 - (pos - 1.55) * 70;
-                            y = 88;
-                          } else { // Left
-                            x = 12;
-                            y = 85 - (pos - 2.55) / 0.55 * 70;
-                          }
+                          const { x, y } = getRectangularTableSeatPosition(i, seatsCount, hasManualTableSeatPositions(overrides));
 
                           const finalXOffset = seatOverride.xOffset || 0;
                           const finalYOffset = seatOverride.yOffset || 0;

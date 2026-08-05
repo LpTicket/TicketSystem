@@ -35,6 +35,33 @@ const MAX_ZOOM = 2.5;
 const ZOOM_STEP = 0.25;
 const FIT_PADDING = 56;
 
+function hasManualTableSeatPositions(config: Record<string, any>) {
+  return Object.values(config).some((seat: any) => Number(seat?.xOffset) !== 0 || Number(seat?.yOffset) !== 0);
+}
+
+function getRectangularTableSeatPosition(index: number, count: number, useLegacyLayout = false) {
+  const safeCount = Math.max(1, count);
+  if (useLegacyLayout) {
+    const pos = index * ((2 * (1 + 0.55)) / safeCount);
+    if (pos < 1) return { x: 15 + pos * 70, y: 12 };
+    if (pos < 1.55) return { x: 88, y: 15 + ((pos - 1) / 0.55) * 70 };
+    if (pos < 2.55) return { x: 85 - (pos - 1.55) * 70, y: 88 };
+    return { x: 12, y: 85 - ((pos - 2.55) / 0.55) * 70 };
+  }
+  const seatsPerSide = safeCount >= 8 ? 1 + Math.floor((safeCount - 8) / 4) : 0;
+  const topCount = Math.ceil((safeCount - seatsPerSide * 2) / 2);
+  const bottomCount = safeCount - seatsPerSide * 2 - topCount;
+  const spread = (amount: number, start: number, end: number) => amount <= 1 ? [50] : Array.from({ length: amount }, (_, itemIndex) => start + ((end - start) * itemIndex) / (amount - 1));
+  const top = spread(topCount, 18, 82);
+  const right = spread(seatsPerSide, 26, 74);
+  const bottom = spread(bottomCount, 18, 82).reverse();
+  const left = spread(seatsPerSide, 26, 74).reverse();
+  if (index < topCount) return { x: top[index], y: 12 };
+  if (index < topCount + seatsPerSide) return { x: 88, y: right[index - topCount] };
+  if (index < topCount + seatsPerSide + bottomCount) return { x: bottom[index - topCount - seatsPerSide], y: 88 };
+  return { x: 12, y: left[index - topCount - seatsPerSide - bottomCount] };
+}
+
 type SeatInfoCard = {
   id: string;
   title: string;
@@ -952,25 +979,7 @@ export default function SeatMapInteractive({
                             const seatOverride: any = (overrides as any)[seatKey] || {};
                             if (seatOverride.disabled) return null;
 
-                            const seatsCount = section.seats!.length;
-                            const perimeter = 2 * (1 + 0.55);
-                            const step = perimeter / seatsCount;
-                            const pos = i * step;
-                            let xPos = 50;
-                            let yPos = 50;
-                            if (pos < 1) { // Top
-                              xPos = 15 + pos * 70;
-                              yPos = 12;
-                            } else if (pos < 1.55) { // Right
-                              xPos = 88;
-                              yPos = 15 + (pos - 1) / 0.55 * 70;
-                            } else if (pos < 2.55) { // Bottom
-                              xPos = 85 - (pos - 1.55) * 70;
-                              yPos = 88;
-                            } else { // Left
-                              xPos = 12;
-                              yPos = 85 - (pos - 2.55) / 0.55 * 70;
-                            }
+                            const { x: xPos, y: yPos } = getRectangularTableSeatPosition(i, section.seats!.length, hasManualTableSeatPositions(overrides));
 
                             const selected = isSeatSelected(seat.id);
                             const finalXOffset = seatOverride.xOffset || 0;
