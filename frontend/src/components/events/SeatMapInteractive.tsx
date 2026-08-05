@@ -743,7 +743,7 @@ export default function SeatMapInteractive({
                 )}
 
                 {/* --- Section Tooltip Label (Not for Tables) --- */}
-                {!isStage && !isDecor && !isTable && (
+                {!isStage && !isDecor && !isTable && !isStanding && (
                   <div
                     className="absolute -top-7 text-[12px] font-bold uppercase tracking-widest px-2 py-0.5 rounded opacity-85 group-hover/sec:opacity-100 transition-opacity"
                     style={{ 
@@ -757,6 +757,18 @@ export default function SeatMapInteractive({
                   >
                     {section.name}
                   </div>
+                )}
+
+                {isStanding && (
+                  <span
+                    className="px-2 text-center font-black uppercase leading-tight text-white"
+                    style={{
+                      fontSize: sectionLabelFontSize,
+                      transform: `rotate(${-(section.rotation || 0)}deg)`,
+                    }}
+                  >
+                    {section.name}
+                  </span>
                 )}
 
                 {/* --- Table Rendering Logic --- */}

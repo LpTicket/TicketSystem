@@ -30,6 +30,7 @@ export type ClientVenueSection = {
   color?: string;
   price?: number | string;
   capacity?: number | string;
+  labelFontSize?: number | string;
   seatsConfig?: string | null;
   seats?: ClientSeat[];
 };
@@ -857,6 +858,7 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
             const w = Number(section.mapWidth || 100);
             const h = Number(section.mapHeight || 100);
             const color = sectionColor(section);
+            const sectionLabelFontSize = clamp(Number(section.labelFontSize) || 12, 10, 32);
             const isFocusable = kind === 'standing';
             const isInteractive = kind !== 'stage' && kind !== 'decor';
 
@@ -881,7 +883,7 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
                   <Text style={st.stageSub}>{t('ESCENARIO', 'STAGE')}</Text>
                 </>}
                 {kind === 'decor' && <Text style={st.decorLabel} numberOfLines={2}>{section.name}</Text>}
-                {kind === 'standing' && <Text style={st.standingLabel} numberOfLines={1}>{section.name}</Text>}
+                {kind === 'standing' && <Text style={[st.standingLabel, { fontSize: sectionLabelFontSize }]} numberOfLines={1}>{section.name}</Text>}
                 {kind === 'table' && (
                   <TableSection section={section} sel={selectedSeats} onToggle={onToggleSeat} onToggleMany={onToggleSeats}
                     onInfo={(info) => { setActiveSection(null); showInfo(info); }} />
