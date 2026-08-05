@@ -51,6 +51,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [dismissWelcome, setDismissWelcome] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [customViewport, setCustomViewport] = useState<{ x: number; y: number; scale: number } | null>(null);
@@ -65,6 +66,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [editMode, setEditMode] = useState(false);
   const editModeRef = useRef(false);
   editModeRef.current = editMode;
+  const selectionModeRef = useRef(true);
+  selectionModeRef.current = selectionMode;
   const toggleEditMode = () => {
     setEditMode((m) => {
       if (m) { setSelectedId(null); setSelectedIds(new Set()); setSelectedSeat(null); }
@@ -103,7 +106,18 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [selectionRect, setSelectionRect] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
 
   // Pointer-based drag/resize of a section
-  const draggingRef = useRef<{ id: string; type: 'move' | 'resize'; startMx: number; startMy: number; origX: number; origY: number; origW: number; origH: number } | null>(null);
+  const draggingRef = useRef<{
+    id: string;
+    type: 'move' | 'resize';
+    startMx: number;
+    startMy: number;
+    origX: number;
+    origY: number;
+    origW: number;
+    origH: number;
+    sectionIds?: string[];
+    origins?: Record<string, { x: number; y: number }>;
+  } | null>(null);
 
   // Dragging individual seat
   const draggingSeatRef = useRef<{ 
@@ -582,10 +596,10 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     if (editModeRef.current && (e.target as HTMLElement).closest('[data-section]')) return;
     if ((e.target as HTMLElement).closest('[data-welcome]')) return;
 
-    // In edit mode, dragging an empty area draws a selection rectangle instead
-    // of moving the whole canvas. This keeps desktop map editing fast while
-    // view mode retains the existing pan behavior.
-    if (editModeRef.current && activePointersRef.current.size === 1) {
+    // Selection can be turned off from the web toolbar so an organizer can
+    // inspect the entire venue with normal canvas panning while keeping the
+    // current group selected.
+    if (editModeRef.current && selectionModeRef.current && activePointersRef.current.size === 1) {
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const startX = e.clientX - rect.left;
       const startY = e.clientY - rect.top;
@@ -705,7 +719,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       return;
     }
     if (draggingRef.current) {
-      const { id, type, startMx, startMy, origX, origY, origW, origH } = draggingRef.current;
+      const { id, type, startMx, startMy, origX, origY, origW, origH, sectionIds = [id], origins = {} } = draggingRef.current;
       const scale = viewRef.current.scale;
 
       // Drag threshold: a tap selects/edits the section without nudging it.
@@ -723,12 +737,19 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       const el = document.getElementById(`sec-${id}`);
       if (el) {
         if (type === 'move') {
-          const newX = Math.max(0, origX + dx);
-          const newY = Math.max(STAGE_Y + STAGE_H + 10, origY + dy);
-          el.style.left = `${newX}px`;
-          el.style.top = `${newY}px`;
-          (draggingRef.current as any)._pendingX = newX;
-          (draggingRef.current as any)._pendingY = newY;
+          const pendingPositions: Record<string, { x: number; y: number }> = {};
+          sectionIds.forEach((sectionId) => {
+            const origin = origins[sectionId] || { x: origX, y: origY };
+            const newX = Math.max(0, origin.x + dx);
+            const newY = Math.max(STAGE_Y + STAGE_H + 10, origin.y + dy);
+            const sectionElement = document.getElementById(`sec-${sectionId}`);
+            if (sectionElement) {
+              sectionElement.style.left = `${newX}px`;
+              sectionElement.style.top = `${newY}px`;
+            }
+            pendingPositions[sectionId] = { x: newX, y: newY };
+          });
+          (draggingRef.current as any)._pendingPositions = pendingPositions;
         } else {
           const newW = Math.max(40, origW + dx);
           const newH = Math.max(40, origH + dy);
@@ -828,8 +849,13 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       const pY = (draggingRef.current as any)._pendingY;
       const pW = (draggingRef.current as any)._pendingW;
       const pH = (draggingRef.current as any)._pendingH;
+      const pendingPositions = (draggingRef.current as any)._pendingPositions as Record<string, { x: number; y: number }> | undefined;
       
       setSections(prev => prev.map(s => {
+        const groupPosition = s.id ? pendingPositions?.[s.id] : undefined;
+        if (groupPosition) {
+          return { ...s, mapX: groupPosition.x, mapY: groupPosition.y };
+        }
         if (s.id !== id) return s;
         return {
           ...s,
@@ -941,7 +967,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     e.stopPropagation();
     const sectionId = sec.id;
     if (!sectionId) return;
-    if (e.shiftKey && type === 'move') {
+    if (selectionModeRef.current && e.shiftKey && type === 'move') {
       setSelectedIds((previous) => {
         const next = new Set(previous);
         if (next.has(sectionId)) next.delete(sectionId);
@@ -952,8 +978,20 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       setSelectedSeat(null);
       return;
     }
-    setSelectedIds(new Set([sectionId]));
-    setSelectedId(sectionId);
+    const useExistingGroup = type === 'move' && selectedIds.size > 1 && selectedIds.has(sectionId);
+    const sectionIds = useExistingGroup ? Array.from(selectedIds) : [sectionId];
+    const origins = sections.reduce<Record<string, { x: number; y: number }>>((result, section) => {
+      if (section.id && sectionIds.includes(section.id)) {
+        result[section.id] = { x: Number(section.mapX) || 0, y: Number(section.mapY) || 0 };
+      }
+      return result;
+    }, {});
+    if (!useExistingGroup) {
+      setSelectedIds(new Set([sectionId]));
+      setSelectedId(sectionId);
+    } else {
+      setSelectedId(null);
+    }
     setSelectedSeat(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     draggingRef.current = {
@@ -965,8 +1003,10 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       origY: sec.mapY || 0,
       origW: sec.mapWidth || 100,
       origH: sec.mapHeight || 100,
+      sectionIds,
+      origins,
     };
-  }, []);
+  }, [selectedIds, sections]);
 
   // ── Section management ──────────────────────────────────────────────────
   const handleAddSection = (type: string) => {
@@ -1333,6 +1373,19 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
               )}
             </div>
           </div>
+
+          {editMode && (
+            <button
+              onClick={() => setSelectionMode((active) => !active)}
+              className={`text-xs sm:text-sm font-bold py-1.5 px-3 sm:px-4 rounded shadow-sm transition-colors flex items-center gap-2 ${selectionMode ? 'bg-[#1a73e8] hover:bg-[#1557b0] text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              title={selectionMode
+                ? (lang === 'es' ? 'Selección activa: arrastra para seleccionar. Pulsa para mover el lienzo.' : 'Selection active: drag to select. Press to pan the canvas.')
+                : (lang === 'es' ? 'Selección desactivada: arrastra para mover el lienzo. Pulsa para seleccionar.' : 'Selection off: drag to pan the canvas. Press to select.')}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V4.5m6 2.25V4.5M5.25 10.5h13.5M7.5 3h9A2.25 2.25 0 0118.75 5.25v13.5A2.25 2.25 0 0116.5 21h-9a2.25 2.25 0 01-2.25-2.25V5.25A2.25 2.25 0 017.5 3z"/></svg>
+              <span className="hidden sm:inline">{selectionMode ? (lang === 'es' ? 'Seleccionar: ON' : 'Select: ON') : (lang === 'es' ? 'Seleccionar: OFF' : 'Select: OFF')}</span>
+            </button>
+          )}
 
           <button
             onClick={toggleEditMode}
@@ -2023,6 +2076,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             marqueeCompletedRef.current = false;
             return;
           }
+          if (!selectionMode) return;
           setSelectedId(null);
           setSelectedIds(new Set());
           setSelectedSeat(null);
