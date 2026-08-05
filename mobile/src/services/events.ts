@@ -30,6 +30,7 @@ type ApiEvent = {
   ageRestriction?: string;
   description?: string;
   isFeatured?: boolean;
+  maxTicketsPerTransaction?: number;
 };
 
 function formatEventDate(value?: string, timeZone?: string) {
@@ -127,6 +128,7 @@ export async function getPublicEvents(): Promise<MobileEvent[]> {
       venueAddress: event.venueAddress,
       imageUrl: getImageUrl(pickImage(event.imageUrl, event.imageData)),
       bannerImageUrl: getImageUrl(pickImage(event.bannerImageUrl, event.mobileImageData, event.imageUrl, event.imageData)),
+      maxTicketsPerTransaction: Number(event.maxTicketsPerTransaction) || 10,
     };
   });
 }

@@ -38,8 +38,6 @@ type Props = {
   initialGaQty?: number;
 };
 
-const MAX_PER_TX = 10;
-
 function seatPrice(seat: ClientSeat, section: any): number {
   try {
     const overrides = section?.seatsConfig ? JSON.parse(section.seatsConfig) : {};
@@ -54,6 +52,7 @@ function seatPrice(seat: ClientSeat, section: any): number {
 
 export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountChange, onCartChange, initialSeats, initialGa, initialGaQty }: Props) {
   const { t } = useLanguage();
+  const ticketLimit = Math.max(1, Number(event.maxTicketsPerTransaction || 10));
   const [sections, setSections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -114,7 +113,7 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
     setSelectedSeats((current) => {
       const exists = current.some((s) => s.id === seat.id);
       if (exists) return current.filter((s) => s.id !== seat.id);
-      if (current.length >= MAX_PER_TX) return current;
+      if (current.length >= ticketLimit) return current;
       return [...current, seat];
     });
   };
@@ -128,9 +127,9 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
         const removeIds = new Set(seats.map((s) => s.id));
         return current.filter((c) => !removeIds.has(c.id));
       }
-      // select all, respecting MAX_PER_TX
+      // Select all, respecting this event's configured transaction limit.
       const toAdd = seats.filter((s) => !current.some((c) => c.id === s.id));
-      const remaining = MAX_PER_TX - current.length;
+      const remaining = Math.max(0, ticketLimit - current.length);
       return [...current, ...toAdd.slice(0, remaining)];
     });
   };
@@ -142,7 +141,7 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
   }, [sections]);
 
   const gaSelected = gaSections.find((s) => s.id === gaSectionId) || gaSections[0];
-  const gaMax = Math.min(gaSelected?.available ?? 1, MAX_PER_TX);
+  const gaMax = Math.min(gaSelected?.available ?? 1, ticketLimit);
 
   const subtotal =
     mode === 'seats'
@@ -249,6 +248,7 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
               selectedSeats={selectedSeats}
               onToggleSeat={toggleSeat}
               onToggleSeats={toggleSeats}
+              maxTicketsPerTransaction={ticketLimit}
               defaultViewX={(event as any).defaultViewX}
               defaultViewY={(event as any).defaultViewY}
               defaultViewZoom={(event as any).defaultViewZoom}

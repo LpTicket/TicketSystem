@@ -55,6 +55,7 @@ type ApiEventDetail = {
   defaultViewX?: number;
   defaultViewY?: number;
   defaultViewZoom?: number;
+  maxTicketsPerTransaction?: number;
 };
 
 function formatDate(value?: string, lang?: string, timeZone?: string) {
@@ -96,6 +97,7 @@ function mergeEvent(base: MobileEvent, data?: ApiEventDetail, lang?: string): Mo
     defaultViewX: data.defaultViewX ?? base.defaultViewX,
     defaultViewY: data.defaultViewY ?? base.defaultViewY,
     defaultViewZoom: data.defaultViewZoom ?? base.defaultViewZoom,
+    maxTicketsPerTransaction: Number(data.maxTicketsPerTransaction ?? base.maxTicketsPerTransaction) || 10,
   };
 }
 
@@ -108,7 +110,6 @@ function seatPrice(seat: ClientSeat, section: ClientVenueSection): number {
   return Number(section?.price || 0);
 }
 
-const MAX_PER_TX = 10;
 const DETAIL_SIDE_GUTTER = 19;
 
 export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange, isLoggedIn, onRequestLogin, cartSyncToken = 0, initialScrollOffset = 0, onScrollOffsetChange }: Props) {
@@ -227,6 +228,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
   );
 
   const mode: 'seats' | 'ga' | 'none' = seatedSections.length > 0 ? 'seats' : gaSections.length > 0 ? 'ga' : 'none';
+  const ticketLimit = Math.max(1, Number(detail.maxTicketsPerTransaction || event.maxTicketsPerTransaction || 10));
 
   useEffect(() => {
     if (mode === 'ga') {
@@ -236,7 +238,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
   }, [mode, gaSections, gaSectionId]);
 
   const gaSelected = gaSections.find((s) => s.id === gaSectionId) || gaSections[0];
-  const gaMax = Math.min(gaSelected?.available ?? 1, MAX_PER_TX);
+  const gaMax = Math.min(gaSelected?.available ?? 1, ticketLimit);
 
   const sectionById = useMemo(() => {
     const map: Record<string, ClientVenueSection> = {};
@@ -262,10 +264,10 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
     setSelectedSeats((cur) => {
       const exists = cur.some((s) => s.id === seat.id);
       if (exists) return cur.filter((s) => s.id !== seat.id);
-      if (cur.length >= MAX_PER_TX) return cur;
+      if (cur.length >= ticketLimit) return cur;
       return [...cur, seat];
     });
-  }, [isLoggedIn, onRequestLogin]);
+  }, [isLoggedIn, onRequestLogin, ticketLimit]);
 
   const toggleSeats = useCallback((seats: ClientSeat[]) => {
     if (!isLoggedIn) { onRequestLogin?.(); return; }
@@ -276,9 +278,9 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
         return cur.filter((c) => !removeIds.has(c.id));
       }
       const toAdd = seats.filter((s) => !cur.some((c) => c.id === s.id));
-      return [...cur, ...toAdd.slice(0, MAX_PER_TX - cur.length)];
+      return [...cur, ...toAdd.slice(0, Math.max(0, ticketLimit - cur.length))];
     });
-  }, [isLoggedIn, onRequestLogin]);
+  }, [isLoggedIn, onRequestLogin, ticketLimit]);
 
   const imageSource = useMemo(() => {
     const img = detail.imageUrl || detail.bannerImageUrl;
@@ -384,6 +386,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
             selectedSeats={selectedSeats}
             onToggleSeat={toggleSeat}
             onToggleSeats={toggleSeats}
+            maxTicketsPerTransaction={ticketLimit}
             defaultViewX={(detail as any).defaultViewX}
             defaultViewY={(detail as any).defaultViewY}
             defaultViewZoom={(detail as any).defaultViewZoom}

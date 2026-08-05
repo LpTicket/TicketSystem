@@ -43,6 +43,7 @@ type Props = {
   defaultViewX?: number;
   defaultViewY?: number;
   defaultViewZoom?: number;
+  maxTicketsPerTransaction?: number;
   onScrollLock?: (locked: boolean) => void;
 };
 
@@ -359,7 +360,7 @@ const StaticGrid = memo(function StaticGrid({ width, height }: { width: number; 
 });
 
 // ─── Main ────────────────────────────────────────────────────────────────────
-export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleSeats, defaultViewX, defaultViewY, defaultViewZoom, onScrollLock }: Props) {
+export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleSeats, defaultViewX, defaultViewY, defaultViewZoom, maxTicketsPerTransaction = 10, onScrollLock }: Props) {
   const { t } = useLanguage();
   const { width: screenW } = useWindowDimensions();
   const [viewportW, setViewportW] = useState(screenW);
@@ -968,7 +969,7 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
                 }}><Text style={st.qtyBtnText}>－</Text></TouchableOpacity>
                 <Text style={st.qtyVal}>{current.length}</Text>
                 <TouchableOpacity style={[st.qtyBtn, st.qtyBtnOrange]} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} onPress={() => {
-                  if (current.length < Math.min(10, remaining)) {
+                  if (current.length < Math.min(Math.max(1, maxTicketsPerTransaction), remaining)) {
                     onToggleSeat({ id: `standing-${sec.id}-${current.length + 1}-${Date.now()}`, sectionId: sec.id, rowLabel: 'GA', seatNumber: current.length + 1, status: 'available' });
                   }
                 }}><Text style={st.qtyBtnText}>＋</Text></TouchableOpacity>
