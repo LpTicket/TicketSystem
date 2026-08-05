@@ -2105,6 +2105,71 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
               </div>
             </div>
           </div>
+        ) : selectedIds.size > 1 ? (
+          <div className="absolute inset-y-0 right-0 z-[60] flex w-[280px] flex-col overflow-y-auto border-l border-[#e5e7eb] bg-white shadow-2xl animate-slide-in-right md:z-40 md:w-[320px] md:shadow-none">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#e5e7eb] bg-white p-4">
+              <div>
+                <h3 className="text-[13px] font-bold uppercase tracking-wide text-gray-800">
+                  {lang === 'es' ? 'Inspector de grupo' : 'Group inspector'}
+                </h3>
+                <p className="mt-0.5 text-[11px] font-semibold text-[#F97316]">
+                  {lang === 'es'
+                    ? `${selectedIds.size} elementos seleccionados`
+                    : `${selectedIds.size} items selected`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setSelectedId(null); setSelectedIds(new Set()); setShowBulkPriceEditor(false); }}
+                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                title={lang === 'es' ? 'Deseleccionar grupo' : 'Clear selection'}
+                aria-label={lang === 'es' ? 'Deseleccionar grupo' : 'Clear selection'}
+              >
+                <HiOutlineX className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 space-y-5 p-5">
+              <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#F97316]">
+                  {lang === 'es' ? 'Edición en grupo' : 'Group editing'}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  {lang === 'es'
+                    ? 'El grupo sigue seleccionado. Puedes editar el precio sin volver a tocar el lienzo.'
+                    : 'The group stays selected. You can edit its price without touching the canvas again.'}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-bold text-slate-800">
+                  {lang === 'es' ? 'Precio de mesas, asientos o áreas' : 'Table, seat, or area price'}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                  {selectedPriceSections.length > 0
+                    ? (lang === 'es'
+                      ? `Disponible para ${selectedPriceSections.length} elemento${selectedPriceSections.length === 1 ? '' : 's'} con precio.`
+                      : `Available for ${selectedPriceSections.length} priced item${selectedPriceSections.length === 1 ? '' : 's'}.`)
+                    : (lang === 'es'
+                      ? 'El grupo solo contiene escenario o decoración, que no tienen precio.'
+                      : 'This group only contains stage or decor items, which do not have a price.')}
+                </p>
+                <button
+                  type="button"
+                  onClick={openBulkPriceEditor}
+                  disabled={selectedPriceSections.length === 0}
+                  className="mt-4 w-full rounded-xl bg-[#F97316] px-4 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-colors hover:bg-[#ea6c10] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {lang === 'es' ? 'Editar precio' : 'Edit price'}
+                </button>
+              </div>
+
+              <p className="text-xs leading-relaxed text-slate-500">
+                {lang === 'es'
+                  ? 'Dentro del editor puedes aplicar el valor a todo el grupo o únicamente a una mesa seleccionada. Luego pulsa Guardar para publicar los cambios del mapa.'
+                  : 'Inside the editor, you can apply the value to the whole group or only one selected table. Then press Save to publish map changes.'}
+              </p>
+            </div>
+          </div>
         ) : null}
 
       {/* ── Canvas Viewport (Seats.io Light Grid Style) ─────────────────────────────────────────── */}
