@@ -231,7 +231,15 @@ function TableSection({ section, sel, onToggle, onToggleMany, onInfo }: {
         alignItems: 'center', justifyContent: 'center',
         opacity: allUnavail ? 0.5 : 1, zIndex: 10,
       }}>
-        <Text style={{ color: '#F8FAFC', fontSize: clamp(Math.min(w, h) * 0.14, 6, 13), fontWeight: '600', textAlign: 'center' }}>
+        <Text style={{
+          color: '#F8FAFC',
+          fontSize: clamp(Math.min(w, h) * 0.14, 6, 13),
+          fontWeight: '600',
+          textAlign: 'center',
+          // Counter-rotate only the label: the table and its chairs keep their
+          // saved orientation, while its number remains readable to the buyer.
+          transform: [{ rotate: `${-Number(section.rotation || 0)}deg` }],
+        }}>
           {section.name || section.label || ''}
         </Text>
         {anySel && <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: '#f97316', marginTop: 2 }} />}
@@ -628,8 +636,18 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
       const top = Number(section.mapY || 0);
       const w = Number(section.mapWidth || 100);
       const h = Number(section.mapHeight || 100);
-      const lx = mapX - left;
-      const ly = mapY - top;
+      const rawLx = mapX - left;
+      const rawLy = mapY - top;
+      const rotation = (Number(section.rotation || 0) * Math.PI) / 180;
+      const cos = Math.cos(rotation);
+      const sin = Math.sin(rotation);
+      // The section is drawn rotated around its centre. Convert the touch back
+      // into its original local coordinates so visible chairs and hit testing
+      // always use the exact same position.
+      const dx = rawLx - w / 2;
+      const dy = rawLy - h / 2;
+      const lx = w / 2 + dx * cos + dy * sin;
+      const ly = h / 2 - dx * sin + dy * cos;
       if (lx < 0 || ly < 0 || lx > w || ly > h) continue;
 
       if (kind === 'standing') {
