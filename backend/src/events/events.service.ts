@@ -623,8 +623,8 @@ export class EventsService {
     for (const section of sectionsData) {
       const name = String(section?.name ?? '').trim();
       if (!name) throw new BadRequestException('Cada sección debe tener un nombre.');
-      if (name.length > 180) {
-        throw new BadRequestException(`El nombre de una sección no puede superar 180 caracteres (actual: ${name.length}).`);
+      if (name.length > 40) {
+        throw new BadRequestException(`El nombre de una sección no puede superar 40 caracteres (actual: ${name.length}).`);
       }
     }
 

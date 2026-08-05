@@ -1349,7 +1349,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
                 </View>
 
                 <Text style={styles.inputLabel}>{t('Nombre', 'Name')}</Text>
-                <TextInput value={selected.name} maxLength={180} onChangeText={(name) => updateSelected({ name })} style={styles.input} />
+                <TextInput value={selected.name} maxLength={40} onChangeText={(name) => updateSelected({ name })} style={styles.input} />
 
                 <Text style={styles.inputLabel}>{t('Tipo', 'Type')}</Text>
                 <View style={[styles.segmentRow, { flexWrap: 'wrap' }]}>

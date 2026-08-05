@@ -1747,7 +1747,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 <h4 className="text-[12px] font-bold text-[#4b5563] uppercase tracking-wider">{lang === 'es' ? 'Etiquetas & Precio' : 'Labels & Pricing'}</h4>
                 <div>
                   <label className="block text-[12px] text-[#4b5563] mb-1.5">{t('orgSectionName')}</label>
-                  <input type="text" maxLength={180} value={selectedSection.name || ''} onChange={e => updateSelected('name', e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none" />
+                  <input type="text" maxLength={40} value={selectedSection.name || ''} onChange={e => updateSelected('name', e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none" />
                 </div>
                 <div>
                   <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? 'Tipo' : 'Type'}</label>

@@ -31,9 +31,9 @@ export class VenueSection {
   @JoinColumn({ name: 'eventId' })
   event: Event;
 
-  // Event maps frequently need descriptive table/area labels. Keep this
-  // comfortably above the old 40-character limit without using unbounded text.
-  @Column({ length: 180 })
+  // Keep the production schema stable while the wider-name migration is
+  // prepared separately. PostgreSQL accepts exactly 40 characters here.
+  @Column({ length: 40 })
   name: string;
 
   @Column({
