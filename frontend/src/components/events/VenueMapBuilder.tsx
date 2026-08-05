@@ -51,6 +51,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [dismissWelcome, setDismissWelcome] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkPriceEditor, setShowBulkPriceEditor] = useState(false);
+  const [bulkPrice, setBulkPrice] = useState('');
+  const [bulkPriceTarget, setBulkPriceTarget] = useState<'all' | string>('all');
   const [selectionMode, setSelectionMode] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1055,6 +1058,49 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
   const updateSelected = (field: string, value: any) => {
     setSections(prev => prev.map(s => s.id === selectedId ? { ...s, [field]: value } : s));
+  };
+
+  const selectedPriceSections = sections.filter((section) => (
+    section.id
+    && selectedIds.has(section.id)
+    && section.sectionType !== 'stage'
+    && section.sectionType !== 'decor'
+  ));
+  const selectedNonPriceCount = Math.max(0, selectedIds.size - selectedPriceSections.length);
+
+  const openBulkPriceEditor = () => {
+    if (selectedPriceSections.length === 0) {
+      toast.error(lang === 'es' ? 'Selecciona mesas, asientos o áreas con precio' : 'Select tables, seats, or priced areas');
+      return;
+    }
+    setBulkPriceTarget('all');
+    setBulkPrice(String(Number(selectedPriceSections[0].price) || 0));
+    setShowBulkPriceEditor(true);
+  };
+
+  const applyBulkPrice = () => {
+    const nextPrice = Number(bulkPrice);
+    if (!Number.isFinite(nextPrice) || nextPrice < 0) {
+      toast.error(lang === 'es' ? 'Ingresa un precio válido' : 'Enter a valid price');
+      return;
+    }
+
+    const targetIds = bulkPriceTarget === 'all'
+      ? new Set(selectedPriceSections.map((section) => section.id).filter((id): id is string => Boolean(id)))
+      : new Set([bulkPriceTarget]);
+    if (targetIds.size === 0) return;
+
+    setSections((current) => current.map((section) => (
+      section.id && targetIds.has(section.id)
+        ? { ...section, price: nextPrice }
+        : section
+    )));
+    setShowBulkPriceEditor(false);
+    toast.success(
+      targetIds.size === 1
+        ? (lang === 'es' ? 'Precio actualizado' : 'Price updated')
+        : (lang === 'es' ? `Precio actualizado en ${targetIds.size} elementos` : `Price updated on ${targetIds.size} items`)
+    );
   };
 
   const loadTemplate = (tmpl: any) => {
@@ -2209,8 +2255,17 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         )}
 
         {editMode && selectedIds.size > 1 && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 rounded-full bg-[#0f172a]/90 border border-blue-400/40 px-3 py-1.5 text-[11px] font-bold text-white shadow-lg pointer-events-none">
-            {lang === 'es' ? `${selectedIds.size} elementos seleccionados · Ctrl/Cmd+C y Ctrl/Cmd+V` : `${selectedIds.size} items selected · Ctrl/Cmd+C and Ctrl/Cmd+V`}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-full bg-[#0f172a]/90 border border-blue-400/40 px-3 py-1.5 text-[11px] font-bold text-white shadow-lg">
+            <span>{lang === 'es' ? `${selectedIds.size} elementos seleccionados` : `${selectedIds.size} items selected`}</span>
+            <span className="hidden sm:inline text-white/60">· Ctrl/Cmd+C y Ctrl/Cmd+V</span>
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={openBulkPriceEditor}
+              className="rounded-full bg-[#F97316] px-2.5 py-1 text-[10px] font-black text-white transition-colors hover:bg-[#ea6c10] focus:outline-none focus:ring-2 focus:ring-orange-300"
+            >
+              {lang === 'es' ? 'Editar precio' : 'Edit price'}
+            </button>
           </div>
         )}
 
@@ -2601,6 +2656,116 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
       {/* Confirmation Modal */}
       <AnimatePresence>
+        {showBulkPriceEditor && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowBulkPriceEditor(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 16 }}
+              className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+            >
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#F97316]">
+                    {lang === 'es' ? 'Edición en grupo' : 'Group editing'}
+                  </p>
+                  <h3 className="mt-1 text-xl font-bold text-slate-900">
+                    {lang === 'es' ? 'Cambiar precio' : 'Change price'}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {lang === 'es'
+                      ? `${selectedPriceSections.length} elemento${selectedPriceSections.length === 1 ? '' : 's'} con precio seleccionado${selectedPriceSections.length === 1 ? '' : 's'}.`
+                      : `${selectedPriceSections.length} priced item${selectedPriceSections.length === 1 ? '' : 's'} selected.`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkPriceEditor(false)}
+                  className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                  aria-label={lang === 'es' ? 'Cerrar' : 'Close'}
+                >
+                  <HiOutlineX className="h-5 w-5" />
+                </button>
+              </div>
+
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                {lang === 'es' ? 'Aplicar el cambio a' : 'Apply change to'}
+              </label>
+              <select
+                value={bulkPriceTarget}
+                onChange={(event) => setBulkPriceTarget(event.target.value)}
+                className="mb-4 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none transition-colors focus:border-[#F97316] focus:ring-2 focus:ring-orange-100"
+              >
+                <option value="all">
+                  {lang === 'es'
+                    ? `Todo el grupo seleccionado (${selectedPriceSections.length})`
+                    : `Entire selected group (${selectedPriceSections.length})`}
+                </option>
+                {selectedPriceSections.map((section, index) => (
+                  <option key={section.id} value={section.id}>
+                    {lang === 'es' ? 'Solo ' : 'Only '}{section.name || `${lang === 'es' ? 'Elemento' : 'Item'} ${index + 1}`}
+                  </option>
+                ))}
+              </select>
+
+              <label className="mb-2 block text-sm font-bold text-slate-700" htmlFor="bulk-map-price">
+                {lang === 'es' ? 'Precio por entrada o silla' : 'Price per ticket or seat'}
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">$</span>
+                <input
+                  id="bulk-map-price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={bulkPrice}
+                  onChange={(event) => setBulkPrice(event.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-8 pr-4 text-lg font-bold text-slate-900 outline-none transition-colors focus:border-[#F97316] focus:ring-2 focus:ring-orange-100"
+                  autoFocus
+                />
+              </div>
+
+              <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                {lang === 'es'
+                  ? 'Los precios personalizados de una silla se conservan para no sobrescribirlos por accidente. Guarda el mapa después de aplicar el cambio.'
+                  : 'Custom individual seat prices are kept to avoid overwriting them by accident. Save the map after applying the change.'}
+              </p>
+              {selectedNonPriceCount > 0 && (
+                <p className="mt-2 text-xs font-semibold text-amber-700">
+                  {lang === 'es'
+                    ? `${selectedNonPriceCount} elemento${selectedNonPriceCount === 1 ? '' : 's'} sin precio (escenario o decoración) no se modificará${selectedNonPriceCount === 1 ? '' : 'n'}.`
+                    : `${selectedNonPriceCount} non-priced item${selectedNonPriceCount === 1 ? '' : 's'} (stage or decor) will not be changed.`}
+                </p>
+              )}
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkPriceEditor(false)}
+                  className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  {lang === 'es' ? 'Cancelar' : 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={applyBulkPrice}
+                  className="flex-1 rounded-xl bg-[#F97316] px-4 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-colors hover:bg-[#ea6c10]"
+                >
+                  {bulkPriceTarget === 'all'
+                    ? (lang === 'es' ? 'Aplicar al grupo' : 'Apply to group')
+                    : (lang === 'es' ? 'Aplicar a uno' : 'Apply to one')}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
         {showConfirm && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div
