@@ -31,7 +31,9 @@ export class VenueSection {
   @JoinColumn({ name: 'eventId' })
   event: Event;
 
-  @Column({ length: 40 })
+  // Event maps frequently need descriptive table/area labels. Keep this
+  // comfortably above the old 40-character limit without using unbounded text.
+  @Column({ length: 180 })
   name: string;
 
   @Column({

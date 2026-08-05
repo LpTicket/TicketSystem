@@ -681,7 +681,11 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
       setSaved(true);
     } catch (err: any) {
       if (isCanceledRequest(err)) {
-        setSaved(true);
+        setSaved(false);
+        Alert.alert(
+          t('Guardado sin confirmar', 'Save not confirmed'),
+          t('La conexión se interrumpió antes de que el servidor confirmara el mapa. No cierres ni actualices: vuelve a intentar Guardar.', 'The connection stopped before the server confirmed the map. Do not close or refresh: try Save again.'),
+        );
         return;
       }
       Alert.alert(t('Error', 'Error'), err?.message || t('No se pudo guardar el mapa', 'Could not save the map'));
@@ -1345,7 +1349,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
                 </View>
 
                 <Text style={styles.inputLabel}>{t('Nombre', 'Name')}</Text>
-                <TextInput value={selected.name} onChangeText={(name) => updateSelected({ name })} style={styles.input} />
+                <TextInput value={selected.name} maxLength={180} onChangeText={(name) => updateSelected({ name })} style={styles.input} />
 
                 <Text style={styles.inputLabel}>{t('Tipo', 'Type')}</Text>
                 <View style={[styles.segmentRow, { flexWrap: 'wrap' }]}>

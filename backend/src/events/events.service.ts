@@ -618,6 +618,16 @@ export class EventsService {
     userId: string,
     viewportOpts?: { defaultViewX?: number; defaultViewY?: number; defaultViewZoom?: number; showStage?: boolean },
   ) {
+    // Validate every section before changing the saved map. A rejected payload
+    // must never remove an already saved venue layout.
+    for (const section of sectionsData) {
+      const name = String(section?.name ?? '').trim();
+      if (!name) throw new BadRequestException('Cada sección debe tener un nombre.');
+      if (name.length > 180) {
+        throw new BadRequestException(`El nombre de una sección no puede superar 180 caracteres (actual: ${name.length}).`);
+      }
+    }
+
     const event = await this.findById(eventId);
     const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
     if (event.organizerId !== userId && user?.role !== 'admin') {
@@ -636,13 +646,7 @@ export class EventsService {
     const existingSections = await this.sectionRepo.find({ where: { eventId } });
     const incomingIds = sectionsData.filter(s => s.id && !s.id.startsWith('temp-')).map(s => s.id);
 
-    // 1. Remove orphaned sections
-    const toDelete = existingSections.filter(s => !incomingIds.includes(s.id));
-    if (toDelete.length > 0) {
-      await this.sectionRepo.remove(toDelete);
-    }
-
-    // 2. Classify sections and bulk-save updates in one pass
+    // 1. Classify sections and bulk-save updates in one pass
     const newSections: Partial<VenueSection>[] = [];
     const sectionsToUpdate: Partial<VenueSection>[] = [];
     // Track which existing sections need layout regeneration vs metadata-only sync
@@ -690,7 +694,14 @@ export class EventsService {
       await this.sectionRepo.save(sectionsToUpdate as VenueSection[]);
     }
 
-    // 3. Generate seats for new sections (all in one bulk save per section type)
+    // Only remove sections after all incoming sections have been accepted and
+    // persisted. If an insert/update fails, the previous map remains intact.
+    const toDelete = existingSections.filter(s => !incomingIds.includes(s.id));
+    if (toDelete.length > 0) {
+      await this.sectionRepo.remove(toDelete);
+    }
+
+    // 2. Generate seats for new sections (all in one bulk save per section type)
     const newSeatRows: Partial<Seat>[] = [];
     for (const saved of savedNewSections) {
       if (saved.sectionType === 'seated' || saved.sectionType === 'vip' || saved.sectionType === 'table') {

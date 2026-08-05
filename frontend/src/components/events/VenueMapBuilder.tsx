@@ -50,13 +50,14 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [dismissWelcome, setDismissWelcome] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [customViewport, setCustomViewport] = useState<{ x: number; y: number; scale: number } | null>(null);
   const [hasMoved, setHasMoved] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [showStage, setShowStage] = useState(event?.showStage ?? false);
-  const [copiedSection, setCopiedSection] = useState<Partial<VenueSection> | null>(null);
+  const [copiedSections, setCopiedSections] = useState<Partial<VenueSection>[]>([]);
   const templatesRef = useRef<HTMLDivElement>(null);
 
   // Edit mode: when OFF the map is view-only (pan + zoom, nothing moves).
@@ -66,7 +67,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   editModeRef.current = editMode;
   const toggleEditMode = () => {
     setEditMode((m) => {
-      if (m) { setSelectedId(null); setSelectedSeat(null); }
+      if (m) { setSelectedId(null); setSelectedIds(new Set()); setSelectedSeat(null); }
       return !m;
     });
   };
@@ -97,6 +98,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   // Pointer-based pan of the viewport
   const panningRef = useRef(false);
   const panStartRef = useRef({ mx: 0, my: 0, vx: 0, vy: 0 });
+  const marqueeRef = useRef<{ startX: number; startY: number } | null>(null);
+  const marqueeCompletedRef = useRef(false);
+  const [selectionRect, setSelectionRect] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
 
   // Pointer-based drag/resize of a section
   const draggingRef = useRef<{ id: string; type: 'move' | 'resize'; startMx: number; startMy: number; origX: number; origY: number; origW: number; origH: number } | null>(null);
@@ -121,37 +125,41 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     statusClass: string; price: number; buyer?: string; x: number; y: number;
   } | null>(null);
 
-  const handleDuplicateSelected = useCallback((sec: Partial<VenueSection>) => {
-    const pasted: Partial<VenueSection> = JSON.parse(JSON.stringify(sec));
-    pasted.id = `temp-${Date.now()}`;
-    
+  const handleDuplicateSections = useCallback((sourceSections: Partial<VenueSection>[]) => {
+    if (sourceSections.length === 0) return;
     const copyWord = lang === 'es' ? 'Copia' : 'Copy';
-    const regex = new RegExp(`\\s+${copyWord}\\s+(\\d+)$`, 'i');
-    const match = pasted.name?.match(regex);
-    
-    if (match) {
-      const nextNum = parseInt(match[1], 10) + 1;
-      pasted.name = pasted.name?.replace(regex, ` ${copyWord} ${nextNum}`);
-    } else {
-      const bareRegex = new RegExp(`\\s+${copyWord}$`, 'i');
-      if (pasted.name && bareRegex.test(pasted.name)) {
-        pasted.name = pasted.name.replace(bareRegex, ` ${copyWord} 1`);
+    const pastedSections = sourceSections.map((source, index) => {
+      const pasted: Partial<VenueSection> = JSON.parse(JSON.stringify(source));
+      pasted.id = `temp-${Date.now()}-${index}`;
+      const regex = new RegExp(`\\s+${copyWord}\\s+(\\d+)$`, 'i');
+      const match = pasted.name?.match(regex);
+      if (match) {
+        const nextNum = parseInt(match[1], 10) + 1;
+        pasted.name = pasted.name?.replace(regex, ` ${copyWord} ${nextNum}`);
       } else {
-        pasted.name = `${pasted.name} ${copyWord} 1`;
+        const bareRegex = new RegExp(`\\s+${copyWord}$`, 'i');
+        pasted.name = pasted.name && bareRegex.test(pasted.name)
+          ? pasted.name.replace(bareRegex, ` ${copyWord} 1`)
+          : `${pasted.name || ''} ${copyWord} 1`.trim();
       }
-    }
-
-    pasted.mapX = (pasted.mapX || 0) + 30;
-    pasted.mapY = (pasted.mapY || 0) + 30;
-    
-    if (pasted.seats) {
+      pasted.mapX = (pasted.mapX || 0) + 30;
+      pasted.mapY = (pasted.mapY || 0) + 30;
       delete pasted.seats;
-    }
-
-    setSections(prev => [...prev, pasted]);
-    setSelectedId(pasted.id);
-    toast.success(lang === 'es' ? 'Sección duplicada' : 'Section duplicated');
+      return pasted;
+    });
+    const pastedIds = pastedSections.map((section) => section.id!).filter(Boolean);
+    setSections(prev => [...prev, ...pastedSections]);
+    setSelectedIds(new Set(pastedIds));
+    setSelectedId(pastedIds.length === 1 ? pastedIds[0] : null);
+    setSelectedSeat(null);
+    toast.success(sourceSections.length === 1
+      ? (lang === 'es' ? 'Sección duplicada' : 'Section duplicated')
+      : (lang === 'es' ? `${sourceSections.length} secciones duplicadas` : `${sourceSections.length} sections duplicated`));
   }, [lang]);
+
+  const handleDuplicateSelected = useCallback((sec: Partial<VenueSection>) => {
+    handleDuplicateSections([sec]);
+  }, [handleDuplicateSections]);
 
   // Global Keyboard shortcuts for Ctrl+C, Ctrl+V, Backspace/Delete
   useEffect(() => {
@@ -166,21 +174,23 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
       // Ctrl+C or Cmd+C
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-        if (selectedId) {
+        const sectionsToCopy = selectedIds.size > 0
+          ? sections.filter((section) => section.id && selectedIds.has(section.id))
+          : (selectedId ? sections.filter((section) => section.id === selectedId) : []);
+        if (sectionsToCopy.length > 0) {
           e.preventDefault();
-          const toCopy = sections.find(s => s.id === selectedId);
-          if (toCopy) {
-            setCopiedSection(JSON.parse(JSON.stringify(toCopy)));
-            toast.success(lang === 'es' ? 'Copia guardada en portapapeles local' : 'Copy saved to local clipboard');
-          }
+          setCopiedSections(JSON.parse(JSON.stringify(sectionsToCopy)));
+          toast.success(sectionsToCopy.length === 1
+            ? (lang === 'es' ? 'Copia guardada en portapapeles local' : 'Copy saved to local clipboard')
+            : (lang === 'es' ? `${sectionsToCopy.length} secciones copiadas` : `${sectionsToCopy.length} sections copied`));
         }
       }
 
       // Ctrl+V or Cmd+V
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
-        if (copiedSection) {
+        if (copiedSections.length > 0) {
           e.preventDefault();
-          handleDuplicateSelected(copiedSection);
+          handleDuplicateSections(copiedSections);
         }
       }
 
@@ -195,7 +205,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, sections, copiedSection, lang, selectedSeat, handleDuplicateSelected]);
+  }, [selectedId, selectedIds, sections, copiedSections, lang, selectedSeat, handleDuplicateSections]);
 
   // Multi-touch tracking
   const activePointersRef = useRef<Map<number, { x: number, y: number }>>(new Map());
@@ -572,6 +582,21 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     if (editModeRef.current && (e.target as HTMLElement).closest('[data-section]')) return;
     if ((e.target as HTMLElement).closest('[data-welcome]')) return;
 
+    // In edit mode, dragging an empty area draws a selection rectangle instead
+    // of moving the whole canvas. This keeps desktop map editing fast while
+    // view mode retains the existing pan behavior.
+    if (editModeRef.current && activePointersRef.current.size === 1) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const startX = e.clientX - rect.left;
+      const startY = e.clientY - rect.top;
+      marqueeRef.current = { startX, startY };
+      setSelectionRect({ startX, startY, endX: startX, endY: startY });
+      panningRef.current = false;
+      setHasMoved(false);
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      return;
+    }
+
     if (activePointersRef.current.size === 1) {
       panningRef.current = true;
       setHasMoved(false);
@@ -604,6 +629,17 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     // Update pointer position
     if (activePointersRef.current.has(e.pointerId)) {
       activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    if (marqueeRef.current) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const endX = e.clientX - rect.left;
+      const endY = e.clientY - rect.top;
+      setSelectionRect({ ...marqueeRef.current, endX, endY });
+      if (Math.abs(endX - marqueeRef.current.startX) > 4 || Math.abs(endY - marqueeRef.current.startY) > 4) {
+        setHasMoved(true);
+      }
+      return;
     }
 
     if (activePointersRef.current.size === 2 && initialPinchDistanceRef.current !== null) {
@@ -732,6 +768,40 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       initialPinchMidpointRef.current = null;
     }
 
+    if (marqueeRef.current) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const endX = e.clientX - rect.left;
+      const endY = e.clientY - rect.top;
+      const { startX, startY } = marqueeRef.current;
+      const left = Math.min(startX, endX);
+      const top = Math.min(startY, endY);
+      const right = Math.max(startX, endX);
+      const bottom = Math.max(startY, endY);
+      const dragged = right - left > 4 || bottom - top > 4;
+
+      if (dragged) {
+        const scale = viewRef.current.scale;
+        const selected = sections
+          .filter((section) => {
+            const x = (Number(section.mapX) || 0) * scale + viewRef.current.x;
+            const y = (Number(section.mapY) || 0) * scale + viewRef.current.y;
+            const width = (Number(section.mapWidth) || 100) * scale;
+            const height = (Number(section.mapHeight) || 100) * scale;
+            return x < right && x + width > left && y < bottom && y + height > top;
+          })
+          .map((section) => section.id)
+          .filter((id): id is string => Boolean(id));
+        setSelectedIds(new Set(selected));
+        setSelectedId(selected.length === 1 ? selected[0] : null);
+        setSelectedSeat(null);
+        marqueeCompletedRef.current = true;
+      }
+      marqueeRef.current = null;
+      setSelectionRect(null);
+      (e.currentTarget as HTMLElement).style.cursor = 'default';
+      return;
+    }
+
     if (draggingSeatRef.current) {
       const { secId, seatKey } = draggingSeatRef.current;
       const pX = (draggingSeatRef.current as any)._pendingX;
@@ -775,7 +845,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     }
     panningRef.current = false;
     (e.currentTarget as HTMLElement).style.cursor = 'default';
-  }, [updateSeatConfig]);
+  }, [updateSeatConfig, sections]);
 
   const onViewportWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
@@ -869,10 +939,25 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     // View mode: let the gesture bubble to the viewport (pan) instead of moving sections.
     if (!editModeRef.current) return;
     e.stopPropagation();
-    setSelectedId(sec.id!);
+    const sectionId = sec.id;
+    if (!sectionId) return;
+    if (e.shiftKey && type === 'move') {
+      setSelectedIds((previous) => {
+        const next = new Set(previous);
+        if (next.has(sectionId)) next.delete(sectionId);
+        else next.add(sectionId);
+        return next;
+      });
+      setSelectedId(null);
+      setSelectedSeat(null);
+      return;
+    }
+    setSelectedIds(new Set([sectionId]));
+    setSelectedId(sectionId);
+    setSelectedSeat(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     draggingRef.current = {
-      id: sec.id!,
+      id: sectionId,
       type,
       startMx: e.clientX,
       startMy: e.clientY,
@@ -925,6 +1010,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     };
     setSections(prev => [...prev, newSection]);
     setSelectedId(newSection.id!);
+    setSelectedIds(new Set([newSection.id!]));
   };
 
   const updateSelected = (field: string, value: any) => {
@@ -940,6 +1026,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     setSections(templateSections);
     setShowStage(true);
     setSelectedId(null);
+    setSelectedIds(new Set());
     setSelectedSeat(null);
     setTemplatesOpen(false);
     toast.success(
@@ -958,6 +1045,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const confirmDelete = () => {
     setSections(prev => prev.filter(s => s.id !== selectedId));
     setSelectedId(null);
+    setSelectedIds(new Set());
     setShowConfirm(false);
   };
 
@@ -1380,9 +1468,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             <span className="text-[9px] font-medium leading-none">{lang === 'es' ? 'Asiento' : 'Seat'}</span>
           </button>
           
-          {copiedSection && (
+          {copiedSections.length > 0 && (
             <button 
-              onClick={() => handleDuplicateSelected(copiedSection)}
+              onClick={() => handleDuplicateSections(copiedSections)}
               className="w-full aspect-square rounded flex flex-col items-center justify-center text-green-600 hover:text-green-800 hover:bg-green-50 transition-colors group border border-green-200 bg-green-50/30 shadow-sm"
               title={lang === 'es' ? 'Pegar sección copiada (Ctrl+V)' : 'Paste copied section (Ctrl+V)'}
             >
@@ -1419,7 +1507,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             <div className="p-4 border-b border-[#e5e7eb] bg-white flex items-center justify-between sticky top-0 z-10">
               <div className="flex items-center gap-3">
                 <button 
-                  onClick={() => setSelectedId(null)}
+                  onClick={() => { setSelectedId(null); setSelectedIds(new Set()); }}
                   className="md:hidden p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
                 >
                   <HiOutlineArrowLeft className="w-5 h-5" />
@@ -1659,7 +1747,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 <h4 className="text-[12px] font-bold text-[#4b5563] uppercase tracking-wider">{lang === 'es' ? 'Etiquetas & Precio' : 'Labels & Pricing'}</h4>
                 <div>
                   <label className="block text-[12px] text-[#4b5563] mb-1.5">{t('orgSectionName')}</label>
-                  <input type="text" value={selectedSection.name || ''} onChange={e => updateSelected('name', e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none" />
+                  <input type="text" maxLength={180} value={selectedSection.name || ''} onChange={e => updateSelected('name', e.target.value)} className="w-full bg-white border border-[#e5e7eb] rounded-[4px] px-2 py-1 text-[13px] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb] outline-none" />
                 </div>
                 <div>
                   <label className="block text-[12px] text-[#4b5563] mb-1.5">{lang === 'es' ? 'Tipo' : 'Type'}</label>
@@ -1930,7 +2018,16 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         onPointerUp={onViewportPointerUp}
         onPointerLeave={onViewportPointerUp}
         onPointerCancel={onViewportPointerUp}
-        onClick={() => { setSelectedId(null); setSelectedSeat(null); setHoverInfo(null); }}
+        onClick={() => {
+          if (marqueeCompletedRef.current) {
+            marqueeCompletedRef.current = false;
+            return;
+          }
+          setSelectedId(null);
+          setSelectedIds(new Set());
+          setSelectedSeat(null);
+          setHoverInfo(null);
+        }}
       >
         {hoverInfo && (
           <div
@@ -2045,6 +2142,24 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           )}
         </div>
 
+        {selectionRect && (
+          <div
+            className="absolute z-30 pointer-events-none border-2 border-[#2563eb] bg-blue-400/15 rounded-sm"
+            style={{
+              left: Math.min(selectionRect.startX, selectionRect.endX),
+              top: Math.min(selectionRect.startY, selectionRect.endY),
+              width: Math.abs(selectionRect.endX - selectionRect.startX),
+              height: Math.abs(selectionRect.endY - selectionRect.startY),
+            }}
+          />
+        )}
+
+        {editMode && selectedIds.size > 1 && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 rounded-full bg-[#0f172a]/90 border border-blue-400/40 px-3 py-1.5 text-[11px] font-bold text-white shadow-lg pointer-events-none">
+            {lang === 'es' ? `${selectedIds.size} elementos seleccionados · Ctrl/Cmd+C y Ctrl/Cmd+V` : `${selectedIds.size} items selected · Ctrl/Cmd+C and Ctrl/Cmd+V`}
+          </div>
+        )}
+
         {/* Canvas (transformed) */}
         <div
           ref={canvasRef}
@@ -2060,7 +2175,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
 
           {sections.map(sec => {
-            const isSelected = selectedId === sec.id;
+            const isSelected = selectedIds.has(sec.id || '') || selectedId === sec.id;
             const isTable = sec.sectionType === 'table';
             const isStanding = sec.sectionType === 'standing';
             const isStage = sec.sectionType === 'stage';
@@ -2087,6 +2202,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 onClick={e => {
                   if (hasMoved) return;
                   e.stopPropagation();
+                  if (e.shiftKey) return;
+                  setSelectedIds(new Set([sec.id!]));
                   setSelectedId(sec.id!);
                   // Touch devices have no hover — tapping a general area shows its count.
                   if (isStanding) buildAreaHover(e, sec);
@@ -2185,6 +2302,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                               e.stopPropagation();
                               setSelectedSeat({ secId: sec.id!, seatKey });
                               setSelectedId(sec.id!);
+                              setSelectedIds(new Set([sec.id!]));
                             }}
                             style={{
                               left: x,
@@ -2402,7 +2520,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 )}
 
                 {/* Resize Handle */}
-                {isSelected && (
+                {isSelected && selectedIds.size <= 1 && (
                   <div
                     onPointerDown={e => { e.stopPropagation(); onSectionPointerDown(e, sec, 'resize'); }}
                     style={{
