@@ -46,8 +46,8 @@ function getRectangularTableSeatPosition(index: number, count: number, useLegacy
   const spread = (amount: number, start: number, end: number) => amount <= 1 ? [50] : Array.from({ length: amount }, (_, itemIndex) => start + ((end - start) * itemIndex) / (amount - 1));
   const left = spread(leftCount, 18, 82);
   const right = spread(rightCount, 18, 82);
-  if (index < leftCount) return { x: 12, y: left[index] };
-  return { x: 88, y: right[index - leftCount] };
+  if (index < leftCount) return { x: 20, y: left[index] };
+  return { x: 80, y: right[index - leftCount] };
 }
 
 function getRectangularTableDimensions(seatCount: number) {
