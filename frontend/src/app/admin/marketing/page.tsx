@@ -988,7 +988,7 @@ export default function AdminMarketingPage() {
                   <HiOutlineUpload className="h-6 w-6" />
                 </div>
                 <p className="mt-2 text-sm font-black text-gray-950">{bannerType === 'ad' ? 'Nueva publicidad' : 'Nuevo banner'}</p>
-                  <p className="text-xs font-bold text-gray-400">Escritorio · 1800 × 600 px</p>
+                  <p className="text-xs font-bold text-gray-400">Escritorio · 1080 × 360 px</p>
               </button>
               <button
                 type="button"
@@ -1002,7 +1002,7 @@ export default function AdminMarketingPage() {
                   <HiOutlineDeviceMobile className="h-6 w-6" />
                 </div>
                 <p className="mt-2 text-sm font-black text-gray-950">{bannerType === 'ad' ? 'Nueva publicidad' : 'Nuevo banner'}</p>
-                  <p className="text-xs font-bold text-gray-400">Móvil · 1080 × 1440 px</p>
+                  <p className="text-xs font-bold text-gray-400">Móvil web · 1080 × 1440 px</p>
               </button>
               {visibleMarketingBanners.map((item, index) => {
                 const img = item.imageData || item.imageUrl || '';
@@ -1033,7 +1033,7 @@ export default function AdminMarketingPage() {
               <div className="mb-3">
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wide text-gray-500">Escritorio</h3>
-                  <p className="text-xs text-gray-400">Proporción 3:1 · recomendado 1800 × 600 px.</p>
+                  <p className="text-xs text-gray-400">Proporción 3:1 · recomendado 1080 × 360 px.</p>
                 </div>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleBannerFile(event.target.files?.[0])} />
@@ -1052,7 +1052,7 @@ export default function AdminMarketingPage() {
             <div className="rounded-3xl bg-gray-50 p-4">
               <div className="mb-3">
                 <div>
-                  <h3 className="text-sm font-black uppercase tracking-wide text-gray-500">Móvil</h3>
+                  <h3 className="text-sm font-black uppercase tracking-wide text-gray-500">Móvil web</h3>
                   <p className="text-xs text-gray-400">Proporción 3:4 · recomendado 1080 × 1440 px.</p>
                 </div>
               </div>

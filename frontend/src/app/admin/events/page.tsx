@@ -997,9 +997,9 @@ export default function AdminEventsPage() {
                         <span className="font-bold text-gray-400 block mb-1">{lang === 'es' ? 'Actual:' : 'Current:'}</span>
                         <p className="text-gray-600 font-medium line-through">{selectedEventForChanges.title}</p>
                       </div>
-                      <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-100">
-                        <span className="font-bold text-amber-600 block mb-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
-                        <p className="text-amber-900 font-extrabold">{selectedEventForChanges.pendingTitle}</p>
+                      <div className="p-2.5 bg-[#F97316] rounded-xl border border-[#F97316]">
+                        <span className="font-bold text-white block mb-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
+                        <p className="text-white font-extrabold">{selectedEventForChanges.pendingTitle}</p>
                       </div>
                     </div>
                     <div className="flex justify-end gap-2 pt-2 border-t border-dashed border-gray-100">
@@ -1032,9 +1032,9 @@ export default function AdminEventsPage() {
                           <img src={getImageUrl(selectedEventForChanges.imageUrl)} className="w-full h-full object-cover" />
                         </div>
                       </div>
-                      <div className="p-2 bg-amber-50 rounded-xl border border-amber-100">
-                        <span className="font-bold text-amber-600 block mb-2 px-1">{lang === 'es' ? 'Propuesta:' : 'Proposed:'}</span>
-                        <div className="aspect-[4/3] rounded-lg overflow-hidden border border-amber-200 shadow-md">
+                      <div className="p-2 bg-[#F97316] rounded-xl border border-[#F97316]">
+                        <span className="font-bold text-white block mb-2 px-1">{lang === 'es' ? 'Propuesta:' : 'Proposed:'}</span>
+                        <div className="aspect-[4/3] rounded-lg overflow-hidden border border-white/40 shadow-md">
                           <img src={getImageUrl(selectedEventForChanges.pendingImageUrl)} className="w-full h-full object-cover" />
                         </div>
                       </div>
@@ -1069,9 +1069,9 @@ export default function AdminEventsPage() {
                           <img src={getImageUrl(selectedEventForChanges.bannerImageUrl || selectedEventForChanges.imageUrl)} className="w-full h-full object-cover" />
                         </div>
                       </div>
-                      <div className="p-2 bg-amber-50 rounded-xl border border-amber-100">
-                        <span className="font-bold text-amber-600 block mb-2 text-xs">{lang === 'es' ? 'Banner Propuesto:' : 'Proposed Banner:'}</span>
-                        <div className="aspect-[21/9] rounded-lg overflow-hidden border border-amber-200 shadow-md">
+                      <div className="p-2 bg-[#F97316] rounded-xl border border-[#F97316]">
+                        <span className="font-bold text-white block mb-2 text-xs">{lang === 'es' ? 'Banner Propuesto:' : 'Proposed Banner:'}</span>
+                        <div className="aspect-[21/9] rounded-lg overflow-hidden border border-white/40 shadow-md">
                           <img src={getImageUrl(selectedEventForChanges.pendingBannerImageUrl)} className="w-full h-full object-cover" />
                         </div>
                       </div>
@@ -1103,9 +1103,9 @@ export default function AdminEventsPage() {
                         <span className="font-bold text-gray-400 block mb-1">{lang === 'es' ? 'Actual:' : 'Current:'}</span>
                         <p className="text-gray-600 line-clamp-3">{selectedEventForChanges.description}</p>
                       </div>
-                      <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-100">
-                        <span className="font-bold text-amber-600 block mb-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
-                        <p className="text-amber-900 font-medium whitespace-pre-wrap">{selectedEventForChanges.pendingDescription}</p>
+                      <div className="p-2.5 bg-[#F97316] rounded-xl border border-[#F97316]">
+                        <span className="font-bold text-white block mb-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
+                        <p className="text-white font-medium whitespace-pre-wrap">{selectedEventForChanges.pendingDescription}</p>
                       </div>
                     </div>
                     <div className="flex justify-end gap-2 pt-2 border-t border-dashed border-gray-100">
@@ -1136,9 +1136,9 @@ export default function AdminEventsPage() {
                         <span className="font-bold text-gray-400 block mb-1">{lang === 'es' ? 'Actual:' : 'Current:'}</span>
                         <p className="text-gray-600 font-medium">{selectedEventForChanges.venueName}</p>
                       </div>
-                      <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-100">
-                        <span className="font-bold text-amber-600 block mb-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
-                        <p className="text-amber-900 font-extrabold">{selectedEventForChanges.pendingVenueName}</p>
+                      <div className="p-2.5 bg-[#F97316] rounded-xl border border-[#F97316]">
+                        <span className="font-bold text-white block mb-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
+                        <p className="text-white font-extrabold">{selectedEventForChanges.pendingVenueName}</p>
                       </div>
                     </div>
                     <div className="flex justify-end gap-2 pt-2 border-t border-dashed border-gray-100">
@@ -1171,9 +1171,9 @@ export default function AdminEventsPage() {
                           {formatDateInTimezone(selectedEventForChanges.eventDate, selectedEventForChanges.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
                         </p>
                       </div>
-                      <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-100">
-                        <span className="font-bold text-amber-600 block mb-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
-                        <p className="text-amber-900 font-extrabold">
+                      <div className="p-2.5 bg-[#F97316] rounded-xl border border-[#F97316]">
+                        <span className="font-bold text-white block mb-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
+                        <p className="text-white font-extrabold">
                           {formatDateInTimezone(selectedEventForChanges.pendingEventDate, selectedEventForChanges.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
                         </p>
                       </div>
@@ -1213,8 +1213,8 @@ export default function AdminEventsPage() {
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <span className="font-bold text-amber-600 block">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
-                        <div className="aspect-video relative rounded-xl border border-amber-200 bg-amber-50/50 overflow-hidden flex items-center justify-center">
+                        <span className="font-bold text-white block bg-[#F97316] rounded-t-xl px-2 py-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
+                        <div className="aspect-video relative rounded-b-xl border border-[#F97316] bg-[#F97316] overflow-hidden flex items-center justify-center">
                           <img src={getImageUrl(selectedEventForChanges.pendingImageUrl)} alt="Proposed" className="w-full h-full object-cover" />
                         </div>
                       </div>
@@ -1250,10 +1250,10 @@ export default function AdminEventsPage() {
                         <p className="text-gray-600 font-bold text-base">${Number(selectedEventForChanges.creatorCommission || 0).toFixed(2)}</p>
                         <p className="text-gray-400 text-[10px]">{lang === 'es' ? 'por entrada' : 'per ticket'}</p>
                       </div>
-                      <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-100">
-                        <span className="font-bold text-amber-600 block mb-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
-                        <p className="text-amber-900 font-extrabold text-base">${Number(selectedEventForChanges.pendingCreatorCommission).toFixed(2)}</p>
-                        <p className="text-amber-600 text-[10px]">{lang === 'es' ? 'por entrada' : 'per ticket'}</p>
+                      <div className="p-2.5 bg-[#F97316] rounded-xl border border-[#F97316]">
+                        <span className="font-bold text-white block mb-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
+                        <p className="text-white font-extrabold text-base">${Number(selectedEventForChanges.pendingCreatorCommission).toFixed(2)}</p>
+                        <p className="text-white text-[10px]">{lang === 'es' ? 'por entrada' : 'per ticket'}</p>
                       </div>
                     </div>
                     <div className="flex justify-end gap-2 pt-2 border-t border-dashed border-emerald-100">
@@ -1291,8 +1291,8 @@ export default function AdminEventsPage() {
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <span className="font-bold text-amber-600 block">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
-                        <div className="aspect-video relative rounded-xl border border-amber-200 bg-amber-50/50 overflow-hidden flex items-center justify-center">
+                        <span className="font-bold text-white block bg-[#F97316] rounded-t-xl px-2 py-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
+                        <div className="aspect-video relative rounded-b-xl border border-[#F97316] bg-[#F97316] overflow-hidden flex items-center justify-center">
                           <img src={getImageUrl(selectedEventForChanges.pendingBannerImageUrl)} alt="Proposed" className="w-full h-full object-cover" />
                         </div>
                       </div>

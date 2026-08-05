@@ -1266,11 +1266,11 @@ export default function EventDetailPage() {
 
       {/* Pending Changes Notice */}
       {user?.role !== 'admin' && (event.pendingTitle || event.pendingDescription || event.pendingImageUrl || event.pendingBannerImageUrl || event.pendingVenueName || event.pendingCategory || event.pendingEventDate) && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-sm text-amber-800 shadow-sm animate-fade-in">
-          <span className="text-lg">⏳</span>
+        <div className="p-4 bg-[#F97316] border border-[#F97316] rounded-2xl flex items-start gap-3 text-sm text-white shadow-lg shadow-orange-950/25 animate-fade-in">
+          <HiOutlineBell className="mt-0.5 h-5 w-5 shrink-0 text-white" aria-hidden="true" />
           <div className="space-y-1">
-            <p className="font-bold text-amber-900">{lang === 'es' ? 'Cambios en espera de aprobación' : 'Edits pending admin approval'}</p>
-            <p className="text-xs text-amber-700 leading-relaxed">
+            <p className="font-bold text-white">{lang === 'es' ? 'Cambios en espera de aprobación' : 'Edits pending admin approval'}</p>
+            <p className="text-xs text-white leading-relaxed">
               {lang === 'es' 
                 ? 'Has guardado cambios en la información o imágenes de este evento. El administrador debe aprobarlos individualmente antes de que se actualicen públicamente. Mientras tanto, el evento sigue visible con su información original.'
                 : 'You have updated information or images for this event. The administrator must approve the edits before they become public. Until approved, the event remains visible with its original details.'}
@@ -2582,7 +2582,7 @@ export default function EventDetailPage() {
               {/* Cover Image Upload */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Foto de Portada' : 'Cover Image'}</label>
-                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Formato móvil: 1080 x 1440 px' : 'Mobile format: 1080 x 1440 px'}</p>
+                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Formato móvil web: 1080 × 1440 px' : 'Mobile web format: 1080 × 1440 px'}</p>
                 
                 {/* Active Preview */}
                 {(imageFile || event.imageUrl) && (
@@ -2639,7 +2639,7 @@ export default function EventDetailPage() {
               {/* Banner Image Upload */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Foto de Banner de Inicio' : 'Homepage Banner Image'}</label>
-                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Formato escritorio: 1080 x 600 px' : 'Desktop format: 1080 x 600 px'}</p>
+                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Formato escritorio: 1080 × 360 px' : 'Desktop format: 1080 × 360 px'}</p>
 
                 {/* Active Preview */}
                 {(bannerFile || event?.bannerImageUrl) && (
