@@ -41,24 +41,19 @@ function getRectangularTableSeatPosition(index: number, count: number, useLegacy
     if (pos < 2.55) return { x: 85 - (pos - 1.55) * 70, y: 88 };
     return { x: 12, y: 85 - ((pos - 2.55) / 0.55) * 70 };
   }
-  const seatsPerSide = safeCount >= 8 ? 1 + Math.floor((safeCount - 8) / 4) : 0;
-  const topCount = Math.ceil((safeCount - seatsPerSide * 2) / 2);
-  const bottomCount = safeCount - seatsPerSide * 2 - topCount;
+  const leftCount = Math.ceil(safeCount / 2);
+  const rightCount = safeCount - leftCount;
   const spread = (amount: number, start: number, end: number) => amount <= 1 ? [50] : Array.from({ length: amount }, (_, itemIndex) => start + ((end - start) * itemIndex) / (amount - 1));
-  const top = spread(topCount, 18, 82);
-  const right = spread(seatsPerSide, 26, 74);
-  const bottom = spread(bottomCount, 18, 82).reverse();
-  const left = spread(seatsPerSide, 26, 74).reverse();
-  if (index < topCount) return { x: top[index], y: 12 };
-  if (index < topCount + seatsPerSide) return { x: 88, y: right[index - topCount] };
-  if (index < topCount + seatsPerSide + bottomCount) return { x: bottom[index - topCount - seatsPerSide], y: 88 };
-  return { x: 12, y: left[index - topCount - seatsPerSide - bottomCount] };
+  const left = spread(leftCount, 18, 82);
+  const right = spread(rightCount, 18, 82);
+  if (index < leftCount) return { x: 12, y: left[index] };
+  return { x: 88, y: right[index - leftCount] };
 }
 
 function getRectangularTableDimensions(seatCount: number) {
   const safeCount = Math.max(1, seatCount);
-  const seatsPerSide = safeCount >= 8 ? 1 + Math.floor((safeCount - 8) / 4) : 0;
-  return { width: 80 + Math.max(0, safeCount - 4) * 8, height: 80 + Math.max(0, seatsPerSide - 1) * 12 };
+  const seatsPerSide = Math.ceil(safeCount / 2);
+  return { width: 80, height: 80 + Math.max(0, seatsPerSide - 2) * 20 };
 }
 
 // Map a persisted backend section onto the editor's local item shape.
@@ -756,8 +751,8 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
       if (item.id !== selected.id) return item;
       if (item.type !== 'table' || item.shape === 'round') return { ...item, seatsPerRow: nextCount };
       const nextSize = getRectangularTableDimensions(nextCount);
-      const width = Math.max(item.width, nextSize.width);
-      const height = Math.max(item.height, nextSize.height);
+      const width = nextSize.width;
+      const height = nextSize.height;
       return { ...item, seatsPerRow: nextCount, width, height, x: item.x - (width - item.width) / 2, y: item.y - (height - item.height) / 2 };
     }));
   };
@@ -1694,19 +1689,16 @@ function SeatDots({ item, selectedSeat, selectedItemId, editMode, zoomRef, seatT
   // rounded-corner rectangle, so it uses the rectangular edge layout (otherwise
   // its chairs collapse into the centre and pile up).
   const isRound = item.shape === 'round';
+  const useLegacyLayout = !isRound && hasManualTableSeatPositions(item.seatConfig);
 
   // Chair size matches the web editor exactly.
   const dot = Math.max(10, Math.min(22, Math.min(w, h) * 0.18));
 
-  // Central block proportions match the WEB editor exactly: 70%×45% for
-  // rectangular tables, ~60% for round. Chairs ring it at the 12–88% bands.
-  const tableW = w * (isRound ? 0.60 : 0.70);
-  const tableH = h * (isRound ? 0.60 : 0.45);
+  // Rectangular tables are vertical: chairs sit only on their two long sides.
+  const tableW = w * (isRound ? 0.60 : (useLegacyLayout ? 0.70 : 0.45));
+  const tableH = h * (isRound ? 0.60 : (useLegacyLayout ? 0.45 : 0.70));
 
-  // Compute a (cx, cy) for each seat. We distribute ALL seats evenly around the
-  // table perimeter (same approach as ClientVenueMap's TableSection), instead of
-  // assuming rows/cols map to specific sides — that assumption made every chair
-  // pile up on one edge.
+  // Rectangular tables distribute seats evenly along their two long sides.
   const positions: { id: string; cx: number; cy: number }[] = [];
   let i = 0;
   for (let row = 0; row < rows; row++) {
@@ -1725,7 +1717,7 @@ function SeatDots({ item, selectedSeat, selectedItemId, editMode, zoomRef, seatT
         cx = w / 2 + w * 0.52 * Math.sin(rad);
         cy = h / 2 - h * 0.52 * Math.cos(rad);
       } else {
-        const { x: xPct, y: yPct } = getRectangularTableSeatPosition(i, total, hasManualTableSeatPositions(item.seatConfig));
+        const { x: xPct, y: yPct } = getRectangularTableSeatPosition(i, total, useLegacyLayout);
         cx = (w * xPct) / 100;
         cy = (h * yPct) / 100;
       }

@@ -48,18 +48,13 @@ function getRectangularTableSeatPosition(index: number, count: number, useLegacy
     if (pos < 2.55) return { x: 85 - (pos - 1.55) * 70, y: 88 };
     return { x: 12, y: 85 - ((pos - 2.55) / 0.55) * 70 };
   }
-  const seatsPerSide = safeCount >= 8 ? 1 + Math.floor((safeCount - 8) / 4) : 0;
-  const topCount = Math.ceil((safeCount - seatsPerSide * 2) / 2);
-  const bottomCount = safeCount - seatsPerSide * 2 - topCount;
+  const leftCount = Math.ceil(safeCount / 2);
+  const rightCount = safeCount - leftCount;
   const spread = (amount: number, start: number, end: number) => amount <= 1 ? [50] : Array.from({ length: amount }, (_, itemIndex) => start + ((end - start) * itemIndex) / (amount - 1));
-  const top = spread(topCount, 18, 82);
-  const right = spread(seatsPerSide, 26, 74);
-  const bottom = spread(bottomCount, 18, 82).reverse();
-  const left = spread(seatsPerSide, 26, 74).reverse();
-  if (index < topCount) return { x: top[index], y: 12 };
-  if (index < topCount + seatsPerSide) return { x: 88, y: right[index - topCount] };
-  if (index < topCount + seatsPerSide + bottomCount) return { x: bottom[index - topCount - seatsPerSide], y: 88 };
-  return { x: 12, y: left[index - topCount - seatsPerSide - bottomCount] };
+  const left = spread(leftCount, 18, 82);
+  const right = spread(rightCount, 18, 82);
+  if (index < leftCount) return { x: 12, y: left[index] };
+  return { x: 88, y: right[index - leftCount] };
 }
 
 type SeatInfoCard = {
@@ -930,7 +925,8 @@ export default function SeatMapInteractive({
                           <div 
                             className="absolute rounded bg-[#22415c] border border-[rgba(246,198,95,0.28)] shadow-sm flex items-center justify-center z-10 transition-all hover:bg-[#284b6a]"
                             style={{
-                              width: '70%', height: '45%',
+                              width: hasManualTableSeatPositions(overrides) ? '70%' : '45%',
+                              height: hasManualTableSeatPositions(overrides) ? '45%' : '70%',
 	                              cursor: 'pointer',
                             }}
                             onMouseEnter={(e) => {

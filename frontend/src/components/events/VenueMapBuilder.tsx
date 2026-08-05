@@ -60,29 +60,24 @@ function getRectangularTableSeatPosition(index: number, count: number, useLegacy
     return { x: 12, y: 85 - ((pos - 2.55) / 0.55) * 70 };
   }
 
-  // Six chairs are a clean 3 × 2 arrangement. From eight chairs onward,
-  // the lateral seats are added symmetrically instead of drifting around the perimeter.
-  const seatsPerSide = safeCount >= 8 ? 1 + Math.floor((safeCount - 8) / 4) : 0;
-  const topCount = Math.ceil((safeCount - seatsPerSide * 2) / 2);
-  const bottomCount = safeCount - seatsPerSide * 2 - topCount;
+  // Rectangular tables always seat people along their long sides: 3 + 3,
+  // 4 + 4, 5 + 5, etc. This keeps the chair spacing symmetric and intentional.
+  const leftCount = Math.ceil(safeCount / 2);
+  const rightCount = safeCount - leftCount;
   const spread = (amount: number, start: number, end: number) => amount <= 1 ? [50] : Array.from({ length: amount }, (_, itemIndex) => start + ((end - start) * itemIndex) / (amount - 1));
-  const horizontal = spread(topCount, 18, 82);
-  const vertical = spread(seatsPerSide, 26, 74);
-  const bottom = spread(bottomCount, 18, 82).reverse();
-  const left = spread(seatsPerSide, 26, 74).reverse();
+  const left = spread(leftCount, 18, 82);
+  const right = spread(rightCount, 18, 82);
 
-  if (index < topCount) return { x: horizontal[index], y: 12 };
-  if (index < topCount + seatsPerSide) return { x: 88, y: vertical[index - topCount] };
-  if (index < topCount + seatsPerSide + bottomCount) return { x: bottom[index - topCount - seatsPerSide], y: 88 };
-  return { x: 12, y: left[index - topCount - seatsPerSide - bottomCount] };
+  if (index < leftCount) return { x: 12, y: left[index] };
+  return { x: 88, y: right[index - leftCount] };
 }
 
 function getRectangularTableDimensions(seatCount: number) {
   const safeCount = Math.max(1, seatCount);
-  const seatsPerSide = safeCount >= 8 ? 1 + Math.floor((safeCount - 8) / 4) : 0;
+  const seatsPerSide = Math.ceil(safeCount / 2);
   return {
-    width: 80 + Math.max(0, safeCount - 4) * 8,
-    height: 80 + Math.max(0, seatsPerSide - 1) * 12,
+    width: 80,
+    height: 80 + Math.max(0, seatsPerSide - 2) * 20,
   };
 }
 
@@ -1113,8 +1108,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       const nextSize = getRectangularTableDimensions(nextCount);
       const currentWidth = Number(section.mapWidth) || 80;
       const currentHeight = Number(section.mapHeight) || 80;
-      const width = Math.max(currentWidth, nextSize.width);
-      const height = Math.max(currentHeight, nextSize.height);
+      const width = nextSize.width;
+      const height = nextSize.height;
       return {
         ...section,
         seatsPerRow: nextCount,
@@ -2646,7 +2641,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                     ) : (
                       <>
                         <div className="absolute rounded bg-[#22415c] border border-[rgba(246,198,95,0.28)] shadow-sm flex items-center justify-center pointer-events-none" style={{
-                          width: '70%', height: '45%'
+                          width: hasManualTableSeatPositions(getSeatsConfig(sec)) ? '70%' : '45%',
+                          height: hasManualTableSeatPositions(getSeatsConfig(sec)) ? '45%' : '70%'
                         }}>
                           <span
                             className="font-black uppercase tracking-tight text-center px-1 select-none leading-none text-slate-100"

@@ -142,18 +142,13 @@ function getRectangularTableSeatPosition(index: number, count: number, useLegacy
     if (pos < 2.55) return { x: 85 - (pos - 1.55) * 70, y: 88 };
     return { x: 12, y: 85 - ((pos - 2.55) / 0.55) * 70 };
   }
-  const seatsPerSide = safeCount >= 8 ? 1 + Math.floor((safeCount - 8) / 4) : 0;
-  const topCount = Math.ceil((safeCount - seatsPerSide * 2) / 2);
-  const bottomCount = safeCount - seatsPerSide * 2 - topCount;
+  const leftCount = Math.ceil(safeCount / 2);
+  const rightCount = safeCount - leftCount;
   const spread = (amount: number, start: number, end: number) => amount <= 1 ? [50] : Array.from({ length: amount }, (_, itemIndex) => start + ((end - start) * itemIndex) / (amount - 1));
-  const top = spread(topCount, 18, 82);
-  const right = spread(seatsPerSide, 26, 74);
-  const bottom = spread(bottomCount, 18, 82).reverse();
-  const left = spread(seatsPerSide, 26, 74).reverse();
-  if (index < topCount) return { x: top[index], y: 12 };
-  if (index < topCount + seatsPerSide) return { x: 88, y: right[index - topCount] };
-  if (index < topCount + seatsPerSide + bottomCount) return { x: bottom[index - topCount - seatsPerSide], y: 88 };
-  return { x: 12, y: left[index - topCount - seatsPerSide - bottomCount] };
+  const left = spread(leftCount, 18, 82);
+  const right = spread(rightCount, 18, 82);
+  if (index < leftCount) return { x: 12, y: left[index] };
+  return { x: 88, y: right[index - leftCount] };
 }
 
 // ─── Chair ──────────────────────────────────────────────────────────────────
@@ -217,9 +212,10 @@ function TableSection({ section, sel, onToggle, onToggleMany, onInfo }: {
   const w = Number(section.mapWidth || 100);
   const h = Number(section.mapHeight || 100);
   const isRound = (section.tableShape || 'round') === 'round';
+  const useLegacyLayout = !isRound && hasManualTableSeatPositions(cfg);
   const chairSize = clamp(Math.min(w, h) * 0.18, 8, 18);
-  const tableW = w * (isRound ? 0.60 : 0.70);
-  const tableH = h * (isRound ? 0.60 : 0.45);
+  const tableW = w * (isRound ? 0.60 : (useLegacyLayout ? 0.70 : 0.45));
+  const tableH = h * (isRound ? 0.60 : (useLegacyLayout ? 0.45 : 0.70));
   const allUnavail = seats.length > 0 && seats.every((s) => isUnavailable(s, cfg[`seat-${s.seatNumber}`] || {}));
   const anySel = seats.some((s) => isSelected(s, sel));
 
@@ -253,7 +249,6 @@ function TableSection({ section, sel, onToggle, onToggleMany, onInfo }: {
           })
         : (() => {
             const count = seats.length;
-            const useLegacyLayout = hasManualTableSeatPositions(cfg);
             return seats.map((seat, i) => {
               const ov = cfg[`seat-${seat.seatNumber}`] || {};
               if (ov.disabled) return null;
