@@ -231,20 +231,21 @@ export default function SeatMapInteractive({
   const getSeatBg = (seat: Seat, seatOverride: any, sectionColor: string, isWC: boolean, selected: boolean) => {
     if (selected) return '#f97316'; // Vivid orange for selected/cart state!
     if (isSeatSold(seat)) return '#22384d';
-    if (isSeatBlocked(seat, seatOverride)) return '#102235';
+    // The public map must not reveal whether an unavailable seat was sold or blocked.
+    if (isSeatBlocked(seat, seatOverride)) return '#22384d';
     return isWC ? '#1a73e8' : sectionColor; // Solid vibrant section color for available!
   };
   
   const getSeatBorder = (seat: Seat, seatOverride: any, sectionColor: string, isWC: boolean, selected: boolean) => {
     if (selected) return '#ffffff';
     if (isSeatSold(seat)) return '#94a3b8';
-    if (isSeatBlocked(seat, seatOverride)) return '#F97316';
+    if (isSeatBlocked(seat, seatOverride)) return '#94a3b8';
     return '#ffffff'; // White border, exactly like the designer!
   };
   
   const getSeatShadow = (seat: Seat, seatOverride: any, sectionColor: string, selected: boolean) => {
     if (selected) return `0 0 0 2.5px #f97316, 0 4px 10px rgba(249,115,22,0.4)`;
-    if (isSeatBlocked(seat, seatOverride)) return '0 0 0 2px rgba(249,115,22,0.38)';
+    if (isSeatBlocked(seat, seatOverride)) return 'none';
     if (isSeatSold(seat)) return 'none';
     return '0 1.5px 3px rgba(0,0,0,0.15)';
   };
