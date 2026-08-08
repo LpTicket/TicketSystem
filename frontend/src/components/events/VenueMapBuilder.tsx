@@ -406,11 +406,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             config[key] = { ...config[key], reserved: true };
             changed = true;
           }
-          // If DB says available but config says reserved, respect the DB (the viceversa part)
-          if (seat.status === 'available' && config[key]?.reserved) {
-             config[key] = { ...config[key], reserved: false };
-             changed = true;
-          }
+          // A saved visual reservation is a permanent organizer block. Do not
+          // overwrite it just because an older database row is still available;
+          // the server reconciliation restores that row explicitly.
         });
         
         return changed ? { ...s, seatsConfig: JSON.stringify(config) } : s;
