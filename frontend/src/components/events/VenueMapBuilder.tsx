@@ -1269,7 +1269,16 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       const rowLabel: string = section.sectionType === 'table' ? 'Mesa' : String.fromCharCode(64 + row);
       for (let seat = 1; seat <= seatsPerRow; seat++) {
         const key = section.sectionType === 'table' ? `seat-${seat}` : `${rowLabel}-${seat}`;
-        if (config[key]?.reserved || config[key]?.disabled) unavailableSeats += 1;
+        const persistedSeat = (section.seats || []).find((currentSeat) => (
+          section.sectionType === 'table'
+            ? currentSeat.seatNumber === seat
+            : currentSeat.rowLabel === rowLabel && currentSeat.seatNumber === seat
+        ));
+        const isPermanentlyBlocked = persistedSeat?.status === 'locked' && !persistedSeat.lockExpiresAt;
+
+        // The database is the source of truth for permanent blocks. Older maps
+        // can lack the matching visual override, but must still count as blocked.
+        if (config[key]?.reserved || config[key]?.disabled || isPermanentlyBlocked) unavailableSeats += 1;
       }
     }
 
