@@ -1247,6 +1247,22 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       toast.success(lang === 'es' ? 'Mapa guardado correctamente' : 'Map saved successfully');
       onSaved(data);
     } catch (err: any) {
+      // If a legacy map payload cannot be saved, reconcile only the permanent
+      // blocks already stored in its configuration. This is an explicit,
+      // owner-authorized recovery action; it never changes sold seats.
+      try {
+        const { data: recovery } = await api.post(`/events/${eventId}/sections/restore-saved-blocks`);
+        if (Number(recovery?.restored) > 0) {
+          toast.success(
+            lang === 'es'
+              ? `${recovery.restored} bloqueo(s) del mapa fueron restaurados. Los demás cambios no se guardaron.`
+              : `${recovery.restored} saved map block(s) were restored. Other map changes were not saved.`,
+          );
+          return;
+        }
+      } catch {
+        // Keep the original save error below when the recovery endpoint is unavailable.
+      }
       toast.error(err.response?.data?.message || 'Error saving map');
     } finally {
       setSaving(false);

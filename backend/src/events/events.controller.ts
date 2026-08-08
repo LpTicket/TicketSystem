@@ -210,6 +210,16 @@ export class EventsController {
     });
   }
 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Post(':eventId/sections/restore-saved-blocks')
+  restoreSavedSeatBlocks(
+    @Param('eventId') eventId: string,
+    @Request() req: any,
+  ) {
+    return this.eventsService.restoreSavedSeatBlocks(eventId, req.user.id);
+  }
+
   @Get('sections/:sectionId/seats')
   getSeats(@Param('sectionId') sectionId: string) {
     return this.eventsService.getSeats(sectionId);

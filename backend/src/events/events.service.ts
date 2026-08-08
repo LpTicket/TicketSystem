@@ -12,10 +12,10 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException,
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository, ILike, In } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Event, EventStatus, EventCategory, VenueSection, Seat, SeatStatus, User, Ticket, TicketStatus, Order, OrderStatus, EventCategoryEntity } from '../database/entities';
+import { Event, EventStatus, EventCategory, VenueSection, Seat, SeatStatus, User, UserRole, Ticket, TicketStatus, Order, OrderStatus, EventCategoryEntity } from '../database/entities';
 import { CreateEventDto, UpdateEventDto, EventQueryDto } from './dto/event.dto';
 
 // How long an event stays visible/purchasable after its start time when the
@@ -933,6 +933,75 @@ export class EventsService {
   }
 
   /**
+   * Restores permanent seat blocks from the saved map configuration when an
+   * earlier failed save left the visual reservation out of sync with inventory.
+   * This is intentionally one-way: it never unlocks a seat and never touches
+   * a sold seat. Explicit block/unblock actions remain the only way to release
+   * a permanent block.
+   */
+  private async reconcileReservedMapSeats(sections: VenueSection[]): Promise<number> {
+    const reservedConfigs = new Map<string, Record<string, any>>();
+
+    for (const section of sections) {
+      if (!section.seatsConfig || !section.seatsConfig.includes('"reserved":true')) continue;
+      try {
+        const config = JSON.parse(section.seatsConfig);
+        if (config && typeof config === 'object') reservedConfigs.set(section.id, config);
+      } catch {
+        // A malformed optional visual configuration must not affect inventory.
+      }
+    }
+
+    if (reservedConfigs.size === 0) return 0;
+
+    const seats = await this.seatRepo.find({
+      where: { sectionId: In([...reservedConfigs.keys()]) },
+    });
+    const indexes = new Map<string, number>();
+    const repairs: Seat[] = [];
+
+    for (const seat of seats) {
+      if (seat.status !== SeatStatus.AVAILABLE) continue;
+      const section = sections.find(item => item.id === seat.sectionId);
+      const config = reservedConfigs.get(seat.sectionId);
+      if (!section || !config) continue;
+
+      const index = (indexes.get(seat.sectionId) || 0) + 1;
+      indexes.set(seat.sectionId, index);
+      const key = section.sectionType === 'table'
+        ? `seat-${seat.seatNumber}`
+        : `${seat.rowLabel}-${seat.seatNumber}`;
+      const override = config[key] || (section.sectionType === 'table' ? config[`seat-${index}`] : undefined);
+      if (!override?.reserved) continue;
+
+      seat.status = SeatStatus.LOCKED;
+      seat.lockedBy = null as any;
+      seat.lockExpiresAt = null;
+      repairs.push(seat);
+    }
+
+    if (repairs.length > 0) await this.seatRepo.save(repairs);
+    return repairs.length;
+  }
+
+  async restoreSavedSeatBlocks(eventId: string, userId: string) {
+    const event = await this.findById(eventId);
+    const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
+    if (event.organizerId !== userId && user?.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('No tienes permiso para restaurar los bloqueos de este mapa');
+    }
+
+    const sections = await this.sectionRepo.find({
+      where: { eventId },
+      order: { sortOrder: 'ASC' },
+    });
+    const restored = await this.reconcileReservedMapSeats(sections);
+    if (restored > 0) await this.cache.del(`event:seatmap:${eventId}`);
+
+    return { restored };
+  }
+
+  /**
    * getSeatMap
    * Retrieves the comprehensive interactive map data.
    * CRITICAL: Automatically clears expired temporary locks before returning data.
@@ -948,7 +1017,7 @@ export class EventsService {
     if (sections.length === 0) return [];
 
     const sectionIds = sections.map(s => s.id);
-    const { In, LessThan } = require('typeorm');
+    const { LessThan } = require('typeorm');
     const now = new Date();
 
     // Cleanup expired holds from users who abandoned their carts
