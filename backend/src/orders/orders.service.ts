@@ -524,7 +524,6 @@ export class OrdersService {
       orderId: order.id,
       paymentIntentId: paymentIntent.id,
       clientSecret: paymentIntent.client_secret,
-      locationId: await this.getTerminalLocationId(),
       invoice,
       event: {
         id: event.id,
@@ -585,7 +584,6 @@ export class OrdersService {
       success: true,
       orderId,
       ticketCount: tickets.length,
-      eventStats: await this.computeScannerEventStats(order.eventId),
     };
   }
 

@@ -26,7 +26,13 @@ type TapToPayOptions = Pick<TapToPayParams, 'eventId' | 'merchantDisplayName' | 
 
 type TerminalFunctions = typeof import('@stripe/stripe-terminal-react-native/lib/typescript/src/functions');
 
-let terminalSession: { terminal: TerminalFunctions; detachTokenProvider: () => void; initialized: boolean; connected: boolean } | null = null;
+let terminalSession: {
+  terminal: TerminalFunctions;
+  detachTokenProvider: () => void;
+  initialized: boolean;
+  connected: boolean;
+  connecting?: Promise<TerminalFunctions> | null;
+} | null = null;
 
 function nativeUnavailableMessage(error?: any) {
   const raw = String(error?.message || error || '');
@@ -85,10 +91,10 @@ async function ensureTapToPayReady({ eventId, merchantDisplayName = 'LPTicket', 
 
   const session = await getTerminalSession();
   const { terminal } = session;
-  onPhase?.('preparing');
-  onStatus?.('Preparando Tap to Pay en iPhone...');
 
   if (!session.initialized) {
+    onPhase?.('preparing');
+    onStatus?.('Preparando Tap to Pay en iPhone...');
     const initialized = await terminal.initialize({
       initParams: { logLevel: 'none' },
       useAppsOnDevicesConnectionTokenProvider: false,
@@ -97,31 +103,46 @@ async function ensureTapToPayReady({ eventId, merchantDisplayName = 'LPTicket', 
     session.initialized = true;
   }
 
-  const config = await getDoorSaleTapToPayConfig(eventId);
   if (!session.connected) {
-    onStatus?.('Configurando Tap to Pay en iPhone...');
-    const connected = await terminal.easyConnect({
-      discoveryMethod: 'tapToPay',
-      locationId: config.locationId,
-      simulated: false,
-      merchantDisplayName,
-      // Apple terms must only be accepted by the authorized LPTicket admin.
-      tosAcceptancePermitted: canAcceptTerms,
-      autoReconnectOnUnexpectedDisconnect: true,
-    });
-    if (connected.error) {
-      const message = connected.error.message || 'No se pudo configurar Tap to Pay.';
-      if (!canAcceptTerms && /terms|agreement|accept/i.test(message)) {
-        throw new Error('Tap to Pay debe ser configurado primero por el administrador principal de LPTicket.');
-      }
-      throw new Error(message);
+    if (!session.connecting) {
+      session.connecting = (async () => {
+        onPhase?.('preparing');
+        onStatus?.('Configurando Tap to Pay en iPhone...');
+        const config = await getDoorSaleTapToPayConfig(eventId);
+        const connected = await terminal.easyConnect({
+          discoveryMethod: 'tapToPay',
+          locationId: config.locationId,
+          simulated: false,
+          merchantDisplayName,
+          // Apple terms must only be accepted by the authorized LPTicket admin.
+          tosAcceptancePermitted: canAcceptTerms,
+          autoReconnectOnUnexpectedDisconnect: true,
+        });
+        if (connected.error) {
+          const message = connected.error.message || 'No se pudo configurar Tap to Pay.';
+          if (!canAcceptTerms && /terms|agreement|accept/i.test(message)) {
+            throw new Error('Tap to Pay debe ser configurado primero por el administrador principal de LPTicket.');
+          }
+          throw new Error(message);
+        }
+        session.connected = true;
+        return terminal;
+      })();
     }
-    session.connected = true;
+    try {
+      await session.connecting;
+    } finally {
+      session.connecting = null;
+    }
   }
 
-  onPhase?.('ready');
-  onStatus?.('Tap to Pay está listo para cobrar.');
-  return terminal;
+  if (session.connected) {
+    onPhase?.('ready');
+    onStatus?.('Tap to Pay está listo para cobrar.');
+    return terminal;
+  }
+
+  throw new Error('No se pudo preparar Tap to Pay.');
 }
 
 export async function prepareDoorSaleTapToPay(options: TapToPayOptions) {

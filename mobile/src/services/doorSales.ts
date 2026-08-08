@@ -35,7 +35,6 @@ export type DoorSaleTapToPayIntent = {
   orderId: string;
   paymentIntentId: string;
   clientSecret: string;
-  locationId: string;
   invoice: DoorSalePreview;
   event?: DoorSalePreview['event'];
 };
@@ -82,8 +81,8 @@ export async function createDoorSaleTapToPayIntent(payload: {
 export async function completeDoorSaleTapToPay(payload: {
   orderId: string;
   paymentIntentId: string;
-}): Promise<{ success: boolean; orderId: string; ticketCount?: number; eventStats?: Record<string, number> }> {
-  return apiPost<{ success: boolean; orderId: string; ticketCount?: number; eventStats?: Record<string, number> }>('/orders/door-sale/tap-to-pay-complete', payload);
+}): Promise<{ success: boolean; orderId: string; ticketCount?: number }> {
+  return apiPost<{ success: boolean; orderId: string; ticketCount?: number }>('/orders/door-sale/tap-to-pay-complete', payload);
 }
 
 export async function sendDoorSaleTicketDelivery(payload: {

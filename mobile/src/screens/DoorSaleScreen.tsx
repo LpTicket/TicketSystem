@@ -35,6 +35,7 @@ type TapFlowPhase = 'idle' | 'preparing' | 'ready' | 'collecting' | 'processing'
 
 const DEFAULT_DOOR_SALE_AMOUNT = '20';
 const TAP_TO_PAY_GUIDE_SEEN_KEY = 'lp_tap_to_pay_guide_seen_v1';
+const POST_SALE_AUTO_CONTINUE_MS = 1800;
 
 function listFrom(payload: any): any[] {
   if (Array.isArray(payload)) return payload;
@@ -177,6 +178,41 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
 
   useEffect(() => () => { releaseDoorSaleTapToPay().catch(() => {}); }, []);
 
+  // Keep the iPhone reader warm for the full door-sale session. The service
+  // deduplicates concurrent requests and keeps the connected reader alive.
+  useEffect(() => {
+    if (!selectedEventId) return;
+    let active = true;
+    prepareDoorSaleTapToPay({
+      eventId: selectedEventId,
+      merchantDisplayName: selectedEvent?.title || 'LPTicket',
+      canAcceptTerms: user?.role === 'admin',
+      onStatus: (message) => { if (active) setTapStatus(message); },
+      onPhase: (phase) => { if (active) setTapPhase(phase); },
+    }).catch((err: any) => {
+      if (!active) return;
+      setTapPhase('failed');
+      setTapStatus(err?.message || t('Tap to Pay necesita conexión para prepararse.', 'Tap to Pay needs an internet connection to get ready.'));
+    });
+    return () => { active = false; };
+  }, [selectedEventId, selectedEvent?.title, t, user?.role]);
+
+  // A successful sale should return the seller to the next ready-to-charge
+  // transaction without requiring an extra tap. Choosing SMS or email stops
+  // the timer and preserves the existing delivery flow.
+  useEffect(() => {
+    if (!tapResult?.success || deliveryMode || deliveryMessage) return;
+    const timer = setTimeout(() => {
+      setTapResult(null);
+      setDeliveryMode(null);
+      setDeliveryRecipient('');
+      setDeliveryMessage('');
+      setDeliverySucceeded(false);
+      onSaleCompleted?.();
+    }, POST_SALE_AUTO_CONTINUE_MS);
+    return () => clearTimeout(timer);
+  }, [deliveryMessage, deliveryMode, onSaleCompleted, tapResult?.success]);
+
   useEffect(() => {
     if (!eventQuery.trim()) return;
     if (filteredEvents.length === 1 && filteredEvents[0].id !== selectedEventId) {
@@ -271,8 +307,8 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     setAmount(DEFAULT_DOOR_SALE_AMOUNT);
     setQuantity(1);
     setCheckout(null);
-    setTapStatus('');
-    setTapPhase('idle');
+    setTapStatus(t('Tap to Pay está listo para el próximo cobro.', 'Tap to Pay is ready for the next charge.'));
+    setTapPhase('ready');
   };
 
   const makeCheckout = async () => {
@@ -301,7 +337,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           orderId: completed.orderId,
         });
         resetSaleForm();
-        setTapStatus(t('Pago aprobado. Entradas emitidas.', 'Payment approved. Tickets issued.'));
+        setTapStatus(t('Pago aprobado. Entradas emitidas y Tap to Pay listo.', 'Payment approved. Tickets issued and Tap to Pay is ready.'));
         return;
       }
 
