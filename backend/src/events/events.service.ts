@@ -815,9 +815,11 @@ export class EventsService {
             const override = overrides[key] || overrides[legacyKey] || {};
             seat.rowLabel = override.rowLabel || 'Mesa';
             seat.seatNumber = override.seatNumber ?? s;
-            if (seat.status === SeatStatus.AVAILABLE || (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt)) {
-              seat.status = override.reserved ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
-              seat.lockedBy = override.reserved ? userId : null as any;
+            // Saving layout metadata must never release a permanent block.
+            // Blocking/unblocking remains an explicit operation in the map UI.
+            if (seat.status === SeatStatus.AVAILABLE && override.reserved) {
+              seat.status = SeatStatus.LOCKED;
+              seat.lockedBy = userId;
               seat.lockExpiresAt = null;
             }
             allSeatsToUpdate.push(seat);
@@ -834,9 +836,11 @@ export class EventsService {
               const override = overrides[key] || overrides[legacyKey] || {};
               seat.rowLabel = override.rowLabel || defaultRowLabel;
               seat.seatNumber = override.seatNumber ?? s;
-              if (seat.status === SeatStatus.AVAILABLE || (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt)) {
-                seat.status = override.reserved ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
-                seat.lockedBy = override.reserved ? userId : null as any;
+              // Saving layout metadata must never release a permanent block.
+              // Blocking/unblocking remains an explicit operation in the map UI.
+              if (seat.status === SeatStatus.AVAILABLE && override.reserved) {
+                seat.status = SeatStatus.LOCKED;
+                seat.lockedBy = userId;
                 seat.lockExpiresAt = null;
               }
               allSeatsToUpdate.push(seat);
