@@ -312,6 +312,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         if (foundSeat.status === 'sold') return 'sold';
         // Temporary checkout hold: show as yellow, not sold gray
         if (foundSeat.status === 'locked' && foundSeat.lockExpiresAt) return 'held';
+        // A permanent database block must always be visible to organizers,
+        // even when an older saved visual override says otherwise.
+        if (foundSeat.status === 'locked' && !foundSeat.lockExpiresAt) return 'reserved';
       }
     }
 
@@ -319,22 +322,6 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       return seatOverride.reserved ? 'reserved' : 'available';
     }
 
-    if (section.seats) {
-      let foundSeat;
-      if (section.sectionType === 'table') {
-        const num = parseInt(seatKey.replace('seat-', ''), 10);
-        foundSeat = section.seats.find(s => s.seatNumber === num);
-      } else {
-        const [row, num] = seatKey.split('-');
-        foundSeat = section.seats.find(s => s.rowLabel === row && s.seatNumber === parseInt(num, 10));
-      }
-
-      if (foundSeat) {
-        // Permanent block if locked and no expiry
-        if (foundSeat.status === 'locked' && !foundSeat.lockExpiresAt) return 'reserved';
-      }
-    }
-    
     return 'available';
   };
 
