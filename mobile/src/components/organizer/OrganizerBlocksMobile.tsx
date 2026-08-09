@@ -8,12 +8,14 @@ import { GradientButton } from '../GradientButton';
 type Props = {
   eventId?: string;
   sections: any[];
+  sales?: { orders?: any[] } | null;
   onReload?: () => void | Promise<void>;
 };
 
 export function OrganizerBlocksMobile({
   eventId,
   sections,
+  sales,
   onReload,
 }: Props) {
   const { t, lang } = useLanguage();
@@ -82,16 +84,36 @@ export function OrganizerBlocksMobile({
     }
   };
 
-  // Sections that already have blocked seats
+  const complimentaryOrders = useMemo(
+    () => (sales?.orders || []).filter(
+      (order: any) => Number(order.total || 0) === 0 && Number(order.ticketCount || 0) > 0,
+    ),
+    [sales],
+  );
+
+  // Keep a section visible while it still has seats blocked or has already sent complimentary tickets.
   const blockedSections = useMemo(
     () =>
       sections
         .map((s) => ({
           section: s,
           blockedSeats: (s.seats || []).filter((seat: any) => seat.status === 'locked' && !seat.lockExpiresAt),
+          invitationTickets: complimentaryOrders
+            .flatMap((order: any) => order.tickets || [])
+            .filter((ticket: any) => String(ticket.sectionId) === String(s.id)),
         }))
-        .filter((item) => item.blockedSeats.length > 0),
-    [sections],
+        .filter((item) => item.blockedSeats.length > 0 || item.invitationTickets.length > 0),
+    [sections, complimentaryOrders],
+  );
+
+  const selectedInvitationTicketCount = useMemo(
+    () => complimentaryOrders.reduce(
+      (total: number, order: any) => total + (order.tickets || []).filter(
+        (ticket: any) => String(ticket.sectionId) === selectedSectionId,
+      ).length,
+      0,
+    ),
+    [complimentaryOrders, selectedSectionId],
   );
 
   return (
@@ -144,17 +166,17 @@ export function OrganizerBlocksMobile({
         )}
       </View>
 
-      {/* Blocked sections summary */}
+      {/* Blocked and complimentary sections summary */}
       {blockedSections.length > 0 && (
         <View style={styles.blockedCard}>
-          <Text style={styles.blockedEyebrow}>{es ? 'SECCIONES BLOQUEADAS' : 'BLOCKED SECTIONS'}</Text>
+          <Text style={styles.blockedEyebrow}>{es ? 'SECCIONES BLOQUEADAS Y ENVIADAS' : 'BLOCKED & SENT SECTIONS'}</Text>
           <Text style={styles.blockedSub}>
             {es
-              ? 'Toca una sección para administrarla directamente.'
-              : 'Tap a section to manage it directly.'}
+              ? 'Toca una sección para administrar sus bloqueos o revisar las cortesías enviadas.'
+              : 'Tap a section to manage its blocks or review sent complimentary tickets.'}
           </Text>
           <View style={styles.blockedGrid}>
-            {blockedSections.map(({ section: s, blockedSeats }, index) => (
+            {blockedSections.map(({ section: s, blockedSeats, invitationTickets }, index) => (
               <TouchableOpacity
                 key={`${String(s.id || sectionTitle(s))}-${index}`}
                 onPress={() => {
@@ -165,12 +187,23 @@ export function OrganizerBlocksMobile({
               >
                 <View style={styles.blockedChipRow}>
                   <Text style={styles.blockedChipName} numberOfLines={1}>{sectionTitle(s)}</Text>
-                  <View style={styles.blockedBadge}>
-                    <Text style={styles.blockedBadgeText}>{blockedSeats.length}</Text>
+                  <View style={styles.blockedBadges}>
+                    {blockedSeats.length > 0 && (
+                      <View style={styles.blockedBadge}>
+                        <Text style={styles.blockedBadgeText}>{blockedSeats.length}</Text>
+                      </View>
+                    )}
+                    {invitationTickets.length > 0 && (
+                      <View style={styles.sentBadge}>
+                        <Text style={styles.sentBadgeText}>{invitationTickets.length}</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
                 <Text style={styles.blockedChipSub}>
-                  {blockedSeats.length} {es ? 'bloqueados' : 'blocked seats'}
+                  {blockedSeats.length > 0 ? `${blockedSeats.length} ${es ? 'bloqueados' : 'blocked seats'}` : ''}
+                  {blockedSeats.length > 0 && invitationTickets.length > 0 ? ' · ' : ''}
+                  {invitationTickets.length > 0 ? `${invitationTickets.length} ${es ? 'enviadas' : 'sent'}` : ''}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -212,6 +245,15 @@ export function OrganizerBlocksMobile({
               )}
             </View>
           </View>
+
+          {selectedInvitationTicketCount > 0 && (
+            <View style={styles.sentNotice}>
+              <Ionicons name="checkmark-circle" size={15} color="#6EE7B7" />
+              <Text style={styles.sentNoticeText}>
+                {selectedInvitationTicketCount} {es ? 'cortesías enviadas para esta sección' : 'complimentary tickets sent for this section'}
+              </Text>
+            </View>
+          )}
 
           {/* Seat grid */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -383,9 +425,12 @@ const styles = StyleSheet.create({
   },
   blockedChipActive: { borderColor: colors.orange, backgroundColor: 'rgba(249,115,22,0.12)' },
   blockedChipRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  blockedBadges: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   blockedChipName: { color: '#F1F5F9', fontSize: 13, fontWeight: '600', flex: 1 },
   blockedBadge: { borderRadius: 20, backgroundColor: 'rgba(249,115,22,0.18)', paddingHorizontal: 8, paddingVertical: 3 },
   blockedBadgeText: { color: colors.orange, fontSize: 11, fontWeight: '600' },
+  sentBadge: { borderRadius: 20, backgroundColor: 'rgba(16,185,129,0.18)', paddingHorizontal: 8, paddingVertical: 3 },
+  sentBadgeText: { color: '#6EE7B7', fontSize: 11, fontWeight: '600' },
   blockedChipSub: { color: 'rgba(148,163,184,0.8)', fontSize: 11, marginTop: 4 },
 
   emptyState: {
@@ -400,6 +445,12 @@ const styles = StyleSheet.create({
   },
   seatToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   seatCount: { color: colors.text, fontSize: 13, fontWeight: '600' },
+  sentNotice: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10,
+    borderWidth: 1, borderColor: 'rgba(16,185,129,0.30)', backgroundColor: 'rgba(16,185,129,0.10)',
+    paddingHorizontal: 10, paddingVertical: 8,
+  },
+  sentNoticeText: { color: '#A7F3D0', fontSize: 12, fontWeight: '600', flex: 1 },
   toolbarBtns: { flexDirection: 'row', gap: 8 },
   toolBtn: {
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10,

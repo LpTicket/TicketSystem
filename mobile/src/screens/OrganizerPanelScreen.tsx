@@ -839,6 +839,7 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
           <OrganizerBlocksMobile
             eventId={selectedEventId}
             sections={eventSections}
+            sales={eventSales}
             onReload={reloadEventData}
           />
         )}
