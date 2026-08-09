@@ -1519,10 +1519,9 @@ function shapeStyle(item: VenueItem) {
   return { borderRadius: 8 };
 }
 
-// An item (table/area/bar/stage). A tap always shows its info; in edit mode a
-// drag moves it. Owns its own responder so it never fights the canvas pan: it
-// flags `touchedItemRef` so the viewport ignores the gesture. Chairs sit above
-// (higher zIndex) and win their own taps via SeatDot.
+// An item (table/area/bar/stage). It owns touches only while Edit is active.
+// In view mode, every touch belongs to the canvas so the organizer can pan and
+// pinch from anywhere, including directly over a table.
 function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, itemInteractionRef, onSelect, onShowInfo, onDragMove, onDragEnd, onScrollLock, style, children }: {
   item: VenueItem; isSelected: boolean; editMode: boolean;
   zoomRef: React.MutableRefObject<{ zoom: number; pan: { x: number; y: number } }>;
@@ -1545,11 +1544,17 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, itemInt
   const offset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   return (
     <Animated.View
-      onStartShouldSetResponderCapture={() => { touchedItemRef.current = true; itemInteractionRef.current = true; return false; }}
-      onStartShouldSetResponder={() => true}
+      onStartShouldSetResponderCapture={() => {
+        if (!editMode) return false;
+        touchedItemRef.current = true;
+        itemInteractionRef.current = true;
+        return false;
+      }}
+      onStartShouldSetResponder={() => editMode}
       onMoveShouldSetResponder={() => editMode}
       onResponderTerminationRequest={() => false}
       onResponderGrant={(e) => {
+        if (!editMode) return;
         touchedItemRef.current = true;
         itemInteractionRef.current = true;
         draggingRef.current = true;
@@ -1570,6 +1575,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, itemInt
         }
       }}
       onResponderRelease={() => {
+        if (!editMode) return;
         if (!draggingRef.current) return;
         draggingRef.current = false;
         if (start.current.moved) {
@@ -1597,8 +1603,8 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, itemInt
   );
 }
 
-// One chair: a tap selects it (info/inspector); a drag adjusts its xOffset/yOffset
-// (like the web editor). Uses its own responder so it doesn't fight the canvas.
+// One chair. Like ItemView, it becomes interactive only in Edit mode. This
+// leaves pinch and pan fully available in normal map-view mode.
 function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, seatStatus, active, editMode, zoomRef, seatTouchRef, itemInteractionRef, onScrollLock, onSeatPress, onSeatDrag }: {
   id: string; itemId: string; baseX: number; baseY: number;
   left: number; top: number; size: number; fill: string; seatStatus: 'available' | 'reserved' | 'held' | 'sold' | 'disabled'; active: boolean;
@@ -1613,11 +1619,22 @@ function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, seatStatus, 
   const offset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   return (
     <Animated.View
-      onStartShouldSetResponderCapture={() => { seatTouchRef.current = true; itemInteractionRef.current = true; return false; }}
-      onStartShouldSetResponder={() => true}
+      onStartShouldSetResponderCapture={() => {
+        if (!editMode) return false;
+        seatTouchRef.current = true;
+        itemInteractionRef.current = true;
+        return false;
+      }}
+      onStartShouldSetResponder={() => editMode}
       onMoveShouldSetResponder={() => editMode}
       onResponderTerminationRequest={() => false}
-      onResponderGrant={(e) => { seatTouchRef.current = true; itemInteractionRef.current = true; offset.setValue({ x: 0, y: 0 }); start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, dx: 0, dy: 0, moved: false }; }}
+      onResponderGrant={(e) => {
+        if (!editMode) return;
+        seatTouchRef.current = true;
+        itemInteractionRef.current = true;
+        offset.setValue({ x: 0, y: 0 });
+        start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, dx: 0, dy: 0, moved: false };
+      }}
       onResponderMove={(e) => {
         if (!editMode) return;
         const z = zoomRef.current.zoom || 1;
@@ -1630,6 +1647,7 @@ function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, seatStatus, 
         }
       }}
       onResponderRelease={(e) => {
+        if (!editMode) return;
         if (start.current.moved) {
           offset.setValue({ x: 0, y: 0 });
           onSeatDrag(id, itemId, baseX, baseY, start.current.dx, start.current.dy);
