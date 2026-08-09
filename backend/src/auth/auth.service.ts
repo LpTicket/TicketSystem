@@ -24,7 +24,7 @@ export class AuthService {
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
-  async register(dto: RegisterDto, platform: 'web' | 'app' = 'web') {
+  async register(dto: RegisterDto, platform: 'web' | 'app' = 'web', ip?: string) {
     const existingEmail = await this.userRepo.findOne({ where: { email: dto.email } });
     if (existingEmail) throw new ConflictException('El email ya está registrado');
 
@@ -61,6 +61,7 @@ export class AuthService {
         { firstName: saved.firstName, lastName: saved.lastName, email: saved.email, phone: saved.phone },
         platform,
         'Email',
+        ip,
       )
       .catch(() => {});
 
@@ -157,7 +158,7 @@ export class AuthService {
     return { success: true };
   }
 
-  async validateAppleMobileUser(body: { identityToken: string; email?: string; firstName?: string; lastName?: string }) {
+  async validateAppleMobileUser(body: { identityToken: string; email?: string; firstName?: string; lastName?: string }, ip?: string) {
     const { identityToken, email, firstName, lastName } = body;
     if (!identityToken) throw new UnauthorizedException('Missing Apple identity token');
 
@@ -190,6 +191,7 @@ export class AuthService {
           { firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone },
           'app',
           'Apple',
+          ip,
         )
         .catch(() => {});
     }
@@ -197,7 +199,7 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
-  async validateOAuthUser(profile: any, platform: 'web' | 'app' = 'web', provider: string = 'Google') {
+  async validateOAuthUser(profile: any, platform: 'web' | 'app' = 'web', provider: string = 'Google', ip?: string) {
     const { email, firstName, lastName } = profile;
     let user = await this.userRepo.findOne({ where: { email } });
 
@@ -217,6 +219,7 @@ export class AuthService {
           { firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone },
           platform,
           provider,
+          ip,
         )
         .catch(() => {});
     }

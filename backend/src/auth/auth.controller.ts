@@ -24,6 +24,14 @@ import { AuthService } from './auth.service';
 import { StorageService } from '../common/services/storage.service';
 import { RegisterDto, LoginDto, UpdateProfileDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
 
+// Real client IP behind Railway's proxy — x-forwarded-for holds the original
+// client as the first entry. Falls back to the socket address for local dev.
+function getClientIp(req: any): string | undefined {
+  const forwarded = req?.headers?.['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) return forwarded.split(',')[0].trim();
+  return req?.ip || req?.socket?.remoteAddress || undefined;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -39,7 +47,7 @@ export class AuthController {
     // Browsers always send an Origin header on cross-origin fetches; native
     // apps (Expo/React Native) don't, same signal already used by CORS above.
     const platform = req?.headers?.origin ? 'web' : 'app';
-    return this.authService.register(dto, platform);
+    return this.authService.register(dto, platform, getClientIp(req));
   }
 
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
@@ -93,7 +101,7 @@ export class AuthController {
       const state = req.query?.state || '';
       const isMobile = state.includes('mobile') || req.query?.platform === 'mobile';
 
-      const result = await this.authService.validateOAuthUser(req.user, isMobile ? 'app' : 'web', 'Google');
+      const result = await this.authService.validateOAuthUser(req.user, isMobile ? 'app' : 'web', 'Google', getClientIp(req));
 
       const redirectUrl = isMobile
         ? `lpticket://login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`
@@ -128,7 +136,7 @@ export class AuthController {
       const state = req.query?.state || '';
       const isMobile = state.includes('mobile') || req.query?.platform === 'mobile';
 
-      const result = await this.authService.validateOAuthUser(req.user, isMobile ? 'app' : 'web', 'Facebook');
+      const result = await this.authService.validateOAuthUser(req.user, isMobile ? 'app' : 'web', 'Facebook', getClientIp(req));
 
       const redirectUrl = isMobile
         ? `lpticket://login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`
@@ -150,9 +158,9 @@ export class AuthController {
 
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Post('apple/mobile')
-  async appleAuthMobile(@Body() body: { identityToken: string; email?: string; firstName?: string; lastName?: string }, @Res() res: any) {
+  async appleAuthMobile(@Body() body: { identityToken: string; email?: string; firstName?: string; lastName?: string }, @Request() req: any, @Res() res: any) {
     try {
-      const result = await this.authService.validateAppleMobileUser(body);
+      const result = await this.authService.validateAppleMobileUser(body, getClientIp(req));
       return res.status(200).send(result);
     } catch (error) {
       console.error('Apple mobile auth error:', error);

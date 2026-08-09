@@ -916,15 +916,45 @@ export class MailService {
     }
   }
 
+  /**
+   * Best-effort IP → city/country lookup for the admin notification below.
+   * Uses a free, keyless API (no new dependency). Times out fast and never
+   * throws — geolocation is a nice-to-have, never a blocker.
+   */
+  private async lookupIpLocation(ip?: string): Promise<{ city?: string; country?: string } | null> {
+    if (!ip) return null;
+    const cleanIp = ip.replace(/^::ffff:/, '').trim();
+    // Private/local addresses (dev, internal networking) can't be geolocated.
+    if (!cleanIp || /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1$)/.test(cleanIp)) return null;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2500);
+      const response = await fetch(`http://ip-api.com/json/${encodeURIComponent(cleanIp)}?fields=status,city,country`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!response.ok) return null;
+      const data: any = await response.json();
+      if (data?.status !== 'success') return null;
+      return { city: data.city || undefined, country: data.country || undefined };
+    } catch {
+      return null;
+    }
+  }
+
   /** Internal alert to ADMIN_EMAIL when a new account is created. Never throws. */
   async sendAdminNewUserNotification(
     user: { firstName?: string | null; lastName?: string | null; email: string; phone?: string | null },
     platform: 'web' | 'app',
     provider: string = 'Email',
+    ip?: string,
   ) {
     const adminEmail = this.configService.get('ADMIN_EMAIL');
     if (!adminEmail) return;
     const appUrl = this.getAppUrl();
+    const firstName = String(user.firstName || '').trim() || '—';
+    const lastName = String(user.lastName || '').trim() || '—';
     const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || 'Sin nombre';
     const platformLabel = platform === 'app' ? 'App Móvil' : 'Web';
     const platformColor = platform === 'app' ? '#0A375A' : '#F97316';
@@ -933,6 +963,8 @@ export class MailService {
       dateStyle: 'medium',
       timeStyle: 'short',
     });
+    const location = await this.lookupIpLocation(ip);
+    const locationLabel = [location?.city, location?.country].filter(Boolean).join(', ');
 
     const html = `
 <!DOCTYPE html>
@@ -958,6 +990,14 @@ export class MailService {
               <h1 style="margin:0 0 18px;color:#ffffff;font-size:22px;font-weight:800;font-family:'Helvetica Neue',Arial,sans-serif;">${fullName}</h1>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                 <tr>
+                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Nombre</td>
+                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${firstName}</td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Apellido</td>
+                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${lastName}</td>
+                </tr>
+                <tr>
                   <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Email</td>
                   <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${user.email}</td>
                 </tr>
@@ -965,6 +1005,11 @@ export class MailService {
                 <tr>
                   <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Teléfono</td>
                   <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${user.phone}</td>
+                </tr>` : ''}
+                ${locationLabel ? `
+                <tr>
+                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Ubicación</td>
+                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${locationLabel}</td>
                 </tr>` : ''}
                 <tr>
                   <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Plataforma</td>
