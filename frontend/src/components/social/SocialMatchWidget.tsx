@@ -24,6 +24,7 @@ import {
   socialMatchInterestOptions,
 } from '@/lib/socialMatch';
 import { FaInstagram } from 'react-icons/fa';
+import { confirmDialog } from '@/lib/dialog';
 
 const LAST_READ_KEY = 'sm_last_read';
 const FLOATING_PANEL_EVENT = 'lpticket-floating-panel-open';
@@ -196,7 +197,11 @@ export default function SocialMatchWidget() {
   };
 
   const handleDeleteChat = async (conn: SocialMatchConnection) => {
-    if (!confirm(lang === 'es' ? '¿Eliminar este chat de tu lista?' : 'Delete this chat from your list?')) return;
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Eliminar chat' : 'Delete chat',
+      message: lang === 'es' ? '¿Eliminar este chat de tu lista?' : 'Delete this chat from your list?',
+      tone: 'danger',
+    })) return;
     try {
       await deleteSocialMatchChat(conn.id);
       setConnections((current) => current.filter((item) => item.id !== conn.id));

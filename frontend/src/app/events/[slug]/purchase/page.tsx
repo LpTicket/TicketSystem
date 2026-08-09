@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/auth';
 import type { Event } from '@/types';
 import { VenueSection, Seat, SeatStatus } from '@/types';
 import { useLang } from '@/context/LanguageContext';
+import { confirmDialog } from '@/lib/dialog';
 import {
   HiOutlineCalendar, HiOutlineLocationMarker, HiOutlineChevronRight,
   HiOutlineCheckCircle, HiOutlineTrash,
@@ -258,8 +259,8 @@ export default function PurchasePage() {
         } else {
           const limit = event?.maxTicketsPerTransaction || 10;
           if (next.length >= limit) {
-            alert(lang === 'es' 
-              ? `No puedes reservar más de ${limit} asientos por transacción.` 
+            toast.error(lang === 'es'
+              ? `No puedes reservar más de ${limit} asientos por transacción.`
               : `You cannot reserve more than ${limit} seats per transaction.`);
             break;
           }
@@ -386,7 +387,11 @@ export default function PurchasePage() {
    */
   const handleCancel = async () => {
     const msg = lang === 'es' ? '¿Deseas cancelar la reservación? Los asientos serán liberados.' : 'Do you want to cancel the reservation? Seats will be released.';
-    if (!confirm(msg)) return;
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Cancelar reservación' : 'Cancel reservation',
+      message: msg,
+      tone: 'danger',
+    })) return;
     try { await api.post('/events/seats/unlock'); } catch {}
     router.push(`/events/${slug}`);
   };

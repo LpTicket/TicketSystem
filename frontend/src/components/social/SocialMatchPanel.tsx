@@ -14,6 +14,7 @@ import {
   HiOutlineX,
 } from 'react-icons/hi';
 import { FaInstagram } from 'react-icons/fa';
+import { confirmDialog } from '@/lib/dialog';
 import type { Event } from '@/types';
 import {
   getMySocialMatch,
@@ -317,7 +318,11 @@ export default function SocialMatchPanel({ lang }: Props) {
   };
 
   const handleDeleteConnectionChat = async (connection: SocialMatchConnection) => {
-    if (!confirm(lang === 'es' ? '¿Eliminar este chat de tu lista?' : 'Delete this chat from your list?')) return;
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Eliminar chat' : 'Delete chat',
+      message: lang === 'es' ? '¿Eliminar este chat de tu lista?' : 'Delete this chat from your list?',
+      tone: 'danger',
+    })) return;
     try {
       await deleteSocialMatchChat(connection.id);
       setConnections((current) => current.filter((item) => item.id !== connection.id));

@@ -23,6 +23,7 @@ import { formatSeatLabel } from '@/lib/seatLabel';
 import { suggestEmailFix } from '@/lib/emailTypo';
 import { Event, SalesReport, VenueSection } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
+import { confirmDialog } from '@/lib/dialog';
 import { format, type Locale } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
 import {
@@ -814,7 +815,11 @@ export default function EventDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm(lang === 'es' ? '¿Eliminar este evento permanentemente?' : 'Delete this event permanently?')) return;
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Eliminar evento' : 'Delete event',
+      message: lang === 'es' ? '¿Eliminar este evento permanentemente?' : 'Delete this event permanently?',
+      tone: 'danger',
+    })) return;
     try {
       await api.delete(`/events/${id}`);
       toast.success(lang === 'es' ? 'Evento eliminado con éxito' : 'Event deleted successfully');
@@ -981,7 +986,11 @@ export default function EventDetailPage() {
   };
 
   const handleDeleteImage = async () => {
-    if (!confirm(lang === 'es' ? '¿Estás seguro de que quieres eliminar esta imagen?' : 'Are you sure you want to delete this image?')) return;
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Eliminar imagen' : 'Delete image',
+      message: lang === 'es' ? '¿Estás seguro de que quieres eliminar esta imagen?' : 'Are you sure you want to delete this image?',
+      tone: 'danger',
+    })) return;
     try {
       await api.delete(`/events/${id}/image`);
       toast.success(lang === 'es' ? 'Imagen eliminada' : 'Image deleted');
@@ -992,7 +1001,11 @@ export default function EventDetailPage() {
   };
 
   const handleDeleteBanner = async () => {
-    if (!confirm(lang === 'es' ? '¿Estás seguro de que quieres eliminar el banner?' : 'Are you sure you want to delete the banner?')) return;
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Eliminar banner' : 'Delete banner',
+      message: lang === 'es' ? '¿Estás seguro de que quieres eliminar el banner?' : 'Are you sure you want to delete the banner?',
+      tone: 'danger',
+    })) return;
     try {
       await api.delete(`/events/${id}/image/banner`);
       toast.success(lang === 'es' ? 'Banner eliminado' : 'Banner deleted');

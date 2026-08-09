@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 
 import { useState, useEffect, useRef } from 'react';
 import api from '@/lib/api';
+import { confirmDialog } from '@/lib/dialog';
 import {
   HiOutlinePlus, HiOutlinePencil, HiOutlineTrash,
   HiOutlineCheck, HiOutlineX, HiOutlineTag,
@@ -127,7 +128,11 @@ export default function AdminCategoriesPage() {
   };
 
   const handleDelete = async (id: string, label: string) => {
-    if (!confirm(`¿Eliminar categoría "${label}"? Los eventos con esta categoría mostrarán "otro".`)) return;
+    if (!await confirmDialog({
+      title: 'Eliminar categoría',
+      message: `¿Eliminar categoría "${label}"? Los eventos con esta categoría mostrarán "otro".`,
+      tone: 'danger',
+    })) return;
     try {
       await api.delete(`/categories/${id}`);
       invalidateCategoryCache();

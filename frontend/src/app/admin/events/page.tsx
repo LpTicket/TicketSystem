@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { useLang } from '@/context/LanguageContext';
 import { Event } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
+import { confirmDialog } from '@/lib/dialog';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
 import {
@@ -366,13 +367,21 @@ export default function AdminEventsPage() {
   };
 
   const handleReject = async (id: string) => {
-    if (!confirm(lang === 'es' ? '¿Rechazar este evento?' : 'Reject this event?')) return;
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Rechazar evento' : 'Reject event',
+      message: lang === 'es' ? '¿Rechazar este evento?' : 'Reject this event?',
+      tone: 'danger',
+    })) return;
     try { await api.patch(`/admin/events/${id}/reject`); await loadEvents(); }
     catch (err: any) { toast.error(err.response?.data?.message || 'Error'); }
   };
 
   const handleDelete = async (id: string, title: string) => {
-    if (!confirm(lang === 'es' ? `¿Estás seguro de eliminar el evento "${title}"?` : `Are you sure you want to delete "${title}"?`)) return;
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Eliminar evento' : 'Delete event',
+      message: lang === 'es' ? `¿Estás seguro de eliminar el evento "${title}"?` : `Are you sure you want to delete "${title}"?`,
+      tone: 'danger',
+    })) return;
     try {
       await api.delete(`/admin/events/${id}`);
       setEvents((current) => current.filter((event) => event.id !== id));

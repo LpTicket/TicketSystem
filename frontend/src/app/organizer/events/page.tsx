@@ -12,6 +12,7 @@ import { Event } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
+import { confirmDialog } from '@/lib/dialog';
 import {
   HiOutlinePlusCircle,
   HiOutlineChartBar,
@@ -51,7 +52,11 @@ export default function OrganizerEventsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm(lang === 'es' ? '¿Estás seguro de eliminar este evento?' : 'Are you sure you want to delete this event?')) return;
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Eliminar evento' : 'Delete event',
+      message: lang === 'es' ? '¿Estás seguro de eliminar este evento?' : 'Are you sure you want to delete this event?',
+      tone: 'danger',
+    })) return;
     try {
       await api.delete(`/events/${id}`);
       setEvents((current) => current.filter((event) => event.id !== id));

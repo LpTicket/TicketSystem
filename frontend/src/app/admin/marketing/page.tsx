@@ -350,7 +350,7 @@ export default function AdminMarketingPage() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert(invalidMessage);
+      toast.error(invalidMessage);
       return;
     }
 

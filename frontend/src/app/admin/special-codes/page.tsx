@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { useLang } from '@/context/LanguageContext';
+import { confirmDialog } from '@/lib/dialog';
 import { Event, User } from '@/types';
 import {
   HiOutlineCalendar,
@@ -255,10 +256,13 @@ export default function AdminSpecialCodesPage() {
 
 
   const handleDeleteCode = async (id: string, code: string) => {
-    const ok = window.confirm(lang === 'es'
-      ? `¿Eliminar el código ${code}? Esta acción no se puede deshacer.`
-      : `Delete code ${code}? This action cannot be undone.`
-    );
+    const ok = await confirmDialog({
+      title: lang === 'es' ? 'Eliminar código' : 'Delete code',
+      message: lang === 'es'
+        ? `¿Eliminar el código ${code}? Esta acción no se puede deshacer.`
+        : `Delete code ${code}? This action cannot be undone.`,
+      tone: 'danger',
+    });
 
     if (!ok) return;
 

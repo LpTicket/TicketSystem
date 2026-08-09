@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '@/lib/api';
 import { useLang } from '@/context/LanguageContext';
+import { confirmDialog, promptDialog } from '@/lib/dialog';
 import { VenueSection, SectionType } from '@/types';
 import {
   HiOutlinePlus,
@@ -513,7 +514,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   }, [loadDbTemplates]);
 
   const handleSaveAsTemplate = async () => {
-    const name = prompt(lang === 'es' ? 'Nombre de la plantilla:' : 'Template name:');
+    const name = await promptDialog({
+      title: lang === 'es' ? 'Guardar plantilla' : 'Save template',
+      message: lang === 'es' ? 'Escribe el nombre de esta plantilla.' : 'Enter a name for this template.',
+      placeholder: lang === 'es' ? 'Nombre de la plantilla' : 'Template name',
+      confirmLabel: lang === 'es' ? 'Guardar' : 'Save',
+    });
     if (!name) return;
     
     setSavingTemplate(true);
@@ -543,7 +549,11 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     const msg = lang === 'es' 
       ? `¿Estás seguro de que deseas eliminar la plantilla "${templateName}"?` 
       : `Are you sure you want to delete the template "${templateName}"?`;
-    if (!confirm(msg)) return;
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Eliminar plantilla' : 'Delete template',
+      message: msg,
+      tone: 'danger',
+    })) return;
 
     try {
       await api.delete(`/venue-templates/${templateId}`);

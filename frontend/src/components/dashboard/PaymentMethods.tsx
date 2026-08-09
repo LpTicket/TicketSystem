@@ -6,6 +6,7 @@ import { useLang } from '@/context/LanguageContext';
 import api from '@/lib/api';
 import { HiOutlineTrash, HiCreditCard, HiOutlineShieldCheck } from 'react-icons/hi';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '@/lib/dialog';
 
 interface PaymentMethod {
   id: string;
@@ -58,7 +59,11 @@ export default function PaymentMethods() {
     const confirmMsg = lang === 'es'
       ? '¿Estás seguro de que deseas eliminar este método de pago?'
       : 'Are you sure you want to delete this payment method?';
-    if (!confirm(confirmMsg)) return;
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Eliminar método de pago' : 'Delete payment method',
+      message: confirmMsg,
+      tone: 'danger',
+    })) return;
     try {
       await api.delete(`/payments/methods/${id}`);
       toast.success(lang === 'es' ? 'Método de pago eliminado.' : 'Payment method deleted.');

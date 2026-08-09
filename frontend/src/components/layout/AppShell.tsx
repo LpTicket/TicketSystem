@@ -8,6 +8,7 @@ import Footer from '@/components/layout/Footer';
 import Chatbot from '@/components/support/Chatbot';
 import SocialMatchWidget from '@/components/social/SocialMatchWidget';
 import AnalyticsTracker from '@/components/analytics/AnalyticsTracker';
+import ConfirmDialogHost from '@/components/ui/ConfirmDialogHost';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { loadUser } = useAuthStore();
@@ -40,6 +41,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {!standalone && !isCheckout && <Footer />}
       {!standalone && !hideFloatingWidgets && <Chatbot />}
       {!standalone && !hideFloatingWidgets && <SocialMatchWidget />}
+      <ConfirmDialogHost />
     </>
   );
 }

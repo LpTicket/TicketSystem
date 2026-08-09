@@ -6,6 +6,7 @@ import { parseSafeDate } from '@/lib/dateUtils';
 import { formatSeatLabel } from '@/lib/seatLabel';
 import { toast } from 'react-hot-toast';
 import { useLang } from '@/context/LanguageContext';
+import { confirmDialog } from '@/lib/dialog';
 import { User } from '@/types';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
@@ -186,11 +187,15 @@ export default function AdminUsersPage() {
   };
 
   const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!confirm(lang === 'es' ? `¿Estás seguro de eliminar a ${userName}? Esta acción es irreversible.` : `Are you sure you want to delete ${userName}? This action cannot be undone.`)) return;
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Eliminar usuario' : 'Delete user',
+      message: lang === 'es' ? `¿Estás seguro de eliminar a ${userName}? Esta acción es irreversible.` : `Are you sure you want to delete ${userName}? This action cannot be undone.`,
+      tone: 'danger',
+    })) return;
     try {
       await api.delete(`/admin/users/${userId}`);
       await loadUsers();
-    } catch (err: any) { alert(err.response?.data?.message || 'Error al eliminar usuario'); }
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Error al eliminar usuario'); }
   };
 
   const dateFnsLocale = lang === 'es' ? es : enUS;
