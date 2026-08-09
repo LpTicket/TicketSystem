@@ -292,9 +292,9 @@ export default function AdminInvoicesPage() {
             </label>
           </div>
 
-          <div className="rounded-xl border border-orange-200 bg-orange-50/70 px-4 py-3">
-            <span className="text-sm font-black text-gray-900">{labels.fee}</span>
-            <p className="mt-1 text-xs font-medium text-orange-900">
+          <div className="rounded-xl border border-[rgba(255,151,45,0.62)] bg-[linear-gradient(180deg,#ff8a18_0%,#f46c00_46%,#c93f00_100%)] px-4 py-3">
+            <span className="text-sm font-black text-white">{labels.fee}</span>
+            <p className="mt-1 text-xs font-medium text-white">
               {lang === 'es'
                 ? 'Se calcula automáticamente sobre el monto base y se envía como línea separada en Stripe.'
                 : 'It is calculated automatically from the base amount and sent as a separate Stripe line item.'}
