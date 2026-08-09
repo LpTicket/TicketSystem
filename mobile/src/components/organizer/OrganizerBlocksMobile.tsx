@@ -232,7 +232,11 @@ export function OrganizerBlocksMobile({
                       isSelected && styles.seatSelected,
                     ]}
                   >
-                    <Text style={[styles.seatRow, isSelected && styles.seatTextSel]}>{seat.rowLabel}</Text>
+                    <Text style={[styles.seatRow, isSelected && styles.seatTextSel]}>
+                      {String(section?.sectionType).toLowerCase() === 'table'
+                        ? (es ? 'Asiento' : 'Seat')
+                        : seat.rowLabel}
+                    </Text>
                     <Text style={[styles.seatNum, isSelected && styles.seatTextSel]}>{seat.seatNumber}</Text>
                   </TouchableOpacity>
                 );

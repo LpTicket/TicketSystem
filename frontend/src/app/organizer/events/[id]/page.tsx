@@ -776,28 +776,27 @@ export default function EventDetailPage() {
       setAutoReminderDays(ev.autoReminderDays || 0);
       setAutoReminderMessage(ev.autoReminderMessage || '');
 
-      // Load sections and seats
-      try {
-        const { data: secs } = await api.get(`/events/${id}/seatmap`);
-        setSections(secs);
-      } catch {
+      // These independent reads used to run one after another, making the
+      // organizer wait for the sum of map + sales + attendees. Keep their data
+      // and error handling unchanged, but request them at the same time.
+      const [seatMapResult, salesResult, attendeesResult] = await Promise.allSettled([
+        api.get(`/events/${id}/seatmap`),
+        api.get(`/orders/event/${id}/sales`),
+        api.get(`/orders/event/${id}/attendees`),
+      ]);
+
+      if (seatMapResult.status === 'fulfilled') {
+        setSections(seatMapResult.value.data);
+      } else {
+        // Keep the existing fallback for older events that only expose sections.
         try {
           const { data: secs } = await api.get(`/events/${id}/sections`);
           setSections(secs);
         } catch {}
       }
 
-      // Load sales
-      try {
-        const { data: salesData } = await api.get(`/orders/event/${id}/sales`);
-        setSales(salesData);
-      } catch {}
-
-      // Load attendees
-      try {
-        const { data: att } = await api.get(`/orders/event/${id}/attendees`);
-        setAttendees(att);
-      } catch {}
+      if (salesResult.status === 'fulfilled') setSales(salesResult.value.data);
+      if (attendeesResult.status === 'fulfilled') setAttendees(attendeesResult.value.data);
     } catch {
       router.push('/organizer/events');
     } finally {

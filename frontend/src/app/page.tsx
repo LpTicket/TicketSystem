@@ -1,16 +1,14 @@
 /**
  * Home page (web) — /
  * EN: Server component that fetches featured events and marketing banners and
- *     renders HomeContent. Banners are fetched with no-store so marketing
- *     changes appear instantly.
+ *     renders HomeContent. Events and banners use the same short cache so Home
+ *     does not wait for Railway on every visit.
  * ES: Componente de servidor que obtiene los eventos destacados y los banners de
- *     marketing y renderiza HomeContent. Los banners se obtienen sin caché para
- *     que los cambios de marketing aparezcan al instante.
+ *     marketing y renderiza HomeContent. Eventos y banners usan la misma caché
+ *     breve para no esperar a Railway en cada visita.
  */
 import { Event } from '@/types';
 import HomeContent from './HomeContent';
-
-export const dynamic = 'force-dynamic';
 
 type MarketingHomeBanner = {
   id: string;
@@ -33,8 +31,8 @@ async function loadHomeData() {
 
   try {
     const [eventsRes, bannerRes] = await Promise.all([
-      fetch(`${baseUrl}/events?limit=16`, { cache: 'no-store' }),
-      fetch(`${baseUrl}/marketing/banners/home`, { cache: 'no-store' }),
+      fetch(`${baseUrl}/events?limit=16`, { next: { revalidate: 30 } }),
+      fetch(`${baseUrl}/marketing/banners/home`, { next: { revalidate: 30 } }),
     ]);
 
     const events: Event[] = eventsRes.ok ? (await eventsRes.json()).events || [] : [];
