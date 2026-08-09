@@ -2198,92 +2198,6 @@ export default function EventDetailPage() {
             );
           })()}
 
-
-          {complimentaryOrders.length > 0 && (
-            <div className="rounded-[26px] border border-orange-200/80 bg-white p-5 sm:p-6 shadow-[0_22px_55px_rgba(15,23,42,0.08)]">
-              <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-                <div className="flex min-w-0 items-start gap-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#0A375A] text-base font-black text-white shadow-lg shadow-[#0A375A]/20">
-                    LP
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#F97316]">
-                      {lang === 'es' ? 'Cortesías enviadas' : 'Sent complimentary tickets'}
-                    </p>
-                    <h3 className="mt-1 text-2xl font-black leading-tight text-gray-950">
-                      {lang === 'es' ? 'Entradas de invitación' : 'Invitation tickets'}
-                    </h3>
-                    <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-gray-500">
-                      {lang === 'es'
-                        ? 'Consulta el recibo general y abre cada boleto digital enviado como cortesía.'
-                        : 'Review the main receipt and open each digital ticket sent as a complimentary invitation.'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid min-w-[220px] grid-cols-1 rounded-2xl border border-orange-100 bg-orange-50/40 px-5 py-4 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-gray-400">
-                    {lang === 'es' ? 'Total cortesías' : 'Total comps'}
-                  </p>
-                  <p className="mt-1 text-4xl font-black leading-none text-[#0A375A]">
-                    {complimentaryOrders.reduce((sum: number, order: any) => sum + Number(order.ticketCount || 0), 0)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 grid gap-4">
-                {complimentaryOrders.map((order: any) => (
-                  <div key={order.id} className="rounded-[22px] border border-gray-200 bg-gradient-to-br from-white to-slate-50/70 p-4 sm:p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)]">
-                    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(460px,auto)] xl:items-center">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <p className="min-w-0 truncate text-xl font-black capitalize text-gray-950">
-                            {order.user?.firstName} {order.user?.lastName}
-                          </p>
-                          <span className="shrink-0 rounded-full bg-orange-100 px-3 py-1 text-xs font-black text-orange-700">
-                            $0.00
-                          </span>
-                        </div>
-
-                        <p className="mt-2 max-w-full truncate text-sm font-semibold text-gray-500">
-                          {order.user?.email}
-                        </p>
-
-                        <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                          <span className="inline-flex h-10 min-w-[150px] items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-xs font-black text-[#0A375A]">
-                            {order.ticketCount} {lang === 'es' ? 'entradas' : 'tickets'}
-                          </span>
-                          <span className="inline-flex h-10 min-w-[150px] items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-xs font-black text-gray-500">
-                            {format(parseSafeDate(order.paidAt || order.createdAt), 'dd MMM yyyy')}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-3 xl:justify-items-stretch">
-                        <Link
-                          href={`/orders/${order.id}/receipt`}
-                          className="inline-flex h-12 w-full items-center justify-center rounded-xl border border-[#F97316] bg-white px-4 text-sm font-black text-[#F97316] shadow-sm transition-all hover:bg-orange-50"
-                        >
-                          {lang === 'es' ? 'Recibo' : 'Receipt'}
-                        </Link>
-
-                        {(order.tickets || []).map((ticket: any, index: number) => (
-                          <Link
-                            key={ticket.id || ticket.ticketCode}
-                            href={`/verify/${ticket.ticketCode}`}
-                            className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-[#0A375A] px-4 text-sm font-black text-white shadow-sm transition-all hover:bg-[#082b47]"
-                          >
-                            {lang === 'es' ? `Entrada ${index + 1}` : `Ticket ${index + 1}`}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {selectedBlockSection ? (
             (() => {
               const sec = sections.find(s => s.id === selectedBlockSection);
@@ -2302,6 +2216,16 @@ export default function EventDetailPage() {
               const sectionLabel = sec.sectionType === 'table'
                 ? `${lang === 'es' ? 'Mesa' : 'Table'} ${sec.name}`
                 : sec.name;
+              const selectedComplimentaryOrders = complimentaryOrders
+                .map((order: any) => ({
+                  ...order,
+                  tickets: (order.tickets || []).filter((ticket: any) => ticket.sectionId === sec.id),
+                }))
+                .filter((order: any) => order.tickets.length > 0);
+              const selectedInvitationTicketCount = selectedComplimentaryOrders.reduce(
+                (sum: number, order: any) => sum + order.tickets.length,
+                0,
+              );
               
               return (
                 <div className="space-y-6">
@@ -2413,6 +2337,80 @@ export default function EventDetailPage() {
                     </div>
                     )}
                   </div>
+
+                  {selectedComplimentaryOrders.length > 0 && (
+                    <section className="overflow-hidden rounded-2xl border border-[rgba(249,115,22,0.38)] bg-[linear-gradient(135deg,rgba(14,39,63,0.98),rgba(5,18,32,0.98))] shadow-[0_18px_40px_rgba(0,0,0,0.2)]">
+                      <div className="flex flex-col gap-4 border-b border-[rgba(249,115,22,0.22)] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[rgba(249,115,22,0.45)] bg-[rgba(249,115,22,0.14)] text-[#F97316]">
+                            <HiOutlineMail className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#F97316]">
+                              {lang === 'es' ? 'Cortesías enviadas' : 'Sent complimentary tickets'}
+                            </p>
+                            <h3 className="mt-1 text-lg font-black text-white">
+                              {lang === 'es' ? `Invitaciones de ${sectionLabel}` : `${sectionLabel} invitations`}
+                            </h3>
+                            <p className="mt-1 text-sm font-medium text-slate-300">
+                              {lang === 'es'
+                                ? 'Estas entradas ya fueron emitidas para esta mesa.'
+                                : 'These tickets have already been issued for this table.'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="shrink-0 rounded-xl border border-[rgba(249,115,22,0.4)] bg-[rgba(249,115,22,0.12)] px-4 py-2.5 text-center">
+                          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-200">
+                            {lang === 'es' ? 'Enviadas' : 'Sent'}
+                          </p>
+                          <p className="mt-0.5 text-2xl font-black leading-none text-white">{selectedInvitationTicketCount}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 p-4 sm:p-5">
+                        {selectedComplimentaryOrders.map((order: any) => (
+                          <div key={order.id} className="grid gap-4 rounded-xl border border-white/10 bg-[rgba(8,27,45,0.82)] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="truncate text-base font-black text-white">
+                                  {order.user?.firstName} {order.user?.lastName}
+                                </p>
+                                <span className="rounded-full border border-[rgba(249,115,22,0.4)] bg-[rgba(249,115,22,0.12)] px-2.5 py-1 text-[10px] font-black text-orange-200">
+                                  $0.00
+                                </span>
+                              </div>
+                              <p className="mt-1 truncate text-sm font-medium text-slate-300">{order.user?.email}</p>
+                              <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+                                <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-200">
+                                  {order.tickets.length} {lang === 'es' ? 'entradas enviadas' : 'tickets sent'}
+                                </span>
+                                <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-300">
+                                  {format(parseSafeDate(order.paidAt || order.createdAt), 'dd MMM yyyy')}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 sm:min-w-[250px]">
+                              <Link
+                                href={`/orders/${order.id}/receipt`}
+                                className="inline-flex h-10 items-center justify-center rounded-lg border border-[#F97316] bg-[rgba(249,115,22,0.12)] px-3 text-xs font-black text-white transition-colors hover:bg-[rgba(249,115,22,0.24)]"
+                              >
+                                {lang === 'es' ? 'Recibo' : 'Receipt'}
+                              </Link>
+                              {order.tickets.map((ticket: any, index: number) => (
+                                <Link
+                                  key={ticket.id || ticket.ticketCode}
+                                  href={`/verify/${ticket.ticketCode}`}
+                                  className="inline-flex h-10 items-center justify-center rounded-lg border border-white/10 bg-[rgba(18,61,94,0.9)] px-3 text-xs font-black text-white transition-colors hover:bg-[rgba(25,83,126,0.98)]"
+                                >
+                                  {lang === 'es' ? `Entrada ${index + 1}` : `Ticket ${index + 1}`}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
 
                   {/* Actions for selected seats */}
                   {selectedBlockSeats.length > 0 && (
