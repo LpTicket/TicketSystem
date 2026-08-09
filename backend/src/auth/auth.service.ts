@@ -24,7 +24,7 @@ export class AuthService {
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, platform: 'web' | 'app' = 'web') {
     const existingEmail = await this.userRepo.findOne({ where: { email: dto.email } });
     if (existingEmail) throw new ConflictException('El email ya está registrado');
 
@@ -56,6 +56,13 @@ export class AuthService {
     if (saved.email) {
       this.mailService.sendWelcomeEmail(saved.email, saved.firstName, dto.lang).catch(() => {});
     }
+    this.mailService
+      .sendAdminNewUserNotification(
+        { firstName: saved.firstName, lastName: saved.lastName, email: saved.email, phone: saved.phone },
+        platform,
+        'Email',
+      )
+      .catch(() => {});
 
     return this.generateTokens(saved);
   }
@@ -178,12 +185,19 @@ export class AuthService {
         isActive: true,
       });
       user = await this.userRepo.save(user);
+      this.mailService
+        .sendAdminNewUserNotification(
+          { firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone },
+          'app',
+          'Apple',
+        )
+        .catch(() => {});
     }
 
     return this.generateTokens(user);
   }
 
-  async validateOAuthUser(profile: any) {
+  async validateOAuthUser(profile: any, platform: 'web' | 'app' = 'web', provider: string = 'Google') {
     const { email, firstName, lastName } = profile;
     let user = await this.userRepo.findOne({ where: { email } });
 
@@ -198,6 +212,13 @@ export class AuthService {
         isActive: true,
       });
       user = await this.userRepo.save(user);
+      this.mailService
+        .sendAdminNewUserNotification(
+          { firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone },
+          platform,
+          provider,
+        )
+        .catch(() => {});
     }
 
     return this.generateTokens(user);

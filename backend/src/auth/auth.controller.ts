@@ -35,8 +35,11 @@ export class AuthController {
   // Strict throttle on credential endpoints to blunt brute-force / enumeration.
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  register(@Body() dto: RegisterDto, @Request() req: any) {
+    // Browsers always send an Origin header on cross-origin fetches; native
+    // apps (Expo/React Native) don't, same signal already used by CORS above.
+    const platform = req?.headers?.origin ? 'web' : 'app';
+    return this.authService.register(dto, platform);
   }
 
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
@@ -80,7 +83,6 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   async googleAuthRedirect(@Request() req: any, @Res() res: any) {
     try {
-      const result = await this.authService.validateOAuthUser(req.user);
       const frontendUrl =
         this.configService.get('FRONTEND_URL') ||
         this.configService.get('APP_URL') ||
@@ -90,6 +92,8 @@ export class AuthController {
       // or state contains "mobile"), redirect to the deep link scheme instead.
       const state = req.query?.state || '';
       const isMobile = state.includes('mobile') || req.query?.platform === 'mobile';
+
+      const result = await this.authService.validateOAuthUser(req.user, isMobile ? 'app' : 'web', 'Google');
 
       const redirectUrl = isMobile
         ? `lpticket://login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`
@@ -116,7 +120,6 @@ export class AuthController {
   @UseGuards(FacebookAuthGuard)
   async facebookAuthRedirect(@Request() req: any, @Res() res: any) {
     try {
-      const result = await this.authService.validateOAuthUser(req.user);
       const frontendUrl =
         this.configService.get('APP_URL') ||
         this.configService.get('FRONTEND_URL') ||
@@ -124,6 +127,8 @@ export class AuthController {
 
       const state = req.query?.state || '';
       const isMobile = state.includes('mobile') || req.query?.platform === 'mobile';
+
+      const result = await this.authService.validateOAuthUser(req.user, isMobile ? 'app' : 'web', 'Facebook');
 
       const redirectUrl = isMobile
         ? `lpticket://login/success?token=${result.accessToken}&refreshToken=${result.refreshToken}`

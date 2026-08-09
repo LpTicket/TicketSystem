@@ -916,6 +916,102 @@ export class MailService {
     }
   }
 
+  /** Internal alert to ADMIN_EMAIL when a new account is created. Never throws. */
+  async sendAdminNewUserNotification(
+    user: { firstName?: string | null; lastName?: string | null; email: string; phone?: string | null },
+    platform: 'web' | 'app',
+    provider: string = 'Email',
+  ) {
+    const adminEmail = this.configService.get('ADMIN_EMAIL');
+    if (!adminEmail) return;
+    const appUrl = this.getAppUrl();
+    const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || 'Sin nombre';
+    const platformLabel = platform === 'app' ? 'App Móvil' : 'Web';
+    const platformColor = platform === 'app' ? '#0A375A' : '#F97316';
+    const registeredAt = new Date().toLocaleString('es-US', {
+      timeZone: 'America/Chicago',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark light" />
+</head>
+<body style="margin:0;padding:0;background:#0a1420;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a1420;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:560px;background:#0b1622;border-radius:16px;overflow:hidden;border:1px solid rgba(246,198,95,0.16);">
+          <tr>
+            <td align="left" style="background:#0A375A;padding:20px 24px;">
+              <img src="${appUrl}/logo-email-orange.png" alt="LPTicket" width="160" style="display:block;width:160px;max-width:160px;height:auto;border:0;outline:none;text-decoration:none;" />
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 28px 6px;">
+              <p style="margin:0 0 6px;color:#F97316;font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;">Nuevo registro</p>
+              <h1 style="margin:0 0 18px;color:#ffffff;font-size:22px;font-weight:800;font-family:'Helvetica Neue',Arial,sans-serif;">${fullName}</h1>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                <tr>
+                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Email</td>
+                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${user.email}</td>
+                </tr>
+                ${user.phone ? `
+                <tr>
+                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Teléfono</td>
+                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${user.phone}</td>
+                </tr>` : ''}
+                <tr>
+                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Plataforma</td>
+                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);">
+                    <span style="display:inline-block;background:${platformColor};color:#ffffff;font-size:11px;font-weight:800;letter-spacing:0.4px;padding:3px 10px;border-radius:20px;font-family:'Helvetica Neue',Arial,sans-serif;">${platformLabel}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Método</td>
+                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${provider}</td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Fecha</td>
+                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${registeredAt} (Houston)</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:24px 28px 30px;">
+              <a href="${appUrl}/admin/users" target="_blank" style="display:inline-block;padding:12px 30px;border-radius:12px;background:linear-gradient(180deg,#ff8a18,#f46c00);color:#ffffff;font-size:13px;font-weight:800;text-decoration:none;font-family:'Helvetica Neue',Arial,sans-serif;letter-spacing:0.3px;">Ver usuarios</a>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="background:#08111c;padding:16px 28px;border-top:1px solid rgba(255,255,255,0.05);">
+              <p style="margin:0;color:#475569;font-size:11px;font-family:'Helvetica Neue',Arial,sans-serif;">Alerta interna automática de LPTicket · admin@lpticket.com</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+    try {
+      await this.transporter.sendMail({
+        from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
+        to: adminEmail,
+        subject: `Nuevo registro (${platformLabel}): ${fullName}`,
+        html,
+      });
+    } catch (e: any) {
+      console.error('Admin new user notification failed:', e?.message || e);
+    }
+  }
+
   /** Branded password reset email. Never throws. */
   async sendPasswordResetEmail(to: string, firstName?: string, resetUrl?: string) {
     if (!to || !resetUrl) return;
