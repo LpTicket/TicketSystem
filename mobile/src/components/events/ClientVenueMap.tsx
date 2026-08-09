@@ -408,21 +408,7 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
   // viewRef is the single source of truth for pan/zoom math — no React state
   // so drag/pinch never trigger re-renders and the canvas never jumps
   const viewRef = useRef({ zoom: fitView.zoom, pan: fitView.pan });
-  const fitViewRef = useRef(fitView);
-
-  // When fitView changes (sections loaded async), snap animated values to it
-  // only if the user hasn't already panned/zoomed away from the default
-  useEffect(() => {
-    const prev = fitViewRef.current;
-    fitViewRef.current = fitView;
-    const atDefault =
-      Math.abs(viewRef.current.zoom - prev.zoom) < 0.001 &&
-      Math.abs(viewRef.current.pan.x - prev.pan.x) < 1 &&
-      Math.abs(viewRef.current.pan.y - prev.pan.y) < 1;
-    if (atDefault) {
-      syncAnimated(fitView.zoom, fitView.pan);
-    }
-  }, [fitView]);
+  const userAdjustedViewRef = useRef(false);
 
   const clampPan = (z: number, p: { x: number; y: number }) => {
     const { minX, minY, maxX, maxY } = contentBounds;
@@ -448,6 +434,16 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
     viewRef.current = { zoom: z, pan: safePan };
   };
 
+  // The stored default view comes from an editor viewport with a different size
+  // than the buyer's device. Re-apply it after the actual mobile viewport is
+  // measured so clampPan can keep content centered when it fits on screen.
+  // Once the buyer pans or zooms, their manual view is never overwritten.
+  useEffect(() => {
+    if (!userAdjustedViewRef.current) {
+      syncAnimated(fitView.zoom, fitView.pan);
+    }
+  }, [fitView]);
+
   const animatingRef = useRef(false);
 
   const animateTo = (newZ: number, newP: { x: number; y: number }, duration = 200) => {
@@ -463,6 +459,7 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
   };
 
   const resetMap = () => {
+    userAdjustedViewRef.current = false;
     animateTo(fitView.zoom, fitView.pan);
   };
 
@@ -470,6 +467,7 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
     const oldZ = viewRef.current.zoom;
     const newZ = clamp(oldZ + delta, fitView.zoom, MAX_ZOOM);
     if (newZ === oldZ) return;
+    userAdjustedViewRef.current = true;
     // Keep the visible center fixed during zoom
     const contentCx = (viewportW / 2 - viewRef.current.pan.x) / oldZ;
     const contentCy = (viewportH / 2 - viewRef.current.pan.y) / oldZ;
@@ -577,6 +575,7 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
     if (!touchRef.current.isPinch && touches.length >= 2) {
       beginPinch(touches);
       touchRef.current.moved = true;
+      userAdjustedViewRef.current = true;
       return;
     }
     if (touchRef.current.isPinch && touches.length >= 2) {
@@ -585,7 +584,10 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
       if (!touchRef.current.pinchDist) return;
       const cx = ((t1.locationX ?? t1.pageX) + (t2.locationX ?? t2.pageX)) / 2;
       const cy = ((t1.locationY ?? t1.pageY) + (t2.locationY ?? t2.pageY)) / 2;
-      if (Math.abs(dist - touchRef.current.pinchDist) > 0.5 || Math.hypot(cx - touchRef.current.pinchCx, cy - touchRef.current.pinchCy) > 0.5) touchRef.current.moved = true;
+      if (Math.abs(dist - touchRef.current.pinchDist) > 0.5 || Math.hypot(cx - touchRef.current.pinchCx, cy - touchRef.current.pinchCy) > 0.5) {
+        touchRef.current.moved = true;
+        userAdjustedViewRef.current = true;
+      }
       const rawRatio = dist / touchRef.current.pinchDist;
       const easedRatio = Math.pow(rawRatio, 1.18);
       const newZ = clamp(touchRef.current.pinchZoom * easedRatio, fitView.zoom, MAX_ZOOM);
@@ -599,7 +601,10 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
       const t = touches[0];
       const dx = (t.locationX ?? t.pageX) - touchRef.current.x;
       const dy = (t.locationY ?? t.pageY) - touchRef.current.y;
-      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) touchRef.current.moved = true;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+        touchRef.current.moved = true;
+        userAdjustedViewRef.current = true;
+      }
       const newP = { x: touchRef.current.panX + dx, y: touchRef.current.panY + dy };
       syncAnimated(viewRef.current.zoom, newP);
     }
