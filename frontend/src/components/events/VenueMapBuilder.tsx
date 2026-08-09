@@ -1409,7 +1409,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
   return (
-    <div className="venue-builder-dark flex flex-col h-[100vh] md:h-[800px] border border-gray-300 rounded-lg overflow-hidden bg-white relative font-sans">
+    <div className="venue-builder-dark flex flex-col h-[100vh] md:h-[calc(100vh-170px)] md:min-h-[800px] border border-gray-300 rounded-lg overflow-hidden bg-white relative font-sans">
       {/* ── Top Bar (Seats.io Style) ─────────────────────────────────── */}
       <div className="min-h-14 bg-white border-b border-gray-300 flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 shrink-0 z-40 shadow-sm">
         <div className="flex items-center gap-3 min-w-0">
@@ -1437,28 +1437,30 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         </div>
         
         <div className="flex items-center gap-2 lg:gap-3">
-          {/* Preset Templates Selector - Now visible on mobile */}
+          {/* Preset templates stay in the main toolbar so their full names remain readable. */}
           <div ref={templatesRef} className="relative">
             <button 
               onClick={(e) => { e.stopPropagation(); setTemplatesOpen(!templatesOpen); }}
-              className="bg-white hover:bg-gray-50 text-[#1a73e8] text-xs font-bold py-1.5 px-3 sm:px-4 rounded border border-blue-200 shadow-sm transition-colors flex items-center gap-2"
+              className="bg-white hover:bg-gray-50 text-[#1a73e8] text-xs font-bold py-1.5 px-3 sm:px-4 rounded border border-blue-200 shadow-sm transition-colors flex items-center gap-2 whitespace-nowrap"
             >
               <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
-              <span className="hidden sm:inline">{lang === 'es' ? 'Plantillas' : 'Templates'}</span>
+              <span>{lang === 'es' ? 'Plantillas' : 'Templates'}</span>
               <svg className={`w-4 h-4 transition-transform ${templatesOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
             </button>
-            <div className={`absolute top-full right-0 mt-1.5 w-64 bg-white border border-gray-200 rounded-lg shadow-xl py-2 z-50 animate-fade-in divide-y divide-gray-100 ${templatesOpen ? 'block' : 'hidden'}`}>
-              <div className="px-3 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{lang === 'es' ? 'Plantillas del Sistema' : 'System Templates'}</div>
-              {dbTemplates.length > 0 ? dbTemplates.map(tmpl => (
-                <div key={tmpl.id} className="w-full flex items-center justify-between hover:bg-blue-50/50 transition-colors group">
+            <div className={`absolute top-full right-0 mt-2 w-[min(44rem,calc(100vw-2rem))] max-h-[min(32rem,calc(100vh-13rem))] overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-2xl py-3 z-50 animate-fade-in ${templatesOpen ? 'block' : 'hidden'}`}>
+              <div className="px-4 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{lang === 'es' ? 'Plantillas del Sistema' : 'System Templates'}</div>
+              {dbTemplates.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 px-3">
+                  {dbTemplates.map(tmpl => (
+                    <div key={tmpl.id} className="min-w-0 flex items-stretch rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50/60 transition-colors group">
                   <button 
                     onClick={() => loadTemplate(tmpl)} 
-                    className="flex-1 text-left px-4 py-2.5 text-xs font-semibold text-gray-700 flex items-start gap-3 transition-colors min-w-0"
+                    className="flex-1 min-w-0 text-left px-3.5 py-3 text-xs font-semibold text-gray-700 flex items-start gap-3 transition-colors"
                   >
                     <span className="text-xl shrink-0">🗺️</span>
                     <div className="min-w-0 flex-1">
-                      <div className="font-bold text-gray-900 truncate">{tmpl.name}</div>
-                      <div className="text-[10px] text-gray-400 font-medium truncate">{tmpl.description}</div>
+                      <div className="font-bold text-gray-900 break-words">{tmpl.name}</div>
+                      {tmpl.description && <div className="mt-0.5 text-[10px] leading-snug text-gray-500 font-medium break-words">{tmpl.description}</div>}
                     </div>
                   </button>
                   
@@ -1471,8 +1473,10 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                       <HiOutlineTrash className="w-4.5 h-4.5" />
                     </button>
                   )}
+                    </div>
+                  ))}
                 </div>
-              )) : (
+              ) : (
                 <div className="px-4 py-3 text-[10px] text-gray-400 italic">{lang === 'es' ? 'No hay plantillas guardadas' : 'No saved templates'}</div>
               )}
               
