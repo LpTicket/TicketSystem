@@ -1447,52 +1447,70 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
               <span>{lang === 'es' ? 'Plantillas' : 'Templates'}</span>
               <svg className={`w-4 h-4 transition-transform ${templatesOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
             </button>
-            <div className={`absolute top-full right-0 mt-2 w-[min(44rem,calc(100vw-2rem))] max-h-[min(32rem,calc(100vh-13rem))] overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-2xl py-3 z-50 animate-fade-in ${templatesOpen ? 'block' : 'hidden'}`}>
-              <div className="px-4 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{lang === 'es' ? 'Plantillas del Sistema' : 'System Templates'}</div>
-              {dbTemplates.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 px-3">
-                  {dbTemplates.map(tmpl => (
-                    <div key={tmpl.id} className="min-w-0 flex items-stretch rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50/60 transition-colors group">
-                  <button 
-                    onClick={() => loadTemplate(tmpl)} 
-                    className="flex-1 min-w-0 text-left px-3.5 py-3 text-xs font-semibold text-gray-700 flex items-start gap-3 transition-colors"
-                  >
-                    <span className="text-xl shrink-0">🗺️</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-bold text-gray-900 break-words">{tmpl.name}</div>
-                      {tmpl.description && <div className="mt-0.5 text-[10px] leading-snug text-gray-500 font-medium break-words">{tmpl.description}</div>}
+            {templatesOpen && (
+              <div
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 animate-fade-in"
+                onClick={(event) => {
+                  if (event.target === event.currentTarget) setTemplatesOpen(false);
+                }}
+              >
+                <div className="w-full max-w-3xl max-h-[min(38rem,calc(100vh-4rem))] overflow-hidden rounded-2xl border border-blue-400/30 bg-[#0b1c2e] shadow-2xl">
+                  <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-300">{lang === 'es' ? 'Diseño del escenario' : 'Venue design'}</p>
+                      <h3 className="mt-1 text-lg font-bold text-white">{lang === 'es' ? 'Selecciona una plantilla' : 'Choose a template'}</h3>
                     </div>
-                  </button>
-                  
-                  {isAdmin && (
                     <button
-                      onClick={(e) => handleDeleteTemplate(e, tmpl.id, tmpl.name)}
-                      className="p-1.5 mr-3 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors shrink-0"
-                      title={lang === 'es' ? 'Eliminar Plantilla' : 'Delete Template'}
+                      onClick={() => setTemplatesOpen(false)}
+                      className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-slate-200 transition-colors hover:bg-white/10"
                     >
-                      <HiOutlineTrash className="w-4.5 h-4.5" />
+                      {lang === 'es' ? 'Cerrar' : 'Close'}
                     </button>
-                  )}
+                  </div>
+
+                  <div className="max-h-[calc(min(38rem,calc(100vh-4rem))-8.5rem)] overflow-y-auto p-4">
+                    {dbTemplates.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {dbTemplates.map(tmpl => (
+                          <div key={tmpl.id} className="flex min-w-0 items-center rounded-xl border border-white/10 bg-white/[0.04] transition-colors hover:border-orange-400/70 hover:bg-orange-500/10">
+                            <button
+                              onClick={() => loadTemplate(tmpl)}
+                              className="min-w-0 flex-1 px-5 py-4 text-left text-sm font-bold text-white transition-colors"
+                            >
+                              {tmpl.name?.trim() || (lang === 'es' ? 'Plantilla sin nombre' : 'Unnamed template')}
+                            </button>
+
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => handleDeleteTemplate(e, tmpl.id, tmpl.name)}
+                                className="mr-3 rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300"
+                                title={lang === 'es' ? 'Eliminar Plantilla' : 'Delete Template'}
+                              >
+                                <HiOutlineTrash className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="px-2 py-8 text-center text-sm text-slate-400">{lang === 'es' ? 'No hay plantillas guardadas' : 'No saved templates'}</p>
+                    )}
+                  </div>
+
+                  {isAdmin && (
+                    <div className="border-t border-white/10 p-4">
+                      <button
+                        onClick={handleSaveAsTemplate}
+                        disabled={savingTemplate}
+                        className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {savingTemplate ? (lang === 'es' ? 'Guardando...' : 'Saving...') : (lang === 'es' ? 'Guardar como plantilla' : 'Save as template')}
+                      </button>
                     </div>
-                  ))}
+                  )}
                 </div>
-              ) : (
-                <div className="px-4 py-3 text-[10px] text-gray-400 italic">{lang === 'es' ? 'No hay plantillas guardadas' : 'No saved templates'}</div>
-              )}
-              
-              {isAdmin && (
-                <div className="pt-2 mt-2 px-2 border-t border-gray-100">
-                  <button 
-                    onClick={handleSaveAsTemplate}
-                    disabled={savingTemplate}
-                    className="w-full py-2 bg-green-50 hover:bg-green-100 text-green-700 rounded text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
-                  >
-                    <HiOutlinePlus className="w-3.5 h-3.5" />
-                    {lang === 'es' ? 'Guardar como Plantilla' : 'Save as Template'}
-                  </button>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {editMode && (
