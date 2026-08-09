@@ -680,6 +680,7 @@ export default function EventDetailPage() {
 
   const [selectedBlockSection, setSelectedBlockSection] = useState('');
   const [selectedBlockSeats, setSelectedBlockSeats] = useState<string[]>([]);
+  const [blockSeatView, setBlockSeatView] = useState<'all' | 'blocked'>('all');
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
   const [blockingActionLoading, setBlockingActionLoading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -2129,6 +2130,7 @@ export default function EventDetailPage() {
                 onChange={(e) => {
                   setSelectedBlockSection(e.target.value);
                   setSelectedBlockSeats([]);
+                  setBlockSeatView('all');
                 }}
                 className="w-full sm:w-64 px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
@@ -2143,10 +2145,11 @@ export default function EventDetailPage() {
           {(() => {
             const blockedSections = sections
               .map((section) => {
-                const blockedSeats = (section.seats || []).filter((seat) => seat.status === 'locked' && !seat.lockExpiresAt);
-                return { section, blockedSeats };
+                const permanentlyBlockedSeats = (section.seats || []).filter((seat) => seat.status === 'locked' && !seat.lockExpiresAt);
+                const invitationTickets = complimentaryOrders.flatMap((order: any) => order.tickets || []).filter((ticket: any) => ticket.sectionId === section.id);
+                return { section, permanentlyBlockedSeats, invitationTickets };
               })
-              .filter((item) => item.blockedSeats.length > 0);
+              .filter((item) => item.permanentlyBlockedSeats.length > 0 || item.invitationTickets.length > 0);
 
             if (blockedSections.length === 0) return null;
 
@@ -2161,13 +2164,14 @@ export default function EventDetailPage() {
                   </p>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {blockedSections.map(({ section, blockedSeats }) => (
+                  {blockedSections.map(({ section, permanentlyBlockedSeats, invitationTickets }) => (
                     <button
                       key={section.id}
                       type="button"
                       onClick={() => {
                         setSelectedBlockSection(section.id);
-                        setSelectedBlockSeats(blockedSeats.map((seat) => seat.id));
+                        setSelectedBlockSeats([]);
+                        setBlockSeatView('blocked');
                       }}
                       className={`text-left rounded-xl border px-4 py-3 transition-all ${
                         selectedBlockSection === section.id
@@ -2178,12 +2182,15 @@ export default function EventDetailPage() {
                       <div className="flex items-center justify-between gap-3">
                         <span className="font-black text-sm text-slate-100 truncate">{section.sectionType === 'table' ? `${lang === 'es' ? 'Mesa' : 'Table'} ${section.name}` : section.name}</span>
                         <span className="rounded-full bg-[rgba(249,115,22,0.18)] px-2 py-1 text-[10px] font-black uppercase tracking-wider text-[#F97316]">
-                          {blockedSeats.length}
+                          {permanentlyBlockedSeats.length}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs font-semibold text-slate-400">
-                        {blockedSeats.length} {lang === 'es' ? 'asientos bloqueados' : 'blocked seats'}
-                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-semibold text-slate-400">
+                        <span>{permanentlyBlockedSeats.length} {lang === 'es' ? 'bloqueados' : 'blocked'}</span>
+                        {invitationTickets.length > 0 && (
+                          <span className="text-emerald-300">· {invitationTickets.length} {lang === 'es' ? 'enviados' : 'sent'}</span>
+                        )}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -2282,23 +2289,62 @@ export default function EventDetailPage() {
               const sec = sections.find(s => s.id === selectedBlockSection);
               if (!sec) return null;
               const seats = sec.seats || [];
+              const invitationTicketsBySeatId = new Map(
+                complimentaryOrders
+                  .flatMap((order: any) => order.tickets || [])
+                  .filter((ticket: any) => ticket.sectionId === sec.id && ticket.seatId)
+                  .map((ticket: any) => [ticket.seatId, ticket]),
+              );
+              const permanentlyBlockedSeats = seats.filter((seat: any) => seat.status === 'locked' && !seat.lockExpiresAt);
+              const visibleSeats = blockSeatView === 'blocked'
+                ? seats.filter((seat: any) => permanentlyBlockedSeats.some((blockedSeat: any) => blockedSeat.id === seat.id) || invitationTicketsBySeatId.has(seat.id))
+                : seats;
+              const sectionLabel = sec.sectionType === 'table'
+                ? `${lang === 'es' ? 'Mesa' : 'Table'} ${sec.name}`
+                : sec.name;
               
               return (
                 <div className="space-y-6">
-                  {/* Grid of seats */}
-                  <div className="p-6 bg-gray-50 border border-gray-100 rounded-2xl flex flex-col items-center">
-                    <h3 className="font-bold text-xs text-gray-500 uppercase tracking-widest mb-4">{lang === 'es' ? 'Escenario / Stage' : 'Stage / Front'}</h3>
-                    <div className="w-full max-w-md bg-gray-300 h-2 rounded-full mb-10" />
+                  {/* Seat selection */}
+                  <div className="p-5 sm:p-6 bg-gray-50 border border-gray-100 rounded-2xl">
+                    <div className="mx-auto max-w-3xl text-center">
+                      <p className="font-black text-[11px] text-[#F97316] uppercase tracking-[0.2em]">{sectionLabel}</p>
+                      <h3 className="mt-1 font-extrabold text-lg text-gray-900">
+                        {blockSeatView === 'blocked'
+                          ? (lang === 'es' ? 'Asientos bloqueados e invitaciones' : 'Blocked seats and invitations')
+                          : (lang === 'es' ? 'Administrar asientos de la sección' : 'Manage section seats')}
+                      </h3>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {blockSeatView === 'blocked'
+                          ? (lang === 'es' ? 'Selecciona una silla pendiente para enviar su entrada de cortesía.' : 'Select a pending seat to send its complimentary ticket.')
+                          : (lang === 'es' ? 'Selecciona las sillas que deseas bloquear, desbloquear o invitar.' : 'Select seats to block, unblock, or invite.')}
+                      </p>
+                    </div>
+                    <div className="mx-auto mt-5 mb-8 h-1.5 w-full max-w-md rounded-full bg-gray-300" />
                     
                     <div className="flex justify-between items-center w-full mb-6 max-w-lg select-none">
                       <span className="text-xs font-semibold text-gray-500">
-                        {lang === 'es' ? 'Haz clic en los asientos para seleccionarlos' : 'Click seats to select them'}
+                        {blockSeatView === 'blocked'
+                          ? `${permanentlyBlockedSeats.length} ${lang === 'es' ? 'pendientes de enviar' : 'pending to send'}`
+                          : (lang === 'es' ? 'Haz clic en los asientos para seleccionarlos' : 'Click seats to select them')}
                       </span>
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => {
-                            const availableSeatIds = seats.filter(s => s.status !== 'sold').map(s => s.id);
+                            setBlockSeatView(blockSeatView === 'blocked' ? 'all' : 'blocked');
+                            setSelectedBlockSeats([]);
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-bold bg-white border border-gray-200 hover:border-gray-300 rounded-lg text-gray-700 transition-colors shadow-sm cursor-pointer"
+                        >
+                          {blockSeatView === 'blocked'
+                            ? (lang === 'es' ? 'Ver todos' : 'View all')
+                            : (lang === 'es' ? 'Ver bloqueados' : 'View blocked')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const availableSeatIds = visibleSeats.filter((s: any) => s.status !== 'sold').map((s: any) => s.id);
                             setSelectedBlockSeats(availableSeatIds);
                           }}
                           className="px-2.5 py-1 text-[11px] font-bold bg-white border border-gray-200 hover:border-gray-300 rounded-lg text-gray-700 transition-colors shadow-sm cursor-pointer"
@@ -2319,21 +2365,27 @@ export default function EventDetailPage() {
                       </div>
                     </div>
                     
-                    <div className="grid gap-3 justify-center" style={{ gridTemplateColumns: `repeat(${sec.seatsPerRow || 8}, minmax(0, 1fr))` }}>
-                      {seats.map((seat) => {
+                    {visibleSeats.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-gray-300 bg-white px-5 py-8 text-center text-sm font-medium text-gray-500">
+                        {lang === 'es' ? 'Esta mesa no tiene asientos bloqueados pendientes.' : 'This table has no pending blocked seats.'}
+                      </div>
+                    ) : (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                      {visibleSeats.map((seat: any) => {
                         const isBlocked = seat.status === 'locked' && !seat.lockExpiresAt;
                         const isSold = seat.status === 'sold';
                         const isSelected = selectedBlockSeats.includes(seat.id);
+                        const invitation = invitationTicketsBySeatId.get(seat.id);
                         
                         let bgClass = 'bg-white border-gray-200 hover:border-blue-500 text-gray-700';
-                        if (isBlocked) bgClass = 'bg-amber-100 border-amber-300 text-amber-800 font-bold';
-                        if (isSold) bgClass = 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed';
-                        if (isSelected) bgClass = 'bg-[#0A375A] border-blue-600 text-white font-bold scale-105 shadow-md shadow-blue-500/20';
+                        if (isBlocked) bgClass = 'bg-orange-50 border-orange-200 hover:border-[#F97316] text-gray-800';
+                        if (isSold) bgClass = invitation ? 'bg-emerald-50 border-emerald-200 text-emerald-800 cursor-default' : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed';
+                        if (isSelected) bgClass = 'bg-[#0A375A] border-blue-600 text-white scale-[1.02] shadow-md shadow-blue-500/20';
 
                         return (
                           <button
                             key={seat.id}
-                            disabled={isSold && !isSelected}
+                            disabled={isSold}
                             onClick={() => {
                               if (selectedBlockSeats.includes(seat.id)) {
                                 setSelectedBlockSeats(prev => prev.filter(id => id !== seat.id));
@@ -2341,20 +2393,25 @@ export default function EventDetailPage() {
                                 setSelectedBlockSeats(prev => [...prev, seat.id]);
                               }
                             }}
-                            className={`w-10 h-10 rounded-xl border flex flex-col items-center justify-center text-xs transition-all relative group ${bgClass}`}
+                            className={`min-h-[82px] rounded-xl border px-3 py-3 text-left transition-all relative ${bgClass}`}
                             title={`${seat.rowLabel}-${seat.seatNumber} (${seat.status})`}
                           >
-                            <span className="text-[9px] opacity-75">{seat.rowLabel}</span>
-                            <span className="font-bold">{seat.seatNumber}</span>
-                            
-                            {/* Hover tooltip */}
-                            <div className="absolute bottom-11 scale-0 group-hover:scale-100 transition-all bg-gray-900 text-white text-[9px] py-1 px-2 rounded shadow-md z-10 whitespace-nowrap">
-                              {formatSeatLabel({ rowLabel: seat.rowLabel, seatNumber: seat.seatNumber }, undefined, lang)} — {isBlocked ? (lang === 'es' ? 'Bloqueado permanentemente' : 'Permanently Blocked') : isSold ? (lang === 'es' ? 'Vendido' : 'Sold') : (lang === 'es' ? 'Disponible' : 'Available')}
-                            </div>
+                            <span className="block text-[10px] font-black uppercase tracking-wider opacity-70">{lang === 'es' ? 'Asiento' : 'Seat'}</span>
+                            <span className="mt-1 block text-xl font-black leading-none">{seat.seatNumber}</span>
+                            <span className={`mt-2 block text-[10px] font-bold leading-tight ${isSelected ? 'text-white/75' : invitation ? 'text-emerald-700' : isBlocked ? 'text-[#C2410C]' : 'text-gray-400'}`}>
+                              {invitation
+                                ? (lang === 'es' ? '✓ Entrada enviada' : '✓ Ticket sent')
+                                : isBlocked
+                                  ? (lang === 'es' ? 'Pendiente de enviar' : 'Pending to send')
+                                  : isSold
+                                    ? (lang === 'es' ? 'Vendido' : 'Sold')
+                                    : (lang === 'es' ? 'Disponible' : 'Available')}
+                            </span>
                           </button>
                         );
                       })}
                     </div>
+                    )}
                   </div>
 
                   {/* Actions for selected seats */}
