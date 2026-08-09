@@ -966,76 +966,76 @@ export class MailService {
     const location = await this.lookupIpLocation(ip);
     const locationLabel = [location?.city, location?.country].filter(Boolean).join(', ');
 
-    const html = `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="dark light" />
-</head>
-<body style="margin:0;padding:0;background:#0a1420;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a1420;padding:24px 12px;">
+    const html = `<!doctype html>
+<html>
+<body style="margin:0;padding:0;background:#f3f6fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f6fb;padding:30px 14px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:560px;background:#0b1622;border-radius:16px;overflow:hidden;border:1px solid rgba(246,198,95,0.16);">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 18px 55px rgba(15,23,42,0.16);">
           <tr>
-            <td align="left" style="background:#0A375A;padding:20px 24px;">
-              <img src="${appUrl}/logo-email-orange.png" alt="LPTicket" width="160" style="display:block;width:160px;max-width:160px;height:auto;border:0;outline:none;text-decoration:none;" />
+            <td style="background:#0A375A;padding:28px 28px 24px;">
+              <img src="${appUrl}/logo-email-orange.png" alt="LPTicket" width="190" style="display:block;width:190px;max-width:190px;height:auto;border:0;" />
+              <p style="margin:22px 0 0;color:#fb923c;font-size:12px;font-weight:900;letter-spacing:3px;text-transform:uppercase;">Nuevo registro</p>
+              <h1 style="margin:8px 0 0;color:#ffffff;font-size:30px;line-height:1.15;font-weight:900;">${fullName}</h1>
+              <p style="margin:10px 0 0;color:#cbd5e1;font-size:15px;line-height:1.5;">Se creó una cuenta nueva en LPTicket.</p>
             </td>
           </tr>
           <tr>
-            <td style="padding:28px 28px 6px;">
-              <p style="margin:0 0 6px;color:#F97316;font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;">Nuevo registro</p>
-              <h1 style="margin:0 0 18px;color:#ffffff;font-size:22px;font-weight:800;font-family:'Helvetica Neue',Arial,sans-serif;">${fullName}</h1>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <td style="padding:26px 28px 8px;background:#ffffff;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Nombre</td>
-                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${firstName}</td>
-                </tr>
-                <tr>
-                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Apellido</td>
-                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${lastName}</td>
-                </tr>
-                <tr>
-                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Email</td>
-                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${user.email}</td>
-                </tr>
-                ${user.phone ? `
-                <tr>
-                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Teléfono</td>
-                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${user.phone}</td>
-                </tr>` : ''}
-                ${locationLabel ? `
-                <tr>
-                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Ubicación</td>
-                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${locationLabel}</td>
-                </tr>` : ''}
-                <tr>
-                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Plataforma</td>
-                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);">
-                    <span style="display:inline-block;background:${platformColor};color:#ffffff;font-size:11px;font-weight:800;letter-spacing:0.4px;padding:3px 10px;border-radius:20px;font-family:'Helvetica Neue',Arial,sans-serif;">${platformLabel}</span>
+                  <td style="padding:14px 16px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc;">
+                    <p style="margin:0;color:#64748b;font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;">Plataforma</p>
+                    <p style="margin:6px 0 0;color:${platformColor};font-size:28px;line-height:1;font-weight:900;">${platformLabel}</p>
+                    <p style="margin:8px 0 0;color:#64748b;font-size:13px;">Método: ${provider}</p>
                   </td>
-                </tr>
-                <tr>
-                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Método</td>
-                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${provider}</td>
-                </tr>
-                <tr>
-                  <td style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#64748b;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;">Fecha</td>
-                  <td align="right" style="padding:9px 0;border-top:1px solid rgba(255,255,255,0.08);color:#e2e8f0;font-size:13px;font-weight:600;font-family:'Helvetica Neue',Arial,sans-serif;">${registeredAt} (Houston)</td>
                 </tr>
               </table>
             </td>
           </tr>
           <tr>
-            <td align="center" style="padding:24px 28px 30px;">
-              <a href="${appUrl}/admin/users" target="_blank" style="display:inline-block;padding:12px 30px;border-radius:12px;background:linear-gradient(180deg,#ff8a18,#f46c00);color:#ffffff;font-size:13px;font-weight:800;text-decoration:none;font-family:'Helvetica Neue',Arial,sans-serif;letter-spacing:0.3px;">Ver usuarios</a>
+            <td style="padding:12px 28px;background:#ffffff;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+                <tr>
+                  <td style="padding:16px;color:#64748b;font-size:14px;">Nombre</td>
+                  <td align="right" style="padding:16px;color:#0f172a;font-size:14px;font-weight:900;">${firstName}</td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 16px;color:#64748b;font-size:14px;border-top:1px solid #e2e8f0;">Apellido</td>
+                  <td align="right" style="padding:12px 16px;color:#0f172a;font-size:14px;font-weight:900;border-top:1px solid #e2e8f0;">${lastName}</td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 16px;color:#64748b;font-size:14px;border-top:1px solid #e2e8f0;">Email</td>
+                  <td align="right" style="padding:12px 16px;color:#0f172a;font-size:14px;font-weight:900;border-top:1px solid #e2e8f0;">${user.email}</td>
+                </tr>
+                ${user.phone ? `
+                <tr>
+                  <td style="padding:12px 16px;color:#64748b;font-size:14px;border-top:1px solid #e2e8f0;">Teléfono</td>
+                  <td align="right" style="padding:12px 16px;color:#0f172a;font-size:14px;font-weight:900;border-top:1px solid #e2e8f0;">${user.phone}</td>
+                </tr>` : ''}
+                ${locationLabel ? `
+                <tr>
+                  <td style="padding:12px 16px;color:#64748b;font-size:14px;border-top:1px solid #e2e8f0;">Ubicación</td>
+                  <td align="right" style="padding:12px 16px;color:#0f172a;font-size:14px;font-weight:900;border-top:1px solid #e2e8f0;">${locationLabel}</td>
+                </tr>` : ''}
+                <tr>
+                  <td style="padding:14px 16px;color:#F97316;font-size:15px;font-weight:900;border-top:1px solid #F97316;">Fecha</td>
+                  <td align="right" style="padding:14px 16px;color:#F97316;font-size:15px;font-weight:900;border-top:1px solid #F97316;">${registeredAt} (Houston)</td>
+                </tr>
+              </table>
             </td>
           </tr>
           <tr>
-            <td align="center" style="background:#08111c;padding:16px 28px;border-top:1px solid rgba(255,255,255,0.05);">
-              <p style="margin:0;color:#475569;font-size:11px;font-family:'Helvetica Neue',Arial,sans-serif;">Alerta interna automática de LPTicket · admin@lpticket.com</p>
+            <td align="center" style="padding:22px 28px 30px;background:#ffffff;">
+              <a href="${appUrl}/admin/users" target="_blank" style="display:inline-block;background:#F97316;color:#ffffff;text-decoration:none;border-radius:14px;padding:15px 30px;font-size:14px;font-weight:900;">Ver usuarios</a>
+              <p style="margin:14px 0 0;color:#64748b;font-size:12px;line-height:1.5;">Alerta interna automática de LPTicket.</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="background:#0A375A;padding:22px 28px;">
+              <p style="margin:0;color:#fb923c;font-size:13px;font-weight:900;">LPTicket</p>
+              <p style="margin:5px 0 0;color:#cbd5e1;font-size:11px;">Tus tickets. Tus eventos.</p>
             </td>
           </tr>
         </table>
