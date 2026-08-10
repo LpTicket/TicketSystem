@@ -988,6 +988,41 @@ export class EventsService {
     return repairs.length;
   }
 
+  /**
+   * Historical repair for an older invitation flow that marked $0 courtesy
+   * tickets as SOLD. A courtesy has no payment and must remain a permanent
+   * block so every map and counter reports the same inventory state.
+   */
+  private async reconcileFreeInvitationSeats(eventId: string): Promise<number> {
+    const rows = await this.ticketRepo
+      .createQueryBuilder('ticket')
+      .innerJoin(Order, 'purchaseOrder', 'purchaseOrder.id = ticket.orderId')
+      .select('ticket.seatId', 'seatId')
+      .where('ticket.eventId = :eventId', { eventId })
+      .andWhere('ticket.seatId IS NOT NULL')
+      .andWhere('ticket.status IN (:...statuses)', { statuses: [TicketStatus.ACTIVE, TicketStatus.USED] })
+      .andWhere('COALESCE(ticket.price, 0) = 0')
+      .andWhere('purchaseOrder.status = :paidStatus', { paidStatus: OrderStatus.PAID })
+      .andWhere('COALESCE(purchaseOrder.total, 0) = 0')
+      .getRawMany();
+
+    const seatIds = Array.from(new Set(rows.map((row: any) => row.seatId).filter(Boolean)));
+    if (seatIds.length === 0) return 0;
+
+    const seats = await this.seatRepo.find({
+      where: { id: In(seatIds), status: SeatStatus.SOLD },
+    });
+    if (seats.length === 0) return 0;
+
+    for (const seat of seats) {
+      seat.status = SeatStatus.LOCKED;
+      seat.lockedBy = null as any;
+      seat.lockExpiresAt = null;
+    }
+    await this.seatRepo.save(seats);
+    return seats.length;
+  }
+
   async restoreSavedSeatBlocks(eventId: string, userId: string) {
     const event = await this.findById(eventId);
     const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
@@ -999,10 +1034,15 @@ export class EventsService {
       where: { eventId },
       order: { sortOrder: 'ASC' },
     });
-    const restored = await this.reconcileReservedMapSeats(sections);
+    // Repair historical $0 invitations first, then reconcile the saved map.
+    // Running these in order avoids two inventory repairs competing for the
+    // same seat during the one-time recovery.
+    const restoredFreeInvitations = await this.reconcileFreeInvitationSeats(eventId);
+    const restoredFromMap = await this.reconcileReservedMapSeats(sections);
+    const restored = restoredFromMap + restoredFreeInvitations;
     if (restored > 0) await this.cache.del(`event:seatmap:${eventId}`);
 
-    return { restored };
+    return { restored, restoredFromMap, restoredFreeInvitations };
   }
 
   /**
@@ -1019,6 +1059,12 @@ export class EventsService {
     });
 
     if (sections.length === 0) return [];
+
+    // The previous invitation flow could leave a complimentary ($0) ticket as
+    // SOLD. Repair that legacy state before consulting the seat-map cache so
+    // web and mobile immediately agree that it is still a block.
+    const repairedFreeInvitations = await this.reconcileFreeInvitationSeats(eventId);
+    if (repairedFreeInvitations > 0) await this.cache.del(cacheKey);
 
     const sectionIds = sections.map(s => s.id);
     const { LessThan } = require('typeorm');

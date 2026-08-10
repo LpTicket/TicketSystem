@@ -1,5 +1,26 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-09 - Selección explícita en mapa móvil del organizador
+
+### Corrección
+- El mapa del organizador ya no selecciona una silla mientras se explora, se arrastra o se hace zoom.
+- La acción `Seleccionar / Select` activa un modo específico para elegir una o varias sillas o mesas antes de bloquearlas o desbloquearlas.
+- Después de bloquear, el mapa se actualiza sin desmontar el visor: conserva el zoom y la posición para continuar trabajando.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+## 2026-08-09 - Cortesías conservan el estado bloqueado
+
+### Corrección
+- Emitir una cortesía de $0 ya no marca la silla como vendida: la conserva como bloqueada, con su QR activo para el invitado.
+- Se agregó una reparación segura para las cortesías históricas de $0 que quedaron como vendidas; solo cambia asientos con ticket activo/usado y orden pagada de total $0.
+- El mapa ejecuta la reparación antes de usar su caché, para que web y móvil devuelvan el mismo conteo de bloqueadas.
+- Se evita emitir por segunda vez una cortesía para la misma silla.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
 ## 2026-08-09 - Sincronización permanente de bloqueos de mapa
 
 ### Corrección

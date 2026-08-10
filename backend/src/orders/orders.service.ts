@@ -2320,7 +2320,43 @@ export class OrdersService {
       await this.eventRepo.manager.save(recipientUser);
     }
 
-    // Create a Free ($0) Order record
+    const uniqueSeatIds = Array.from(new Set((seatIds || []).filter(Boolean)));
+    if (uniqueSeatIds.length === 0) {
+      throw new BadRequestException('Selecciona al menos un asiento para emitir la cortesía');
+    }
+
+    const invitationSeats = await this.seatRepo.find({
+      where: { id: In(uniqueSeatIds) },
+      relations: ['section'],
+    });
+    if (invitationSeats.length !== uniqueSeatIds.length) {
+      throw new NotFoundException('Uno o más asientos no existen');
+    }
+    if (invitationSeats.some((seat) => seat.section?.eventId !== eventId)) {
+      throw new BadRequestException('Todos los asientos deben pertenecer a este evento');
+    }
+    if (invitationSeats.some((seat) => seat.status === SeatStatus.SOLD)) {
+      throw new BadRequestException('Uno o más asientos ya fueron vendidos y no pueden enviarse como cortesía');
+    }
+
+    // A courtesy is still a permanent block. Prevent a second invitation from
+    // being issued for a seat that already has an active/used complimentary QR.
+    const existingInvitation = await this.ticketRepo
+      .createQueryBuilder('ticket')
+      .innerJoin(Order, 'purchaseOrder', 'purchaseOrder.id = ticket.orderId')
+      .where('ticket.eventId = :eventId', { eventId })
+      .andWhere('ticket.seatId IN (:...seatIds)', { seatIds: uniqueSeatIds })
+      .andWhere('ticket.status IN (:...statuses)', { statuses: [TicketStatus.ACTIVE, TicketStatus.USED] })
+      .andWhere('COALESCE(ticket.price, 0) = 0')
+      .andWhere('purchaseOrder.status = :paidStatus', { paidStatus: OrderStatus.PAID })
+      .andWhere('COALESCE(purchaseOrder.total, 0) = 0')
+      .getOne();
+    if (existingInvitation) {
+      throw new BadRequestException('Uno o más asientos ya tienen una cortesía enviada');
+    }
+
+    // Create a Free ($0) Order record. It documents the courtesy delivery but
+    // must never turn the inventory into a sale.
     const order = this.orderRepo.create({
       userId: recipientUser.id,
       eventId,
@@ -2330,7 +2366,7 @@ export class OrdersService {
       total: 0,
       status: OrderStatus.PAID,
       paidAt: new Date(),
-      ticketCount: seatIds.length,
+      ticketCount: uniqueSeatIds.length,
     });
     const savedOrder = await this.orderRepo.save(order);
     const orderId = savedOrder.id;
@@ -2341,14 +2377,12 @@ export class OrdersService {
       ? rawAppUrl 
       : `https://${rawAppUrl}`;
 
-    for (const seatId of seatIds) {
-      const seat = await this.seatRepo.findOne({ where: { id: seatId }, relations: ['section'] });
-      if (!seat) throw new NotFoundException('Seat not found');
-
-      seat.status = SeatStatus.SOLD;
+    for (const seat of invitationSeats) {
+      // A sent invitation remains blocked, whether or not its QR has already
+      // been used. Only a real paid purchase is allowed to use SOLD.
+      seat.status = SeatStatus.LOCKED;
       seat.lockedBy = null as any;
       seat.lockExpiresAt = null as any;
-      await this.seatRepo.save(seat);
 
       const ticketCode = nanoid(12).toUpperCase();
       const qrData = await QRCode.toDataURL(`${appUrl}/verify/${ticketCode}`);
@@ -2370,6 +2404,19 @@ export class OrdersService {
       const savedTicket = await this.ticketRepo.save(ticket);
       createdTickets.push(savedTicket);
     }
+
+    // Keep the persisted seat inventory and the saved map overlay in the same
+    // blocked state. This prevents web and mobile maps from counting a free
+    // invitation as sold on one surface and blocked on another.
+    await this.seatRepo.manager.transaction(async (manager) => {
+      await manager.getRepository(Seat).save(invitationSeats);
+      await this.synchronizePermanentBlockMapState(
+        invitationSeats,
+        true,
+        manager.getRepository(VenueSection),
+      );
+    });
+    await this.invalidateSeatMapCaches(invitationSeats);
 
     await this.invalidateUserPurchasesCache(recipientUser.id);
 
