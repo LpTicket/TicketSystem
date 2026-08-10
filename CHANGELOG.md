@@ -1,5 +1,15 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-09 - Sincronización permanente de bloqueos de mapa
+
+### Corrección
+- Bloquear o desbloquear asientos ahora actualiza en la misma operación el inventario real y la configuración visual del mapa.
+- Al abrir `Bloqueos e invitaciones`, web y móvil restauran una sola vez los bloqueos antiguos que quedaron guardados visualmente pero no llegaron al inventario.
+- La restauración es unidireccional: solo bloquea asientos disponibles marcados como reservados; nunca desbloquea ni altera una entrada vendida.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
 ## Regla Obligatoria
 
 Después de cada tarea importante, Codex debe agregar una entrada a este archivo.
@@ -42,6 +52,42 @@ comando ejecutado
 ```
 
 ## Historial
+
+## 2026-08-09 - Mapa móvil seguro para organizadores
+
+### Funcionalidad desarrollada
+- La vista de mapa de organizador y administrador reutiliza el mismo visor, zoom, pellizco y arrastre que usa el cliente.
+- Se eliminó de esas vistas móviles la edición de diseño: no se pueden mover mesas, cargar plantillas, crear elementos ni guardar geometría.
+- El organizador puede seleccionar una silla o el centro de una mesa para bloquearla o desbloquearla. Capacidad, disponibles, vendidas y bloqueadas permanecen visibles.
+- Los asientos vendidos y bloqueos temporales continúan protegidos y no se modifican desde esta pantalla.
+- En la ruta de administrador, el `ScrollView` adicional se bloquea de forma nativa e inmediata al tocar el mapa; así no debe capturar el primer arrastre del canvas.
+- Las acciones de cancelar, bloquear y desbloquear quedan arriba del mapa para estar disponibles antes de interactuar con él.
+- Tocar por segunda vez la misma silla o la misma mesa seleccionada elimina su selección local, sin requerir pulsar `Cancelar`.
+
+### Archivos modificados
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/components/events/ClientVenueMap.tsx`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/components/organizer/OrganizerVenueMapMobile.tsx`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/screens/OrganizerPanelScreen.tsx`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/screens/AdminPanelScreen.tsx`
+
+### Problema solucionado
+- El organizador móvil utilizaba un editor distinto al mapa del cliente, con una competencia de gestos y controles de diseño innecesarios para bloquear asientos.
+
+### Riesgos encontrados
+- La interfaz usa el endpoint de bloqueo existente y no altera geometría, ventas ni tickets. Requiere prueba física con mesas bloqueadas, vendidas y disponibles antes de considerarse comprobada.
+
+### Estado de pruebas
+- IMPLEMENTADO, NO PROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/mobile
+npx tsc --noEmit
+git diff --check
+```
+
+### Observaciones
+- La vista de compra del cliente y los pagos no se modificaron. El backend solo sincroniza el estado ya existente de bloqueos entre inventario y configuración visual del mapa.
 
 ## 2026-08-09 - Gestos nativos del mapa móvil del organizador
 

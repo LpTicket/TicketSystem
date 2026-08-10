@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiPost } from '../../services/api';
@@ -26,6 +26,24 @@ export function OrganizerBlocksMobile({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
+  const restoredEventsRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!eventId || restoredEventsRef.current.has(eventId)) return;
+    restoredEventsRef.current.add(eventId);
+
+    let active = true;
+    void apiPost<{ restored?: number }>(`/events/${eventId}/sections/restore-saved-blocks`)
+      .then(async ({ restored }) => {
+        if (active && Number(restored) > 0) await onReload?.();
+      })
+      .catch(() => {
+        // The normal map data remains usable. The backend keeps the recovery
+        // operation one-way, so a transient failure must not hide the screen.
+      });
+
+    return () => { active = false; };
+  }, [eventId, onReload]);
 
   const section = useMemo(() => sections.find((s) => String(s.id) === selectedSectionId), [sections, selectedSectionId]);
   const seats: any[] = section?.seats || [];

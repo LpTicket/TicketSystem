@@ -1,8 +1,8 @@
 import { ActivityIndicator, Alert, Animated, Dimensions, Easing, GestureResponderEvent, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { NativeViewGestureHandler } from 'react-native-gesture-handler';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { NativeViewGestureHandler } from 'react-native-gesture-handler';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { apiGet, apiPost } from '../../services/api';
 
@@ -239,12 +239,17 @@ type Props = {
   eventId?: string;
   onScrollLock?: (locked: boolean) => void;
   onCanvasFrame?: (frame: { x: number; y: number; width: number; height: number }) => void;
+  mapGestureRef?: RefObject<any>;
   seatBuyers?: Record<string, string>;
 };
 
-const VP_H = 440; // canvas viewport height (matches styles.workbench height)
+// The organizer viewport deliberately extends beyond the visual card edges so
+// map gestures have a slightly larger, uninterrupted touch target.
+const MAP_SIDE_TOUCH_BLEED = 8;
+const MAP_BOTTOM_TOUCH_BLEED = 40;
+const VP_H = 440 + MAP_BOTTOM_TOUCH_BLEED;
 
-export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyers }: Props) {
+export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, mapGestureRef, seatBuyers }: Props) {
   const { t } = useLanguage();
   const [vpW, setVpW] = useState(Math.max(1, Dimensions.get('window').width - 32));
   const [items, setItems] = useState<VenueItem[]>(initialItems);
@@ -1180,7 +1185,10 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
               visible area — including outside the content — not only from an
               empty spot on the moving canvas. Items still grab their own touches
               (in edit mode), so dragging an item doesn't also pan. */
-          <NativeViewGestureHandler disallowInterruption>
+          <NativeViewGestureHandler
+            ref={mapGestureRef}
+            disallowInterruption
+          >
           <View
             ref={canvasVpRef}
             // touchAction:'none' (web only) stops the browser from scrolling/zooming
@@ -2049,7 +2057,16 @@ const styles = StyleSheet.create({
   railZoomText: { color: '#fb923c', fontSize: 18, fontWeight: '800' },
   railZoomValue: { color: '#F8FAFC', fontSize: 11, fontWeight: '800', minWidth: 38, textAlign: 'center' },
   toolText: { color: 'rgba(226,232,240,0.70)', fontSize: 9, fontWeight: '700', letterSpacing: 0.2 },
-  canvasViewport: { flex: 1, height: VP_H, overflow: 'hidden', position: 'relative', backgroundColor: '#0d2138' },
+  canvasViewport: {
+    flex: 1,
+    height: VP_H,
+    // Extend the hit area five points past each side of the visual canvas and
+    // twenty points below it, as requested for the organizer editor only.
+    marginHorizontal: -MAP_SIDE_TOUCH_BLEED,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#0d2138',
+  },
   // Transparent so the viewport grid shows through the whole canvas area.
   canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, position: 'relative', backgroundColor: 'transparent' },
   canvasTips: { position: 'absolute', left: 16, bottom: 14, gap: 6 },

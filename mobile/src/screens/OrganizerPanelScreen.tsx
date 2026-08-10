@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Alert, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
-import { VenueMapEditor } from '../components/organizer/VenueMapEditor';
+import { OrganizerVenueMapMobile } from '../components/organizer/OrganizerVenueMapMobile';
 import { useLanguage } from '../i18n/LanguageContext';
 import { OrganizerDashboardMobile, OrganizerCreateEventMobile, OrganizerDetailsMobile } from '../components/organizer/OrganizerEventForms';
 import { OrganizerEventsMobile } from '../components/organizer/OrganizerEventsMobile';
@@ -175,7 +175,6 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
   const tabsScrollRef = useRef<ScrollView>(null);
   const panelScrollRef = useRef<ScrollView>(null);
   const scrollUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mapCanvasFrameRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const mapScrollLockRef = useRef(false);
   // Locked while dragging/zooming the venue map, so the page doesn't scroll.
   const [mapScrollLock, setMapScrollLockState] = useState(false);
@@ -222,28 +221,6 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
 
   useEffect(() => () => {
     if (scrollUnlockTimerRef.current) clearTimeout(scrollUnlockTimerRef.current);
-  }, []);
-
-  const isTouchInsideMapCanvas = useCallback((e: any) => {
-    if (active !== 'map') return false;
-    const frame = mapCanvasFrameRef.current;
-    if (!frame) return false;
-    const touch = e?.nativeEvent?.touches?.[0] || e?.nativeEvent?.changedTouches?.[0] || e?.nativeEvent;
-    const pageX = touch?.pageX;
-    const pageY = touch?.pageY;
-    if (typeof pageX !== 'number' || typeof pageY !== 'number') return false;
-    return pageX >= frame.x && pageX <= frame.x + frame.width && pageY >= frame.y && pageY <= frame.y + frame.height;
-  }, [active]);
-
-  const handlePanelTouchCapture = useCallback((e: any) => {
-    if (isTouchInsideMapCanvas(e)) {
-      setMapScrollLock(true);
-    }
-    return false;
-  }, [isTouchInsideMapCanvas, setMapScrollLock]);
-
-  const handleMapCanvasFrame = useCallback((frame: { x: number; y: number; width: number; height: number }) => {
-    mapCanvasFrameRef.current = frame;
   }, []);
 
   // Seed state from adminEvent if provided (admin viewing an organizer's event)
@@ -363,25 +340,6 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
       mounted = false;
     };
   }, [selectedEventId]);
-
-  const seatBuyers = useMemo(() => {
-    const map: Record<string, string> = {};
-    attendeesRaw.forEach((ticket: any) => {
-      const section = String(ticket.sectionName || '').trim().toLowerCase();
-      const row = String(ticket.rowLabel || '').trim().toLowerCase();
-      const seat = ticket.seatNumber !== null && ticket.seatNumber !== undefined ? String(ticket.seatNumber) : '';
-      if (!section || !seat) return;
-      const user = ticket.user || {};
-      const name = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
-        || ticket.attendeeName
-        || user.email
-        || '';
-      if (!name) return;
-      if (row) map[`${section}|${row}|${seat}`] = name;
-      map[`${section}|${seat}`] = name;
-    });
-    return map;
-  }, [attendeesRaw]);
 
   // Load access items (special codes) for the selected event.
   useEffect(() => {
@@ -622,13 +580,7 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
   };
 
   return (
-    <View
-      style={styles.root}
-      // This sits above the native ScrollView in the responder tree. Locking
-      // here happens on the first physical touch, before iOS has a chance to
-      // move the page by even a few pixels from a canvas-originated gesture.
-      onTouchStart={handlePanelTouchCapture}
-    >
+    <View style={styles.root}>
       {/* Section tabs only in event view — global sections live in the bottom bar. */}
       {selectedEvent && (
       <View style={styles.tabsShell}>
@@ -734,15 +686,6 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         scrollEnabled={panelScrollEnabled}
-        // iOS UIScrollView can otherwise cancel a child canvas touch and turn it
-        // into a vertical page drag before the JS scroll-lock state is applied.
-        // Outside the canvas the page remains scrollable as normal.
-        canCancelContentTouches={active !== 'map'}
-        // Do not let ScrollView's JS pan responder race the canvas on the first
-        // frame. The map has its own responder; outside the canvas, native page
-        // scrolling remains available.
-        disableScrollViewPanResponder={active === 'map' || !panelScrollEnabled}
-        onStartShouldSetResponderCapture={handlePanelTouchCapture}
         contentContainerStyle={[styles.content, !selectedEvent && { paddingTop: 44 }]}
       >
         {selectedEvent ? (
@@ -833,7 +776,7 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
 
         {active === 'overview' && <OrganizerOverviewMobile sections={eventSections} />}
 
-        {active === 'map' && <VenueMapEditor eventId={selectedEventId} onScrollLock={setMapScrollLock} onCanvasFrame={handleMapCanvasFrame} seatBuyers={seatBuyers} />}
+        {active === 'map' && <OrganizerVenueMapMobile eventId={selectedEventId} onScrollLock={setMapScrollLock} />}
 
         {active === 'attendees' && (
           <OrganizerAttendeesMobile

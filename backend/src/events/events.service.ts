@@ -853,6 +853,10 @@ export class EventsService {
 
     // Post-sync: recalculate global event price range for the marketplace search
     const finalSections = await this.sectionRepo.find({ where: { eventId } });
+    // A saved venue map is allowed to contain visual reservation overrides.
+    // Reconcile those overrides before returning the map so a successful save
+    // can never leave customer availability and organizer inventory divergent.
+    await this.reconcileReservedMapSeats(finalSections);
     const finalSectionIds = finalSections.map(s => s.id);
     const { In: InOp } = require('typeorm');
     const allFinalSeats = finalSectionIds.length > 0

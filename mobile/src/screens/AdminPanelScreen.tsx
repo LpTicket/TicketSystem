@@ -7,7 +7,7 @@
  *     (CRUD, roles), moderación de eventos, categorías, campañas de marketing
  *     (email/SMS/WhatsApp/push + banners de inicio) y finanzas. Requiere rol admin.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Image, Modal, PanResponder, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -338,6 +338,8 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
   const financialScrollRef = useRef<ScrollView>(null);
   const eventFilterScrollRef = useRef<ScrollView>(null);
   const adminScrollRef = useRef<ScrollView>(null);
+  const adminMapScrollLockRef = useRef(false);
+  const adminMapUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const active: Section = section ?? 'dashboard';
   const [tabLayouts] = useState<Partial<Record<Section, { x: number; width: number }>>>({});
   const [userRoleFilterWidth, setUserRoleFilterWidth] = useState(0);
@@ -374,6 +376,34 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
   const [adminEditVenue, setAdminEditVenue] = useState('');
   const [adminEditStatus, setAdminEditStatus] = useState<'draft' | 'published' | 'cancelled'>('published');
   const adminScrollEnabled = !editingAdminMapScrollLock && !selectorGestureActive;
+
+  // Administrator event editing lives inside an additional parent ScrollView.
+  // Disable that parent synchronously when the shared venue map receives a
+  // touch, otherwise its first movement can be captured before React renders.
+  const setAdminMapScrollLock = useCallback((locked: boolean) => {
+    if (adminMapUnlockTimerRef.current) {
+      clearTimeout(adminMapUnlockTimerRef.current);
+      adminMapUnlockTimerRef.current = null;
+    }
+
+    if (locked) {
+      adminMapScrollLockRef.current = true;
+      adminScrollRef.current?.setNativeProps?.({ scrollEnabled: false });
+      setEditingAdminMapScrollLock(true);
+      return;
+    }
+
+    if (!adminMapScrollLockRef.current) return;
+    adminMapUnlockTimerRef.current = setTimeout(() => {
+      adminMapScrollLockRef.current = false;
+      adminScrollRef.current?.setNativeProps?.({ scrollEnabled: true });
+      setEditingAdminMapScrollLock(false);
+    }, 120);
+  }, []);
+
+  useEffect(() => () => {
+    if (adminMapUnlockTimerRef.current) clearTimeout(adminMapUnlockTimerRef.current);
+  }, []);
 
   // Lazy-loaded section data
   const [analyticsDays, setAnalyticsDays] = useState(7);
@@ -1846,7 +1876,7 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
     // Set basic data immediately so the editor opens fast
     setEditingAdminEvent(event);
     setEditingAdminSection('details');
-    setEditingAdminMapScrollLock(false);
+    setAdminMapScrollLock(false);
     setAdminEditTitle(adminEventTitle(event));
     setAdminEditVenue(adminEventVenue(event));
     setAdminEditStatus(event?.status === 'draft' ? 'draft' : 'published');
@@ -1889,7 +1919,7 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
   const closeAdminEventEditor = async () => {
     setEditingAdminEvent(null);
     setEditingAdminSection('details');
-    setEditingAdminMapScrollLock(false);
+    setAdminMapScrollLock(false);
     try {
       const fresh = await apiGet<any>('/admin/events?page=1&limit=50');
       setAdminEvents(listFrom(fresh));
@@ -2084,7 +2114,7 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
             <OrganizerPanelScreen
               section={editingAdminSection}
               onSectionChange={setEditingAdminSection}
-              onMapScrollLockChange={setEditingAdminMapScrollLock}
+              onMapScrollLockChange={setAdminMapScrollLock}
               adminEvent={editingAdminEvent}
               onAdminBack={closeAdminEventEditor}
             />

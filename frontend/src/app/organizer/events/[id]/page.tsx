@@ -656,6 +656,7 @@ export default function EventDetailPage() {
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders' | 'commission'>('analytics');
   const tabRestoredRef = useRef(false);
+  const restoredBlockEventsRef = useRef(new Set<string>());
 
   // Restore the last-open tab on reload, then keep it in sync (per event).
   useEffect(() => {
@@ -803,6 +804,19 @@ export default function EventDetailPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab !== 'blocks' || !id || restoredBlockEventsRef.current.has(id)) return;
+    restoredBlockEventsRef.current.add(id);
+
+    void api.post(`/events/${id}/sections/restore-saved-blocks`)
+      .then(async ({ data }) => {
+        if (Number(data?.restored) > 0) await loadEvent();
+      })
+      .catch(() => {
+        // The screen remains available if a recovery request is interrupted.
+      });
+  }, [activeTab, id]);
 
   const handlePublish = async () => {
     try {

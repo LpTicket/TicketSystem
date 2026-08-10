@@ -2139,6 +2139,60 @@ export class OrdersService {
   /**
    * Organizer tool to manually block/unblock a seat (e.g., for physical sale or guest list).
    */
+  private async synchronizePermanentBlockMapState(
+    seats: Seat[],
+    blocked: boolean,
+    sectionRepository: Repository<VenueSection> = this.sectionRepo,
+  ) {
+    const sectionsById = new Map<string, VenueSection>();
+
+    for (const seat of seats) {
+      if (seat.section) sectionsById.set(seat.section.id, seat.section);
+    }
+
+    for (const section of sectionsById.values()) {
+      let config: Record<string, any> = {};
+      try {
+        config = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
+      } catch {
+        // Never replace a malformed saved layout with an empty map. Throwing
+        // rolls the whole transaction back, keeping visual and inventory state
+        // together until the map itself is repaired.
+        throw new BadRequestException('La configuración del mapa no es válida para actualizar bloqueos.');
+      }
+
+      for (const seat of seats.filter((item) => item.sectionId === section.id)) {
+        const key = section.sectionType === 'table'
+          ? `seat-${seat.seatNumber}`
+          : `${seat.rowLabel}-${seat.seatNumber}`;
+        const override = { ...(config[key] || {}) };
+
+        if (blocked) {
+          config[key] = { ...override, reserved: true, status: 'reserved' };
+          continue;
+        }
+
+        delete override.reserved;
+        if (override.status === 'reserved') delete override.status;
+        if (Object.keys(override).length === 0) delete config[key];
+        else config[key] = override;
+      }
+
+      section.seatsConfig = JSON.stringify(config);
+    }
+
+    if (sectionsById.size > 0) {
+      await sectionRepository.save([...sectionsById.values()]);
+    }
+  }
+
+  private async invalidateSeatMapCaches(seats: Seat[]) {
+    const eventIds = new Set(
+      seats.map((seat) => seat.section?.eventId || seat.section?.event?.id).filter(Boolean),
+    );
+    await Promise.all([...eventIds].map((eventId) => this.cache.del(`event:seatmap:${eventId}`)));
+  }
+
   async toggleBlockSeat(seatId: string, userId: string) {
     const seat = await this.seatRepo.findOne({ where: { id: seatId }, relations: ['section', 'section.event'] });
     if (!seat) throw new NotFoundException('Seat not found');
@@ -2167,7 +2221,15 @@ export class OrdersService {
       seat.lockExpiresAt = null as any;
     }
 
-    await this.seatRepo.save(seat);
+    await this.seatRepo.manager.transaction(async (manager) => {
+      await manager.getRepository(Seat).save(seat);
+      await this.synchronizePermanentBlockMapState(
+        [seat],
+        seat.status === SeatStatus.LOCKED,
+        manager.getRepository(VenueSection),
+      );
+    });
+    await this.invalidateSeatMapCaches([seat]);
     return { status: seat.status, message: seat.status === SeatStatus.LOCKED ? 'Seat blocked permanently' : 'Seat unblocked' };
   }
 
@@ -2196,33 +2258,32 @@ export class OrdersService {
       }
     }
 
-    const updateQuery = this.seatRepo
-      .createQueryBuilder()
-      .update(Seat)
-      .where('id IN (:...seatIds)', { seatIds: uniqueSeatIds });
+    // A permanent organizer block has two representations: the inventory row
+    // and the saved venue-map override. Update both together so the customer
+    // map, organizer map, blocked count and invitation screen cannot drift.
+    const seatsToUpdate = blocked
+      ? seats
+      : seats.filter((seat) => seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt);
 
-    if (blocked) {
-      const result = await updateQuery
-        .set({
-          status: SeatStatus.LOCKED,
-          lockedBy: userId,
-          lockExpiresAt: null as any,
-        })
-        .execute();
-      return { updated: result.affected || 0, blocked };
+    if (seatsToUpdate.length === 0) return { updated: 0, blocked };
+
+    for (const seat of seatsToUpdate) {
+      seat.status = blocked ? SeatStatus.LOCKED : SeatStatus.AVAILABLE;
+      seat.lockedBy = blocked ? userId : null as any;
+      seat.lockExpiresAt = null as any;
     }
 
-    const result = await updateQuery
-      .set({
-        status: SeatStatus.AVAILABLE,
-        lockedBy: null as any,
-        lockExpiresAt: null as any,
-      })
-      .andWhere('status = :locked', { locked: SeatStatus.LOCKED })
-      .andWhere('lockExpiresAt IS NULL')
-      .execute();
+    await this.seatRepo.manager.transaction(async (manager) => {
+      await manager.getRepository(Seat).save(seatsToUpdate);
+      await this.synchronizePermanentBlockMapState(
+        seatsToUpdate,
+        blocked,
+        manager.getRepository(VenueSection),
+      );
+    });
+    await this.invalidateSeatMapCaches(seatsToUpdate);
 
-    return { updated: result.affected || 0, blocked };
+    return { updated: seatsToUpdate.length, blocked };
   }
 
   /**

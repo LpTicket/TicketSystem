@@ -40,6 +40,12 @@ type Props = {
   selectedSeats: ClientSeat[];
   onToggleSeat: (seat: ClientSeat) => void;
   onToggleSeats?: (seats: ClientSeat[]) => void;
+  /**
+   * Optional organizer-only action. When supplied, the map keeps its buyer
+   * gestures and rendering but reports the seats the organizer tapped instead
+   * of adding them to a purchase.
+   */
+  onManageSeats?: (seats: ClientSeat[], section: ClientVenueSection) => void;
   defaultViewX?: number;
   defaultViewY?: number;
   defaultViewZoom?: number;
@@ -360,7 +366,7 @@ const StaticGrid = memo(function StaticGrid({ width, height }: { width: number; 
 });
 
 // ─── Main ────────────────────────────────────────────────────────────────────
-export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleSeats, defaultViewX, defaultViewY, defaultViewZoom, maxTicketsPerTransaction = 10, onScrollLock }: Props) {
+export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleSeats, onManageSeats, defaultViewX, defaultViewY, defaultViewZoom, maxTicketsPerTransaction = 10, onScrollLock }: Props) {
   const { t } = useLanguage();
   const { width: screenW } = useWindowDimensions();
   const [viewportW, setViewportW] = useState(screenW);
@@ -697,6 +703,10 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
         });
 
         if (nearestSeat) {
+          if (onManageSeats) {
+            onManageSeats([nearestSeat], section);
+            return;
+          }
           const selected = isSelected(nearestSeat, selectedSeats);
           const statusInfo = seatStatusInfo(nearestSeat, nearestOverride, selected);
           showInfo({
@@ -713,6 +723,11 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
             if (allSelected) onToggleSeats(seats.filter((s) => isSelected(s, selectedSeats)));
             else onToggleSeats(seats.filter((s) => !isUnavailable(s, cfg[`seat-${s.seatNumber}`] || {})));
           }
+          return;
+        }
+
+        if (onManageSeats) {
+          onManageSeats(seats, section);
           return;
         }
 
@@ -769,6 +784,10 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
 
         const pickedSeat = nearestSeat as ClientSeat | null;
         if (pickedSeat) {
+          if (onManageSeats) {
+            onManageSeats([pickedSeat], section);
+            return;
+          }
           const key = `${pickedSeat.rowLabel || 'A'}-${pickedSeat.seatNumber}`;
           const ov = cfg[key] || {};
           const selected = isSelected(pickedSeat, selectedSeats);
