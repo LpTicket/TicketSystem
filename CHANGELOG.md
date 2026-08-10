@@ -1,5 +1,14 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-09 - Estado visible de asientos en mapa móvil del organizador
+
+### Corrección
+- El mapa móvil de organizador y administrador ya diferencia visualmente los asientos bloqueados (`B` naranja) de los vendidos (`S` gris), igual que la vista de operación web.
+- La vista del cliente no cambia: sus asientos no disponibles continúan sin revelar si fueron bloqueados o vendidos.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
 ## 2026-08-09 - Selección explícita en mapa móvil del organizador
 
 ### Corrección

@@ -210,6 +210,7 @@ export function OrganizerVenueMapMobile({ eventId, onScrollLock }: Props) {
         onToggleSeat={() => undefined}
         onManageSeats={selectionMode ? selectSeats : undefined}
         onScrollLock={onScrollLock}
+        showOrganizerSeatStatus
       />
     </View>
   );

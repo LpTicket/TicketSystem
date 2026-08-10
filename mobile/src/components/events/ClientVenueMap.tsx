@@ -51,6 +51,8 @@ type Props = {
   defaultViewZoom?: number;
   maxTicketsPerTransaction?: number;
   onScrollLock?: (locked: boolean) => void;
+  /** Only organizer/admin maps reveal whether unavailable seats are blocked or sold. */
+  showOrganizerSeatStatus?: boolean;
 };
 
 type ActiveInfo = {
@@ -87,16 +89,29 @@ function seatStatusInfo(seat: ClientSeat, override: any, selected: boolean) {
   if (s === 'locked' || s === 'reserved' || override?.reserved) return { label: 'No disponible', tone: 'reserved' as const };
   return { label: 'Disponible', tone: 'available' as const };
 }
+function organizerSeatStatus(seat: ClientSeat, override: any) {
+  const status = String(seat.status || 'available').toLowerCase();
+  if (status === 'sold') return 'sold' as const;
+  const hasActiveTemporaryHold = status === 'locked' && !!seat.lockExpiresAt && new Date(seat.lockExpiresAt).getTime() > Date.now();
+  if (!hasActiveTemporaryHold && (status === 'locked' || status === 'reserved' || !!override?.reserved)) return 'blocked' as const;
+  return null;
+}
 function isSelected(seat: ClientSeat, sel: ClientSeat[]) { return sel.some((s) => s.id === seat.id); }
-function seatBg(seat: ClientSeat, ov: any, color: string, selected: boolean) {
+function seatBg(seat: ClientSeat, ov: any, color: string, selected: boolean, showOrganizerSeatStatus = false) {
   if (selected) return '#f97316';
+  if (showOrganizerSeatStatus) {
+    const organizerStatus = organizerSeatStatus(seat, ov);
+    if (organizerStatus === 'sold') return '#94a3b8';
+    if (organizerStatus === 'blocked') return '#f97316';
+  }
   const s = String(seat.status || 'available').toLowerCase();
   if (s === 'locked' && seat.lockExpiresAt && new Date(seat.lockExpiresAt).getTime() > Date.now()) return '#facc15';
   if (isUnavailable(seat, ov)) return '#cbd5e1';
   return color || '#5667ff';
 }
-function seatBorder(seat: ClientSeat, ov: any, selected: boolean) {
+function seatBorder(seat: ClientSeat, ov: any, selected: boolean, showOrganizerSeatStatus = false) {
   if (selected) return '#ffffff';
+  if (showOrganizerSeatStatus && organizerSeatStatus(seat, ov)) return '#ffffff';
   const s = String(seat.status || 'available').toLowerCase();
   if (s === 'locked' && seat.lockExpiresAt && new Date(seat.lockExpiresAt).getTime() > Date.now()) return '#eab308';
   if (isUnavailable(seat, ov)) return '#94a3b8';
@@ -159,10 +174,25 @@ function getRectangularTableSeatPosition(index: number, count: number, useLegacy
 }
 
 // ─── Chair ──────────────────────────────────────────────────────────────────
-function Chair({ seat, section, override, sel, size, cx, cy, onToggle, onToggleMany, onInfo }: {
+function OrganizerSeatBadge({ seat, override, size, enabled }: { seat: ClientSeat; override: any; size: number; enabled?: boolean }) {
+  if (!enabled) return null;
+  const status = organizerSeatStatus(seat, override);
+  if (!status) return null;
+  const badgeSize = clamp(size * 0.64, 5, 11);
+  const fontSize = clamp(badgeSize * 0.62, 4, 7);
+  return (
+    <View pointerEvents="none" style={{ width: badgeSize, height: badgeSize, borderRadius: badgeSize / 2, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: status === 'sold' ? '#64748b' : '#ea580c', fontSize, lineHeight: fontSize, fontWeight: '900' }}>
+        {status === 'sold' ? 'S' : 'B'}
+      </Text>
+    </View>
+  );
+}
+
+function Chair({ seat, section, override, sel, size, cx, cy, onToggle, onToggleMany, onInfo, showOrganizerSeatStatus }: {
   seat: ClientSeat; section: ClientVenueSection; override: any;
   sel: ClientSeat[]; size: number; cx: number; cy: number;
-  onToggle: (s: ClientSeat) => void; onToggleMany?: (seats: ClientSeat[]) => void; onInfo: (i: ActiveInfo) => void;
+  onToggle: (s: ClientSeat) => void; onToggleMany?: (seats: ClientSeat[]) => void; onInfo: (i: ActiveInfo) => void; showOrganizerSeatStatus?: boolean;
 }) {
   const selected = isSelected(seat, sel);
   const unavail = isUnavailable(seat, override) && !selected;
@@ -175,10 +205,11 @@ function Chair({ seat, section, override, sel, size, cx, cy, onToggle, onToggleM
         position: 'absolute',
         left: cx - size / 2, top: cy - size / 2,
         width: size, height: size, borderRadius: size / 2,
-        backgroundColor: seatBg(seat, override, sectionColor(section), selected),
-        borderWidth: 0.8, borderColor: seatBorder(seat, override, selected),
+        backgroundColor: seatBg(seat, override, sectionColor(section), selected, showOrganizerSeatStatus),
+        borderWidth: 0.8, borderColor: seatBorder(seat, override, selected, showOrganizerSeatStatus),
+        alignItems: 'center', justifyContent: 'center',
         transform: [{ scale: selected ? 1.25 : 1 }],
-        opacity: unavail ? 0.45 : 1,
+        opacity: unavail && !showOrganizerSeatStatus ? 0.45 : 1,
         zIndex: 20,
       }}
       onPress={() => {
@@ -205,14 +236,16 @@ function Chair({ seat, section, override, sel, size, cx, cy, onToggle, onToggleM
           onToggle(seat);
         }
       }}
-    />
+    >
+      <OrganizerSeatBadge seat={seat} override={override} size={size} enabled={showOrganizerSeatStatus && !selected} />
+    </TouchableOpacity>
   );
 }
 
 // ─── TableSection ────────────────────────────────────────────────────────────
-function TableSection({ section, sel, onToggle, onToggleMany, onInfo }: {
+function TableSection({ section, sel, onToggle, onToggleMany, onInfo, showOrganizerSeatStatus }: {
   section: ClientVenueSection; sel: ClientSeat[];
-  onToggle: (s: ClientSeat) => void; onToggleMany?: (seats: ClientSeat[]) => void; onInfo: (i: ActiveInfo) => void;
+  onToggle: (s: ClientSeat) => void; onToggleMany?: (seats: ClientSeat[]) => void; onInfo: (i: ActiveInfo) => void; showOrganizerSeatStatus?: boolean;
 }) {
   const seats = section.seats || [];
   const cfg = parseCfg(section.seatsConfig);
@@ -260,7 +293,7 @@ function TableSection({ section, sel, onToggle, onToggleMany, onInfo }: {
             return <Chair key={seat.id} seat={seat} section={section} override={ov} sel={sel} size={chairSize}
               cx={w / 2 + w * 0.52 * Math.sin(rad) + (ov.xOffset || 0)}
               cy={h / 2 - h * 0.52 * Math.cos(rad) + (ov.yOffset || 0)}
-              onToggle={onToggle} onToggleMany={onToggleMany} onInfo={onInfo} />;
+              onToggle={onToggle} onToggleMany={onToggleMany} onInfo={onInfo} showOrganizerSeatStatus={showOrganizerSeatStatus} />;
           })
         : (() => {
             const count = seats.length;
@@ -270,7 +303,7 @@ function TableSection({ section, sel, onToggle, onToggleMany, onInfo }: {
               const { x: xPct, y: yPct } = getRectangularTableSeatPosition(i, count, useLegacyLayout);
               return <Chair key={seat.id} seat={seat} section={section} override={ov} sel={sel} size={chairSize}
                 cx={w * xPct / 100 + (ov.xOffset || 0)} cy={h * yPct / 100 + (ov.yOffset || 0)}
-                onToggle={onToggle} onToggleMany={onToggleMany} onInfo={onInfo} />;
+              onToggle={onToggle} onToggleMany={onToggleMany} onInfo={onInfo} showOrganizerSeatStatus={showOrganizerSeatStatus} />;
             });
           })()
       }
@@ -279,9 +312,9 @@ function TableSection({ section, sel, onToggle, onToggleMany, onInfo }: {
 }
 
 // ─── RowSection ──────────────────────────────────────────────────────────────
-function RowSection({ section, sel, onToggle, onInfo }: {
+function RowSection({ section, sel, onToggle, onInfo, showOrganizerSeatStatus }: {
   section: ClientVenueSection; sel: ClientSeat[];
-  onToggle: (s: ClientSeat) => void; onInfo: (i: ActiveInfo) => void;
+  onToggle: (s: ClientSeat) => void; onInfo: (i: ActiveInfo) => void; showOrganizerSeatStatus?: boolean;
 }) {
   const seats = section.seats || [];
   const cfg = parseCfg(section.seatsConfig);
@@ -317,10 +350,11 @@ function RowSection({ section, sel, onToggle, onInfo }: {
               position: 'absolute',
               left: x - size / 2 + (ov.xOffset || 0), top: y - size / 2 + (ov.yOffset || 0),
               width: size, height: size, borderRadius: size / 2,
-              backgroundColor: seatBg(seat, ov, sectionColor(section), selected),
-              borderWidth: 0.8, borderColor: seatBorder(seat, ov, selected),
+              backgroundColor: seatBg(seat, ov, sectionColor(section), selected, showOrganizerSeatStatus),
+              borderWidth: 0.8, borderColor: seatBorder(seat, ov, selected, showOrganizerSeatStatus),
+              alignItems: 'center', justifyContent: 'center',
               transform: [{ scale: selected ? 1.25 : 1 }],
-              opacity: unavail ? 0.45 : 1, zIndex: 20,
+              opacity: unavail && !showOrganizerSeatStatus ? 0.45 : 1, zIndex: 20,
             }}
             onPress={() => {
               if (Platform.OS === 'web') return;
@@ -333,7 +367,9 @@ function RowSection({ section, sel, onToggle, onInfo }: {
               if (unavail) return;
               onToggle(seat);
             }}
-          />
+          >
+            <OrganizerSeatBadge seat={seat} override={ov} size={size} enabled={showOrganizerSeatStatus && !selected} />
+          </TouchableOpacity>
         );
       })}
     </View>
@@ -366,7 +402,7 @@ const StaticGrid = memo(function StaticGrid({ width, height }: { width: number; 
 });
 
 // ─── Main ────────────────────────────────────────────────────────────────────
-export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleSeats, onManageSeats, defaultViewX, defaultViewY, defaultViewZoom, maxTicketsPerTransaction = 10, onScrollLock }: Props) {
+export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSeats, onToggleSeat, onToggleSeats, onManageSeats, defaultViewX, defaultViewY, defaultViewZoom, maxTicketsPerTransaction = 10, onScrollLock, showOrganizerSeatStatus }: Props) {
   const { t } = useLanguage();
   const { width: screenW } = useWindowDimensions();
   const [viewportW, setViewportW] = useState(screenW);
@@ -938,11 +974,11 @@ export const ClientVenueMap = memo(function ClientVenueMap({ seatMap, selectedSe
                 {kind === 'standing' && <Text style={[st.standingLabel, { fontSize: sectionLabelFontSize }]} numberOfLines={1}>{section.name}</Text>}
                 {kind === 'table' && (
                   <TableSection section={section} sel={selectedSeats} onToggle={onToggleSeat} onToggleMany={onToggleSeats}
-                    onInfo={(info) => { setActiveSection(null); showInfo(info); }} />
+                    onInfo={(info) => { setActiveSection(null); showInfo(info); }} showOrganizerSeatStatus={showOrganizerSeatStatus} />
                 )}
                 {kind === 'seats' && (
                   <RowSection section={section} sel={selectedSeats} onToggle={onToggleSeat}
-                    onInfo={(info) => { setActiveSection(null); showInfo(info); }} />
+                    onInfo={(info) => { setActiveSection(null); showInfo(info); }} showOrganizerSeatStatus={showOrganizerSeatStatus} />
                 )}
               </>
             );
