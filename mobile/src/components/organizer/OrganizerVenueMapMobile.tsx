@@ -30,6 +30,15 @@ function isSold(seat: ClientSeat) {
   return String(seat.status || '').toLowerCase() === 'sold';
 }
 
+function isStandingSection(section: ClientVenueSection) {
+  return String(section.sectionType || section.type || '').toLowerCase() === 'standing';
+}
+
+function isNonSellableSection(section: ClientVenueSection) {
+  const type = String(section.sectionType || section.type || '').toLowerCase();
+  return type === 'stage' || type === 'decor';
+}
+
 /**
  * The organizer's mobile map intentionally reuses the customer map's exact
  * viewport and responder system.  It never saves section geometry: its only
@@ -76,10 +85,22 @@ export function OrganizerVenueMapMobile({ eventId, onScrollLock }: Props) {
 
   const stats = useMemo(() => {
     const seats = sections.flatMap((section) => section.seats || []);
-    const sold = seats.filter(isSold).length;
+    // Keep the organizer metrics aligned with the web editor. A standing/GA
+    // area has a capacity but does not create individual seat records, so it
+    // must be counted from its configured capacity rather than `seats.length`.
+    const capacity = sections.reduce((total, section) => {
+      if (isNonSellableSection(section)) return total;
+      if (isStandingSection(section)) return total + Math.max(0, Number(section.capacity) || 0);
+      return total + (section.seats || []).length;
+    }, 0);
+    const sold = sections.reduce((total, section) => {
+      const seatedSold = (section.seats || []).filter(isSold).length;
+      const standingSold = isStandingSection(section) ? Math.max(0, Number((section as any).soldTickets) || 0) : 0;
+      return total + seatedSold + standingSold;
+    }, 0);
     const blocked = seats.filter(isPermanentlyBlocked).length;
-    const available = Math.max(0, seats.length - sold - blocked - seats.filter(isTemporaryHold).length);
-    return { capacity: seats.length, available, sold, blocked };
+    const available = Math.max(0, capacity - sold - blocked - seats.filter(isTemporaryHold).length);
+    return { capacity, available, sold, blocked };
   }, [sections]);
 
   const selectSeats = useCallback((seats: ClientSeat[]) => {

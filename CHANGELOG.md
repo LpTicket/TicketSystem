@@ -1,5 +1,14 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-09 - Capacidad consistente entre web y mapa móvil
+
+### Corrección
+- Las métricas del mapa móvil de organizador y administrador ahora suman la capacidad de áreas generales/standing aunque no tengan sillas individuales.
+- La capacidad, disponibilidad y ventas de estas áreas usan la misma regla que el editor web; no cambia ningún asiento, bloqueo, venta ni dato de evento.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
 ## 2026-08-09 - Estado visible de asientos en mapa móvil del organizador
 
 ### Corrección
