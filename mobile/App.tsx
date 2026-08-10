@@ -8,6 +8,7 @@ import { Animated, AppState, Easing, Linking, Modal, SafeAreaView, ScrollView, S
 // filter for it lives in index.ts (must run before expo wraps console.error).
 LogBox.ignoreLogs(["ScrollView doesn't take rejection well"]);
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -984,10 +985,12 @@ export default function App() {
   const [splashDone, setSplashDone] = useState(false);
 
   return (
-    <LanguageProvider>
-      {!splashDone && <SplashVideo onFinish={() => setSplashDone(true)} />}
-      <AppContent />
-    </LanguageProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <LanguageProvider>
+        {!splashDone && <SplashVideo onFinish={() => setSplashDone(true)} />}
+        <AppContent />
+      </LanguageProvider>
+    </GestureHandlerRootView>
   );
 }
 

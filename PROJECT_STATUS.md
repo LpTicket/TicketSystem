@@ -28,7 +28,7 @@ El backend es la fuente de verdad para eventos, mapas, asientos, bloqueos, órde
 | Creación y edición de eventos | IMPLEMENTADO | Panel organizador, API y entidades presentes. |
 | Categorías | IMPLEMENTADO | Administración y consumo público presentes. |
 | Banners de inicio | IMPLEMENTADO | Marketing administra banners de web y móvil. |
-| Mapas, secciones y asientos | IMPLEMENTADO | Editor web/móvil, entidades y endpoints presentes; el editor web permite seleccionar varias secciones y aplicar un precio al grupo o a una seleccionada antes de guardar. Las mesas rectangulares distribuyen automáticamente las sillas a ambos lados largos y ajustan su altura al añadir o retirar sillas, sin reemplazar ajustes manuales existentes. |
+| Mapas, secciones y asientos | IMPLEMENTADO, NO PROBADO | Editor web/móvil, entidades y endpoints presentes; el editor web permite seleccionar varias secciones y aplicar un precio al grupo o a una seleccionada antes de guardar. Las mesas rectangulares distribuyen automáticamente las sillas a ambos lados largos y ajustan su altura al añadir o retirar sillas, sin reemplazar ajustes manuales existentes. El mapa móvil ahora usa un controlador nativo de gestos para impedir que el ScrollView padre capture un toque iniciado dentro del canvas; requiere prueba física en una compilación nueva. |
 | Bloqueo y desbloqueo | IMPLEMENTADO, NO PROBADO | Endpoint e invalidación de caché presentes; validar móvil-web-cliente en cada cambio sensible. |
 | Compra de tickets | IMPLEMENTADO | Stripe Checkout y emisión de tickets presentes. |
 | Tickets QR y validación | IMPLEMENTADO | QR, escaneo, asistentes y estadísticas presentes. |

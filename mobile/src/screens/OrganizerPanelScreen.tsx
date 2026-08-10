@@ -238,11 +238,13 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
   const handlePanelTouchCapture = useCallback((e: any) => {
     if (isTouchInsideMapCanvas(e)) {
       setMapScrollLock(true);
-      return false;
     }
-    if (active === 'map') setMapScrollLock(false);
     return false;
-  }, [active, isTouchInsideMapCanvas, setMapScrollLock]);
+  }, [isTouchInsideMapCanvas, setMapScrollLock]);
+
+  const handleMapCanvasFrame = useCallback((frame: { x: number; y: number; width: number; height: number }) => {
+    mapCanvasFrameRef.current = frame;
+  }, []);
 
   // Seed state from adminEvent if provided (admin viewing an organizer's event)
   const [eventTitle, setEventTitle] = useState(adminEvent?.title || 'Noche de (des)amor');
@@ -620,7 +622,13 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
   };
 
   return (
-    <View style={styles.root}>
+    <View
+      style={styles.root}
+      // This sits above the native ScrollView in the responder tree. Locking
+      // here happens on the first physical touch, before iOS has a chance to
+      // move the page by even a few pixels from a canvas-originated gesture.
+      onTouchStart={handlePanelTouchCapture}
+    >
       {/* Section tabs only in event view — global sections live in the bottom bar. */}
       {selectedEvent && (
       <View style={styles.tabsShell}>
@@ -726,9 +734,15 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         scrollEnabled={panelScrollEnabled}
-        disableScrollViewPanResponder={!panelScrollEnabled}
+        // iOS UIScrollView can otherwise cancel a child canvas touch and turn it
+        // into a vertical page drag before the JS scroll-lock state is applied.
+        // Outside the canvas the page remains scrollable as normal.
+        canCancelContentTouches={active !== 'map'}
+        // Do not let ScrollView's JS pan responder race the canvas on the first
+        // frame. The map has its own responder; outside the canvas, native page
+        // scrolling remains available.
+        disableScrollViewPanResponder={active === 'map' || !panelScrollEnabled}
         onStartShouldSetResponderCapture={handlePanelTouchCapture}
-        onMoveShouldSetResponderCapture={handlePanelTouchCapture}
         contentContainerStyle={[styles.content, !selectedEvent && { paddingTop: 44 }]}
       >
         {selectedEvent ? (
@@ -819,7 +833,7 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
 
         {active === 'overview' && <OrganizerOverviewMobile sections={eventSections} />}
 
-        {active === 'map' && <VenueMapEditor eventId={selectedEventId} onScrollLock={setMapScrollLock} onCanvasFrame={(frame) => { mapCanvasFrameRef.current = frame; }} seatBuyers={seatBuyers} />}
+        {active === 'map' && <VenueMapEditor eventId={selectedEventId} onScrollLock={setMapScrollLock} onCanvasFrame={handleMapCanvasFrame} seatBuyers={seatBuyers} />}
 
         {active === 'attendees' && (
           <OrganizerAttendeesMobile

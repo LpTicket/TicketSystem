@@ -1,5 +1,6 @@
 import { ActivityIndicator, Alert, Animated, Dimensions, Easing, GestureResponderEvent, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { NativeViewGestureHandler } from 'react-native-gesture-handler';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -253,6 +254,9 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   // Edit mode (off = view only). Like the web, nothing moves/edits until the
   // pencil is tapped.
   const [editMode, setEditMode] = useState(false);
+  // Selecting a table to block must not accidentally move the venue layout.
+  // Position changes require this separate, deliberate mode.
+  const [layoutMoveMode, setLayoutMoveMode] = useState(false);
   // The camera view (pan + zoom) the buyer sees by default, set via "View".
   const [defaultView, setDefaultView] = useState<{ x: number; y: number; zoom: number } | null>(null);
   // Saved venue templates (reusable layouts).
@@ -275,8 +279,10 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   // Animated values move the canvas on the native side (no JS re-render per
   // frame). viewRef is the single source of truth for the pan/zoom math.
   const animZoom = useRef(new Animated.Value(0.5)).current;
-  const animPanX = useRef(new Animated.Value(0)).current;
-  const animPanY = useRef(new Animated.Value(0)).current;
+  // Keep the pan as one native value. Updating X and Y independently on every
+  // gesture frame creates two bridge updates and can make a dense venue feel
+  // delayed while it is being moved.
+  const animPan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const halfCanvasW = useRef(new Animated.Value(CANVAS_WIDTH / 2)).current;
   const halfCanvasH = useRef(new Animated.Value(CANVAS_HEIGHT / 2)).current;
   const negOne = useRef(new Animated.Value(-1)).current;
@@ -319,13 +325,12 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   const syncAnimated = useCallback((z: number, p: { x: number; y: number }) => {
     const safePan = clampPan(z, p, boundsRef.current);
     animZoom.setValue(z);
-    animPanX.setValue(safePan.x);
-    animPanY.setValue(safePan.y);
+    animPan.setValue(safePan);
     viewRef.current = { zoom: z, pan: safePan };
     // NOTE: no setState here — this runs on every gesture frame. Updating React
     // state per frame re-renders all items/grid and causes flicker/warp on real
     // devices. The % label is refreshed on gesture end / button taps instead.
-  }, [animZoom, animPanX, animPanY, clampPan]);
+  }, [animZoom, animPan, clampPan]);
 
   const animateTo = useCallback((newZ: number, newP: { x: number; y: number }, duration = 200) => {
     if (animatingRef.current) return;
@@ -334,11 +339,10 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     viewRef.current = { zoom: newZ, pan: safePan };
     setZoomPct(Math.round(newZ * 100));
     Animated.parallel([
-      Animated.timing(animZoom, { toValue: newZ, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-      Animated.timing(animPanX, { toValue: safePan.x, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
-      Animated.timing(animPanY, { toValue: safePan.y, duration, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(animZoom, { toValue: newZ, duration, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(animPan, { toValue: safePan, duration, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]).start(() => { animatingRef.current = false; });
-  }, [animZoom, animPanX, animPanY, clampPan]);
+  }, [animZoom, animPan, clampPan]);
 
   // Compute the fit pan+zoom for the current items and apply it.
   const fitToContent = useCallback((loadedItems: VenueItem[]) => {
@@ -390,24 +394,15 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   const reportCanvasFrame = useCallback(() => {
     requestAnimationFrame(() => {
       canvasVpRef.current?.measureInWindow?.((x: number, y: number, width: number, height: number) => {
+        // Use one stable coordinate system for every touch. `locationX/Y` can be
+        // relative to a different nested native view as fingers move between
+        // chairs and the canvas, which makes a pinch jump or shake.
+        vpOffsetXRef.current = x;
+        vpOffsetYRef.current = y;
         onCanvasFrame?.({ x, y, width, height });
       });
     });
   }, [onCanvasFrame]);
-
-  const releaseCanvasScrollIfDone = (e: any) => {
-    const touches = e?.nativeEvent?.touches || [];
-    if (touches.length === 0) onScrollLock?.(false);
-  };
-
-  const rememberCanvasStart = (e: any) => {
-    const touches = e.nativeEvent.touches || [];
-    const t = touches[0];
-    responderStart.current = { x: t?.pageX || 0, y: t?.pageY || 0 };
-    itemInteractionRef.current = false;
-    lockCanvasScroll();
-    return false;
-  };
 
   const lockCanvasStartCapture = (e: any) => {
     const touches = e.nativeEvent.touches || [];
@@ -418,9 +413,24 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     return false;
   };
 
-  const lockCanvasMoveCapture = () => {
+  // The viewport must win the responder race before the surrounding ScrollView
+  // begins its native drag. In Edit mode items can still become responders;
+  // outside Edit this is a total map-only gesture surface.
+  const captureViewportGesture = (e: any) => {
+    lockCanvasStartCapture(e);
+    return !editMode;
+  };
+
+  const lockCanvasMoveCapture = (e: any) => {
     lockCanvasScroll();
-    return false;
+    // In Edit mode an item/seat that was touched first keeps its own responder
+    // so selection and the explicit move mode still work. Every other move that
+    // started inside the viewport belongs to the map immediately; otherwise the
+    // surrounding ScrollView can win the first vertical drag before its disabled
+    // state is applied.
+    if (dragRef.current || seatTouchRef.current || touchedItemRef.current) return false;
+    const touches = e?.nativeEvent?.touches || [];
+    return touches.length > 0;
   };
 
   // Any finger inside the canvas belongs to the canvas. This prevents the parent
@@ -441,12 +451,10 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   const beginPinch = (touches: any[]) => {
     if (touches.length >= 2) {
       const t1 = touches[0], t2 = touches[1];
-      // Prefer locationX/Y if available (native, or move events on web responder).
-      // Fall back to pageX/Y minus viewport offset (web touchStart where locationX is undefined).
-      const x1 = t1.locationX !== undefined ? t1.locationX : (t1.pageX - vpOffsetXRef.current);
-      const x2 = t2.locationX !== undefined ? t2.locationX : (t2.pageX - vpOffsetXRef.current);
-      const y1 = t1.locationY !== undefined ? t1.locationY : (t1.pageY - vpOffsetYRef.current);
-      const y2 = t2.locationY !== undefined ? t2.locationY : (t2.pageY - vpOffsetYRef.current);
+      const x1 = t1.pageX - vpOffsetXRef.current;
+      const x2 = t2.pageX - vpOffsetXRef.current;
+      const y1 = t1.pageY - vpOffsetYRef.current;
+      const y2 = t2.pageY - vpOffsetYRef.current;
       const cx = (x1 + x2) / 2;
       const cy = (y1 + y2) / 2;
       touchRef.current = { x: 0, y: 0, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: true, pinchDist: Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY), pinchZoom: viewRef.current.zoom, pinchCx: cx, pinchCy: cy, moved: false };
@@ -455,24 +463,13 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   const beginPan = (touches: any[]) => {
     const t = touches[0];
     if (!t) return;
-    // Use viewport-local coords. If locationX is available (move event on responder),
-    // use it; otherwise use pageX minus viewport offset.
-    const x = t.locationX !== undefined ? t.locationX : (t.pageX - vpOffsetXRef.current);
-    const y = t.locationY !== undefined ? t.locationY : (t.pageY - vpOffsetYRef.current);
+    const x = t.pageX - vpOffsetXRef.current;
+    const y = t.pageY - vpOffsetYRef.current;
     touchRef.current = { x, y, panX: viewRef.current.pan.x, panY: viewRef.current.pan.y, isPinch: false, pinchDist: 0, pinchZoom: viewRef.current.zoom, pinchCx: 0, pinchCy: 0, moved: false };
   };
   const onCanvasTouchStart = (e: any) => {
     lockCanvasScroll();
     const touches = e.nativeEvent.touches || [];
-    // Measure viewport position on first touch (all platforms, cached for multi-touch).
-    if (vpOffsetXRef.current === 0 && vpOffsetYRef.current === 0) {
-      const elem = canvasVpRef.current;
-      if (elem && elem.getBoundingClientRect) {
-        const rect = elem.getBoundingClientRect();
-        vpOffsetXRef.current = rect.left;
-        vpOffsetYRef.current = rect.top;
-      }
-    }
     // Two fingers = pinch. A pinch is never an item/chair drag, so clear those
     // flags and ALWAYS handle it here (also cancels any running animation so a
     // fresh pinch doesn't fight a leftover animateTo → no jump/teleport).
@@ -494,6 +491,18 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
     responderStart.current = { x: t0?.pageX || 0, y: t0?.pageY || 0 };
     if (!touchRef.current.isPinch) beginPan(touches);
   };
+  // React Native delivers this as soon as the second finger lands. Starting the
+  // pinch here removes the delayed first frame that previously felt like lag.
+  const onCanvasResponderStart = (e: any) => {
+    const touches = e.nativeEvent.touches || [];
+    if (touches.length < 2 || touchRef.current.isPinch) return;
+    animatingRef.current = false;
+    touchedItemRef.current = false;
+    seatTouchRef.current = false;
+    setDragSafe(null);
+    lockCanvasScroll();
+    beginPinch(touches);
+  };
   const onCanvasTouchMove = (e: any) => {
     lockCanvasScroll();
     const touches = e.nativeEvent.touches || [];
@@ -508,25 +517,13 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
       const t1 = touches[0], t2 = touches[1];
       const dist = Math.hypot(t1.pageX - t2.pageX, t1.pageY - t2.pageY);
       if (!touchRef.current.pinchDist) return;
-      // If center was deferred (-1), calculate it now using locationX/Y (available in move events).
-      if (touchRef.current.pinchCx === -1) {
-        const x1 = t1.locationX !== undefined ? t1.locationX : (t1.pageX - vpOffsetXRef.current);
-        const x2 = t2.locationX !== undefined ? t2.locationX : (t2.pageX - vpOffsetXRef.current);
-        const y1 = t1.locationY !== undefined ? t1.locationY : (t1.pageY - vpOffsetYRef.current);
-        const y2 = t2.locationY !== undefined ? t2.locationY : (t2.pageY - vpOffsetYRef.current);
-        const cx = (x1 + x2) / 2;
-        const cy = (y1 + y2) / 2;
-        touchRef.current.pinchCx = cx;
-        touchRef.current.pinchCy = cy;
-        return; // skip this frame, anchor on next move
-      }
-      const x1 = t1.locationX !== undefined ? t1.locationX : (t1.pageX - vpOffsetXRef.current);
-      const x2 = t2.locationX !== undefined ? t2.locationX : (t2.pageX - vpOffsetXRef.current);
-      const y1 = t1.locationY !== undefined ? t1.locationY : (t1.pageY - vpOffsetYRef.current);
-      const y2 = t2.locationY !== undefined ? t2.locationY : (t2.pageY - vpOffsetYRef.current);
+      const x1 = t1.pageX - vpOffsetXRef.current;
+      const x2 = t2.pageX - vpOffsetXRef.current;
+      const y1 = t1.pageY - vpOffsetYRef.current;
+      const y2 = t2.pageY - vpOffsetYRef.current;
       const cx = (x1 + x2) / 2;
       const cy = (y1 + y2) / 2;
-      const newZ = clamp(touchRef.current.pinchZoom * Math.pow(dist / touchRef.current.pinchDist, 1.18), fitRef.current.zoom, MAX_ZOOM);
+      const newZ = clamp(touchRef.current.pinchZoom * (dist / touchRef.current.pinchDist), fitRef.current.zoom, MAX_ZOOM);
       const ratio = newZ / touchRef.current.pinchZoom;
       const newPan = { x: cx - (touchRef.current.pinchCx - touchRef.current.panX) * ratio, y: cy - (touchRef.current.pinchCy - touchRef.current.panY) * ratio };
       syncAnimated(newZ, newPan);
@@ -536,8 +533,8 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
       beginPan(touches);
     } else if (!touchRef.current.isPinch && touches.length === 1) {
       const t = touches[0];
-      const x = t.locationX !== undefined ? t.locationX : (t.pageX - vpOffsetXRef.current);
-      const y = t.locationY !== undefined ? t.locationY : (t.pageY - vpOffsetYRef.current);
+      const x = t.pageX - vpOffsetXRef.current;
+      const y = t.pageY - vpOffsetYRef.current;
       const dx = x - touchRef.current.x;
       const dy = y - touchRef.current.y;
       syncAnimated(viewRef.current.zoom, { x: touchRef.current.panX + dx, y: touchRef.current.panY + dy });
@@ -583,8 +580,8 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
   };
 
   // Canvas transform graph (stable nodes — built once).
-  const canvasTranslateX = useRef(Animated.add(animPanX, Animated.multiply(halfCanvasW, Animated.add(negOne, animZoom)))).current;
-  const canvasTranslateY = useRef(Animated.add(animPanY, Animated.multiply(halfCanvasH, Animated.add(negOne, animZoom)))).current;
+  const canvasTranslateX = useRef(Animated.add(animPan.x, Animated.multiply(halfCanvasW, Animated.add(negOne, animZoom)))).current;
+  const canvasTranslateY = useRef(Animated.add(animPan.y, Animated.multiply(halfCanvasH, Animated.add(negOne, animZoom)))).current;
 
   // Load the persisted seat map for the selected event.
   useEffect(() => {
@@ -1093,10 +1090,18 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
         </View>
       </View>
 
-      {/* Row A: actions (Edit, Set View, Templates) + zoom on the right. */}
+      {/* Row A: map navigation. Editing tools stay separate below. */}
       <View style={styles.toolbar}>
         <TouchableOpacity
-          onPress={() => { setEditMode((m) => { if (m) { setSelectedSeat(null); } return !m; }); }}
+          onPress={() => {
+            setEditMode((wasEditing) => {
+              if (wasEditing) {
+                setSelectedSeat(null);
+                setLayoutMoveMode(false);
+              }
+              return !wasEditing;
+            });
+          }}
           style={[styles.editToggle, editMode && styles.editToggleActive]}
         >
           <Ionicons name="pencil" size={14} color={editMode ? '#FFFFFF' : '#fb923c'} />
@@ -1104,6 +1109,18 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
             {editMode ? t('Editando', 'Editing') : t('Editar', 'Edit')}
           </Text>
         </TouchableOpacity>
+
+        {editMode && (
+          <TouchableOpacity
+            onPress={() => setLayoutMoveMode((enabled) => !enabled)}
+            style={[styles.editToggle, layoutMoveMode && styles.editToggleActive]}
+          >
+            <Ionicons name="move-outline" size={14} color={layoutMoveMode ? '#FFFFFF' : '#fb923c'} />
+            <Text style={[styles.editToggleText, layoutMoveMode && styles.editToggleTextActive]}>
+              {layoutMoveMode ? t('Moviendo', 'Moving') : t('Mover', 'Move')}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           onPress={() => {
@@ -1117,21 +1134,26 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
           <Text style={styles.viewBtnText}>{t('Vista', 'View')}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => { loadTemplates(); setTemplatesOpen(true); }} style={styles.tmplBtn}>
-          <Ionicons name="albums-outline" size={16} color="#fb923c" />
-          <Text style={styles.tmplBtnText}>{t('Plantillas', 'Templates')}</Text>
-        </TouchableOpacity>
       </View>
 
-      {/* Row B: add-tools, only in edit mode. SVG icons mirror the web editor. */}
+      {/* Row B: editing tools only. Templates are intentionally here, not beside
+          navigation controls, so the view stays clean until Edit is active. */}
       {editMode && (
-        <View style={styles.toolsRow}>
-          <Tool kind="table" label={t('Mesa', 'Table')} onPress={() => addItem('table')} />
-          <Tool kind="area" label={t('Área', 'Area')} onPress={() => addItem('area')} />
-          <Tool kind="bar" label={t('Barra', 'Bar')} onPress={() => addItem('bar')} />
-          <Tool kind="stage" label={t('Escenario', 'Stage')} onPress={() => addItem('stage')} />
-          <Tool kind="seat" label={t('Asiento', 'Seat')} onPress={() => addItem('seat')} />
-        </View>
+        <>
+          <View style={styles.toolsRow}>
+            <Tool kind="table" label={t('Mesa', 'Table')} onPress={() => addItem('table')} />
+            <Tool kind="area" label={t('Área', 'Area')} onPress={() => addItem('area')} />
+            <Tool kind="bar" label={t('Barra', 'Bar')} onPress={() => addItem('bar')} />
+            <Tool kind="stage" label={t('Escenario', 'Stage')} onPress={() => addItem('stage')} />
+            <Tool kind="seat" label={t('Asiento', 'Seat')} onPress={() => addItem('seat')} />
+          </View>
+          <View style={styles.editTemplatesRow}>
+            <TouchableOpacity onPress={() => { loadTemplates(); setTemplatesOpen(true); }} style={styles.tmplBtn}>
+              <Ionicons name="albums-outline" size={16} color="#fb923c" />
+              <Text style={styles.tmplBtnText}>{t('Plantillas', 'Templates')}</Text>
+            </TouchableOpacity>
+          </View>
+        </>
       )}
 
       <View style={styles.workbench}>
@@ -1158,17 +1180,20 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
               visible area — including outside the content — not only from an
               empty spot on the moving canvas. Items still grab their own touches
               (in edit mode), so dragging an item doesn't also pan. */
+          <NativeViewGestureHandler disallowInterruption>
           <View
             ref={canvasVpRef}
             // touchAction:'none' (web only) stops the browser from scrolling/zooming
             // the page while dragging inside the canvas. Ignored on native.
             style={[styles.canvasViewport, { touchAction: 'none' } as any]}
-            onStartShouldSetResponderCapture={lockCanvasStartCapture}
+            onStartShouldSetResponderCapture={captureViewportGesture}
             onMoveShouldSetResponderCapture={lockCanvasMoveCapture}
-            onTouchStart={lockCanvasScroll}
-            onTouchMove={lockCanvasScroll}
-            onTouchEnd={releaseCanvasScrollIfDone}
-            onTouchCancel={releaseCanvasScrollIfDone}
+            onResponderTerminationRequest={() => false}
+            onResponderGrant={onCanvasTouchStart}
+            onResponderStart={onCanvasResponderStart}
+            onResponderMove={onCanvasTouchMove}
+            onResponderRelease={onCanvasTouchEnd}
+            onResponderTerminate={onCanvasTouchEnd}
             onLayout={(e) => {
               const nextW = e.nativeEvent.layout.width;
               if (nextW > 0 && Math.abs(nextW - vpW) > 1) setVpW(nextW);
@@ -1180,16 +1205,13 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
                 are relative to the viewport → pinch zooms to the right point. */}
             <View
               style={StyleSheet.absoluteFill}
-              onStartShouldSetResponderCapture={rememberCanvasStart}
-              onMoveShouldSetResponderCapture={shouldCapturePan}
-              onStartShouldSetResponder={() => false}
-              onMoveShouldSetResponder={shouldCapturePan}
+              // In Edit mode, an empty part of the map still owns the touch so
+              // the surrounding screen never starts scrolling from the canvas.
+              onStartShouldSetResponder={() => editMode}
+              onMoveShouldSetResponder={(e) => editMode ? shouldCapturePan(e) : false}
               onResponderTerminationRequest={() => false}
-              onTouchStart={onCanvasTouchStart}
-              onTouchMove={onCanvasTouchMove}
-              onTouchEnd={onCanvasTouchEnd}
-              onTouchCancel={onCanvasTouchEnd}
               onResponderGrant={onCanvasTouchStart}
+              onResponderStart={onCanvasResponderStart}
               onResponderMove={onCanvasTouchMove}
               onResponderRelease={onCanvasTouchEnd}
               onResponderTerminate={onCanvasTouchEnd}
@@ -1209,6 +1231,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
                     item={item}
                     isSelected={isSelected}
                     editMode={editMode}
+                    allowMove={layoutMoveMode}
                     zoomRef={viewRef}
                     touchedItemRef={touchedItemRef}
                     itemInteractionRef={itemInteractionRef}
@@ -1240,7 +1263,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
                     ]}
                   >
                     {(item.type === 'table' || item.type === 'seat') && (
-                      <SeatDots item={item} selectedSeat={selectedSeat} selectedItemId={selectedId} editMode={editMode} zoomRef={viewRef} seatTouchRef={seatTouchRef} itemInteractionRef={itemInteractionRef} onScrollLock={onScrollLock} onSeatPress={toggleSeat} onSeatDrag={dragSeat} />
+                      <SeatDots item={item} selectedSeat={selectedSeat} selectedItemId={selectedId} editMode={editMode} allowMove={layoutMoveMode} zoomRef={viewRef} seatTouchRef={seatTouchRef} itemInteractionRef={itemInteractionRef} onScrollLock={onScrollLock} onSeatPress={toggleSeat} onSeatDrag={dragSeat} />
                     )}
 
                     <Text
@@ -1308,6 +1331,7 @@ export function VenueMapEditor({ eventId, onScrollLock, onCanvasFrame, seatBuyer
               );
             })()}
           </View>
+          </NativeViewGestureHandler>
         )}
       </View>
 
@@ -1522,8 +1546,8 @@ function shapeStyle(item: VenueItem) {
 // An item (table/area/bar/stage). It owns touches only while Edit is active.
 // In view mode, every touch belongs to the canvas so the organizer can pan and
 // pinch from anywhere, including directly over a table.
-function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, itemInteractionRef, onSelect, onShowInfo, onDragMove, onDragEnd, onScrollLock, style, children }: {
-  item: VenueItem; isSelected: boolean; editMode: boolean;
+function ItemView({ item, isSelected, editMode, allowMove, zoomRef, touchedItemRef, itemInteractionRef, onSelect, onShowInfo, onDragMove, onDragEnd, onScrollLock, style, children }: {
+  item: VenueItem; isSelected: boolean; editMode: boolean; allowMove: boolean;
   zoomRef: React.MutableRefObject<{ zoom: number; pan: { x: number; y: number } }>;
   touchedItemRef: React.MutableRefObject<boolean>;
   itemInteractionRef: React.MutableRefObject<boolean>;
@@ -1562,7 +1586,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, itemInt
         start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, ix: item.x, iy: item.y, fx: item.x, fy: item.y, moved: false };
       }}
       onResponderMove={(e) => {
-        if (!editMode) return;
+        if (!editMode || !allowMove) return;
         const z = zoomRef.current.zoom || 1;
         const dx = (e.nativeEvent.pageX - start.current.x) / z;
         const dy = (e.nativeEvent.pageY - start.current.y) / z;
@@ -1578,7 +1602,7 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, itemInt
         if (!editMode) return;
         if (!draggingRef.current) return;
         draggingRef.current = false;
-        if (start.current.moved) {
+        if (allowMove && start.current.moved) {
           // Reset the offset to 0 and commit the final absolute position. left/top
           // (= item.x) updates to the same place the offset was showing → no snap.
           offset.setValue({ x: 0, y: 0 });
@@ -1605,10 +1629,10 @@ function ItemView({ item, isSelected, editMode, zoomRef, touchedItemRef, itemInt
 
 // One chair. Like ItemView, it becomes interactive only in Edit mode. This
 // leaves pinch and pan fully available in normal map-view mode.
-function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, seatStatus, active, editMode, zoomRef, seatTouchRef, itemInteractionRef, onScrollLock, onSeatPress, onSeatDrag }: {
+function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, seatStatus, active, editMode, allowMove, zoomRef, seatTouchRef, itemInteractionRef, onScrollLock, onSeatPress, onSeatDrag }: {
   id: string; itemId: string; baseX: number; baseY: number;
   left: number; top: number; size: number; fill: string; seatStatus: 'available' | 'reserved' | 'held' | 'sold' | 'disabled'; active: boolean;
-  editMode: boolean; zoomRef: React.MutableRefObject<{ zoom: number; pan: { x: number; y: number } }>;
+  editMode: boolean; allowMove: boolean; zoomRef: React.MutableRefObject<{ zoom: number; pan: { x: number; y: number } }>;
   seatTouchRef: React.MutableRefObject<boolean>;
   itemInteractionRef: React.MutableRefObject<boolean>;
   onScrollLock?: (locked: boolean) => void;
@@ -1636,12 +1660,12 @@ function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, seatStatus, 
         start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, dx: 0, dy: 0, moved: false };
       }}
       onResponderMove={(e) => {
-        if (!editMode) return;
+        if (!editMode || !allowMove) return;
         const z = zoomRef.current.zoom || 1;
         const dx = (e.nativeEvent.pageX - start.current.x) / z;
         const dy = (e.nativeEvent.pageY - start.current.y) / z;
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) start.current.moved = true;
-        if (start.current.moved) {
+        if (allowMove && start.current.moved) {
           start.current.dx = dx; start.current.dy = dy;
           offset.setValue({ x: dx, y: dy });
         }
@@ -1685,11 +1709,12 @@ function SeatDot({ id, itemId, baseX, baseY, left, top, size, fill, seatStatus, 
   );
 }
 
-function SeatDots({ item, selectedSeat, selectedItemId, editMode, zoomRef, seatTouchRef, itemInteractionRef, onScrollLock, onSeatPress, onSeatDrag }: {
+function SeatDots({ item, selectedSeat, selectedItemId, editMode, allowMove, zoomRef, seatTouchRef, itemInteractionRef, onScrollLock, onSeatPress, onSeatDrag }: {
   item: VenueItem;
   selectedSeat: string | null;
   selectedItemId: string;
   editMode: boolean;
+  allowMove: boolean;
   zoomRef: React.MutableRefObject<{ zoom: number; pan: { x: number; y: number } }>;
   seatTouchRef: React.MutableRefObject<boolean>;
   itemInteractionRef: React.MutableRefObject<boolean>;
@@ -1773,6 +1798,7 @@ function SeatDots({ item, selectedSeat, selectedItemId, editMode, zoomRef, seatT
         seatStatus={seatStatus}
         active={isActiveSeat}
         editMode={editMode}
+        allowMove={allowMove}
         zoomRef={zoomRef}
         seatTouchRef={seatTouchRef}
         itemInteractionRef={itemInteractionRef}
@@ -2001,6 +2027,7 @@ const styles = StyleSheet.create({
   tmplSaveText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   toolsRow: { flexDirection: 'row', alignItems: 'stretch', gap: 7, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  editTemplatesRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#071423', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   zoomGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
   workbench: { height: VP_H, backgroundColor: '#0d2138' },
   mapStatePanel: { flex: 1, minHeight: VP_H, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 26, backgroundColor: '#0d2138' },

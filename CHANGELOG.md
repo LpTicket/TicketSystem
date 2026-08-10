@@ -43,6 +43,39 @@ comando ejecutado
 
 ## Historial
 
+## 2026-08-09 - Gestos nativos del mapa móvil del organizador
+
+### Funcionalidad desarrollada
+- El canvas del mapa usa un controlador nativo de gestos para retener inmediatamente los toques iniciados dentro del mapa y evitar que la pantalla principal se desplace antes de que el mapa reciba el gesto.
+- El movimiento de mesas y sillas requiere activar explícitamente `Mover` dentro de `Editar`; seleccionar o bloquear ya no debe desplazar el diseño por accidente.
+- El pan y zoom usan una única transformación nativa y coordenadas de pantalla consistentes para reducir retardo y temblor.
+
+### Archivos modificados
+- `/Users/sundingalue/Documents/TicketSystem/mobile/App.tsx`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/index.ts`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/package.json`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/package-lock.json`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/components/organizer/VenueMapEditor.tsx`
+- `/Users/sundingalue/Documents/TicketSystem/mobile/src/screens/OrganizerPanelScreen.tsx`
+
+### Problema solucionado
+- El `ScrollView` padre podía tomar un arrastre vertical que comenzaba dentro del mapa antes de que el bloqueo JavaScript se aplicara.
+
+### Riesgos encontrados
+- Se añade un módulo nativo (`react-native-gesture-handler`), por lo que Metro o la aplicación ya instalada no bastan para validarlo: se requiere una Development Build iOS nueva y una prueba física.
+
+### Estado de pruebas
+- IMPLEMENTADO, NO PROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/mobile
+npx tsc --noEmit
+```
+
+### Observaciones
+- No se modificaron backend, pagos, tickets ni mapas publicados. TestFlight solo será necesario para distribuir la compilación; para probar este ajuste basta una Development Build.
+
 ## 2026-07-31 - Entrada automática después de Tap to Pay
 
 ### Funcionalidad desarrollada
