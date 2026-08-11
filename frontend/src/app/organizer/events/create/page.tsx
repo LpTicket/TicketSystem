@@ -659,24 +659,24 @@ export default function CreateEventPage() {
         </div>
       </form>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="rounded-xl border border-[rgba(77,117,151,0.48)] bg-[rgba(8,31,51,0.90)] p-6 shadow-xl shadow-black/10">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h2 className="font-semibold text-lg text-gray-900">{salesMode === 'map' ? (lang === 'es' ? 'Configura tu Escenario' : 'Configure Your Stage Layout') : (lang === 'es' ? 'Entrada general configurada' : 'General admission configured')}</h2>
-              <p className="text-gray-500 text-sm">{salesMode === 'map' ? (lang === 'es' ? 'Organiza las mesas y áreas del evento como desees.' : 'Arrange the tables and areas of the event as you wish.') : (lang === 'es' ? 'Este evento venderá una sola entrada general, sin mesas ni mapa visual.' : 'This event will sell one general-admission ticket, without tables or a venue map.')}</p>
+              <h2 className="font-semibold text-lg text-white">{salesMode === 'map' ? (lang === 'es' ? 'Configura tu Escenario' : 'Configure Your Stage Layout') : (lang === 'es' ? 'Entrada general configurada' : 'General admission configured')}</h2>
+              <p className="text-slate-400 text-sm">{salesMode === 'map' ? (lang === 'es' ? 'Organiza las mesas y áreas del evento como desees.' : 'Arrange the tables and areas of the event as you wish.') : (lang === 'es' ? 'Este evento venderá una sola entrada general, sin mesas ni mapa visual.' : 'This event will sell one general-admission ticket, without tables or a venue map.')}</p>
             </div>
             <button onClick={() => router.push(returnPath)} className="btn-secondary text-sm">
               {lang === 'es' ? 'Terminar y Salir' : 'Finish & Exit'}
             </button>
           </div>
           {salesMode === 'general' ? (
-            <div className="rounded-2xl border border-primary-100 bg-primary-50/60 p-6 lg:p-8">
+            <div className="rounded-2xl border border-[rgba(255,119,0,0.48)] bg-[rgba(255,119,0,0.08)] p-6 lg:p-8">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="rounded-xl bg-white border border-primary-100 p-4"><p className="text-xs font-bold uppercase tracking-wider text-gray-400">{lang === 'es' ? 'Entrada' : 'Ticket'}</p><p className="mt-1 font-bold text-gray-900">{form.generalTicketName.trim() || (lang === 'es' ? 'Entrada General' : 'General Admission')}</p></div>
-                <div className="rounded-xl bg-white border border-primary-100 p-4"><p className="text-xs font-bold uppercase tracking-wider text-gray-400">{lang === 'es' ? 'Precio' : 'Price'}</p><p className="mt-1 font-bold text-gray-900">${Number(form.generalTicketPrice || 0).toFixed(2)}</p></div>
-                <div className="rounded-xl bg-white border border-primary-100 p-4"><p className="text-xs font-bold uppercase tracking-wider text-gray-400">{lang === 'es' ? 'Capacidad' : 'Capacity'}</p><p className="mt-1 font-bold text-gray-900">{form.generalTicketCapacity}</p></div>
+                <div className="rounded-xl border border-[rgba(77,117,151,0.62)] bg-[#112e47] p-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{lang === 'es' ? 'Entrada' : 'Ticket'}</p><p className="mt-1 font-bold text-white">{form.generalTicketName.trim() || (lang === 'es' ? 'Entrada General' : 'General Admission')}</p></div>
+                <div className="rounded-xl border border-[rgba(77,117,151,0.62)] bg-[#112e47] p-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{lang === 'es' ? 'Precio' : 'Price'}</p><p className="mt-1 font-bold text-white">${Number(form.generalTicketPrice || 0).toFixed(2)}</p></div>
+                <div className="rounded-xl border border-[rgba(77,117,151,0.62)] bg-[#112e47] p-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{lang === 'es' ? 'Capacidad' : 'Capacity'}</p><p className="mt-1 font-bold text-white">{form.generalTicketCapacity}</p></div>
               </div>
-              <p className="mt-5 text-sm text-gray-600">{lang === 'es' ? 'No necesitas diseñar un mapa. Puedes terminar y administrar este evento desde Mis Eventos.' : 'No venue map is required. You can finish and manage this event from My Events.'}</p>
+              <p className="mt-5 text-sm text-slate-300">{lang === 'es' ? 'No necesitas diseñar un mapa. Puedes terminar y administrar este evento desde Mis Eventos.' : 'No venue map is required. You can finish and manage this event from My Events.'}</p>
             </div>
           ) : createdEventId && (
             <VenueMapBuilder
