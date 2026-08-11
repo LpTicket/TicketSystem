@@ -115,6 +115,7 @@ PostgreSQL conserva el estado definitivo de usuarios, eventos, órdenes, tickets
 - Las operaciones de compra, bloqueo y desbloqueo deben ser idempotentes cuando sea posible.
 - La emisión de tickets serializa el cierre de cada orden mediante bloqueo transaccional para que dispositivo, webhook y recuperación no creen juegos duplicados.
 - La entrega posterior por SMS/correo solo se permite sobre órdenes pagadas y guarda un historial limitado con destinatarios enmascarados y huellas no reversibles.
+- Los pagos al organizador se registran solamente como conciliación administrativa interna. No son transferencias de Stripe y no pueden alterar órdenes, tickets, comisiones ni estados de pago.
 - La disponibilidad final siempre se valida en servidor.
 - Los cambios de mapa deben reflejarse para organizadores y compradores después de que el backend confirma la operación.
 - Las respuestas de error no deben dejar al cliente mostrando un estado local como definitivo.

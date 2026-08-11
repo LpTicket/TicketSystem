@@ -41,6 +41,7 @@ El backend es la fuente de verdad para eventos, mapas, asientos, bloqueos, órde
 | Escáner de empleados | IMPLEMENTADO | Solicitudes, aprobación, búsqueda y validación presentes. |
 | Panel organizador | IMPLEMENTADO | Eventos, asistentes, analítica, bloques, comisiones y escaneo presentes. |
 | Panel administrador | IMPLEMENTADO | Usuarios, eventos, facturas, marketing, categorías y analítica presentes. |
+| Auditoría de pagos al organizador | IMPLEMENTADO, NO PROBADO | En el detalle administrativo de cada evento, el administrador puede registrar pagos externos parciales o totales al organizador, ver el acumulado pagado, el saldo pendiente y el historial. Es una conciliación interna: no crea transferencias ni modifica Stripe, órdenes o tickets. Pendiente prueba manual. |
 | Marketing email, SMS, WhatsApp y push | IMPLEMENTADO, NO PROBADO | Código presente; entrega depende de proveedores externos. |
 | Asistente AI | IMPLEMENTADO, NO PROBADO | Servicio presente; requiere configuración externa. |
 | Integración Square | NO ENCONTRADA | No se localizó un módulo de backend relacionado. |

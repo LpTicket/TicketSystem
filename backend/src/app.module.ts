@@ -17,7 +17,7 @@ import { VenueTemplatesModule } from './venue-templates/venue-templates.module';
 import { AiSupportModule } from './ai-support/ai-support.module';
 import { SocialMatchModule } from './social-match/social-match.module';
 import { SpecialCodesModule } from './special-codes/special-codes.module';
-import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout } from './database/entities';
+import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout, OrganizerPayout } from './database/entities';
 import { MarketingModule } from './marketing/marketing.module';
 import { MarketingBanner } from './marketing/marketing-banner.entity';
 import { PushToken } from './marketing/push-token.entity';
@@ -44,7 +44,7 @@ import { ScannerAccess } from './database/entities';
             password: config.get<string>('DB_PASSWORD'),
             database: config.get<string>('DB_NAME'),
           }),
-          entities: [MarketingBanner, PushToken, AnalyticsPageView, User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout, ScannerAccess],
+          entities: [MarketingBanner, PushToken, AnalyticsPageView, User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout, OrganizerPayout, ScannerAccess],
           synchronize: true,
           logging: false,
           ssl: isProd ? { rejectUnauthorized: false } : false,

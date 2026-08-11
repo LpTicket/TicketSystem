@@ -1,5 +1,32 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-11 - Conciliación interna de pagos al organizador
+
+### Funcionalidad desarrollada
+- El detalle financiero exclusivo de administración incorpora un bloque de `Pagos al organizador`.
+- El administrador puede registrar un pago externo parcial o total, con nota o referencia opcional.
+- El panel muestra el monto correspondiente al organizador, el total registrado como pagado y el saldo pendiente, junto con un historial de fecha y administrador que registró cada movimiento.
+- El backend rechaza registros superiores al saldo pendiente del evento para evitar sobrepagos en esta auditoría.
+
+### Áreas protegidas
+- No se crea ninguna transferencia real ni se modifican Stripe, checkout, órdenes, tickets, cargos, comisiones existentes o la app móvil.
+- Los pagos registrados son únicamente una conciliación administrativa interna en `organizer_payouts`.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/backend
+npm run build
+
+cd /Users/sundingalue/Documents/TicketSystem/frontend
+npm run build
+```
+
+### Pendiente manual
+- Como administrador, abrir la auditoría financiera de un evento, registrar un pago parcial y confirmar que se actualizan el saldo y el historial sin cambiar ninguna orden o ticket.
+
 ## 2026-08-11 - Creación de eventos para usuarios desde administración
 
 ### Funcionalidad desarrollada

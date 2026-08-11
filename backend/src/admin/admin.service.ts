@@ -14,7 +14,8 @@ import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User, UserRole, Event, EventStatus, Order, OrderStatus, Ticket, VenueSection, Seat, SeatStatus } from '../database/entities';
+import { User, UserRole, Event, EventStatus, Order, OrderStatus, Ticket, VenueSection, Seat, SeatStatus, OrganizerPayout } from '../database/entities';
+import { RecordOrganizerPayoutDto } from './dto/record-organizer-payout.dto';
 
 @Injectable()
 export class AdminService {
@@ -25,6 +26,7 @@ export class AdminService {
     @InjectRepository(Ticket) private readonly ticketRepo: Repository<Ticket>,
     @InjectRepository(VenueSection) private readonly sectionRepo: Repository<VenueSection>,
     @InjectRepository(Seat) private readonly seatRepo: Repository<Seat>,
+    @InjectRepository(OrganizerPayout) private readonly organizerPayoutRepo: Repository<OrganizerPayout>,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
@@ -195,7 +197,7 @@ export class AdminService {
     });
     if (!event) throw new NotFoundException('Evento no encontrado');
 
-    const [orders, eventTickets, lockedSeats] = await Promise.all([
+    const [orders, eventTickets, lockedSeats, organizerPayouts] = await Promise.all([
       this.orderRepo.find({
         where: { eventId, status: OrderStatus.PAID },
         relations: ['user'],
@@ -211,6 +213,11 @@ export class AdminService {
         .where('section.eventId = :eventId', { eventId })
         .andWhere('seat.status = :status', { status: SeatStatus.LOCKED })
         .getCount(),
+      this.organizerPayoutRepo.find({
+        where: { eventId },
+        relations: ['recordedBy'],
+        order: { paidAt: 'DESC' },
+      }),
     ]);
 
     const paidOrderIds = new Set(orders.map((order) => order.id));
@@ -233,6 +240,8 @@ export class AdminService {
     const pendingTickets = activeIssuedTickets.filter((ticket) => ticket.status === 'active').length;
     const cancelledTickets = paidTickets.filter((ticket) => ticket.status === 'cancelled').length;
     const buyers = new Set(orders.map((order) => order.userId)).size;
+    const organizerPaid = organizerPayouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0);
+    const organizerPending = Math.max(0, +(ticketRevenue - organizerPaid).toFixed(2));
 
     const sectionMap = new Map<string, { name: string; issued: number; scanned: number; pending: number }>();
     activeIssuedTickets.forEach((ticket) => {
@@ -269,8 +278,17 @@ export class AdminService {
         lpFees,
         processingFees,
         grossCharged,
+        organizerPaid: +organizerPaid.toFixed(2),
+        organizerPending,
       },
       sections: Array.from(sectionMap.values()).sort((a, b) => b.issued - a.issued),
+      organizerPayouts: organizerPayouts.map((payout) => ({
+        id: payout.id,
+        amount: Number(payout.amount),
+        note: payout.note,
+        paidAt: payout.paidAt,
+        recordedBy: payout.recordedBy ? this.toSafeOrganizer(payout.recordedBy) : null,
+      })),
       orders: orders.map((order) => {
         const issued = ticketsByOrder.get(order.id) || [];
         const prices = issued.reduce<Record<string, number>>((acc, ticket) => {
@@ -294,6 +312,56 @@ export class AdminService {
         };
       }),
     };
+  }
+
+  /**
+   * Audits an external payout after the administrator has already paid it.
+   * It never creates a transfer, charges Stripe, or changes order/ticket data.
+   */
+  async recordOrganizerPayout(eventId: string, dto: RecordOrganizerPayoutDto, recordedByUserId: string) {
+    const amount = Number(dto.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('El monto debe ser mayor a 0.');
+    }
+
+    return this.organizerPayoutRepo.manager.transaction(async (manager) => {
+      const event = await manager.getRepository(Event).findOne({
+        where: { id: eventId },
+        relations: ['organizer'],
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!event) throw new NotFoundException('Evento no encontrado.');
+      if (!event.organizerId) throw new BadRequestException('Este evento no tiene un organizador asignado.');
+
+      const revenueRow = await manager.getRepository(Order)
+        .createQueryBuilder('order')
+        .select('COALESCE(SUM(order.subtotal), 0)', 'ticketRevenue')
+        .where('order.eventId = :eventId', { eventId })
+        .andWhere('order.status = :status', { status: OrderStatus.PAID })
+        .getRawOne();
+      const ticketRevenue = Number(revenueRow?.ticketRevenue || 0);
+
+      const paidRow = await manager.getRepository(OrganizerPayout)
+        .createQueryBuilder('payout')
+        .select('COALESCE(SUM(payout.amount), 0)', 'totalPaid')
+        .where('payout.eventId = :eventId', { eventId })
+        .getRawOne();
+      const pending = Math.max(0, +(ticketRevenue - Number(paidRow?.totalPaid || 0)).toFixed(2));
+
+      if (amount > pending + 0.001) {
+        throw new BadRequestException('El pago no puede ser mayor al saldo pendiente del organizador.');
+      }
+
+      return manager.getRepository(OrganizerPayout).save(
+        manager.getRepository(OrganizerPayout).create({
+          eventId,
+          organizerUserId: event.organizerId,
+          recordedByUserId,
+          amount: +amount.toFixed(2),
+          note: dto.note?.trim() || null,
+        }),
+      );
+    });
   }
 
   async getUsers(page: number, limit: number, role?: string) {

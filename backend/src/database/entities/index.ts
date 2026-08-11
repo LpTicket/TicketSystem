@@ -12,4 +12,5 @@ export { SocialMatchConnection, SocialMatchConnectionStatus } from './social-mat
 export { SocialMatchMessage } from './social-match-message.entity';
 export { SpecialCode } from './special-code.entity';
 export { SpecialCodePayout } from './special-code-payout.entity';
+export { OrganizerPayout } from './organizer-payout.entity';
 export { ScannerAccess, ScannerAccessStatus } from './scanner-access.entity';

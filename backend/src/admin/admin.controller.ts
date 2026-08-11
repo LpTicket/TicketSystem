@@ -1,10 +1,11 @@
 import {
-  Controller, Get, Post, Patch, Delete, Param, Query, UseGuards, Body,
+  Controller, Get, Post, Patch, Delete, Param, Query, UseGuards, Body, Request,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AdminService } from './admin.service';
 import { AdminInvoicesService } from './admin-invoices.service';
 import { OrdersService } from '../orders/orders.service';
+import { RecordOrganizerPayoutDto } from './dto/record-organizer-payout.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { UserRole } from '../database/entities';
@@ -114,6 +115,12 @@ export class AdminController {
   @Get('events/:id/financial-detail')
   getEventFinancialDetail(@Param('id') id: string) {
     return this.adminService.getEventFinancialDetail(id);
+  }
+
+  /** Records an external organizer payment for internal reconciliation only. */
+  @Post('events/:id/organizer-payouts')
+  recordOrganizerPayout(@Param('id') id: string, @Body() dto: RecordOrganizerPayoutDto, @Request() req: any) {
+    return this.adminService.recordOrganizerPayout(id, dto, req.user.id);
   }
 
   @Post('events/:id/post-event-report/send')
