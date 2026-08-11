@@ -1,5 +1,27 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-11 - Entrada general sin mapa visual en creación web
+
+### Funcionalidad desarrollada
+- La creación de eventos desde el panel organizador web permite elegir entre `Mapa visual` y `Entrada general`.
+- Para entrada general se solicita nombre, precio y capacidad, y se crea una sección standing mediante el endpoint existente de secciones.
+- El segundo paso muestra un resumen de la entrada general en lugar del diseñador de mesas.
+
+### Áreas protegidas
+- No se modificaron entidades, migraciones, base de datos existente, Stripe, checkout, cargos, app móvil ni eventos ya creados.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/frontend
+npm run build
+```
+
+### Pendiente manual
+- Crear un evento de prueba con Entrada general desde la web y confirmar que aparece una sola entrada con el precio, capacidad y límite de compra elegidos.
+
 ## 2026-08-09 - Capacidad consistente entre web y mapa móvil
 
 ### Corrección
