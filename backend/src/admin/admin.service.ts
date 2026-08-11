@@ -327,7 +327,6 @@ export class AdminService {
     return this.organizerPayoutRepo.manager.transaction(async (manager) => {
       const event = await manager.getRepository(Event).findOne({
         where: { id: eventId },
-        relations: ['organizer'],
         lock: { mode: 'pessimistic_write' },
       });
       if (!event) throw new NotFoundException('Evento no encontrado.');
