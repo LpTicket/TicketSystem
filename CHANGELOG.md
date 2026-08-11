@@ -1,5 +1,31 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-11 - Creación de eventos para usuarios desde administración
+
+### Funcionalidad desarrollada
+- El panel de administración incorpora `Crear evento para usuario` inmediatamente debajo de `Eventos`.
+- El administrador puede buscar y seleccionar un usuario activo en una lista con ocho filas visibles y desplazamiento para el resto.
+- El formulario reutiliza la creación web existente y asigna el evento al usuario seleccionado mediante una ruta protegida solo para administradores.
+- Se corrigió el selector de `Mapa visual` / `Entrada general` para conservar el contraste oscuro, naranja y blanco propio de LPTicket.
+
+### Áreas protegidas
+- No se modificaron entidades, migraciones, datos existentes, Stripe, checkout, cargos ni app móvil.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/backend
+npm run build
+
+cd /Users/sundingalue/Documents/TicketSystem/frontend
+npm run build
+```
+
+### Pendiente manual
+- Como administrador, abrir `Crear evento para usuario`, seleccionar un usuario, crear un evento y confirmar que aparece en el panel de ese usuario y en el panel administrador.
+
 ## 2026-08-11 - Entrada general sin mapa visual en creación web
 
 ### Funcionalidad desarrollada

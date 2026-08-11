@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useLang } from '@/context/LanguageContext';
 import { useCategories } from '@/context/CategoryContext';
@@ -172,8 +172,12 @@ const buildLocalEventDate = (date: string, time: string, timezone: string = 'UTC
 
 export default function CreateEventPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t, lang } = useLang();
   const { categories, refreshCategories } = useCategories();
+  const organizerId = searchParams.get('organizerId');
+  const isAdminCreate = Boolean(organizerId);
+  const returnPath = isAdminCreate ? '/admin/events' : '/organizer/events';
 
   useEffect(() => { refreshCategories(); }, []);
 
@@ -292,7 +296,10 @@ export default function CreateEventPage() {
       if (!payload.venueAddress) delete payload.venueAddress;
 
       // 1. Create event
-      const { data: event } = await api.post('/events', payload);
+      const { data: event } = await api.post(
+        isAdminCreate ? '/events/admin-create' : '/events',
+        isAdminCreate ? { ...payload, organizerId } : payload,
+      );
 
       // A general-admission event reuses the existing standing section model.
       // This adds no schema, pricing, payment, or existing-event changes.
@@ -357,9 +364,9 @@ export default function CreateEventPage() {
     <div className="p-4 lg:p-8 max-w-6xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="mb-6">
-        <Link href="/organizer/events" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary-500 transition-colors mb-3">
+        <Link href={returnPath} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary-500 transition-colors mb-3">
           <HiOutlineArrowLeft className="w-4 h-4" />
-          {t('orgMyEvents')}
+          {isAdminCreate ? (lang === 'es' ? 'Eventos' : 'Events') : t('orgMyEvents')}
         </Link>
         <div className="flex items-center justify-between">
           <h1 className="font-bold text-2xl lg:text-3xl text-gray-900">{step === 1 ? t('orgCreateEvent') : (salesMode === 'map' ? (lang === 'es' ? 'Diseño del Escenario' : 'Stage Design') : (lang === 'es' ? 'Entrada General' : 'General Admission'))}</h1>
@@ -514,54 +521,54 @@ export default function CreateEventPage() {
 
                 {/* Ticket limits */}
                 <div className="pt-6 border-t border-gray-100">
-                  <h3 className="font-bold text-base text-gray-900 mb-2">{lang === 'es' ? 'Tipo de Venta' : 'Sales Type'}</h3>
-                  <p className="text-sm text-gray-500 mb-4">{lang === 'es' ? 'Elige si este evento venderá ubicaciones en un mapa o una sola entrada general.' : 'Choose whether this event sells mapped seating or one general-admission ticket.'}</p>
+                  <h3 className="font-bold text-base text-slate-100 mb-2">{lang === 'es' ? 'Tipo de Venta' : 'Sales Type'}</h3>
+                  <p className="text-sm text-slate-400 mb-4">{lang === 'es' ? 'Elige si este evento venderá ubicaciones en un mapa o una sola entrada general.' : 'Choose whether this event sells mapped seating or one general-admission ticket.'}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <button
                       type="button"
                       onClick={() => setSalesMode('map')}
-                      className={`text-left rounded-xl border p-4 transition-all ${salesMode === 'map' ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500/20' : 'border-gray-200 bg-white hover:border-primary-200'}`}
+                      className={`text-left rounded-xl border p-4 transition-all ${salesMode === 'map' ? 'border-[#ff7900] bg-[rgba(255,119,0,0.10)] ring-1 ring-[#ff7900]/45' : 'border-[rgba(77,117,151,0.45)] bg-[rgba(8,31,51,0.76)] hover:border-[#ff7900]/55'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${salesMode === 'map' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-500'}`}><HiOutlineMap className="h-5 w-5" /></span>
+                        <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${salesMode === 'map' ? 'bg-[#ff7900] text-white' : 'bg-[#12304a] text-slate-300'}`}><HiOutlineMap className="h-5 w-5" /></span>
                         <div>
-                          <p className="font-bold text-gray-900">{lang === 'es' ? 'Mapa visual' : 'Venue map'}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{lang === 'es' ? 'Mesas, sillas y zonas con ubicación.' : 'Tables, seats, and positioned areas.'}</p>
+                          <p className="font-bold text-white">{lang === 'es' ? 'Mapa visual' : 'Venue map'}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{lang === 'es' ? 'Mesas, sillas y zonas con ubicación.' : 'Tables, seats, and positioned areas.'}</p>
                         </div>
                       </div>
                     </button>
                     <button
                       type="button"
                       onClick={() => setSalesMode('general')}
-                      className={`text-left rounded-xl border p-4 transition-all ${salesMode === 'general' ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-500/20' : 'border-gray-200 bg-white hover:border-primary-200'}`}
+                      className={`text-left rounded-xl border p-4 transition-all ${salesMode === 'general' ? 'border-[#ff7900] bg-[rgba(255,119,0,0.10)] ring-1 ring-[#ff7900]/45' : 'border-[rgba(77,117,151,0.45)] bg-[rgba(8,31,51,0.76)] hover:border-[#ff7900]/55'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className={`flex h-10 w-10 items-center justify-center rounded-lg font-black text-sm ${salesMode === 'general' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-500'}`}>GA</span>
+                        <span className={`flex h-10 w-10 items-center justify-center rounded-lg font-black text-sm ${salesMode === 'general' ? 'bg-[#ff7900] text-white' : 'bg-[#12304a] text-slate-300'}`}>GA</span>
                         <div>
-                          <p className="font-bold text-gray-900">{lang === 'es' ? 'Entrada general' : 'General admission'}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{lang === 'es' ? 'Un precio y capacidad, sin mapa.' : 'One price and capacity, no map.'}</p>
+                          <p className="font-bold text-white">{lang === 'es' ? 'Entrada general' : 'General admission'}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{lang === 'es' ? 'Un precio y capacidad, sin mapa.' : 'One price and capacity, no map.'}</p>
                         </div>
                       </div>
                     </button>
                   </div>
 
                   {salesMode === 'general' && (
-                    <div className="mt-4 rounded-xl border border-primary-100 bg-primary-50/60 p-4">
+                    <div className="mt-4 rounded-xl border border-[rgba(77,117,151,0.58)] bg-[rgba(8,31,51,0.9)] p-4">
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Nombre de la entrada' : 'Ticket name'} *</label>
-                          <input type="text" value={form.generalTicketName} onChange={(e) => updateForm('generalTicketName', e.target.value)} className="input py-3" placeholder={lang === 'es' ? 'Entrada General' : 'General Admission'} required={salesMode === 'general'} maxLength={40} />
+                          <label className="block text-sm font-semibold text-slate-200 mb-2">{lang === 'es' ? 'Nombre de la entrada' : 'Ticket name'} *</label>
+                          <input type="text" value={form.generalTicketName} onChange={(e) => updateForm('generalTicketName', e.target.value)} className="input py-3 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder={lang === 'es' ? 'Entrada General' : 'General Admission'} required={salesMode === 'general'} maxLength={40} />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Precio por entrada (USD)' : 'Ticket price (USD)'} *</label>
-                          <input type="number" value={form.generalTicketPrice} onChange={(e) => updateForm('generalTicketPrice', e.target.value)} className="input py-3" placeholder="0.00" min="0" step="0.01" required={salesMode === 'general'} />
+                          <label className="block text-sm font-semibold text-slate-200 mb-2">{lang === 'es' ? 'Precio por entrada (USD)' : 'Ticket price (USD)'} *</label>
+                          <input type="number" value={form.generalTicketPrice} onChange={(e) => updateForm('generalTicketPrice', e.target.value)} className="input py-3 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder="0.00" min="0" step="0.01" required={salesMode === 'general'} />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Capacidad total' : 'Total capacity'} *</label>
-                          <input type="number" value={form.generalTicketCapacity} onChange={(e) => updateForm('generalTicketCapacity', e.target.value)} className="input py-3" placeholder="100" min="1" step="1" required={salesMode === 'general'} />
+                          <label className="block text-sm font-semibold text-slate-200 mb-2">{lang === 'es' ? 'Capacidad total' : 'Total capacity'} *</label>
+                          <input type="number" value={form.generalTicketCapacity} onChange={(e) => updateForm('generalTicketCapacity', e.target.value)} className="input py-3 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder="100" min="1" step="1" required={salesMode === 'general'} />
                         </div>
                       </div>
-                      <p className="text-xs text-primary-700 mt-3">{lang === 'es' ? 'Los clientes verán una entrada general y elegirán la cantidad que desean comprar.' : 'Customers will see one general-admission ticket and choose their quantity.'}</p>
+                      <p className="text-xs text-slate-400 mt-3">{lang === 'es' ? 'Los clientes verán una entrada general y elegirán la cantidad que desean comprar.' : 'Customers will see one general-admission ticket and choose their quantity.'}</p>
                     </div>
                   )}
 
@@ -642,7 +649,7 @@ export default function CreateEventPage() {
                   >
                     {creating ? (lang === 'es' ? 'Guardando...' : 'Saving...') : (lang === 'es' ? 'Siguiente Paso' : 'Next Step')}
                   </button>
-                  <Link href="/organizer/events" className="btn-secondary w-full text-center py-3 text-sm font-bold border-transparent hover:bg-red-50 hover:text-red-600">
+                  <Link href={returnPath} className="btn-secondary w-full text-center py-3 text-sm font-bold border-transparent hover:bg-red-50 hover:text-red-600">
                     {t('orgCancel')}
                   </Link>
                 </div>
@@ -658,7 +665,7 @@ export default function CreateEventPage() {
               <h2 className="font-semibold text-lg text-gray-900">{salesMode === 'map' ? (lang === 'es' ? 'Configura tu Escenario' : 'Configure Your Stage Layout') : (lang === 'es' ? 'Entrada general configurada' : 'General admission configured')}</h2>
               <p className="text-gray-500 text-sm">{salesMode === 'map' ? (lang === 'es' ? 'Organiza las mesas y áreas del evento como desees.' : 'Arrange the tables and areas of the event as you wish.') : (lang === 'es' ? 'Este evento venderá una sola entrada general, sin mesas ni mapa visual.' : 'This event will sell one general-admission ticket, without tables or a venue map.')}</p>
             </div>
-            <button onClick={() => router.push('/organizer/events')} className="btn-secondary text-sm">
+            <button onClick={() => router.push(returnPath)} className="btn-secondary text-sm">
               {lang === 'es' ? 'Terminar y Salir' : 'Finish & Exit'}
             </button>
           </div>
@@ -675,7 +682,7 @@ export default function CreateEventPage() {
             <VenueMapBuilder
               eventId={createdEventId}
               initialSections={[]}
-              onSaved={() => router.push('/organizer/events')}
+              onSaved={() => router.push(returnPath)}
             />
           )}
         </div>

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsDateString, IsBoolean, IsNumber, Min } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsDateString, IsBoolean, IsNumber, Min, IsUUID } from 'class-validator';
 import { EventCategory } from '../../database/entities';
 
 export class CreateEventDto {
@@ -55,6 +55,11 @@ export class CreateEventDto {
   @IsNumber()
   @Min(1)
   maxTicketsPerTransaction?: number;
+}
+
+export class AdminCreateEventDto extends CreateEventDto {
+  @IsUUID()
+  organizerId: string;
 }
 
 export class UpdateEventDto {

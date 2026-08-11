@@ -120,6 +120,14 @@ export class EventsService {
     return this.eventRepo.save(event);
   }
 
+  async createForOrganizer(dto: CreateEventDto, organizerId: string) {
+    const organizer = await this.eventRepo.manager.findOne(User, { where: { id: organizerId } });
+    if (!organizer) throw new NotFoundException('Usuario no encontrado');
+    if (!organizer.isActive) throw new BadRequestException('El usuario seleccionado está inactivo');
+
+    return this.create(dto, organizerId);
+  }
+
   /**
    * findAll
    * Primary search engine for the event marketplace.

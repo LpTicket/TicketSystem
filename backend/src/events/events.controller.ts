@@ -17,7 +17,7 @@ import { FileInterceptor } from '@nest-lab/fastify-multer';
 import { memoryStorage } from 'multer';
 import { EventsService } from './events.service';
 import { StorageService } from '../common/services/storage.service';
-import { CreateEventDto, UpdateEventDto, EventQueryDto } from './dto/event.dto';
+import { AdminCreateEventDto, CreateEventDto, UpdateEventDto, EventQueryDto } from './dto/event.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { UserRole } from '../database/entities';
@@ -76,6 +76,14 @@ export class EventsController {
   @Post()
   create(@Body() dto: CreateEventDto, @Request() req: any) {
     return this.eventsService.create(dto, req.user.id);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post('admin-create')
+  createForOrganizer(@Body() dto: AdminCreateEventDto) {
+    const { organizerId, ...eventDto } = dto;
+    return this.eventsService.createForOrganizer(eventDto, organizerId);
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
