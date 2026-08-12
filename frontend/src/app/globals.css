@@ -4234,7 +4234,8 @@ footer .rounded-full:hover {
 }
 
 .event-signature-card h3 {
-  min-height: auto !important;
+  /* Reserve two title lines on every card so date, venue and price stay aligned. */
+  min-height: 2.16em !important;
   margin-bottom: 0.25rem !important;
   font-size: 1.34rem !important;
   line-height: 1.08 !important;
@@ -4266,6 +4267,7 @@ footer .rounded-full:hover {
   }
 
   .event-signature-card h3 {
+    min-height: 2.2em !important;
     font-size: 1.18rem !important;
     margin-bottom: 0.15rem !important;
   }
