@@ -30,16 +30,23 @@ export class AdminService {
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
 
-  private routeBase64EventImage(slug: string, url: string | null, kind: 'image' | 'banner') {
+  private routeBase64EventImage(
+    slug: string,
+    url: string | null,
+    kind: 'image' | 'banner',
+    updatedAt?: Date | null,
+  ) {
     if (!url?.startsWith('data:')) return url;
-    return `/api/events/${slug}/og-image?kind=${kind}`;
+    const version = updatedAt?.getTime();
+    const cacheBust = version ? `&v=${version}` : '';
+    return `/api/events/${slug}/og-image?kind=${kind}${cacheBust}`;
   }
 
   private routeBase64EventImages(event: Event) {
     return {
       ...event,
-      imageUrl: this.routeBase64EventImage(event.slug, event.imageUrl, 'image'),
-      bannerImageUrl: this.routeBase64EventImage(event.slug, event.bannerImageUrl, 'banner'),
+      imageUrl: this.routeBase64EventImage(event.slug, event.imageUrl, 'image', event.updatedAt),
+      bannerImageUrl: this.routeBase64EventImage(event.slug, event.bannerImageUrl, 'banner', event.updatedAt),
       organizer: event.organizer ? this.toSafeOrganizer(event.organizer) as any : undefined,
     };
   }

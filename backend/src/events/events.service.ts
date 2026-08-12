@@ -77,16 +77,27 @@ export class EventsService {
     return slug;
   }
 
-  private routeBase64EventImage(slug: string, url: string | null, kind: 'image' | 'banner') {
+  private routeBase64EventImage(
+    slug: string,
+    url: string | null,
+    kind: 'image' | 'banner',
+    updatedAt?: Date | null,
+  ) {
     if (!url?.startsWith('data:')) return url;
-    return `/api/events/${slug}/og-image?kind=${kind}`;
+
+    // The image endpoint serves the latest base64 value for this event. Add the
+    // event update time so native clients cannot reuse a previous banner from
+    // their URL-based image cache after an admin replaces it.
+    const version = updatedAt?.getTime();
+    const cacheBust = version ? `&v=${version}` : '';
+    return `/api/events/${slug}/og-image?kind=${kind}${cacheBust}`;
   }
 
   private routeBase64EventImages(event: Event) {
     return {
       ...event,
-      imageUrl: this.routeBase64EventImage(event.slug, event.imageUrl, 'image'),
-      bannerImageUrl: this.routeBase64EventImage(event.slug, event.bannerImageUrl, 'banner'),
+      imageUrl: this.routeBase64EventImage(event.slug, event.imageUrl, 'image', event.updatedAt),
+      bannerImageUrl: this.routeBase64EventImage(event.slug, event.bannerImageUrl, 'banner', event.updatedAt),
       organizer: event.organizer ? this.toSafeOrganizer(event.organizer) as any : undefined,
     };
   }
@@ -448,7 +459,7 @@ export class EventsService {
       await this.eventRepo.update(id, { pendingImageUrl: imageUrl });
     } else {
       await this.eventRepo.update(id, { imageUrl });
-      await this.cache.del(`event:slug:${event.slug}`);
+      await this.invalidateEventsCache(event.slug, id, event.organizerId);
     }
     return { imageUrl };
   }
@@ -464,7 +475,7 @@ export class EventsService {
       await this.eventRepo.update(id, { pendingBannerImageUrl: bannerImageUrl });
     } else {
       await this.eventRepo.update(id, { bannerImageUrl });
-      await this.cache.del(`event:slug:${event.slug}`);
+      await this.invalidateEventsCache(event.slug, id, event.organizerId);
     }
     return { bannerImageUrl };
   }
@@ -474,13 +485,14 @@ export class EventsService {
     const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
     if (event.organizerId !== userId && user?.role !== 'admin') throw new ForbiddenException();
 
-    if (event.status === EventStatus.PUBLISHED && user?.role !== 'admin') {
+    const hasPublicChange = event.status !== EventStatus.PUBLISHED || user?.role === 'admin';
+    if (!hasPublicChange) {
       event.pendingImageUrl = null;
     } else {
       event.imageUrl = null;
-      await this.cache.del(`event:slug:${event.slug}`);
     }
     await this.eventRepo.save(event);
+    if (hasPublicChange) await this.invalidateEventsCache(event.slug, id, event.organizerId);
     return { success: true };
   }
 
@@ -489,13 +501,14 @@ export class EventsService {
     const user = await this.eventRepo.manager.findOne(User, { where: { id: userId } });
     if (event.organizerId !== userId && user?.role !== 'admin') throw new ForbiddenException();
 
-    if (event.status === EventStatus.PUBLISHED && user?.role !== 'admin') {
+    const hasPublicChange = event.status !== EventStatus.PUBLISHED || user?.role === 'admin';
+    if (!hasPublicChange) {
       event.pendingBannerImageUrl = null;
     } else {
       event.bannerImageUrl = null;
-      await this.cache.del(`event:slug:${event.slug}`);
     }
     await this.eventRepo.save(event);
+    if (hasPublicChange) await this.invalidateEventsCache(event.slug, id, event.organizerId);
     return { success: true };
   }
 

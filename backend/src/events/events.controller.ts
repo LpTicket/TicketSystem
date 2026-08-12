@@ -54,7 +54,10 @@ export class EventsController {
     const image = await this.eventsService.getOgImageBySlug(slug, kind);
 
     res.header('Content-Type', image.mimeType);
-    res.header('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+    // The URL includes a version when an event image changes. Keep a short
+    // fallback lifetime as well so older app versions cannot retain a replaced
+    // banner for a full day.
+    res.header('Cache-Control', 'public, max-age=300, s-maxage=300');
     res.header('Content-Length', image.buffer.length);
 
     return res.send(image.buffer);
