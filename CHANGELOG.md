@@ -5,7 +5,7 @@
 ### Corrección
 - La compra normal desde un evento móvil ya no calcula los fees en el dispositivo: solicita una cotización nueva al backend para cada selección de asientos o entradas generales.
 - El botón de compra espera esa cotización y la creación final de Checkout vuelve a validarla en servidor.
-- Se preparó iOS `1.0.8` build `37` de forma consistente en Expo y Xcode.
+- Se preparó iOS `1.0.8` build `31`, alineado con la numeración remota administrada por EAS.
 
 ### Áreas protegidas
 - No se modificaron Stripe, órdenes, tickets, ventas existentes, base de datos, migraciones ni Tap to Pay.
@@ -14,7 +14,7 @@
 - IMPLEMENTADO, NO PROBADO
 
 ### Pendiente manual
-- Crear e instalar la compilación iOS 1.0.8 (37) y probar una compra nueva de $40: servicio `$3.19`, procesamiento `$1.60`, total `$44.79`.
+- Crear e instalar la compilación iOS 1.0.8 (31) y probar una compra nueva de $40: servicio `$3.19`, procesamiento `$1.60`, total `$44.79`.
 
 ## 2026-08-12 - Tarifas globales fijas en todos los canales
 
