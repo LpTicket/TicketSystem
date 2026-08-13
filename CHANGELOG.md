@@ -1,5 +1,35 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-12 - Tarifas globales fijas en todos los canales
+
+### Corrección
+- La estimación visible antes del checkout web ahora usa exactamente la fórmula global del backend: servicio de `3.02% + $1.98` por entrada y procesamiento bruto de `2.9% + $0.30` una vez por orden.
+- La administración web y móvil informa la política fija en vez de permitir una configuración por evento o sección que no afecta las compras.
+- Las rutas administrativas de modificación rechazan cambios para impedir que valores personalizados vuelvan a guardarse como si afectaran el cobro.
+
+### Áreas protegidas
+- No se recalcularon ni modificaron órdenes, tickets, ventas existentes, Stripe, base de datos, migraciones ni la emisión de tickets.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pruebas automatizadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/backend
+npx jest --runInBand --no-watchman src/orders/orders.service.spec.ts
+npx tsc --noEmit -p tsconfig.build.json
+
+cd /Users/sundingalue/Documents/TicketSystem/frontend
+npm run build
+
+cd /Users/sundingalue/Documents/TicketSystem/mobile
+npx tsc --noEmit
+```
+
+### Pendiente manual
+- En web, móvil, Venta en Puerta y Tap to Pay, probar una entrada nueva de `$40.00`: servicio `$3.19`, procesamiento `$1.60`, total `$44.79`.
+- Para dos entradas nuevas de `$40.00`: servicio `$6.38`, procesamiento `$2.89`, total `$89.27`; no se debe crear ni emitir una venta duplicada.
+
 ## 2026-08-12 - Cotización web siempre actualizada
 
 ### Corrección

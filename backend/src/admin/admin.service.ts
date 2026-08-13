@@ -746,58 +746,22 @@ export class AdminService {
     return { event, sections };
   }
 
-  async updateEventFees(eventId: string, dto: {
+  async updateEventFees(_eventId: string, _dto: {
     serviceFeePercent?: number | null;
     serviceFeeFixedPerTicket?: number | null;
     processingFeePercent?: number | null;
     processingFeeFixedPerTicket?: number | null;
   }) {
-    const event = await this.eventRepo.findOne({ where: { id: eventId } });
-    if (!event) throw new NotFoundException('Evento no encontrado');
-
-    if (dto.serviceFeePercent !== undefined) {
-      event.serviceFeePercent = dto.serviceFeePercent !== null && dto.serviceFeePercent >= 1
-        ? dto.serviceFeePercent / 100
-        : dto.serviceFeePercent;
-    }
-    if (dto.serviceFeeFixedPerTicket !== undefined) event.serviceFeeFixedPerTicket = dto.serviceFeeFixedPerTicket;
-    
-    if (dto.processingFeePercent !== undefined) {
-      event.processingFeePercent = dto.processingFeePercent !== null && dto.processingFeePercent >= 1
-        ? dto.processingFeePercent / 100
-        : dto.processingFeePercent;
-    }
-    if (dto.processingFeeFixedPerTicket !== undefined) event.processingFeeFixedPerTicket = dto.processingFeeFixedPerTicket;
-
-    await this.eventRepo.save(event);
-    return { success: true, event };
+    throw new BadRequestException('Los fees son globales y fijos para todas las compras: LPTicket 3.02% + $1.98 por entrada; procesamiento 2.9% + $0.30 por orden.');
   }
 
-  async updateSectionFees(sectionId: string, dto: {
+  async updateSectionFees(_sectionId: string, _dto: {
     serviceFeePercent?: number | null;
     serviceFeeFixedPerTicket?: number | null;
     processingFeePercent?: number | null;
     processingFeeFixedPerTicket?: number | null;
   }) {
-    const section = await this.sectionRepo.findOne({ where: { id: sectionId } });
-    if (!section) throw new NotFoundException('Sección no encontrada');
-
-    if (dto.serviceFeePercent !== undefined) {
-      section.serviceFeePercent = dto.serviceFeePercent !== null && dto.serviceFeePercent >= 1
-        ? dto.serviceFeePercent / 100
-        : dto.serviceFeePercent;
-    }
-    if (dto.serviceFeeFixedPerTicket !== undefined) section.serviceFeeFixedPerTicket = dto.serviceFeeFixedPerTicket;
-
-    if (dto.processingFeePercent !== undefined) {
-      section.processingFeePercent = dto.processingFeePercent !== null && dto.processingFeePercent >= 1
-        ? dto.processingFeePercent / 100
-        : dto.processingFeePercent;
-    }
-    if (dto.processingFeeFixedPerTicket !== undefined) section.processingFeeFixedPerTicket = dto.processingFeeFixedPerTicket;
-
-    await this.sectionRepo.save(section);
-    return { success: true, section };
+    throw new BadRequestException('Los fees son globales y fijos para todas las compras: LPTicket 3.02% + $1.98 por entrada; procesamiento 2.9% + $0.30 por orden.');
   }
 
   async setEventCreatorCommission(eventId: string, amount: number) {

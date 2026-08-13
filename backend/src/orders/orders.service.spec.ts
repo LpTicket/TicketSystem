@@ -50,6 +50,21 @@ describe('OrdersService critical ticket safeguards', () => {
     expect(doorSaleInvoice).toMatchObject({ unitPrice: 40, quantity: 1, ...invoice });
   });
 
+  it('applies the fixed service fee once per ticket and the Stripe fixed fee once per order', () => {
+    const { service } = buildService();
+    const invoice = (service as any).calculateOrderFees(
+      { maxTicketsPerTransaction: 30, serviceFeePercent: 0.5, processingFeePercent: 0.5 },
+      [{ price: 40 }, { price: 40 }],
+    );
+
+    expect(invoice).toEqual({
+      baseTotal: 80,
+      lpFee: 6.38,
+      processingFee: 2.89,
+      total: 89.27,
+    });
+  });
+
   it('does not consume a valid ticket when the selected event is different', async () => {
     const { service, ticketRepo, eventRepo } = buildService();
     eventRepo.findOne.mockResolvedValue({ id: 'event-a', organizerId: 'organizer-1' });

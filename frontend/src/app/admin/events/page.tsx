@@ -159,33 +159,10 @@ export default function AdminEventsPage() {
     }
   };
 
-  const handleOpenFeesModal = async (ev: Event) => {
-    setSelectedEventForFees(ev);
-    setFeeLoading(true);
-    setActiveTab('global');
-    try {
-      const { data } = await api.get(`/admin/events/${ev.id}/fees`);
-      // Ensure numeric fields are strings or empty for clean controlled inputs
-      const eventData = {
-        ...data.event,
-        serviceFeePercent: data.event.serviceFeePercent ?? '',
-        serviceFeeFixedPerTicket: data.event.serviceFeeFixedPerTicket ?? '',
-        processingFeePercent: data.event.processingFeePercent ?? '',
-        processingFeeFixedPerTicket: data.event.processingFeeFixedPerTicket ?? '',
-      };
-      const sectionsData = data.sections.map((sec: any) => ({
-        ...sec,
-        serviceFeePercent: sec.serviceFeePercent ?? '',
-        serviceFeeFixedPerTicket: sec.serviceFeeFixedPerTicket ?? '',
-        processingFeePercent: sec.processingFeePercent ?? '',
-        processingFeeFixedPerTicket: sec.processingFeeFixedPerTicket ?? '',
-      }));
-      setEventFeeConfig({ event: eventData, sections: sectionsData });
-    } catch (err: any) {
-      toast.error(lang === 'es' ? 'Error al cargar configuración de fees' : 'Error loading fees configuration');
-    } finally {
-      setFeeLoading(false);
-    }
+  const handleOpenFeesModal = (_ev: Event) => {
+    toast(lang === 'es'
+      ? 'Tarifas globales fijas: 3.02% + $1.98 por entrada; 2.9% + $0.30 por orden.'
+      : 'Fixed global fees: 3.02% + $1.98 per ticket; 2.9% + $0.30 per order.');
   };
 
   const handleSaveEventFees = async (e: React.FormEvent) => {
@@ -614,10 +591,10 @@ export default function AdminEventsPage() {
                           <button
                             onClick={() => handleOpenFeesModal(ev)}
                             className="px-3 py-1.5 rounded-lg bg-[#e2e8f0] text-[#334155] text-xs font-bold hover:bg-[#cbd5e1] transition-colors flex items-center gap-1 shrink-0 shadow-sm border border-[#cbd5e1]"
-                            title={lang === 'es' ? 'Configurar Fees' : 'Configure Fees'}
+                            title={lang === 'es' ? 'Ver política de tarifas fijas' : 'View fixed-fee policy'}
                           >
                             <HiOutlineCog className="w-4 h-4" />
-                            {lang === 'es' ? 'Fees' : 'Fees'}
+                            {lang === 'es' ? 'Tarifa fija' : 'Fixed fees'}
                           </button>
                           <Link
                             href={`/organizer/events/${ev.id}`}
@@ -755,7 +732,7 @@ export default function AdminEventsPage() {
                         className="flex-1 bg-[rgba(10,55,90,0.05)] text-[#0A375A] border border-[rgba(10,55,90,0.10)] text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all"
                       >
                         <HiOutlineCog className="w-4 h-4" />
-                        {lang === 'es' ? 'CONFIGURAR FEES' : 'CONFIG FEES'}
+                        {lang === 'es' ? 'TARIFA FIJA' : 'FIXED FEES'}
                       </button>
                       <Link
                         href={`/organizer/events/${ev.id}`}

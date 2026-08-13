@@ -1671,38 +1671,11 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
 
   // ── Fees ──────────────────────────────────────────────────────────────────
 
-  const openFees = async (ev: any) => {
-    if (feeEventId === ev.id) { setFeeEventId(null); setFeeConfig(null); return; }
-    setFeeEventId(ev.id);
-    setFeeConfig(null);
-    setFeeLoading(true);
-    setFeeTab('global');
-    try {
-      const data = await apiGet<any>(`/admin/events/${ev.id}/fees`);
-      const toStr = (v: any) => v != null ? String(v) : '';
-      setFeeConfig({
-        event: {
-          id: data.event.id,
-          serviceFeePercent: toStr(data.event.serviceFeePercent),
-          serviceFeeFixedPerTicket: toStr(data.event.serviceFeeFixedPerTicket),
-          processingFeePercent: toStr(data.event.processingFeePercent),
-          processingFeeFixedPerTicket: toStr(data.event.processingFeeFixedPerTicket),
-        },
-        sections: (data.sections || []).map((s: any) => ({
-          id: s.id,
-          name: s.name || s.sectionType || 'Sección',
-          serviceFeePercent: toStr(s.serviceFeePercent),
-          serviceFeeFixedPerTicket: toStr(s.serviceFeeFixedPerTicket),
-          processingFeePercent: toStr(s.processingFeePercent),
-          processingFeeFixedPerTicket: toStr(s.processingFeeFixedPerTicket),
-        })),
-      });
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || t('No se pudo cargar la configuración de fees', 'Could not load fee configuration'));
-      setFeeEventId(null);
-    } finally {
-      setFeeLoading(false);
-    }
+  const openFees = (_ev: any) => {
+    Alert.alert(
+      t('Tarifas globales fijas', 'Fixed global fees'),
+      t('Todas las compras usan 3.02% + $1.98 por entrada y 2.9% + $0.30 por orden. No se pueden cambiar por evento o sección.', 'Every purchase uses 3.02% + $1.98 per ticket and 2.9% + $0.30 per order. They cannot be changed by event or section.'),
+    );
   };
 
   const saveEventFees = async () => {
@@ -2275,8 +2248,8 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
                   </TouchableOpacity>
                 </View>
 	                <View style={styles.adminEventActions}>
-	                  <TouchableOpacity onPress={() => openFees(item)} style={[styles.adminEventSecondaryAction, feeEventId === item.id && styles.adminEventSecondaryActionActive]}>
-	                    <Text style={[styles.adminEventSecondaryText, feeEventId === item.id && styles.adminEventSecondaryTextActive]}>{t('FEES', 'FEES')}</Text>
+	                  <TouchableOpacity onPress={() => openFees(item)} style={styles.adminEventSecondaryAction}>
+	                    <Text style={styles.adminEventSecondaryText}>{t('TARIFA FIJA', 'FIXED FEES')}</Text>
 	                  </TouchableOpacity>
 	                  <TouchableOpacity onPress={() => openPrices(item)} style={[styles.adminEventSecondaryAction, priceEventId === item.id && styles.adminEventSecondaryActionActive]}>
 	                    <Text style={[styles.adminEventSecondaryText, priceEventId === item.id && styles.adminEventSecondaryTextActive]}>{t('PRECIOS', 'PRICES')}</Text>

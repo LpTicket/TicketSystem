@@ -17,6 +17,14 @@ import { useLang } from '@/context/LanguageContext';
 import { getImageUrl } from '@/lib/api';
 import TrustBadges from '@/components/layout/TrustBadges';
 
+const LPTICKET_FEE_RATE = 0.0302;
+const LPTICKET_FIXED_FEE_PER_TICKET = 1.98;
+const STRIPE_PERCENTAGE = 0.029;
+const STRIPE_FIXED = 0.30;
+
+const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+const ceilMoney = (value: number) => Math.ceil((value - Number.EPSILON) * 100) / 100;
+
 const getTimezoneAbbr = (timezone: string): string => {
   if (!timezone) return '';
   try {
@@ -219,38 +227,18 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
   }, [selectedSeats, seatMap]);
 
   const getServiceFee = useCallback(() => {
-    return selectedSeats.reduce((total, seat) => {
+    return roundMoney(selectedSeats.reduce((total, seat) => {
       const section = seatMap.find((s) => s.id === seat.sectionId);
-      const price = getSeatPrice(seat, section);
-      
-      const sFeePercent = section?.serviceFeePercent !== null && section?.serviceFeePercent !== undefined 
-        ? Number(section.serviceFeePercent) 
-        : (event?.serviceFeePercent !== null && event?.serviceFeePercent !== undefined ? Number(event.serviceFeePercent) : 0.12);
-
-      const sFeeFixed = section?.serviceFeeFixedPerTicket !== null && section?.serviceFeeFixedPerTicket !== undefined 
-        ? Number(section.serviceFeeFixedPerTicket) 
-        : (event?.serviceFeeFixedPerTicket !== null && event?.serviceFeeFixedPerTicket !== undefined ? Number(event.serviceFeeFixedPerTicket) : 0);
-        
-      return total + (price * sFeePercent + sFeeFixed);
-    }, 0);
-  }, [selectedSeats, seatMap, event]);
+      return total + getSeatPrice(seat, section) * LPTICKET_FEE_RATE + LPTICKET_FIXED_FEE_PER_TICKET;
+    }, 0));
+  }, [selectedSeats, seatMap]);
 
   const getProcessingFee = useCallback(() => {
-    return selectedSeats.reduce((total, seat) => {
-      const section = seatMap.find((s) => s.id === seat.sectionId);
-      const price = getSeatPrice(seat, section);
-      
-      const pFeePercent = section?.processingFeePercent !== null && section?.processingFeePercent !== undefined 
-        ? Number(section.processingFeePercent) 
-        : (event?.processingFeePercent !== null && event?.processingFeePercent !== undefined ? Number(event.processingFeePercent) : 0.029);
-
-      const pFeeFixed = section?.processingFeeFixedPerTicket !== null && section?.processingFeeFixedPerTicket !== undefined 
-        ? Number(section.processingFeeFixedPerTicket) 
-        : (event?.processingFeeFixedPerTicket !== null && event?.processingFeeFixedPerTicket !== undefined ? Number(event.processingFeeFixedPerTicket) : 0.30);
-        
-      return total + (price * pFeePercent + pFeeFixed);
-    }, 0);
-  }, [selectedSeats, seatMap, event]);
+    const subtotal = getTotalPrice();
+    if (subtotal <= 0) return 0;
+    const amountBeforeProcessing = subtotal + getServiceFee();
+    return roundMoney(ceilMoney((amountBeforeProcessing + STRIPE_FIXED) / (1 - STRIPE_PERCENTAGE)) - amountBeforeProcessing);
+  }, [getServiceFee, getTotalPrice]);
 
   const handleBuyTickets = () => {
     if (selectedSeats.length === 0) {
