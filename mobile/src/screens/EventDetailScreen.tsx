@@ -14,7 +14,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { MobileEvent } from '../types/event';
 import { apiGet, getImageUrl } from '../services/api';
 import { getEventSeatMap } from '../services/events';
-import { lockSeats, unlockSeats } from '../services/orders';
+import { InvoicePreview, lockSeats, previewInvoice, unlockSeats } from '../services/orders';
 import { ClientSeat, ClientVenueMap, ClientVenueSection } from '../components/events/ClientVenueMap';
 
 const fallbackImage = require('../../assets/demo-concert.png');
@@ -130,6 +130,9 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
   const [gaSectionId, setGaSectionId] = useState('');
   const [zonesOpen, setZonesOpen] = useState(false);
   const [locking, setLocking] = useState(false);
+  const [invoice, setInvoice] = useState<InvoicePreview | null>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState(false);
   const eventIdRef = useRef<string>('');
 
   useEffect(() => {
@@ -246,19 +249,40 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
     return map;
   }, [sections]);
 
-  const subtotal = mode === 'seats'
-    ? selectedSeats.reduce((sum, seat) => sum + seatPrice(seat, sectionById[seat.sectionId || '']), 0)
-    : (gaSelected?.price ?? 0) * gaQty;
+  const selectedSeatIds = selectedSeats.map((seat) => seat.id).join(',');
+  const hasSelection = mode === 'seats' ? selectedSeats.length > 0 : mode === 'ga' ? !!gaSelected : false;
 
-  const ticketCount = mode === 'seats' ? selectedSeats.length : gaQty;
-  const serviceFee = subtotal > 0 ? Math.round((subtotal * 0.0302 + 1.98 * ticketCount) * 100) / 100 : 0;
-  const amountBeforeProcessing = subtotal + serviceFee;
-  const total = subtotal > 0
-    ? Math.ceil((((amountBeforeProcessing + 0.30) / (1 - 0.029)) - Number.EPSILON) * 100) / 100
-    : 0;
-  const processingFee = subtotal > 0 ? Math.round((total - amountBeforeProcessing) * 100) / 100 : 0;
+  useEffect(() => {
+    const eventId = detail.id || event.id;
+    const params = mode === 'seats' && selectedSeatIds
+      ? { eventId, seatIds: selectedSeatIds }
+      : mode === 'ga' && gaSelected
+      ? { eventId, sectionId: gaSelected.id, quantity: gaQty }
+      : null;
 
-  const canBuy = mode === 'seats' ? selectedSeats.length > 0 : mode === 'ga' ? !!gaSelected : false;
+    if (!params) {
+      setInvoice(null);
+      setInvoiceError(false);
+      setInvoiceLoading(false);
+      return;
+    }
+
+    let active = true;
+    setInvoice(null);
+    setInvoiceError(false);
+    setInvoiceLoading(true);
+    previewInvoice(params)
+      .then((nextInvoice) => { if (active) setInvoice(nextInvoice); })
+      .catch(() => { if (active) setInvoiceError(true); })
+      .finally(() => { if (active) setInvoiceLoading(false); });
+    return () => { active = false; };
+  }, [detail.id, event.id, gaQty, gaSelected?.id, mode, selectedSeatIds]);
+
+  const subtotal = Number(invoice?.baseTotal || 0);
+  const serviceFee = Number(invoice?.lpFee || 0);
+  const processingFee = Number(invoice?.processingFee || 0);
+  const total = Number(invoice?.total || 0);
+  const canBuy = hasSelection && !!invoice && !invoiceLoading;
   const selectionCount = mode === 'seats' ? selectedSeats.length : mode === 'ga' && gaSelected ? gaQty : 0;
 
   useEffect(() => { onSelectionCountChange?.(selectionCount); }, [selectionCount, onSelectionCountChange]);
@@ -506,7 +530,18 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
           </View>
         )}
 
-        {subtotal > 0 && (
+        {invoiceLoading && (
+          <View style={st.feeRow}>
+            <Text style={st.feeLabel}>{t('Calculando total seguro...', 'Calculating secure total...')}</Text>
+            <ActivityIndicator size="small" color={colors.orange} />
+          </View>
+        )}
+
+        {!!invoiceError && (
+          <Text style={st.feeLabel}>{t('No se pudo calcular el total actual. Intenta nuevamente.', 'We could not calculate the current total. Please try again.')}</Text>
+        )}
+
+        {!!invoice && (
           <>
             <View style={st.feeRow}>
               <Text style={st.feeLabel}>{t('Subtotal', 'Subtotal')}</Text>
@@ -546,7 +581,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
             onBuy(selectedSeats, gaSelected ? { id: gaSelected.id, name: gaSelected.name, price: gaSelected.price } : undefined, gaSelected ? gaQty : undefined);
           }}
           activeOpacity={0.88}
-          disabled={!canBuy}
+          disabled={!canBuy || locking}
         >
           <View pointerEvents="none" style={st.buyShine} />
           {locking

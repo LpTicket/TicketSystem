@@ -38,6 +38,13 @@ export async function unlockSeats(): Promise<void> {
 }
 
 /** Fetches the invoice preview with real fees from the backend. */
-export async function previewInvoice(params: { eventId: string; seatIds?: string; sectionId?: string; quantity?: number }): Promise<any> {
-  return apiGet('/orders/preview-invoice', params);
+export type InvoicePreview = {
+  baseTotal: number;
+  lpFee: number;
+  processingFee: number;
+  total: number;
+};
+
+export async function previewInvoice(params: { eventId: string; seatIds?: string; sectionId?: string; quantity?: number }): Promise<InvoicePreview> {
+  return apiGet<InvoicePreview>('/orders/preview-invoice', { ...params, quoteAt: Date.now() });
 }
