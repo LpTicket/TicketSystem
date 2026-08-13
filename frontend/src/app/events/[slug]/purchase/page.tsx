@@ -339,7 +339,16 @@ export default function PurchasePage() {
         params.seatIds = selectedSeats.map((s) => s.id).join(',');
       }
 
-      const { data } = await api.get('/orders/preview-invoice', { params });
+      // A payment quote must always come directly from the backend. Adding a
+      // request key also prevents a browser from reusing an older preview when
+      // the selected tickets are the same.
+      const { data } = await api.get('/orders/preview-invoice', {
+        params: { ...params, quoteAt: Date.now() },
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+      });
       setInvoice({ ...data, currency: event?.currency || 'USD' });
       setStep('payment');
     } catch (err: any) {

@@ -1,5 +1,20 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-12 - Cotización web siempre actualizada
+
+### Corrección
+- El resumen antes de pagar en la web solicita una cotización nueva al backend en cada intento.
+- La ruta pública de previsualización ya responde con cabeceras que impiden reutilizar un cálculo antiguo desde caché del navegador o de un intermediario.
+
+### Áreas protegidas
+- No se modificaron Stripe, pagos existentes, órdenes, tickets, base de datos ni migraciones.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Con una entrada nueva de $40 en la web, confirmar antes de pagar: servicio `$3.19`, procesamiento `$1.60` y total `$44.79`.
+
 ## 2026-08-12 - Fórmula oficial única para compras de entradas
 
 ### Corrección

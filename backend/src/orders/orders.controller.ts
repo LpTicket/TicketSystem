@@ -11,7 +11,7 @@
  *     pero verifica la firma.
  */
 import {
-  Controller, Get, Post, Put, Body, Param, Query,
+  Controller, Get, Post, Put, Body, Param, Query, Header,
   UseGuards, Request, RawBodyRequest, Req, Headers, Res,
   HttpException, HttpStatus,
 } from '@nestjs/common';
@@ -195,6 +195,10 @@ export class OrdersController {
   }
 
   // Invoice preview (no auth needed — wizard uses this before payment)
+  // This amount is transactional and must never be served from a browser or
+  // intermediary cache after a fee configuration changes.
+  @Header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0')
+  @Header('Pragma', 'no-cache')
   @Get('preview-invoice')
   previewInvoice(
     @Query() query: { eventId: string; seatIds?: string; sectionId?: string; quantity?: string },
