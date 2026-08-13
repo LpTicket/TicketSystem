@@ -23,8 +23,6 @@ const LPTICKET_FEE_RATE = 0.0302; // 3.02% platform fee
 const LPTICKET_FIXED_FEE_PER_TICKET = 1.98;
 const STRIPE_PERCENTAGE = 0.029; // 2.9% Stripe variable fee
 const STRIPE_FIXED = 0.30; // $0.30 Stripe fixed fee per transaction
-const STRIPE_TAP_TO_PAY_PERCENTAGE = 0.027; // 2.7% Stripe Terminal variable fee
-const STRIPE_TAP_TO_PAY_FIXED = 0.15; // $0.05 Terminal + $0.10 Tap to Pay authorization
 const USER_PURCHASES_CACHE_TTL = 30_000;
 const DOOR_SALE_TAP_TO_PAY_CHANNEL = 'door_sale_tap_to_pay';
 
@@ -145,53 +143,23 @@ export class OrdersService {
   }
 
   /**
-   * Calculates the buyer-facing price for one completed Stripe charge.
-   * The LPTicket fixed service fee remains per ticket, while Stripe's fixed
-   * charge is applied once per order and grossed up so the processor is paid
-   * from the final amount the customer sees.
+   * Official customer-facing formula for every new ticket purchase:
+   * 3.02% + $1.98 per ticket, then a grossed-up 2.9% + $0.30 per order.
+   * The gross-up makes the displayed processing amount cover the Stripe fee.
    */
   private calculateOrderFees(
-    event: Event,
-    items: Array<{ price: number; section?: VenueSection | null }>,
-    processingDefaults = { percent: STRIPE_PERCENTAGE, fixed: STRIPE_FIXED },
+    _event: Event,
+    items: Array<{ price: number }>,
   ) {
     const baseTotal = this.roundMoney(items.reduce((sum, item) => sum + Number(item.price || 0), 0));
     if (baseTotal <= 0) return { baseTotal: 0, lpFee: 0, processingFee: 0, total: 0 };
 
-    const lpFee = this.roundMoney(items.reduce((sum, item) => {
-      const section = item.section;
-      const servicePercent = section?.serviceFeePercent !== null && section?.serviceFeePercent !== undefined
-        ? Number(section.serviceFeePercent)
-        : (event.serviceFeePercent !== null && event.serviceFeePercent !== undefined
-          ? Number(event.serviceFeePercent)
-          : LPTICKET_FEE_RATE);
-      const serviceFixed = section?.serviceFeeFixedPerTicket !== null && section?.serviceFeeFixedPerTicket !== undefined
-        ? Number(section.serviceFeeFixedPerTicket)
-        : (event.serviceFeeFixedPerTicket !== null && event.serviceFeeFixedPerTicket !== undefined
-          ? Number(event.serviceFeeFixedPerTicket)
-          : LPTICKET_FIXED_FEE_PER_TICKET);
-      return sum + Number(item.price || 0) * servicePercent + serviceFixed;
-    }, 0));
-
-    // A section-level Stripe setting only applies when every selected ticket is
-    // from that same section. Mixed-section orders use the event setting.
-    const sections = items.map((item) => item.section).filter((section): section is VenueSection => Boolean(section));
-    const singleSection = sections.length === items.length && sections.every((section) => section.id === sections[0]?.id)
-      ? sections[0]
-      : null;
-    const processingPercent = singleSection?.processingFeePercent !== null && singleSection?.processingFeePercent !== undefined
-      ? Number(singleSection.processingFeePercent)
-      : (event.processingFeePercent !== null && event.processingFeePercent !== undefined
-        ? Number(event.processingFeePercent)
-        : processingDefaults.percent);
-    const processingFixed = singleSection?.processingFeeFixedPerTicket !== null && singleSection?.processingFeeFixedPerTicket !== undefined
-      ? Number(singleSection.processingFeeFixedPerTicket)
-      : (event.processingFeeFixedPerTicket !== null && event.processingFeeFixedPerTicket !== undefined
-        ? Number(event.processingFeeFixedPerTicket)
-        : processingDefaults.fixed);
-    const safeProcessingPercent = Math.min(Math.max(processingPercent, 0), 0.99);
+    const lpFee = this.roundMoney(items.reduce(
+      (sum, item) => sum + Number(item.price || 0) * LPTICKET_FEE_RATE + LPTICKET_FIXED_FEE_PER_TICKET,
+      0,
+    ));
     const amountBeforeProcessing = baseTotal + lpFee;
-    const total = this.ceilMoney((amountBeforeProcessing + Math.max(processingFixed, 0)) / (1 - safeProcessingPercent));
+    const total = this.ceilMoney((amountBeforeProcessing + STRIPE_FIXED) / (1 - STRIPE_PERCENTAGE));
     const processingFee = this.roundMoney(total - amountBeforeProcessing);
 
     return { baseTotal, lpFee, processingFee, total };
@@ -201,8 +169,7 @@ export class OrdersService {
     event: Event,
     amount: number,
     quantity: number,
-    section?: VenueSection | null,
-    processingDefaults = { percent: STRIPE_PERCENTAGE, fixed: STRIPE_FIXED },
+    _section?: VenueSection | null,
   ) {
     const safeQuantity = Math.max(1, Math.min(Number(quantity) || 1, event.maxTicketsPerTransaction || 10));
     const unitPrice = Math.max(0, Math.round(Number(amount || 0) * 100) / 100);
@@ -213,8 +180,7 @@ export class OrdersService {
       quantity: safeQuantity,
       ...this.calculateOrderFees(
         event,
-        Array.from({ length: safeQuantity }, () => ({ price: unitPrice, section })),
-        processingDefaults,
+        Array.from({ length: safeQuantity }, () => ({ price: unitPrice })),
       ),
     };
   }
@@ -263,20 +229,12 @@ export class OrdersService {
     amount: number,
     quantity = 1,
     sectionId?: string,
-    paymentMethod?: 'tap' | 'qr' | 'link',
+    _paymentMethod?: 'tap' | 'qr' | 'link',
   ) {
     const event = await this.ensureCanSellAtDoor(user, eventId);
     const section = sectionId ? await this.sectionRepo.findOne({ where: { id: sectionId, eventId } }) : null;
     if (sectionId && !section) throw new NotFoundException('Section not found');
-    const invoice = this.calculateDoorSaleFees(
-      event,
-      amount,
-      quantity,
-      section,
-      paymentMethod === 'tap'
-        ? { percent: STRIPE_TAP_TO_PAY_PERCENTAGE, fixed: STRIPE_TAP_TO_PAY_FIXED }
-        : undefined,
-    );
+    const invoice = this.calculateDoorSaleFees(event, amount, quantity, section);
     return {
       ...invoice,
       section: section ? { id: section.id, name: section.name, type: section.sectionType } : null,
@@ -460,13 +418,7 @@ export class OrdersService {
   ) {
     if (!this.stripe) throw new BadRequestException('Stripe not configured');
     const event = await this.ensureCanSellAtDoor(user, eventId);
-    const invoice = this.calculateDoorSaleFees(
-      event,
-      amount,
-      quantity,
-      null,
-      { percent: STRIPE_TAP_TO_PAY_PERCENTAGE, fixed: STRIPE_TAP_TO_PAY_FIXED },
-    );
+    const invoice = this.calculateDoorSaleFees(event, amount, quantity, null);
     const checkoutBuyerEmail = buyerEmail?.trim();
     const checkoutBuyerName = buyerName?.trim();
 

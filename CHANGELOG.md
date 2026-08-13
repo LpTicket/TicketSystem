@@ -1,5 +1,27 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-12 - Fórmula oficial única para compras de entradas
+
+### Corrección
+- Toda compra nueva usa la fórmula oficial: cargo de servicio de `3.02% + $1.98 por entrada` y procesamiento bruto de `2.9% + $0.30 por orden`.
+- Web, compra móvil, Venta en Puerta y Tap to Pay usan el mismo cálculo desde el backend; las pantallas móviles reflejan el mismo desglose antes de cobrar.
+
+### Áreas protegidas
+- No se modificaron Stripe, credenciales, pagos existentes, órdenes históricas, tickets, base de datos ni migraciones.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/backend
+npx jest --runInBand --no-watchman src/orders/orders.service.spec.ts
+npx tsc --noEmit -p tsconfig.build.json
+```
+
+### Pendiente manual
+- Con una entrada de $40, confirmar antes de pagar en web, móvil y Tap to Pay: servicio `$3.19`, procesamiento `$1.60` y total `$44.79`.
+
 ## 2026-08-11 - Conciliación interna de pagos al organizador
 
 ### Funcionalidad desarrollada

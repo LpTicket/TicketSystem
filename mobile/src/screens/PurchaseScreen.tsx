@@ -147,10 +147,14 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
     mode === 'seats'
       ? selectedSeats.reduce((sum, seat) => sum + seatPrice(seat, sectionById[seat.sectionId || '']), 0)
       : (gaSelected?.price ?? 0) * gaQty;
-  const serviceFee = subtotal > 0 ? Math.round(subtotal * 0.08 * 100) / 100 : 0;
-  const processingFee = subtotal > 0 ? Math.round((subtotal + serviceFee) * 0.035 * 100) / 100 : 0;
+  const ticketCount = mode === 'seats' ? selectedSeats.length : gaQty;
+  const serviceFee = subtotal > 0 ? Math.round((subtotal * 0.0302 + 1.98 * ticketCount) * 100) / 100 : 0;
+  const amountBeforeProcessing = subtotal + serviceFee;
+  const total = subtotal > 0
+    ? Math.ceil((((amountBeforeProcessing + 0.30) / (1 - 0.029)) - Number.EPSILON) * 100) / 100
+    : 0;
+  const processingFee = subtotal > 0 ? Math.round((total - amountBeforeProcessing) * 100) / 100 : 0;
   const service = serviceFee; // kept for legacy compat
-  const total = subtotal + serviceFee + processingFee;
 
   const canPay = mode === 'seats' ? selectedSeats.length > 0 : mode === 'ga' ? !!gaSelected : false;
 

@@ -17,8 +17,10 @@ export function OrderSummaryScreen({ event, user, onBack, onPay }: Props) {
 
   const ticketPrice = Number(event?.price || 20);
   const subtotal = ticketPrice * quantity;
-  const serviceFee = subtotal * 0.08 + 1.5;
-  const total = subtotal + serviceFee;
+  const serviceFee = Math.round((subtotal * 0.0302 + 1.98 * quantity) * 100) / 100;
+  const amountBeforeProcessing = subtotal + serviceFee;
+  const total = Math.ceil((((amountBeforeProcessing + 0.30) / (1 - 0.029)) - Number.EPSILON) * 100) / 100;
+  const processingFee = Math.round((total - amountBeforeProcessing) * 100) / 100;
 
   const decrease = () => setQuantity((value) => Math.max(1, value - 1));
   const increase = () => setQuantity((value) => Math.min(8, value + 1));
@@ -85,6 +87,11 @@ export function OrderSummaryScreen({ event, user, onBack, onPay }: Props) {
           <View style={styles.row}>
             <Text style={styles.rowLabel}>{t('Cargo de servicio', 'Service fee')}</Text>
             <Text style={styles.rowValue}>$ {serviceFee.toFixed(2)}</Text>
+          </View>
+
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>{t('Tarifa de procesamiento', 'Processing fee')}</Text>
+            <Text style={styles.rowValue}>$ {processingFee.toFixed(2)}</Text>
           </View>
 
           <View style={styles.divider} />

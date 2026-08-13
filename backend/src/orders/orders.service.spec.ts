@@ -34,6 +34,22 @@ function buildService(overrides: Record<string, any> = {}) {
 }
 
 describe('OrdersService critical ticket safeguards', () => {
+  it('uses the official fee formula for web, mobile, Door Sale, and Tap to Pay', () => {
+    const { service } = buildService();
+
+    const event = { maxTicketsPerTransaction: 30, serviceFeePercent: 0.5, processingFeePercent: 0.5 };
+    const invoice = (service as any).calculateOrderFees(event, [{ price: 40 }]);
+    const doorSaleInvoice = (service as any).calculateDoorSaleFees(event, 40, 1);
+
+    expect(invoice).toEqual({
+      baseTotal: 40,
+      lpFee: 3.19,
+      processingFee: 1.6,
+      total: 44.79,
+    });
+    expect(doorSaleInvoice).toMatchObject({ unitPrice: 40, quantity: 1, ...invoice });
+  });
+
   it('does not consume a valid ticket when the selected event is different', async () => {
     const { service, ticketRepo, eventRepo } = buildService();
     eventRepo.findOne.mockResolvedValue({ id: 'event-a', organizerId: 'organizer-1' });

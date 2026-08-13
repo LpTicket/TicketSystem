@@ -233,10 +233,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           const baseTotal = Math.round(value * quantity * 100) / 100;
           const lpFee = Math.round((baseTotal * 0.0302 + 1.98 * quantity) * 100) / 100;
           const amountBeforeProcessing = baseTotal + lpFee;
-          const isTapToPay = paymentMethod === 'tap';
-          const processingPercent = isTapToPay ? 0.027 : 0.029;
-          const processingFixed = isTapToPay ? 0.15 : 0.30;
-          const total = Math.ceil((((amountBeforeProcessing + processingFixed) / (1 - processingPercent)) - Number.EPSILON) * 100) / 100;
+          const total = Math.ceil((((amountBeforeProcessing + 0.30) / (1 - 0.029)) - Number.EPSILON) * 100) / 100;
           const processingFee = Math.round((total - amountBeforeProcessing) * 100) / 100;
           setPreview({
             unitPrice: value,
