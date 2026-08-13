@@ -1,5 +1,21 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-13 - Aviso administrativo de eventos pendientes
+
+### Corrección
+- Cuando un organizador envía un evento a aprobación, el backend envía un correo diseñado con la identidad actual de LPTicket a `info@elpitique.com`.
+- El correo muestra organizador, fecha, lugar y categoría, e incluye un enlace directo a `Administración > Eventos` para revisarlo y aprobarlo.
+- Un reintento de envío mientras el evento ya está `pendiente de aprobación` no genera un correo duplicado.
+
+### Áreas protegidas
+- No se modificaron el flujo de aprobación, Stripe, pagos, órdenes, tickets, base de datos, migraciones, móvil ni eventos existentes.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Publicar el backend con SMTP configurado, enviar un evento nuevo a revisión y confirmar la recepción en `info@elpitique.com` y la apertura del enlace administrativo.
+
 ## 2026-08-12 - Cotización móvil confirmada por backend y preparación 1.0.8
 
 ### Corrección

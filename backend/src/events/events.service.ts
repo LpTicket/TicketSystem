@@ -17,6 +17,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Event, EventStatus, EventCategory, VenueSection, Seat, SeatStatus, User, UserRole, Ticket, TicketStatus, Order, OrderStatus, EventCategoryEntity } from '../database/entities';
 import { CreateEventDto, UpdateEventDto, EventQueryDto } from './dto/event.dto';
+import { MailService } from '../common/services/mail.service';
 
 // How long an event stays visible/purchasable after its start time when the
 // organizer did NOT set an explicit end time. Covers late buyers / walk-ins.
@@ -41,6 +42,7 @@ export class EventsService {
     @InjectRepository(Ticket)
     private readonly ticketRepo: Repository<Ticket>,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly mailService: MailService,
   ) {}
 
   async invalidateEventsCache(slug?: string, eventId?: string, organizerId?: string) {
@@ -411,6 +413,25 @@ export class EventsService {
       status: EventStatus.PENDING_APPROVAL,
     });
     await this.invalidateEventsCache(event.slug, id, event.organizerId);
+
+    // A repeated publish request must not create repeated approval emails.
+    if (event.status !== EventStatus.PENDING_APPROVAL) {
+      const organizer = event.organizerId === user?.id
+        ? user
+        : await this.eventRepo.manager.findOne(User, { where: { id: event.organizerId } });
+      const sent = await this.mailService.sendEventApprovalRequestEmail({
+        eventTitle: event.title,
+        organizerName: [organizer?.firstName, organizer?.lastName].filter(Boolean).join(' ') || 'Organizador sin nombre',
+        organizerEmail: organizer?.email || 'Correo no disponible',
+        eventDate: event.eventDate,
+        eventTimezone: event.eventTimezone,
+        venueName: event.venueName,
+        venueAddress: event.venueAddress,
+        category: event.category,
+      });
+      if (!sent) this.logger.warn(`No se envió el aviso de aprobación para el evento ${event.id}`);
+    }
+
     return this.findById(id);
   }
 

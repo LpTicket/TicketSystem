@@ -1,6 +1,6 @@
 # LPTicket - Estado del Proyecto
 
-Última revisión documental: 2026-08-12
+Última revisión documental: 2026-08-13
 Fuente: revisión de código local y respuesta de Apple Tap to Pay.
 Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explícita.
 
@@ -25,7 +25,7 @@ El backend es la fuente de verdad para eventos, mapas, asientos, bloqueos, órde
 | Registro, login y JWT | IMPLEMENTADO | Backend y clientes contienen autenticación, refresh y perfil. |
 | Google, Facebook y Apple Sign In | IMPLEMENTADO, NO PROBADO | Rutas y configuración presentes; proveedor externo no verificado. |
 | Eventos públicos | IMPLEMENTADO | API, web y móvil consumen eventos publicados. |
-| Creación y edición de eventos | IMPLEMENTADO, NO PROBADO | El organizador puede elegir durante la creación web entre mapa visual o entrada general. Entrada general reutiliza la sección standing existente, con nombre, precio y capacidad. El administrador dispone de `Crear evento para usuario`, selecciona un usuario activo y crea el evento en su panel sin perder el acceso administrativo. No cambia el esquema, pagos, Stripe, móvil ni eventos ya creados. Pendiente prueba manual de creación y compra. |
+| Creación y edición de eventos | IMPLEMENTADO, NO PROBADO | El organizador puede elegir durante la creación web entre mapa visual o entrada general. Entrada general reutiliza la sección standing existente, con nombre, precio y capacidad. El administrador dispone de `Crear evento para usuario`, selecciona un usuario activo y crea el evento en su panel sin perder el acceso administrativo. Cuando el organizador envía el borrador a aprobación, el backend avisa a `info@elpitique.com` (o `EVENT_APPROVAL_EMAIL` si está configurado) con enlace al panel administrativo; no se envía de nuevo por una solicitud repetida mientras siga pendiente. No cambia el esquema, pagos, Stripe, móvil ni eventos ya creados. Pendiente prueba SMTP real. |
 | Categorías | IMPLEMENTADO | Administración y consumo público presentes. |
 | Banners de inicio | IMPLEMENTADO | Marketing administra banners de web y móvil. |
 | Mapas, secciones y asientos | IMPLEMENTADO, NO PROBADO | Editor web/móvil, entidades y endpoints presentes; el editor web permite seleccionar varias secciones y aplicar un precio al grupo o a una seleccionada antes de guardar. Las mesas rectangulares distribuyen automáticamente las sillas a ambos lados largos y ajustan su altura al añadir o retirar sillas, sin reemplazar ajustes manuales existentes. En móvil, tanto organizador como administrador reutilizan el visor estable del cliente y solo permiten bloquear o desbloquear mesas/asientos. La selección se activa explícitamente con `Seleccionar / Select`, admite varias sillas o mesas y conserva el encuadre al bloquear; sus asientos muestran `B` naranja cuando están bloqueados y `S` gris cuando están vendidos. Las métricas móviles incluyen también la capacidad configurada de las áreas generales sin sillas individuales, igual que la web. La vista del cliente no revela esa distinción. La edición de diseño permanece en la web de computadora. Pendiente prueba física. |
