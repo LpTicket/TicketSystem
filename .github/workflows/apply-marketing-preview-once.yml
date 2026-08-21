@@ -1,5 +1,6 @@
 name: Apply marketing preview once
 
+# one-time trigger
 on:
   push:
     branches:
