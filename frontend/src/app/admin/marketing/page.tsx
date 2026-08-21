@@ -209,7 +209,7 @@ export default function AdminMarketingPage() {
   };
 
   useEffect(() => {
-    if (!emailCampaign?.id || emailCampaign.status !== 'processing') return;
+    if (!emailCampaign?.id || emailCampaign.status === 'completed' || emailCampaign.status === 'paused') return;
     const refresh = () => api.get(`/marketing/admin/email-campaigns/${emailCampaign.id}`)
       .then((r) => {
         const campaign = r.data || null;
@@ -840,7 +840,7 @@ export default function AdminMarketingPage() {
             <div className="mt-5 rounded-2xl border border-[rgba(246,198,95,0.24)] bg-[#071827] p-4 text-slate-100">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-black">Seguimiento de la última campaña</p>
+                  <p className="text-sm font-black">Seguimiento de campaña seleccionada</p>
                   <p className="mt-1 text-xs text-slate-400">{emailCampaign.subject}</p>
                 </div>
                 <span className={`rounded-full px-3 py-1 text-[11px] font-black ${emailCampaign.status === 'processing' ? 'bg-orange-500/15 text-orange-300' : emailCampaign.status === 'completed' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-700 text-slate-200'}`}>
@@ -867,7 +867,10 @@ export default function AdminMarketingPage() {
               <div className="mt-2 max-h-44 divide-y divide-white/5 overflow-y-auto rounded-xl border border-white/10 px-3 custom-scrollbar">
                 {emailCampaign.recipients.filter((recipient) => campaignRecipientFilter === 'all' || recipient.status === campaignRecipientFilter || (campaignRecipientFilter === 'sent' && recipient.status === 'opened')).map((recipient) => (
                   <div key={recipient.id} className="flex items-center justify-between gap-3 py-2 text-xs">
-                    <span className="min-w-0 truncate text-slate-200">{recipient.email}</span>
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate text-slate-200">{recipient.email}</span>
+                      {recipient.status === 'failed' && recipient.error && <span className="mt-0.5 block truncate text-[10px] text-red-200/80" title={recipient.error}>Motivo: {recipient.error}</span>}
+                    </div>
                     <span className={`shrink-0 font-bold ${recipient.status === 'failed' ? 'text-red-300' : recipient.status === 'queued' ? 'text-orange-300' : recipient.status === 'opened' ? 'text-emerald-300' : 'text-sky-300'}`}>
                       {{ queued: 'Pendiente', sent: 'Enviado', failed: 'Rechazado', opened: 'Abierto' }[recipient.status]}
                     </span>
