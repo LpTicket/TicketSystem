@@ -118,6 +118,19 @@ export class MarketingController {
     return this.marketingService.getLatestEmailCampaign();
   }
 
+  @Post('admin/email-campaigns/import-historical')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async importHistoricalEmailCampaign(@Body() body: {
+    reference?: string;
+    subject?: string;
+    title?: string;
+    recipients?: string[];
+    sentAt?: string;
+  }) {
+    return this.marketingService.importHistoricalEmailCampaign(body);
+  }
+
   @Get('admin/email-campaigns/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
