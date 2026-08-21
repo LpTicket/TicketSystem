@@ -184,6 +184,10 @@ export default function AdminMarketingPage() {
     setSel: React.Dispatch<React.SetStateAction<string[]>>,
   ) => {
     const q = pickerSearch[channel].toLowerCase();
+    const campaignRecipientsByEmail = new Map(
+      (channel === 'email' ? emailCampaign?.recipients || [] : [])
+        .map((recipient) => [recipient.email.toLowerCase(), recipient]),
+    );
     const list = recipientsList.filter(
       (u) => (field === 'phone'
         // WhatsApp: show all users, not just those with phone
@@ -191,6 +195,12 @@ export default function AdminMarketingPage() {
         : (u[field] && (u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || (u.phone || '').includes(q)))
       ),
     );
+    const pendingEmailUsers = channel === 'email'
+      ? list.filter((user) => {
+        const recipient = campaignRecipientsByEmail.get(user.email.toLowerCase());
+        return !recipient || recipient.status === 'failed';
+      })
+      : [];
     return (
       <div className="mt-2 rounded-xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-3">
         <input
@@ -202,6 +212,9 @@ export default function AdminMarketingPage() {
         <div className="mt-2 flex items-center justify-between text-[11px] text-gray-400">
           <span>{sel.length} seleccionado(s)</span>
           <div className="flex gap-3">
+            {channel === 'email' && emailCampaign && (
+              <button type="button" onClick={() => setSel(pendingEmailUsers.map((u) => u.id))} className="font-bold text-emerald-300">Enviar a pendientes</button>
+            )}
             <button type="button" onClick={() => setSel(list.map((u) => u.id))} className="font-bold text-[#F97316]">Todos</button>
             <button type="button" onClick={() => setSel([])} className="font-bold text-slate-400">Ninguno</button>
           </div>
@@ -213,11 +226,20 @@ export default function AdminMarketingPage() {
           {list.map((u) => {
             const contactValue = field === 'email' ? u.email : u.phone;
             const noPhone = field === 'phone' && !u.phone;
+            const campaignRecipient = field === 'email' ? campaignRecipientsByEmail.get(u.email.toLowerCase()) : undefined;
+            const delivered = campaignRecipient?.status === 'sent' || campaignRecipient?.status === 'opened';
             return (
               <label key={u.id} className={`flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5 ${noPhone ? 'opacity-50' : ''}`}>
                 <input type="checkbox" checked={sel.includes(u.id)} onChange={() => toggleSel(setSel, u.id)} className="accent-[#F97316]" disabled={noPhone} />
                 <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{u.name || u.email}</span>
-                <span className="shrink-0 text-[11px] text-gray-400">{noPhone ? 'Sin teléfono' : contactValue}</span>
+                <span className="shrink-0 text-right text-[11px] text-gray-400">
+                  {noPhone ? 'Sin teléfono' : contactValue}
+                  {campaignRecipient && (
+                    <span className={`mt-0.5 block font-bold ${delivered ? 'text-emerald-300' : campaignRecipient.status === 'failed' ? 'text-red-300' : 'text-orange-300'}`}>
+                      {delivered ? '✓ Enviado' : campaignRecipient.status === 'failed' ? 'Rechazado' : 'Pendiente'}
+                    </span>
+                  )}
+                </span>
               </label>
             );
           })}
