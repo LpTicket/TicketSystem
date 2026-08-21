@@ -14,9 +14,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { loadUser } = useAuthStore();
   const pathname = usePathname() || '';
 
-  // Standalone pages (e.g. the shared digital ticket) render clean, without the
-  // site header/footer/floating widgets that would overlap the ticket.
-  const standalone = pathname.startsWith('/verify/');
+  // Ticket and order-receipt pages render clean, without the site chrome that
+  // would overlap their dedicated receipt toolbars.
+  const isTicketPage = pathname.startsWith('/verify/');
+  const isOrderReceipt = /^\/orders\/[^/]+\/receipt$/.test(pathname);
+  const standalone = isTicketPage || isOrderReceipt;
 
   // Checkout pages have their own wizard nav — hide the global header/footer
   // so they don't collide with the sticky wizard breadcrumb.
@@ -28,8 +30,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const hideFloatingWidgets = /^\/organizer\/events\/[^/]+/.test(pathname);
 
   useEffect(() => {
-    if (!standalone) loadUser();
-  }, [loadUser, standalone]);
+    if (!isTicketPage) loadUser();
+  }, [isTicketPage, loadUser]);
 
   return (
     <>

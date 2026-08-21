@@ -1,5 +1,21 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Barra limpia para recibos de orden
+
+### Corrección
+- Los recibos de orden ya no muestran el encabezado, pie, descargas, scan, selector de idioma, perfil ni botones flotantes de la plataforma.
+- Solo conservan `Volver` y `Imprimir / Guardar PDF`, con el botón negro y texto blanco como la entrada de referencia.
+- Apple Wallet y Compartir permanecen exclusivamente en las entradas individuales.
+
+### Áreas protegidas
+- No se modificaron tickets, órdenes, pagos, QR, autenticación ni la barra de las entradas individuales.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Abrir un recibo de orden en escritorio y móvil; confirmar que no aparezca UI global y que la impresión siga funcionando.
+
 ## 2026-08-21 - Colores del recibo por orden corregidos
 
 ### Corrección

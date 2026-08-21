@@ -69,7 +69,7 @@ export default function OrderReceiptPage() {
       <div className="no-print w-full bg-white border-b border-slate-100 shadow-sm sticky top-0 z-10 px-4">
         <div className="max-w-2xl mx-auto py-3 flex justify-between items-center gap-3">
           <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-950 font-medium"><HiOutlineArrowLeft className="w-4 h-4" /> Volver</button>
-          <button onClick={() => window.print()} className="flex items-center gap-2 bg-[#0a375a] hover:bg-[#082c49] text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-sm"><HiOutlinePrinter className="w-4 h-4" /> Imprimir / Guardar PDF</button>
+          <button onClick={() => window.print()} className="flex items-center gap-2 bg-black hover:bg-gray-900 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-sm"><HiOutlinePrinter className="w-4 h-4" /> Imprimir / Guardar PDF</button>
         </div>
       </div>
 
