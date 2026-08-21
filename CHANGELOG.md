@@ -1,5 +1,20 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Diseño unificado de recibos de orden
+
+### Corrección
+- El recibo por orden ahora reutiliza la identidad visual de la entrada original de LPTicket: logo oscuro/naranja legible al imprimir, QR, cabecera, franja naranja/azul, bloques de datos y pie institucional.
+- Toda la información de la orden permanece en una sola página cuando su contenido cabe en ella; las órdenes con varias entradas conservan cada código y no pierden datos.
+
+### Áreas protegidas
+- No se modificaron órdenes, tickets, pagos, cálculos, permisos, QR ni base de datos.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Abrir un recibo de orden de una y de varias entradas, revisar su impresión/PDF y confirmar la legibilidad del logo y QR.
+
 ## 2026-08-21 - Recibo unificado desde el historial administrativo
 
 ### Corrección
