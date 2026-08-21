@@ -15,18 +15,29 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { MarketingBanner } from './marketing-banner.entity';
 import { PushToken } from './push-token.entity';
+import { EmailCampaign, EmailCampaignStatus } from './email-campaign.entity';
+import { EmailCampaignRecipient } from './email-campaign-recipient.entity';
 import { User } from '../database/entities/user.entity';
 import { MailService } from '../common/services/mail.service';
+import { randomBytes } from 'crypto';
 
 type CampaignResult = { sent: number; failed: number; total: number; error?: string };
+const EMAIL_CAMPAIGN_BATCH_SIZE = 100;
+const EMAIL_CAMPAIGN_CONCURRENCY = 5;
 
 @Injectable()
 export class MarketingService {
+  private readonly processingCampaigns = new Set<string>();
+
   constructor(
     @InjectRepository(MarketingBanner)
     private readonly bannerRepo: Repository<MarketingBanner>,
     @InjectRepository(PushToken)
     private readonly pushTokenRepo: Repository<PushToken>,
+    @InjectRepository(EmailCampaign)
+    private readonly emailCampaignRepo: Repository<EmailCampaign>,
+    @InjectRepository(EmailCampaignRecipient)
+    private readonly emailCampaignRecipientRepo: Repository<EmailCampaignRecipient>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly mailService: MailService,
@@ -144,35 +155,174 @@ export class MarketingService {
     return { sent, failed, total: uniqueTokens.length, error: failed > 0 ? lastError.slice(0, 300) : undefined };
   }
 
-  /** Send an email marketing campaign — to all active users, or to an explicit
-   *  list of emails when `recipients` is provided. */
+  private async resolveEmailTargets(recipients?: string[]) {
+    const requested = recipients?.length
+      ? recipients.map((email) => String(email || '').trim())
+      : (await this.getRecipients()).map((user) => String(user.email || '').trim());
+    const emails = Array.from(new Set(requested.filter(Boolean).map((email) => email.toLowerCase())));
+    if (!emails.length) throw new BadRequestException('No hay destinatarios con correo electrónico.');
+
+    const users = await this.userRepo.createQueryBuilder('user')
+      .select(['user.id', 'user.email'])
+      .where('LOWER(user.email) IN (:...emails)', { emails })
+      .getMany();
+    const usersByEmail = new Map(users.map((user) => [user.email.toLowerCase(), user]));
+    return emails.map((email) => ({ email, userId: usersByEmail.get(email)?.id || null }));
+  }
+
+  private async getCampaignView(id: string, includeRecipients = false) {
+    const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
+    if (!campaign) throw new BadRequestException('Campaña no encontrada.');
+    const rows = await this.emailCampaignRecipientRepo.find({
+      where: { campaignId: id },
+      order: { createdAt: 'ASC' },
+    });
+    const counts = rows.reduce((result, row) => {
+      result[row.status] = (result[row.status] || 0) + 1;
+      return result;
+    }, {} as Record<string, number>);
+    const sent = (counts.sent || 0) + (counts.opened || 0);
+    const queued = counts.queued || 0;
+    const failed = counts.failed || 0;
+    return {
+      id: campaign.id,
+      subject: campaign.subject,
+      title: campaign.title,
+      status: campaign.status,
+      total: campaign.totalRecipients,
+      sent,
+      failed,
+      queued,
+      opened: counts.opened || 0,
+      delivered: sent,
+      nextBatchSize: Math.min(EMAIL_CAMPAIGN_BATCH_SIZE, queued),
+      createdAt: campaign.createdAt,
+      ...(includeRecipients ? {
+        recipients: rows.map((row) => ({
+          id: row.id,
+          email: row.email,
+          status: row.status,
+          sentAt: row.sentAt,
+          openedAt: row.openedAt,
+          error: row.sendError,
+        })),
+      } : {}),
+    };
+  }
+
+  /** Creates a durable campaign. Sending starts asynchronously so the browser
+   * never loses the operation to an HTTP timeout. */
+  async createEmailCampaign(dto: {
+    subject?: string; title?: string; preheader?: string; imageData?: string | null; link?: string;
+    recipients?: string[];
+  }) {
+    const subject = String(dto.subject || dto.title || '').trim();
+    if (!subject) throw new BadRequestException('El asunto de la campaña es obligatorio.');
+    const targets = await this.resolveEmailTargets(dto.recipients);
+    const campaign = await this.emailCampaignRepo.save(this.emailCampaignRepo.create({
+      subject,
+      title: String(dto.title || '').trim() || null,
+      preheader: String(dto.preheader || '').trim() || null,
+      imageData: dto.imageData || null,
+      link: String(dto.link || '').trim() || null,
+      totalRecipients: targets.length,
+      status: 'queued',
+    }));
+    await this.emailCampaignRecipientRepo.save(targets.map((target) => this.emailCampaignRecipientRepo.create({
+      campaignId: campaign.id,
+      userId: target.userId,
+      email: target.email,
+      openToken: randomBytes(24).toString('hex'),
+      status: 'queued',
+    })));
+    void this.processNextEmailCampaignBatch(campaign.id);
+    return this.getCampaignView(campaign.id, true);
+  }
+
+  async getLatestEmailCampaign() {
+    const campaign = await this.emailCampaignRepo.findOne({ order: { createdAt: 'DESC' } });
+    return campaign ? this.getCampaignView(campaign.id, true) : null;
+  }
+
+  async getEmailCampaign(id: string) {
+    return this.getCampaignView(id, true);
+  }
+
+  async sendNextEmailCampaignBatch(id: string) {
+    const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
+    if (!campaign) throw new BadRequestException('Campaña no encontrada.');
+    if (campaign.status === 'processing' || this.processingCampaigns.has(id)) {
+      return this.getCampaignView(id, true);
+    }
+    if (campaign.status === 'completed') return this.getCampaignView(id, true);
+    void this.processNextEmailCampaignBatch(id);
+    return this.getCampaignView(id, true);
+  }
+
+  private async processNextEmailCampaignBatch(id: string): Promise<void> {
+    if (this.processingCampaigns.has(id)) return;
+    this.processingCampaigns.add(id);
+    try {
+      const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
+      if (!campaign) return;
+      await this.emailCampaignRepo.update(id, { status: 'processing' });
+      const recipients = await this.emailCampaignRecipientRepo.find({
+        where: { campaignId: id, status: 'queued' },
+        order: { createdAt: 'ASC' },
+        take: EMAIL_CAMPAIGN_BATCH_SIZE,
+      });
+
+      for (let offset = 0; offset < recipients.length; offset += EMAIL_CAMPAIGN_CONCURRENCY) {
+        const group = recipients.slice(offset, offset + EMAIL_CAMPAIGN_CONCURRENCY);
+        await Promise.all(group.map(async (recipient) => {
+          try {
+            await this.mailService.sendMarketingEmail(recipient.email, {
+              subject: campaign.subject,
+              title: campaign.title || undefined,
+              preheader: campaign.preheader || undefined,
+              imageData: campaign.imageData,
+              link: campaign.link || undefined,
+              trackingUrl: this.getEmailOpenTrackingUrl(recipient.openToken),
+            });
+            await this.emailCampaignRecipientRepo.update(recipient.id, { status: 'sent', sentAt: new Date(), sendError: null });
+          } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Error de SMTP';
+            await this.emailCampaignRecipientRepo.update(recipient.id, { status: 'failed', sendError: message.slice(0, 500) });
+          }
+        }));
+      }
+
+      const queued = await this.emailCampaignRecipientRepo.count({ where: { campaignId: id, status: 'queued' } });
+      await this.emailCampaignRepo.update(id, { status: queued > 0 ? 'paused' : 'completed' });
+    } finally {
+      this.processingCampaigns.delete(id);
+    }
+  }
+
+  private getEmailOpenTrackingUrl(token: string) {
+    const base = String(this.config.get<string>('API_URL') || this.config.get<string>('BACKEND_URL') || '')
+      .replace(/\/$/, '')
+      .replace(/\/api$/, '');
+    return base ? `${base}/api/marketing/open/${token}` : '';
+  }
+
+  async markEmailCampaignRecipientOpened(token: string) {
+    if (!token || !/^[a-f0-9]{48}$/i.test(token)) return;
+    await this.emailCampaignRecipientRepo.createQueryBuilder()
+      .update(EmailCampaignRecipient)
+      .set({ status: 'opened', openedAt: () => 'COALESCE("openedAt", NOW())' })
+      .where('"openToken" = :token AND status IN (:...statuses)', { token, statuses: ['sent', 'opened'] })
+      .execute();
+  }
+
+  // Kept for callers outside the admin flow. New dashboard campaigns use the
+  // persistent queue above.
   async sendEmailCampaign(dto: {
     subject?: string; title?: string; preheader?: string; imageData?: string | null; link?: string;
     recipients?: string[];
   }): Promise<CampaignResult> {
-    let targets: { email: string }[];
-    if (dto.recipients && dto.recipients.length) {
-      targets = dto.recipients.map((e) => ({ email: String(e).trim() })).filter((t) => t.email);
-    } else {
-      const users = await this.getRecipients();
-      targets = users.filter((u) => u.email).map((u) => ({ email: u.email }));
-    }
-    let sent = 0, failed = 0;
-    for (const u of targets) {
-      try {
-        await this.mailService.sendMarketingEmail(u.email, {
-          subject: dto.subject || dto.title || 'LP Ticket',
-          title: dto.title,
-          preheader: dto.preheader,
-          imageData: dto.imageData,
-          link: dto.link,
-        });
-        sent++;
-      } catch {
-        failed++;
-      }
-    }
-    return { sent, failed, total: targets.length };
+    const campaign = await this.createEmailCampaign(dto);
+    return { sent: 0, failed: 0, total: campaign.total };
   }
 
   /** Normalize a phone to E.164. Assumes US (+1) when no country code is given. */

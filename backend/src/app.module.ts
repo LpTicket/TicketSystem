@@ -21,6 +21,8 @@ import { User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, Pa
 import { MarketingModule } from './marketing/marketing.module';
 import { MarketingBanner } from './marketing/marketing-banner.entity';
 import { PushToken } from './marketing/push-token.entity';
+import { EmailCampaign } from './marketing/email-campaign.entity';
+import { EmailCampaignRecipient } from './marketing/email-campaign-recipient.entity';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AnalyticsPageView } from './analytics/analytics-page-view.entity';
 import { ScannerAccessModule } from './scanner-access/scanner-access.module';
@@ -44,7 +46,7 @@ import { ScannerAccess } from './database/entities';
             password: config.get<string>('DB_PASSWORD'),
             database: config.get<string>('DB_NAME'),
           }),
-          entities: [MarketingBanner, PushToken, AnalyticsPageView, User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout, OrganizerPayout, ScannerAccess],
+          entities: [MarketingBanner, PushToken, EmailCampaign, EmailCampaignRecipient, AnalyticsPageView, User, Event, VenueSection, Seat, Order, Ticket, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout, OrganizerPayout, ScannerAccess],
           synchronize: true,
           logging: false,
           ssl: isProd ? { rejectUnauthorized: false } : false,

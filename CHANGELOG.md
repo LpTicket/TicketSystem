@@ -1,5 +1,37 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Historial por destinatario para Email Marketing
+
+### Corrección
+- Cada nueva campaña guarda un registro único por destinatario antes de enviar, por lo que el panel muestra exactamente quién está enviado, pendiente, rechazado o abierto.
+- Las campañas procesan un máximo de 100 destinatarios por lote; el administrador puede continuar con el siguiente lote sin repetir correos ya enviados.
+- Se añadió seguimiento de apertura mediante un píxel individual, indicado como aproximado porque algunos proveedores lo bloquean o precargan.
+
+### Límites transparentes
+- `Enviado` confirma que Zoho SMTP aceptó el mensaje; no prueba por sí solo la entrega en la bandeja de entrada.
+- Los rebotes que lleguen después desde el proveedor no se pueden marcar automáticamente sin una integración de eventos o webhook del proveedor de correo.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Publicar, enviar una prueba a dos destinatarios y confirmar: el primer lote, la actualización de estados, el siguiente lote, la apertura y que no se reenvíe un destinatario ya enviado.
+
+## 2026-08-21 - Envío masivo de Email Marketing estabilizado
+
+### Corrección
+- Las campañas de email ya no esperan cada destinatario en serie: se procesan en grupos controlados de cinco correos y reutilizan conexiones SMTP.
+- Los destinatarios se deduplican por correo y la administración informa el total enviado y el total que no se pudo entregar.
+
+### Áreas protegidas
+- No se modificaron destinatarios, contenido de campañas, enlaces, permisos ni envíos individuales.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Antes de reenviar la campaña completa, revisar quiénes ya la recibieron y enviar una prueba a un grupo pequeño para confirmar la entrega sin duplicados.
+
 ## 2026-08-21 - Descarga de la app desde Email Marketing
 
 ### Corrección

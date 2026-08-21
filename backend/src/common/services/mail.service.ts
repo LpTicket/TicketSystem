@@ -64,6 +64,12 @@ export class MailService {
       host: this.configService.get('SMTP_HOST'),
       port: this.configService.get('SMTP_PORT'),
       secure: this.configService.get('SMTP_SECURE') === 'true',
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+      connectionTimeout: 15_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 30_000,
       auth: {
         user: this.configService.get('SMTP_USER'),
         pass: this.configService.get('SMTP_PASS'),
@@ -754,7 +760,7 @@ export class MailService {
   /** Marketing campaign email styled like LPTicket ticket emails. */
   async sendMarketingEmail(
     to: string,
-    opts: { subject: string; title?: string; preheader?: string; imageData?: string | null; link?: string },
+    opts: { subject: string; title?: string; preheader?: string; imageData?: string | null; link?: string; trackingUrl?: string },
   ) {
     const appUrl = this.getAppUrl();
     const year = new Date().getFullYear();
@@ -790,6 +796,7 @@ export class MailService {
     const safeTitle = escapeHtml(opts.title || '');
     const safeCtaUrl = escapeHtml(ctaUrl);
     const safeAppUrl = escapeHtml(appUrl);
+    const trackingUrl = String(opts.trackingUrl || '').trim();
     const bodyHtml = formatMarketingBody(opts.preheader);
     const preheaderText = escapeHtml((opts.preheader || opts.title || 'Novedades de LPTicket').replace(/<[^>]+>/g, '').slice(0, 160));
 
@@ -926,6 +933,7 @@ export class MailService {
               <p style="margin:0;color:#64748b;font-size:11px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">© ${year} LPTicket · Recibiste este correo porque tienes una cuenta en LPTicket.</p>
             </td>
           </tr>
+          ${trackingUrl ? `<tr><td style="font-size:0;line-height:0;height:1px;"><img src="${escapeHtml(trackingUrl)}" width="1" height="1" alt="" style="display:block;border:0;outline:none;text-decoration:none;" /></td></tr>` : ''}
         </table>
       </td>
     </tr>

@@ -40,6 +40,30 @@ type MarketingHomeBanner = {
   isActive?: boolean;
 };
 
+type EmailCampaignRecipient = {
+  id: string;
+  email: string;
+  status: 'queued' | 'sent' | 'failed' | 'opened';
+  sentAt?: string | null;
+  openedAt?: string | null;
+  error?: string | null;
+};
+
+type EmailCampaignSummary = {
+  id: string;
+  subject: string;
+  title?: string | null;
+  status: 'queued' | 'processing' | 'paused' | 'completed';
+  total: number;
+  sent: number;
+  failed: number;
+  queued: number;
+  opened: number;
+  delivered: number;
+  nextBatchSize: number;
+  recipients: EmailCampaignRecipient[];
+};
+
 const channels = [
   {
     title: 'Banner Home',
@@ -89,6 +113,9 @@ export default function AdminMarketingPage() {
   const [campaignLink, setCampaignLink] = useState('');
   const [emailArtPreview, setEmailArtPreview] = useState('');
   const [emailArtFileName, setEmailArtFileName] = useState('');
+  const [emailCampaign, setEmailCampaign] = useState<EmailCampaignSummary | null>(null);
+  const [campaignRecipientFilter, setCampaignRecipientFilter] = useState<'all' | 'sent' | 'queued' | 'failed' | 'opened'>('all');
+  const [loadingNextBatch, setLoadingNextBatch] = useState(false);
 
   const [smsMessage, setSmsMessage] = useState('');
   const [pushTitle, setPushTitle] = useState('');
@@ -131,7 +158,17 @@ export default function AdminMarketingPage() {
       const data = r.data;
       setPushEvents(Array.isArray(data) ? data : data?.events || data?.data || []);
     }).catch(() => {});
+    api.get('/marketing/admin/email-campaigns/latest').then((r) => setEmailCampaign(r.data || null)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!emailCampaign?.id || emailCampaign.status !== 'processing') return;
+    const refresh = () => api.get(`/marketing/admin/email-campaigns/${emailCampaign.id}`)
+      .then((r) => setEmailCampaign(r.data || null))
+      .catch(() => {});
+    const timer = window.setInterval(refresh, 5000);
+    return () => window.clearInterval(timer);
+  }, [emailCampaign?.id, emailCampaign?.status]);
 
   const toggleSel = (
     setSel: React.Dispatch<React.SetStateAction<string[]>>,
@@ -219,10 +256,25 @@ export default function AdminMarketingPage() {
         imageData: emailArtPreview || undefined,
         recipients,
       });
-      toast.success(`Email enviado: ${data.sent}/${data.total} (${data.failed} fallidos)`);
+      setEmailCampaign(data || null);
+      toast.success(`Campaña creada. Se están procesando los primeros ${Math.min(100, data?.total || 0)} correos.`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Error al enviar el email');
     } finally { setSending(''); }
+  };
+
+  const handleSendNextEmailBatch = async () => {
+    if (!emailCampaign?.id || emailCampaign.nextBatchSize <= 0) return;
+    setLoadingNextBatch(true);
+    try {
+      const { data } = await api.post(`/marketing/admin/email-campaigns/${emailCampaign.id}/send-next`);
+      setEmailCampaign(data || null);
+      toast.success(`Se están procesando los próximos ${Math.min(100, data?.nextBatchSize || 100)} correos pendientes.`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'No se pudo iniciar el siguiente lote.');
+    } finally {
+      setLoadingNextBatch(false);
+    }
   };
 
   const handleSendMessaging = async (channel: 'sms' | 'whatsapp') => {
@@ -649,6 +701,53 @@ export default function AdminMarketingPage() {
           <p className="mt-2 text-center text-[11px] text-gray-400">
             {emailAudience === 'all' ? 'Se envía a todos los usuarios registrados.' : 'Se envía solo a los correos especificados.'}
           </p>
+
+          {emailCampaign && (
+            <div className="mt-5 rounded-2xl border border-[rgba(246,198,95,0.24)] bg-[#071827] p-4 text-slate-100">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black">Seguimiento de la última campaña</p>
+                  <p className="mt-1 text-xs text-slate-400">{emailCampaign.subject}</p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-[11px] font-black ${emailCampaign.status === 'processing' ? 'bg-orange-500/15 text-orange-300' : emailCampaign.status === 'completed' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-700 text-slate-200'}`}>
+                  {emailCampaign.status === 'processing' ? 'PROCESANDO' : emailCampaign.status === 'completed' ? 'COMPLETADA' : 'LISTA PARA CONTINUAR'}
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+                <div className="rounded-xl bg-white/5 p-2"><p className="text-lg font-black text-white">{emailCampaign.sent}</p><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Enviados</p></div>
+                <div className="rounded-xl bg-white/5 p-2"><p className="text-lg font-black text-emerald-300">{emailCampaign.opened}</p><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Abiertos*</p></div>
+                <div className="rounded-xl bg-white/5 p-2"><p className="text-lg font-black text-orange-300">{emailCampaign.queued}</p><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Pendientes</p></div>
+                <div className="rounded-xl bg-white/5 p-2"><p className="text-lg font-black text-red-300">{emailCampaign.failed}</p><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Rechazados</p></div>
+              </div>
+
+              <p className="mt-3 text-[11px] leading-5 text-slate-400">Enviado significa que Zoho aceptó el correo. *La apertura es una medición aproximada: algunos proveedores la bloquean o la cargan automáticamente.</p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(['all', 'sent', 'queued', 'failed', 'opened'] as const).map((filter) => (
+                  <button key={filter} type="button" onClick={() => setCampaignRecipientFilter(filter)} className={`rounded-lg px-2.5 py-1.5 text-[11px] font-bold ${campaignRecipientFilter === filter ? 'bg-[#F97316] text-white' : 'bg-white/5 text-slate-300 hover:bg-white/10'}`}>
+                    {{ all: 'Todos', sent: 'Enviados', queued: 'Pendientes', failed: 'Rechazados', opened: 'Abiertos' }[filter]}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 max-h-44 divide-y divide-white/5 overflow-y-auto rounded-xl border border-white/10 px-3 custom-scrollbar">
+                {emailCampaign.recipients.filter((recipient) => campaignRecipientFilter === 'all' || recipient.status === campaignRecipientFilter || (campaignRecipientFilter === 'sent' && recipient.status === 'opened')).map((recipient) => (
+                  <div key={recipient.id} className="flex items-center justify-between gap-3 py-2 text-xs">
+                    <span className="min-w-0 truncate text-slate-200">{recipient.email}</span>
+                    <span className={`shrink-0 font-bold ${recipient.status === 'failed' ? 'text-red-300' : recipient.status === 'queued' ? 'text-orange-300' : recipient.status === 'opened' ? 'text-emerald-300' : 'text-sky-300'}`}>
+                      {{ queued: 'Pendiente', sent: 'Enviado', failed: 'Rechazado', opened: 'Abierto' }[recipient.status]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {emailCampaign.queued > 0 && emailCampaign.status !== 'processing' && (
+                <button type="button" onClick={handleSendNextEmailBatch} disabled={loadingNextBatch} className="btn-primary mt-4 w-full py-3 disabled:opacity-60">
+                  {loadingNextBatch ? 'Iniciando…' : `Enviar próximos ${emailCampaign.nextBatchSize} correos`}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">

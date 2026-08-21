@@ -108,7 +108,38 @@ export class MarketingController {
   async sendEmailCampaign(
     @Body() body: { subject?: string; title?: string; preheader?: string; imageData?: string | null; link?: string; recipients?: string[] },
   ) {
-    return this.marketingService.sendEmailCampaign(body);
+    return this.marketingService.createEmailCampaign(body);
+  }
+
+  @Get('admin/email-campaigns/latest')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async getLatestEmailCampaign() {
+    return this.marketingService.getLatestEmailCampaign();
+  }
+
+  @Get('admin/email-campaigns/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async getEmailCampaign(@Param('id') id: string) {
+    return this.marketingService.getEmailCampaign(id);
+  }
+
+  @Post('admin/email-campaigns/:id/send-next')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async sendNextEmailCampaignBatch(@Param('id') id: string) {
+    return this.marketingService.sendNextEmailCampaignBatch(id);
+  }
+
+  @Get('open/:token')
+  async trackEmailOpen(@Param('token') token: string, @Res() res: any) {
+    await this.marketingService.markEmailCampaignRecipientOpened(token);
+    const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==', 'base64');
+    res.header('Content-Type', 'image/gif');
+    res.header('Content-Length', pixel.length);
+    res.header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    return res.send(pixel);
   }
 
   @Post('admin/sms-campaign')
