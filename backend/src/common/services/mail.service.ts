@@ -842,7 +842,6 @@ export class MailService {
                   <td align="left" style="vertical-align:middle;">
                     <img src="${safeAppUrl}/logo-email-orange.png" alt="LPTicket" width="220" style="display:block;width:220px;max-width:72%;height:auto;border:0;">
                   </td>
-                  <td align="right" style="vertical-align:middle;color:#94a3b8;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;">Marketing</td>
                 </tr>
               </table>
             </td>
@@ -859,7 +858,7 @@ export class MailService {
           </tr>` : ''}
           <tr>
             <td bgcolor="#ffffff" style="background:#ffffff!important;padding:28px 32px 8px;text-align:left;">
-              <p style="margin:0 0 10px;color:#F97316;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1.8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Una experiencia LPTicket</p>
+              <p style="margin:0 0 10px;color:#F97316;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1.8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Vive la experiencia</p>
               ${safeTitle ? `<h1 style="margin:0;color:#0A375A;font-size:28px;font-weight:900;line-height:1.18;letter-spacing:-0.7px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${safeTitle}</h1>` : ''}
               ${bodyHtml ? `<div style="margin-top:22px;border:1px solid #e2e8f0;border-left:4px solid #F97316;border-radius:14px;background:#f8fafc;padding:20px 20px 6px;">${bodyHtml}</div>` : ''}
             </td>

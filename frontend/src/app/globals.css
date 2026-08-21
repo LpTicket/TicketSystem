@@ -5505,6 +5505,54 @@ html body header.site-header-future.site-header-future {
   color: #f1f5f9 !important;
 }
 
+/* Event detail: one compact information surface instead of three competing cards. */
+.event-dark .event-detail-meta {
+  overflow: hidden;
+  border: 1px solid rgba(246, 198, 95, 0.20);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(8, 31, 51, 0.92), rgba(5, 17, 31, 0.88));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+}
+.event-dark .event-detail-meta-item {
+  position: relative;
+}
+.event-dark .event-detail-meta-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 20px;
+  bottom: 0;
+  left: 20px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(249, 115, 22, 0.82) 12%, rgba(249, 115, 22, 0.82) 88%, transparent);
+}
+.event-dark .event-detail-share {
+  min-height: 42px;
+  border: 1px solid rgba(246, 198, 95, 0.28) !important;
+  border-radius: 999px !important;
+  background: rgba(8, 31, 51, 0.74) !important;
+  color: #f8fafc !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 26px rgba(0, 0, 0, 0.18) !important;
+}
+.event-dark .event-detail-share svg {
+  color: #F97316;
+}
+.event-dark .event-detail-share:hover {
+  border-color: rgba(249, 115, 22, 0.60) !important;
+  background: rgba(249, 115, 22, 0.10) !important;
+  color: #ffffff !important;
+}
+@media (min-width: 640px) {
+  .event-dark .event-detail-meta-item:not(:last-child)::after {
+    top: 18px;
+    right: 0;
+    bottom: 18px;
+    left: auto;
+    width: 1px;
+    height: auto;
+    background: linear-gradient(180deg, transparent, rgba(249, 115, 22, 0.70) 16%, rgba(249, 115, 22, 0.70) 84%, transparent);
+  }
+}
+
 /* Secondary (outline) buttons are white by default — make them dark on dark pages */
 .page-dark-shell .btn-secondary,
 .lp-management-layout .btn-secondary,

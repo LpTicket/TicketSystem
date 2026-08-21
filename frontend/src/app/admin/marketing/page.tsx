@@ -680,7 +680,7 @@ export default function AdminMarketingPage() {
               )}
 
               <div className="px-6 py-8 text-left">
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#F97316]">Una experiencia LPTicket</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#F97316]">Vive la experiencia</p>
                 <h3 className="mt-2 text-2xl font-black leading-tight tracking-tight text-[#0A375A]">
                   {campaignName || 'Título de tu campaña'}
                 </h3>

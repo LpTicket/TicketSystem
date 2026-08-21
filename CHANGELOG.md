@@ -1,5 +1,20 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Información premium en detalle de evento móvil web
+
+### Corrección
+- Fecha, hora y lugar ahora forman una única superficie visual en el detalle público del evento, con separadores naranjas discretos y mejor lectura de direcciones largas.
+- La acción para compartir se simplificó a un botón sobrio, compacto y coherente con la identidad oscura de la página.
+
+### Áreas protegidas
+- No se modificaron eventos, disponibilidad, compra, mapas, precios, enlaces ni el comportamiento de compartir.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Abrir un evento desde navegador móvil y confirmar la lectura con nombres y direcciones cortas y largas.
+
 ## 2026-08-21 - Lectura premium en correos de Marketing
 
 ### Corrección

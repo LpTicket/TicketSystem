@@ -24,7 +24,7 @@ El backend es la fuente de verdad para eventos, mapas, asientos, bloqueos, órde
 | --- | --- | --- |
 | Registro, login y JWT | IMPLEMENTADO | Backend y clientes contienen autenticación, refresh y perfil. |
 | Google, Facebook y Apple Sign In | IMPLEMENTADO, NO PROBADO | Rutas y configuración presentes; proveedor externo no verificado. |
-| Eventos públicos | IMPLEMENTADO | API, web y móvil consumen eventos publicados. |
+| Eventos públicos | IMPLEMENTADO, NO PROBADO | API, web y móvil consumen eventos publicados. En web móvil, el detalle público reúne fecha, hora y lugar en una sola superficie visual y conserva una acción de compartir compacta; pendiente revisión visual con eventos reales. |
 | Creación y edición de eventos | IMPLEMENTADO, NO PROBADO | El organizador puede elegir durante la creación web entre mapa visual o entrada general. Entrada general reutiliza la sección standing existente, con nombre, precio y capacidad. El administrador dispone de `Crear evento para usuario`, selecciona un usuario activo y crea el evento en su panel sin perder el acceso administrativo. Cuando el organizador envía el borrador a aprobación, el backend avisa a `info@elpitique.com` (o `EVENT_APPROVAL_EMAIL` si está configurado) con enlace al panel administrativo; no se envía de nuevo por una solicitud repetida mientras siga pendiente. No cambia el esquema, pagos, Stripe, móvil ni eventos ya creados. Pendiente prueba SMTP real. |
 | Categorías | IMPLEMENTADO | Administración y consumo público presentes. |
 | Banners de inicio | IMPLEMENTADO | Marketing administra banners de web y móvil. |
