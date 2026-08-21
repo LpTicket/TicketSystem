@@ -75,7 +75,7 @@ export default function OrderReceiptPage() {
 
       <main className="order-receipt-shell min-h-screen bg-slate-100 py-8 px-4 print:bg-white print:py-0 print:px-0">
         <article className="order-receipt-card max-w-[8.5in] mx-auto overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl print:shadow-none">
-          <header className="px-8 pt-8 pb-0">
+          <div className="order-receipt-header bg-white px-8 pt-8 pb-0">
             <div className="flex items-start justify-between gap-5">
               <div className="min-w-0 flex-1">
                 <img src="/lp-logo.png" alt="LPTicket" className="h-10 w-auto object-contain mb-5" />
@@ -88,7 +88,7 @@ export default function OrderReceiptPage() {
               {firstTicket && <div className="flex shrink-0 flex-col items-center"><img src={firstTicket.qrData || `${api.defaults.baseURL}/orders/ticket/${firstTicket.ticketCode}/qr.png`} alt="Código QR de la entrada" className="h-32 w-32 rounded-xl border border-slate-200 bg-white p-2 shadow-sm" /><span className="mt-2 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">Present at entry</span></div>}
             </div>
             <div className="h-2 mt-5 -mx-8 bg-[linear-gradient(90deg,#f97316_0%,#f97316_42%,#0a375a_42%,#0a375a_100%)]" />
-          </header>
+          </div>
 
           <section className="px-8 py-5 space-y-4">
             <span className={`inline-flex rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${statusClass}`}>Status: {status}</span>
@@ -100,7 +100,7 @@ export default function OrderReceiptPage() {
             <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="mb-3 text-[10px] font-black uppercase tracking-widest text-[#0a375a]">Resumen de pago</p><div className="space-y-1.5 text-sm text-slate-600"><p className="flex justify-between gap-4"><span>Subtotal de entradas:</span><strong className="text-slate-900">{money(order.subtotal, currency)}</strong></p><p className="flex justify-between gap-4"><span>Cargo por servicio:</span><strong className="text-slate-900">{money(order.lpFee, currency)}</strong></p><p className="flex justify-between gap-4"><span>Tarifa de procesamiento:</span><strong className="text-slate-900">{money(order.processingFee, currency)}</strong></p><p className="flex justify-between gap-4 border-t border-dashed border-slate-200 pt-2 mt-2"><span className="font-black text-slate-900">Total cobrado:</span><strong className="text-orange-600">{money(order.total, currency)}</strong></p></div></div>
           </section>
 
-          <footer className="bg-[#0a375a] px-8 py-6 text-white"><div className="flex flex-col gap-5 sm:flex-row sm:gap-8"><div className="flex-1"><p className="mb-2 text-[10px] font-black uppercase tracking-widest text-orange-300">Terms & Conditions</p><p className="text-[8px] font-medium uppercase leading-relaxed text-white/75">This ticket is not subject to any refund and shall bear no cash value. Holder voluntarily assumes all risks incidental to the event. Duplicate tickets or barcodes may be refused entry.</p></div><div className="flex items-end justify-between gap-4 sm:flex-col sm:items-center"><div className="text-center"><p className="text-2xl font-black leading-none tracking-tight text-orange-400">LPTicket</p><p className="text-[9px] font-semibold text-white/60">lpticket.com</p></div><p className="text-sm font-black">Thank You</p></div></div></footer>
+          <div className="order-receipt-footer bg-[#0a375a] px-8 py-6 text-white"><div className="flex flex-col gap-5 sm:flex-row sm:gap-8"><div className="flex-1"><p className="mb-2 text-[10px] font-black uppercase tracking-widest text-orange-300">Terms & Conditions</p><p className="text-[8px] font-medium uppercase leading-relaxed text-white/75">This ticket is not subject to any refund and shall bear no cash value. Holder voluntarily assumes all risks incidental to the event. Duplicate tickets or barcodes may be refused entry.</p></div><div className="flex items-end justify-between gap-4 sm:flex-col sm:items-center"><div className="text-center"><p className="text-2xl font-black leading-none tracking-tight text-orange-400">LPTicket</p><p className="text-[9px] font-semibold text-white/60">lpticket.com</p></div><p className="text-sm font-black">Thank You</p></div></div></div>
         </article>
       </main>
     </>

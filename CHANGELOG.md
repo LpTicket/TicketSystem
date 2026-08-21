@@ -1,5 +1,20 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Colores del recibo por orden corregidos
+
+### Corrección
+- La cabecera y el pie del recibo por orden ya no heredan los estilos globales del encabezado y pie del sitio.
+- Se restauran los colores de referencia: cabecera blanca y pie azul LPTicket `#0A375A`, sin negro ni marrón.
+
+### Áreas protegidas
+- No se modificaron órdenes, tickets, pagos, QR, datos ni el diseño de las demás páginas.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Recargar un recibo de orden y revisar pantalla e impresión/PDF contra la referencia entregada.
+
 ## 2026-08-21 - Diseño unificado de recibos de orden
 
 ### Corrección
