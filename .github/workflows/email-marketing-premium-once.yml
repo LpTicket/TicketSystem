@@ -1,0 +1,362 @@
+name: Apply email marketing premium patch once
+
+on:
+  push:
+    branches:
+      - chatgpt/email-marketing-premium-20260821
+    paths:
+      - .github/workflows/email-marketing-premium-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/email-marketing-premium-20260821
+          fetch-depth: 0
+
+      - name: Patch only email marketing template and preview
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          backend_path = Path('backend/src/common/services/mail.service.ts')
+          frontend_path = Path('frontend/src/app/admin/marketing/page.tsx')
+
+          backend = backend_path.read_text()
+          backend_start = '  /** Marketing campaign email styled like LPTicket ticket emails. */\n'
+          backend_end = '  /** Branded welcome email sent right after a user registers. Never throws. */'
+          if backend_start not in backend or backend_end not in backend:
+              raise SystemExit('Backend marketing email markers not found; aborting without changes.')
+
+          new_backend = r'''  /** Marketing campaign email styled like LPTicket ticket emails. */
+          async sendMarketingEmail(
+            to: string,
+            opts: { subject: string; title?: string; preheader?: string; imageData?: string | null; link?: string },
+          ) {
+            const appUrl = this.getAppUrl();
+            const year = new Date().getFullYear();
+
+            const escapeHtml = (value?: string | null) => String(value || '')
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#39;');
+
+            const normalizeUrl = (value: string | undefined, fallback: string) => {
+              const raw = String(value || '').trim();
+              if (!raw) return fallback;
+              if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+              if (raw.startsWith('/')) return `${fallback}${raw}`;
+              return `https://${raw}`;
+            };
+
+            const formatMarketingBody = (value?: string | null) => {
+              const raw = String(value || '').replace(/\r\n/g, '\n').trim();
+              if (!raw) return '';
+
+              let paragraphs = raw.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+              if (paragraphs.length === 1 && raw.length > 260) {
+                const target = Math.floor(raw.length / 2);
+                const candidates = [
+                  raw.lastIndexOf('. ', target), raw.lastIndexOf('? ', target), raw.lastIndexOf('! ', target),
+                  raw.indexOf('. ', target), raw.indexOf('? ', target), raw.indexOf('! ', target),
+                ].filter((index) => index > 90 && index < raw.length - 90);
+                if (candidates.length) {
+                  const splitAt = candidates.sort((a, b) => Math.abs(a - target) - Math.abs(b - target))[0] + 1;
+                  paragraphs = [raw.slice(0, splitAt).trim(), raw.slice(splitAt).trim()].filter(Boolean);
+                }
+              }
+
+              return paragraphs.map((paragraph) => `
+                <p style="margin:0 0 16px;color:#475569;font-size:16px;line-height:1.72;font-weight:400;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`).join('');
+            };
+
+            const ctaUrl = normalizeUrl(opts.link, appUrl);
+            const rawBody = String(opts.preheader || '').trim();
+            const safeTitle = escapeHtml(opts.title || '');
+            const safeCtaUrl = escapeHtml(ctaUrl);
+            const safeAppUrl = escapeHtml(appUrl);
+            const bodyHtml = formatMarketingBody(rawBody);
+            const preheaderText = escapeHtml((rawBody || opts.title || 'Novedades de LPTicket').replace(/<[^>]+>/g, '').slice(0, 160));
+
+            const facebookUrl = 'https://www.facebook.com/profile.php?id=61590380706527';
+            const instagramUrl = 'https://www.instagram.com/lpticket';
+            const whatsappUrl = 'https://wa.me/12816256383';
+            const websiteUrl = 'https://www.lpticket.com';
+
+            const attachments: nodemailer.SendMailOptions['attachments'] = [];
+
+            let artTag = '';
+            if (opts.imageData) {
+              const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s.exec(opts.imageData.trim());
+              if (match) {
+                const contentType = match[1];
+                const ext = (contentType.split('/')[1] || 'png').replace('+xml', '');
+                const cid = 'marketing-art';
+                attachments.push({
+                  filename: `art.${ext}`,
+                  content: Buffer.from(match[2], 'base64'),
+                  contentType,
+                  cid,
+                });
+                artTag = `<img src="cid:${cid}" alt="" width="592" style="display:block;width:100%;max-width:592px;height:auto;border:0;outline:none;text-decoration:none;border-radius:20px;" />`;
+              } else {
+                artTag = `<img src="${escapeHtml(opts.imageData)}" alt="" width="592" style="display:block;width:100%;max-width:592px;height:auto;border:0;outline:none;text-decoration:none;border-radius:20px;" />`;
+              }
+            }
+
+            const html = `
+          <!doctype html>
+          <html lang="es">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <meta name="color-scheme" content="light">
+            <meta name="supported-color-schemes" content="light">
+            <style>
+              @media only screen and (max-width: 640px) {
+                .email-shell { padding: 12px 8px !important; }
+                .email-card { border-radius: 18px !important; }
+                .email-header { padding: 20px 20px 16px !important; }
+                .email-art-wrap { padding: 18px 14px 4px !important; }
+                .email-content { padding: 26px 22px 8px !important; }
+                .email-title { font-size: 27px !important; line-height: 1.14 !important; }
+                .email-cta-wrap { padding: 10px 22px 30px !important; }
+                .email-cta-card { padding: 20px !important; }
+                .email-footer-wrap { padding: 0 14px 18px !important; }
+              }
+            </style>
+          </head>
+          <body bgcolor="#f4f7fb" style="margin:0;padding:0;background:#f4f7fb!important;color:#0f172a!important;">
+            <span style="display:none;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">${preheaderText}</span>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f7fb" class="email-shell" style="width:100%;background:#f4f7fb!important;padding:30px 12px;">
+              <tr>
+                <td align="center">
+                  <table role="presentation" width="640" cellpadding="0" cellspacing="0" bgcolor="#ffffff" class="email-card" style="width:100%;max-width:640px;background:#ffffff!important;border:1px solid #e2e8f0;border-radius:26px;overflow:hidden;box-shadow:0 18px 55px rgba(15,23,42,0.10);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                    <tr>
+                      <td bgcolor="#ffffff" class="email-header" style="background:#ffffff!important;padding:24px 28px 20px;border-bottom:1px solid #edf2f7;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td align="left" style="vertical-align:middle;">
+                              <img src="${safeAppUrl}/logo-email-orange.png" alt="LPTicket" width="205" style="display:block;width:205px;max-width:72%;height:auto;border:0;">
+                            </td>
+                            <td align="right" style="vertical-align:middle;color:#94a3b8;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.7px;white-space:nowrap;">Eventos & Experiencias</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    ${artTag ? `
+                    <tr>
+                      <td bgcolor="#ffffff" class="email-art-wrap" style="background:#ffffff!important;padding:24px 24px 4px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td align="center" style="font-size:0;line-height:0;border-radius:20px;overflow:hidden;background:#071827;box-shadow:0 12px 30px rgba(15,23,42,0.12);">${artTag}</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>` : ''}
+                    <tr>
+                      <td bgcolor="#ffffff" class="email-content" style="background:#ffffff!important;padding:32px 38px 8px;text-align:left;">
+                        <p style="margin:0 0 10px;color:#F97316;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:2.1px;">Una experiencia LPTicket</p>
+                        ${safeTitle ? `<h1 class="email-title" style="margin:0;color:#0A375A;font-size:31px;font-weight:900;line-height:1.13;letter-spacing:-0.9px;">${safeTitle}</h1>` : ''}
+                        <div style="width:56px;height:4px;background:#F97316;border-radius:8px;margin:18px 0 24px;"></div>
+                        ${bodyHtml || `<p style="margin:0;color:#64748b;font-size:15px;line-height:1.7;">Descubre todos los detalles de esta experiencia en LPTicket.</p>`}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td bgcolor="#ffffff" class="email-cta-wrap" style="background:#ffffff!important;padding:10px 38px 34px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;">
+                          <tr>
+                            <td class="email-cta-card" style="padding:22px 24px;">
+                              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                  <td style="padding:0 18px 0 0;vertical-align:middle;">
+                                    <p style="margin:0 0 5px;color:#0A375A;font-size:13px;font-weight:900;letter-spacing:0.2px;">Tu próxima experiencia empieza aquí</p>
+                                    <p style="margin:0;color:#64748b;font-size:12px;line-height:1.45;">Consulta la información completa y asegura tu lugar desde LPTicket.</p>
+                                  </td>
+                                  <td align="right" style="vertical-align:middle;white-space:nowrap;">
+                                    <a href="${safeCtaUrl}" target="_blank" style="display:inline-block;background:#F97316;color:#ffffff;text-decoration:none;border-radius:13px;padding:14px 22px;font-size:12px;font-weight:900;letter-spacing:0.8px;text-transform:uppercase;box-shadow:0 8px 18px rgba(249,115,22,0.22);">Ver evento →</a>
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td bgcolor="#ffffff" class="email-footer-wrap" style="background:#ffffff!important;padding:0 24px 24px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0A375A;border-radius:18px;overflow:hidden;">
+                          <tr>
+                            <td align="center" style="padding:20px 18px 12px;">
+                              <p style="margin:0;color:#ffffff;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:1.8px;">Sigue a LPTicket</p>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td align="center" style="padding:0 18px 12px;">
+                              <table role="presentation" cellpadding="0" cellspacing="0">
+                                <tr>
+                                  <td align="center" width="42"><a href="${facebookUrl}" target="_blank"><img src="https://img.icons8.com/ios-filled/96/F97316/facebook-new.png" alt="Facebook" width="28" height="28" style="display:block;border:0;"></a></td>
+                                  <td width="18">&nbsp;</td>
+                                  <td align="center" width="42"><a href="${instagramUrl}" target="_blank"><img src="https://img.icons8.com/ios-filled/96/F97316/instagram-new.png" alt="Instagram" width="28" height="28" style="display:block;border:0;"></a></td>
+                                  <td width="18">&nbsp;</td>
+                                  <td align="center" width="42"><a href="${whatsappUrl}" target="_blank"><img src="https://img.icons8.com/ios-filled/96/F97316/whatsapp.png" alt="WhatsApp" width="28" height="28" style="display:block;border:0;"></a></td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td align="center" style="padding:0 18px 20px;">
+                              <a href="${websiteUrl}" target="_blank" style="color:#fb923c;text-decoration:none;font-size:13px;font-weight:900;letter-spacing:0.2px;">www.lpticket.com</a>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td bgcolor="#ffffff" align="center" style="background:#ffffff!important;border-top:1px solid #edf2f7;padding:18px 24px 22px;">
+                        <p style="margin:0 0 4px;color:#0A375A;font-size:11px;font-weight:900;">Crea. Vende. Conecta. Vive la experiencia.</p>
+                        <p style="margin:0;color:#94a3b8;font-size:10px;line-height:1.5;">© ${year} LPTicket · Recibiste este correo porque tienes una cuenta en LPTicket.</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+          </html>`;
+
+            await this.transporter.sendMail({
+              from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
+              to,
+              subject: opts.subject || 'LP Ticket',
+              html,
+              attachments,
+            });
+          }
+          '''
+
+          start = backend.index(backend_start)
+          end = backend.index(backend_end, start)
+          backend = backend[:start] + new_backend + '\n\n' + backend[end:]
+          backend_path.write_text(backend)
+
+          frontend = frontend_path.read_text()
+          old_input = '''            <input
+              value={campaignPreheader}
+              onChange={(event) => setCampaignPreheader(event.target.value)}
+              className="h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#F97316]"
+              placeholder="Preheader / texto corto bajo el asunto"
+            />'''
+          new_input = '''            <textarea
+              value={campaignPreheader}
+              onChange={(event) => setCampaignPreheader(event.target.value)}
+              rows={5}
+              className="min-h-[132px] resize-y rounded-xl border border-gray-200 px-4 py-3 text-sm leading-6 outline-none transition focus:border-[#F97316]"
+              placeholder="Mensaje principal del correo. Escribe aquí el texto que acompañará el arte."
+            />'''
+          if old_input not in frontend:
+              raise SystemExit('Frontend campaign message input marker not found; aborting without changes.')
+          frontend = frontend.replace(old_input, new_input, 1)
+
+          preview_start_marker = '''        <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-xl font-black text-gray-950">Preview premium</h2>'''
+          preview_end_marker = '''        </div>
+      </section>
+
+      {/* SMS, Push & WhatsApp campaigns */}'''
+          if preview_start_marker not in frontend:
+              raise SystemExit('Frontend premium preview start marker not found; aborting without changes.')
+          preview_start = frontend.index(preview_start_marker)
+          preview_end = frontend.index(preview_end_marker, preview_start)
+
+          new_preview = r'''        <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-xl font-black text-gray-950">Preview premium</h2>
+              <p className="text-sm text-gray-500">Vista fiel del formato que recibirá el cliente por email.</p>
+            </div>
+            <span className="w-fit rounded-full bg-orange-50 px-4 py-2 text-sm font-black text-orange-600">Mail</span>
+          </div>
+
+          <div className="mt-6 rounded-[2rem] bg-slate-100 p-3 sm:p-6">
+            <div className="mx-auto max-w-[640px] overflow-hidden rounded-[1.65rem] border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.10)]">
+              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+                <img src="/logo.png" alt="LP Ticket" className="h-12 w-auto object-contain" />
+                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">Eventos & Experiencias</span>
+              </div>
+
+              {emailArtPreview ? (
+                <div className="px-4 pt-4 sm:px-6 sm:pt-6">
+                  <img src={emailArtPreview} alt="Arte del email" className="w-full rounded-2xl bg-[#071827] object-contain shadow-lg" />
+                </div>
+              ) : (
+                <div className="mx-4 mt-4 flex min-h-[320px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 text-center sm:mx-6 sm:mt-6">
+                  <HiOutlinePhotograph className="h-12 w-12 text-gray-300" />
+                  <p className="mt-4 text-sm font-black text-gray-400">Tu arte principal aparecerá aquí</p>
+                </div>
+              )}
+
+              <div className="px-6 pb-2 pt-7 text-left sm:px-9 sm:pt-8">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#F97316]">Una experiencia LPTicket</p>
+                <h3 className="mt-2 text-[28px] font-black leading-[1.14] tracking-[-0.03em] text-[#0A375A] sm:text-[31px]">
+                  {campaignName || 'Título de tu campaña'}
+                </h3>
+                <div className="my-5 h-1 w-14 rounded-full bg-[#F97316]" />
+                <div className="space-y-4 whitespace-pre-line text-base leading-7 text-slate-600">
+                  {campaignPreheader || 'Escribe el mensaje principal de la campaña. Aquí se mostrará con una lectura más limpia, equilibrada y profesional.'}
+                </div>
+              </div>
+
+              <div className="px-6 pb-8 pt-4 sm:px-9">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-sm font-black text-[#0A375A]">Tu próxima experiencia empieza aquí</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">Consulta la información completa y asegura tu lugar desde LPTicket.</p>
+                  <div className="btn-primary mt-4 w-fit px-6 py-3 text-xs">VER EVENTO →</div>
+                </div>
+              </div>
+
+              <div className="px-4 pb-5 sm:px-6">
+                <div className="rounded-2xl bg-[#0A375A] px-5 py-5 text-center">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white">Sigue a LPTicket</p>
+                  <p className="mt-3 text-sm font-black text-[#F97316]">www.lpticket.com</p>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 px-6 py-5 text-center">
+                <p className="text-[11px] font-black text-[#0A375A]">Crea. Vende. Conecta. Vive la experiencia.</p>
+                <p className="mt-1 text-[10px] text-slate-400">El correo final conserva este mismo orden, jerarquía y espaciado.</p>
+              </div>
+            </div>
+          </div>
+        </div>'''
+
+          frontend = frontend[:preview_start] + new_preview + '\n' + frontend[preview_end:]
+          frontend_path.write_text(frontend)
+          PY
+
+      - name: Verify only intended files changed
+        shell: bash
+        run: |
+          git diff --check
+          changed="$(git diff --name-only)"
+          printf '%s\n' "$changed"
+          test "$changed" = $'backend/src/common/services/mail.service.ts\nfrontend/src/app/admin/marketing/page.tsx'
+
+      - name: Commit patch to safety branch
+        shell: bash
+        run: |
+          git config user.name "LPTicket Automation"
+          git config user.email "help@lpticket.com"
+          git add backend/src/common/services/mail.service.ts frontend/src/app/admin/marketing/page.tsx
+          git commit -m "feat: premium email marketing presentation [email-premium-applied]"
+          git push origin HEAD:chatgpt/email-marketing-premium-20260821
