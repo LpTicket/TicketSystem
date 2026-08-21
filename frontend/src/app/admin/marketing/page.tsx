@@ -583,12 +583,17 @@ export default function AdminMarketingPage() {
               className="h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#F97316]"
               placeholder="Asunto del correo"
             />
-            <input
+            <label className="grid gap-2 text-sm font-bold text-gray-700">
+              Mensaje del correo
+              <textarea
               value={campaignPreheader}
               onChange={(event) => setCampaignPreheader(event.target.value)}
-              className="h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#F97316]"
-              placeholder="Preheader / texto corto bajo el asunto"
-            />
+                rows={6}
+                className="min-h-[156px] resize-y rounded-xl border border-gray-200 px-4 py-3 text-sm leading-6 font-normal outline-none transition focus:border-[#F97316]"
+                placeholder="Escribe el mensaje principal. Separa los párrafos con una línea en blanco para una lectura más clara."
+              />
+              <span className="text-xs font-normal text-gray-500">El correo conservará los párrafos y los mostrará en un bloque editorial alineado.</span>
+            </label>
             <select
               value={emailAudience}
               onChange={(e) => setEmailAudience(e.target.value as 'all' | 'specify')}
@@ -674,15 +679,18 @@ export default function AdminMarketingPage() {
                 </div>
               )}
 
-              <div className="px-6 py-8 text-center">
-                <h3 className="text-2xl font-black text-[#0A375A]">
-                  {campaignName || 'Titulo opcional de campana'}
+              <div className="px-6 py-8 text-left">
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#F97316]">Una experiencia LPTicket</p>
+                <h3 className="mt-2 text-2xl font-black leading-tight tracking-tight text-[#0A375A]">
+                  {campaignName || 'Título de tu campaña'}
                 </h3>
-                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
-                  {campaignPreheader || 'Texto breve opcional para acompanar la imagen principal del email.'}
-                </p>
-                <div className="btn-primary mt-6 px-7">
-                  {campaignLink ? 'VER DETALLES' : 'VER EVENTO'}
+                <div className="mt-5 rounded-2xl border border-slate-200 border-l-4 border-l-[#F97316] bg-slate-50 px-5 py-4 text-sm leading-7 text-slate-600 whitespace-pre-line">
+                  {campaignPreheader || 'Escribe el mensaje principal. Los párrafos aparecerán aquí con una lectura clara, equilibrada y profesional.'}
+                </div>
+                <div className="mt-6 text-center">
+                  <div className="btn-primary px-7">
+                    {campaignLink ? 'VER DETALLES' : 'VER EVENTO'}
+                  </div>
                 </div>
               </div>
             </div>

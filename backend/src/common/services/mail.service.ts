@@ -774,12 +774,24 @@ export class MailService {
       return `https://${raw}`;
     };
 
+    const formatMarketingBody = (value?: string | null) => {
+      const raw = String(value || '').replace(/\r\n/g, '\n').trim();
+      if (!raw) return '';
+
+      return raw
+        .split(/\n{2,}/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean)
+        .map((paragraph) => `<p style="margin:0 0 14px;color:#475569;font-size:16px;line-height:1.7;font-weight:400;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
+        .join('');
+    };
+
     const ctaUrl = normalizeUrl(opts.link, appUrl);
     const safeTitle = escapeHtml(opts.title || '');
-    const safePreheader = escapeHtml(opts.preheader || '');
     const safeCtaUrl = escapeHtml(ctaUrl);
     const safeAppUrl = escapeHtml(appUrl);
-    const preheaderText = escapeHtml((opts.preheader || opts.title || 'Novedades de LPTicket').replace(/<[^>]+>/g, ''));
+    const bodyHtml = formatMarketingBody(opts.preheader);
+    const preheaderText = escapeHtml((opts.preheader || opts.title || 'Novedades de LPTicket').replace(/<[^>]+>/g, '').slice(0, 160));
 
     const facebookUrl = 'https://www.facebook.com/profile.php?id=61590380706527';
     const instagramUrl = 'https://www.instagram.com/lpticket';
@@ -846,9 +858,10 @@ export class MailService {
             </td>
           </tr>` : ''}
           <tr>
-            <td bgcolor="#ffffff" style="background:#ffffff!important;padding:24px 24px 8px;text-align:center;">
-              ${safeTitle ? `<h1 style="margin:0 0 10px;color:#0A375A;font-size:24px;font-weight:850;line-height:1.22;letter-spacing:-0.5px;text-transform:uppercase;">${safeTitle}</h1>` : ''}
-              ${safePreheader ? `<p style="margin:0 auto;color:#475569;font-size:14px;line-height:1.6;max-width:460px;">${safePreheader}</p>` : ''}
+            <td bgcolor="#ffffff" style="background:#ffffff!important;padding:28px 32px 8px;text-align:left;">
+              <p style="margin:0 0 10px;color:#F97316;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1.8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Una experiencia LPTicket</p>
+              ${safeTitle ? `<h1 style="margin:0;color:#0A375A;font-size:28px;font-weight:900;line-height:1.18;letter-spacing:-0.7px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${safeTitle}</h1>` : ''}
+              ${bodyHtml ? `<div style="margin-top:22px;border:1px solid #e2e8f0;border-left:4px solid #F97316;border-radius:14px;background:#f8fafc;padding:20px 20px 6px;">${bodyHtml}</div>` : ''}
             </td>
           </tr>
           <tr>

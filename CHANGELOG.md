@@ -1,5 +1,20 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Lectura premium en correos de Marketing
+
+### Corrección
+- El mensaje de una campaña ahora admite varios párrafos desde Administración > Marketing.
+- El correo y su vista previa muestran el texto alineado a la izquierda dentro de un bloque editorial con borde naranja, espaciado y tipografía de lectura.
+
+### Áreas protegidas
+- No se modificaron destinatarios, permisos, enlaces, arte cargado ni el envío de campañas.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Enviar una campaña de prueba a un destinatario seleccionado y revisar la lectura en móvil y escritorio.
+
 ## 2026-08-21 - Barra limpia para recibos de orden
 
 ### Corrección
