@@ -116,8 +116,6 @@ export default function AdminMarketingPage() {
   const [emailCampaign, setEmailCampaign] = useState<EmailCampaignSummary | null>(null);
   const [campaignRecipientFilter, setCampaignRecipientFilter] = useState<'all' | 'sent' | 'queued' | 'failed' | 'opened'>('all');
   const [loadingNextBatch, setLoadingNextBatch] = useState(false);
-  const [historicalRecipients, setHistoricalRecipients] = useState('');
-  const [importingHistoricalCampaign, setImportingHistoricalCampaign] = useState(false);
 
   const [smsMessage, setSmsMessage] = useState('');
   const [pushTitle, setPushTitle] = useState('');
@@ -276,33 +274,6 @@ export default function AdminMarketingPage() {
       toast.error(err.response?.data?.message || 'No se pudo iniciar el siguiente lote.');
     } finally {
       setLoadingNextBatch(false);
-    }
-  };
-
-  const handleImportHistoricalCampaign = async () => {
-    const recipients = Array.from(new Set(historicalRecipients
-      .split(/[\s,;]+/)
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean)));
-    if (!recipients.length) {
-      toast.error('Agrega los correos enviados desde Zoho para importarlos.');
-      return;
-    }
-    setImportingHistoricalCampaign(true);
-    try {
-      const { data } = await api.post('/marketing/admin/email-campaigns/import-historical', {
-        reference: 'zoho-2026-08-21-tbt-time-travel',
-        subject: '¿Estás listo para viajar en el tiempo? 🎶✨',
-        title: 'Noche de TBT',
-        recipients,
-        sentAt: '2026-08-21T16:32:00-05:00',
-      });
-      setEmailCampaign(data || null);
-      toast.success(`Historial importado: ${data?.sent || 0} correos ya enviados.`);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'No se pudo importar el historial.');
-    } finally {
-      setImportingHistoricalCampaign(false);
     }
   };
 
@@ -775,23 +746,6 @@ export default function AdminMarketingPage() {
                   {loadingNextBatch ? 'Iniciando…' : `Enviar próximos ${emailCampaign.nextBatchSize} correos`}
                 </button>
               )}
-            </div>
-          )}
-
-          {!emailCampaign && (
-            <div className="mt-5 rounded-2xl border border-[rgba(246,198,95,0.24)] bg-[#071827] p-4 text-slate-100">
-              <p className="text-sm font-black">Seguimiento de campañas</p>
-              <p className="mt-1 text-xs leading-5 text-slate-400">Todavía no hay una campaña registrada con el nuevo historial. Puedes importar una campaña anterior de Zoho sin reenviar correos.</p>
-              <textarea
-                value={historicalRecipients}
-                onChange={(event) => setHistoricalRecipients(event.target.value)}
-                rows={4}
-                className="mt-3 w-full resize-y rounded-xl border border-white/10 bg-[#0b2236] px-3 py-2 text-xs leading-5 text-slate-100 outline-none focus:border-[#F97316]"
-                placeholder="Pega aquí los correos ya enviados por Zoho, separados por coma o una línea por correo."
-              />
-              <button type="button" onClick={handleImportHistoricalCampaign} disabled={importingHistoricalCampaign} className="mt-3 w-full rounded-xl border border-orange-400/40 bg-orange-500/10 px-4 py-3 text-xs font-black text-orange-200 transition hover:bg-orange-500/20 disabled:opacity-60">
-                {importingHistoricalCampaign ? 'Importando historial…' : 'Importar historial anterior de Zoho'}
-              </button>
             </div>
           )}
         </div>

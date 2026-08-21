@@ -15,7 +15,7 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { MarketingBanner } from './marketing-banner.entity';
 import { PushToken } from './push-token.entity';
-import { EmailCampaign } from './email-campaign.entity';
+import { EmailCampaign, EmailCampaignStatus } from './email-campaign.entity';
 import { EmailCampaignRecipient } from './email-campaign-recipient.entity';
 import { User } from '../database/entities/user.entity';
 import { MailService } from '../common/services/mail.service';
@@ -246,42 +246,6 @@ export class MarketingService {
 
   async getEmailCampaign(id: string) {
     return this.getCampaignView(id, true);
-  }
-
-  /** Imports an already-sent campaign without contacting SMTP. The external
-   * reference makes the reconciliation safe to retry without duplicates. */
-  async importHistoricalEmailCampaign(dto: {
-    reference?: string;
-    subject?: string;
-    title?: string;
-    recipients?: string[];
-    sentAt?: string;
-  }) {
-    const reference = String(dto.reference || '').trim();
-    const subject = String(dto.subject || '').trim();
-    if (!reference || !subject) throw new BadRequestException('La referencia y el asunto son obligatorios.');
-    const existing = await this.emailCampaignRepo.findOne({ where: { externalReference: reference } });
-    if (existing) return this.getCampaignView(existing.id, true);
-
-    const targets = await this.resolveEmailTargets(dto.recipients);
-    const parsedSentAt = dto.sentAt ? new Date(dto.sentAt) : new Date();
-    const sentAt = Number.isNaN(parsedSentAt.getTime()) ? new Date() : parsedSentAt;
-    const campaign = await this.emailCampaignRepo.save(this.emailCampaignRepo.create({
-      externalReference: reference,
-      subject,
-      title: String(dto.title || '').trim() || null,
-      status: 'completed',
-      totalRecipients: targets.length,
-    }));
-    await this.emailCampaignRecipientRepo.save(targets.map((target) => this.emailCampaignRecipientRepo.create({
-      campaignId: campaign.id,
-      userId: target.userId,
-      email: target.email,
-      openToken: randomBytes(24).toString('hex'),
-      status: 'sent',
-      sentAt,
-    })));
-    return this.getCampaignView(campaign.id, true);
   }
 
   async sendNextEmailCampaignBatch(id: string) {

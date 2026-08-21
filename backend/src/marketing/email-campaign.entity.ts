@@ -11,10 +11,6 @@ export class EmailCampaign {
   @Column({ type: 'varchar', length: 255 })
   subject: string;
 
-  @Index({ unique: true })
-  @Column({ type: 'varchar', length: 120, nullable: true })
-  externalReference: string | null;
-
   @Column({ type: 'varchar', nullable: true })
   title: string | null;
 
