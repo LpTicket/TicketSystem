@@ -1,5 +1,20 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Detalle y recibo desde el historial administrativo
+
+### Corrección
+- Cada boleto del perfil administrativo ahora muestra el nombre y la fecha real de su evento, usando la información ya entregada por el backend.
+- Cada tarjeta de boleto es seleccionable y abre el recibo de la orden correspondiente; los administradores ya están autorizados para consultarlo.
+
+### Áreas protegidas
+- No se modificaron órdenes, tickets, pagos, permisos, usuarios ni base de datos.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Abrir el historial de un cliente, comprobar nombre y fecha del evento y pulsar una entrada para confirmar que abre su recibo correcto.
+
 ## 2026-08-21 - Historial de boletos en el perfil administrativo
 
 ### Corrección

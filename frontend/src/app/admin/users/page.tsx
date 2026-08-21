@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { parseSafeDate } from '@/lib/dateUtils';
+import { formatDateInTimezone, parseSafeDate } from '@/lib/dateUtils';
 import { formatSeatLabel } from '@/lib/seatLabel';
 import { toast } from 'react-hot-toast';
 import { useLang } from '@/context/LanguageContext';
@@ -10,6 +10,7 @@ import { confirmDialog } from '@/lib/dialog';
 import { User } from '@/types';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
+import { useRouter } from 'next/navigation';
 import {
   HiOutlineSearch,
   HiOutlineUsers,
@@ -29,6 +30,7 @@ import {
 
 export default function AdminUsersPage() {
   const { t, lang } = useLang();
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -611,9 +613,20 @@ export default function AdminUsersPage() {
                   ) : selectedUserTickets.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {selectedUserTickets.map((t: any) => (
-                        <div key={t.id} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-start justify-between gap-3 shadow-[0_4px_15px_rgba(0,0,0,0.015)] hover:border-gray-200 transition-all">
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => router.push(`/orders/${t.orderId}/receipt`)}
+                          className="w-full bg-white border border-gray-100 rounded-2xl p-4 flex items-start justify-between gap-3 text-left shadow-[0_4px_15px_rgba(0,0,0,0.015)] hover:border-primary-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary-400 transition-all cursor-pointer"
+                          title={lang === 'es' ? 'Abrir recibo de compra' : 'Open purchase receipt'}
+                        >
                           <div className="min-w-0 space-y-1">
-                            <p className="font-bold text-xs text-gray-900 truncate">{t.eventName || (lang === 'es' ? 'Evento' : 'Event')}</p>
+                            <p className="font-bold text-xs text-gray-900 truncate">{t.event?.title || (lang === 'es' ? 'Evento' : 'Event')}</p>
+                            {t.event?.eventDate && (
+                              <p className="text-[10px] text-gray-500 font-medium">
+                                {formatDateInTimezone(t.event.eventDate, t.event.eventTimezone || 'UTC', lang === 'es' ? 'es-US' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </p>
+                            )}
                             <p className="text-[10px] text-gray-500">
                               {t.sectionName} · {lang === 'es' ? 'Asiento' : 'Seat'}: <span className="font-bold text-gray-700">{formatSeatLabel({ rowLabel: t.rowLabel, seatNumber: t.seatNumber }, undefined, lang)}</span>
                             </p>
@@ -628,7 +641,7 @@ export default function AdminUsersPage() {
                               {t.status}
                             </span>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   ) : (
