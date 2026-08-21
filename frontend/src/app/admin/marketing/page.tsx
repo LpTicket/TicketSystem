@@ -64,6 +64,8 @@ type EmailCampaignSummary = {
   recipients: EmailCampaignRecipient[];
 };
 
+type EmailCampaignListItem = Omit<EmailCampaignSummary, 'recipients'>;
+
 const channels = [
   {
     title: 'Banner Home',
@@ -114,6 +116,9 @@ export default function AdminMarketingPage() {
   const [emailArtPreview, setEmailArtPreview] = useState('');
   const [emailArtFileName, setEmailArtFileName] = useState('');
   const [emailCampaign, setEmailCampaign] = useState<EmailCampaignSummary | null>(null);
+  const [emailCampaigns, setEmailCampaigns] = useState<EmailCampaignListItem[]>([]);
+  const [campaignsLoadError, setCampaignsLoadError] = useState('');
+  const [loadingCampaigns, setLoadingCampaigns] = useState(true);
   const [campaignRecipientFilter, setCampaignRecipientFilter] = useState<'all' | 'sent' | 'queued' | 'failed' | 'opened'>('all');
   const [loadingNextBatch, setLoadingNextBatch] = useState(false);
   const [historicalRecipients, setHistoricalRecipients] = useState('');
@@ -160,13 +165,57 @@ export default function AdminMarketingPage() {
       const data = r.data;
       setPushEvents(Array.isArray(data) ? data : data?.events || data?.data || []);
     }).catch(() => {});
-    api.get('/marketing/admin/email-campaigns/latest').then((r) => setEmailCampaign(r.data || null)).catch(() => {});
+    api.get('/marketing/admin/email-campaigns')
+      .then((r) => {
+        const campaigns = Array.isArray(r.data) ? r.data : [];
+        setEmailCampaigns(campaigns);
+        if (!campaigns[0]?.id) return;
+        api.get(`/marketing/admin/email-campaigns/${campaigns[0].id}`)
+          .then((detail) => setEmailCampaign(detail.data || null))
+          .catch(() => setCampaignsLoadError('El historial se cargó, pero no se pudo abrir la campaña seleccionada.'));
+      })
+      .catch(() => setCampaignsLoadError('No se pudo cargar el historial de campañas. Recarga la página o revisa el backend.'))
+      .finally(() => setLoadingCampaigns(false));
   }, []);
+
+  const selectEmailCampaign = async (id: string) => {
+    try {
+      const { data } = await api.get(`/marketing/admin/email-campaigns/${id}`);
+      setEmailCampaign(data || null);
+    } catch {
+      toast.error('No se pudo abrir esta campaña. Intenta nuevamente.');
+    }
+  };
+
+  const updateCampaignInHistory = (campaign: EmailCampaignSummary | null) => {
+    if (!campaign) return;
+    setEmailCampaigns((previous) => [campaign, ...previous.filter((item) => item.id !== campaign.id)]);
+  };
+
+  const handleDeleteEmailCampaign = async (campaign: EmailCampaignListItem) => {
+    if (!(await askConfirm('Eliminar campaña', `Eliminar “${campaign.subject || campaign.title || 'esta campaña'}” y su historial de destinatarios? Esta acción no se puede deshacer.`))) return;
+    try {
+      await api.delete(`/marketing/admin/email-campaigns/${campaign.id}`);
+      const remaining = emailCampaigns.filter((item) => item.id !== campaign.id);
+      setEmailCampaigns(remaining);
+      if (emailCampaign?.id === campaign.id) {
+        setEmailCampaign(null);
+        if (remaining[0]?.id) void selectEmailCampaign(remaining[0].id);
+      }
+      toast.success('Campaña eliminada.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'No se pudo eliminar la campaña.');
+    }
+  };
 
   useEffect(() => {
     if (!emailCampaign?.id || emailCampaign.status !== 'processing') return;
     const refresh = () => api.get(`/marketing/admin/email-campaigns/${emailCampaign.id}`)
-      .then((r) => setEmailCampaign(r.data || null))
+      .then((r) => {
+        const campaign = r.data || null;
+        setEmailCampaign(campaign);
+        if (campaign) setEmailCampaigns((previous) => [campaign, ...previous.filter((item) => item.id !== campaign.id)]);
+      })
       .catch(() => {});
     const timer = window.setInterval(refresh, 5000);
     return () => window.clearInterval(timer);
@@ -281,6 +330,7 @@ export default function AdminMarketingPage() {
         recipients,
       });
       setEmailCampaign(data || null);
+      updateCampaignInHistory(data || null);
       toast.success(`Campaña creada. Se están procesando los primeros ${Math.min(100, data?.total || 0)} correos.`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Error al enviar el email');
@@ -293,6 +343,7 @@ export default function AdminMarketingPage() {
     try {
       const { data } = await api.post(`/marketing/admin/email-campaigns/${emailCampaign.id}/send-next`);
       setEmailCampaign(data || null);
+      updateCampaignInHistory(data || null);
       toast.success(`Se están procesando los próximos ${Math.min(100, data?.nextBatchSize || 100)} correos pendientes.`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'No se pudo iniciar el siguiente lote.');
@@ -314,6 +365,7 @@ export default function AdminMarketingPage() {
     try {
       const { data } = await api.post('/marketing/admin/email-campaigns/import-historical-zoho', { recipients });
       setEmailCampaign(data || null);
+      updateCampaignInHistory(data || null);
       toast.success(`Historial registrado: ${data?.sent || 0} correos enviados.`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'No se pudo registrar el historial.');
@@ -746,6 +798,43 @@ export default function AdminMarketingPage() {
           <p className="mt-2 text-center text-[11px] text-gray-400">
             {emailAudience === 'all' ? 'Se envía a todos los usuarios registrados.' : 'Se envía solo a los correos especificados.'}
           </p>
+
+          <div className="mt-5 rounded-2xl border border-[rgba(246,198,95,0.24)] bg-[#071827] p-4 text-slate-100">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-black">Campañas registradas</p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">Abre una campaña para ver sus destinatarios, enviados, pendientes, rechazos y aperturas.</p>
+              </div>
+              <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-bold text-slate-300">{emailCampaigns.length}</span>
+            </div>
+            {campaignsLoadError ? (
+              <p className="mt-3 rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-xs leading-5 text-red-200">{campaignsLoadError}</p>
+            ) : loadingCampaigns ? (
+              <p className="mt-3 text-xs text-slate-400">Cargando historial…</p>
+            ) : emailCampaigns.length === 0 ? (
+              <p className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs leading-5 text-slate-400">No hay campañas guardadas todavía.</p>
+            ) : (
+              <div className="mt-3 max-h-48 space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+                {emailCampaigns.map((campaign) => {
+                  const selected = emailCampaign?.id === campaign.id;
+                  return (
+                    <div key={campaign.id} className={`flex rounded-xl border transition ${selected ? 'border-[#F97316] bg-[#F97316]/10' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.07]'}`}>
+                      <button type="button" onClick={() => selectEmailCampaign(campaign.id)} className="min-w-0 flex-1 px-3 py-2.5 text-left">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="min-w-0 truncate text-sm font-bold text-slate-100">{campaign.subject || campaign.title || 'Campaña sin asunto'}</span>
+                          <span className={`shrink-0 text-[11px] font-bold ${campaign.failed ? 'text-red-300' : campaign.queued ? 'text-orange-300' : 'text-emerald-300'}`}>{campaign.status === 'completed' ? 'COMPLETADA' : campaign.status === 'processing' ? 'EN PROCESO' : 'PENDIENTE'}</span>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400">
+                          <span>{campaign.sent} enviados</span><span>{campaign.failed} rechazados</span><span>{campaign.opened} abiertos</span><span>{campaign.queued} pendientes</span>
+                        </div>
+                      </button>
+                      <button type="button" onClick={() => handleDeleteEmailCampaign(campaign)} disabled={campaign.status === 'processing'} title={campaign.status === 'processing' ? 'No se puede eliminar mientras se envía' : 'Eliminar campaña'} className="m-2 shrink-0 rounded-lg border border-red-400/25 px-2 text-[11px] font-bold text-red-200 transition hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-40">Eliminar</button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {emailCampaign && (
             <div className="mt-5 rounded-2xl border border-[rgba(246,198,95,0.24)] bg-[#071827] p-4 text-slate-100">

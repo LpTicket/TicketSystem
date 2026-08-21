@@ -246,8 +246,33 @@ export class MarketingService {
     return campaign ? this.getCampaignView(campaign.id, true) : null;
   }
 
+  /** Campaign history for the admin navigator. The selected campaign is loaded
+   * separately with its recipients, so the list stays compact. */
+  async getEmailCampaigns() {
+    const campaigns = await this.emailCampaignRepo.find({
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+    return Promise.all(campaigns.map((campaign) => this.getCampaignView(campaign.id, false)));
+  }
+
   async getEmailCampaign(id: string) {
     return this.getCampaignView(id, true);
+  }
+
+  /** Removes only a completed or paused campaign and its stored recipient
+   * metrics. A campaign currently sending stays protected from deletion. */
+  async deleteEmailCampaign(id: string) {
+    const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
+    if (!campaign) throw new BadRequestException('Campaña no encontrada.');
+    if (campaign.status === 'processing' || this.processingCampaigns.has(id)) {
+      throw new BadRequestException('No se puede borrar una campaña mientras está procesando envíos.');
+    }
+    await this.emailCampaignRepo.manager.transaction(async (manager) => {
+      await manager.delete(EmailCampaignRecipient, { campaignId: id });
+      await manager.delete(EmailCampaign, { id });
+    });
+    return { id, deleted: true };
   }
 
   /** Reconciles the single historical Zoho delivery without SMTP or schema

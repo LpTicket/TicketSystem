@@ -118,6 +118,13 @@ export class MarketingController {
     return this.marketingService.getLatestEmailCampaign();
   }
 
+  @Get('admin/email-campaigns')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async getEmailCampaigns() {
+    return this.marketingService.getEmailCampaigns();
+  }
+
   @Post('admin/email-campaigns/import-historical-zoho')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
@@ -130,6 +137,13 @@ export class MarketingController {
   @Roles(UserRole.ADMIN)
   async getEmailCampaign(@Param('id') id: string) {
     return this.marketingService.getEmailCampaign(id);
+  }
+
+  @Delete('admin/email-campaigns/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async deleteEmailCampaign(@Param('id') id: string) {
+    return this.marketingService.deleteEmailCampaign(id);
   }
 
   @Post('admin/email-campaigns/:id/send-next')
