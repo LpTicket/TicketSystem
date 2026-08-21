@@ -31,9 +31,11 @@ export default function AdminUsersPage() {
   const { t, lang } = useLang();
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUserTickets, setSelectedUserTickets] = useState<any[]>([]);
@@ -159,16 +161,30 @@ export default function AdminUsersPage() {
     }
   };
 
-  useEffect(() => { loadUsers(); }, [page, filter]);
+  useEffect(() => { loadUsers(); }, [page, filter, search]);
+
+  useEffect(() => {
+    const debounce = window.setTimeout(() => {
+      const nextSearch = searchInput.trim();
+      setSearch((currentSearch) => {
+        if (currentSearch === nextSearch) return currentSearch;
+        setPage(1);
+        return nextSearch;
+      });
+    }, 250);
+    return () => window.clearTimeout(debounce);
+  }, [searchInput]);
 
   const loadUsers = async () => {
     setLoading(true);
     try {
       const params: any = { page, limit: 20 };
       if (filter) params.role = filter;
+      if (search) params.search = search;
       const { data } = await api.get('/admin/users', { params });
       setUsers(data.users);
       setTotal(data.total);
+      setTotalPages(data.totalPages);
     } catch {} finally { setLoading(false); }
   };
 
@@ -213,12 +229,6 @@ export default function AdminUsersPage() {
     }
   };
 
-  const filteredUsers = users.filter((u) => {
-    if (!search) return true;
-    const term = search.toLowerCase();
-    return u.firstName.toLowerCase().includes(term) || u.lastName.toLowerCase().includes(term) || u.email.toLowerCase().includes(term);
-  });
-
   return (
     <>
       <div className="premium-shell p-6 lg:p-8 space-y-6 animate-fade-in">
@@ -248,8 +258,8 @@ export default function AdminUsersPage() {
             <input
               type="text"
               placeholder={lang === 'es' ? 'Buscar usuarios...' : 'Search users...'}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white"
             />
           </div>
@@ -268,7 +278,7 @@ export default function AdminUsersPage() {
       {/* Users Table / Cards */}
       {loading ? (
         <div className="space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-14 skeleton rounded-lg" />)}</div>
-      ) : filteredUsers.length > 0 ? (
+      ) : users.length > 0 ? (
         <div className="space-y-4">
           {/* Desktop Table View */}
           <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
@@ -279,7 +289,7 @@ export default function AdminUsersPage() {
         </div>
         <div>
           <p className="text-xs font-black uppercase tracking-wide text-gray-400">Usuarios registrados</p>
-          <p className="text-2xl font-black text-[#0A375A]">{users.length}</p>
+          <p className="text-2xl font-black text-[#0A375A]">{total}</p>
         </div>
       </div>
 
@@ -295,7 +305,7 @@ export default function AdminUsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredUsers.map((u) => {
+                  {users.map((u) => {
                     const roleBadge = getRoleBadge(u.role);
                     return (
                       <tr 
@@ -367,7 +377,7 @@ export default function AdminUsersPage() {
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
-            {filteredUsers.map((u) => {
+            {users.map((u) => {
               const roleBadge = getRoleBadge(u.role);
               return (
                 <div 
@@ -447,7 +457,7 @@ export default function AdminUsersPage() {
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{total} {lang === 'es' ? 'usuarios' : 'users'}</p>
               <div className="flex gap-2 w-full sm:w-auto">
                 <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1} className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors uppercase tracking-tight">{lang === 'es' ? 'Anterior' : 'Prev'}</button>
-                <button onClick={() => setPage(page + 1)} disabled={users.length < 20} className="px-3 py-1 text-xs border rounded hover:bg-white disabled:opacity-50 transition-colors">{lang === 'es' ? 'Siguiente' : 'Next'}</button>
+                <button onClick={() => setPage(page + 1)} disabled={page >= totalPages} className="px-3 py-1 text-xs border rounded hover:bg-white disabled:opacity-50 transition-colors">{lang === 'es' ? 'Siguiente' : 'Next'}</button>
               </div>
             </div>
           )}

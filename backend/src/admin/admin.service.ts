@@ -12,7 +12,7 @@ import { Injectable, NotFoundException, BadRequestException, ConflictException, 
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole, Event, EventStatus, Order, OrderStatus, Ticket, VenueSection, Seat, SeatStatus, OrganizerPayout } from '../database/entities';
 import { RecordOrganizerPayoutDto } from './dto/record-organizer-payout.dto';
@@ -370,21 +370,31 @@ export class AdminService {
     });
   }
 
-  async getUsers(page: number, limit: number, role?: string) {
+  async getUsers(page: number, limit: number, role?: string, search?: string) {
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
     const where: any = {};
     if (role && ['client', 'admin'].includes(role)) {
       where.role = role;
     }
 
+    const term = search?.trim();
+    const searchWhere = term
+      ? ['firstName', 'lastName', 'username', 'email'].map((field) => ({
+          ...where,
+          [field]: ILike(`%${term}%`),
+        }))
+      : where;
+
     const [users, total] = await this.userRepo.findAndCount({
-      where,
+      where: searchWhere,
       order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
       select: ['id', 'email', 'username', 'firstName', 'lastName', 'phone', 'role', 'isActive', 'avatarUrl', 'createdAt'],
     });
 
-    return { users, total, page, totalPages: Math.ceil(total / limit) };
+    return { users, total, page: safePage, totalPages: Math.ceil(total / safeLimit) };
   }
 
   async createUser(dto: {

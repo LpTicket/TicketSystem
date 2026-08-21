@@ -1,5 +1,21 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Búsqueda administrativa de usuarios en todos los registros
+
+### Corrección
+- El buscador de `Administración > Usuarios` dejó de filtrar solo los 20 usuarios visibles en pantalla.
+- Ahora consulta el backend por nombre, apellido, usuario o correo dentro de todos los usuarios registrados y conserva el filtro por rol.
+- Los contadores y la paginación muestran el total real de coincidencias, incluido el total de 206 usuarios cuando no hay filtros.
+
+### Áreas protegidas
+- No se modificaron usuarios, roles, permisos, cuentas, pagos, tickets ni base de datos.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Buscar un usuario que no esté en la primera página y comprobar que aparezca; luego confirmar que `Todos` sin búsqueda muestre el total completo.
+
 ## 2026-08-13 - Aviso administrativo de eventos pendientes
 
 ### Corrección

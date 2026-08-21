@@ -40,7 +40,7 @@ El backend es la fuente de verdad para eventos, mapas, asientos, bloqueos, órde
 | Social Match y chat | IMPLEMENTADO, NO PROBADO | Intereses traducidos, sugerencias solo entre asistentes activos con intereses compartidos, conexiones, descartes y mensajes presentes; pendiente de prueba móvil. |
 | Escáner de empleados | IMPLEMENTADO | Solicitudes, aprobación, búsqueda y validación presentes. |
 | Panel organizador | IMPLEMENTADO | Eventos, asistentes, analítica, bloques, comisiones y escaneo presentes. |
-| Panel administrador | IMPLEMENTADO | Usuarios, eventos, facturas, marketing, categorías y analítica presentes. |
+| Panel administrador | IMPLEMENTADO, NO PROBADO | Usuarios, eventos, facturas, marketing, categorías y analítica presentes. El buscador de usuarios consulta el backend por nombre, apellido, usuario y correo sobre todos los registros, respeta el rol y conserva la paginación; los contadores muestran el total real de coincidencias. Pendiente prueba manual con usuarios fuera de la primera página. |
 | Auditoría de pagos al organizador | IMPLEMENTADO, NO PROBADO | En el detalle administrativo de cada evento, el administrador puede registrar pagos externos parciales o totales al organizador, ver el acumulado pagado, el saldo pendiente y el historial. Es una conciliación interna: no crea transferencias ni modifica Stripe, órdenes o tickets. Pendiente prueba manual. |
 | Marketing email, SMS, WhatsApp y push | IMPLEMENTADO, NO PROBADO | Código presente; entrega depende de proveedores externos. |
 | Asistente AI | IMPLEMENTADO, NO PROBADO | Servicio presente; requiere configuración externa. |
