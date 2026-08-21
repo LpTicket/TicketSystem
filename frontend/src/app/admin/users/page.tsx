@@ -79,7 +79,8 @@ export default function AdminUsersPage() {
     setSelectedUserTickets([]);
     try {
       const { data } = await api.get(`/orders/user/${u.id}/tickets`);
-      setSelectedUserTickets(data);
+      // The API returns { data: Ticket[], pagination }, not the ticket list directly.
+      setSelectedUserTickets(Array.isArray(data?.data) ? data.data : []);
     } catch (err) {
       console.error('Error loading tickets for user profile:', err);
     } finally {

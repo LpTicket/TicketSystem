@@ -1,5 +1,20 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Historial de boletos en el perfil administrativo
+
+### Corrección
+- Al abrir un usuario en `Administración > Usuarios`, el historial ahora consume la lista de boletos real devuelta por el backend.
+- El panel ya no interpreta el objeto de respuesta completo como si fuera una lista vacía, por lo que muestra los boletos comprados por la cuenta seleccionada.
+
+### Áreas protegidas
+- No se modificaron órdenes, tickets, compras, usuarios, pagos, permisos ni base de datos.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Abrir el perfil de un cliente con compras existentes y confirmar que se vean sus boletos, evento, asiento, precio y estado.
+
 ## 2026-08-21 - Búsqueda administrativa de usuarios en todos los registros
 
 ### Corrección
