@@ -6,6 +6,7 @@
 - Cada nueva campaña guarda un registro único por destinatario antes de enviar, por lo que el panel muestra exactamente quién está enviado, pendiente, rechazado o abierto.
 - Las campañas procesan un máximo de 100 destinatarios por lote; el administrador puede continuar con el siguiente lote sin repetir correos ya enviados.
 - Se añadió seguimiento de apertura mediante un píxel individual, indicado como aproximado porque algunos proveedores lo bloquean o precargan.
+- El panel de seguimiento queda visible incluso antes de registrar la primera campaña. La conciliación del envío histórico de Zoho reutiliza las tablas existentes y no modifica el esquema de base de datos.
 
 ### Límites transparentes
 - `Enviado` confirma que Zoho SMTP aceptó el mensaje; no prueba por sí solo la entrega en la bandeja de entrada.

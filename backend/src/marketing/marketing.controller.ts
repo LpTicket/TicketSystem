@@ -118,6 +118,13 @@ export class MarketingController {
     return this.marketingService.getLatestEmailCampaign();
   }
 
+  @Post('admin/email-campaigns/import-historical-zoho')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async importHistoricalZohoCampaign(@Body() body: { recipients?: string[] }) {
+    return this.marketingService.importHistoricalZohoCampaign(body?.recipients);
+  }
+
   @Get('admin/email-campaigns/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)

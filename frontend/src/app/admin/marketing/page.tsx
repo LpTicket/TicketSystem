@@ -116,6 +116,8 @@ export default function AdminMarketingPage() {
   const [emailCampaign, setEmailCampaign] = useState<EmailCampaignSummary | null>(null);
   const [campaignRecipientFilter, setCampaignRecipientFilter] = useState<'all' | 'sent' | 'queued' | 'failed' | 'opened'>('all');
   const [loadingNextBatch, setLoadingNextBatch] = useState(false);
+  const [historicalRecipients, setHistoricalRecipients] = useState('');
+  const [importingHistoricalCampaign, setImportingHistoricalCampaign] = useState(false);
 
   const [smsMessage, setSmsMessage] = useState('');
   const [pushTitle, setPushTitle] = useState('');
@@ -274,6 +276,27 @@ export default function AdminMarketingPage() {
       toast.error(err.response?.data?.message || 'No se pudo iniciar el siguiente lote.');
     } finally {
       setLoadingNextBatch(false);
+    }
+  };
+
+  const handleImportHistoricalZohoCampaign = async () => {
+    const recipients = Array.from(new Set(historicalRecipients
+      .split(/[\s,;]+/)
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean)));
+    if (!recipients.length) {
+      toast.error('Falta la lista de correos enviados desde Zoho.');
+      return;
+    }
+    setImportingHistoricalCampaign(true);
+    try {
+      const { data } = await api.post('/marketing/admin/email-campaigns/import-historical-zoho', { recipients });
+      setEmailCampaign(data || null);
+      toast.success(`Historial registrado: ${data?.sent || 0} correos enviados.`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'No se pudo registrar el historial.');
+    } finally {
+      setImportingHistoricalCampaign(false);
     }
   };
 
@@ -746,6 +769,23 @@ export default function AdminMarketingPage() {
                   {loadingNextBatch ? 'Iniciando…' : `Enviar próximos ${emailCampaign.nextBatchSize} correos`}
                 </button>
               )}
+            </div>
+          )}
+
+          {!emailCampaign && (
+            <div className="mt-5 rounded-2xl border border-[rgba(246,198,95,0.24)] bg-[#071827] p-4 text-slate-100">
+              <p className="text-sm font-black">Seguimiento de campañas</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">Aún no hay una campaña registrada. Puedes registrar el envío histórico de Zoho sin enviar correos nuevamente.</p>
+              <textarea
+                value={historicalRecipients}
+                onChange={(event) => setHistoricalRecipients(event.target.value)}
+                rows={3}
+                className="mt-3 w-full resize-y rounded-xl border border-white/10 bg-[#0b2236] px-3 py-2 text-xs leading-5 text-slate-100 outline-none focus:border-[#F97316]"
+                placeholder="Correos enviados por Zoho, separados por coma o por línea."
+              />
+              <button type="button" onClick={handleImportHistoricalZohoCampaign} disabled={importingHistoricalCampaign} className="mt-3 w-full rounded-xl border border-orange-400/40 bg-orange-500/10 px-4 py-3 text-xs font-black text-orange-200 transition hover:bg-orange-500/20 disabled:opacity-60">
+                {importingHistoricalCampaign ? 'Registrando historial…' : 'Registrar envío anterior de Zoho'}
+              </button>
             </div>
           )}
         </div>

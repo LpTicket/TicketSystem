@@ -15,7 +15,7 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { MarketingBanner } from './marketing-banner.entity';
 import { PushToken } from './push-token.entity';
-import { EmailCampaign, EmailCampaignStatus } from './email-campaign.entity';
+import { EmailCampaign } from './email-campaign.entity';
 import { EmailCampaignRecipient } from './email-campaign-recipient.entity';
 import { User } from '../database/entities/user.entity';
 import { MailService } from '../common/services/mail.service';
@@ -24,6 +24,8 @@ import { randomBytes } from 'crypto';
 type CampaignResult = { sent: number; failed: number; total: number; error?: string };
 const EMAIL_CAMPAIGN_BATCH_SIZE = 100;
 const EMAIL_CAMPAIGN_CONCURRENCY = 5;
+const HISTORICAL_ZOHO_CAMPAIGN_TITLE = '[Importado desde Zoho] Noche de TBT';
+const HISTORICAL_ZOHO_CAMPAIGN_SUBJECT = '¿Estás listo para viajar en el tiempo? 🎶✨';
 
 @Injectable()
 export class MarketingService {
@@ -246,6 +248,34 @@ export class MarketingService {
 
   async getEmailCampaign(id: string) {
     return this.getCampaignView(id, true);
+  }
+
+  /** Reconciles the single historical Zoho delivery without SMTP or schema
+   * changes. Its fixed title makes repeat clicks safe. */
+  async importHistoricalZohoCampaign(recipients?: string[]) {
+    const existing = await this.emailCampaignRepo.findOne({
+      where: { title: HISTORICAL_ZOHO_CAMPAIGN_TITLE },
+      order: { createdAt: 'DESC' },
+    });
+    if (existing) return this.getCampaignView(existing.id, true);
+
+    const targets = await this.resolveEmailTargets(recipients);
+    const campaign = await this.emailCampaignRepo.save(this.emailCampaignRepo.create({
+      subject: HISTORICAL_ZOHO_CAMPAIGN_SUBJECT,
+      title: HISTORICAL_ZOHO_CAMPAIGN_TITLE,
+      status: 'completed',
+      totalRecipients: targets.length,
+    }));
+    const sentAt = new Date('2026-08-21T16:32:00-05:00');
+    await this.emailCampaignRecipientRepo.save(targets.map((target) => this.emailCampaignRecipientRepo.create({
+      campaignId: campaign.id,
+      userId: target.userId,
+      email: target.email,
+      openToken: randomBytes(24).toString('hex'),
+      status: 'sent',
+      sentAt,
+    })));
+    return this.getCampaignView(campaign.id, true);
   }
 
   async sendNextEmailCampaignBatch(id: string) {
