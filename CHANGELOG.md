@@ -1,5 +1,20 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Recibo unificado desde el historial administrativo
+
+### Corrección
+- Cada boleto del historial administrativo ahora abre la entrada individual existente de LPTicket, reutilizando su diseño, QR y formato de impresión ya establecido.
+- Se eliminó el acceso desde ese historial a la página distinta de recibo por orden; no se creó ni cambió otro formato de comprobante.
+
+### Áreas protegidas
+- No se modificaron órdenes, tickets, pagos, datos, permisos ni el diseño existente de la entrada individual.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Desde un usuario con compras, pulsar una entrada y confirmar que abre `/verify/<código>` con el diseño original y una impresión legible.
+
 ## 2026-08-21 - Detalle y recibo desde el historial administrativo
 
 ### Corrección

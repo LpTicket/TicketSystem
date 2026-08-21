@@ -616,9 +616,9 @@ export default function AdminUsersPage() {
                         <button
                           key={t.id}
                           type="button"
-                          onClick={() => router.push(`/orders/${t.orderId}/receipt`)}
+                          onClick={() => router.push(`/verify/${t.ticketCode}`)}
                           className="w-full bg-white border border-gray-100 rounded-2xl p-4 flex items-start justify-between gap-3 text-left shadow-[0_4px_15px_rgba(0,0,0,0.015)] hover:border-primary-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary-400 transition-all cursor-pointer"
-                          title={lang === 'es' ? 'Abrir recibo de compra' : 'Open purchase receipt'}
+                          title={lang === 'es' ? 'Abrir entrada y recibo' : 'Open ticket and receipt'}
                         >
                           <div className="min-w-0 space-y-1">
                             <p className="font-bold text-xs text-gray-900 truncate">{t.event?.title || (lang === 'es' ? 'Evento' : 'Event')}</p>
