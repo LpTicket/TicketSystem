@@ -583,11 +583,12 @@ export default function AdminMarketingPage() {
               className="h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#F97316]"
               placeholder="Asunto del correo"
             />
-            <input
+            <textarea
               value={campaignPreheader}
               onChange={(event) => setCampaignPreheader(event.target.value)}
-              className="h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none transition focus:border-[#F97316]"
-              placeholder="Preheader / texto corto bajo el asunto"
+              rows={6}
+              className="min-h-[150px] resize-y rounded-xl border border-gray-200 px-4 py-3 text-sm leading-6 outline-none transition focus:border-[#F97316]"
+              placeholder="Mensaje principal del correo. Puedes escribir varios párrafos y separar ideas con espacios."
             />
             <select
               value={emailAudience}
@@ -650,41 +651,97 @@ export default function AdminMarketingPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-xl font-black text-gray-950">Preview premium</h2>
-              <p className="text-sm text-gray-500">Vista tipo email para aprobar el arte antes de activar pruebas.</p>
+              <p className="text-sm text-gray-500">Vista fiel del formato que recibirá el cliente por email.</p>
             </div>
             <span className="w-fit rounded-full bg-orange-50 px-4 py-2 text-sm font-black text-orange-600">Mail</span>
           </div>
 
-          <div className="mt-6 rounded-[2rem] bg-slate-100 p-4 sm:p-6">
-            <div className="overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-sm">
-              <div className="p-6 text-center">
+          <div className="mt-6 rounded-[2rem] bg-slate-100 p-3 sm:p-6">
+            <div className="mx-auto max-w-[640px] overflow-hidden rounded-[1.65rem] border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.10)]">
+
+              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
                 <img
                   src="/logo.png"
                   alt="LP Ticket"
-                  className="mx-auto h-14 w-auto object-contain"
+                  className="h-12 w-auto object-contain"
                 />
+                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">
+                  Eventos & Experiencias
+                </span>
               </div>
 
               {emailArtPreview ? (
-                <img src={emailArtPreview} alt="Arte del email" className="w-full object-contain" />
+                <div className="px-4 pt-4 sm:px-6 sm:pt-6">
+                  <img
+                    src={emailArtPreview}
+                    alt="Arte del email"
+                    className="w-full rounded-2xl bg-[#071827] object-contain shadow-lg"
+                  />
+                </div>
               ) : (
-                <div className="mx-6 flex min-h-[320px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 text-center">
+                <div className="mx-4 mt-4 flex min-h-[320px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 text-center sm:mx-6 sm:mt-6">
                   <HiOutlinePhotograph className="h-12 w-12 text-gray-300" />
-                  <p className="mt-4 text-sm font-black text-gray-400">Tu arte de Photoshop aparecera aqui</p>
+                  <p className="mt-4 text-sm font-black text-gray-400">
+                    Tu arte principal aparecerá aquí
+                  </p>
                 </div>
               )}
 
-              <div className="px-6 py-8 text-center">
-                <h3 className="text-2xl font-black text-[#0A375A]">
-                  {campaignName || 'Titulo opcional de campana'}
-                </h3>
-                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
-                  {campaignPreheader || 'Texto breve opcional para acompanar la imagen principal del email.'}
+              <div className="px-6 pb-2 pt-7 text-left sm:px-9 sm:pt-8">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#F97316]">
+                  Una experiencia LPTicket
                 </p>
-                <div className="btn-primary mt-6 px-7">
-                  {campaignLink ? 'VER DETALLES' : 'VER EVENTO'}
+
+                <h3 className="mt-2 text-[28px] font-black leading-[1.14] tracking-[-0.03em] text-[#0A375A] sm:text-[31px]">
+                  {campaignName || 'Título de tu campaña'}
+                </h3>
+
+                <div className="my-5 h-1 w-14 rounded-full bg-[#F97316]" />
+
+                <div className="whitespace-pre-line text-base leading-7 text-slate-600">
+                  {campaignPreheader || 'Escribe el mensaje principal de la campaña. Aquí se mostrará con una lectura más limpia, equilibrada y profesional.'}
                 </div>
               </div>
+
+              <div className="px-6 pb-8 pt-4 sm:px-9">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-sm font-black text-[#0A375A]">
+                    ¿Listo para vivir la experiencia?
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Consulta todos los detalles y asegura tu lugar directamente desde LPTicket.
+                  </p>
+
+                  <div className="btn-primary mt-4 w-fit px-6 py-3 text-xs">
+                    VER EVENTO →
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-4 pb-5 sm:px-6">
+                <div className="rounded-2xl bg-[#0A375A] px-5 py-5 text-center">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white">
+                    Sigue a LPTicket
+                  </p>
+
+                  <div className="mx-auto mt-3 h-[3px] w-12 rounded-full bg-[#F97316]" />
+
+                  <p className="mt-3 text-sm font-black text-[#F97316]">
+                    www.lpticket.com
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 px-6 py-5 text-center">
+                <p className="text-[11px] font-black text-[#0A375A]">
+                  Crea. Vende. Conecta. Vive la experiencia.
+                </p>
+                <p className="mt-1 text-[10px] text-slate-400">
+                  El correo final conserva este mismo orden, jerarquía y espaciado.
+                </p>
+              </div>
+
             </div>
           </div>
         </div>
