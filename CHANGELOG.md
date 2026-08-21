@@ -1,5 +1,19 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Descarga de la app desde Email Marketing
+
+### Corrección
+- Los correos de Marketing y su vista previa ahora incluyen, debajo de la acción principal, un acceso visual a la aplicación móvil de LPTicket en App Store.
+
+### Áreas protegidas
+- No se modificaron el botón principal, enlaces de campañas, destinatarios ni el envío de correos.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Enviar una campaña de prueba y confirmar que el enlace abre la ficha oficial de LPTicket en App Store.
+
 ## 2026-08-21 - Información premium en detalle de evento móvil web
 
 ### Corrección

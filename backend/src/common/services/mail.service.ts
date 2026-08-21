@@ -797,6 +797,7 @@ export class MailService {
     const instagramUrl = 'https://www.instagram.com/lpticket';
     const whatsappUrl = 'https://wa.me/12816256383';
     const websiteUrl = 'https://www.lpticket.com';
+    const appStoreUrl = 'https://apps.apple.com/us/app/lpticket/id6777589448?l=es-MX';
 
     const attachments: nodemailer.SendMailOptions['attachments'] = [
     ];
@@ -869,6 +870,15 @@ export class MailService {
                 <tr>
                   <td align="center" bgcolor="#F97316" style="background:#F97316;border-radius:14px;">
                     <a href="${safeCtaUrl}" target="_blank" style="display:inline-block;color:#ffffff;text-decoration:none;border-radius:14px;padding:13px 28px;font-size:12px;font-weight:900;letter-spacing:0.8px;text-transform:uppercase;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Ver detalles</a>
+                  </td>
+                </tr>
+              </table>
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:13px;">
+                <tr>
+                  <td align="center" bgcolor="#0A375A" style="background:#0A375A;border-radius:12px;">
+                    <a href="${appStoreUrl}" target="_blank" style="display:inline-block;color:#ffffff;text-decoration:none;border-radius:12px;padding:11px 18px;font-size:11px;font-weight:800;letter-spacing:0.25px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      <span style="font-size:16px;line-height:11px;vertical-align:-1px;margin-right:7px;">&#63743;</span>Descargar aplicación móvil
+                    </a>
                   </td>
                 </tr>
               </table>

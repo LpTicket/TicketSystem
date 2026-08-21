@@ -691,6 +691,15 @@ export default function AdminMarketingPage() {
                   <div className="btn-primary px-7">
                     {campaignLink ? 'VER DETALLES' : 'VER EVENTO'}
                   </div>
+                  <a
+                    href="https://apps.apple.com/us/app/lpticket/id6777589448?l=es-MX"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#0A375A] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#082c49]"
+                  >
+                    <span className="text-base leading-none" aria-hidden="true"></span>
+                    Descargar aplicación móvil
+                  </a>
                 </div>
               </div>
             </div>
