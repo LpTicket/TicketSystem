@@ -5,6 +5,7 @@
 - Se identificó la causa comprobada del fallo `6606`: las APIs usadas para crear o cargar listas añadían direcciones, pero no las suscribían al Topic de marketing. Zoho considera esa lista sin audiencia apta para la campaña y no envía ningún correo.
 - `ZohoCampaignsService` ahora utiliza `json/listsubscribe` con `topic_id` para cada destinatario antes de crear el borrador de Zoho. Esto también repara la lista privada reutilizada de una campaña pausada, sin enviar el correo durante esa preparación.
 - Se eliminó la carga adicional sin tema mediante `addlistsubscribersinbulk`; ya no puede crear destinatarios pendientes que Zoho no reconozca como audiencia del Topic.
+- El panel ahora reconoce también los errores de permiso de `listsubscribe` y muestra directamente la acción `Reconectar Zoho Campaigns`, en lugar de dejar al administrador con un reintento que no puede completar.
 - Los correos transaccionales de registro, compra y tickets no fueron modificados.
 
 Estado: `IMPLEMENTADO, NO PROBADO` contra la cuenta real de Zoho. Requiere publicar, reintentar una sola vez la campaña de 17 destinatarios y confirmar que Zoho acepta la audiencia antes de usar una campaña mayor.
