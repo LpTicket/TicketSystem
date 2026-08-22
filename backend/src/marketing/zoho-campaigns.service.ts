@@ -238,7 +238,9 @@ export class ZohoCampaignsService {
       });
     }
 
-    const campaignResponse = await this.request('createcampaign', {
+    // Zoho's v1.1 endpoint is case-sensitive: `createcampaign` responds with
+    // a misleading HTTP 200 resource-not-found message instead of a campaign.
+    const campaignResponse = await this.request('createCampaign', {
       campaignname: input.name.slice(0, 100),
       from_email: this.config.get<string>('ZOHO_CAMPAIGNS_FROM_EMAIL') || '',
       from_name: this.config.get<string>('ZOHO_CAMPAIGNS_FROM_NAME') || 'LPTicket',
