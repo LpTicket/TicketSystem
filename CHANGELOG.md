@@ -1,5 +1,23 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-22 - Diagnóstico seguro de Zoho Campaigns
+
+### Corrección
+- La integración ya no convierte una validación de Zoho en el mensaje genérico `INVALID_CAMPAIGN_RESPONSE`: conserva el código y el mensaje que devuelve el proveedor.
+- Antes de crear una audiencia, consulta únicamente el tema de consentimiento llamado `default` de Zoho cuando la cuenta lo expone; no envía correos durante esa consulta.
+- Se añadió la variable privada opcional `ZOHO_CAMPAIGNS_TOPIC_ID` para cuentas que requieren seleccionar un tema de consentimiento explícito.
+- El panel explica el requisito de tema cuando Zoho devuelve la validación correspondiente.
+
+### Áreas protegidas
+- No se modificaron los correos transaccionales de registro, compra, tickets ni restablecimiento de contraseña.
+- No se enviaron correos ni se reintentó ninguna campaña durante el diagnóstico.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Una vez publicado, reintentar únicamente la campaña pendiente de 17 destinatarios y confirmar que Zoho devuelve aceptación o un motivo específico antes de enviar una audiencia mayor.
+
 ## 2026-08-21 - Corrección de respuesta de Zoho Campaigns
 
 ### Corrección

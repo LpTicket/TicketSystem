@@ -114,19 +114,21 @@ export class ZohoCampaignsService {
     return payload.access_token;
   }
 
-  private async request(path: string, values: Record<string, string>): Promise<any> {
+  private async request(path: string, values: Record<string, string>, method: 'GET' | 'POST' = 'POST'): Promise<any> {
     const token = await this.accessToken();
     // Zoho Campaigns v1.1 documents JSON in uppercase. Supplying lowercase can
     // make the API answer in XML, which prevents the returned list key from
     // being recognized even when the provider created the list correctly.
     const body = new URLSearchParams({ resfmt: 'JSON', ...values });
-    const response = await fetch(`${this.campaignsBase}/${path}`, {
-      method: 'POST',
+    const requestUrl = new URL(`${this.campaignsBase}/${path}`);
+    if (method === 'GET') requestUrl.search = body.toString();
+    const response = await fetch(requestUrl, {
+      method,
       headers: {
         Authorization: `Zoho-oauthtoken ${token}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body,
+      ...(method === 'POST' ? { body } : {}),
     });
     // A Fetch response body can be consumed only once. Zoho may respond with
     // HTML/plain text for a provider-side validation error, so read it once and
@@ -140,11 +142,56 @@ export class ZohoCampaignsService {
         payload = { message: rawBody };
       }
     }
-    const error = payload?.code === '0' ? '' : String(payload?.message || payload?.status || payload?.error || '');
-    if (!response.ok || /error|fail/i.test(error)) {
-      throw new Error(`ZOHO_CAMPAIGNS_REQUEST_FAILED: ${error || response.status}`);
+    const providerResponse = payload?.response && typeof payload.response === 'object'
+      ? payload.response
+      : payload;
+    const code = String(providerResponse?.code ?? payload?.code ?? '').trim();
+    const message = String(
+      providerResponse?.message
+      || payload?.message
+      || providerResponse?.status
+      || payload?.status
+      || providerResponse?.error
+      || payload?.error
+      || '',
+    ).trim();
+    // Zoho documents 0 and 200 as successful values across the v1.1 endpoints.
+    // Never treat an unrecognized provider response as a success: it could leave
+    // a campaign half-created and make an operator believe the email was sent.
+    if (!response.ok || !['0', '200'].includes(code)) {
+      throw new Error(`ZOHO_CAMPAIGNS_${path.toUpperCase()}_FAILED: ${code || response.status} ${message || 'Respuesta no reconocida de Zoho.'}`.trim());
     }
     return payload;
+  }
+
+  /**
+   * Accounts using Zoho's updated topic-management model require a topic when
+   * creating a campaign. Prefer an explicit Railway variable; otherwise only
+   * read the account's default topic. This request never sends a campaign.
+   */
+  private async defaultTopicId(): Promise<string> {
+    const configured = this.config.get<string>('ZOHO_CAMPAIGNS_TOPIC_ID')?.trim();
+    if (configured) return configured;
+
+    try {
+      const payload = await this.request('topics', {
+        details: JSON.stringify({ from_index: 0, range: 100 }),
+      }, 'GET');
+      const providerResponse = payload?.response && typeof payload.response === 'object'
+        ? payload.response
+        : payload;
+      const topics = Array.isArray(providerResponse?.topicDetails)
+        ? providerResponse.topicDetails
+        : Array.isArray(payload?.topicDetails)
+          ? payload.topicDetails
+          : [];
+      const defaultTopic = topics.find((topic: any) => String(topic?.topicName || '').trim().toLowerCase() === 'default');
+      return String(defaultTopic?.topicId || '').trim();
+    } catch {
+      // Topic management is optional on older Zoho accounts. Let createCampaign
+      // provide its exact validation error if this account does not expose one.
+      return '';
+    }
   }
 
   private campaignKey(payload: any, type: 'list' | 'campaign'): string {
@@ -174,6 +221,7 @@ export class ZohoCampaignsService {
     // earlier incomplete list or sends a duplicate audience.
     const attemptKey = `${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`;
     const listName = `LPTicket ${input.name} ${attemptKey}`.slice(0, 100);
+    const topicId = await this.defaultTopicId();
     const initial = recipients.slice(0, 10);
     const listResponse = await this.request('addlistandcontacts', {
       listname: listName,
@@ -197,6 +245,7 @@ export class ZohoCampaignsService {
       subject: input.subject.slice(0, 255),
       content_url: input.contentUrl,
       list_details: JSON.stringify({ [listKey]: [] }),
+      ...(topicId ? { topicId } : {}),
     });
     const campaignKey = this.campaignKey(campaignResponse, 'campaign');
     await this.request('sendcampaign', { campaignkey: campaignKey });

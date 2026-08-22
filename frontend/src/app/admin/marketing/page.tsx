@@ -70,6 +70,9 @@ type EmailCampaignListItem = Omit<EmailCampaignSummary, 'recipients'>;
 const getCampaignFailureLabel = (error?: string | null) => {
   if (!error) return 'No se pudo entregar.';
   if (/unusual sending activity|unblockme/i.test(error)) return 'Zoho bloqueó temporalmente el envío.';
+  if (/createcampaign_failed.*\b903\b|topic.*(mandatory|required)|tema.*consentimiento/i.test(error)) {
+    return 'Zoho requiere un tema de consentimiento para esta campaña. No se envió ningún correo.';
+  }
   const plain = error.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   return plain.length > 110 ? `${plain.slice(0, 107)}…` : plain;
 };
