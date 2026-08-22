@@ -12,7 +12,12 @@ type ZohoCampaignInput = {
   recipients: string[];
 };
 
-type ZohoCampaignCreated = { campaignKey: string; listKey: string };
+type ZohoRejectedRecipient = { email: string; reason: string };
+type ZohoCampaignCreated = {
+  campaignKey: string;
+  listKey: string;
+  rejectedRecipients: ZohoRejectedRecipient[];
+};
 type ZohoRecipientReport = {
   opened: string[];
   hardBounced: string[];
@@ -266,14 +271,26 @@ export class ZohoCampaignsService {
     const providerResponse = payload?.response && typeof payload.response === 'object'
       ? payload.response
       : payload;
-    const code = String(providerResponse?.code ?? payload?.code ?? '').trim();
+    const code = String(
+      providerResponse?.code
+      ?? providerResponse?.Code
+      ?? payload?.code
+      ?? payload?.Code
+      ?? '',
+    ).trim();
     const message = String(
       providerResponse?.message
+      || providerResponse?.Message
       || payload?.message
+      || payload?.Message
       || providerResponse?.status
+      || providerResponse?.Status
       || payload?.status
+      || payload?.Status
       || providerResponse?.error
+      || providerResponse?.Error
       || payload?.error
+      || payload?.Error
       || '',
     ).trim();
     // Zoho documents 0 and 200 as successful values across the v1.1 endpoints.
@@ -330,6 +347,40 @@ export class ZohoCampaignsService {
     // Zoho Campaigns v1.1 requires `emailids` as a comma-separated list for
     // both list creation and bulk additions (maximum ten per request).
     return emails.join(',');
+  }
+
+  /** Zoho applies a restrictive provider-side pattern to list names. Campaign
+   * titles remain untouched for customers, but the internal list identifier is
+   * reduced to stable ASCII so punctuation or accents cannot block delivery. */
+  private safeListName(value: string) {
+    const normalized = value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9 _-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return (normalized || 'Campana').slice(0, 60);
+  }
+
+  private recipientFailure(error: unknown, includePattern = false): string | null {
+    const message = error instanceof Error ? error.message : String(error);
+    const match = message.match(/_FAILED:\s*(\d+)\s*(.*)$/i);
+    const code = match?.[1] || '';
+    const detail = (match?.[2] || message).trim();
+    // These responses describe only this address. They must not stop the rest
+    // of the audience. Code 1001 is safe here because list names are sanitized
+    // before `addlistandcontacts`, leaving the isolated email as the patterned
+    // value in that one-contact request.
+    const friendlyReasons: Record<string, string> = {
+      '1001': 'La dirección no cumple el formato aceptado por Zoho.',
+      '2004': 'Dirección de correo inválida.',
+      '2005': 'Zoho no permite esta dirección de grupo o función.',
+      '2006': 'El destinatario está en la lista de no enviar de Zoho.',
+    };
+    if (['2004', '2005', '2006'].includes(code) || (includePattern && code === '1001')) {
+      return friendlyReasons[code] || detail || 'Zoho rechazó esta dirección de correo.';
+    }
+    return null;
   }
 
   private recipientEmails(payload: any): string[] {
@@ -411,6 +462,8 @@ export class ZohoCampaignsService {
       throw new Error('ZOHO_CAMPAIGNS_MISSING_TOPIC: Configura el tema de marketing antes de preparar la audiencia. No se envió ningún correo.');
     }
     const preparation = this.audiencePreparationQueue.then(async () => {
+      const accepted: string[] = [];
+      const rejected: ZohoRejectedRecipient[] = [];
       // Zoho permits 500 `listsubscribe` calls per minute. Stay below that
       // boundary and serialize campaign preparation so two administrators or
       // jobs cannot combine their requests and trigger a 30-minute lock.
@@ -419,21 +472,35 @@ export class ZohoCampaignsService {
         const windowStartedAt = Date.now();
         const window = recipients.slice(offset, offset + safeCallsPerMinute);
         for (const email of window) {
-          await this.request('json/listsubscribe', {
-            listkey: listKey,
-            contactinfo: JSON.stringify({ 'Contact Email': email }),
-            topic_id: topicId,
-            source: 'LPTicket Marketing',
-          });
+          try {
+            await this.request('json/listsubscribe', {
+              listkey: listKey,
+              contactinfo: JSON.stringify({ 'Contact Email': email }),
+              topic_id: topicId,
+              source: 'LPTicket Marketing',
+            });
+            accepted.push(email);
+          } catch (error: unknown) {
+            const failure = this.recipientFailure(error);
+            const message = error instanceof Error ? error.message : String(error);
+            if (/LISTSUBSCRIBE_FAILED:\s*2003\b/i.test(message)) {
+              accepted.push(email);
+            } else if (failure) {
+              rejected.push({ email, reason: failure });
+            } else {
+              throw error;
+            }
+          }
         }
         if (offset + window.length < recipients.length) {
           const remainingWindowMs = 60_000 - (Date.now() - windowStartedAt);
           if (remainingWindowMs > 0) await new Promise((resolve) => setTimeout(resolve, remainingWindowMs));
         }
       }
+      return { accepted, rejected };
     });
-    this.audiencePreparationQueue = preparation.catch(() => undefined);
-    await preparation;
+    this.audiencePreparationQueue = preparation.then(() => undefined, () => undefined);
+    return preparation;
   }
 
   /**
@@ -456,7 +523,7 @@ export class ZohoCampaignsService {
       response?.lists,
       payload?.lists,
     ].find(Array.isArray) || [];
-    const prefix = `lpticket ${campaignName}`.toLowerCase();
+    const prefix = `lpticket ${this.safeListName(campaignName)}`.toLowerCase();
     const reusable = candidateLists.find((list: any) => {
       const name = String(list?.listname || list?.listName || '').trim().toLowerCase();
       const contacts = Number(list?.noofcontacts ?? list?.contactscount ?? list?.contactsCount);
@@ -495,23 +562,45 @@ export class ZohoCampaignsService {
       if (!/getmailinglists_failed.*(?:2401|no mailing list)/i.test(message)) throw error;
     }
 
+    const rejectedRecipients: ZohoRejectedRecipient[] = [];
     if (!listKey) {
-      const attemptKey = `${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`;
-      const listName = `LPTicket ${input.name} ${attemptKey}`.slice(0, 100);
-      const initial = recipients.slice(0, 10);
-      const listResponse = await this.request('addlistandcontacts', {
-        listname: listName,
-        signupform: 'private',
-        mode: 'newlist',
-        emailids: this.emailIds(initial),
-      });
-      listKey = this.campaignKey(listResponse, 'list');
+      // Zoho rejects the complete request when one of the initial addresses is
+      // invalid. Isolate list creation to one address and keep trying candidates
+      // so one bad record can never hold the whole campaign hostage.
+      for (let index = 0; index < recipients.length && !listKey; index += 1) {
+        const email = recipients[index];
+        const attemptKey = `${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`;
+        const listName = `LPTicket ${this.safeListName(input.name)} ${attemptKey}`.slice(0, 100);
+        try {
+          const listResponse = await this.request('addlistandcontacts', {
+            listname: listName,
+            signupform: 'private',
+            mode: 'newlist',
+            emailids: this.emailIds([email]),
+          });
+          listKey = this.campaignKey(listResponse, 'list');
+        } catch (error: unknown) {
+          const failure = this.recipientFailure(error, true);
+          if (!failure) throw error;
+          rejectedRecipients.push({ email, reason: failure });
+        }
+      }
     }
+    if (!listKey) throw new Error('ZOHO_CAMPAIGNS_EMPTY_VALID_AUDIENCE: Zoho rechazó todas las direcciones; no se envió ningún correo.');
 
     // This also repairs a reusable private list left by an earlier failed
     // attempt: every pending recipient is associated to the configured topic
     // before creating a new Zoho draft. It never sends the campaign itself.
-    await this.ensureTopicAudience(listKey, recipients, topicId);
+    const rejectedAtCreation = new Set(rejectedRecipients.map((recipient) => recipient.email));
+    const audience = await this.ensureTopicAudience(
+      listKey,
+      recipients.filter((email) => !rejectedAtCreation.has(email)),
+      topicId,
+    );
+    rejectedRecipients.push(...audience.rejected);
+    if (!audience.accepted.length) {
+      throw new Error('ZOHO_CAMPAIGNS_EMPTY_VALID_AUDIENCE: Zoho rechazó todas las direcciones; no se envió ningún correo.');
+    }
 
     // Zoho's v1.1 endpoint is case-sensitive: `createcampaign` responds with
     // a misleading HTTP 200 resource-not-found message instead of a campaign.
@@ -536,6 +625,6 @@ export class ZohoCampaignsService {
       throw new Error('ZOHO_CAMPAIGNS_AUDIENCE_NOT_ASSOCIATED: Zoho creó el borrador, pero no confirmó la lista privada como audiencia. No se envió ningún correo.');
     }
     await this.request('sendcampaign', { campaignkey: campaignKey });
-    return { campaignKey, listKey };
+    return { campaignKey, listKey, rejectedRecipients };
   }
 }

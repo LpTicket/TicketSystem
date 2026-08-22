@@ -130,4 +130,64 @@ describe('ZohoCampaignsService access token reuse', () => {
     });
     expect(tokenRequests).toBe(1);
   });
+
+  it('reads uppercase Zoho provider codes instead of reporting the HTTP status', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/oauth/v2/token')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ access_token: 'access-token', expires_in: 3600 }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ Code: 1001, Message: "Pattern doesn't Match" }),
+      } as Response;
+    });
+
+    await expect(service.connectionStatus()).resolves.toEqual({
+      connected: false,
+      error: expect.stringContaining("1001 Pattern doesn't Match"),
+    });
+  });
+
+  it('sanitizes only the internal Zoho list name', () => {
+    expect((service as any).safeListName('¿Estás listo para viajar? 🎶✨')).toBe('Estas listo para viajar');
+  });
+
+  it('isolates a rejected contact and continues preparing the valid audience', async () => {
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes('/oauth/v2/token')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ access_token: 'access-token', expires_in: 3600 }),
+        } as Response;
+      }
+      const body = init?.body as URLSearchParams;
+      const contact = JSON.parse(body.get('contactinfo') || '{}');
+      const email = contact['Contact Email'];
+      const payload = email === 'bad@example.com'
+        ? { code: 2004, status: 'error', message: 'Invalid email address' }
+        : { code: 0, status: 'success' };
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify(payload),
+      } as Response;
+    });
+
+    await expect((service as any).ensureTopicAudience(
+      'list-key',
+      ['valid@example.com', 'bad@example.com', 'other@example.com'],
+      'topic-id',
+    )).resolves.toEqual({
+      accepted: ['valid@example.com', 'other@example.com'],
+      rejected: [{ email: 'bad@example.com', reason: 'Dirección de correo inválida.' }],
+    });
+  });
 });

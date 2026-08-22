@@ -20,6 +20,7 @@ import { EmailCampaignRecipient } from './email-campaign-recipient.entity';
 import { User } from '../database/entities/user.entity';
 import { MailService } from '../common/services/mail.service';
 import { randomBytes } from 'crypto';
+import { isEmail } from 'class-validator';
 import { ZohoCampaignsService } from './zoho-campaigns.service';
 
 type CampaignResult = { sent: number; failed: number; total: number; error?: string };
@@ -457,12 +458,32 @@ export class MarketingService {
         await this.emailCampaignRepo.update(id, { status: 'completed' });
         return;
       }
+      // A malformed address must fail only that recipient. Syntax validation
+      // deliberately does not perform a DNS/provider allow-list check, so valid
+      // private business domains continue to be accepted.
+      const invalidRecipients = recipients.filter((recipient) => !isEmail(recipient.email, {
+        allow_utf8_local_part: false,
+        require_tld: true,
+      }));
+      if (invalidRecipients.length) {
+        await this.emailCampaignRecipientRepo.createQueryBuilder()
+          .update(EmailCampaignRecipient)
+          .set({ status: 'failed', sendError: 'Dirección de correo inválida; no se envió a este destinatario.' })
+          .where('id IN (:...ids)', { ids: invalidRecipients.map((recipient) => recipient.id) })
+          .execute();
+      }
+      const invalidIds = new Set(invalidRecipients.map((recipient) => recipient.id));
+      const validRecipients = recipients.filter((recipient) => !invalidIds.has(recipient.id));
+      if (!validRecipients.length) {
+        await this.emailCampaignRepo.update(id, { status: 'completed' });
+        return;
+      }
       await this.emailCampaignRepo.update(id, { status: 'processing' });
       const created = await this.zohoCampaigns.createAndSendCampaign({
         name: campaign.title || campaign.subject,
         subject: campaign.subject,
         contentUrl: this.getZohoCampaignContentUrl(campaign.id),
-        recipients: recipients.map((recipient) => recipient.email),
+        recipients: validRecipients.map((recipient) => recipient.email),
       });
       const sentAt = new Date();
       await this.emailCampaignRepo.update(id, {
@@ -470,6 +491,12 @@ export class MarketingService {
         zohoCampaignKey: created.campaignKey,
         zohoListKey: created.listKey,
       });
+      for (const rejected of created.rejectedRecipients) {
+        await this.emailCampaignRecipientRepo.update(
+          { campaignId: id, email: rejected.email },
+          { status: 'failed', sendError: rejected.reason.slice(0, 500) },
+        );
+      }
       await this.emailCampaignRecipientRepo.createQueryBuilder()
         .update(EmailCampaignRecipient)
         .set({ status: 'sent', sentAt, sendError: null })

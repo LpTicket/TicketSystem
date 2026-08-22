@@ -1,5 +1,15 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-22 - Aislamiento de destinatarios rechazados en Zoho Campaigns
+
+- La validación previa separa únicamente direcciones con sintaxis inválida; no usa listas de proveedores ni bloquea dominios privados válidos.
+- La creación de la lista y la suscripción al Topic aíslan los rechazos por destinatario. Una dirección rechazada queda marcada como fallida con su motivo y no detiene la preparación ni el envío a las direcciones aceptadas.
+- El nombre interno de la lista de Zoho se normaliza sin alterar el título ni el contenido visible de la campaña.
+- El adaptador reconoce códigos de Zoho escritos en mayúsculas o minúsculas y conserva el código real del proveedor.
+- Se añadieron pruebas automatizadas de normalización, lectura de errores y continuidad después de un rechazo individual. No se envió ni reintentó ninguna campaña durante esta corrección.
+
+Estado: `IMPLEMENTADO, NO PROBADO` en producción.
+
 ## 2026-08-22 - Seguimiento real y audiencias grandes en Zoho Campaigns
 
 - El detalle de una campaña seleccionada consulta ahora el reporte oficial de destinatarios de Zoho y concilia aperturas, rebotes permanentes, rebotes temporales y correos no enviados con los estados guardados en LPTicket.
