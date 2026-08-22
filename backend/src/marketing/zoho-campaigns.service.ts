@@ -116,7 +116,10 @@ export class ZohoCampaignsService {
 
   private async request(path: string, values: Record<string, string>): Promise<any> {
     const token = await this.accessToken();
-    const body = new URLSearchParams({ resfmt: 'json', ...values });
+    // Zoho Campaigns v1.1 documents JSON in uppercase. Supplying lowercase can
+    // make the API answer in XML, which prevents the returned list key from
+    // being recognized even when the provider created the list correctly.
+    const body = new URLSearchParams({ resfmt: 'JSON', ...values });
     const response = await fetch(`${this.campaignsBase}/${path}`, {
       method: 'POST',
       headers: {
@@ -145,9 +148,11 @@ export class ZohoCampaignsService {
   }
 
   private campaignKey(payload: any, type: 'list' | 'campaign'): string {
+    const response = payload?.response || {};
+    const data = payload?.data || {};
     const candidates = type === 'list'
-      ? [payload?.listkey, payload?.list_key, payload?.list_details?.listkey, payload?.data?.listkey]
-      : [payload?.campaignkey, payload?.campaign_key, payload?.campaign_details?.campaignkey, payload?.data?.campaignkey];
+      ? [payload?.listkey, payload?.listKey, payload?.list_details?.listkey, response?.listkey, response?.listKey, data?.listkey, data?.listKey]
+      : [payload?.campaignKey, payload?.campaignkey, payload?.campaign_key, payload?.campaign_details?.campaignkey, response?.campaignKey, response?.campaignkey, data?.campaignKey, data?.campaignkey];
     const value = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim());
     if (!value) throw new Error(`ZOHO_CAMPAIGNS_INVALID_${type.toUpperCase()}_RESPONSE`);
     return value;

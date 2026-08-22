@@ -8,6 +8,7 @@
 - El seguimiento administrativo muestra un motivo resumido cuando Zoho pausa una campaña antes de enviar, en lugar de dejar al administrador sin explicación.
 - Cada intento crea una lista privada con un identificador único. Así, una lista huérfana de Zoho no bloquea el reintento de la misma campaña.
 - La creación de listas y la carga de destinatarios usan el parámetro oficial `emailids` de Zoho Campaigns, con un máximo de diez correos por solicitud.
+- La integración solicita el formato oficial `JSON` y reconoce las claves reales que devuelve Zoho (`listkey` y `campaignKey`), incluyendo respuestas envueltas por el proveedor.
 
 ### Áreas protegidas
 - No se modificaron los correos transaccionales de registro, compra, tickets, pagos o recuperación de cuenta.
