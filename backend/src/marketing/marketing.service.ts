@@ -77,9 +77,9 @@ export class MarketingService {
   }
 
   async getZohoConnectionStatus() {
-    // This is deliberately an OAuth verification, not just a check that a
-    // token-shaped value exists in Railway or PostgreSQL. It never sends mail.
-    return { connected: await this.zohoCampaigns.isConfigured() };
+    // This checks OAuth plus the read-only list permission required before a
+    // campaign can use an audience. It never sends mail or changes contacts.
+    return this.zohoCampaigns.connectionStatus();
   }
 
   async completeZohoAuthorization(code: string, state: string) {
@@ -237,8 +237,11 @@ export class MarketingService {
   }) {
     const subject = String(dto.subject || dto.title || '').trim();
     if (!subject) throw new BadRequestException('El asunto de la campaña es obligatorio.');
-    if (!(await this.zohoCampaigns.isConfigured())) {
-      throw new BadRequestException('Zoho Campaigns todavía no está conectado. Configura sus credenciales seguras antes de enviar campañas.');
+    try {
+      await this.zohoCampaigns.verifyConnection();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'ZOHO_CAMPAIGNS_CONNECTION_FAILED';
+      throw new BadRequestException(`Zoho Campaigns no pudo validar la conexión: ${message.slice(0, 500)}`);
     }
     const targets = await this.resolveEmailTargets(dto.recipients);
     const campaign = await this.emailCampaignRepo.save(this.emailCampaignRepo.create({
@@ -387,9 +390,9 @@ export class MarketingService {
     try {
       const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
       if (!campaign || campaign.zohoCampaignKey) return;
-      if (!(await this.zohoCampaigns.isConfigured())) {
-        throw new Error('ZOHO_CAMPAIGNS_AUTH_FAILED: La conexión actual no pudo validarse. Reconecta Zoho Campaigns antes de reintentar. No se envió ningún correo.');
-      }
+      // Do not replace Zoho's reason with a generic reconnect message. The
+      // stored campaign history must identify the exact safe provider issue.
+      await this.zohoCampaigns.verifyConnection();
       const recipients = await this.emailCampaignRecipientRepo.find({
         where: { campaignId: id, status: 'queued' },
         order: { createdAt: 'ASC' },

@@ -141,6 +141,7 @@ export default function AdminMarketingPage() {
   const [importingHistoricalCampaign, setImportingHistoricalCampaign] = useState(false);
   const [connectingZoho, setConnectingZoho] = useState(false);
   const [zohoConnected, setZohoConnected] = useState<boolean | null>(null);
+  const [zohoConnectionError, setZohoConnectionError] = useState<string | null>(null);
 
   const [smsMessage, setSmsMessage] = useState('');
   const [pushTitle, setPushTitle] = useState('');
@@ -179,7 +180,15 @@ export default function AdminMarketingPage() {
 
   useEffect(() => {
     api.get('/marketing/admin/recipients').then((r) => setRecipientsList(r.data || [])).catch(() => {});
-    api.get('/marketing/admin/zoho/status').then((r) => setZohoConnected(Boolean(r.data?.connected))).catch(() => setZohoConnected(null));
+    api.get('/marketing/admin/zoho/status')
+      .then((r) => {
+        setZohoConnected(Boolean(r.data?.connected));
+        setZohoConnectionError(typeof r.data?.error === 'string' ? r.data.error : null);
+      })
+      .catch(() => {
+        setZohoConnected(null);
+        setZohoConnectionError(null);
+      });
     api.get('/events').then((r) => {
       const data = r.data;
       setPushEvents(Array.isArray(data) ? data : data?.events || data?.data || []);
@@ -679,7 +688,8 @@ export default function AdminMarketingPage() {
   const visibleMarketingBanners = marketingBanners.filter((item) => (item.bannerType === 'ad' ? 'ad' : 'banner') === bannerType);
   // Recipient errors are retained for audit. A successful reconnect must not
   // make that historical error look like the current connection is rejected.
-  const needsZohoReconnect = zohoConnected !== true && Boolean(emailCampaign?.recipients.some((recipient) => requiresZohoReconnect(recipient.error)));
+  const needsZohoReconnect = zohoConnected === false
+    || (zohoConnected !== true && Boolean(emailCampaign?.recipients.some((recipient) => requiresZohoReconnect(recipient.error))));
   const statCards = [
     { label: 'Banners activos', value: String(marketingBanners.length), icon: HiOutlinePhotograph },
     { label: 'Audiencias', value: '0', icon: HiOutlineUsers },
@@ -755,7 +765,11 @@ export default function AdminMarketingPage() {
 
           {needsZohoReconnect && (
             <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm leading-5 text-orange-900">Zoho rechazó la conexión anterior. Reconéctalo antes de reintentar; los destinatarios siguen pendientes.</p>
+              <p className="text-sm leading-5 text-orange-900">
+                {zohoConnectionError
+                  ? `Zoho no autorizó todavía el acceso a listas. Motivo: ${getCampaignFailureLabel(zohoConnectionError)}`
+                  : 'Zoho rechazó la conexión anterior. Reconéctalo antes de reintentar; los destinatarios siguen pendientes.'}
+              </p>
               <button type="button" onClick={handleReconnectZoho} disabled={connectingZoho} className="btn-primary shrink-0 px-4 disabled:opacity-60">
                 {connectingZoho ? 'Abriendo Zoho…' : 'Reconectar Zoho Campaigns'}
               </button>

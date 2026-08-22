@@ -35,9 +35,10 @@ export class ZohoCampaignsService {
   ) {}
 
   /**
-   * Verifies the credentials with Zoho's OAuth server. A refresh token merely
-   * being stored is not enough: it may have been revoked or belong to an
-   * earlier authorization. This performs no campaign or contact operation.
+   * Verifies the credentials and the read permission needed to manage a
+   * campaign audience. A refresh token merely being stored is not enough: it
+   * may have been revoked or lack the contact scope granted by Zoho.
+   * This performs no campaign, contact, or list mutation.
    */
   async verifyConnection(): Promise<void> {
     const hasBaseConfiguration = Boolean(
@@ -46,7 +47,21 @@ export class ZohoCampaignsService {
       && this.config.get<string>('ZOHO_CAMPAIGNS_FROM_EMAIL'),
     );
     if (!hasBaseConfiguration) throw new Error('ZOHO_CAMPAIGNS_NOT_CONFIGURED');
-    await this.accessToken();
+    await this.request('getmailinglists', {
+      sort: 'desc',
+      fromindex: '1',
+      range: '1',
+    }, 'GET');
+  }
+
+  async connectionStatus(): Promise<{ connected: boolean; error?: string }> {
+    try {
+      await this.verifyConnection();
+      return { connected: true };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'ZOHO_CAMPAIGNS_CONNECTION_FAILED';
+      return { connected: false, error: message.slice(0, 500) };
+    }
   }
 
   async isConfigured() {
@@ -346,7 +361,9 @@ export class ZohoCampaignsService {
   }
 
   async createAndSendCampaign(input: ZohoCampaignInput): Promise<ZohoCampaignCreated> {
-    if (!(await this.isConfigured())) throw new Error('ZOHO_CAMPAIGNS_NOT_CONFIGURED');
+    // Preserve Zoho's exact safe provider error (for example, a missing list
+    // scope) instead of collapsing it into a generic "not configured" state.
+    await this.verifyConnection();
     const recipients = Array.from(new Set(input.recipients.map((email) => email.trim().toLowerCase()).filter(Boolean)));
     if (!recipients.length) throw new Error('ZOHO_CAMPAIGNS_EMPTY_AUDIENCE');
 
