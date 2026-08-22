@@ -20,6 +20,7 @@ import { EmailCampaignRecipient } from './email-campaign-recipient.entity';
 import { User } from '../database/entities/user.entity';
 import { MailService } from '../common/services/mail.service';
 import { randomBytes } from 'crypto';
+import { ZohoCampaignsService } from './zoho-campaigns.service';
 
 type CampaignResult = { sent: number; failed: number; total: number; error?: string };
 const EMAIL_CAMPAIGN_BATCH_SIZE = 100;
@@ -43,6 +44,7 @@ export class MarketingService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly mailService: MailService,
+    private readonly zohoCampaigns: ZohoCampaignsService,
     private readonly config: ConfigService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
   ) {}
@@ -197,7 +199,8 @@ export class MarketingService {
       queued,
       opened: counts.opened || 0,
       delivered: sent,
-      nextBatchSize: Math.min(EMAIL_CAMPAIGN_BATCH_SIZE, queued),
+      nextBatchSize: campaign.provider === 'zoho-campaigns' ? queued : Math.min(EMAIL_CAMPAIGN_BATCH_SIZE, queued),
+      provider: campaign.provider,
       createdAt: campaign.createdAt,
       ...(includeRecipients ? {
         recipients: rows.map((row) => ({
@@ -220,6 +223,9 @@ export class MarketingService {
   }) {
     const subject = String(dto.subject || dto.title || '').trim();
     if (!subject) throw new BadRequestException('El asunto de la campaña es obligatorio.');
+    if (!this.zohoCampaigns.isConfigured()) {
+      throw new BadRequestException('Zoho Campaigns todavía no está conectado. Configura sus credenciales seguras antes de enviar campañas.');
+    }
     const targets = await this.resolveEmailTargets(dto.recipients);
     const campaign = await this.emailCampaignRepo.save(this.emailCampaignRepo.create({
       subject,
@@ -229,6 +235,7 @@ export class MarketingService {
       link: String(dto.link || '').trim() || null,
       totalRecipients: targets.length,
       status: 'queued',
+      provider: 'zoho-campaigns',
     }));
     await this.emailCampaignRecipientRepo.save(targets.map((target) => this.emailCampaignRecipientRepo.create({
       campaignId: campaign.id,
@@ -237,7 +244,7 @@ export class MarketingService {
       openToken: randomBytes(24).toString('hex'),
       status: 'queued',
     })));
-    void this.processNextEmailCampaignBatch(campaign.id);
+    void this.processZohoEmailCampaign(campaign.id);
     return this.getCampaignView(campaign.id, true);
   }
 
@@ -310,7 +317,11 @@ export class MarketingService {
       return this.getCampaignView(id, true);
     }
     if (campaign.status === 'completed') return this.getCampaignView(id, true);
-    void this.processNextEmailCampaignBatch(id);
+    if (campaign.provider === 'zoho-campaigns') {
+      void this.processZohoEmailCampaign(id);
+    } else {
+      void this.processNextEmailCampaignBatch(id);
+    }
     return this.getCampaignView(id, true);
   }
 
@@ -354,11 +365,99 @@ export class MarketingService {
     }
   }
 
+  /** Submit one complete audience to Zoho Campaigns. Zoho then performs the
+   * delivery and reporting; we never use the normal mailbox for bulk email. */
+  private async processZohoEmailCampaign(id: string): Promise<void> {
+    if (this.processingCampaigns.has(id)) return;
+    this.processingCampaigns.add(id);
+    try {
+      const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
+      if (!campaign || campaign.zohoCampaignKey) return;
+      if (!this.zohoCampaigns.isConfigured()) {
+        await this.emailCampaignRepo.update(id, { status: 'paused' });
+        return;
+      }
+      const recipients = await this.emailCampaignRecipientRepo.find({
+        where: { campaignId: id, status: 'queued' },
+        order: { createdAt: 'ASC' },
+      });
+      if (!recipients.length) {
+        await this.emailCampaignRepo.update(id, { status: 'completed' });
+        return;
+      }
+      await this.emailCampaignRepo.update(id, { status: 'processing' });
+      const created = await this.zohoCampaigns.createAndSendCampaign({
+        name: campaign.title || campaign.subject,
+        subject: campaign.subject,
+        contentUrl: this.getZohoCampaignContentUrl(campaign.id),
+        recipients: recipients.map((recipient) => recipient.email),
+      });
+      const sentAt = new Date();
+      await this.emailCampaignRepo.update(id, {
+        status: 'completed',
+        zohoCampaignKey: created.campaignKey,
+        zohoListKey: created.listKey,
+      });
+      await this.emailCampaignRecipientRepo.createQueryBuilder()
+        .update(EmailCampaignRecipient)
+        .set({ status: 'sent', sentAt, sendError: null })
+        .where('"campaignId" = :id AND status = :status', { id, status: 'queued' })
+        .execute();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'No se pudo preparar la campaña en Zoho Campaigns.';
+      await this.emailCampaignRepo.update(id, { status: 'paused' });
+      // Keep recipients pending: this is a campaign-level setup failure, not a
+      // rejection for every customer, and retry must not duplicate recipients.
+      await this.emailCampaignRecipientRepo.createQueryBuilder()
+        .update(EmailCampaignRecipient)
+        .set({ sendError: message.slice(0, 500) })
+        .where('"campaignId" = :id AND status = :status', { id, status: 'queued' })
+        .execute();
+    } finally {
+      this.processingCampaigns.delete(id);
+    }
+  }
+
   private getEmailOpenTrackingUrl(token: string) {
     const base = String(this.config.get<string>('API_URL') || this.config.get<string>('BACKEND_URL') || '')
       .replace(/\/$/, '')
       .replace(/\/api$/, '');
     return base ? `${base}/api/marketing/open/${token}` : '';
+  }
+
+  private getPublicApiBase() {
+    return String(this.config.get<string>('API_URL') || this.config.get<string>('BACKEND_URL') || '')
+      .replace(/\/$/, '')
+      .replace(/\/api$/, '');
+  }
+
+  private getZohoCampaignContentUrl(id: string) {
+    const base = this.getPublicApiBase();
+    if (!base) throw new Error('ZOHO_CAMPAIGNS_MISSING_PUBLIC_API_URL');
+    return `${base}/api/marketing/email-campaigns/${id}/content`;
+  }
+
+  async getZohoCampaignContent(id: string) {
+    const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
+    if (!campaign) throw new BadRequestException('Campaña no encontrada.');
+    const base = this.getPublicApiBase();
+    const imageData = campaign.imageData?.startsWith('data:') && base
+      ? `${base}/api/marketing/email-campaigns/${campaign.id}/art`
+      : campaign.imageData;
+    return this.mailService.renderMarketingEmail({
+      subject: campaign.subject,
+      title: campaign.title || undefined,
+      preheader: campaign.preheader || undefined,
+      imageData,
+      link: campaign.link || undefined,
+    }).html;
+  }
+
+  async getZohoCampaignArt(id: string) {
+    const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
+    const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s.exec(campaign?.imageData || '');
+    if (!match) throw new BadRequestException('Arte de campaña no encontrado.');
+    return { mimeType: match[1], buffer: Buffer.from(match[2], 'base64') };
   }
 
   async markEmailCampaignRecipientOpened(token: string) {

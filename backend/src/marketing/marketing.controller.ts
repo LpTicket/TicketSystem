@@ -132,6 +132,24 @@ export class MarketingController {
     return this.marketingService.importHistoricalZohoCampaign(body?.recipients);
   }
 
+  /** Zoho Campaigns fetches this public, immutable campaign markup itself. */
+  @Get('email-campaigns/:id/content')
+  async getZohoCampaignContent(@Param('id') id: string, @Res() res: any) {
+    const html = await this.marketingService.getZohoCampaignContent(id);
+    res.header('Content-Type', 'text/html; charset=utf-8');
+    res.header('Cache-Control', 'private, no-store');
+    return res.send(html);
+  }
+
+  @Get('email-campaigns/:id/art')
+  async getZohoCampaignArt(@Param('id') id: string, @Res() res: any) {
+    const image = await this.marketingService.getZohoCampaignArt(id);
+    res.header('Content-Type', image.mimeType);
+    res.header('Content-Length', image.buffer.length);
+    res.header('Cache-Control', 'private, max-age=3600');
+    return res.send(image.buffer);
+  }
+
   @Get('admin/email-campaigns/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)

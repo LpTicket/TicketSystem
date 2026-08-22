@@ -23,6 +23,15 @@ export class EmailCampaign {
   @Column({ type: 'text', nullable: true })
   link: string | null;
 
+  @Column({ type: 'varchar', default: 'smtp' })
+  provider: 'smtp' | 'zoho-campaigns';
+
+  @Column({ type: 'varchar', nullable: true })
+  zohoCampaignKey: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  zohoListKey: string | null;
+
   @Column({ type: 'varchar', default: 'queued' })
   status: EmailCampaignStatus;
 

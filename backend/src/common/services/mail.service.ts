@@ -757,11 +757,10 @@ export class MailService {
     }
   }
 
-  /** Marketing campaign email styled like LPTicket ticket emails. */
-  async sendMarketingEmail(
-    to: string,
+  /** Reusable premium markup for SMTP previews and Zoho Campaigns content URLs. */
+  renderMarketingEmail(
     opts: { subject: string; title?: string; preheader?: string; imageData?: string | null; link?: string; trackingUrl?: string },
-  ) {
+  ): { html: string; attachments: nodemailer.SendMailOptions['attachments'] } {
     const appUrl = this.getAppUrl();
     const year = new Date().getFullYear();
 
@@ -941,6 +940,15 @@ export class MailService {
 </body>
 </html>`;
 
+    return { html, attachments };
+  }
+
+  /** Legacy SMTP wrapper. Marketing campaigns use Zoho Campaigns instead. */
+  async sendMarketingEmail(
+    to: string,
+    opts: { subject: string; title?: string; preheader?: string; imageData?: string | null; link?: string; trackingUrl?: string },
+  ) {
+    const { html, attachments } = this.renderMarketingEmail(opts);
     await this.transporter.sendMail({
       from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
       to,

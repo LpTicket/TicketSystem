@@ -61,6 +61,7 @@ type EmailCampaignSummary = {
   opened: number;
   delivered: number;
   nextBatchSize: number;
+  provider?: 'smtp' | 'zoho-campaigns';
   recipients: EmailCampaignRecipient[];
 };
 
@@ -338,7 +339,7 @@ export default function AdminMarketingPage() {
       });
       setEmailCampaign(data || null);
       updateCampaignInHistory(data || null);
-      toast.success(`Campaña creada. Se están procesando los primeros ${Math.min(100, data?.total || 0)} correos.`);
+      toast.success(`Campaña creada. Zoho Campaigns está preparando los ${data?.total || 0} destinatarios.`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Error al enviar el email');
     } finally { setSending(''); }
@@ -351,7 +352,7 @@ export default function AdminMarketingPage() {
       const { data } = await api.post(`/marketing/admin/email-campaigns/${emailCampaign.id}/send-next`);
       setEmailCampaign(data || null);
       updateCampaignInHistory(data || null);
-      toast.success(`Se están procesando los próximos ${Math.min(100, data?.nextBatchSize || 100)} correos pendientes.`);
+      toast.success('Zoho Campaigns está reintentando la campaña pendiente.');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'No se pudo iniciar el siguiente lote.');
     } finally {
@@ -887,7 +888,7 @@ export default function AdminMarketingPage() {
 
               {emailCampaign.queued > 0 && emailCampaign.status !== 'processing' && (
                 <button type="button" onClick={handleSendNextEmailBatch} disabled={loadingNextBatch} className="btn-primary mt-4 w-full py-3 disabled:opacity-60">
-                  {loadingNextBatch ? 'Iniciando…' : `Enviar próximos ${emailCampaign.nextBatchSize} correos`}
+                  {loadingNextBatch ? 'Iniciando…' : emailCampaign.provider === 'zoho-campaigns' ? `Reintentar campaña para ${emailCampaign.nextBatchSize} destinatarios` : `Enviar próximos ${emailCampaign.nextBatchSize} correos`}
                 </button>
               )}
             </div>
