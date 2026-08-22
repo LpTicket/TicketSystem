@@ -260,6 +260,30 @@ export class ZohoCampaignsService {
   }
 
   /**
+   * `addlistandcontacts`/bulk list APIs only place an address in a list. They
+   * do not associate it with a Topic in Zoho's updated topic model, so the
+   * provider rejects the campaign with 6606 even though the list exists.
+   *
+   * `listsubscribe` is intentionally applied one recipient at a time because
+   * it is the documented endpoint that accepts `topic_id`. Private lists do
+   * not send an opt-in email from this operation; it only updates the
+   * recipient's audience classification before campaign creation.
+   */
+  private async ensureTopicAudience(listKey: string, recipients: string[], topicId: string) {
+    if (!topicId) {
+      throw new Error('ZOHO_CAMPAIGNS_MISSING_TOPIC: Configura el tema de marketing antes de preparar la audiencia. No se envió ningún correo.');
+    }
+    for (const email of recipients) {
+      await this.request('json/listsubscribe', {
+        listkey: listKey,
+        contactinfo: JSON.stringify({ 'Contact Email': email }),
+        topic_id: topicId,
+        source: 'LPTicket Marketing',
+      });
+    }
+  }
+
+  /**
    * Reuse a previous private list created for this exact audience. Zoho keeps
    * lists after a failed draft, so creating another one on every retry only
    * clutters the account and makes diagnosis harder.
@@ -327,14 +351,12 @@ export class ZohoCampaignsService {
         emailids: this.emailIds(initial),
       });
       listKey = this.campaignKey(listResponse, 'list');
-
-      for (let index = 10; index < recipients.length; index += 10) {
-        await this.request('addlistsubscribersinbulk', {
-          listkey: listKey,
-          emailids: this.emailIds(recipients.slice(index, index + 10)),
-        });
-      }
     }
+
+    // This also repairs a reusable private list left by an earlier failed
+    // attempt: every pending recipient is associated to the configured topic
+    // before creating a new Zoho draft. It never sends the campaign itself.
+    await this.ensureTopicAudience(listKey, recipients, topicId);
 
     // Zoho's v1.1 endpoint is case-sensitive: `createcampaign` responds with
     // a misleading HTTP 200 resource-not-found message instead of a campaign.
