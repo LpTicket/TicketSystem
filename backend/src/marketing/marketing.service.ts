@@ -31,6 +31,8 @@ const HISTORICAL_ZOHO_CAMPAIGN_SUBJECT = '¿Estás listo para viajar en el tiemp
 @Injectable()
 export class MarketingService {
   private readonly processingCampaigns = new Set<string>();
+  private readonly zohoReportSyncedAt = new Map<string, number>();
+  private readonly zohoReportSyncs = new Map<string, Promise<void>>();
 
   constructor(
     @InjectRepository(MarketingBanner)
@@ -281,7 +283,61 @@ export class MarketingService {
   }
 
   async getEmailCampaign(id: string) {
+    await this.syncZohoCampaignReport(id);
     return this.getCampaignView(id, true);
+  }
+
+  /** Reconciles recipient-level opens and delivery failures from Zoho. The
+   * selected campaign can be polled safely: a report is refreshed at most once
+   * every two minutes and concurrent dashboard requests share one operation. */
+  private async syncZohoCampaignReport(id: string): Promise<void> {
+    const activeSync = this.zohoReportSyncs.get(id);
+    if (activeSync) return activeSync;
+    const lastSync = this.zohoReportSyncedAt.get(id) || 0;
+    if (Date.now() - lastSync < 2 * 60 * 1000) return;
+
+    const sync = (async () => {
+      const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
+      if (!campaign || campaign.provider !== 'zoho-campaigns' || !campaign.zohoCampaignKey) return;
+      const report = await this.zohoCampaigns.getRecipientReport(campaign.zohoCampaignKey);
+      const opened = Array.from(new Set(report.opened.map((email) => email.toLowerCase())));
+      const failedReasons = new Map<string, string>();
+      report.hardBounced.forEach((email) => failedReasons.set(email.toLowerCase(), 'Zoho reportó un rebote permanente.'));
+      report.softBounced.forEach((email) => failedReasons.set(email.toLowerCase(), 'Zoho reportó un rebote temporal.'));
+      report.unsent.forEach((email) => failedReasons.set(email.toLowerCase(), 'Zoho no pudo enviar este correo.'));
+
+      if (opened.length) {
+        await this.emailCampaignRecipientRepo.createQueryBuilder()
+          .update(EmailCampaignRecipient)
+          .set({ status: 'opened', openedAt: () => 'COALESCE("openedAt", NOW())' })
+          .where('"campaignId" = :id', { id })
+          .andWhere('LOWER("email") IN (:...emails)', { emails: opened })
+          .andWhere('"status" IN (:...statuses)', { statuses: ['sent', 'opened'] })
+          .execute();
+      }
+      for (const [reason, emails] of Array.from(failedReasons.entries()).reduce((groups, [email, reason]) => {
+        const current = groups.get(reason) || [];
+        current.push(email);
+        groups.set(reason, current);
+        return groups;
+      }, new Map<string, string[]>())) {
+        await this.emailCampaignRecipientRepo.createQueryBuilder()
+          .update(EmailCampaignRecipient)
+          .set({ status: 'failed', sendError: reason })
+          .where('"campaignId" = :id', { id })
+          .andWhere('LOWER("email") IN (:...emails)', { emails })
+          .execute();
+      }
+      this.zohoReportSyncedAt.set(id, Date.now());
+    })().catch((error: unknown) => {
+      // Report availability must not hide an otherwise valid campaign. Keep
+      // the last known values and allow the next dashboard refresh to retry.
+      console.warn('Zoho Campaigns report sync failed:', id, error instanceof Error ? error.message : 'unknown error');
+    }).finally(() => {
+      this.zohoReportSyncs.delete(id);
+    });
+    this.zohoReportSyncs.set(id, sync);
+    return sync;
   }
 
   /** Removes only a completed or paused campaign and its stored recipient

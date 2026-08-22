@@ -13,6 +13,12 @@ type ZohoCampaignInput = {
 };
 
 type ZohoCampaignCreated = { campaignKey: string; listKey: string };
+type ZohoRecipientReport = {
+  opened: string[];
+  hardBounced: string[];
+  softBounced: string[];
+  unsent: string[];
+};
 
 /**
  * Isolated adapter for Zoho Campaigns. Marketing email must never fall back to
@@ -30,6 +36,7 @@ export class ZohoCampaignsService {
   private cachedAccessToken: { value: string; expiresAt: number } | null = null;
   private accessTokenRequest: Promise<string> | null = null;
   private tokenGeneration = 0;
+  private audiencePreparationQueue: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly config: ConfigService,
@@ -325,6 +332,70 @@ export class ZohoCampaignsService {
     return emails.join(',');
   }
 
+  private recipientEmails(payload: any): string[] {
+    const response = payload?.response && typeof payload.response === 'object' ? payload.response : payload;
+    const details = [
+      response?.list_of_details,
+      response?.list_of_details?.contact,
+      response?.contacts,
+      payload?.list_of_details,
+      payload?.list_of_details?.contact,
+      payload?.contacts,
+    ].find(Array.isArray) || [];
+    return details
+      .map((contact: any) => String(
+        contact?.contactemailaddress
+        || contact?.contact_email
+        || contact?.email
+        || contact?.emailaddress
+        || '',
+      ).trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  private async campaignRecipientEmails(campaignKey: string, action: string): Promise<string[]> {
+    const emails = new Set<string>();
+    let fromIndex = 1;
+    for (let page = 0; page < 100; page += 1) {
+      let payload: any;
+      try {
+        payload = await this.request('getcampaignrecipientsdata', {
+          campaignkey: campaignKey,
+          action,
+          fromindex: String(fromIndex),
+          range: '100',
+        });
+      } catch (error: unknown) {
+        // Zoho uses code 6303 when this report bucket has no recipients yet
+        // (for example, zero opens). That is a valid empty result, not a
+        // broken campaign or connection.
+        const message = error instanceof Error ? error.message : String(error);
+        if (/GETCAMPAIGNRECIPIENTSDATA_FAILED:\s*6303\b/i.test(message)) break;
+        throw error;
+      }
+      const pageEmails = this.recipientEmails(payload);
+      pageEmails.forEach((email) => emails.add(email));
+      const response = payload?.response && typeof payload.response === 'object' ? payload.response : payload;
+      const reportedRange = Number(response?.requestdetails?.range ?? response?.range ?? payload?.requestdetails?.range ?? payload?.range);
+      const effectiveRange = Number.isFinite(reportedRange) && reportedRange > 0 ? reportedRange : 100;
+      if (!pageEmails.length || pageEmails.length < effectiveRange) break;
+      fromIndex += pageEmails.length;
+    }
+    return Array.from(emails);
+  }
+
+  /** Reads Zoho's recipient-level delivery report. This never creates,
+   * modifies, retries, or sends a campaign. */
+  async getRecipientReport(campaignKey: string): Promise<ZohoRecipientReport> {
+    const [opened, hardBounced, softBounced, unsent] = await Promise.all([
+      this.campaignRecipientEmails(campaignKey, 'openedcontacts'),
+      this.campaignRecipientEmails(campaignKey, 'senthardbounce'),
+      this.campaignRecipientEmails(campaignKey, 'sentsoftbounce'),
+      this.campaignRecipientEmails(campaignKey, 'unsentcontacts'),
+    ]);
+    return { opened, hardBounced, softBounced, unsent };
+  }
+
   /**
    * `addlistandcontacts`/bulk list APIs only place an address in a list. They
    * do not associate it with a Topic in Zoho's updated topic model, so the
@@ -339,14 +410,30 @@ export class ZohoCampaignsService {
     if (!topicId) {
       throw new Error('ZOHO_CAMPAIGNS_MISSING_TOPIC: Configura el tema de marketing antes de preparar la audiencia. No se envió ningún correo.');
     }
-    for (const email of recipients) {
-      await this.request('json/listsubscribe', {
-        listkey: listKey,
-        contactinfo: JSON.stringify({ 'Contact Email': email }),
-        topic_id: topicId,
-        source: 'LPTicket Marketing',
-      });
-    }
+    const preparation = this.audiencePreparationQueue.then(async () => {
+      // Zoho permits 500 `listsubscribe` calls per minute. Stay below that
+      // boundary and serialize campaign preparation so two administrators or
+      // jobs cannot combine their requests and trigger a 30-minute lock.
+      const safeCallsPerMinute = 450;
+      for (let offset = 0; offset < recipients.length; offset += safeCallsPerMinute) {
+        const windowStartedAt = Date.now();
+        const window = recipients.slice(offset, offset + safeCallsPerMinute);
+        for (const email of window) {
+          await this.request('json/listsubscribe', {
+            listkey: listKey,
+            contactinfo: JSON.stringify({ 'Contact Email': email }),
+            topic_id: topicId,
+            source: 'LPTicket Marketing',
+          });
+        }
+        if (offset + window.length < recipients.length) {
+          const remainingWindowMs = 60_000 - (Date.now() - windowStartedAt);
+          if (remainingWindowMs > 0) await new Promise((resolve) => setTimeout(resolve, remainingWindowMs));
+        }
+      }
+    });
+    this.audiencePreparationQueue = preparation.catch(() => undefined);
+    await preparation;
   }
 
   /**

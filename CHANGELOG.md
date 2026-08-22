@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-22 - Seguimiento real y audiencias grandes en Zoho Campaigns
+
+- El detalle de una campaña seleccionada consulta ahora el reporte oficial de destinatarios de Zoho y concilia aperturas, rebotes permanentes, rebotes temporales y correos no enviados con los estados guardados en LPTicket.
+- Las campañas completadas de Zoho se actualizan en el panel cada minuto; el backend limita la consulta real al proveedor a una vez cada dos minutos y comparte solicitudes simultáneas.
+- La preparación de audiencias se serializa globalmente y procesa como máximo 450 suscripciones por ventana de un minuto, por debajo del límite oficial de 500. Esto permite preparar 500 contactos sin provocar el bloqueo de 30 minutos de Zoho; la campaña se envía una sola vez cuando toda la audiencia queda lista.
+- El historial y la campaña seleccionada reflejan inmediatamente las métricas reconciliadas. No se modificaron los correos transaccionales.
+
 ## 2026-08-22 - Reutilización correcta del token de Zoho Campaigns
 
 - Se comprobó que el adaptador solicitaba un access token nuevo en cada llamada a Zoho. Un intento con 17 destinatarios supera el límite oficial de diez tokens por cada diez minutos y provoca `Access Denied`, aunque la reconexión OAuth haya terminado correctamente.

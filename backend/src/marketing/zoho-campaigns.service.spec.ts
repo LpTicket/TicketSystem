@@ -61,4 +61,73 @@ describe('ZohoCampaignsService access token reuse', () => {
     expect(tokenRequests).toBe(1);
     expect(campaignRequests).toBe(20);
   });
+
+  it('reads and paginates Zoho recipient reports by status', async () => {
+    const report: Record<string, string[]> = {
+      openedcontacts: ['open1@example.com', 'open2@example.com', 'open3@example.com'],
+      senthardbounce: ['hard@example.com'],
+      sentsoftbounce: ['soft@example.com'],
+      unsentcontacts: ['unsent@example.com'],
+    };
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes('/oauth/v2/token')) {
+        tokenRequests += 1;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ access_token: 'access-token', expires_in: 3600 }),
+        } as Response;
+      }
+      const body = init?.body as URLSearchParams;
+      const action = body.get('action') || '';
+      const fromIndex = Number(body.get('fromindex') || 1);
+      const contacts = (report[action] || []).slice(fromIndex - 1, fromIndex + 1);
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+          code: 0,
+          status: 'success',
+          requestdetails: { range: 2, fromindex: fromIndex },
+          list_of_details: contacts.map((email) => ({ contactemailaddress: email })),
+        }),
+      } as Response;
+    });
+
+    await expect(service.getRecipientReport('campaign-key')).resolves.toEqual({
+      opened: report.openedcontacts,
+      hardBounced: report.senthardbounce,
+      softBounced: report.sentsoftbounce,
+      unsent: report.unsentcontacts,
+    });
+    expect(tokenRequests).toBe(1);
+  });
+
+  it('treats Zoho no-contacts report code as an empty metric', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/oauth/v2/token')) {
+        tokenRequests += 1;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ access_token: 'access-token', expires_in: 3600 }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ code: 6303, status: 'error', message: 'There are no contacts.' }),
+      } as Response;
+    });
+
+    await expect(service.getRecipientReport('campaign-key')).resolves.toEqual({
+      opened: [],
+      hardBounced: [],
+      softBounced: [],
+      unsent: [],
+    });
+    expect(tokenRequests).toBe(1);
+  });
 });

@@ -26,6 +26,7 @@ PostgreSQL + servicios externos
 - `ZohoCampaignsService` crea o reutiliza listas privadas, asocia cada destinatario al Topic de marketing configurado mediante `listsubscribe`, prepara campañas y verifica que Zoho haya asociado la audiencia antes de solicitar el envío; el backend conserva los destinatarios y estados por campaña.
 - La autorización OAuth llega al callback de backend y el refresh token se cifra con AES-256-GCM usando una clave derivada de `JWT_SECRET` antes de guardarse en `marketing_integrations`.
 - El access token temporal se mantiene únicamente en memoria hasta su vencimiento y se comparte entre solicitudes simultáneas; así todo el flujo de una campaña utiliza un solo token sin superar los límites OAuth de Zoho. Al renovar el consentimiento se invalida la caché anterior.
+- Las audiencias se preparan mediante una cola única con un máximo seguro de 450 llamadas `listsubscribe` por minuto. Los reportes por destinatario se consultan bajo demanda con caché temporal y actualizan estados locales de apertura, rebote y no enviado sin volver a enviar la campaña.
 - Los secretos OAuth de cliente se mantienen exclusivamente en variables privadas de Railway.
 
 ## Estructura del Repositorio

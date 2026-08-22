@@ -205,7 +205,11 @@ export default function AdminMarketingPage() {
         setEmailCampaigns(campaigns);
         if (!campaigns[0]?.id) return;
         api.get(`/marketing/admin/email-campaigns/${campaigns[0].id}`)
-          .then((detail) => setEmailCampaign(detail.data || null))
+          .then((detail) => {
+            const campaign = detail.data || null;
+            setEmailCampaign(campaign);
+            if (campaign) setEmailCampaigns((previous) => [campaign, ...previous.filter((item) => item.id !== campaign.id)]);
+          })
           .catch(() => setCampaignsLoadError('El historial se cargó, pero no se pudo abrir la campaña seleccionada.'));
       })
       .catch(() => setCampaignsLoadError('No se pudo cargar el historial de campañas. Recarga la página o revisa el backend.'))
@@ -216,6 +220,7 @@ export default function AdminMarketingPage() {
     try {
       const { data } = await api.get(`/marketing/admin/email-campaigns/${id}`);
       setEmailCampaign(data || null);
+      if (data) setEmailCampaigns((previous) => [data, ...previous.filter((item) => item.id !== data.id)]);
     } catch {
       toast.error('No se pudo abrir esta campaña. Intenta nuevamente.');
     }
@@ -243,7 +248,8 @@ export default function AdminMarketingPage() {
   };
 
   useEffect(() => {
-    if (!emailCampaign?.id || emailCampaign.status === 'completed' || emailCampaign.status === 'paused') return;
+    if (!emailCampaign?.id || emailCampaign.status === 'paused') return;
+    if (emailCampaign.status === 'completed' && emailCampaign.provider !== 'zoho-campaigns') return;
     const refresh = () => api.get(`/marketing/admin/email-campaigns/${emailCampaign.id}`)
       .then((r) => {
         const campaign = r.data || null;
@@ -251,9 +257,9 @@ export default function AdminMarketingPage() {
         if (campaign) setEmailCampaigns((previous) => [campaign, ...previous.filter((item) => item.id !== campaign.id)]);
       })
       .catch(() => {});
-    const timer = window.setInterval(refresh, 5000);
+    const timer = window.setInterval(refresh, emailCampaign.status === 'completed' ? 60_000 : 5_000);
     return () => window.clearInterval(timer);
-  }, [emailCampaign?.id, emailCampaign?.status]);
+  }, [emailCampaign?.id, emailCampaign?.provider, emailCampaign?.status]);
 
   const toggleSel = (
     setSel: React.Dispatch<React.SetStateAction<string[]>>,
