@@ -140,6 +140,7 @@ export default function AdminMarketingPage() {
   const [historicalRecipients, setHistoricalRecipients] = useState('');
   const [importingHistoricalCampaign, setImportingHistoricalCampaign] = useState(false);
   const [connectingZoho, setConnectingZoho] = useState(false);
+  const [zohoConnected, setZohoConnected] = useState<boolean | null>(null);
 
   const [smsMessage, setSmsMessage] = useState('');
   const [pushTitle, setPushTitle] = useState('');
@@ -178,6 +179,7 @@ export default function AdminMarketingPage() {
 
   useEffect(() => {
     api.get('/marketing/admin/recipients').then((r) => setRecipientsList(r.data || [])).catch(() => {});
+    api.get('/marketing/admin/zoho/status').then((r) => setZohoConnected(Boolean(r.data?.connected))).catch(() => setZohoConnected(null));
     api.get('/events').then((r) => {
       const data = r.data;
       setPushEvents(Array.isArray(data) ? data : data?.events || data?.data || []);
@@ -675,7 +677,9 @@ export default function AdminMarketingPage() {
   };
 
   const visibleMarketingBanners = marketingBanners.filter((item) => (item.bannerType === 'ad' ? 'ad' : 'banner') === bannerType);
-  const needsZohoReconnect = Boolean(emailCampaign?.recipients.some((recipient) => requiresZohoReconnect(recipient.error)));
+  // Recipient errors are retained for audit. A successful reconnect must not
+  // make that historical error look like the current connection is rejected.
+  const needsZohoReconnect = zohoConnected !== true && Boolean(emailCampaign?.recipients.some((recipient) => requiresZohoReconnect(recipient.error)));
   const statCards = [
     { label: 'Banners activos', value: String(marketingBanners.length), icon: HiOutlinePhotograph },
     { label: 'Audiencias', value: '0', icon: HiOutlineUsers },

@@ -64,10 +64,13 @@ export class ZohoCampaignsService {
   }
 
   private async refreshToken() {
-    const configured = this.config.get<string>('ZOHO_CAMPAIGNS_REFRESH_TOKEN');
-    if (configured) return configured;
     const connection = await this.integrationRepo.findOne({ where: { provider: 'zoho-campaigns' } });
-    return connection ? this.decrypt(connection.encryptedRefreshToken) : '';
+    // An administrator can renew consent from the dashboard. That refreshed
+    // token is persisted encrypted in PostgreSQL and must take precedence over
+    // a legacy Railway fallback; otherwise a successful reconnect would keep
+    // using the old token and fail with the same missing-permission error.
+    if (connection) return this.decrypt(connection.encryptedRefreshToken);
+    return this.config.get<string>('ZOHO_CAMPAIGNS_REFRESH_TOKEN') || '';
   }
 
   /** Creates a short-lived signed state so only an authorization initiated by

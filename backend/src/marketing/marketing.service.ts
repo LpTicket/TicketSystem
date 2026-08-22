@@ -76,6 +76,10 @@ export class MarketingService {
     return { url: this.zohoCampaigns.getAuthorizationUrl() };
   }
 
+  async getZohoConnectionStatus() {
+    return { connected: await this.zohoCampaigns.isConfigured() };
+  }
+
   async completeZohoAuthorization(code: string, state: string) {
     await this.zohoCampaigns.completeAuthorization(code, state);
   }

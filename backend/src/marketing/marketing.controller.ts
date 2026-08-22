@@ -120,6 +120,13 @@ export class MarketingController {
     return this.marketingService.getZohoAuthorizationUrl();
   }
 
+  @Get('admin/zoho/status')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async getZohoConnectionStatus() {
+    return this.marketingService.getZohoConnectionStatus();
+  }
+
   /** Zoho redirects here once; the refresh token is encrypted server-side. */
   @Get('admin/zoho/callback')
   async completeZohoAuthorization(@Query('code') code: string | undefined, @Query('state') state: string | undefined, @Res() res: any) {

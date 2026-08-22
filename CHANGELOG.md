@@ -6,6 +6,7 @@
 - `ZohoCampaignsService` ahora utiliza `json/listsubscribe` con `topic_id` para cada destinatario antes de crear el borrador de Zoho. Esto también repara la lista privada reutilizada de una campaña pausada, sin enviar el correo durante esa preparación.
 - Se eliminó la carga adicional sin tema mediante `addlistsubscribersinbulk`; ya no puede crear destinatarios pendientes que Zoho no reconozca como audiencia del Topic.
 - El panel ahora reconoce también los errores de permiso de `listsubscribe` y muestra directamente la acción `Reconectar Zoho Campaigns`, en lugar de dejar al administrador con un reintento que no puede completar.
+- La conexión renovada almacenada cifrada en PostgreSQL ahora tiene prioridad sobre un token heredado de Railway. El panel consulta el estado vigente de Zoho, por lo que un error histórico no vuelve a mostrar falsamente que la conexión recién autorizada fue rechazada.
 - Los correos transaccionales de registro, compra y tickets no fueron modificados.
 
 Estado: `IMPLEMENTADO, NO PROBADO` contra la cuenta real de Zoho. Requiere publicar, reintentar una sola vez la campaña de 17 destinatarios y confirmar que Zoho acepta la audiencia antes de usar una campaña mayor.
