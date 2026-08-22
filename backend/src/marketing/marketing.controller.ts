@@ -118,7 +118,10 @@ export class MarketingController {
       await this.marketingService.completeZohoAuthorization(code || '');
       res.header('Content-Type', 'text/html; charset=utf-8');
       return res.send('<!doctype html><title>LPTicket</title><p>Zoho Campaigns fue conectado correctamente. Puedes cerrar esta ventana.</p>');
-    } catch {
+    } catch (error: unknown) {
+      // Do not log OAuth codes or token payloads; the provider error label is
+      // enough to diagnose a failed authorization in Railway.
+      console.error('Zoho Campaigns authorization failed:', error instanceof Error ? error.message : 'unknown error');
       res.status(400).header('Content-Type', 'text/html; charset=utf-8');
       return res.send('<!doctype html><title>LPTicket</title><p>No se pudo completar la conexión con Zoho Campaigns. Vuelve a autorizar desde administración.</p>');
     }
