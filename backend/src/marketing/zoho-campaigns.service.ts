@@ -125,7 +125,18 @@ export class ZohoCampaignsService {
       },
       body,
     });
-    const payload: any = await response.json().catch(async () => ({ message: await response.text() }));
+    // A Fetch response body can be consumed only once. Zoho may respond with
+    // HTML/plain text for a provider-side validation error, so read it once and
+    // then attempt to decode JSON without hiding that original provider error.
+    const rawBody = await response.text();
+    let payload: any = {};
+    if (rawBody.trim()) {
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        payload = { message: rawBody };
+      }
+    }
     const error = payload?.code === '0' ? '' : String(payload?.message || payload?.status || payload?.error || '');
     if (!response.ok || /error|fail/i.test(error)) {
       throw new Error(`ZOHO_CAMPAIGNS_REQUEST_FAILED: ${error || response.status}`);

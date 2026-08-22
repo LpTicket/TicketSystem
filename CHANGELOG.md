@@ -1,5 +1,20 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Corrección de respuesta de Zoho Campaigns
+
+### Corrección
+- El adaptador de Zoho Campaigns ahora lee cada respuesta del proveedor una sola vez. Si Zoho devuelve texto o HTML en lugar de JSON, conserva el mensaje original para poder diagnosticarlo y no produce el error interno `Body is unusable`.
+- Una campaña que falle durante esta preparación permanece pausada con sus destinatarios pendientes: no los marca como enviados ni los duplica al reintentar.
+
+### Áreas protegidas
+- No se modificaron los correos transaccionales de registro, compra, tickets, pagos o recuperación de cuenta.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Reintentar la campaña de 17 destinatarios una vez publicada y confirmar la respuesta real de Zoho Campaigns antes de enviarla a una audiencia mayor.
+
 ## 2026-08-21 - Conexión segura con Zoho Campaigns
 
 ### Corrección
