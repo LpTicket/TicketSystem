@@ -13,6 +13,10 @@
 - No se modificaron los correos transaccionales de registro, compra, tickets ni restablecimiento de contraseña.
 - No se enviaron correos ni se reintentó ninguna campaña durante el diagnóstico.
 
+### Configuración externa comprobada
+- Se creó en Zoho Campaigns el tema de consentimiento `LPTicket promociones y novedades` y su identificador quedó configurado únicamente como variable privada de Railway.
+- Railway confirmó que el backend activo recibió la variable; no se expuso ningún secreto ni se envió un correo durante esta configuración.
+
 ### Estado
 - IMPLEMENTADO, NO PROBADO
 
