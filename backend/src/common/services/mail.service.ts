@@ -759,7 +759,15 @@ export class MailService {
 
   /** Reusable premium markup for SMTP previews and Zoho Campaigns content URLs. */
   renderMarketingEmail(
-    opts: { subject: string; title?: string; preheader?: string; imageData?: string | null; link?: string; trackingUrl?: string },
+    opts: {
+      subject: string;
+      title?: string;
+      preheader?: string;
+      imageData?: string | null;
+      link?: string;
+      trackingUrl?: string;
+      includeZohoUnsubscribe?: boolean;
+    },
   ): { html: string; attachments: nodemailer.SendMailOptions['attachments'] } {
     const appUrl = this.getAppUrl();
     const year = new Date().getFullYear();
@@ -892,7 +900,7 @@ export class MailService {
           </tr>
           <tr>
             <td bgcolor="#ffffff" style="background:#ffffff!important;padding:0 20px 24px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;">
+              <table role="presentation" align="center" width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;margin:0 auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;">
                 <tr>
                   <td align="center" style="padding:18px 16px 10px;">
                     <p style="margin:0;color:#0A375A;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.7px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Sigue a LPTicket</p>
@@ -930,6 +938,7 @@ export class MailService {
             <td bgcolor="#ffffff" align="center" style="background:#ffffff!important;border-top:1px solid #e2e8f0;padding:20px 24px;">
               <p style="margin:0 0 5px;color:#F97316;font-size:12px;font-weight:900;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">lpticket.com</p>
               <p style="margin:0;color:#64748b;font-size:11px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">© ${year} LPTicket · Recibiste este correo porque tienes una cuenta en LPTicket.</p>
+              ${opts.includeZohoUnsubscribe ? `<p style="margin:9px 0 0;color:#64748b;font-size:11px;line-height:1.5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Si no deseas recibir promociones, <a href="$[LI:UNSUBSCRIBE]$" style="color:#0A375A;text-decoration:underline;font-weight:700;">cancela tu suscripción</a>.</p>` : ''}
             </td>
           </tr>
           ${trackingUrl ? `<tr><td style="font-size:0;line-height:0;height:1px;"><img src="${escapeHtml(trackingUrl)}" width="1" height="1" alt="" style="display:block;border:0;outline:none;text-decoration:none;" /></td></tr>` : ''}

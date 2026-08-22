@@ -522,6 +522,7 @@ export class MarketingService {
       preheader: campaign.preheader || undefined,
       imageData,
       link: campaign.link || undefined,
+      includeZohoUnsubscribe: true,
     }).html;
   }
 
