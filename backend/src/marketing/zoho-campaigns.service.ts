@@ -23,6 +23,10 @@ export class ZohoCampaignsService {
   private readonly accountsBase = 'https://accounts.zoho.com';
   private readonly campaignsBase = 'https://campaigns.zoho.com/api/v1.1';
   private readonly redirectUri = 'https://ticketsystembackend.up.railway.app/api/marketing/admin/zoho/callback';
+  // Read access is necessary to verify that Zoho actually associated the
+  // private list before `sendcampaign` is ever called. Using ALL scopes keeps
+  // the OAuth consent aligned with the documented read/create/update actions.
+  private readonly oauthScope = 'ZohoCampaigns.contact.ALL,ZohoCampaigns.campaign.ALL';
 
   constructor(
     private readonly config: ConfigService,
@@ -101,7 +105,7 @@ export class ZohoCampaignsService {
       redirect_uri: this.redirectUri,
       access_type: 'offline',
       prompt: 'consent',
-      scope: 'ZohoCampaigns.contact.CREATE,ZohoCampaigns.campaign.CREATE-UPDATE',
+      scope: this.oauthScope,
       state: this.authorizationState(),
     }).toString();
     return url.toString();
@@ -255,31 +259,81 @@ export class ZohoCampaignsService {
     return emails.join(',');
   }
 
+  /**
+   * Reuse a previous private list created for this exact audience. Zoho keeps
+   * lists after a failed draft, so creating another one on every retry only
+   * clutters the account and makes diagnosis harder.
+   */
+  private async reusableListKey(campaignName: string, recipientCount: number): Promise<string> {
+    const payload = await this.request('getmailinglists', {
+      sort: 'desc',
+      fromindex: '1',
+      range: '100',
+    }, 'GET');
+    const response = payload?.response && typeof payload.response === 'object' ? payload.response : payload;
+    const candidateLists = [
+      response?.list_of_details?.list,
+      response?.list_of_details,
+      payload?.list_of_details?.list,
+      payload?.list_of_details,
+      response?.lists,
+      payload?.lists,
+    ].find(Array.isArray) || [];
+    const prefix = `lpticket ${campaignName}`.toLowerCase();
+    const reusable = candidateLists.find((list: any) => {
+      const name = String(list?.listname || list?.listName || '').trim().toLowerCase();
+      const contacts = Number(list?.noofcontacts ?? list?.contactscount ?? list?.contactsCount);
+      return name.startsWith(prefix) && contacts === recipientCount;
+    });
+    return String(reusable?.listkey || reusable?.listKey || '').trim();
+  }
+
+  private associatedListKeys(payload: any): string[] {
+    const response = payload?.response && typeof payload.response === 'object' ? payload.response : payload;
+    const source = [
+      response?.associated_mailing_lists,
+      response?.associated_mailing_lists?.list,
+      payload?.associated_mailing_lists,
+      payload?.associated_mailing_lists?.list,
+    ].find(Boolean);
+    const lists = Array.isArray(source) ? source : source ? [source] : [];
+    return lists
+      .map((list: any) => String(list?.listkey || list?.listKey || '').trim())
+      .filter(Boolean);
+  }
+
   async createAndSendCampaign(input: ZohoCampaignInput): Promise<ZohoCampaignCreated> {
     if (!(await this.isConfigured())) throw new Error('ZOHO_CAMPAIGNS_NOT_CONFIGURED');
     const recipients = Array.from(new Set(input.recipients.map((email) => email.trim().toLowerCase()).filter(Boolean)));
     if (!recipients.length) throw new Error('ZOHO_CAMPAIGNS_EMPTY_AUDIENCE');
 
-    // Zoho keeps private lists after a failed campaign setup. Give each attempt
-    // a unique name so retrying the same saved campaign never collides with an
-    // earlier incomplete list or sends a duplicate audience.
-    const attemptKey = `${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`;
-    const listName = `LPTicket ${input.name} ${attemptKey}`.slice(0, 100);
     const topicId = await this.defaultTopicId();
-    const initial = recipients.slice(0, 10);
-    const listResponse = await this.request('addlistandcontacts', {
-      listname: listName,
-      signupform: 'private',
-      mode: 'newlist',
-      emailids: this.emailIds(initial),
-    });
-    const listKey = this.campaignKey(listResponse, 'list');
+    let listKey = '';
+    try {
+      listKey = await this.reusableListKey(input.name, recipients.length);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '';
+      if (!/getmailinglists_failed.*(?:2401|no mailing list)/i.test(message)) throw error;
+    }
 
-    for (let index = 10; index < recipients.length; index += 10) {
-      await this.request('addlistsubscribersinbulk', {
-        listkey: listKey,
-        emailids: this.emailIds(recipients.slice(index, index + 10)),
+    if (!listKey) {
+      const attemptKey = `${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`;
+      const listName = `LPTicket ${input.name} ${attemptKey}`.slice(0, 100);
+      const initial = recipients.slice(0, 10);
+      const listResponse = await this.request('addlistandcontacts', {
+        listname: listName,
+        signupform: 'private',
+        mode: 'newlist',
+        emailids: this.emailIds(initial),
       });
+      listKey = this.campaignKey(listResponse, 'list');
+
+      for (let index = 10; index < recipients.length; index += 10) {
+        await this.request('addlistsubscribersinbulk', {
+          listkey: listKey,
+          emailids: this.emailIds(recipients.slice(index, index + 10)),
+        });
+      }
     }
 
     // Zoho's v1.1 endpoint is case-sensitive: `createcampaign` responds with
@@ -290,13 +344,20 @@ export class ZohoCampaignsService {
       from_name: this.config.get<string>('ZOHO_CAMPAIGNS_FROM_NAME') || 'LPTicket',
       subject: input.subject.slice(0, 255),
       content_url: input.contentUrl,
-      // With Zoho's updated topic management, the list itself must be linked
-      // to the consent topic. Without it Zoho creates the campaign without a
-      // selected audience and rejects sendcampaign with error 6606.
-      list_details: JSON.stringify({ [listKey]: topicId ? [topicId] : [] }),
+      // This is the official list-details shape. Topic selection is sent in
+      // its own parameter; placing it inside the list value can cause Zoho to
+      // silently discard the audience and later return error 6606.
+      list_details: JSON.stringify({ [listKey]: [] }),
       ...(topicId ? { topicId } : {}),
     });
     const campaignKey = this.campaignKey(campaignResponse, 'campaign');
+    const details = await this.request('getcampaigndetails', {
+      campaignkey: campaignKey,
+      campaigntype: 'normal',
+    }, 'GET');
+    if (!this.associatedListKeys(details).includes(listKey)) {
+      throw new Error('ZOHO_CAMPAIGNS_AUDIENCE_NOT_ASSOCIATED: Zoho creó el borrador, pero no confirmó la lista privada como audiencia. No se envió ningún correo.');
+    }
     await this.request('sendcampaign', { campaignkey: campaignKey });
     return { campaignKey, listKey };
   }

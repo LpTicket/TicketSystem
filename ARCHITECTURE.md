@@ -23,7 +23,7 @@ PostgreSQL + servicios externos
 ### Marketing por email
 
 - Las campañas promocionales salen por Zoho Campaigns, separado del SMTP normal usado por correos transaccionales.
-- `ZohoCampaignsService` crea listas privadas, campañas y envíos; el backend conserva los destinatarios y estados por campaña.
+- `ZohoCampaignsService` crea o reutiliza listas privadas, prepara campañas y verifica que Zoho haya asociado la audiencia antes de solicitar el envío; el backend conserva los destinatarios y estados por campaña.
 - La autorización OAuth llega al callback de backend y el refresh token se cifra con AES-256-GCM usando una clave derivada de `JWT_SECRET` antes de guardarse en `marketing_integrations`.
 - Los secretos OAuth de cliente se mantienen exclusivamente en variables privadas de Railway.
 

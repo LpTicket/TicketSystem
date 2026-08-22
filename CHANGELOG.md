@@ -1,5 +1,24 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-22 - Validación segura de audiencia en Zoho Campaigns
+
+### Corrección
+- La lista privada de 17 destinatarios fue comprobada directamente en Zoho Campaigns: existe y contiene los contactos; el fallo `6606` ocurre después, cuando Zoho no registra esa lista dentro del borrador de campaña.
+- El backend ahora reutiliza una lista privada existente de la misma audiencia en lugar de crear una lista nueva con cada reintento fallido.
+- La solicitud de campaña usa la forma documentada de `list_details`; el tema de consentimiento se conserva como parámetro independiente.
+- Antes de llamar a `sendcampaign`, el backend consulta el borrador y comprueba que Zoho haya asociado la lista. Si no lo hizo, pausa la campaña sin enviar correos ni marcar destinatarios como enviados.
+- La próxima reconexión de Zoho solicitará permisos de lectura además de creación y actualización, necesarios para comprobar listas y borradores.
+
+### Áreas protegidas
+- No se modificaron los correos transaccionales de registro, compra, tickets, pagos o recuperación de cuenta.
+- No se envió ningún correo ni se ejecutó un reintento durante esta corrección.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Publicar, pulsar una vez `Reconectar Zoho Campaigns` para aceptar los permisos ampliados y reintentar únicamente la campaña pendiente. El panel debe reutilizar la lista existente y detenerse antes de enviar si Zoho no confirma la audiencia.
+
 ## 2026-08-22 - Reconexión segura de Zoho Campaigns
 
 ### Corrección

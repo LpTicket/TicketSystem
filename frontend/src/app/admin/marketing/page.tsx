@@ -69,8 +69,8 @@ type EmailCampaignListItem = Omit<EmailCampaignSummary, 'recipients'>;
 
 const getCampaignFailureLabel = (error?: string | null) => {
   if (!error) return 'No se pudo entregar.';
-  if (/zoho_campaigns_auth_failed|access denied/i.test(error)) {
-    return 'Zoho rechazó la conexión anterior. Reconecta Zoho Campaigns antes de reintentar; no se envió ningún correo.';
+  if (/zoho_campaigns_auth_failed|access denied|getmailinglists_failed.*(?:4010|unauthorized|insufficient privilege)/i.test(error)) {
+    return 'Zoho necesita renovar los permisos de la conexión. Reconecta Zoho Campaigns antes de reintentar; no se envió ningún correo.';
   }
   if (/unusual sending activity|unblockme/i.test(error)) return 'Zoho bloqueó temporalmente el envío.';
   if (/createcampaign_failed.*\b903\b|topic.*(mandatory|required)|tema.*consentimiento/i.test(error)) {
@@ -673,7 +673,7 @@ export default function AdminMarketingPage() {
   };
 
   const visibleMarketingBanners = marketingBanners.filter((item) => (item.bannerType === 'ad' ? 'ad' : 'banner') === bannerType);
-  const needsZohoReconnect = Boolean(emailCampaign?.recipients.some((recipient) => /zoho_campaigns_auth_failed|access denied/i.test(recipient.error || '')));
+  const needsZohoReconnect = Boolean(emailCampaign?.recipients.some((recipient) => /zoho_campaigns_auth_failed|access denied|getmailinglists_failed.*(?:4010|unauthorized|insufficient privilege)/i.test(recipient.error || '')));
   const statCards = [
     { label: 'Banners activos', value: String(marketingBanners.length), icon: HiOutlinePhotograph },
     { label: 'Audiencias', value: '0', icon: HiOutlineUsers },
