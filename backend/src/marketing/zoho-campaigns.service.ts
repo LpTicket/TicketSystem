@@ -246,7 +246,10 @@ export class ZohoCampaignsService {
       from_name: this.config.get<string>('ZOHO_CAMPAIGNS_FROM_NAME') || 'LPTicket',
       subject: input.subject.slice(0, 255),
       content_url: input.contentUrl,
-      list_details: JSON.stringify({ [listKey]: [] }),
+      // With Zoho's updated topic management, the list itself must be linked
+      // to the consent topic. Without it Zoho creates the campaign without a
+      // selected audience and rejects sendcampaign with error 6606.
+      list_details: JSON.stringify({ [listKey]: topicId ? [topicId] : [] }),
       ...(topicId ? { topicId } : {}),
     });
     const campaignKey = this.campaignKey(campaignResponse, 'campaign');

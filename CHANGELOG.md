@@ -7,6 +7,7 @@
 - La integración ya no convierte una validación de Zoho en el mensaje genérico `INVALID_CAMPAIGN_RESPONSE`: conserva el código y el mensaje que devuelve el proveedor.
 - Antes de crear una audiencia, consulta únicamente el tema de consentimiento llamado `default` de Zoho cuando la cuenta lo expone; no envía correos durante esa consulta.
 - Se añadió la variable privada opcional `ZOHO_CAMPAIGNS_TOPIC_ID` para cuentas que requieren seleccionar un tema de consentimiento explícito.
+- La lista de cada campaña se vincula explícitamente a ese tema dentro de `list_details`; evita el error 6606 de Zoho: "No hay listas seleccionadas para esta campaña".
 - El panel explica el requisito de tema cuando Zoho devuelve la validación correspondiente.
 
 ### Áreas protegidas
