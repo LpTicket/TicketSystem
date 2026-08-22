@@ -6,6 +6,7 @@
 - La creación de la lista y la suscripción al Topic aíslan los rechazos por destinatario. Una dirección rechazada queda marcada como fallida con su motivo y no detiene la preparación ni el envío a las direcciones aceptadas.
 - El nombre interno de la lista de Zoho se normaliza sin alterar el título ni el contenido visible de la campaña.
 - El adaptador reconoce códigos de Zoho escritos en mayúsculas o minúsculas y conserva el código real del proveedor.
+- El código `2007` devuelto por `listsubscribe` para una dirección que Zoho considera inválida también se registra como rechazo individual; ya no pausa a toda la audiencia.
 - Se añadieron pruebas automatizadas de normalización, lectura de errores y continuidad después de un rechazo individual. No se envió ni reintentó ninguna campaña durante esta corrección.
 
 Estado: `IMPLEMENTADO, NO PROBADO` en producción.

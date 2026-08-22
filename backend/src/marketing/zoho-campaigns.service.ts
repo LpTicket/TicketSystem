@@ -362,7 +362,7 @@ export class ZohoCampaignsService {
     return (normalized || 'Campana').slice(0, 60);
   }
 
-  private recipientFailure(error: unknown, includePattern = false): string | null {
+  private recipientFailure(error: unknown, context: 'subscribe' | 'create-list'): string | null {
     const message = error instanceof Error ? error.message : String(error);
     const match = message.match(/_FAILED:\s*(\d+)\s*(.*)$/i);
     const code = match?.[1] || '';
@@ -376,8 +376,12 @@ export class ZohoCampaignsService {
       '2004': 'Dirección de correo inválida.',
       '2005': 'Zoho no permite esta dirección de grupo o función.',
       '2006': 'El destinatario está en la lista de no enviar de Zoho.',
+      '2007': 'Zoho considera que esta dirección de correo no es válida.',
     };
-    if (['2004', '2005', '2006'].includes(code) || (includePattern && code === '1001')) {
+    const recipientCodes = context === 'subscribe'
+      ? ['2004', '2005', '2006', '2007']
+      : ['1001', '2004', '2005', '2006'];
+    if (recipientCodes.includes(code)) {
       return friendlyReasons[code] || detail || 'Zoho rechazó esta dirección de correo.';
     }
     return null;
@@ -481,7 +485,7 @@ export class ZohoCampaignsService {
             });
             accepted.push(email);
           } catch (error: unknown) {
-            const failure = this.recipientFailure(error);
+            const failure = this.recipientFailure(error, 'subscribe');
             const message = error instanceof Error ? error.message : String(error);
             if (/LISTSUBSCRIBE_FAILED:\s*2003\b/i.test(message)) {
               accepted.push(email);
@@ -580,7 +584,7 @@ export class ZohoCampaignsService {
           });
           listKey = this.campaignKey(listResponse, 'list');
         } catch (error: unknown) {
-          const failure = this.recipientFailure(error, true);
+          const failure = this.recipientFailure(error, 'create-list');
           if (!failure) throw error;
           rejectedRecipients.push({ email, reason: failure });
         }

@@ -172,7 +172,7 @@ describe('ZohoCampaignsService access token reuse', () => {
       const contact = JSON.parse(body.get('contactinfo') || '{}');
       const email = contact['Contact Email'];
       const payload = email === 'bad@example.com'
-        ? { code: 2004, status: 'error', message: 'Invalid email address' }
+        ? { code: 2007, status: 'error', message: 'La dirección de correo electrónico del contacto no es válida.' }
         : { code: 0, status: 'success' };
       return {
         ok: true,
@@ -187,7 +187,7 @@ describe('ZohoCampaignsService access token reuse', () => {
       'topic-id',
     )).resolves.toEqual({
       accepted: ['valid@example.com', 'other@example.com'],
-      rejected: [{ email: 'bad@example.com', reason: 'Dirección de correo inválida.' }],
+      rejected: [{ email: 'bad@example.com', reason: 'Zoho considera que esta dirección de correo no es válida.' }],
     });
   });
 });
