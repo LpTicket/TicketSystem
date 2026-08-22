@@ -865,6 +865,15 @@ export default function AdminMarketingPage() {
 
               <p className="mt-3 text-[11px] leading-5 text-slate-400">Enviado significa que Zoho aceptó el correo. *La apertura es una medición aproximada: algunos proveedores la bloquean o la cargan automáticamente.</p>
 
+              {emailCampaign.status === 'paused' && (() => {
+                const setupError = emailCampaign.recipients.find((recipient) => recipient.status === 'queued' && recipient.error)?.error;
+                return setupError ? (
+                  <p className="mt-3 rounded-xl border border-orange-400/25 bg-orange-500/10 px-3 py-2 text-xs leading-5 text-orange-100">
+                    Zoho no pudo preparar el envío todavía. Motivo: {getCampaignFailureLabel(setupError)}
+                  </p>
+                ) : null;
+              })()}
+
               <div className="mt-3 flex flex-wrap gap-2">
                 {(['all', 'sent', 'queued', 'failed', 'opened'] as const).map((filter) => (
                   <button key={filter} type="button" onClick={() => setCampaignRecipientFilter(filter)} className={`rounded-lg px-2.5 py-1.5 text-[11px] font-bold ${campaignRecipientFilter === filter ? 'bg-[#F97316] text-white' : 'bg-white/5 text-slate-300 hover:bg-white/10'}`}>
