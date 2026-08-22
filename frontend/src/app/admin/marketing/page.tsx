@@ -904,7 +904,10 @@ export default function AdminMarketingPage() {
                 const setupError = emailCampaign.recipients.find((recipient) => recipient.status === 'queued' && recipient.error)?.error;
                 return setupError ? (
                   <p className="mt-3 rounded-xl border border-orange-400/25 bg-orange-500/10 px-3 py-2 text-xs leading-5 text-orange-100">
-                    Zoho no pudo preparar el envío todavía. Motivo: {getCampaignFailureLabel(setupError)}
+                    {zohoConnected === true
+                      ? 'La conexión actual con Zoho está activa. Este es el motivo guardado del intento anterior: '
+                      : 'Zoho no pudo preparar el envío todavía. Motivo: '}
+                    {getCampaignFailureLabel(setupError)}
                   </p>
                 ) : null;
               })()}

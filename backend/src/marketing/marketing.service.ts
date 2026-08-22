@@ -77,6 +77,8 @@ export class MarketingService {
   }
 
   async getZohoConnectionStatus() {
+    // This is deliberately an OAuth verification, not just a check that a
+    // token-shaped value exists in Railway or PostgreSQL. It never sends mail.
     return { connected: await this.zohoCampaigns.isConfigured() };
   }
 
@@ -386,8 +388,7 @@ export class MarketingService {
       const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
       if (!campaign || campaign.zohoCampaignKey) return;
       if (!(await this.zohoCampaigns.isConfigured())) {
-        await this.emailCampaignRepo.update(id, { status: 'paused' });
-        return;
+        throw new Error('ZOHO_CAMPAIGNS_AUTH_FAILED: La conexión actual no pudo validarse. Reconecta Zoho Campaigns antes de reintentar. No se envió ningún correo.');
       }
       const recipients = await this.emailCampaignRecipientRepo.find({
         where: { campaignId: id, status: 'queued' },

@@ -34,12 +34,28 @@ export class ZohoCampaignsService {
     private readonly integrationRepo: Repository<MarketingIntegration>,
   ) {}
 
-  async isConfigured() {
-    return Boolean(
+  /**
+   * Verifies the credentials with Zoho's OAuth server. A refresh token merely
+   * being stored is not enough: it may have been revoked or belong to an
+   * earlier authorization. This performs no campaign or contact operation.
+   */
+  async verifyConnection(): Promise<void> {
+    const hasBaseConfiguration = Boolean(
       this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_ID')
       && this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_SECRET')
       && this.config.get<string>('ZOHO_CAMPAIGNS_FROM_EMAIL'),
-    ) && Boolean(await this.refreshToken());
+    );
+    if (!hasBaseConfiguration) throw new Error('ZOHO_CAMPAIGNS_NOT_CONFIGURED');
+    await this.accessToken();
+  }
+
+  async isConfigured() {
+    try {
+      await this.verifyConnection();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private encryptionKey() {
