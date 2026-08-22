@@ -162,7 +162,11 @@ export class ZohoCampaignsService {
     const recipients = Array.from(new Set(input.recipients.map((email) => email.trim().toLowerCase()).filter(Boolean)));
     if (!recipients.length) throw new Error('ZOHO_CAMPAIGNS_EMPTY_AUDIENCE');
 
-    const listName = `LPTicket ${new Date().toISOString().slice(0, 10)} ${input.name}`.slice(0, 100);
+    // Zoho keeps private lists after a failed campaign setup. Give each attempt
+    // a unique name so retrying the same saved campaign never collides with an
+    // earlier incomplete list or sends a duplicate audience.
+    const attemptKey = `${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`;
+    const listName = `LPTicket ${input.name} ${attemptKey}`.slice(0, 100);
     const initial = recipients.slice(0, 10);
     const listResponse = await this.request('addlistandcontacts', {
       listname: listName,

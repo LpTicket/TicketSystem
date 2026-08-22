@@ -6,6 +6,7 @@
 - El adaptador de Zoho Campaigns ahora lee cada respuesta del proveedor una sola vez. Si Zoho devuelve texto o HTML en lugar de JSON, conserva el mensaje original para poder diagnosticarlo y no produce el error interno `Body is unusable`.
 - Una campaña que falle durante esta preparación permanece pausada con sus destinatarios pendientes: no los marca como enviados ni los duplica al reintentar.
 - El seguimiento administrativo muestra un motivo resumido cuando Zoho pausa una campaña antes de enviar, en lugar de dejar al administrador sin explicación.
+- Cada intento crea una lista privada con un identificador único. Así, una lista huérfana de Zoho no bloquea el reintento de la misma campaña.
 
 ### Áreas protegidas
 - No se modificaron los correos transaccionales de registro, compra, tickets, pagos o recuperación de cuenta.
