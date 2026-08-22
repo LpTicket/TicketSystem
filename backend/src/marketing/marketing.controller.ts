@@ -111,6 +111,19 @@ export class MarketingController {
     return this.marketingService.createEmailCampaign(body);
   }
 
+  /** Zoho redirects here once; the refresh token is encrypted server-side. */
+  @Get('admin/zoho/callback')
+  async completeZohoAuthorization(@Query('code') code: string | undefined, @Res() res: any) {
+    try {
+      await this.marketingService.completeZohoAuthorization(code || '');
+      res.header('Content-Type', 'text/html; charset=utf-8');
+      return res.send('<!doctype html><title>LPTicket</title><p>Zoho Campaigns fue conectado correctamente. Puedes cerrar esta ventana.</p>');
+    } catch {
+      res.status(400).header('Content-Type', 'text/html; charset=utf-8');
+      return res.send('<!doctype html><title>LPTicket</title><p>No se pudo completar la conexión con Zoho Campaigns. Vuelve a autorizar desde administración.</p>');
+    }
+  }
+
   @Get('admin/email-campaigns/latest')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)

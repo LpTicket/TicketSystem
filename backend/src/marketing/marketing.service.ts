@@ -72,6 +72,10 @@ export class MarketingService {
     }));
   }
 
+  async completeZohoAuthorization(code: string) {
+    await this.zohoCampaigns.completeAuthorization(code);
+  }
+
   async registerPushToken(userId: string, dto: { token?: string; platform?: string }) {
     const token = String(dto?.token || '').trim();
     if (!token || !token.startsWith('ExponentPushToken[')) {
@@ -223,7 +227,7 @@ export class MarketingService {
   }) {
     const subject = String(dto.subject || dto.title || '').trim();
     if (!subject) throw new BadRequestException('El asunto de la campaña es obligatorio.');
-    if (!this.zohoCampaigns.isConfigured()) {
+    if (!(await this.zohoCampaigns.isConfigured())) {
       throw new BadRequestException('Zoho Campaigns todavía no está conectado. Configura sus credenciales seguras antes de enviar campañas.');
     }
     const targets = await this.resolveEmailTargets(dto.recipients);
@@ -373,7 +377,7 @@ export class MarketingService {
     try {
       const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
       if (!campaign || campaign.zohoCampaignKey) return;
-      if (!this.zohoCampaigns.isConfigured()) {
+      if (!(await this.zohoCampaigns.isConfigured())) {
         await this.emailCampaignRepo.update(id, { status: 'paused' });
         return;
       }

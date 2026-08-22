@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import { MarketingIntegration } from './marketing-integration.entity';
 
 type ZohoCampaignInput = {
   name: string;
@@ -19,21 +23,77 @@ export class ZohoCampaignsService {
   private readonly accountsBase = 'https://accounts.zoho.com';
   private readonly campaignsBase = 'https://campaigns.zoho.com/api/v1.1';
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    @InjectRepository(MarketingIntegration)
+    private readonly integrationRepo: Repository<MarketingIntegration>,
+  ) {}
 
-  isConfigured() {
+  async isConfigured() {
     return Boolean(
       this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_ID')
       && this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_SECRET')
-      && this.config.get<string>('ZOHO_CAMPAIGNS_REFRESH_TOKEN')
       && this.config.get<string>('ZOHO_CAMPAIGNS_FROM_EMAIL'),
-    );
+    ) && Boolean(await this.refreshToken());
+  }
+
+  private encryptionKey() {
+    const secret = this.config.get<string>('JWT_SECRET');
+    if (!secret || secret.length < 32) throw new Error('ZOHO_CAMPAIGNS_MISSING_ENCRYPTION_KEY');
+    return createHash('sha256').update(secret).digest();
+  }
+
+  private encrypt(value: string) {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', this.encryptionKey(), iv);
+    const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+    return `${iv.toString('base64')}.${cipher.getAuthTag().toString('base64')}.${encrypted.toString('base64')}`;
+  }
+
+  private decrypt(value: string) {
+    const [iv, tag, encrypted] = value.split('.');
+    if (!iv || !tag || !encrypted) throw new Error('ZOHO_CAMPAIGNS_INVALID_STORED_TOKEN');
+    const decipher = createDecipheriv('aes-256-gcm', this.encryptionKey(), Buffer.from(iv, 'base64'));
+    decipher.setAuthTag(Buffer.from(tag, 'base64'));
+    return Buffer.concat([decipher.update(Buffer.from(encrypted, 'base64')), decipher.final()]).toString('utf8');
+  }
+
+  private async refreshToken() {
+    const configured = this.config.get<string>('ZOHO_CAMPAIGNS_REFRESH_TOKEN');
+    if (configured) return configured;
+    const connection = await this.integrationRepo.findOne({ where: { provider: 'zoho-campaigns' } });
+    return connection ? this.decrypt(connection.encryptedRefreshToken) : '';
+  }
+
+  /** Called only by the Zoho OAuth redirect. The token is encrypted before it
+   * touches persistent storage and is never returned to the browser. */
+  async completeAuthorization(code: string) {
+    const clientId = this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_ID');
+    const clientSecret = this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_SECRET');
+    if (!code || !clientId || !clientSecret) throw new Error('ZOHO_CAMPAIGNS_NOT_CONFIGURED');
+    const response = await fetch(`${this.accountsBase}/oauth/v2/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: 'https://ticketsystembackend.up.railway.app/api/marketing/admin/zoho/callback',
+        grant_type: 'authorization_code',
+      }),
+    });
+    const payload: any = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.refresh_token) throw new Error('ZOHO_CAMPAIGNS_AUTHORIZATION_FAILED');
+    const existing = await this.integrationRepo.findOne({ where: { provider: 'zoho-campaigns' } });
+    await this.integrationRepo.save(existing
+      ? this.integrationRepo.merge(existing, { encryptedRefreshToken: this.encrypt(payload.refresh_token) })
+      : this.integrationRepo.create({ provider: 'zoho-campaigns', encryptedRefreshToken: this.encrypt(payload.refresh_token) }));
   }
 
   private async accessToken(): Promise<string> {
     const clientId = this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_ID');
     const clientSecret = this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_SECRET');
-    const refreshToken = this.config.get<string>('ZOHO_CAMPAIGNS_REFRESH_TOKEN');
+    const refreshToken = await this.refreshToken();
     if (!clientId || !clientSecret || !refreshToken) throw new Error('ZOHO_CAMPAIGNS_NOT_CONFIGURED');
 
     const body = new URLSearchParams({
@@ -87,7 +147,7 @@ export class ZohoCampaignsService {
   }
 
   async createAndSendCampaign(input: ZohoCampaignInput): Promise<ZohoCampaignCreated> {
-    if (!this.isConfigured()) throw new Error('ZOHO_CAMPAIGNS_NOT_CONFIGURED');
+    if (!(await this.isConfigured())) throw new Error('ZOHO_CAMPAIGNS_NOT_CONFIGURED');
     const recipients = Array.from(new Set(input.recipients.map((email) => email.trim().toLowerCase()).filter(Boolean)));
     if (!recipients.length) throw new Error('ZOHO_CAMPAIGNS_EMPTY_AUDIENCE');
 

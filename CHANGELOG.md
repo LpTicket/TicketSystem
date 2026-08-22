@@ -1,5 +1,19 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-21 - Conexión segura con Zoho Campaigns
+
+### Corrección
+- Las campañas nuevas dejan de usar el SMTP normal de Zoho Mail, que bloqueó el envío masivo, y pasan a Zoho Campaigns.
+- El backend crea la audiencia privada y envía la campaña completa mediante Zoho Campaigns, sin repetir destinatarios ni exigir lotes manuales de 100.
+- La autorización OAuth guarda el refresh token cifrado en PostgreSQL; las claves de cliente solo viven en variables privadas de Railway y nunca en Git.
+- Zoho carga el mismo correo premium existente desde un endpoint público de contenido, incluidos el arte y las acciones actuales.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- Autorizar la conexión ya desplegada y realizar una campaña de prueba a una audiencia pequeña; confirmar aceptación, entrega y métricas en Zoho Campaigns.
+
 ## 2026-08-21 - Historial por destinatario para Email Marketing
 
 ### Corrección
