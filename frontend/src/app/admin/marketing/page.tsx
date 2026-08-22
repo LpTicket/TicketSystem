@@ -66,6 +66,13 @@ type EmailCampaignSummary = {
 
 type EmailCampaignListItem = Omit<EmailCampaignSummary, 'recipients'>;
 
+const getCampaignFailureLabel = (error?: string | null) => {
+  if (!error) return 'No se pudo entregar.';
+  if (/unusual sending activity|unblockme/i.test(error)) return 'Zoho bloqueó temporalmente el envío.';
+  const plain = error.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return plain.length > 110 ? `${plain.slice(0, 107)}…` : plain;
+};
+
 const channels = [
   {
     title: 'Banner Home',
@@ -869,7 +876,7 @@ export default function AdminMarketingPage() {
                   <div key={recipient.id} className="flex items-center justify-between gap-3 py-2 text-xs">
                     <div className="min-w-0 flex-1">
                       <span className="block truncate text-slate-200">{recipient.email}</span>
-                      {recipient.status === 'failed' && recipient.error && <span className="mt-0.5 block truncate text-[10px] text-red-200/80" title={recipient.error}>Motivo: {recipient.error}</span>}
+                      {recipient.status === 'failed' && <span className="mt-0.5 block truncate text-[10px] text-red-200/80" title={recipient.error || undefined}>Motivo: {getCampaignFailureLabel(recipient.error)}</span>}
                     </div>
                     <span className={`shrink-0 font-bold ${recipient.status === 'failed' ? 'text-red-300' : recipient.status === 'queued' ? 'text-orange-300' : recipient.status === 'opened' ? 'text-emerald-300' : 'text-sky-300'}`}>
                       {{ queued: 'Pendiente', sent: 'Enviado', failed: 'Rechazado', opened: 'Abierto' }[recipient.status]}
