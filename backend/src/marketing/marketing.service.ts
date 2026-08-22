@@ -72,8 +72,12 @@ export class MarketingService {
     }));
   }
 
-  async completeZohoAuthorization(code: string) {
-    await this.zohoCampaigns.completeAuthorization(code);
+  getZohoAuthorizationUrl() {
+    return { url: this.zohoCampaigns.getAuthorizationUrl() };
+  }
+
+  async completeZohoAuthorization(code: string, state: string) {
+    await this.zohoCampaigns.completeAuthorization(code, state);
   }
 
   async registerPushToken(userId: string, dto: { token?: string; platform?: string }) {

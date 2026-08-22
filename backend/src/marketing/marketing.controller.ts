@@ -111,11 +111,20 @@ export class MarketingController {
     return this.marketingService.createEmailCampaign(body);
   }
 
+  /** Generates a one-time, signed consent URL. The browser completes the
+   * authorization directly with Zoho; credentials never leave the backend. */
+  @Get('admin/zoho/authorize')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  getZohoAuthorizationUrl() {
+    return this.marketingService.getZohoAuthorizationUrl();
+  }
+
   /** Zoho redirects here once; the refresh token is encrypted server-side. */
   @Get('admin/zoho/callback')
-  async completeZohoAuthorization(@Query('code') code: string | undefined, @Res() res: any) {
+  async completeZohoAuthorization(@Query('code') code: string | undefined, @Query('state') state: string | undefined, @Res() res: any) {
     try {
-      await this.marketingService.completeZohoAuthorization(code || '');
+      await this.marketingService.completeZohoAuthorization(code || '', state || '');
       res.header('Content-Type', 'text/html; charset=utf-8');
       return res.send('<!doctype html><title>LPTicket</title><p>Zoho Campaigns fue conectado correctamente. Puedes cerrar esta ventana.</p>');
     } catch (error: unknown) {

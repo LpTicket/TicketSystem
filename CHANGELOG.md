@@ -1,5 +1,22 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-22 - Reconexión segura de Zoho Campaigns
+
+### Corrección
+- El seguimiento detectó que Zoho rechazó el refresh token existente con `Access Denied`; no se llegó a crear ni enviar la campaña de 17 destinatarios.
+- El panel administrativo ahora ofrece `Reconectar Zoho Campaigns` cuando aparece ese estado. La autorización solicita únicamente los permisos necesarios para crear contactos y crear/enviar campañas.
+- La reconexión genera una URL de consentimiento de corta duración, firmada por el backend. El Client Secret y los tokens nunca se muestran en la web; el nuevo refresh token se guarda cifrado en PostgreSQL.
+
+### Áreas protegidas
+- No se modificaron los correos transaccionales de registro, compra, tickets, pagos o recuperación de cuenta.
+- No se enviaron correos ni se reintentó ninguna campaña durante esta corrección.
+
+### Estado
+- IMPLEMENTADO, NO PROBADO
+
+### Pendiente manual
+- El administrador debe pulsar `Reconectar Zoho Campaigns`, completar el consentimiento en Zoho y regresar al panel antes de reintentar una sola vez la campaña pendiente de 17 destinatarios.
+
 ## 2026-08-22 - Diagnóstico seguro de Zoho Campaigns
 
 ### Corrección

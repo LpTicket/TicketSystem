@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { MarketingIntegration } from './marketing-integration.entity';
 
 type ZohoCampaignInput = {
@@ -22,6 +22,7 @@ type ZohoCampaignCreated = { campaignKey: string; listKey: string };
 export class ZohoCampaignsService {
   private readonly accountsBase = 'https://accounts.zoho.com';
   private readonly campaignsBase = 'https://campaigns.zoho.com/api/v1.1';
+  private readonly redirectUri = 'https://ticketsystembackend.up.railway.app/api/marketing/admin/zoho/callback';
 
   constructor(
     private readonly config: ConfigService,
@@ -65,12 +66,55 @@ export class ZohoCampaignsService {
     return connection ? this.decrypt(connection.encryptedRefreshToken) : '';
   }
 
+  /** Creates a short-lived signed state so only an authorization initiated by
+   * the authenticated admin panel can be accepted by the public callback. */
+  private authorizationState() {
+    const payload = Buffer.from(JSON.stringify({
+      expiresAt: Date.now() + 10 * 60 * 1000,
+      nonce: randomBytes(16).toString('hex'),
+    })).toString('base64url');
+    const signature = createHmac('sha256', this.encryptionKey()).update(payload).digest('base64url');
+    return `${payload}.${signature}`;
+  }
+
+  private isValidAuthorizationState(state: string) {
+    const [payload, signature] = state.split('.');
+    if (!payload || !signature) return false;
+    const expected = createHmac('sha256', this.encryptionKey()).update(payload).digest('base64url');
+    if (signature.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return false;
+    try {
+      const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+      return Number.isFinite(parsed?.expiresAt) && parsed.expiresAt > Date.now();
+    } catch {
+      return false;
+    }
+  }
+
+  /** Returns an OAuth consent URL without exposing the client secret or token. */
+  getAuthorizationUrl() {
+    const clientId = this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_ID');
+    if (!clientId) throw new Error('ZOHO_CAMPAIGNS_NOT_CONFIGURED');
+    const url = new URL(`${this.accountsBase}/oauth/v2/auth`);
+    url.search = new URLSearchParams({
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: this.redirectUri,
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: 'ZohoCampaigns.contact.CREATE,ZohoCampaigns.campaign.CREATE-UPDATE',
+      state: this.authorizationState(),
+    }).toString();
+    return url.toString();
+  }
+
   /** Called only by the Zoho OAuth redirect. The token is encrypted before it
    * touches persistent storage and is never returned to the browser. */
-  async completeAuthorization(code: string) {
+  async completeAuthorization(code: string, state: string) {
     const clientId = this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_ID');
     const clientSecret = this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_SECRET');
-    if (!code || !clientId || !clientSecret) throw new Error('ZOHO_CAMPAIGNS_NOT_CONFIGURED');
+    if (!code || !clientId || !clientSecret || !this.isValidAuthorizationState(state)) {
+      throw new Error('ZOHO_CAMPAIGNS_AUTHORIZATION_FAILED');
+    }
     const response = await fetch(`${this.accountsBase}/oauth/v2/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -78,7 +122,7 @@ export class ZohoCampaignsService {
         code,
         client_id: clientId,
         client_secret: clientSecret,
-        redirect_uri: 'https://ticketsystembackend.up.railway.app/api/marketing/admin/zoho/callback',
+        redirect_uri: this.redirectUri,
         grant_type: 'authorization_code',
       }),
     });

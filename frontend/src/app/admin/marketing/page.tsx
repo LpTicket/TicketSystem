@@ -69,6 +69,9 @@ type EmailCampaignListItem = Omit<EmailCampaignSummary, 'recipients'>;
 
 const getCampaignFailureLabel = (error?: string | null) => {
   if (!error) return 'No se pudo entregar.';
+  if (/zoho_campaigns_auth_failed|access denied/i.test(error)) {
+    return 'Zoho rechazó la conexión anterior. Reconecta Zoho Campaigns antes de reintentar; no se envió ningún correo.';
+  }
   if (/unusual sending activity|unblockme/i.test(error)) return 'Zoho bloqueó temporalmente el envío.';
   if (/createcampaign_failed.*\b903\b|topic.*(mandatory|required)|tema.*consentimiento/i.test(error)) {
     return 'Zoho requiere un tema de consentimiento para esta campaña. No se envió ningún correo.';
@@ -134,6 +137,7 @@ export default function AdminMarketingPage() {
   const [loadingNextBatch, setLoadingNextBatch] = useState(false);
   const [historicalRecipients, setHistoricalRecipients] = useState('');
   const [importingHistoricalCampaign, setImportingHistoricalCampaign] = useState(false);
+  const [connectingZoho, setConnectingZoho] = useState(false);
 
   const [smsMessage, setSmsMessage] = useState('');
   const [pushTitle, setPushTitle] = useState('');
@@ -360,6 +364,18 @@ export default function AdminMarketingPage() {
       toast.error(err.response?.data?.message || 'No se pudo iniciar el siguiente lote.');
     } finally {
       setLoadingNextBatch(false);
+    }
+  };
+
+  const handleReconnectZoho = async () => {
+    setConnectingZoho(true);
+    try {
+      const { data } = await api.get('/marketing/admin/zoho/authorize');
+      if (!data?.url) throw new Error('URL no disponible');
+      window.location.assign(data.url);
+    } catch {
+      setConnectingZoho(false);
+      toast.error('No se pudo abrir la conexión segura de Zoho. Intenta nuevamente.');
     }
   };
 
@@ -657,6 +673,7 @@ export default function AdminMarketingPage() {
   };
 
   const visibleMarketingBanners = marketingBanners.filter((item) => (item.bannerType === 'ad' ? 'ad' : 'banner') === bannerType);
+  const needsZohoReconnect = Boolean(emailCampaign?.recipients.some((recipient) => /zoho_campaigns_auth_failed|access denied/i.test(recipient.error || '')));
   const statCards = [
     { label: 'Banners activos', value: String(marketingBanners.length), icon: HiOutlinePhotograph },
     { label: 'Audiencias', value: '0', icon: HiOutlineUsers },
@@ -729,6 +746,15 @@ export default function AdminMarketingPage() {
               </div>
             ))}
           </div>
+
+          {needsZohoReconnect && (
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm leading-5 text-orange-900">Zoho rechazó la conexión anterior. Reconéctalo antes de reintentar; los destinatarios siguen pendientes.</p>
+              <button type="button" onClick={handleReconnectZoho} disabled={connectingZoho} className="btn-primary shrink-0 px-4 disabled:opacity-60">
+                {connectingZoho ? 'Abriendo Zoho…' : 'Reconectar Zoho Campaigns'}
+              </button>
+            </div>
+          )}
 
           <div className="mt-5 grid gap-3">
             <input
