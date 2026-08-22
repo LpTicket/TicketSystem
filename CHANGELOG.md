@@ -11,8 +11,9 @@
 ### Estado
 - IMPLEMENTADO, NO PROBADO
 
-### Pendiente manual
-- Autorizar la conexión ya desplegada y realizar una campaña de prueba a una audiencia pequeña; confirmar aceptación, entrega y métricas en Zoho Campaigns.
+### Comprobación externa
+- La autorización OAuth quedó completada en Railway sin exponer el token.
+- Aún falta la primera campaña de prueba a una audiencia pequeña para confirmar aceptación, entrega y métricas de Zoho Campaigns.
 
 ## 2026-08-21 - Historial por destinatario para Email Marketing
 
