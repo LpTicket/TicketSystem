@@ -67,10 +67,16 @@ type EmailCampaignSummary = {
 
 type EmailCampaignListItem = Omit<EmailCampaignSummary, 'recipients'>;
 
-const requiresZohoReconnect = (error?: string | null) => /zoho_campaigns_auth_failed|access denied|(?:getmailinglists|json\/listsubscribe)_failed.*(?:4010|unauthorized|insufficient privilege|access denied)|listasubscribe.*(?:permission|permiso)/i.test(error || '');
+const isZohoTokenThrottle = (error?: string | null) => /too many requests continuously|access token.*(?:limit|requests)|try again after some time/i.test(error || '');
+
+const requiresZohoReconnect = (error?: string | null) => !isZohoTokenThrottle(error)
+  && /zoho_campaigns_auth_failed|access denied|(?:getmailinglists|json\/listsubscribe)_failed.*(?:4010|unauthorized|insufficient privilege|access denied)|listasubscribe.*(?:permission|permiso)/i.test(error || '');
 
 const getCampaignFailureLabel = (error?: string | null) => {
   if (!error) return 'No se pudo entregar.';
+  if (isZohoTokenThrottle(error)) {
+    return 'Zoho aplicó su límite temporal de tokens. Espera 10 minutos sin reconectar ni reintentar; no se envió ningún correo.';
+  }
   if (requiresZohoReconnect(error)) {
     return 'Zoho necesita renovar los permisos de la conexión. Reconecta Zoho Campaigns antes de reintentar; no se envió ningún correo.';
   }
@@ -688,8 +694,9 @@ export default function AdminMarketingPage() {
   const visibleMarketingBanners = marketingBanners.filter((item) => (item.bannerType === 'ad' ? 'ad' : 'banner') === bannerType);
   // Recipient errors are retained for audit. A successful reconnect must not
   // make that historical error look like the current connection is rejected.
-  const needsZohoReconnect = zohoConnected === false
+  const hasZohoConnectionIssue = zohoConnected === false
     || (zohoConnected !== true && Boolean(emailCampaign?.recipients.some((recipient) => requiresZohoReconnect(recipient.error))));
+  const needsZohoReconnect = hasZohoConnectionIssue && !isZohoTokenThrottle(zohoConnectionError);
   const statCards = [
     { label: 'Banners activos', value: String(marketingBanners.length), icon: HiOutlinePhotograph },
     { label: 'Audiencias', value: '0', icon: HiOutlineUsers },
@@ -763,16 +770,18 @@ export default function AdminMarketingPage() {
             ))}
           </div>
 
-          {needsZohoReconnect && (
+          {hasZohoConnectionIssue && (
             <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-orange-200 bg-orange-50 p-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm leading-5 text-orange-900">
                 {zohoConnectionError
                   ? `Zoho no autorizó todavía el acceso a listas. Motivo: ${getCampaignFailureLabel(zohoConnectionError)}`
                   : 'Zoho rechazó la conexión anterior. Reconéctalo antes de reintentar; los destinatarios siguen pendientes.'}
               </p>
-              <button type="button" onClick={handleReconnectZoho} disabled={connectingZoho} className="btn-primary shrink-0 px-4 disabled:opacity-60">
-                {connectingZoho ? 'Abriendo Zoho…' : 'Reconectar Zoho Campaigns'}
-              </button>
+              {needsZohoReconnect && (
+                <button type="button" onClick={handleReconnectZoho} disabled={connectingZoho} className="btn-primary shrink-0 px-4 disabled:opacity-60">
+                  {connectingZoho ? 'Abriendo Zoho…' : 'Reconectar Zoho Campaigns'}
+                </button>
+              )}
             </div>
           )}
 

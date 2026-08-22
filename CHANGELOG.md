@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-22 - Reutilización correcta del token de Zoho Campaigns
+
+- Se comprobó que el adaptador solicitaba un access token nuevo en cada llamada a Zoho. Un intento con 17 destinatarios supera el límite oficial de diez tokens por cada diez minutos y provoca `Access Denied`, aunque la reconexión OAuth haya terminado correctamente.
+- `ZohoCampaignsService` conserva el access token durante su vigencia, aplica un margen de seguridad antes de vencer y comparte una sola solicitud entre llamadas simultáneas. Una reconexión invalida inmediatamente el token anterior.
+- El panel distingue el límite temporal de tokens de una revocación real: indica esperar diez minutos y no muestra el botón de reconexión durante ese bloqueo.
+- Se agregaron pruebas simuladas que confirman un solo intercambio de token para 25 llamadas consecutivas y para 20 llamadas simultáneas. Las pruebas no crean campañas, contactos ni envían correos.
+
 ## 2026-08-22 - Asociación real de audiencia y tema en Zoho Campaigns
 
 - Se identificó la causa comprobada del fallo `6606`: las APIs usadas para crear o cargar listas añadían direcciones, pero no las suscribían al Topic de marketing. Zoho considera esa lista sin audiencia apta para la campaña y no envía ningún correo.

@@ -27,6 +27,9 @@ export class ZohoCampaignsService {
   // private list before `sendcampaign` is ever called. Using ALL scopes keeps
   // the OAuth consent aligned with the documented read/create/update actions.
   private readonly oauthScope = 'ZohoCampaigns.contact.ALL,ZohoCampaigns.campaign.ALL';
+  private cachedAccessToken: { value: string; expiresAt: number } | null = null;
+  private accessTokenRequest: Promise<string> | null = null;
+  private tokenGeneration = 0;
 
   constructor(
     private readonly config: ConfigService,
@@ -170,9 +173,32 @@ export class ZohoCampaignsService {
     await this.integrationRepo.save(existing
       ? this.integrationRepo.merge(existing, { encryptedRefreshToken: this.encrypt(payload.refresh_token) })
       : this.integrationRepo.create({ provider: 'zoho-campaigns', encryptedRefreshToken: this.encrypt(payload.refresh_token) }));
+    // Consent renewal invalidates any token issued from the previous refresh
+    // token. The generation prevents an older in-flight request from restoring
+    // a stale token after the administrator reconnects the integration.
+    this.tokenGeneration += 1;
+    this.cachedAccessToken = null;
+    this.accessTokenRequest = null;
   }
 
   private async accessToken(): Promise<string> {
+    const now = Date.now();
+    if (this.cachedAccessToken && this.cachedAccessToken.expiresAt - 60_000 > now) {
+      return this.cachedAccessToken.value;
+    }
+    if (this.accessTokenRequest) return this.accessTokenRequest;
+
+    const generation = this.tokenGeneration;
+    const pendingRequest = this.requestAccessToken(generation);
+    this.accessTokenRequest = pendingRequest;
+    try {
+      return await pendingRequest;
+    } finally {
+      if (this.accessTokenRequest === pendingRequest) this.accessTokenRequest = null;
+    }
+  }
+
+  private async requestAccessToken(generation: number): Promise<string> {
     const clientId = this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_ID');
     const clientSecret = this.config.get<string>('ZOHO_CAMPAIGNS_CLIENT_SECRET');
     const refreshToken = await this.refreshToken();
@@ -191,9 +217,15 @@ export class ZohoCampaignsService {
     });
     const payload: any = await response.json().catch(() => ({}));
     if (!response.ok || !payload.access_token) {
-      throw new Error(`ZOHO_CAMPAIGNS_AUTH_FAILED: ${String(payload.error || payload.error_description || response.status)}`);
+      throw new Error(`ZOHO_CAMPAIGNS_AUTH_FAILED: ${String(payload.error_description || payload.error || response.status)}`);
     }
-    return payload.access_token;
+    const accessToken = String(payload.access_token);
+    const expiresInSeconds = Number(payload.expires_in);
+    const lifetimeMs = (Number.isFinite(expiresInSeconds) && expiresInSeconds > 0 ? expiresInSeconds : 3600) * 1000;
+    if (generation === this.tokenGeneration) {
+      this.cachedAccessToken = { value: accessToken, expiresAt: Date.now() + lifetimeMs };
+    }
+    return accessToken;
   }
 
   private async request(path: string, values: Record<string, string>, method: 'GET' | 'POST' = 'POST'): Promise<any> {
