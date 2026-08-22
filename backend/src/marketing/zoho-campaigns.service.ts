@@ -153,8 +153,10 @@ export class ZohoCampaignsService {
     return value;
   }
 
-  private contactPayload(emails: string[]) {
-    return JSON.stringify(emails.map((email) => ({ contact_email: email, contact_status: 'active' })));
+  private emailIds(emails: string[]) {
+    // Zoho Campaigns v1.1 requires `emailids` as a comma-separated list for
+    // both list creation and bulk additions (maximum ten per request).
+    return emails.join(',');
   }
 
   async createAndSendCampaign(input: ZohoCampaignInput): Promise<ZohoCampaignCreated> {
@@ -172,14 +174,14 @@ export class ZohoCampaignsService {
       listname: listName,
       signupform: 'private',
       mode: 'newlist',
-      contactinfo: this.contactPayload(initial),
+      emailids: this.emailIds(initial),
     });
     const listKey = this.campaignKey(listResponse, 'list');
 
     for (let index = 10; index < recipients.length; index += 10) {
       await this.request('addlistsubscribersinbulk', {
         listkey: listKey,
-        contactinfo: this.contactPayload(recipients.slice(index, index + 10)),
+        emailids: this.emailIds(recipients.slice(index, index + 10)),
       });
     }
 
