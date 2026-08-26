@@ -6123,6 +6123,40 @@ html body main .home-signature {
 }
 
 /* ===== Hard guard: never allow horizontal (side-to-side) scroll ===== */
+/* Financial cards opt out of the legacy management-shell paragraph color.
+   These selectors are deliberately scoped so each card's label, amount and
+   supporting copy retain the same semantic hue as its border and surface. */
+.financial-tone-cyan .financial-card-label,
+.financial-tone-cyan .financial-card-value { color: #22d3ee !important; }
+.financial-tone-cyan .financial-card-note { color: rgba(165, 243, 252, 0.76) !important; }
+.financial-tone-sky .financial-card-label,
+.financial-tone-sky .financial-card-value { color: #38bdf8 !important; }
+.financial-tone-sky .financial-card-note { color: rgba(186, 230, 253, 0.76) !important; }
+.financial-tone-orange .financial-card-label,
+.financial-tone-orange .financial-card-value { color: #fb923c !important; }
+.financial-tone-orange .financial-card-note { color: rgba(255, 237, 213, 0.76) !important; }
+.financial-tone-purple .financial-card-label,
+.financial-tone-purple .financial-card-value { color: #c084fc !important; }
+.financial-tone-purple .financial-card-note { color: rgba(233, 213, 255, 0.76) !important; }
+.financial-tone-emerald .financial-card-label,
+.financial-tone-emerald .financial-card-value { color: #34d399 !important; }
+.financial-tone-emerald .financial-card-note { color: rgba(209, 250, 229, 0.76) !important; }
+.financial-tone-rose .financial-card-label,
+.financial-tone-rose .financial-card-value { color: #fb7185 !important; }
+.financial-tone-rose .financial-card-note { color: rgba(255, 228, 230, 0.76) !important; }
+.financial-tone-amber .financial-card-label,
+.financial-tone-amber .financial-card-value { color: #fbbf24 !important; }
+.financial-tone-amber .financial-card-note { color: rgba(254, 243, 199, 0.76) !important; }
+.financial-tone-red .financial-card-label,
+.financial-tone-red .financial-card-value { color: #f87171 !important; }
+.financial-tone-red .financial-card-note { color: rgba(254, 226, 226, 0.76) !important; }
+.financial-tone-blue .financial-card-label,
+.financial-tone-blue .financial-card-value { color: #60a5fa !important; }
+.financial-tone-blue .financial-card-note { color: rgba(219, 234, 254, 0.76) !important; }
+.financial-tone-teal .financial-card-label,
+.financial-tone-teal .financial-card-value { color: #2dd4bf !important; }
+.financial-tone-teal .financial-card-note { color: rgba(204, 251, 241, 0.76) !important; }
+
 html {
   overflow-x: hidden !important;
 }

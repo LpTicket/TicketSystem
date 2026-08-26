@@ -315,49 +315,49 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Total charged */}
-          <div className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 p-4">
-            <p className="text-[11px] font-black uppercase tracking-wider text-cyan-300">{lang === 'es' ? 'Total cobrado' : 'Total charged'}</p>
-            <p className="mt-1 text-2xl font-black text-cyan-300">${fin.totalRevenue.toFixed(2)}</p>
-            <p className="mt-1 text-[11px] font-medium text-cyan-100/65">{lang === 'es' ? 'Lo que pagaron los compradores' : 'What buyers paid'}</p>
+          <div className="financial-tone-cyan rounded-xl border border-cyan-400/30 bg-cyan-500/10 p-4">
+            <p className="financial-card-label text-[11px] font-black uppercase tracking-wider text-cyan-300">{lang === 'es' ? 'Total cobrado' : 'Total charged'}</p>
+            <p className="financial-card-value mt-1 text-2xl font-black text-cyan-300">${fin.totalRevenue.toFixed(2)}</p>
+            <p className="financial-card-note mt-1 text-[11px] font-medium text-cyan-100/65">{lang === 'es' ? 'Lo que pagaron los compradores' : 'What buyers paid'}</p>
           </div>
           {/* Ticket sales (to organizers) */}
-          <div className="rounded-xl border border-sky-400/30 bg-sky-500/10 p-4">
-            <p className="text-[11px] font-black uppercase tracking-wider text-sky-300">{lang === 'es' ? 'Venta de entradas' : 'Ticket sales'}</p>
-            <p className="mt-1 text-2xl font-black text-sky-300">${fin.ticketSales.toFixed(2)}</p>
-            <p className="mt-1 text-[11px] font-medium text-sky-100/65">{lang === 'es' ? 'Para los organizadores' : 'To organizers'}</p>
+          <div className="financial-tone-sky rounded-xl border border-sky-400/30 bg-sky-500/10 p-4">
+            <p className="financial-card-label text-[11px] font-black uppercase tracking-wider text-sky-300">{lang === 'es' ? 'Venta de entradas' : 'Ticket sales'}</p>
+            <p className="financial-card-value mt-1 text-2xl font-black text-sky-300">${fin.ticketSales.toFixed(2)}</p>
+            <p className="financial-card-note mt-1 text-[11px] font-medium text-sky-100/65">{lang === 'es' ? 'Para los organizadores' : 'To organizers'}</p>
           </div>
           {/* Service fees collected */}
-          <div className="rounded-xl border border-orange-400/35 bg-orange-500/10 p-4">
-            <p className="text-[11px] font-black uppercase tracking-wider text-orange-300">{lang === 'es' ? 'Comisión LPTicket' : 'LPTicket fees'}</p>
-            <p className="mt-1 text-2xl font-black text-orange-300">${fin.serviceFees.toFixed(2)}</p>
-            <p className="mt-1 text-[11px] font-medium text-orange-100/65">{lang === 'es' ? 'Cargo sobre el precio base' : 'Markup over base price'}</p>
+          <div className="financial-tone-orange rounded-xl border border-orange-400/35 bg-orange-500/10 p-4">
+            <p className="financial-card-label text-[11px] font-black uppercase tracking-wider text-orange-300">{lang === 'es' ? 'Comisión LPTicket' : 'LPTicket fees'}</p>
+            <p className="financial-card-value mt-1 text-2xl font-black text-orange-300">${fin.serviceFees.toFixed(2)}</p>
+            <p className="financial-card-note mt-1 text-[11px] font-medium text-orange-100/65">{lang === 'es' ? 'Cargo sobre el precio base' : 'Markup over base price'}</p>
           </div>
           {/* Stripe fees */}
-          <div className="rounded-xl border border-purple-400/35 bg-purple-500/15 p-4">
-            <p className="text-[11px] font-black uppercase tracking-wider text-purple-300">{lang === 'es' ? 'Comisión Stripe' : 'Stripe fees'}</p>
-            <p className="mt-1 text-2xl font-black text-purple-300">-${fin.stripeFees.toFixed(2)}</p>
-            <p className="mt-1 text-[11px] font-medium text-purple-100/65">{(stats.stripePercent * 100).toFixed(1)}% + ${stats.stripeFixed.toFixed(2)} {lang === 'es' ? 'por orden' : 'per order'}</p>
+          <div className="financial-tone-purple rounded-xl border border-purple-400/35 bg-purple-500/15 p-4">
+            <p className="financial-card-label text-[11px] font-black uppercase tracking-wider text-purple-300">{lang === 'es' ? 'Comisión Stripe' : 'Stripe fees'}</p>
+            <p className="financial-card-value mt-1 text-2xl font-black text-purple-300">-${fin.stripeFees.toFixed(2)}</p>
+            <p className="financial-card-note mt-1 text-[11px] font-medium text-purple-100/65">{(stats.stripePercent * 100).toFixed(1)}% + ${stats.stripeFixed.toFixed(2)} {lang === 'es' ? 'por orden' : 'per order'}</p>
           </div>
           {/* LPTicket net profit */}
-          <div className="rounded-xl border border-emerald-400/35 bg-emerald-500/15 p-4 sm:col-span-2 lg:col-span-1">
-            <p className="text-[11px] font-black uppercase tracking-wider text-emerald-300">{lang === 'es' ? 'Ganancia LPTicket' : 'LPTicket profit'}</p>
-            <p className="mt-1 text-2xl font-black text-emerald-300">${fin.lpticketProfit.toFixed(2)}</p>
-            <p className="mt-1 text-[11px] font-medium text-emerald-100/65">{lang === 'es' ? 'Comisión − Stripe (neto)' : 'Fees − Stripe (net)'}</p>
+          <div className="financial-tone-emerald rounded-xl border border-emerald-400/35 bg-emerald-500/15 p-4 sm:col-span-2 lg:col-span-1">
+            <p className="financial-card-label text-[11px] font-black uppercase tracking-wider text-emerald-300">{lang === 'es' ? 'Ganancia LPTicket' : 'LPTicket profit'}</p>
+            <p className="financial-card-value mt-1 text-2xl font-black text-emerald-300">${fin.lpticketProfit.toFixed(2)}</p>
+            <p className="financial-card-note mt-1 text-[11px] font-medium text-emerald-100/65">{lang === 'es' ? 'Comisión − Stripe (neto)' : 'Fees − Stripe (net)'}</p>
           </div>
-          <div className="rounded-xl border border-rose-400/35 bg-rose-500/15 p-4">
-            <p className="text-[11px] font-black uppercase tracking-wider text-rose-300">Klarna</p>
-            <p className="mt-1 text-2xl font-black text-rose-300">{fin.klarnaOrders} {lang === 'es' ? 'compras' : 'purchases'}</p>
-            <p className="mt-1 text-[11px] font-medium text-rose-100/65">${fin.klarnaTotalCharged.toFixed(2)} {lang === 'es' ? 'cobrados a compradores' : 'charged to buyers'}</p>
+          <div className="financial-tone-rose rounded-xl border border-rose-400/35 bg-rose-500/15 p-4">
+            <p className="financial-card-label text-[11px] font-black uppercase tracking-wider text-rose-300">Klarna</p>
+            <p className="financial-card-value mt-1 text-2xl font-black text-rose-300">{fin.klarnaOrders} {lang === 'es' ? 'compras' : 'purchases'}</p>
+            <p className="financial-card-note mt-1 text-[11px] font-medium text-rose-100/65">${fin.klarnaTotalCharged.toFixed(2)} {lang === 'es' ? 'cobrados a compradores' : 'charged to buyers'}</p>
           </div>
-          <div className="rounded-xl border border-amber-400/35 bg-amber-500/15 p-4">
-            <p className="text-[11px] font-black uppercase tracking-wider text-amber-300">{lang === 'es' ? 'Ajuste adicional Klarna' : 'Additional Klarna adjustment'}</p>
-            <p className="mt-1 text-2xl font-black text-amber-300">-${fin.organizerProcessingAdjustments.toFixed(2)}</p>
-            <p className="mt-1 text-[11px] font-medium text-amber-100/65">{lang === 'es' ? 'Se descuenta del saldo del organizador' : 'Deducted from the organizer balance'}</p>
+          <div className="financial-tone-amber rounded-xl border border-amber-400/35 bg-amber-500/15 p-4">
+            <p className="financial-card-label text-[11px] font-black uppercase tracking-wider text-amber-300">{lang === 'es' ? 'Ajuste adicional Klarna' : 'Additional Klarna adjustment'}</p>
+            <p className="financial-card-value mt-1 text-2xl font-black text-amber-300">-${fin.organizerProcessingAdjustments.toFixed(2)}</p>
+            <p className="financial-card-note mt-1 text-[11px] font-medium text-amber-100/65">{lang === 'es' ? 'Se descuenta del saldo del organizador' : 'Deducted from the organizer balance'}</p>
           </div>
-          <div className="rounded-xl border border-red-400/35 bg-red-500/15 p-4">
-            <p className="text-[11px] font-black uppercase tracking-wider text-red-300">{lang === 'es' ? 'Pendiente al organizador' : 'Pending to organizer'}</p>
-            <p className="mt-1 text-2xl font-black text-red-300">${fin.organizerPending.toFixed(2)}</p>
-            <p className="mt-1 text-[11px] font-medium text-red-100/65">${fin.organizerPaid.toFixed(2)} {lang === 'es' ? 'ya registrados como pagados' : 'already recorded as paid'}</p>
+          <div className="financial-tone-red rounded-xl border border-red-400/35 bg-red-500/15 p-4">
+            <p className="financial-card-label text-[11px] font-black uppercase tracking-wider text-red-300">{lang === 'es' ? 'Pendiente al organizador' : 'Pending to organizer'}</p>
+            <p className="financial-card-value mt-1 text-2xl font-black text-red-300">${fin.organizerPending.toFixed(2)}</p>
+            <p className="financial-card-note mt-1 text-[11px] font-medium text-red-100/65">${fin.organizerPaid.toFixed(2)} {lang === 'es' ? 'ya registrados como pagados' : 'already recorded as paid'}</p>
           </div>
         </div>
         <p className="text-[11px] text-gray-400 mt-3">

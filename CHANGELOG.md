@@ -6,6 +6,7 @@
 - Comisión Stripe se identifica en morado, ganancia LPTicket en verde, compras Klarna en rojo/rosa, ajuste adicional Klarna en ámbar y pendiente al organizador en rojo.
 - El resumen exacto de cada evento aplica colores diferenciados a sus nueve métricas sin alterar valores ni fórmulas.
 - En pagos al organizador, el ajuste Klarna queda naranja, el monto pagado verde y el saldo pendiente rojo, con etiquetas, cifras y notas consistentes.
+- Se corrigió la prioridad de estilos que hacía que una regla global del panel convirtiera en gris las etiquetas, cifras y notas; cada texto conserva ahora el color vivo correspondiente a su tarjeta.
 - No se modificaron cálculos, API, Stripe, Checkout, órdenes, entradas, móvil ni datos existentes.
 
 Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; pendiente revisión visual en producción.
