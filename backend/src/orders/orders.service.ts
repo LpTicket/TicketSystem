@@ -1595,13 +1595,13 @@ export class OrdersService {
   async reconcilePendingStripeFees() {
     if (!this.stripe) return;
     const unresolved = await this.orderRepo
-      .createQueryBuilder('order')
-      .where('order.status = :status', { status: OrderStatus.PAID })
-      .andWhere('order."stripeFeeReconciliationStatus" = :reconciliationStatus', {
+      .createQueryBuilder('pendingOrder')
+      .where('pendingOrder.status = :status', { status: OrderStatus.PAID })
+      .andWhere('pendingOrder."stripeFeeReconciliationStatus" = :reconciliationStatus', {
         reconciliationStatus: STRIPE_FEE_RECONCILIATION_PENDING,
       })
-      .andWhere('order."stripePaymentIntent" IS NOT NULL')
-      .orderBy('order."paidAt"', 'ASC')
+      .andWhere('pendingOrder."stripePaymentIntent" IS NOT NULL')
+      .orderBy('pendingOrder."paidAt"', 'ASC')
       .limit(50)
       .getMany();
 

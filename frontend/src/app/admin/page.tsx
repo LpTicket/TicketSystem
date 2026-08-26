@@ -19,6 +19,8 @@ import {
   HiOutlineShoppingCart,
   HiOutlineTicket,
   HiOutlineUserGroup,
+  HiOutlineExclamationCircle,
+  HiOutlineRefresh,
 } from 'react-icons/hi';
 
 interface DashboardStats {
@@ -88,10 +90,13 @@ export default function AdminDashboard() {
   const [eventFinancials, setEventFinancials] = useState<EventFinancial[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => { loadStats(); }, []);
 
   const loadStats = async () => {
+    setLoading(true);
+    setLoadError('');
     try {
       const [statsRes, finRes] = await Promise.all([
         api.get('/admin/stats'),
@@ -117,7 +122,12 @@ export default function AdminDashboard() {
         klarnaTotalCharged: Number(event.klarnaTotalCharged || 0),
         pendingFeeReconciliations: Number(event.pendingFeeReconciliations || 0),
       })));
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      setLoadError(lang === 'es'
+        ? 'No se pudo cargar el dashboard. Intenta nuevamente.'
+        : 'The dashboard could not be loaded. Please try again.');
+    }
     finally { setLoading(false); }
   };
 
@@ -135,7 +145,31 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!stats) return null;
+  if (!stats) {
+    return (
+      <div className="p-6 lg:p-8">
+        <section className="mx-auto max-w-2xl rounded-2xl border border-orange-400/40 bg-[#071f32]/95 p-6 text-center shadow-lg shadow-black/20">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500/15 text-orange-300">
+            <HiOutlineExclamationCircle className="h-7 w-7" />
+          </div>
+          <h1 className="mt-4 text-xl font-black text-white">
+            {lang === 'es' ? 'No pudimos cargar el dashboard' : 'We could not load the dashboard'}
+          </h1>
+          <p className="mt-2 text-sm font-medium text-white/70">
+            {loadError || (lang === 'es' ? 'Ocurrió un error temporal.' : 'A temporary error occurred.')}
+          </p>
+          <button
+            type="button"
+            onClick={loadStats}
+            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#F97316] px-5 py-3 text-sm font-black text-white transition hover:bg-[#EA580C]"
+          >
+            <HiOutlineRefresh className="h-5 w-5" />
+            {lang === 'es' ? 'Reintentar' : 'Try again'}
+          </button>
+        </section>
+      </div>
+    );
+  }
 
   const mainCards = [
     { label: t('adminTotalRevenue'), value: `$${stats.totalRevenue.toFixed(2)}`, icon: HiOutlineCurrencyDollar, bg: 'bg-green-50', iconColor: 'text-green-600', iconBg: 'bg-green-100' },

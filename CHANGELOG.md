@@ -1,5 +1,15 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-26 - Recuperación del dashboard administrativo y estilo de pagos
+
+- Se comprobó en los registros de producción que `GET /api/admin/stats` fallaba con PostgreSQL `42601` porque las consultas financieras nuevas usaban `order`, una palabra reservada, como alias SQL sin escapar.
+- Las consultas del dashboard, la conciliación automática de costos Stripe/Klarna y el registro de pagos al organizador usan ahora alias seguros.
+- Si las estadísticas vuelven a fallar, el dashboard ya no queda completamente vacío: muestra un mensaje humano y una acción para reintentar.
+- En el resumen exacto del evento, ajuste Klarna, pagado al organizador y pendiente por pagar comparten el mismo estilo naranja oscuro translúcido con texto blanco.
+- No se modificaron fórmulas, montos, Checkout, tarifas, órdenes, entradas, móvil ni datos existentes.
+
+Estado: `IMPLEMENTADO Y COMPROBADO` localmente; publicación y validación en producción pendientes.
+
 ## 2026-08-26 - Klarna en dashboard, analítica y saldo del organizador
 
 - El dashboard administrativo muestra cuántas compras pagadas usaron Klarna, el total cobrado, el ajuste adicional real atribuido al organizador y el saldo exacto pendiente después de pagos ya registrados.

@@ -88,40 +88,40 @@ export class AdminService {
       this.orderRepo.count(),
       this.orderRepo.count({ where: { status: 'paid' as any } }),
       this.orderRepo
-        .createQueryBuilder('order')
-        .select('COALESCE(SUM(order.total), 0)', 'totalRevenue')
-        .addSelect('COALESCE(SUM(order.subtotal), 0)', 'ticketSales')
-        .addSelect('COALESCE(SUM(order."organizerProcessingAdjustment"), 0)', 'organizerProcessingAdjustments')
-        .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' THEN 1 END)`, 'klarnaOrders')
-        .addSelect(`COALESCE(SUM(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' THEN order.total ELSE 0 END), 0)`, 'klarnaTotalCharged')
-        .addSelect(`COALESCE(SUM(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' THEN order.subtotal ELSE 0 END), 0)`, 'klarnaTicketSales')
-        .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' AND COALESCE(order."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`, 'pendingFeeReconciliations')
-        .where('order.status = :status', { status: 'paid' })
+        .createQueryBuilder('ord')
+        .select('COALESCE(SUM(ord.total), 0)', 'totalRevenue')
+        .addSelect('COALESCE(SUM(ord.subtotal), 0)', 'ticketSales')
+        .addSelect('COALESCE(SUM(ord."organizerProcessingAdjustment"), 0)', 'organizerProcessingAdjustments')
+        .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(ord."paymentMethodType", '')) = 'klarna' THEN 1 END)`, 'klarnaOrders')
+        .addSelect(`COALESCE(SUM(CASE WHEN LOWER(COALESCE(ord."paymentMethodType", '')) = 'klarna' THEN ord.total ELSE 0 END), 0)`, 'klarnaTotalCharged')
+        .addSelect(`COALESCE(SUM(CASE WHEN LOWER(COALESCE(ord."paymentMethodType", '')) = 'klarna' THEN ord.subtotal ELSE 0 END), 0)`, 'klarnaTicketSales')
+        .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(ord."paymentMethodType", '')) = 'klarna' AND COALESCE(ord."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`, 'pendingFeeReconciliations')
+        .where('ord.status = :status', { status: 'paid' })
         .getRawOne(),
       this.organizerPayoutRepo
         .createQueryBuilder('payout')
         .select('COALESCE(SUM(payout.amount), 0)', 'organizerPaid')
         .getRawOne(),
       this.orderRepo
-        .createQueryBuilder('order')
-        .leftJoin('order.user', 'buyer')
-        .leftJoin('order.event', 'event')
-        .select('order.id', 'id')
-        .addSelect('order."paidAt"', 'paidAt')
-        .addSelect('order.total', 'total')
-        .addSelect('order.subtotal', 'subtotal')
-        .addSelect('order."ticketCount"', 'ticketCount')
-        .addSelect('order."organizerProcessingAdjustment"', 'organizerProcessingAdjustment')
-        .addSelect('order."stripeFeeReconciliationStatus"', 'stripeFeeReconciliationStatus')
+        .createQueryBuilder('ord')
+        .leftJoin('ord.user', 'buyer')
+        .leftJoin('ord.event', 'event')
+        .select('ord.id', 'id')
+        .addSelect('ord."paidAt"', 'paidAt')
+        .addSelect('ord.total', 'total')
+        .addSelect('ord.subtotal', 'subtotal')
+        .addSelect('ord."ticketCount"', 'ticketCount')
+        .addSelect('ord."organizerProcessingAdjustment"', 'organizerProcessingAdjustment')
+        .addSelect('ord."stripeFeeReconciliationStatus"', 'stripeFeeReconciliationStatus')
         .addSelect('buyer."firstName"', 'buyerFirstName')
         .addSelect('buyer."lastName"', 'buyerLastName')
         .addSelect('buyer.email', 'buyerEmail')
         .addSelect('event.id', 'eventId')
         .addSelect('event.title', 'eventTitle')
-        .where('order.status = :status', { status: 'paid' })
-        .andWhere(`LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna'`)
-        .orderBy('order."paidAt"', 'DESC', 'NULLS LAST')
-        .addOrderBy('order."createdAt"', 'DESC')
+        .where('ord.status = :status', { status: 'paid' })
+        .andWhere(`LOWER(COALESCE(ord."paymentMethodType", '')) = 'klarna'`)
+        .orderBy('ord."paidAt"', 'DESC', 'NULLS LAST')
+        .addOrderBy('ord."createdAt"', 'DESC')
         .limit(10)
         .getRawMany(),
       this.ticketRepo.count(),
@@ -446,22 +446,22 @@ export class AdminService {
       if (!event.organizerId) throw new BadRequestException('Este evento no tiene un organizador asignado.');
 
       const revenueRow = await manager.getRepository(Order)
-        .createQueryBuilder('order')
-        .select('COALESCE(SUM(order.subtotal), 0)', 'ticketRevenue')
-        .where('order.eventId = :eventId', { eventId })
-        .andWhere('order.status = :status', { status: OrderStatus.PAID })
+        .createQueryBuilder('ord')
+        .select('COALESCE(SUM(ord.subtotal), 0)', 'ticketRevenue')
+        .where('ord.eventId = :eventId', { eventId })
+        .andWhere('ord.status = :status', { status: OrderStatus.PAID })
         .getRawOne();
       const ticketRevenue = Number(revenueRow?.ticketRevenue || 0);
 
       const adjustmentRow = await manager.getRepository(Order)
-        .createQueryBuilder('order')
-        .select('COALESCE(SUM(order."organizerProcessingAdjustment"), 0)', 'organizerAdjustments')
+        .createQueryBuilder('ord')
+        .select('COALESCE(SUM(ord."organizerProcessingAdjustment"), 0)', 'organizerAdjustments')
         .addSelect(
-          `COUNT(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' AND COALESCE(order."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`,
+          `COUNT(CASE WHEN LOWER(COALESCE(ord."paymentMethodType", '')) = 'klarna' AND COALESCE(ord."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`,
           'pendingReconciliations',
         )
-        .where('order.eventId = :eventId', { eventId })
-        .andWhere('order.status = :status', { status: OrderStatus.PAID })
+        .where('ord.eventId = :eventId', { eventId })
+        .andWhere('ord.status = :status', { status: OrderStatus.PAID })
         .getRawOne();
       const pendingReconciliations = Number(adjustmentRow?.pendingReconciliations || 0);
       if (pendingReconciliations > 0) {
