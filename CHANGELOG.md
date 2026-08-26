@@ -1,14 +1,24 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-26 - Jerarquía cromática financiera en administración
+
+- El dashboard administrativo elimina las superficies blancas del desglose financiero y usa fondos oscuros translúcidos con texto del mismo tono.
+- Comisión Stripe se identifica en morado, ganancia LPTicket en verde, compras Klarna en rojo/rosa, ajuste adicional Klarna en ámbar y pendiente al organizador en rojo.
+- El resumen exacto de cada evento aplica colores diferenciados a sus nueve métricas sin alterar valores ni fórmulas.
+- En pagos al organizador, el ajuste Klarna queda naranja, el monto pagado verde y el saldo pendiente rojo, con etiquetas, cifras y notas consistentes.
+- No se modificaron cálculos, API, Stripe, Checkout, órdenes, entradas, móvil ni datos existentes.
+
+Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; pendiente revisión visual en producción.
+
 ## 2026-08-26 - Recuperación del dashboard administrativo y estilo de pagos
 
 - Se comprobó en los registros de producción que `GET /api/admin/stats` fallaba con PostgreSQL `42601` porque las consultas financieras nuevas usaban `order`, una palabra reservada, como alias SQL sin escapar.
 - Las consultas del dashboard, la conciliación automática de costos Stripe/Klarna y el registro de pagos al organizador usan ahora alias seguros.
 - Si las estadísticas vuelven a fallar, el dashboard ya no queda completamente vacío: muestra un mensaje humano y una acción para reintentar.
-- En el resumen exacto del evento, ajuste Klarna, pagado al organizador y pendiente por pagar comparten el mismo estilo naranja oscuro translúcido con texto blanco.
+- En el resumen exacto del evento se recuperó inicialmente la legibilidad de ajuste Klarna, pagado al organizador y pendiente por pagar; la jerarquía cromática posterior separa esos tres estados.
 - No se modificaron fórmulas, montos, Checkout, tarifas, órdenes, entradas, móvil ni datos existentes.
 
-Estado: `IMPLEMENTADO Y COMPROBADO` localmente; publicación y validación en producción pendientes.
+Estado: `IMPLEMENTADO Y COMPROBADO` en producción.
 
 ## 2026-08-26 - Klarna en dashboard, analítica y saldo del organizador
 

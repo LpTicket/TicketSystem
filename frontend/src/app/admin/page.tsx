@@ -315,49 +315,49 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Total charged */}
-          <div className="rounded-xl p-4 border border-[rgba(10,55,90,0.14)] bg-[rgba(10,55,90,0.06)]">
-            <p className="text-[11px] font-black uppercase tracking-wider text-[#0A375A]">{lang === 'es' ? 'Total cobrado' : 'Total charged'}</p>
-            <p className="text-2xl font-black text-[#0A375A] mt-1">${fin.totalRevenue.toFixed(2)}</p>
-            <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Lo que pagaron los compradores' : 'What buyers paid'}</p>
+          <div className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 p-4">
+            <p className="text-[11px] font-black uppercase tracking-wider text-cyan-300">{lang === 'es' ? 'Total cobrado' : 'Total charged'}</p>
+            <p className="mt-1 text-2xl font-black text-cyan-300">${fin.totalRevenue.toFixed(2)}</p>
+            <p className="mt-1 text-[11px] font-medium text-cyan-100/65">{lang === 'es' ? 'Lo que pagaron los compradores' : 'What buyers paid'}</p>
           </div>
           {/* Ticket sales (to organizers) */}
-          <div className="rounded-xl p-4 border border-blue-100 bg-blue-50">
-            <p className="text-[11px] font-black uppercase tracking-wider text-blue-700">{lang === 'es' ? 'Venta de entradas' : 'Ticket sales'}</p>
-            <p className="text-2xl font-black text-blue-700 mt-1">${fin.ticketSales.toFixed(2)}</p>
-            <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Para los organizadores' : 'To organizers'}</p>
+          <div className="rounded-xl border border-sky-400/30 bg-sky-500/10 p-4">
+            <p className="text-[11px] font-black uppercase tracking-wider text-sky-300">{lang === 'es' ? 'Venta de entradas' : 'Ticket sales'}</p>
+            <p className="mt-1 text-2xl font-black text-sky-300">${fin.ticketSales.toFixed(2)}</p>
+            <p className="mt-1 text-[11px] font-medium text-sky-100/65">{lang === 'es' ? 'Para los organizadores' : 'To organizers'}</p>
           </div>
           {/* Service fees collected */}
-          <div className="rounded-xl p-4 border border-orange-100 bg-orange-50">
-            <p className="text-[11px] font-black uppercase tracking-wider text-[#F97316]">{lang === 'es' ? 'Comisión LPTicket' : 'LPTicket fees'}</p>
-            <p className="text-2xl font-black text-[#F97316] mt-1">${fin.serviceFees.toFixed(2)}</p>
-            <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Cargo sobre el precio base' : 'Markup over base price'}</p>
+          <div className="rounded-xl border border-orange-400/35 bg-orange-500/10 p-4">
+            <p className="text-[11px] font-black uppercase tracking-wider text-orange-300">{lang === 'es' ? 'Comisión LPTicket' : 'LPTicket fees'}</p>
+            <p className="mt-1 text-2xl font-black text-orange-300">${fin.serviceFees.toFixed(2)}</p>
+            <p className="mt-1 text-[11px] font-medium text-orange-100/65">{lang === 'es' ? 'Cargo sobre el precio base' : 'Markup over base price'}</p>
           </div>
           {/* Stripe fees */}
-          <div className="rounded-xl p-4 border border-[rgba(168,85,247,0.3)] bg-[rgba(168,85,247,0.12)]">
+          <div className="rounded-xl border border-purple-400/35 bg-purple-500/15 p-4">
             <p className="text-[11px] font-black uppercase tracking-wider text-purple-300">{lang === 'es' ? 'Comisión Stripe' : 'Stripe fees'}</p>
-            <p className="text-2xl font-black text-purple-300 mt-1">-${fin.stripeFees.toFixed(2)}</p>
-            <p className="text-[11px] text-gray-400 mt-1">{(stats.stripePercent * 100).toFixed(1)}% + ${stats.stripeFixed.toFixed(2)} {lang === 'es' ? 'por orden' : 'per order'}</p>
+            <p className="mt-1 text-2xl font-black text-purple-300">-${fin.stripeFees.toFixed(2)}</p>
+            <p className="mt-1 text-[11px] font-medium text-purple-100/65">{(stats.stripePercent * 100).toFixed(1)}% + ${stats.stripeFixed.toFixed(2)} {lang === 'es' ? 'por orden' : 'per order'}</p>
           </div>
           {/* LPTicket net profit */}
-          <div className="rounded-xl p-4 border border-green-200 bg-green-50 sm:col-span-2 lg:col-span-1">
-            <p className="text-[11px] font-black uppercase tracking-wider text-green-700">{lang === 'es' ? 'Ganancia LPTicket' : 'LPTicket profit'}</p>
-            <p className="text-2xl font-black text-green-700 mt-1">${fin.lpticketProfit.toFixed(2)}</p>
-            <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Comisión − Stripe (neto)' : 'Fees − Stripe (net)'}</p>
+          <div className="rounded-xl border border-emerald-400/35 bg-emerald-500/15 p-4 sm:col-span-2 lg:col-span-1">
+            <p className="text-[11px] font-black uppercase tracking-wider text-emerald-300">{lang === 'es' ? 'Ganancia LPTicket' : 'LPTicket profit'}</p>
+            <p className="mt-1 text-2xl font-black text-emerald-300">${fin.lpticketProfit.toFixed(2)}</p>
+            <p className="mt-1 text-[11px] font-medium text-emerald-100/65">{lang === 'es' ? 'Comisión − Stripe (neto)' : 'Fees − Stripe (net)'}</p>
           </div>
-          <div className="rounded-xl p-4 border border-pink-200 bg-pink-50">
-            <p className="text-[11px] font-black uppercase tracking-wider text-pink-700">Klarna</p>
-            <p className="text-2xl font-black text-pink-700 mt-1">{fin.klarnaOrders} {lang === 'es' ? 'compras' : 'purchases'}</p>
-            <p className="text-[11px] text-gray-500 mt-1">${fin.klarnaTotalCharged.toFixed(2)} {lang === 'es' ? 'cobrados a compradores' : 'charged to buyers'}</p>
+          <div className="rounded-xl border border-rose-400/35 bg-rose-500/15 p-4">
+            <p className="text-[11px] font-black uppercase tracking-wider text-rose-300">Klarna</p>
+            <p className="mt-1 text-2xl font-black text-rose-300">{fin.klarnaOrders} {lang === 'es' ? 'compras' : 'purchases'}</p>
+            <p className="mt-1 text-[11px] font-medium text-rose-100/65">${fin.klarnaTotalCharged.toFixed(2)} {lang === 'es' ? 'cobrados a compradores' : 'charged to buyers'}</p>
           </div>
-          <div className="rounded-xl p-4 border border-amber-200 bg-amber-50">
-            <p className="text-[11px] font-black uppercase tracking-wider text-amber-700">{lang === 'es' ? 'Ajuste adicional Klarna' : 'Additional Klarna adjustment'}</p>
-            <p className="text-2xl font-black text-amber-700 mt-1">-${fin.organizerProcessingAdjustments.toFixed(2)}</p>
-            <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Se descuenta del saldo del organizador' : 'Deducted from the organizer balance'}</p>
+          <div className="rounded-xl border border-amber-400/35 bg-amber-500/15 p-4">
+            <p className="text-[11px] font-black uppercase tracking-wider text-amber-300">{lang === 'es' ? 'Ajuste adicional Klarna' : 'Additional Klarna adjustment'}</p>
+            <p className="mt-1 text-2xl font-black text-amber-300">-${fin.organizerProcessingAdjustments.toFixed(2)}</p>
+            <p className="mt-1 text-[11px] font-medium text-amber-100/65">{lang === 'es' ? 'Se descuenta del saldo del organizador' : 'Deducted from the organizer balance'}</p>
           </div>
-          <div className="rounded-xl p-4 border border-red-200 bg-red-50">
-            <p className="text-[11px] font-black uppercase tracking-wider text-red-700">{lang === 'es' ? 'Pendiente al organizador' : 'Pending to organizer'}</p>
-            <p className="text-2xl font-black text-red-700 mt-1">${fin.organizerPending.toFixed(2)}</p>
-            <p className="text-[11px] text-gray-500 mt-1">${fin.organizerPaid.toFixed(2)} {lang === 'es' ? 'ya registrados como pagados' : 'already recorded as paid'}</p>
+          <div className="rounded-xl border border-red-400/35 bg-red-500/15 p-4">
+            <p className="text-[11px] font-black uppercase tracking-wider text-red-300">{lang === 'es' ? 'Pendiente al organizador' : 'Pending to organizer'}</p>
+            <p className="mt-1 text-2xl font-black text-red-300">${fin.organizerPending.toFixed(2)}</p>
+            <p className="mt-1 text-[11px] font-medium text-red-100/65">${fin.organizerPaid.toFixed(2)} {lang === 'es' ? 'ya registrados como pagados' : 'already recorded as paid'}</p>
           </div>
         </div>
         <p className="text-[11px] text-gray-400 mt-3">
