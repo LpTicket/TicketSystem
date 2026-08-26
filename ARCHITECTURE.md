@@ -54,6 +54,15 @@ PostgreSQL + servicios externos
 - Los tickets creados para ese canal nacen con estado `used`, porque el comprador ya está físicamente en la puerta y debe contabilizarse como admitido.
 - Los tickets de Checkout, QR, enlace y compra online nacen con estado `active` y requieren validación posterior mediante el escáner.
 
+### Klarna en Checkout web
+
+- Klarna se limita al Checkout público web y comparte la misma orden, inventario y confirmación de Stripe que la tarjeta. Móvil, Tap to Pay y Venta en Puerta no solicitan Klarna.
+- El comprador conserva el desglose global de LPTicket y procesamiento existente; elegir Klarna no vuelve a calcular ni duplica cargos visibles.
+- La emisión de entradas exige `payment_status=paid` o un `PaymentIntent` exitoso. Los eventos asíncronos y la recuperación periódica reutilizan la finalización idempotente.
+- La orden conserva el método real, el costo de Stripe, la base estándar 2.9% + $0.30 y el ajuste adicional del organizador. Solo una diferencia positiva de Klarna reduce su saldo interno.
+- La conciliación del costo es independiente de la entrega: si el balance de Stripe tarda, la venta y los tickets continúan, pero no se permite registrar el pago externo al organizador hasta conocer el monto exacto.
+- `KLARNA_WEB_ENABLED=false` funciona como reversión operativa a tarjeta. Klarna también debe estar habilitado en el Dashboard de la cuenta Stripe activa.
+
 ### Cambios que Requieren Especial Cuidado
 
 Los siguientes cambios deben investigarse, probarse y revisarse de forma ampliada antes de integrarse:

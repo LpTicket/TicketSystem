@@ -25,6 +25,12 @@ const STRIPE_PERCENTAGE = 0.029; // 2.9% Stripe variable fee
 const STRIPE_FIXED = 0.30; // $0.30 Stripe fixed fee per transaction
 const USER_PURCHASES_CACHE_TTL = 30_000;
 const DOOR_SALE_TAP_TO_PAY_CHANNEL = 'door_sale_tap_to_pay';
+const STRIPE_FEE_RECONCILIATION_PENDING = 'pending';
+const STRIPE_FEE_RECONCILIATION_RECONCILED = 'reconciled';
+const STRIPE_FEE_RECONCILIATION_NOT_REQUIRED = 'not_required';
+const KLARNA_SUPPORTED_CURRENCIES = new Set([
+  'aud', 'cad', 'chf', 'czk', 'dkk', 'eur', 'gbp', 'nok', 'nzd', 'pln', 'ron', 'sek', 'usd',
+]);
 
 /**
  * OrdersService
@@ -221,6 +227,24 @@ export class OrdersService {
     if (image.startsWith('/api/')) return [`${this.getPublicApiBaseUrl()}${image}`];
     if (image.startsWith('/')) return [`${this.getPublicApiBaseUrl()}${image}`];
     return [`${this.getPublicApiBaseUrl()}/${image}`];
+  }
+
+  /**
+   * Klarna is deliberately limited to the public web Checkout flow. Setting
+   * KLARNA_WEB_ENABLED=false is the emergency rollback switch; unsupported
+   * event currencies remain card-only.
+   */
+  private getWebCheckoutPaymentMethodTypes(currency: string) {
+    const configured = String(this.configService.get('KLARNA_WEB_ENABLED') ?? 'true').toLowerCase();
+    const klarnaEnabled = !['false', '0', 'off', 'no'].includes(configured)
+      && KLARNA_SUPPORTED_CURRENCIES.has(currency.toLowerCase());
+    return klarnaEnabled ? ['card', 'klarna'] : ['card'];
+  }
+
+  private isKlarnaConfigurationError(error: any) {
+    const message = `${error?.message || ''} ${error?.raw?.message || ''}`.toLowerCase();
+    return message.includes('klarna')
+      || (message.includes('payment method') && (message.includes('enabled') || message.includes('available')));
   }
 
   async previewDoorSale(
@@ -1027,6 +1051,7 @@ export class OrdersService {
     const cleanSeatsInfo = seatsInfo.map(({ section, ...rest }) => rest);
 
     const currency = (event.currency || 'USD').toLowerCase();
+    const paymentMethodTypes = this.getWebCheckoutPaymentMethodTypes(currency);
 
     // Prepare line items for Stripe UI
     lineItems = [
@@ -1081,6 +1106,9 @@ export class OrdersService {
       specialCode: resolvedCode,
       specialCodeId: resolvedCodeId,
       specialCodeOwnerId: resolvedCodeOwnerId,
+      stripeFeeReconciliationStatus: paymentMethodTypes.includes('klarna')
+        ? STRIPE_FEE_RECONCILIATION_PENDING
+        : STRIPE_FEE_RECONCILIATION_NOT_REQUIRED,
     });
     const savedOrder = await this.orderRepo.save(order);
     await this.invalidateUserPurchasesCache(userId);
@@ -1110,29 +1138,48 @@ export class OrdersService {
     // Attach Stripe customer so saved cards appear pre-selected in Checkout
     const stripeCustomerId = await this.getOrCreateStripeCustomer(userId, checkoutBuyerEmail);
 
+    const stripeMetadata = {
+      orderId: savedOrder.id,
+      userId,
+      eventId,
+      buyerEmail: checkoutBuyerEmail || '',
+      buyerName: checkoutBuyerName || '',
+      source: 'web_checkout',
+    };
+    const sessionParams = {
+      payment_method_types: paymentMethodTypes,
+      ...(stripeCustomerId
+        ? { customer: stripeCustomerId }
+        : checkoutBuyerEmail ? { customer_email: checkoutBuyerEmail } : {}),
+      line_items: lineItems,
+      mode: 'payment',
+      expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
+      success_url: `${appUrl.replace(/\/$/, '')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl.replace(/\/$/, '')}/checkout/cancel`,
+      payment_intent_data: {
+        metadata: stripeMetadata,
+      },
+      metadata: stripeMetadata,
+    };
+
     let session: any;
     try {
-      session = await this.stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        ...(stripeCustomerId
-          ? { customer: stripeCustomerId }
-          : checkoutBuyerEmail ? { customer_email: checkoutBuyerEmail } : {}),
-        line_items: lineItems,
-        mode: 'payment',
-        expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
-        success_url: `${appUrl.replace(/\/$/, '')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${appUrl.replace(/\/$/, '')}/checkout/cancel`,
-        metadata: {
-          orderId: savedOrder.id,
-          userId,
-          eventId,
-          buyerEmail: checkoutBuyerEmail || '',
-          buyerName: checkoutBuyerName || '',
-        },
-      });
+      session = await this.stripe.checkout.sessions.create(sessionParams);
     } catch (stripeErr: any) {
-      console.error('[Checkout] Stripe session creation failed:', stripeErr?.message, stripeErr?.type, JSON.stringify(stripeErr?.raw || {}));
-      throw stripeErr;
+      // A disabled/unsupported Klarna account must never break ordinary card sales.
+      if (paymentMethodTypes.includes('klarna') && this.isKlarnaConfigurationError(stripeErr)) {
+        console.warn('[Checkout] Klarna unavailable; retrying this session with card only.');
+        session = await this.stripe.checkout.sessions.create({
+          ...sessionParams,
+          payment_method_types: ['card'],
+        });
+        await this.orderRepo.update(savedOrder.id, {
+          stripeFeeReconciliationStatus: STRIPE_FEE_RECONCILIATION_NOT_REQUIRED,
+        });
+      } else {
+        console.error('[Checkout] Stripe session creation failed:', stripeErr?.message, stripeErr?.type, JSON.stringify(stripeErr?.raw || {}));
+        throw stripeErr;
+      }
     }
 
     await this.orderRepo.update(savedOrder.id, { stripeSessionId: session.id });
@@ -1258,11 +1305,14 @@ export class OrdersService {
    * 4. Trigger confirmation email
    */
   async handleStripeWebhook(event: any) {
-    if (event.type === 'checkout.session.completed') {
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
       const session = event.data.object as any;
 
       // Setup mode: usuario guardó tarjeta sin comprar
-      if (session.mode === 'setup' && session.setup_intent && session.metadata?.userId) {
+      if (event.type === 'checkout.session.completed'
+        && session.mode === 'setup'
+        && session.setup_intent
+        && session.metadata?.userId) {
         const userId = session.metadata.userId;
         try {
           const si = await this.stripe.setupIntents.retrieve(session.setup_intent, { expand: ['payment_method'] });
@@ -1287,22 +1337,51 @@ export class OrdersService {
         return;
       }
 
-      const orderId = session.metadata?.orderId;
-      if (!orderId) return;
+      // Checkout can be complete while a delayed method is still unpaid.
+      // Tickets are issued only after Stripe explicitly reports payment_status=paid.
+      if (session.mode !== 'payment' || session.payment_status !== 'paid') return;
+      await this.finalizePaidCheckoutSession(session);
+      return;
+    }
 
-      const order = await this.orderRepo.findOne({ where: { id: orderId } });
-      if (!order) return;
-      await this.finalizePaidOrder(
-        orderId,
-        session.payment_intent as string,
-        session.customer_details?.email || session.metadata?.buyerEmail,
-        session.customer_details?.name || session.metadata?.buyerName,
-      );
+    if (event.type === 'checkout.session.async_payment_failed' || event.type === 'checkout.session.expired') {
+      const session = event.data.object as any;
+      const orderId = session.metadata?.orderId;
+      if (orderId) await this.cancelPendingCheckoutOrder(orderId);
+      return;
     }
 
     if (event.type === 'payment_intent.succeeded') {
       const paymentIntent = event.data.object as any;
       await this.finalizePaidPaymentIntent(paymentIntent);
+      return;
+    }
+
+    if (event.type === 'charge.updated') {
+      const charge = event.data.object as any;
+      if (charge.payment_intent) {
+        await this.reconcileStripeFee(undefined, charge.payment_intent as string, charge);
+      }
+    }
+  }
+
+  private async finalizePaidCheckoutSession(session: any) {
+    const orderId = session.metadata?.orderId;
+    if (!orderId) return;
+
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (!order) return;
+    const paymentIntentId = typeof session.payment_intent === 'string'
+      ? session.payment_intent
+      : session.payment_intent?.id;
+    await this.finalizePaidOrder(
+      orderId,
+      paymentIntentId,
+      session.customer_details?.email || session.metadata?.buyerEmail,
+      session.customer_details?.name || session.metadata?.buyerName,
+    );
+    if (paymentIntentId && order.salesChannel === 'online') {
+      await this.reconcileStripeFee(orderId, paymentIntentId);
     }
   }
 
@@ -1315,7 +1394,105 @@ export class OrdersService {
     if (order.stripePaymentIntent && order.stripePaymentIntent !== paymentIntent.id) return;
     if (paymentIntent.status !== 'succeeded') return;
 
-    await this.finalizePaidOrder(orderId, paymentIntent.id);
+    await this.finalizePaidOrder(
+      orderId,
+      paymentIntent.id,
+      paymentIntent.metadata?.buyerEmail || undefined,
+      paymentIntent.metadata?.buyerName || undefined,
+    );
+    if ((order.salesChannel || 'online') === 'online') {
+      await this.reconcileStripeFee(orderId, paymentIntent.id);
+    }
+  }
+
+  private async reconcileStripeFee(orderId?: string, paymentIntentId?: string, suppliedCharge?: any) {
+    if (!this.stripe || !paymentIntentId) return;
+
+    const order = orderId
+      ? await this.orderRepo.findOne({ where: { id: orderId } })
+      : await this.orderRepo.findOne({ where: { stripePaymentIntent: paymentIntentId } });
+    if (!order || (order.salesChannel || 'online') !== 'online') return;
+
+    try {
+      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId, {
+        expand: ['payment_method', 'latest_charge.balance_transaction'],
+      });
+      const expandedCharge = paymentIntent.latest_charge && typeof paymentIntent.latest_charge === 'object'
+        ? paymentIntent.latest_charge
+        : null;
+      const charge = suppliedCharge || expandedCharge || (paymentIntent.latest_charge
+        ? await this.stripe.charges.retrieve(paymentIntent.latest_charge, { expand: ['balance_transaction'] })
+        : null);
+      const paymentMethodType = charge?.payment_method_details?.type
+        || (paymentIntent.payment_method && typeof paymentIntent.payment_method === 'object'
+          ? paymentIntent.payment_method.type
+          : null);
+
+      if (paymentMethodType !== 'klarna') {
+        await this.orderRepo.update(order.id, {
+          paymentMethodType: paymentMethodType || null,
+          organizerProcessingAdjustment: 0,
+          stripeFeeReconciliationStatus: STRIPE_FEE_RECONCILIATION_NOT_REQUIRED,
+          stripeFeeReconciledAt: new Date(),
+          stripeChargeId: charge?.id || null,
+        });
+        return;
+      }
+
+      const balanceTransaction = charge?.balance_transaction && typeof charge.balance_transaction === 'object'
+        ? charge.balance_transaction
+        : charge?.balance_transaction
+          ? await this.stripe.balanceTransactions.retrieve(charge.balance_transaction)
+          : null;
+
+      if (!balanceTransaction) {
+        await this.orderRepo.update(order.id, {
+          paymentMethodType: 'klarna',
+          stripeFeeReconciliationStatus: STRIPE_FEE_RECONCILIATION_PENDING,
+          stripeChargeId: charge?.id || null,
+        });
+        return;
+      }
+
+      const actualStripeFee = this.roundMoney(Number(balanceTransaction.fee || 0) / 100);
+      const standardCardFee = this.roundMoney(Number(order.total || 0) * STRIPE_PERCENTAGE + STRIPE_FIXED);
+      const organizerProcessingAdjustment = this.roundMoney(Math.max(0, actualStripeFee - standardCardFee));
+      await this.orderRepo.update(order.id, {
+        paymentMethodType: 'klarna',
+        actualStripeFee,
+        standardCardFee,
+        organizerProcessingAdjustment,
+        stripeFeeReconciliationStatus: STRIPE_FEE_RECONCILIATION_RECONCILED,
+        stripeFeeReconciledAt: new Date(),
+        stripeChargeId: charge?.id || null,
+        stripeBalanceTransactionId: balanceTransaction.id || null,
+      });
+    } catch (error: any) {
+      console.error(`[StripeFee] Could not reconcile order ${order.id}:`, error?.message || error);
+      await this.orderRepo.update(order.id, {
+        stripeFeeReconciliationStatus: STRIPE_FEE_RECONCILIATION_PENDING,
+      });
+    }
+  }
+
+  private async cancelPendingCheckoutOrder(orderId: string) {
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (!order || order.status !== OrderStatus.PENDING) return;
+
+    await this.orderRepo.update(order.id, { status: OrderStatus.CANCELLED });
+    const seats = JSON.parse(order.seatsData || '[]') as Array<{ seatId?: string }>;
+    const seatIds = seats.map((seat) => seat.seatId).filter(Boolean) as string[];
+    if (seatIds.length > 0) {
+      await this.seatRepo
+        .createQueryBuilder()
+        .update(Seat)
+        .set({ status: SeatStatus.AVAILABLE, lockedBy: null as any, lockExpiresAt: null as any })
+        .whereInIds(seatIds)
+        .andWhere('status = :status', { status: SeatStatus.LOCKED })
+        .andWhere('"lockedBy" = :userId', { userId: order.userId })
+        .execute();
+    }
+    await this.invalidateUserPurchasesCache(order.userId);
   }
 
   /**
@@ -1390,6 +1567,29 @@ export class OrdersService {
       } catch (err: any) {
         console.error(`[Cron] Error recovering order ${order.id}:`, err.message);
       }
+    }
+  }
+
+  /**
+   * Balance transactions can appear shortly after payment confirmation.
+   * Retry only unresolved new web payments; ticket fulfillment is independent.
+   */
+  @Cron('15 * * * * *')
+  async reconcilePendingStripeFees() {
+    if (!this.stripe) return;
+    const unresolved = await this.orderRepo
+      .createQueryBuilder('order')
+      .where('order.status = :status', { status: OrderStatus.PAID })
+      .andWhere('order."stripeFeeReconciliationStatus" = :reconciliationStatus', {
+        reconciliationStatus: STRIPE_FEE_RECONCILIATION_PENDING,
+      })
+      .andWhere('order."stripePaymentIntent" IS NOT NULL')
+      .orderBy('order."paidAt"', 'ASC')
+      .limit(50)
+      .getMany();
+
+    for (const order of unresolved) {
+      await this.reconcileStripeFee(order.id, order.stripePaymentIntent);
     }
   }
 

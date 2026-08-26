@@ -1,5 +1,17 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-26 - Klarna aislado en Checkout web
+
+- El Checkout público web puede ofrecer `card` y `klarna` en monedas compatibles; `KLARNA_WEB_ENABLED=false` permite volver inmediatamente a tarjeta sin cambiar código.
+- Si la cuenta Stripe todavía no permite Klarna, la creación de la sesión reintenta con tarjeta para no interrumpir las ventas normales.
+- Los cargos visibles al comprador conservan la política global existente. El backend obtiene del balance de Stripe el costo real de una orden Klarna y atribuye al organizador únicamente la diferencia positiva sobre 2.9% + $0.30.
+- El panel financiero administrativo muestra el ajuste Klarna separado por evento y por orden. El registro de un pago al organizador queda protegido mientras Stripe no haya confirmado el costo real.
+- Checkout ya no emite entradas cuando una sesión está completada pero aún no está pagada; contempla confirmación y fallo asíncronos, y mantiene la finalización idempotente.
+- No se modificaron la app móvil, Tap to Pay, Venta en Puerta, ventas históricas, cálculo de cargos del comprador ni reembolsos.
+- Validación local: 13 pruebas de `OrdersService`, build NestJS y build Next.js aprobados. No se ejecutó ninguna compra real ni cambio de producción.
+
+Estado: `IMPLEMENTADO, NO PROBADO` contra una cuenta Stripe real.
+
 ## 2026-08-22 - Aislamiento de destinatarios rechazados en Zoho Campaigns
 
 - La validación previa separa únicamente direcciones con sintaxis inválida; no usa listas de proveedores ni bloquea dominios privados válidos.

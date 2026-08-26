@@ -243,12 +243,22 @@ export class AdminService {
     const lpFees = orders.reduce((sum, order) => sum + Number(order.lpFee || 0), 0);
     const processingFees = orders.reduce((sum, order) => sum + Number(order.processingFee || 0), 0);
     const grossCharged = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const organizerProcessingAdjustments = orders.reduce(
+      (sum, order) => sum + Number(order.organizerProcessingAdjustment || 0),
+      0,
+    );
+    const pendingFeeReconciliations = orders.filter(
+      (order) => order.stripeFeeReconciliationStatus === 'pending',
+    ).length;
     const scannedTickets = activeIssuedTickets.filter((ticket) => ticket.status === 'used').length;
     const pendingTickets = activeIssuedTickets.filter((ticket) => ticket.status === 'active').length;
     const cancelledTickets = paidTickets.filter((ticket) => ticket.status === 'cancelled').length;
     const buyers = new Set(orders.map((order) => order.userId)).size;
     const organizerPaid = organizerPayouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0);
-    const organizerPending = Math.max(0, +(ticketRevenue - organizerPaid).toFixed(2));
+    const organizerPending = Math.max(
+      0,
+      +(ticketRevenue - organizerProcessingAdjustments - organizerPaid).toFixed(2),
+    );
 
     const sectionMap = new Map<string, { name: string; issued: number; scanned: number; pending: number }>();
     activeIssuedTickets.forEach((ticket) => {
@@ -285,6 +295,8 @@ export class AdminService {
         lpFees,
         processingFees,
         grossCharged,
+        organizerProcessingAdjustments: +organizerProcessingAdjustments.toFixed(2),
+        pendingFeeReconciliations,
         organizerPaid: +organizerPaid.toFixed(2),
         organizerPending,
       },
@@ -314,6 +326,11 @@ export class AdminService {
           lpFee: Number(order.lpFee || 0),
           processingFee: Number(order.processingFee || 0),
           total: Number(order.total || 0),
+          paymentMethodType: order.paymentMethodType || null,
+          actualStripeFee: order.actualStripeFee === null ? null : Number(order.actualStripeFee),
+          standardCardFee: order.standardCardFee === null ? null : Number(order.standardCardFee),
+          organizerProcessingAdjustment: Number(order.organizerProcessingAdjustment || 0),
+          stripeFeeReconciliationStatus: order.stripeFeeReconciliationStatus || 'not_required',
           salesChannel: order.salesChannel || null,
           ticketPrices: prices,
         };
@@ -347,12 +364,33 @@ export class AdminService {
         .getRawOne();
       const ticketRevenue = Number(revenueRow?.ticketRevenue || 0);
 
+      const adjustmentRow = await manager.getRepository(Order)
+        .createQueryBuilder('order')
+        .select('COALESCE(SUM(order."organizerProcessingAdjustment"), 0)', 'organizerAdjustments')
+        .addSelect(
+          `COUNT(CASE WHEN order."stripeFeeReconciliationStatus" = 'pending' THEN 1 END)`,
+          'pendingReconciliations',
+        )
+        .where('order.eventId = :eventId', { eventId })
+        .andWhere('order.status = :status', { status: OrderStatus.PAID })
+        .getRawOne();
+      const pendingReconciliations = Number(adjustmentRow?.pendingReconciliations || 0);
+      if (pendingReconciliations > 0) {
+        throw new BadRequestException(
+          'Espera a que Stripe confirme el costo de procesamiento de Klarna antes de registrar este pago.',
+        );
+      }
+      const organizerAdjustments = Number(adjustmentRow?.organizerAdjustments || 0);
+
       const paidRow = await manager.getRepository(OrganizerPayout)
         .createQueryBuilder('payout')
         .select('COALESCE(SUM(payout.amount), 0)', 'totalPaid')
         .where('payout.eventId = :eventId', { eventId })
         .getRawOne();
-      const pending = Math.max(0, +(ticketRevenue - Number(paidRow?.totalPaid || 0)).toFixed(2));
+      const pending = Math.max(
+        0,
+        +(ticketRevenue - organizerAdjustments - Number(paidRow?.totalPaid || 0)).toFixed(2),
+      );
 
       if (amount > pending + 0.001) {
         throw new BadRequestException('El pago no puede ser mayor al saldo pendiente del organizador.');

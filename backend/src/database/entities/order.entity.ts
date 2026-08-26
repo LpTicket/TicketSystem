@@ -83,6 +83,35 @@ export class Order {
   @Column({ nullable: true, length: 150 })
   stripePaymentIntent: string;
 
+  /** Payment method that actually completed the Stripe payment (card, klarna, etc.). */
+  @Column({ type: 'varchar', nullable: true, length: 40 })
+  paymentMethodType: string | null;
+
+  /** Actual Stripe processing fee, populated from the Charge balance transaction. */
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  actualStripeFee: number | null;
+
+  /** Standard 2.9% + $0.30 card cost used as the comparison baseline. */
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  standardCardFee: number | null;
+
+  /** Klarna-only cost above the standard card baseline, charged to the organizer. */
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  organizerProcessingAdjustment: number;
+
+  /** not_required, pending, reconciled, or failed. Historical orders remain not_required. */
+  @Column({ type: 'varchar', length: 20, default: 'not_required' })
+  stripeFeeReconciliationStatus: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  stripeFeeReconciledAt: Date | null;
+
+  @Column({ type: 'varchar', nullable: true, length: 150 })
+  stripeChargeId: string | null;
+
+  @Column({ type: 'varchar', nullable: true, length: 150 })
+  stripeBalanceTransactionId: string | null;
+
   @Column({ type: 'int', default: 1 })
   ticketCount: number;
 

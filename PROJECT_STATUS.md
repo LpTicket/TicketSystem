@@ -1,14 +1,14 @@
 # LPTicket - Estado del Proyecto
 
-Última revisión documental: 2026-08-13
-Fuente: revisión de código local y respuesta de Apple Tap to Pay.
+Última revisión documental: 2026-08-26
+Fuente: revisión de código local, pruebas automatizadas y builds locales.
 Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explícita.
 
 ## Estado Git Actual
 
-- Rama actual: `codex-unify-lpticket`, iniciada sobre `origin/main` en `0a134e1c` antes de este cambio.
-- Hay cambios locales sin commit para crear una copia operativa única después de cada venta Tap to Pay.
-- No se debe asumir que este envío interno está desplegado ni probado con SMTP real hasta completar la publicación y la prueba física.
+- Rama actual: `codex/marketing-copy-refinement`, en `cd64d3e4` antes de este cambio.
+- Hay cambios locales sin commit para habilitar Klarna exclusivamente en Checkout web y conciliar su costo adicional contra el saldo interno del organizador.
+- No se debe asumir que Klarna está activo en producción ni probado contra Stripe real hasta habilitarlo en la cuenta correspondiente, publicar y completar una compra controlada.
 
 ## Arquitectura Confirmada
 
@@ -36,12 +36,12 @@ El backend es la fuente de verdad para eventos, mapas, asientos, bloqueos, órde
 | Ventas en puerta | IMPLEMENTADO, NO PROBADO | Preview, checkout, facturación y tickets presentes; las entradas de Tap to Pay confirmado nacen usadas para contabilizar la admisión presencial. |
 | Tap to Pay en iPhone | IMPLEMENTADO, NO PROBADO | Entitlement de Apple concedido y perfil renovado para el build iOS 30; pendiente prueba física con Stripe Terminal. |
 | Entrega postventa por SMS/correo | IMPLEMENTADO, NO PROBADO | La entrega se solicita después de confirmar el pago; reutiliza Twilio/SMTP, registra un historial enmascarado, genera enlaces firmados únicamente para ventas Tap to Pay y prepara una copia operativa única para LPTicket. |
-| Métodos de pago | IMPLEMENTADO | Compra online mediante Stripe Checkout; no se añadió un módulo nativo adicional. |
+| Métodos de pago | IMPLEMENTADO, NO PROBADO EN STRIPE REAL | El Checkout web ofrece tarjeta y Klarna para monedas compatibles, con regreso automático a tarjeta si Klarna no está disponible. Las entradas solo se emiten cuando Stripe confirma el pago. Móvil, Tap to Pay y Venta en Puerta permanecen exclusivamente en sus flujos anteriores. Falta habilitar Klarna en la cuenta Stripe correspondiente, publicar y ejecutar una compra real controlada. |
 | Social Match y chat | IMPLEMENTADO, NO PROBADO | Intereses traducidos, sugerencias solo entre asistentes activos con intereses compartidos, conexiones, descartes y mensajes presentes; pendiente de prueba móvil. |
 | Escáner de empleados | IMPLEMENTADO | Solicitudes, aprobación, búsqueda y validación presentes. |
 | Panel organizador | IMPLEMENTADO | Eventos, asistentes, analítica, bloques, comisiones y escaneo presentes. |
 | Panel administrador | IMPLEMENTADO, NO PROBADO | Usuarios, eventos, facturas, marketing, categorías y analítica presentes. El buscador de usuarios consulta el backend por nombre, apellido, usuario y correo sobre todos los registros, respeta el rol y conserva la paginación; los contadores muestran el total real de coincidencias. Al abrir un usuario, el historial administrativo muestra el nombre y fecha del evento de cada ticket y abre la entrada/recibo individual existente de la plataforma. El recibo completo por orden usa ahora la misma identidad visual de esa entrada: diseño de una página, QR de la entrada, franja naranja/azul, cabecera blanca y pie azul LPTicket, bloques de pedido/pago y pie institucional. Al abrirse, queda aislado de la barra global y solo ofrece `Volver` e `Imprimir / Guardar PDF`; Apple Wallet y Compartir siguen exclusivamente en las entradas individuales. Marketing permite escribir mensajes en varios párrafos y previsualiza el mismo bloque editorial alineado que recibe el cliente. Pendiente prueba manual con usuarios fuera de la primera página y con compras existentes. |
-| Auditoría de pagos al organizador | IMPLEMENTADO, NO PROBADO | En el detalle administrativo de cada evento, el administrador puede registrar pagos externos parciales o totales al organizador, ver el acumulado pagado, el saldo pendiente y el historial. Es una conciliación interna: no crea transferencias ni modifica Stripe, órdenes o tickets. Pendiente prueba manual. |
+| Auditoría de pagos al organizador | IMPLEMENTADO, NO PROBADO EN STRIPE REAL | En el detalle administrativo de cada evento, el administrador puede registrar pagos externos parciales o totales al organizador, ver el acumulado pagado, el saldo pendiente y el historial. Para una orden Klarna, el backend registra el costo real informado por Stripe y descuenta al organizador solo la diferencia positiva sobre la base estándar de 2.9% + $0.30. Mientras esa conciliación esté pendiente, se protege el registro del pago al organizador sin detener la venta ni la emisión de entradas. Es una conciliación interna: no crea transferencias. |
 | Marketing email, SMS, WhatsApp y push | IMPLEMENTADO, NO PROBADO | Las campañas nuevas usan Zoho Campaigns, no el SMTP normal de Zoho Mail. Antes de `sendcampaign`, el backend verifica la lista privada y el Topic. La preparación valida solo la sintaxis, conserva dominios privados válidos y aísla los rechazos individuales, incluido el código `2007` de `listsubscribe`: un correo rechazado queda fallido con su motivo sin detener a los destinatarios aceptados. Reutiliza listas cuando corresponde y el access token durante su vigencia. La audiencia queda serializada y limitada a 450 suscripciones por minuto para admitir campañas de 500 contactos sin alcanzar el límite de Zoho. El detalle seleccionado consulta los reportes oficiales y concilia aperturas, rebotes permanentes/temporales y correos no enviados cada dos minutos como máximo. La autorización OAuth cifra su refresh token en PostgreSQL; los secretos permanecen en Railway. El panel mantiene hasta 50 campañas y permite abrir o eliminar su análisis. El envío real de 17 destinatarios quedó comprobado; falta comprobar en producción el aislamiento de rechazados, la actualización posterior de aperturas/rebotes y una campaña de audiencia mayor. |
 | Asistente AI | IMPLEMENTADO, NO PROBADO | Servicio presente; requiere configuración externa. |
 | Integración Square | NO ENCONTRADA | No se localizó un módulo de backend relacionado. |

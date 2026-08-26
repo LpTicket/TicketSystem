@@ -301,4 +301,95 @@ describe('OrdersService critical ticket safeguards', () => {
       expect.objectContaining({ status: TicketStatus.ACTIVE }),
     );
   });
+
+  it('offers Klarna only in eligible web checkout currencies and supports an immediate rollback flag', () => {
+    const enabled = buildService();
+    expect((enabled.service as any).getWebCheckoutPaymentMethodTypes('usd')).toEqual(['card', 'klarna']);
+    expect((enabled.service as any).getWebCheckoutPaymentMethodTypes('mxn')).toEqual(['card']);
+
+    const disabled = buildService({
+      configService: { get: jest.fn((key: string) => key === 'KLARNA_WEB_ENABLED' ? 'false' : undefined) },
+    });
+    expect((disabled.service as any).getWebCheckoutPaymentMethodTypes('usd')).toEqual(['card']);
+  });
+
+  it('does not issue tickets when Checkout completes before a delayed payment is paid', async () => {
+    const { service } = buildService();
+    const finalize = jest.spyOn(service as any, 'finalizePaidCheckoutSession').mockResolvedValue(undefined);
+
+    await service.handleStripeWebhook({
+      type: 'checkout.session.completed',
+      data: { object: { mode: 'payment', payment_status: 'unpaid', metadata: { orderId: 'order-1' } } },
+    });
+
+    expect(finalize).not.toHaveBeenCalled();
+  });
+
+  it('deducts only Klarna processing cost above the standard card baseline from the organizer', async () => {
+    const orderRepo = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'order-klarna-1',
+        total: 100,
+        salesChannel: 'online',
+      }),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const { service } = buildService({ orderRepo });
+    (service as any).stripe = {
+      paymentIntents: {
+        retrieve: jest.fn().mockResolvedValue({
+          id: 'pi_klarna',
+          payment_method: { type: 'klarna' },
+          latest_charge: {
+            id: 'ch_klarna',
+            payment_method_details: { type: 'klarna' },
+            balance_transaction: { id: 'txn_klarna', fee: 600 },
+          },
+        }),
+      },
+    };
+
+    await (service as any).reconcileStripeFee('order-klarna-1', 'pi_klarna');
+
+    expect(orderRepo.update).toHaveBeenCalledWith('order-klarna-1', expect.objectContaining({
+      paymentMethodType: 'klarna',
+      actualStripeFee: 6,
+      standardCardFee: 3.2,
+      organizerProcessingAdjustment: 2.8,
+      stripeFeeReconciliationStatus: 'reconciled',
+    }));
+  });
+
+  it('does not change organizer payout accounting for ordinary card payments', async () => {
+    const orderRepo = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'order-card-1',
+        total: 100,
+        salesChannel: 'online',
+      }),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const { service } = buildService({ orderRepo });
+    (service as any).stripe = {
+      paymentIntents: {
+        retrieve: jest.fn().mockResolvedValue({
+          id: 'pi_card',
+          payment_method: { type: 'card' },
+          latest_charge: {
+            id: 'ch_card',
+            payment_method_details: { type: 'card' },
+            balance_transaction: { id: 'txn_card', fee: 320 },
+          },
+        }),
+      },
+    };
+
+    await (service as any).reconcileStripeFee('order-card-1', 'pi_card');
+
+    expect(orderRepo.update).toHaveBeenCalledWith('order-card-1', expect.objectContaining({
+      paymentMethodType: 'card',
+      organizerProcessingAdjustment: 0,
+      stripeFeeReconciliationStatus: 'not_required',
+    }));
+  });
 });
