@@ -27,6 +27,7 @@ import TrustBadges from '@/components/layout/TrustBadges';
  * Steps for the checkout wizard.
  */
 type Step = 'section' | 'seats' | 'info' | 'payment';
+type CheckoutPaymentMethod = 'card' | 'klarna';
 const STEPS: { key: Step; label: string }[] = [
   { key: 'section', label: 'Section' },
   { key: 'seats',   label: 'Seats' },
@@ -101,6 +102,7 @@ export default function PurchasePage() {
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [buying, setBuying] = useState(false);
+  const [buyingMethod, setBuyingMethod] = useState<CheckoutPaymentMethod | null>(null);
   const [hasLoadedSaved, setHasLoadedSaved] = useState(false);
   const [specialCode, setSpecialCode] = useState('');
   const [specialCodeError, setSpecialCodeError] = useState('');
@@ -362,13 +364,15 @@ export default function PurchasePage() {
   /**
    * Initiates the Stripe checkout process by creating a session on the backend.
    */
-  const handlePay = async () => {
+  const handlePay = async (paymentMethod: CheckoutPaymentMethod) => {
     setBuying(true);
+    setBuyingMethod(paymentMethod);
     try {
       const payload: any = {
         eventId: event!.id,
         buyerEmail: personalInfo.email.trim(),
         buyerName: `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim(),
+        paymentMethod,
       };
       if (selectedSection?.sectionType === 'standing') {
         payload.sectionId = selectedSection.id;
@@ -388,6 +392,7 @@ export default function PurchasePage() {
       toast.error(err.response?.data?.message || err.response?.data?.error || err.message || 'Error processing payment');
     } finally {
       setBuying(false);
+      setBuyingMethod(null);
     }
   };
 
@@ -720,11 +725,11 @@ export default function PurchasePage() {
 
               <div className="mt-5 space-y-3">
                 <button
-                  onClick={handlePay}
+                  onClick={() => handlePay('card')}
                   disabled={buying}
                   className="btn-primary w-full py-3.5 rounded-lg text-sm font-black disabled:opacity-50 shadow-lg shadow-orange-500/20"
                 >
-                  {buying ? (
+                  {buyingMethod === 'card' ? (
                     <span className="flex items-center gap-2 justify-center">
                       <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -736,6 +741,29 @@ export default function PurchasePage() {
                     <>{lang === 'es' ? '💳 Pagar' : '💳 Pay'} ${Number(invoice.total).toFixed(2)} {invoice.currency || 'USD'} {lang === 'es' ? 'con Stripe' : 'with Stripe'}</>
                   )}
                 </button>
+                <button
+                  onClick={() => handlePay('klarna')}
+                  disabled={buying}
+                  className="flex w-full items-center justify-center gap-3 rounded-lg border border-black/10 bg-[#FFB3C7] px-4 py-3.5 text-sm font-black text-black shadow-lg shadow-pink-200/30 transition hover:bg-[#FFA5BD] focus:outline-none focus:ring-2 focus:ring-[#FFB3C7] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {buyingMethod === 'klarna' ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                      </svg>
+                      {lang === 'es' ? 'Abriendo Klarna...' : 'Opening Klarna...'}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="rounded bg-black px-2 py-1 text-xs font-black text-white" aria-hidden="true">Klarna.</span>
+                      <span>{lang === 'es' ? 'Pagar en cuotas con Klarna' : 'Pay over time with Klarna'}</span>
+                    </>
+                  )}
+                </button>
+                <p className="text-center text-[10px] font-medium text-gray-400">
+                  {lang === 'es' ? 'Las opciones de cuotas están sujetas a elegibilidad y aprobación de Klarna.' : 'Installment options are subject to Klarna eligibility and approval.'}
+                </p>
                 <p className="text-center text-[10px] text-gray-400">
                   {lang === 'es' ? 'Pagos seguros encriptados — procesado por Stripe' : 'Secure encrypted payments — processed by Stripe'}
                 </p>

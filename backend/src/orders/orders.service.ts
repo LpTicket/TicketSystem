@@ -234,10 +234,22 @@ export class OrdersService {
    * KLARNA_WEB_ENABLED=false is the emergency rollback switch; unsupported
    * event currencies remain card-only.
    */
-  private getWebCheckoutPaymentMethodTypes(currency: string) {
+  private getWebCheckoutPaymentMethodTypes(currency: string, requestedMethod?: 'card' | 'klarna') {
+    if (requestedMethod && !['card', 'klarna'].includes(requestedMethod)) {
+      throw new BadRequestException('Método de pago no válido.');
+    }
     const configured = String(this.configService.get('KLARNA_WEB_ENABLED') ?? 'true').toLowerCase();
     const klarnaEnabled = !['false', '0', 'off', 'no'].includes(configured)
       && KLARNA_SUPPORTED_CURRENCIES.has(currency.toLowerCase());
+
+    if (requestedMethod === 'card') return ['card'];
+    if (requestedMethod === 'klarna') {
+      if (!klarnaEnabled) {
+        throw new BadRequestException('Klarna no está disponible para la moneda de este evento. Puedes pagar con tarjeta.');
+      }
+      return ['klarna'];
+    }
+
     return klarnaEnabled ? ['card', 'klarna'] : ['card'];
   }
 
@@ -894,9 +906,16 @@ export class OrdersService {
     rawSpecialCode?: string,
     buyerEmail?: string,
     buyerName?: string,
+    requestedPaymentMethod?: 'card' | 'klarna',
   ) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
+
+    // Resolve an explicit payment choice before locking inventory. This keeps
+    // the dedicated Klarna action honest and avoids locking seats for a method
+    // that is disabled or unsupported for the event currency.
+    const currency = (event.currency || 'USD').toLowerCase();
+    const paymentMethodTypes = this.getWebCheckoutPaymentMethodTypes(currency, requestedPaymentMethod);
 
     // Validate special code if provided
     let resolvedCode: string | null = null;
@@ -1050,9 +1069,6 @@ export class OrdersService {
 
     const cleanSeatsInfo = seatsInfo.map(({ section, ...rest }) => rest);
 
-    const currency = (event.currency || 'USD').toLowerCase();
-    const paymentMethodTypes = this.getWebCheckoutPaymentMethodTypes(currency);
-
     // Prepare line items for Stripe UI
     lineItems = [
       {
@@ -1145,6 +1161,7 @@ export class OrdersService {
       buyerEmail: checkoutBuyerEmail || '',
       buyerName: checkoutBuyerName || '',
       source: 'web_checkout',
+      requestedPaymentMethod: requestedPaymentMethod || 'automatic',
     };
     const sessionParams = {
       payment_method_types: paymentMethodTypes,
@@ -1167,7 +1184,7 @@ export class OrdersService {
       session = await this.stripe.checkout.sessions.create(sessionParams);
     } catch (stripeErr: any) {
       // A disabled/unsupported Klarna account must never break ordinary card sales.
-      if (paymentMethodTypes.includes('klarna') && this.isKlarnaConfigurationError(stripeErr)) {
+      if (paymentMethodTypes.length > 1 && paymentMethodTypes.includes('klarna') && this.isKlarnaConfigurationError(stripeErr)) {
         console.warn('[Checkout] Klarna unavailable; retrying this session with card only.');
         session = await this.stripe.checkout.sessions.create({
           ...sessionParams,

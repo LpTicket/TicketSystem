@@ -305,12 +305,20 @@ describe('OrdersService critical ticket safeguards', () => {
   it('offers Klarna only in eligible web checkout currencies and supports an immediate rollback flag', () => {
     const enabled = buildService();
     expect((enabled.service as any).getWebCheckoutPaymentMethodTypes('usd')).toEqual(['card', 'klarna']);
+    expect((enabled.service as any).getWebCheckoutPaymentMethodTypes('usd', 'card')).toEqual(['card']);
+    expect((enabled.service as any).getWebCheckoutPaymentMethodTypes('usd', 'klarna')).toEqual(['klarna']);
+    expect(() => (enabled.service as any).getWebCheckoutPaymentMethodTypes('usd', 'invalid'))
+      .toThrow('Método de pago no válido.');
     expect((enabled.service as any).getWebCheckoutPaymentMethodTypes('mxn')).toEqual(['card']);
+    expect(() => (enabled.service as any).getWebCheckoutPaymentMethodTypes('mxn', 'klarna'))
+      .toThrow('Klarna no está disponible para la moneda de este evento. Puedes pagar con tarjeta.');
 
     const disabled = buildService({
       configService: { get: jest.fn((key: string) => key === 'KLARNA_WEB_ENABLED' ? 'false' : undefined) },
     });
     expect((disabled.service as any).getWebCheckoutPaymentMethodTypes('usd')).toEqual(['card']);
+    expect(() => (disabled.service as any).getWebCheckoutPaymentMethodTypes('usd', 'klarna'))
+      .toThrow('Klarna no está disponible para la moneda de este evento. Puedes pagar con tarjeta.');
   });
 
   it('does not issue tickets when Checkout completes before a delayed payment is paid', async () => {

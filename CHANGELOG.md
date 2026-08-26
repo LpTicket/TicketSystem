@@ -1,5 +1,14 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-26 - Selección visible de Klarna en el checkout web
+
+- El resumen final de compra muestra una acción separada `Pagar en cuotas con Klarna` debajo del pago normal con tarjeta.
+- La acción normal solicita una sesión Stripe solo con tarjeta y la acción Klarna solicita una sesión exclusivamente Klarna.
+- Una compra no elegible muestra el error correspondiente y nunca cambia silenciosamente de Klarna a tarjeta.
+- No cambia tarifas, inventario, emisión, móvil, Tap to Pay, Venta en Puerta ni ventas históricas.
+
+Estado: `IMPLEMENTADO, NO PROBADO` contra una compra Klarna real.
+
 ## 2026-08-26 - Klarna aislado en Checkout web
 
 - El Checkout público web puede ofrecer `card` y `klarna` en monedas compatibles; `KLARNA_WEB_ENABLED=false` permite volver inmediatamente a tarjeta sin cambiar código.

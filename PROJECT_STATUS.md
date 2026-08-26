@@ -6,9 +6,9 @@ Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explíc
 
 ## Estado Git Actual
 
-- Rama actual: `codex/marketing-copy-refinement`, en `cd64d3e4` antes de este cambio.
-- Hay cambios locales sin commit para habilitar Klarna exclusivamente en Checkout web y conciliar su costo adicional contra el saldo interno del organizador.
-- No se debe asumir que Klarna está activo en producción ni probado contra Stripe real hasta habilitarlo en la cuenta correspondiente, publicar y completar una compra controlada.
+- Rama de trabajo: `codex/marketing-copy-refinement`.
+- Klarna ya está habilitado en Stripe y el Checkout web dispone localmente de acciones separadas para tarjeta y Klarna; este ajuste visual todavía requiere publicación y una compra real controlada.
+- No se debe asumir que el botón dedicado está activo en producción hasta completar el despliegue posterior a este cambio.
 
 ## Arquitectura Confirmada
 
@@ -36,7 +36,7 @@ El backend es la fuente de verdad para eventos, mapas, asientos, bloqueos, órde
 | Ventas en puerta | IMPLEMENTADO, NO PROBADO | Preview, checkout, facturación y tickets presentes; las entradas de Tap to Pay confirmado nacen usadas para contabilizar la admisión presencial. |
 | Tap to Pay en iPhone | IMPLEMENTADO, NO PROBADO | Entitlement de Apple concedido y perfil renovado para el build iOS 30; pendiente prueba física con Stripe Terminal. |
 | Entrega postventa por SMS/correo | IMPLEMENTADO, NO PROBADO | La entrega se solicita después de confirmar el pago; reutiliza Twilio/SMTP, registra un historial enmascarado, genera enlaces firmados únicamente para ventas Tap to Pay y prepara una copia operativa única para LPTicket. |
-| Métodos de pago | IMPLEMENTADO, NO PROBADO EN STRIPE REAL | El Checkout web ofrece tarjeta y Klarna para monedas compatibles, con regreso automático a tarjeta si Klarna no está disponible. Las entradas solo se emiten cuando Stripe confirma el pago. Móvil, Tap to Pay y Venta en Puerta permanecen exclusivamente en sus flujos anteriores. Falta habilitar Klarna en la cuenta Stripe correspondiente, publicar y ejecutar una compra real controlada. |
+| Métodos de pago | IMPLEMENTADO, NO PROBADO EN STRIPE REAL | El Checkout web presenta acciones separadas para tarjeta y `Pagar en cuotas con Klarna` en monedas compatibles. Una solicitud explícita de Klarna nunca cambia silenciosamente a tarjeta; las opciones finales dependen de la elegibilidad y aprobación de Klarna. Las entradas solo se emiten cuando Stripe confirma el pago. Móvil, Tap to Pay y Venta en Puerta permanecen en sus flujos anteriores. Falta publicar este botón y ejecutar una compra real controlada. |
 | Social Match y chat | IMPLEMENTADO, NO PROBADO | Intereses traducidos, sugerencias solo entre asistentes activos con intereses compartidos, conexiones, descartes y mensajes presentes; pendiente de prueba móvil. |
 | Escáner de empleados | IMPLEMENTADO | Solicitudes, aprobación, búsqueda y validación presentes. |
 | Panel organizador | IMPLEMENTADO | Eventos, asistentes, analítica, bloques, comisiones y escaneo presentes. |

@@ -57,6 +57,8 @@ PostgreSQL + servicios externos
 ### Klarna en Checkout web
 
 - Klarna se limita al Checkout público web y comparte la misma orden, inventario y confirmación de Stripe que la tarjeta. Móvil, Tap to Pay y Venta en Puerta no solicitan Klarna.
+- El paso final presenta dos acciones explícitas: tarjeta crea una sesión `card` y `Pagar en cuotas con Klarna` crea una sesión `klarna`. Las sesiones antiguas sin selección explícita conservan la combinación compatible para no romper clientes publicados.
+- La solicitud explícita de Klarna se valida antes de bloquear inventario y no puede degradarse silenciosamente a tarjeta; Stripe y Klarna determinan las opciones de cuotas y la aprobación final.
 - El comprador conserva el desglose global de LPTicket y procesamiento existente; elegir Klarna no vuelve a calcular ni duplica cargos visibles.
 - La emisión de entradas exige `payment_status=paid` o un `PaymentIntent` exitoso. Los eventos asíncronos y la recuperación periódica reutilizan la finalización idempotente.
 - La orden conserva el método real, el costo de Stripe, la base estándar 2.9% + $0.30 y el ajuste adicional del organizador. Solo una diferencia positiva de Klarna reduce su saldo interno.
