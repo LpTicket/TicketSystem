@@ -37,7 +37,27 @@ interface DashboardStats {
   stripePercent: number;
   stripeFixed: number;
   lpticketProfit: number;
+  organizerProcessingAdjustments: number;
+  organizerPaid: number;
+  organizerPending: number;
+  klarnaOrders: number;
+  klarnaTotalCharged: number;
+  klarnaTicketSales: number;
+  pendingFeeReconciliations: number;
+  recentKlarnaOrders: KlarnaOrder[];
   totalTickets: number;
+}
+
+interface KlarnaOrder {
+  id: string;
+  paidAt: string | null;
+  total: number;
+  subtotal: number;
+  ticketCount: number;
+  organizerProcessingAdjustment: number;
+  stripeFeeReconciliationStatus: string;
+  buyer: { firstName: string | null; lastName: string | null; email: string | null };
+  event: { id: string; title: string };
 }
 
 interface EventFinancial {
@@ -52,6 +72,12 @@ interface EventFinancial {
   serviceFees: number;
   stripeFees: number;
   lpticketProfit: number;
+  organizerProcessingAdjustments: number;
+  organizerPaid: number;
+  organizerPending: number;
+  klarnaOrders: number;
+  klarnaTotalCharged: number;
+  pendingFeeReconciliations: number;
   ticketsSold: number;
   orders: number;
 }
@@ -71,8 +97,26 @@ export default function AdminDashboard() {
         api.get('/admin/stats'),
         api.get('/admin/events/financials').catch(() => ({ data: { events: [] } })),
       ]);
-      setStats(statsRes.data);
-      setEventFinancials(finRes.data?.events || []);
+      setStats({
+        ...statsRes.data,
+        organizerProcessingAdjustments: Number(statsRes.data?.organizerProcessingAdjustments || 0),
+        organizerPaid: Number(statsRes.data?.organizerPaid || 0),
+        organizerPending: Number(statsRes.data?.organizerPending || 0),
+        klarnaOrders: Number(statsRes.data?.klarnaOrders || 0),
+        klarnaTotalCharged: Number(statsRes.data?.klarnaTotalCharged || 0),
+        klarnaTicketSales: Number(statsRes.data?.klarnaTicketSales || 0),
+        pendingFeeReconciliations: Number(statsRes.data?.pendingFeeReconciliations || 0),
+        recentKlarnaOrders: statsRes.data?.recentKlarnaOrders || [],
+      });
+      setEventFinancials((finRes.data?.events || []).map((event: EventFinancial) => ({
+        ...event,
+        organizerProcessingAdjustments: Number(event.organizerProcessingAdjustments || 0),
+        organizerPaid: Number(event.organizerPaid || 0),
+        organizerPending: Number(event.organizerPending || 0),
+        klarnaOrders: Number(event.klarnaOrders || 0),
+        klarnaTotalCharged: Number(event.klarnaTotalCharged || 0),
+        pendingFeeReconciliations: Number(event.pendingFeeReconciliations || 0),
+      })));
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -109,6 +153,12 @@ export default function AdminDashboard() {
         serviceFees: selectedEvent.serviceFees,
         stripeFees: selectedEvent.stripeFees,
         lpticketProfit: selectedEvent.lpticketProfit,
+        organizerProcessingAdjustments: selectedEvent.organizerProcessingAdjustments,
+        organizerPaid: selectedEvent.organizerPaid,
+        organizerPending: selectedEvent.organizerPending,
+        klarnaOrders: selectedEvent.klarnaOrders,
+        klarnaTotalCharged: selectedEvent.klarnaTotalCharged,
+        pendingFeeReconciliations: selectedEvent.pendingFeeReconciliations,
       }
     : {
         totalRevenue: stats.totalRevenue,
@@ -116,6 +166,12 @@ export default function AdminDashboard() {
         serviceFees: stats.serviceFees,
         stripeFees: stats.stripeFees,
         lpticketProfit: stats.lpticketProfit,
+        organizerProcessingAdjustments: stats.organizerProcessingAdjustments,
+        organizerPaid: stats.organizerPaid,
+        organizerPending: stats.organizerPending,
+        klarnaOrders: stats.klarnaOrders,
+        klarnaTotalCharged: stats.klarnaTotalCharged,
+        pendingFeeReconciliations: stats.pendingFeeReconciliations,
       };
 
   const eventOptionLabel = (event: EventFinancial) => {
@@ -254,12 +310,60 @@ export default function AdminDashboard() {
             <p className="text-2xl font-black text-green-700 mt-1">${fin.lpticketProfit.toFixed(2)}</p>
             <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Comisión − Stripe (neto)' : 'Fees − Stripe (net)'}</p>
           </div>
+          <div className="rounded-xl p-4 border border-pink-200 bg-pink-50">
+            <p className="text-[11px] font-black uppercase tracking-wider text-pink-700">Klarna</p>
+            <p className="text-2xl font-black text-pink-700 mt-1">{fin.klarnaOrders} {lang === 'es' ? 'compras' : 'purchases'}</p>
+            <p className="text-[11px] text-gray-500 mt-1">${fin.klarnaTotalCharged.toFixed(2)} {lang === 'es' ? 'cobrados a compradores' : 'charged to buyers'}</p>
+          </div>
+          <div className="rounded-xl p-4 border border-amber-200 bg-amber-50">
+            <p className="text-[11px] font-black uppercase tracking-wider text-amber-700">{lang === 'es' ? 'Ajuste adicional Klarna' : 'Additional Klarna adjustment'}</p>
+            <p className="text-2xl font-black text-amber-700 mt-1">-${fin.organizerProcessingAdjustments.toFixed(2)}</p>
+            <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Se descuenta del saldo del organizador' : 'Deducted from the organizer balance'}</p>
+          </div>
+          <div className="rounded-xl p-4 border border-red-200 bg-red-50">
+            <p className="text-[11px] font-black uppercase tracking-wider text-red-700">{lang === 'es' ? 'Pendiente al organizador' : 'Pending to organizer'}</p>
+            <p className="text-2xl font-black text-red-700 mt-1">${fin.organizerPending.toFixed(2)}</p>
+            <p className="text-[11px] text-gray-500 mt-1">${fin.organizerPaid.toFixed(2)} {lang === 'es' ? 'ya registrados como pagados' : 'already recorded as paid'}</p>
+          </div>
         </div>
         <p className="text-[11px] text-gray-400 mt-3">
           {lang === 'es'
-            ? 'La comisión de Stripe es estimada con su tarifa estándar (2.9% + $0.30 por cargo).'
-            : 'Stripe fees are estimated using its standard rate (2.9% + $0.30 per charge).'}
+            ? `La comisión general de Stripe sigue estimada con 2.9% + $0.30. El ajuste Klarna usa el costo real conciliado y no duplica la tarifa estándar.${fin.pendingFeeReconciliations ? ` Hay ${fin.pendingFeeReconciliations} orden(es) esperando conciliación.` : ''}`
+            : `General Stripe fees remain estimated at 2.9% + $0.30. The Klarna adjustment uses the reconciled actual cost without duplicating the standard fee.${fin.pendingFeeReconciliations ? ` ${fin.pendingFeeReconciliations} order(s) are awaiting reconciliation.` : ''}`}
         </p>
+      </div>
+
+      <div className="premium-section-card overflow-hidden transition-all">
+        <div className="border-b border-gray-100 px-6 py-4">
+          <h3 className="font-bold text-gray-900">{lang === 'es' ? 'Compras recientes con Klarna' : 'Recent Klarna purchases'}</h3>
+          <p className="mt-1 text-xs font-medium text-gray-500">{lang === 'es' ? 'Comprador, evento, total y ajuste aplicado al organizador.' : 'Buyer, event, total and organizer adjustment.'}</p>
+        </div>
+        {stats.recentKlarnaOrders.length === 0 ? (
+          <p className="px-6 py-5 text-sm font-medium text-gray-500">{lang === 'es' ? 'Todavía no hay compras pagadas con Klarna.' : 'There are no paid Klarna purchases yet.'}</p>
+        ) : (
+          <div className="max-h-[420px] overflow-auto">
+            <table className="min-w-[760px] w-full text-left text-sm">
+              <thead className="sticky top-0 bg-gray-50 text-xs font-black uppercase tracking-wide text-gray-500">
+                <tr><th className="px-6 py-3">{lang === 'es' ? 'Comprador' : 'Buyer'}</th><th className="px-6 py-3">{lang === 'es' ? 'Evento' : 'Event'}</th><th className="px-6 py-3 text-right">{lang === 'es' ? 'Entradas' : 'Tickets'}</th><th className="px-6 py-3 text-right">Total</th><th className="px-6 py-3 text-right">{lang === 'es' ? 'Ajuste' : 'Adjustment'}</th><th className="px-6 py-3">{lang === 'es' ? 'Estado' : 'Status'}</th></tr>
+              </thead>
+              <tbody>
+                {stats.recentKlarnaOrders.map((order) => {
+                  const buyerName = `${order.buyer.firstName || ''} ${order.buyer.lastName || ''}`.trim();
+                  return (
+                    <tr key={order.id} className="border-t border-gray-100">
+                      <td className="px-6 py-3"><p className="font-bold text-gray-800">{buyerName || order.buyer.email || '—'}</p><p className="text-xs text-gray-500">{order.buyer.email || ''}</p></td>
+                      <td className="px-6 py-3 font-semibold text-gray-700">{order.event.title}</td>
+                      <td className="px-6 py-3 text-right text-gray-700">{order.ticketCount}</td>
+                      <td className="px-6 py-3 text-right font-black text-[#0A375A]">${order.total.toFixed(2)}</td>
+                      <td className="px-6 py-3 text-right font-bold text-amber-700">-${order.organizerProcessingAdjustment.toFixed(2)}</td>
+                      <td className="px-6 py-3"><span className={`rounded-full px-2.5 py-1 text-[11px] font-black uppercase ${order.stripeFeeReconciliationStatus === 'reconciled' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{order.stripeFeeReconciliationStatus === 'reconciled' ? (lang === 'es' ? 'Conciliado' : 'Reconciled') : (lang === 'es' ? 'Esperando Stripe' : 'Waiting for Stripe')}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -63,6 +63,9 @@ PostgreSQL + servicios externos
 - La emisión de entradas exige `payment_status=paid` o un `PaymentIntent` exitoso. Los eventos asíncronos y la recuperación periódica reutilizan la finalización idempotente.
 - La orden conserva el método real, el costo de Stripe, la base estándar 2.9% + $0.30 y el ajuste adicional del organizador. Solo una diferencia positiva de Klarna reduce su saldo interno.
 - La conciliación del costo es independiente de la entrega: si el balance de Stripe tarda, la venta y los tickets continúan, pero no se permite registrar el pago externo al organizador hasta conocer el monto exacto.
+- El saldo administrativo del organizador se deriva siempre de órdenes pagadas y pagos auditados: `subtotal de entradas - ajuste adicional Klarna conciliado - pagos al organizador registrados`.
+- Dashboard, resumen financiero por evento y Analíticas leen el método real guardado en la orden; no infieren Klarna por el texto, el correo o el valor de la compra. Analíticas limita sus métricas al periodo seleccionado, mientras el saldo pendiente del dashboard representa el acumulado vigente.
+- Una orden cuyo método es Klarna y cuya conciliación no sea `reconciled` se muestra como pendiente y bloquea únicamente el registro del pago al organizador. No bloquea Checkout, confirmación de Stripe, recibos ni tickets.
 - `KLARNA_WEB_ENABLED=false` funciona como reversión operativa a tarjeta. Klarna también debe estar habilitado en el Dashboard de la cuenta Stripe activa.
 
 ### Cambios que Requieren Especial Cuidado

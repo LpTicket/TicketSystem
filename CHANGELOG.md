@@ -1,5 +1,16 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-26 - Klarna en dashboard, analítica y saldo del organizador
+
+- El dashboard administrativo muestra cuántas compras pagadas usaron Klarna, el total cobrado, el ajuste adicional real atribuido al organizador y el saldo exacto pendiente después de pagos ya registrados.
+- La sección de Analíticas incorpora el mismo desglose para el periodo seleccionado y una lista reciente de compradores, eventos, entradas, totales y estado de conciliación.
+- El resumen financiero por evento incluye compras Klarna, ajuste del organizador, monto ya pagado y monto pendiente.
+- El saldo del organizador conserva una sola fórmula: venta nominal de entradas menos la diferencia positiva entre el costo real de Klarna y la base estándar de 2.9% + $0.30, menos pagos ya registrados.
+- Una compra Klarna sin costo conciliado por Stripe bloquea el registro del pago al organizador, aunque la venta y la emisión de entradas continúan normalmente.
+- No se modificaron Checkout, cuotas ofrecidas por Klarna, tarifas visibles al comprador, ventas históricas, móvil, Tap to Pay ni Venta en Puerta.
+
+Estado: `IMPLEMENTADO, NO PROBADO EN PRODUCCIÓN`.
+
 ## 2026-08-26 - Selección visible de Klarna en el checkout web
 
 - El resumen final de compra muestra una acción separada `Pagar en cuotas con Klarna` debajo del pago normal con tarjeta.

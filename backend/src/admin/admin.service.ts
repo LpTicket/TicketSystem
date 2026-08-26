@@ -75,6 +75,8 @@ export class AdminService {
       totalOrders,
       paidOrders,
       revenueResult,
+      organizerPayoutResult,
+      recentKlarnaOrders,
       totalTickets,
       clients,
       admins,
@@ -89,8 +91,39 @@ export class AdminService {
         .createQueryBuilder('order')
         .select('COALESCE(SUM(order.total), 0)', 'totalRevenue')
         .addSelect('COALESCE(SUM(order.subtotal), 0)', 'ticketSales')
+        .addSelect('COALESCE(SUM(order."organizerProcessingAdjustment"), 0)', 'organizerProcessingAdjustments')
+        .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' THEN 1 END)`, 'klarnaOrders')
+        .addSelect(`COALESCE(SUM(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' THEN order.total ELSE 0 END), 0)`, 'klarnaTotalCharged')
+        .addSelect(`COALESCE(SUM(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' THEN order.subtotal ELSE 0 END), 0)`, 'klarnaTicketSales')
+        .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' AND COALESCE(order."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`, 'pendingFeeReconciliations')
         .where('order.status = :status', { status: 'paid' })
         .getRawOne(),
+      this.organizerPayoutRepo
+        .createQueryBuilder('payout')
+        .select('COALESCE(SUM(payout.amount), 0)', 'organizerPaid')
+        .getRawOne(),
+      this.orderRepo
+        .createQueryBuilder('order')
+        .leftJoin('order.user', 'buyer')
+        .leftJoin('order.event', 'event')
+        .select('order.id', 'id')
+        .addSelect('order."paidAt"', 'paidAt')
+        .addSelect('order.total', 'total')
+        .addSelect('order.subtotal', 'subtotal')
+        .addSelect('order."ticketCount"', 'ticketCount')
+        .addSelect('order."organizerProcessingAdjustment"', 'organizerProcessingAdjustment')
+        .addSelect('order."stripeFeeReconciliationStatus"', 'stripeFeeReconciliationStatus')
+        .addSelect('buyer."firstName"', 'buyerFirstName')
+        .addSelect('buyer."lastName"', 'buyerLastName')
+        .addSelect('buyer.email', 'buyerEmail')
+        .addSelect('event.id', 'eventId')
+        .addSelect('event.title', 'eventTitle')
+        .where('order.status = :status', { status: 'paid' })
+        .andWhere(`LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna'`)
+        .orderBy('order."paidAt"', 'DESC', 'NULLS LAST')
+        .addOrderBy('order."createdAt"', 'DESC')
+        .limit(10)
+        .getRawMany(),
       this.ticketRepo.count(),
       this.userRepo.count({ where: { role: UserRole.CLIENT } }),
       this.userRepo.count({ where: { role: UserRole.ADMIN } }),
@@ -99,6 +132,12 @@ export class AdminService {
     // Financial breakdown for the admin.
     const totalRevenue = Number(revenueResult?.totalRevenue || 0); // total charged to buyers
     const ticketSales = Number(revenueResult?.ticketSales || 0);   // goes to organizers
+    const organizerProcessingAdjustments = Number(revenueResult?.organizerProcessingAdjustments || 0);
+    const organizerPaid = Number(organizerPayoutResult?.organizerPaid || 0);
+    const organizerPending = Math.max(
+      0,
+      +(ticketSales - organizerProcessingAdjustments - organizerPaid).toFixed(2),
+    );
     const serviceFees = Math.max(0, +(totalRevenue - ticketSales).toFixed(2)); // LPTicket markup collected
     // Stripe standard pricing (US cards): 2.9% + $0.30 per successful charge.
     const STRIPE_PERCENT = 0.029;
@@ -124,6 +163,31 @@ export class AdminService {
       stripePercent: STRIPE_PERCENT,
       stripeFixed: STRIPE_FIXED,
       lpticketProfit,
+      organizerProcessingAdjustments,
+      organizerPaid,
+      organizerPending,
+      klarnaOrders: Number(revenueResult?.klarnaOrders || 0),
+      klarnaTotalCharged: Number(revenueResult?.klarnaTotalCharged || 0),
+      klarnaTicketSales: Number(revenueResult?.klarnaTicketSales || 0),
+      pendingFeeReconciliations: Number(revenueResult?.pendingFeeReconciliations || 0),
+      recentKlarnaOrders: recentKlarnaOrders.map((order) => ({
+        id: order.id,
+        paidAt: order.paidAt,
+        total: Number(order.total || 0),
+        subtotal: Number(order.subtotal || 0),
+        ticketCount: Number(order.ticketCount || 0),
+        organizerProcessingAdjustment: Number(order.organizerProcessingAdjustment || 0),
+        stripeFeeReconciliationStatus: order.stripeFeeReconciliationStatus || 'not_required',
+        buyer: {
+          firstName: order.buyerFirstName || null,
+          lastName: order.buyerLastName || null,
+          email: order.buyerEmail || null,
+        },
+        event: {
+          id: order.eventId,
+          title: order.eventTitle,
+        },
+      })),
       totalTickets,
     };
     await this.cache.set('admin:stats', result, 60_000);
@@ -148,11 +212,23 @@ export class AdminService {
       .addSelect('COALESCE(SUM(o.subtotal), 0)', 'ticketSales')
       .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'ticketsSold')
       .addSelect('COUNT(o.id)', 'orders')
+      .addSelect('COALESCE(SUM(o."organizerProcessingAdjustment"), 0)', 'organizerProcessingAdjustments')
+      .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(o."paymentMethodType", '')) = 'klarna' THEN 1 END)`, 'klarnaOrders')
+      .addSelect(`COALESCE(SUM(CASE WHEN LOWER(COALESCE(o."paymentMethodType", '')) = 'klarna' THEN o.total ELSE 0 END), 0)`, 'klarnaTotalCharged')
+      .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(o."paymentMethodType", '')) = 'klarna' AND COALESCE(o."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`, 'pendingFeeReconciliations')
       .where('o.status = :status', { status: 'paid' })
       .groupBy('o."eventId"')
       .getRawMany();
 
+    const payoutRows = await this.organizerPayoutRepo
+      .createQueryBuilder('payout')
+      .select('payout."eventId"', 'eventId')
+      .addSelect('COALESCE(SUM(payout.amount), 0)', 'organizerPaid')
+      .groupBy('payout."eventId"')
+      .getRawMany();
+
     const byId = new Map(rows.map((r) => [r.eventId, r]));
+    const payoutsByEventId = new Map(payoutRows.map((row) => [row.eventId, Number(row.organizerPaid || 0)]));
 
     const events = await this.eventRepo.find({
       select: ['id', 'title', 'slug', 'status', 'eventDate', 'eventTimezone'],
@@ -165,6 +241,12 @@ export class AdminService {
       const ticketSales = Number(r?.ticketSales || 0);
       const orders = Number(r?.orders || 0);
       const ticketsSold = Number(r?.ticketsSold || 0);
+      const organizerProcessingAdjustments = Number(r?.organizerProcessingAdjustments || 0);
+      const organizerPaid = payoutsByEventId.get(ev.id) || 0;
+      const organizerPending = Math.max(
+        0,
+        +(ticketSales - organizerProcessingAdjustments - organizerPaid).toFixed(2),
+      );
       const serviceFees = Math.max(0, +(totalCharged - ticketSales).toFixed(2));
       const stripeFees = totalCharged > 0
         ? +(totalCharged * STRIPE_PERCENT + orders * STRIPE_FIXED).toFixed(2)
@@ -182,6 +264,12 @@ export class AdminService {
         serviceFees,
         stripeFees,
         lpticketProfit,
+        organizerProcessingAdjustments,
+        organizerPaid,
+        organizerPending,
+        klarnaOrders: Number(r?.klarnaOrders || 0),
+        klarnaTotalCharged: Number(r?.klarnaTotalCharged || 0),
+        pendingFeeReconciliations: Number(r?.pendingFeeReconciliations || 0),
         ticketsSold,
         orders,
       };
@@ -248,7 +336,8 @@ export class AdminService {
       0,
     );
     const pendingFeeReconciliations = orders.filter(
-      (order) => order.stripeFeeReconciliationStatus === 'pending',
+      (order) => order.paymentMethodType?.toLowerCase() === 'klarna'
+        && order.stripeFeeReconciliationStatus !== 'reconciled',
     ).length;
     const scannedTickets = activeIssuedTickets.filter((ticket) => ticket.status === 'used').length;
     const pendingTickets = activeIssuedTickets.filter((ticket) => ticket.status === 'active').length;
@@ -368,7 +457,7 @@ export class AdminService {
         .createQueryBuilder('order')
         .select('COALESCE(SUM(order."organizerProcessingAdjustment"), 0)', 'organizerAdjustments')
         .addSelect(
-          `COUNT(CASE WHEN order."stripeFeeReconciliationStatus" = 'pending' THEN 1 END)`,
+          `COUNT(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' AND COALESCE(order."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`,
           'pendingReconciliations',
         )
         .where('order.eventId = :eventId', { eventId })

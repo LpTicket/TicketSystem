@@ -13,6 +13,28 @@ type AnalyticsSummary = {
   topEvents: { eventSlug: string; eventTitle?: string | null; views: number; visitors: number }[];
   topPages: { path: string; views: number; visitors: number }[];
   daily: { date: string; views: number; visitors: number }[];
+  financial: {
+    paidOrders: number;
+    totalCharged: number;
+    ticketSales: number;
+    klarnaOrders: number;
+    klarnaTotalCharged: number;
+    klarnaTicketSales: number;
+    organizerProcessingAdjustments: number;
+    organizerNetTicketSales: number;
+    pendingFeeReconciliations: number;
+  };
+  recentKlarnaOrders: {
+    id: string;
+    paidAt: string | null;
+    total: number;
+    subtotal: number;
+    ticketCount: number;
+    organizerProcessingAdjustment: number;
+    stripeFeeReconciliationStatus: string;
+    buyer: { firstName: string | null; lastName: string | null; email: string | null };
+    event: { id: string; title: string; slug: string };
+  }[];
   recentViews: {
     id: string;
     path: string;
@@ -38,7 +60,22 @@ export default function AdminAnalyticsPage() {
     setLoading(true);
     try {
       const { data } = await api.get('/analytics/summary', { params: { days } });
-      setSummary(data);
+      const financial = data?.financial || {};
+      setSummary({
+        ...data,
+        financial: {
+          paidOrders: Number(financial.paidOrders || 0),
+          totalCharged: Number(financial.totalCharged || 0),
+          ticketSales: Number(financial.ticketSales || 0),
+          klarnaOrders: Number(financial.klarnaOrders || 0),
+          klarnaTotalCharged: Number(financial.klarnaTotalCharged || 0),
+          klarnaTicketSales: Number(financial.klarnaTicketSales || 0),
+          organizerProcessingAdjustments: Number(financial.organizerProcessingAdjustments || 0),
+          organizerNetTicketSales: Number(financial.organizerNetTicketSales || 0),
+          pendingFeeReconciliations: Number(financial.pendingFeeReconciliations || 0),
+        },
+        recentKlarnaOrders: data?.recentKlarnaOrders || [],
+      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -126,6 +163,30 @@ export default function AdminAnalyticsPage() {
               </div>
             ))}
           </div>
+
+          <section className="premium-section-card overflow-hidden bg-white/95 shadow-sm">
+            <div className="border-b border-gray-100 px-5 py-4">
+              <h2 className="font-black text-gray-950">{lang === 'es' ? 'Resumen de pagos y Klarna' : 'Payments and Klarna summary'}</h2>
+              <p className="mt-1 text-xs font-semibold text-gray-500">{lang === 'es' ? `Compras pagadas durante los últimos ${summary.days} día(s).` : `Paid purchases during the last ${summary.days} day(s).`}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4"><p className="text-[11px] font-black uppercase tracking-wider text-blue-700">{lang === 'es' ? 'Órdenes pagadas' : 'Paid orders'}</p><p className="mt-1 text-2xl font-black text-blue-700">{summary.financial.paidOrders}</p><p className="mt-1 text-xs font-medium text-gray-500">${summary.financial.totalCharged.toFixed(2)} {lang === 'es' ? 'cobrados' : 'charged'}</p></div>
+              <div className="rounded-xl border border-pink-200 bg-pink-50 p-4"><p className="text-[11px] font-black uppercase tracking-wider text-pink-700">Klarna</p><p className="mt-1 text-2xl font-black text-pink-700">{summary.financial.klarnaOrders}</p><p className="mt-1 text-xs font-medium text-gray-500">${summary.financial.klarnaTotalCharged.toFixed(2)} {lang === 'es' ? 'cobrados con Klarna' : 'charged with Klarna'}</p></div>
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-[11px] font-black uppercase tracking-wider text-amber-700">{lang === 'es' ? 'Ajuste al organizador' : 'Organizer adjustment'}</p><p className="mt-1 text-2xl font-black text-amber-700">-${summary.financial.organizerProcessingAdjustments.toFixed(2)}</p><p className="mt-1 text-xs font-medium text-gray-500">{lang === 'es' ? 'Costo adicional real de Klarna' : 'Actual additional Klarna cost'}</p></div>
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4"><p className="text-[11px] font-black uppercase tracking-wider text-red-700">{lang === 'es' ? 'Neto generado al organizador' : 'Organizer net accrued'}</p><p className="mt-1 text-2xl font-black text-red-700">${summary.financial.organizerNetTicketSales.toFixed(2)}</p><p className="mt-1 text-xs font-medium text-gray-500">{lang === 'es' ? 'Entradas menos ajuste Klarna del periodo' : 'Tickets minus period Klarna adjustment'}</p></div>
+              <div className={`rounded-xl border p-4 ${summary.financial.pendingFeeReconciliations ? 'border-amber-200 bg-amber-50' : 'border-green-200 bg-green-50'}`}><p className={`text-[11px] font-black uppercase tracking-wider ${summary.financial.pendingFeeReconciliations ? 'text-amber-700' : 'text-green-700'}`}>{lang === 'es' ? 'Conciliación' : 'Reconciliation'}</p><p className={`mt-1 text-2xl font-black ${summary.financial.pendingFeeReconciliations ? 'text-amber-700' : 'text-green-700'}`}>{summary.financial.pendingFeeReconciliations}</p><p className="mt-1 text-xs font-medium text-gray-500">{lang === 'es' ? 'órdenes esperando costo real' : 'orders awaiting actual cost'}</p></div>
+            </div>
+            {summary.recentKlarnaOrders.length > 0 && (
+              <div className="border-t border-gray-100">
+                <div className="max-h-[420px] overflow-auto">
+                  <table className="min-w-[820px] w-full text-left text-sm">
+                    <thead className="sticky top-0 bg-gray-50 text-xs font-black uppercase tracking-wide text-gray-500"><tr><th className="px-5 py-3">{lang === 'es' ? 'Comprador' : 'Buyer'}</th><th className="px-5 py-3">{lang === 'es' ? 'Evento' : 'Event'}</th><th className="px-5 py-3 text-right">{lang === 'es' ? 'Entradas' : 'Tickets'}</th><th className="px-5 py-3 text-right">Total</th><th className="px-5 py-3 text-right">{lang === 'es' ? 'Ajuste' : 'Adjustment'}</th><th className="px-5 py-3">{lang === 'es' ? 'Conciliación' : 'Reconciliation'}</th></tr></thead>
+                    <tbody>{summary.recentKlarnaOrders.map((order) => { const buyerName = `${order.buyer.firstName || ''} ${order.buyer.lastName || ''}`.trim(); return <tr key={order.id} className="border-t border-gray-100"><td className="px-5 py-3"><p className="font-bold text-gray-800">{buyerName || order.buyer.email || '—'}</p><p className="text-xs text-gray-500">{order.buyer.email || ''}</p></td><td className="px-5 py-3"><Link href={`/admin/events/${order.event.id}`} className="font-bold text-[#0A375A] hover:text-[#F97316]">{order.event.title}</Link></td><td className="px-5 py-3 text-right">{order.ticketCount}</td><td className="px-5 py-3 text-right font-black text-[#0A375A]">${order.total.toFixed(2)}</td><td className="px-5 py-3 text-right font-bold text-amber-700">-${order.organizerProcessingAdjustment.toFixed(2)}</td><td className="px-5 py-3 text-xs font-black uppercase text-gray-600">{order.stripeFeeReconciliationStatus === 'reconciled' ? (lang === 'es' ? 'Conciliado' : 'Reconciled') : (lang === 'es' ? 'Esperando Stripe' : 'Waiting for Stripe')}</td></tr>; })}</tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </section>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
             <section className="premium-section-card p-5 bg-white/95 shadow-sm">

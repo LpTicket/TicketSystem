@@ -10,7 +10,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Repository } from 'typeorm';
 import { AnalyticsPageView } from './analytics-page-view.entity';
-import { Event } from '../database/entities/event.entity';
+import { Event, Order } from '../database/entities';
 
 type TrackViewDto = {
   visitorId?: string;
@@ -28,6 +28,8 @@ export class AnalyticsService {
     private readonly pageViewRepo: Repository<AnalyticsPageView>,
     @InjectRepository(Event)
     private readonly eventRepo: Repository<Event>,
+    @InjectRepository(Order)
+    private readonly orderRepo: Repository<Order>,
   ) {}
 
   private cleanText(value: unknown, max: number) {
@@ -117,7 +119,47 @@ export class AnalyticsService {
       .where('view."createdAt" >= :since', { since });
     if (cleanEventSlug) dailyQuery.andWhere('view."eventSlug" = :eventSlug', { eventSlug: cleanEventSlug });
 
-    const [totalViews, uniqueVisitors, topEvents, topPages, recentViews, dailyRows] = await Promise.all([
+    const financialQuery = this.orderRepo
+      .createQueryBuilder('order')
+      .leftJoin('order.event', 'event')
+      .select('COUNT(order.id)', 'paidOrders')
+      .addSelect('COALESCE(SUM(order.total), 0)', 'totalCharged')
+      .addSelect('COALESCE(SUM(order.subtotal), 0)', 'ticketSales')
+      .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' THEN 1 END)`, 'klarnaOrders')
+      .addSelect(`COALESCE(SUM(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' THEN order.total ELSE 0 END), 0)`, 'klarnaTotalCharged')
+      .addSelect(`COALESCE(SUM(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' THEN order.subtotal ELSE 0 END), 0)`, 'klarnaTicketSales')
+      .addSelect('COALESCE(SUM(order."organizerProcessingAdjustment"), 0)', 'organizerProcessingAdjustments')
+      .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna' AND COALESCE(order."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`, 'pendingFeeReconciliations')
+      .where('order.status = :paidStatus', { paidStatus: 'paid' })
+      .andWhere('COALESCE(order."paidAt", order."createdAt") >= :since', { since });
+    if (cleanEventSlug) financialQuery.andWhere('event.slug = :eventSlug', { eventSlug: cleanEventSlug });
+
+    const recentKlarnaQuery = this.orderRepo
+      .createQueryBuilder('order')
+      .leftJoin('order.user', 'buyer')
+      .leftJoin('order.event', 'event')
+      .select('order.id', 'id')
+      .addSelect('order."paidAt"', 'paidAt')
+      .addSelect('order.total', 'total')
+      .addSelect('order.subtotal', 'subtotal')
+      .addSelect('order."ticketCount"', 'ticketCount')
+      .addSelect('order."organizerProcessingAdjustment"', 'organizerProcessingAdjustment')
+      .addSelect('order."stripeFeeReconciliationStatus"', 'stripeFeeReconciliationStatus')
+      .addSelect('buyer."firstName"', 'buyerFirstName')
+      .addSelect('buyer."lastName"', 'buyerLastName')
+      .addSelect('buyer.email', 'buyerEmail')
+      .addSelect('event.id', 'eventId')
+      .addSelect('event.title', 'eventTitle')
+      .addSelect('event.slug', 'eventSlug')
+      .where('order.status = :paidStatus', { paidStatus: 'paid' })
+      .andWhere(`LOWER(COALESCE(order."paymentMethodType", '')) = 'klarna'`)
+      .andWhere('COALESCE(order."paidAt", order."createdAt") >= :since', { since })
+      .orderBy('order."paidAt"', 'DESC', 'NULLS LAST')
+      .addOrderBy('order."createdAt"', 'DESC')
+      .limit(20);
+    if (cleanEventSlug) recentKlarnaQuery.andWhere('event.slug = :eventSlug', { eventSlug: cleanEventSlug });
+
+    const [totalViews, uniqueVisitors, topEvents, topPages, recentViews, dailyRows, financial, recentKlarnaOrders] = await Promise.all([
       this.pageViewRepo.count({ where: baseWhere }),
       uniqueVisitorsQuery.getRawOne(),
       topEventsQuery
@@ -139,6 +181,8 @@ export class AnalyticsService {
         .groupBy(`TO_CHAR(view."createdAt", 'YYYY-MM-DD')`)
         .orderBy('date', 'ASC')
         .getRawMany(),
+      financialQuery.getRawOne(),
+      recentKlarnaQuery.getRawMany(),
     ]);
 
     const eventSlugs = topEvents.map((item) => item.eventSlug).filter(Boolean);
@@ -169,6 +213,39 @@ export class AnalyticsService {
         date: item.date,
         views: Number(item.views || 0),
         visitors: Number(item.visitors || 0),
+      })),
+      financial: {
+        paidOrders: Number(financial?.paidOrders || 0),
+        totalCharged: Number(financial?.totalCharged || 0),
+        ticketSales: Number(financial?.ticketSales || 0),
+        klarnaOrders: Number(financial?.klarnaOrders || 0),
+        klarnaTotalCharged: Number(financial?.klarnaTotalCharged || 0),
+        klarnaTicketSales: Number(financial?.klarnaTicketSales || 0),
+        organizerProcessingAdjustments: Number(financial?.organizerProcessingAdjustments || 0),
+        organizerNetTicketSales: Math.max(
+          0,
+          Number(financial?.ticketSales || 0) - Number(financial?.organizerProcessingAdjustments || 0),
+        ),
+        pendingFeeReconciliations: Number(financial?.pendingFeeReconciliations || 0),
+      },
+      recentKlarnaOrders: recentKlarnaOrders.map((order) => ({
+        id: order.id,
+        paidAt: order.paidAt,
+        total: Number(order.total || 0),
+        subtotal: Number(order.subtotal || 0),
+        ticketCount: Number(order.ticketCount || 0),
+        organizerProcessingAdjustment: Number(order.organizerProcessingAdjustment || 0),
+        stripeFeeReconciliationStatus: order.stripeFeeReconciliationStatus || 'not_required',
+        buyer: {
+          firstName: order.buyerFirstName || null,
+          lastName: order.buyerLastName || null,
+          email: order.buyerEmail || null,
+        },
+        event: {
+          id: order.eventId,
+          title: order.eventTitle,
+          slug: order.eventSlug,
+        },
       })),
       recentViews,
     };

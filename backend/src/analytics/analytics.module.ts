@@ -3,10 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AnalyticsController } from './analytics.controller';
 import { AnalyticsPageView } from './analytics-page-view.entity';
 import { AnalyticsService } from './analytics.service';
-import { Event } from '../database/entities/event.entity';
+import { Event, Order } from '../database/entities';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AnalyticsPageView, Event])],
+  imports: [TypeOrmModule.forFeature([AnalyticsPageView, Event, Order])],
   controllers: [AnalyticsController],
   providers: [AnalyticsService],
 })
