@@ -54,6 +54,15 @@ PostgreSQL + servicios externos
 - Los tickets creados para ese canal nacen con estado `used`, porque el comprador ya está físicamente en la puerta y debe contabilizarse como admitido.
 - Los tickets de Checkout, QR, enlace y compra online nacen con estado `active` y requieren validación posterior mediante el escáner.
 
+### Revocación de entradas y asientos
+
+- La revocación se solicita desde el detalle del asistente y se autoriza nuevamente en backend para el organizador propietario o un administrador.
+- El backend bloquea evento, tickets, sillas y secciones con escritura pesimista y, dentro de una sola transacción, cambia cada ticket a `revoked`, actualiza el inventario y sincroniza el estado persistido del mapa.
+- La acción `release` devuelve la silla a `available`; la acción `block` la conserva en `locked` sin vencimiento para que pueda utilizarse posteriormente en `Bloqueos e Invitaciones`.
+- `ticket_revocations` conserva una auditoría independiente con actor, fecha, motivo, tickets, códigos, sillas y acción. La orden y sus importes no se modifican.
+- La validación de un QR `revoked` siempre responde `valid: false`. El cliente móvil ya transforma esa respuesta en `DENEGADO`, por lo que no requiere cambios nativos ni una nueva compilación.
+- Los reintentos sobre tickets ya revocados son idempotentes y no crean otra auditoría; el reenvío de correos excluye cualquier ticket revocado.
+
 ### Klarna en Checkout web
 
 - Klarna se limita al Checkout público web y comparte la misma orden, inventario y confirmación de Stripe que la tarjeta. Móvil, Tap to Pay y Venta en Puerta no solicitan Klarna.

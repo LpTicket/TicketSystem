@@ -1,5 +1,17 @@
 # LPTicket - Historial de Cambios
 
+## 2026-08-26 - Revocación irreversible de entradas por el organizador
+
+- El detalle de un asistente permite seleccionar una, varias o todas sus entradas y exige motivo y confirmación antes de revocarlas.
+- El organizador puede revocar liberando inmediatamente las sillas o conservarlas bloqueadas para emitir nuevas invitaciones desde `Bloqueos e Invitaciones`.
+- Ticket, silla, mapa visual y auditoría se actualizan en una sola transacción con bloqueos de escritura; una solicitud repetida no duplica la revocación.
+- Cada auditoría conserva actor, fecha, motivo, entradas, códigos QR, sillas y acción elegida.
+- Los QR revocados responden inválidos al endpoint existente, por lo que el escáner móvil continúa mostrando `DENEGADO` sin modificar la aplicación móvil.
+- Los tickets revocados se muestran como `REVOCADO` y quedan excluidos del reenvío. Órdenes, ventas, pagos, reembolsos, comisiones y reportes financieros permanecen intactos.
+- Validación local: 19 pruebas de `OrdersService`, build NestJS y build Next.js aprobados.
+
+Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; pendiente prueba manual y publicación autorizada.
+
 ## 2026-08-26 - Jerarquía cromática financiera en administración
 
 - El dashboard administrativo elimina las superficies blancas del desglose financiero y usa fondos oscuros translúcidos con texto del mismo tono.

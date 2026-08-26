@@ -690,6 +690,11 @@ export default function EventDetailPage() {
   const [resendCode, setResendCode] = useState<string | null>(null);
   const [resendEmail, setResendEmail] = useState('');
   const [resendBusy, setResendBusy] = useState(false);
+  const [revocationTickets, setRevocationTickets] = useState<Attendee[]>([]);
+  const [revocationTicketIds, setRevocationTicketIds] = useState<string[]>([]);
+  const [revocationReason, setRevocationReason] = useState('');
+  const [revocationSeatAction, setRevocationSeatAction] = useState<'release' | 'block'>('release');
+  const [revocationBusy, setRevocationBusy] = useState(false);
 
   useEffect(() => {
     const attendeeEmail = searchParams.get('attendee');
@@ -1049,6 +1054,56 @@ export default function EventDetailPage() {
       );
     } finally {
       setResendBusy(false);
+    }
+  };
+
+  const openRevocation = (tickets: Attendee[]) => {
+    const eligible = tickets.filter((ticket) => ticket.status !== 'revoked' && ticket.status !== 'cancelled');
+    if (eligible.length === 0) {
+      toast.error(lang === 'es' ? 'Todas las entradas ya están revocadas o canceladas.' : 'All tickets are already revoked or cancelled.');
+      return;
+    }
+    setRevocationTickets(eligible);
+    setRevocationTicketIds(eligible.map((ticket) => ticket.id));
+    setRevocationReason('');
+    setRevocationSeatAction('release');
+  };
+
+  const closeRevocation = () => {
+    setRevocationTickets([]);
+    setRevocationTicketIds([]);
+    setRevocationReason('');
+  };
+
+  const submitRevocation = async () => {
+    if (revocationTicketIds.length === 0 || revocationReason.trim().length < 3) return;
+    const confirmed = await confirmDialog({
+      title: lang === 'es' ? 'Confirmar revocación permanente' : 'Confirm permanent revocation',
+      message: lang === 'es'
+        ? `Se invalidarán permanentemente ${revocationTicketIds.length} entrada(s). Esta acción no se puede deshacer y no modifica la venta ni el pago.`
+        : `${revocationTicketIds.length} ticket(s) will be permanently invalidated. This cannot be undone and does not change the sale or payment.`,
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    setRevocationBusy(true);
+    try {
+      const { data } = await api.post(`/orders/event/${id}/tickets/revoke`, {
+        ticketIds: revocationTicketIds,
+        seatAction: revocationSeatAction,
+        reason: revocationReason.trim(),
+      });
+      toast.success(
+        data.alreadyRevoked
+          ? (lang === 'es' ? 'Las entradas ya estaban revocadas.' : 'The tickets were already revoked.')
+          : (lang === 'es' ? `${data.revoked} entrada(s) revocada(s).` : `${data.revoked} ticket(s) revoked.`),
+      );
+      closeRevocation();
+      await loadEvent();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || (lang === 'es' ? 'No se pudo completar la revocación.' : 'Could not complete revocation.'));
+    } finally {
+      setRevocationBusy(false);
     }
   };
 
@@ -1888,6 +1943,7 @@ export default function EventDetailPage() {
                     {groupedEntries.map((group) => {
                       const usedCount = group.tickets.filter(t => t.status === 'used').length;
                       const activeCount = group.tickets.filter(t => t.status === 'active').length;
+                      const revokedCount = group.tickets.filter(t => t.status === 'revoked').length;
                       const tableLabels = [...new Set(group.tickets.map((ticket) => {
                         const location = formatSeatLabel(
                           {
@@ -1942,6 +1998,11 @@ export default function EventDetailPage() {
                               {usedCount > 0 && (
                                 <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500 text-[10px] font-bold">
                                   {usedCount} {lang === 'es' ? 'esc' : 'used'}
+                                </span>
+                              )}
+                              {revokedCount > 0 && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-red-100 text-red-700 text-[10px] font-bold">
+                                  {revokedCount} {lang === 'es' ? 'rev' : 'rev'}
                                 </span>
                               )}
                             </div>
@@ -2031,7 +2092,13 @@ export default function EventDetailPage() {
                                         ticket.status === 'active' ? 'bg-green-100 text-green-700' :
                                         ticket.status === 'used' ? 'bg-gray-100 text-gray-500' : 'bg-red-100 text-red-700'
                                       }`}>
-                                        {ticket.status === 'active' ? (lang === 'es' ? 'Activo' : 'Active') : ticket.status === 'used' ? (lang === 'es' ? 'Escaneado' : 'Scanned') : ticket.status}
+                                        {ticket.status === 'active'
+                                          ? (lang === 'es' ? 'Activo' : 'Active')
+                                          : ticket.status === 'used'
+                                            ? (lang === 'es' ? 'Escaneado' : 'Scanned')
+                                            : ticket.status === 'revoked'
+                                              ? (lang === 'es' ? 'REVOCADO' : 'REVOKED')
+                                              : ticket.status}
                                       </span>
                                       <HiOutlineChevronRight className="w-4 h-4 text-gray-300" />
                                     </div>
@@ -2043,15 +2110,27 @@ export default function EventDetailPage() {
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-3">
-                          <button
-                            onClick={() => openResend(selectedGroup.tickets[0]?.ticketCode, selectedGroup.email)}
-                            className="btn-primary !rounded-xl !px-5 !py-2.5 text-xs font-black inline-flex items-center gap-1.5 cursor-pointer"
-                            title={lang === 'es' ? 'Reenviar la entrada (puedes corregir el correo)' : 'Resend the ticket (you can fix the email)'}
-                          >
-                            <HiOutlineMail className="w-4 h-4" />
-                            {lang === 'es' ? 'Reenviar entrada' : 'Resend ticket'}
-                          </button>
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {selectedGroup.tickets.some((ticket) => ticket.status !== 'revoked' && ticket.status !== 'cancelled') && (
+                              <button
+                                onClick={() => openResend(selectedGroup.tickets.find((ticket) => ticket.status !== 'revoked' && ticket.status !== 'cancelled')?.ticketCode, selectedGroup.email)}
+                                className="btn-primary !rounded-xl !px-5 !py-2.5 text-xs font-black inline-flex items-center gap-1.5 cursor-pointer"
+                                title={lang === 'es' ? 'Reenviar entradas vigentes (puedes corregir el correo)' : 'Resend valid tickets (you can fix the email)'}
+                              >
+                                <HiOutlineMail className="w-4 h-4" />
+                                {lang === 'es' ? 'Reenviar entrada' : 'Resend ticket'}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => openRevocation(selectedGroup.tickets)}
+                              disabled={!selectedGroup.tickets.some((ticket) => ticket.status !== 'revoked' && ticket.status !== 'cancelled')}
+                              className="px-5 py-2.5 rounded-xl text-xs font-black inline-flex items-center gap-1.5 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <HiOutlineBan className="w-4 h-4" />
+                              {lang === 'es' ? 'Revocar entradas' : 'Revoke tickets'}
+                            </button>
+                          </div>
                           <button
                             onClick={() => setExpandedAttendee(null)}
                             className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gray-900 text-white hover:bg-gray-800 transition-all shadow-sm cursor-pointer"
@@ -2110,6 +2189,117 @@ export default function EventDetailPage() {
                           >
                             <HiOutlineMail className="w-4 h-4" />
                             {resendBusy ? (lang === 'es' ? 'Enviando...' : 'Sending...') : (lang === 'es' ? 'Enviar' : 'Send')}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  , document.body)}
+
+                  {revocationTickets.length > 0 && createPortal(
+                    <div
+                      className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+                      onClick={() => !revocationBusy && closeRevocation()}
+                    >
+                      <div
+                        className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-[0_24px_70px_rgba(0,0,0,0.35)]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="px-6 pt-6 pb-5 border-b border-gray-100">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-700 flex items-center justify-center mb-4">
+                                <HiOutlineBan className="w-6 h-6" />
+                              </div>
+                              <h2 className="text-lg font-black text-gray-900">{lang === 'es' ? 'Revocar entradas' : 'Revoke tickets'}</h2>
+                              <p className="text-sm text-gray-500 mt-1">
+                                {lang === 'es'
+                                  ? 'Los QR seleccionados quedarán invalidados permanentemente. La venta y los pagos no se modificarán.'
+                                  : 'Selected QR codes will be permanently invalidated. The sale and payments will not change.'}
+                              </p>
+                            </div>
+                            <button onClick={closeRevocation} disabled={revocationBusy} className="p-2 text-gray-400 hover:text-gray-700 disabled:opacity-40">
+                              <HiOutlineX className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="px-6 py-5 space-y-5">
+                          <div>
+                            <div className="flex items-center justify-between gap-3 mb-2">
+                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Entradas' : 'Tickets'}</p>
+                              <button
+                                type="button"
+                                onClick={() => setRevocationTicketIds(
+                                  revocationTicketIds.length === revocationTickets.length ? [] : revocationTickets.map((ticket) => ticket.id),
+                                )}
+                                className="text-xs font-bold text-[#0A375A] hover:text-[#F97316]"
+                              >
+                                {revocationTicketIds.length === revocationTickets.length
+                                  ? (lang === 'es' ? 'Quitar todas' : 'Clear all')
+                                  : (lang === 'es' ? 'Seleccionar todas' : 'Select all')}
+                              </button>
+                            </div>
+                            <div className="border border-gray-200 rounded-2xl divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                              {revocationTickets.map((ticket) => (
+                                <label key={ticket.id} className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50">
+                                  <input
+                                    type="checkbox"
+                                    checked={revocationTicketIds.includes(ticket.id)}
+                                    onChange={() => setRevocationTicketIds((current) => current.includes(ticket.id)
+                                      ? current.filter((ticketId) => ticketId !== ticket.id)
+                                      : [...current, ticket.id])}
+                                    className="h-4 w-4 accent-[#F97316]"
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-bold text-gray-900 truncate">{ticket.sectionName || 'Ticket'}</p>
+                                    <p className="text-[10px] text-gray-500">
+                                      {formatSeatLabel({ rowLabel: ticket.rowLabel, seatNumber: ticket.seatNumber, sectionName: ticket.sectionName }, ticket.sectionName, lang)} · {ticket.ticketCode}
+                                    </p>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{lang === 'es' ? 'Estado de las sillas' : 'Seat outcome'}</p>
+                            <div className="grid gap-3">
+                              <label className={`p-4 rounded-2xl border cursor-pointer transition-colors ${revocationSeatAction === 'release' ? 'border-[#F97316] bg-orange-50' : 'border-gray-200 bg-white'}`}>
+                                <input type="radio" name="seatAction" value="release" checked={revocationSeatAction === 'release'} onChange={() => setRevocationSeatAction('release')} className="sr-only" />
+                                <p className="text-sm font-black text-gray-900">{lang === 'es' ? 'Revocar y liberar sillas' : 'Revoke and release seats'}</p>
+                                <p className="text-xs text-gray-500 mt-1">{lang === 'es' ? 'Las sillas volverán inmediatamente al mapa como disponibles.' : 'Seats immediately return to the map as available.'}</p>
+                              </label>
+                              <label className={`p-4 rounded-2xl border cursor-pointer transition-colors ${revocationSeatAction === 'block' ? 'border-[#F97316] bg-orange-50' : 'border-gray-200 bg-white'}`}>
+                                <input type="radio" name="seatAction" value="block" checked={revocationSeatAction === 'block'} onChange={() => setRevocationSeatAction('block')} className="sr-only" />
+                                <p className="text-sm font-black text-gray-900">{lang === 'es' ? 'Revocar y bloquear sillas' : 'Revoke and block seats'}</p>
+                                <p className="text-xs text-gray-500 mt-1">{lang === 'es' ? 'Las sillas quedarán reservadas para crear nuevas invitaciones desde Bloqueos e Invitaciones.' : 'Seats stay reserved for new invitations from Blocks & Invitations.'}</p>
+                              </label>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{lang === 'es' ? 'Motivo obligatorio' : 'Required reason'}</label>
+                            <textarea
+                              value={revocationReason}
+                              onChange={(e) => setRevocationReason(e.target.value)}
+                              maxLength={500}
+                              rows={3}
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 focus:border-[#F97316] focus:ring-2 focus:ring-orange-100 outline-none resize-none"
+                              placeholder={lang === 'es' ? 'Explica por qué se revocan estas entradas...' : 'Explain why these tickets are being revoked...'}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
+                          <button onClick={closeRevocation} disabled={revocationBusy} className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50">
+                            {lang === 'es' ? 'Cancelar' : 'Cancel'}
+                          </button>
+                          <button
+                            onClick={submitRevocation}
+                            disabled={revocationBusy || revocationTicketIds.length === 0 || revocationReason.trim().length < 3}
+                            className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-red-700 hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {revocationBusy ? (lang === 'es' ? 'Revocando...' : 'Revoking...') : (lang === 'es' ? `Revocar ${revocationTicketIds.length} entrada(s)` : `Revoke ${revocationTicketIds.length} ticket(s)`)}
                           </button>
                         </div>
                       </div>

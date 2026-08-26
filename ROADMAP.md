@@ -14,6 +14,7 @@
 - Compra online con Stripe Checkout.
 - Tickets QR.
 - Escaneo de tickets.
+- Revocación irreversible de una o varias entradas con liberación o bloqueo de sus sillas y auditoría administrativa.
 - Panel de organizador.
 - Panel administrativo.
 - Social Match y chat.

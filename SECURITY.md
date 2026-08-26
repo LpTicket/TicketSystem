@@ -33,6 +33,11 @@ This document tracks security hardening done on LPTicket and known follow-ups.
   BCC recipients so the same operational copy is not duplicated.
 - **Atomic gate validation** — a ticket changes from active to used in one
   conditional database update, preventing simultaneous double admission.
+- **Irreversible ticket revocation** — only the owning organizer or an admin
+  can revoke event tickets. Ticket invalidation, seat release/permanent block,
+  saved-map synchronization and immutable audit creation share one pessimistic
+  database transaction; repeated requests cannot reactivate or duplicate the
+  revocation, and orders or financial records are never rewritten.
 
 ## Known follow-up: tokens in localStorage → httpOnly cookies (deferred)
 

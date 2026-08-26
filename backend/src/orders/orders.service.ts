@@ -7,7 +7,7 @@ import { In, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require('stripe');
-import { Order, OrderStatus, Ticket, TicketStatus, Seat, SeatStatus, Event, EventStatus, VenueSection, SpecialCode, ScannerAccess, ScannerAccessStatus, UserRole, PaymentMethod, PaymentMethodType } from '../database/entities';
+import { Order, OrderStatus, Ticket, TicketStatus, TicketRevocation, TicketRevocationSeatAction, Seat, SeatStatus, Event, EventStatus, VenueSection, SpecialCode, ScannerAccess, ScannerAccessStatus, UserRole, PaymentMethod, PaymentMethodType } from '../database/entities';
 import { User } from '../database/entities/user.entity';
 import { nanoid } from 'nanoid';
 import { createHash, createHmac, timingSafeEqual } from 'crypto';
@@ -15,6 +15,7 @@ import * as QRCode from 'qrcode';
 import { MailService } from '../common/services/mail.service';
 import { isValidEmailFormat, suggestEmailFix } from '../common/utils/email-typo';
 import { MarketingService } from '../marketing/marketing.service';
+import { RevokeTicketsDto } from './dto/revoke-tickets.dto';
 
 /**
  * Service constants for fee calculation.
@@ -1628,6 +1629,9 @@ export class OrdersService {
   ) {
     const ticket = await this.ticketRepo.findOne({ where: { ticketCode: code } });
     if (!ticket) throw new NotFoundException('Entrada no encontrada');
+    if (ticket.status === TicketStatus.REVOKED) {
+      throw new BadRequestException('Una entrada revocada no se puede reenviar.');
+    }
 
     const order = await this.orderRepo.findOne({
       where: { id: ticket.orderId },
@@ -1654,7 +1658,8 @@ export class OrdersService {
       targetEmail = fixed;
     }
 
-    const tickets = await this.ticketRepo.find({ where: { orderId: order.id } });
+    const tickets = (await this.ticketRepo.find({ where: { orderId: order.id } }))
+      .filter((orderTicket) => orderTicket.status !== TicketStatus.REVOKED);
     if (!tickets.length) throw new NotFoundException('No hay entradas en este pedido');
 
     await this.mailService.sendTicketEmail(
@@ -2019,6 +2024,9 @@ export class OrdersService {
     if (ticket.status === TicketStatus.USED) {
       return { valid: false, reason: 'used', message: 'Este ticket ya fue escaneado anteriormente.', ticket };
     }
+    if (ticket.status === TicketStatus.REVOKED) {
+      return { valid: false, reason: 'revoked', message: 'Esta entrada fue revocada y no permite acceso.', ticket };
+    }
     if (ticket.status === TicketStatus.CANCELLED) {
       return { valid: false, reason: 'cancelled', message: 'Este ticket fue cancelado y no permite entrada.', ticket };
     }
@@ -2172,6 +2180,143 @@ export class OrdersService {
       relations: ['user'],
       order: { createdAt: 'ASC' },
     });
+  }
+
+  /**
+   * Permanently revokes organizer-selected tickets while moving their seats to
+   * the requested inventory state in the same database transaction. Orders and
+   * financial records are intentionally untouched.
+   */
+  async revokeEventTickets(
+    eventId: string,
+    dto: RevokeTicketsDto,
+    user: { id: string; role?: string },
+  ) {
+    const requestedIds = [...new Set(dto.ticketIds)];
+
+    const result = await this.orderRepo.manager.transaction(async (manager) => {
+      const eventRepository = manager.getRepository(Event);
+      const ticketRepository = manager.getRepository(Ticket);
+      const seatRepository = manager.getRepository(Seat);
+      const sectionRepository = manager.getRepository(VenueSection);
+      const revocationRepository = manager.getRepository(TicketRevocation);
+
+      const event = await eventRepository
+        .createQueryBuilder('event')
+        .setLock('pessimistic_write')
+        .where('event.id = :eventId', { eventId })
+        .getOne();
+      if (!event) throw new NotFoundException('Evento no encontrado');
+      if (user.role !== UserRole.ADMIN && event.organizerId !== user.id) {
+        throw new ForbiddenException('No tienes permiso para revocar entradas de este evento');
+      }
+
+      const tickets = await ticketRepository
+        .createQueryBuilder('ticket')
+        .setLock('pessimistic_write')
+        .where('ticket.eventId = :eventId', { eventId })
+        .andWhere('ticket.id IN (:...requestedIds)', { requestedIds })
+        .orderBy('ticket.id', 'ASC')
+        .getMany();
+      if (tickets.length !== requestedIds.length) {
+        throw new NotFoundException('Una o más entradas no pertenecen a este evento');
+      }
+      if (tickets.some((ticket) => ticket.status === TicketStatus.CANCELLED)) {
+        throw new BadRequestException('Una entrada cancelada no se puede revocar');
+      }
+
+      const ticketsToRevoke = tickets.filter((ticket) => ticket.status !== TicketStatus.REVOKED);
+      if (ticketsToRevoke.length === 0) {
+        return {
+          alreadyRevoked: true,
+          revoked: 0,
+          affectedUserIds: [] as string[],
+          seats: [] as Seat[],
+          seatAction: dto.seatAction,
+        };
+      }
+
+      const seatIds = [...new Set(ticketsToRevoke.map((ticket) => ticket.seatId).filter(Boolean))] as string[];
+      const seats = seatIds.length > 0
+        ? await seatRepository
+          .createQueryBuilder('seat')
+          .setLock('pessimistic_write')
+          .where('seat.id IN (:...seatIds)', { seatIds })
+          .orderBy('seat.id', 'ASC')
+          .getMany()
+        : [];
+      if (seats.length !== seatIds.length) {
+        throw new NotFoundException('No se encontraron todas las sillas de las entradas seleccionadas');
+      }
+
+      const sectionIds = [...new Set(seats.map((seat) => seat.sectionId))];
+      const sections = sectionIds.length > 0
+        ? await sectionRepository
+          .createQueryBuilder('section')
+          .setLock('pessimistic_write')
+          .where('section.id IN (:...sectionIds)', { sectionIds })
+          .orderBy('section.id', 'ASC')
+          .getMany()
+        : [];
+      if (sections.length !== sectionIds.length) {
+        throw new NotFoundException('No se encontraron todas las secciones de las sillas seleccionadas');
+      }
+      const sectionById = new Map(sections.map((section) => [section.id, section]));
+      for (const seat of seats) seat.section = sectionById.get(seat.sectionId)!;
+
+      for (const ticket of ticketsToRevoke) ticket.status = TicketStatus.REVOKED;
+      for (const seat of seats) {
+        seat.status = dto.seatAction === TicketRevocationSeatAction.BLOCK
+          ? SeatStatus.LOCKED
+          : SeatStatus.AVAILABLE;
+        seat.lockedBy = dto.seatAction === TicketRevocationSeatAction.BLOCK ? user.id : null as any;
+        seat.lockExpiresAt = null;
+      }
+
+      await ticketRepository.save(ticketsToRevoke);
+      if (seats.length > 0) {
+        await seatRepository.save(seats);
+        await this.synchronizePermanentBlockMapState(
+          seats,
+          dto.seatAction === TicketRevocationSeatAction.BLOCK,
+          sectionRepository,
+        );
+      }
+
+      const audit = revocationRepository.create({
+        eventId,
+        revokedByUserId: user.id,
+        seatAction: dto.seatAction,
+        reason: dto.reason.trim(),
+        ticketIds: ticketsToRevoke.map((ticket) => ticket.id),
+        ticketCodes: ticketsToRevoke.map((ticket) => ticket.ticketCode),
+        seatIds,
+      });
+      await revocationRepository.save(audit);
+
+      return {
+        alreadyRevoked: false,
+        revoked: ticketsToRevoke.length,
+        affectedUserIds: [...new Set(ticketsToRevoke.map((ticket) => ticket.userId))],
+        seats,
+        seatAction: dto.seatAction,
+        auditId: audit.id,
+      };
+    });
+
+    await Promise.all([
+      this.invalidateSeatMapCaches(result.seats),
+      ...result.affectedUserIds.map((userId) => this.invalidateUserPurchasesCache(userId)),
+    ]);
+
+    return {
+      success: true,
+      alreadyRevoked: result.alreadyRevoked,
+      revoked: result.revoked,
+      affectedSeats: result.seats.length,
+      seatAction: result.seatAction,
+      auditId: result.auditId,
+    };
   }
 
   /**

@@ -23,6 +23,7 @@ import { WalletService } from '../common/services/wallet.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { UserRole } from '../database/entities';
+import { RevokeTicketsDto } from './dto/revoke-tickets.dto';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require('stripe');
 
@@ -366,6 +367,17 @@ export class OrdersController {
   @Get('event/:eventId/attendees')
   getEventAttendees(@Param('eventId') eventId: string, @Request() req: any) {
     return this.ordersService.getEventAttendees(eventId, req.user);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Post('event/:eventId/tickets/revoke')
+  revokeEventTickets(
+    @Param('eventId') eventId: string,
+    @Body() body: RevokeTicketsDto,
+    @Request() req: any,
+  ) {
+    return this.ordersService.revokeEventTickets(eventId, body, req.user);
   }
 
   @UseGuards(AuthGuard('jwt'))

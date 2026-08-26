@@ -4,6 +4,7 @@ export { VenueSection, SectionType } from './venue-section.entity';
 export { Seat, SeatStatus } from './seat.entity';
 export { Order, OrderStatus } from './order.entity';
 export { Ticket, TicketStatus } from './ticket.entity';
+export { TicketRevocation, TicketRevocationSeatAction } from './ticket-revocation.entity';
 export { EventCategoryEntity } from './event-category.entity';
 export { PaymentMethod, PaymentMethodType } from './payment-method.entity';
 export { VenueTemplate } from './venue-template.entity';

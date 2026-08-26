@@ -1,4 +1,16 @@
-import { Order, OrderStatus, Ticket, TicketStatus } from '../database/entities';
+import {
+  Event,
+  Order,
+  OrderStatus,
+  Seat,
+  SeatStatus,
+  Ticket,
+  TicketRevocation,
+  TicketRevocationSeatAction,
+  TicketStatus,
+  UserRole,
+  VenueSection,
+} from '../database/entities';
 import { OrdersService } from './orders.service';
 
 function buildService(overrides: Record<string, any> = {}) {
@@ -34,6 +46,59 @@ function buildService(overrides: Record<string, any> = {}) {
 }
 
 describe('OrdersService critical ticket safeguards', () => {
+  function buildRevocationTransaction(tickets: any[], seats: any[], sections: any[]) {
+    const eventQuery = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue({ id: 'event-1', organizerId: 'organizer-1' }),
+    };
+    const ticketQuery = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue(tickets),
+    };
+    const seatQuery = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue(seats),
+    };
+    const sectionQuery = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue(sections),
+    };
+    const repositories = {
+      event: { createQueryBuilder: jest.fn(() => eventQuery) },
+      ticket: { createQueryBuilder: jest.fn(() => ticketQuery), save: jest.fn(async (value) => value) },
+      seat: { createQueryBuilder: jest.fn(() => seatQuery), save: jest.fn(async (value) => value) },
+      section: { createQueryBuilder: jest.fn(() => sectionQuery), save: jest.fn(async (value) => value) },
+      revocation: {
+        create: jest.fn((value) => ({ id: 'audit-1', ...value })),
+        save: jest.fn(async (value) => value),
+      },
+    };
+    const manager = {
+      transaction: jest.fn(async (callback: any) => callback({
+        getRepository: (entity: any) => entity === Event
+          ? repositories.event
+          : entity === Ticket
+            ? repositories.ticket
+            : entity === Seat
+              ? repositories.seat
+              : entity === VenueSection
+                ? repositories.section
+                : entity === TicketRevocation
+                  ? repositories.revocation
+                  : {},
+      })),
+    };
+    return { manager, repositories };
+  }
+
   it('uses the official fee formula for web, mobile, Door Sale, and Tap to Pay', () => {
     const { service } = buildService();
 
@@ -98,6 +163,148 @@ describe('OrdersService critical ticket safeguards', () => {
     const result = await service.validateTicket('CODE-1', { id: 'organizer-1', role: 'client' });
 
     expect(result).toMatchObject({ valid: false, reason: 'used' });
+  });
+
+  it('denies a revoked QR without changing it, preserving the current scanner Denegado flow', async () => {
+    const { service, ticketRepo } = buildService();
+    ticketRepo.findOne.mockResolvedValue({
+      id: 'ticket-revoked',
+      eventId: 'event-1',
+      status: TicketStatus.REVOKED,
+      event: { organizerId: 'organizer-1' },
+    });
+
+    const result = await service.validateTicket('REVOKED-CODE', { id: 'organizer-1', role: UserRole.CLIENT });
+
+    expect(result).toMatchObject({ valid: false, reason: 'revoked' });
+    expect(ticketRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('revokes one ticket and releases its seat atomically', async () => {
+    const section = {
+      id: 'section-1',
+      eventId: 'event-1',
+      sectionType: 'seated',
+      seatsConfig: JSON.stringify({ 'A-1': { reserved: true, status: 'reserved' } }),
+    };
+    const seat = {
+      id: 'seat-1',
+      sectionId: section.id,
+      rowLabel: 'A',
+      seatNumber: 1,
+      status: SeatStatus.SOLD,
+      lockedBy: null,
+      lockExpiresAt: null,
+    };
+    const ticket = {
+      id: 'ticket-1',
+      ticketCode: 'CODE-1',
+      eventId: 'event-1',
+      userId: 'buyer-1',
+      seatId: seat.id,
+      status: TicketStatus.ACTIVE,
+    };
+    const { manager, repositories } = buildRevocationTransaction([ticket], [seat], [section]);
+    const { service } = buildService({ manager });
+
+    const result = await service.revokeEventTickets(
+      'event-1',
+      { ticketIds: [ticket.id], seatAction: TicketRevocationSeatAction.RELEASE, reason: 'Solicitud confirmada' },
+      { id: 'organizer-1', role: UserRole.CLIENT },
+    );
+
+    expect(manager.transaction).toHaveBeenCalledTimes(1);
+    expect(ticket.status).toBe(TicketStatus.REVOKED);
+    expect(seat.status).toBe(SeatStatus.AVAILABLE);
+    expect(seat.lockedBy).toBeNull();
+    expect(JSON.parse(section.seatsConfig)['A-1']).toBeUndefined();
+    expect(repositories.revocation.save).toHaveBeenCalledWith(expect.objectContaining({
+      revokedByUserId: 'organizer-1',
+      ticketIds: ['ticket-1'],
+      seatIds: ['seat-1'],
+      reason: 'Solicitud confirmada',
+    }));
+    expect(result).toMatchObject({ revoked: 1, affectedSeats: 1, seatAction: 'release' });
+  });
+
+  it('revokes all selected tickets and keeps every seat permanently blocked', async () => {
+    const section = { id: 'section-1', eventId: 'event-1', sectionType: 'seated', seatsConfig: '{}' };
+    const seats = [1, 2].map((seatNumber) => ({
+      id: `seat-${seatNumber}`,
+      sectionId: section.id,
+      rowLabel: 'A',
+      seatNumber,
+      status: SeatStatus.SOLD,
+      lockedBy: null,
+      lockExpiresAt: null,
+    }));
+    const tickets = seats.map((seat, index) => ({
+      id: `ticket-${index + 1}`,
+      ticketCode: `CODE-${index + 1}`,
+      eventId: 'event-1',
+      userId: 'buyer-1',
+      seatId: seat.id,
+      status: index === 0 ? TicketStatus.ACTIVE : TicketStatus.USED,
+    }));
+    const { manager, repositories } = buildRevocationTransaction(tickets, seats, [section]);
+    const { service } = buildService({ manager });
+
+    const result = await service.revokeEventTickets(
+      'event-1',
+      { ticketIds: tickets.map((ticket) => ticket.id), seatAction: TicketRevocationSeatAction.BLOCK, reason: 'Reemplazo por invitación' },
+      { id: 'organizer-1', role: UserRole.CLIENT },
+    );
+
+    expect(tickets.every((ticket) => ticket.status === TicketStatus.REVOKED)).toBe(true);
+    expect(seats.every((seat) => seat.status === SeatStatus.LOCKED && seat.lockedBy === 'organizer-1' && seat.lockExpiresAt === null)).toBe(true);
+    expect(JSON.parse(section.seatsConfig)).toMatchObject({
+      'A-1': { reserved: true, status: 'reserved' },
+      'A-2': { reserved: true, status: 'reserved' },
+    });
+    expect(repositories.revocation.save).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ revoked: 2, affectedSeats: 2, seatAction: 'block' });
+  });
+
+  it('does not create a duplicate revocation when all selected tickets are already revoked', async () => {
+    const ticket = {
+      id: 'ticket-1', ticketCode: 'CODE-1', eventId: 'event-1', userId: 'buyer-1', seatId: 'seat-1', status: TicketStatus.REVOKED,
+    };
+    const { manager, repositories } = buildRevocationTransaction([ticket], [], []);
+    const { service } = buildService({ manager });
+
+    const result = await service.revokeEventTickets(
+      'event-1',
+      { ticketIds: [ticket.id], seatAction: TicketRevocationSeatAction.RELEASE, reason: 'Intento repetido' },
+      { id: 'organizer-1', role: UserRole.CLIENT },
+    );
+
+    expect(result).toMatchObject({ alreadyRevoked: true, revoked: 0 });
+    expect(repositories.revocation.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects a revocation requested by a user who does not own the event', async () => {
+    const ticket = {
+      id: 'ticket-1', ticketCode: 'CODE-1', eventId: 'event-1', userId: 'buyer-1', seatId: 'seat-1', status: TicketStatus.ACTIVE,
+    };
+    const { manager, repositories } = buildRevocationTransaction([ticket], [], []);
+    const { service } = buildService({ manager });
+
+    await expect(service.revokeEventTickets(
+      'event-1',
+      { ticketIds: [ticket.id], seatAction: TicketRevocationSeatAction.RELEASE, reason: 'Sin autorización' },
+      { id: 'another-organizer', role: UserRole.CLIENT },
+    )).rejects.toThrow('No tienes permiso');
+
+    expect(repositories.ticket.save).not.toHaveBeenCalled();
+    expect(repositories.revocation.save).not.toHaveBeenCalled();
+  });
+
+  it('never resends a revoked ticket', async () => {
+    const { service, ticketRepo, mailService } = buildService();
+    ticketRepo.findOne.mockResolvedValue({ id: 'ticket-1', ticketCode: 'CODE-1', status: TicketStatus.REVOKED });
+
+    await expect(service.resendTicketEmailByCode('CODE-1', 'buyer-1')).rejects.toThrow('no se puede reenviar');
+    expect(mailService.sendTicketEmail).not.toHaveBeenCalled();
   });
 
   it('returns the existing ticket set when Stripe repeats fulfillment', async () => {
