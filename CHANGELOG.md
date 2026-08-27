@@ -8,6 +8,7 @@
 - Cada auditoría conserva actor, fecha, motivo, entradas, códigos QR, sillas y acción elegida.
 - Los QR revocados responden inválidos al endpoint existente, por lo que el escáner móvil continúa mostrando `DENEGADO` sin modificar la aplicación móvil.
 - Los tickets revocados se muestran como `REVOCADO` y quedan excluidos del reenvío. Órdenes, ventas, pagos, reembolsos, comisiones y reportes financieros permanecen intactos.
+- La confirmación permanente reemplaza temporalmente el formulario de revocación; si se cancela o falla la solicitud, el formulario reaparece conservando la selección y el motivo.
 - Validación local: 19 pruebas de `OrdersService`, build NestJS y build Next.js aprobados.
 
 Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; pendiente prueba manual y publicación autorizada.

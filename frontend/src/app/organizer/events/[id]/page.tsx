@@ -695,6 +695,7 @@ export default function EventDetailPage() {
   const [revocationReason, setRevocationReason] = useState('');
   const [revocationSeatAction, setRevocationSeatAction] = useState<'release' | 'block'>('release');
   const [revocationBusy, setRevocationBusy] = useState(false);
+  const [revocationConfirming, setRevocationConfirming] = useState(false);
 
   useEffect(() => {
     const attendeeEmail = searchParams.get('attendee');
@@ -1067,16 +1068,19 @@ export default function EventDetailPage() {
     setRevocationTicketIds(eligible.map((ticket) => ticket.id));
     setRevocationReason('');
     setRevocationSeatAction('release');
+    setRevocationConfirming(false);
   };
 
   const closeRevocation = () => {
     setRevocationTickets([]);
     setRevocationTicketIds([]);
     setRevocationReason('');
+    setRevocationConfirming(false);
   };
 
   const submitRevocation = async () => {
     if (revocationTicketIds.length === 0 || revocationReason.trim().length < 3) return;
+    setRevocationConfirming(true);
     const confirmed = await confirmDialog({
       title: lang === 'es' ? 'Confirmar revocación permanente' : 'Confirm permanent revocation',
       message: lang === 'es'
@@ -1084,7 +1088,10 @@ export default function EventDetailPage() {
         : `${revocationTicketIds.length} ticket(s) will be permanently invalidated. This cannot be undone and does not change the sale or payment.`,
       tone: 'danger',
     });
-    if (!confirmed) return;
+    if (!confirmed) {
+      setRevocationConfirming(false);
+      return;
+    }
 
     setRevocationBusy(true);
     try {
@@ -1102,6 +1109,7 @@ export default function EventDetailPage() {
       await loadEvent();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || (lang === 'es' ? 'No se pudo completar la revocación.' : 'Could not complete revocation.'));
+      setRevocationConfirming(false);
     } finally {
       setRevocationBusy(false);
     }
@@ -2195,7 +2203,7 @@ export default function EventDetailPage() {
                     </div>
                   , document.body)}
 
-                  {revocationTickets.length > 0 && createPortal(
+                  {revocationTickets.length > 0 && !revocationConfirming && createPortal(
                     <div
                       className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
                       onClick={() => !revocationBusy && closeRevocation()}
