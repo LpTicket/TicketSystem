@@ -1598,11 +1598,11 @@ export class OrdersService {
     const unresolved = await this.orderRepo
       .createQueryBuilder('pendingOrder')
       .where('pendingOrder.status = :status', { status: OrderStatus.PAID })
-      .andWhere('pendingOrder."stripeFeeReconciliationStatus" = :reconciliationStatus', {
+      .andWhere('pendingOrder.stripeFeeReconciliationStatus = :reconciliationStatus', {
         reconciliationStatus: STRIPE_FEE_RECONCILIATION_PENDING,
       })
-      .andWhere('pendingOrder."stripePaymentIntent" IS NOT NULL')
-      .orderBy('pendingOrder."paidAt"', 'ASC')
+      .andWhere('pendingOrder.stripePaymentIntent IS NOT NULL')
+      .orderBy('pendingOrder.paidAt', 'ASC')
       .limit(50)
       .getMany();
 

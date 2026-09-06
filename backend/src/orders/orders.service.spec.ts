@@ -607,4 +607,32 @@ describe('OrdersService critical ticket safeguards', () => {
       stripeFeeReconciliationStatus: 'not_required',
     }));
   });
+
+  it('uses TypeORM property paths when retrying pending Klarna fees', async () => {
+    const pendingQuery = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
+    const orderRepo = {
+      createQueryBuilder: jest.fn(() => pendingQuery),
+    };
+    const { service } = buildService({ orderRepo });
+    (service as any).stripe = {};
+
+    await (service as any).reconcilePendingStripeFees();
+
+    expect(pendingQuery.andWhere).toHaveBeenNthCalledWith(
+      1,
+      'pendingOrder.stripeFeeReconciliationStatus = :reconciliationStatus',
+      { reconciliationStatus: 'pending' },
+    );
+    expect(pendingQuery.andWhere).toHaveBeenNthCalledWith(
+      2,
+      'pendingOrder.stripePaymentIntent IS NOT NULL',
+    );
+    expect(pendingQuery.orderBy).toHaveBeenCalledWith('pendingOrder.paidAt', 'ASC');
+  });
 });
