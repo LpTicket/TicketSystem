@@ -50,6 +50,7 @@ export default function AdminAnalyticsPage() {
   const [days, setDays] = useState(7);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function AdminAnalyticsPage() {
 
   const loadSummary = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const { data } = await api.get('/analytics/summary', { params: { days } });
       const financial = data?.financial || {};
@@ -78,6 +80,8 @@ export default function AdminAnalyticsPage() {
       });
     } catch (err) {
       console.error(err);
+      setSummary(null);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -148,6 +152,16 @@ export default function AdminAnalyticsPage() {
             ))}
           </div>
         </>
+      ) : loadError ? (
+        <section className="premium-section-card p-6 text-center bg-white/95 shadow-sm">
+          <h2 className="font-black text-gray-950">{lang === 'es' ? 'No pudimos cargar las analíticas' : 'We could not load analytics'}</h2>
+          <p className="mt-2 text-sm font-medium text-gray-500">
+            {lang === 'es' ? 'La información no se perdió. Intenta cargarla nuevamente.' : 'No information was lost. Try loading it again.'}
+          </p>
+          <button type="button" onClick={loadSummary} className="btn-primary mt-4 px-5 py-2.5">
+            {lang === 'es' ? 'Reintentar' : 'Retry'}
+          </button>
+        </section>
       ) : summary ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

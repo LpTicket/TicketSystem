@@ -1,5 +1,15 @@
 # LPTicket - Historial de Cambios
 
+## 2026-09-05 - Recuperación de Analíticas en web y móvil
+
+- Se reprodujo en la sesión autenticada de producción que `GET /api/analytics/summary` devuelve 500 y deja vacía la página administrativa.
+- La causa es el alias SQL `order`, palabra reservada de PostgreSQL, introducido en las consultas financieras de Analíticas; se reemplazó por el alias seguro `ord` en el resumen y en las compras Klarna recientes.
+- Web y móvil consumen la misma API. Ambos muestran ahora un error humano con acción `Reintentar` en vez de confundir una falla del servidor con ausencia de datos.
+- Se agregó una prueba unitaria que exige el alias seguro y valida el resumen financiero resultante.
+- No se modificaron visitas guardadas, ventas, pagos, Stripe, comisiones, órdenes ni datos de producción.
+
+Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; pendiente publicación autorizada y comprobación en producción.
+
 ## 2026-08-26 - Revocación irreversible de entradas por el organizador
 
 - El detalle de un asistente permite seleccionar una, varias o todas sus entradas y exige motivo y confirmación antes de revocarlas.

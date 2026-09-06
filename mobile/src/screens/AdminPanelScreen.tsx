@@ -409,6 +409,8 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
   const [analyticsDays, setAnalyticsDays] = useState(7);
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState(false);
+  const [analyticsReloadKey, setAnalyticsReloadKey] = useState(0);
   const [analyticsRecentOpen, setAnalyticsRecentOpen] = useState(false);
   const [selectedAnalyticsEvent, setSelectedAnalyticsEvent] = useState<AnalyticsEventTarget | null>(null);
   const [selectedAnalyticsSales, setSelectedAnalyticsSales] = useState<any | null>(null);
@@ -854,13 +856,14 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
       return;
     }
     setAnalyticsLoading(true);
+    setAnalyticsError(false);
     setAnalyticsSummary(null);
     const eventParam = selectedAnalyticsEvent?.slug ? `&eventSlug=${encodeURIComponent(selectedAnalyticsEvent.slug)}` : '';
     apiGet<AnalyticsSummary>(`/analytics/summary?days=${analyticsDays}${eventParam}`)
       .then(setAnalyticsSummary)
-      .catch(() => {})
+      .catch(() => setAnalyticsError(true))
       .finally(() => setAnalyticsLoading(false));
-  }, [active, analyticsDays, selectedAnalyticsEvent?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active, analyticsDays, analyticsReloadKey, selectedAnalyticsEvent?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const eventId = selectedAnalyticsEvent?.id;
@@ -3467,9 +3470,15 @@ export function AdminPanelScreen({ section, onSectionChange, scrollToTopSignal =
               </View>
             )}
 
-            {!analyticsLoading && !analyticsSummary && (
+            {!analyticsLoading && analyticsError && (
               <View style={styles.anStatCard}>
-                <Text style={styles.anStatLabel}>{t('Sin datos todavía. Las analíticas aparecerán cuando haya actividad.', 'No data yet. Analytics will appear once there is activity.')}</Text>
+                <Text style={styles.anStatLabel}>{t('No pudimos cargar las analíticas. La información no se perdió.', 'We could not load analytics. No information was lost.')}</Text>
+                <GradientButton
+                  label={t('Reintentar', 'Retry')}
+                  onPress={() => setAnalyticsReloadKey((value) => value + 1)}
+                  height={42}
+                  style={{ marginTop: 12 }}
+                />
               </View>
             )}
           </>
