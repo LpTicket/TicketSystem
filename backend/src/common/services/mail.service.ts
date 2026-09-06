@@ -89,7 +89,10 @@ export class MailService {
    * The event remains pending even if SMTP is temporarily unavailable.
    */
   async sendEventApprovalRequestEmail(data: EventApprovalRequestEmail): Promise<boolean> {
-    const to = String(this.configService.get('EVENT_APPROVAL_EMAIL') || 'info@elpitique.com').trim();
+    const configuredRecipient = String(this.configService.get('EVENT_APPROVAL_EMAIL') || '').trim();
+    const to = configuredRecipient.toLowerCase() === 'info@elpitique.com'
+      ? 'info@lpticket.com'
+      : configuredRecipient || 'info@lpticket.com';
     if (!to) return false;
 
     const appUrl = this.getAppUrl();
