@@ -1,5 +1,14 @@
 # LPTicket - Historial de Cambios
 
+## 2026-09-12 - Gestión administrativa de empleados de eventos en web
+
+- El panel administrativo web incorpora el acceso directo `Empleados de eventos`.
+- Desde allí, el administrador usa el mismo flujo seguro ya existente para todos los eventos: ve cada empleado por evento y su estado `Pendiente`, `Aprobado`, `Rechazado` o `Revocado`; puede aprobar, rechazar o revocar según corresponda.
+- La autorización continúa exclusivamente en backend: el administrador conserva la capacidad ya existente de operar cualquier evento y cada organizador solo opera los propios.
+- No se modificaron roles, API, base de datos, escaneo, tickets, pagos ni el acceso móvil.
+
+Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; pendiente revisión visual y publicación autorizada.
+
 ## 2026-09-05 - Recuperación de Analíticas en web y móvil
 
 - Se reprodujo en la sesión autenticada de producción que `GET /api/analytics/summary` devuelve 500 y deja vacía la página administrativa.

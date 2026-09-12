@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import api from '@/lib/api';
 import { useLang } from '@/context/LanguageContext';
+import { useAuthStore } from '@/stores/auth';
 import { HiOutlineCheck, HiOutlineRefresh, HiOutlineUserGroup, HiOutlineX } from 'react-icons/hi';
 
 type ScannerRequest = {
@@ -15,16 +16,23 @@ type ScannerRequest = {
 
 export default function OrganizerScannerAccessPage() {
   const { lang } = useLang();
+  const { user } = useAuthStore();
   const [requests, setRequests] = useState<ScannerRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const labels = {
-    title: lang === 'es' ? 'Empleados para scan' : 'Scan staff',
-    subtitle: lang === 'es'
-      ? 'Aprueba, rechaza o revoca empleados que solicitan escanear entradas de tus eventos.'
-      : 'Approve, reject, or revoke staff members requesting ticket scan access.',
+    title: user?.role === 'admin'
+      ? (lang === 'es' ? 'Empleados de eventos' : 'Event staff')
+      : (lang === 'es' ? 'Empleados para scan' : 'Scan staff'),
+    subtitle: user?.role === 'admin'
+      ? (lang === 'es'
+        ? 'Administra las solicitudes de scan de cualquier evento: pendientes, aprobadas, rechazadas y revocadas.'
+        : 'Manage scan requests for any event: pending, approved, rejected, and revoked.')
+      : (lang === 'es'
+        ? 'Aprueba, rechaza o revoca empleados que solicitan escanear entradas de tus eventos.'
+        : 'Approve, reject, or revoke staff members requesting ticket scan access.'),
     refresh: lang === 'es' ? 'Actualizar' : 'Refresh',
     empty: lang === 'es' ? 'Todavía no hay solicitudes de empleados.' : 'There are no staff requests yet.',
     approve: lang === 'es' ? 'Aprobar' : 'Approve',

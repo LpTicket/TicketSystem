@@ -50,6 +50,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItems = [
     { href: '/admin', label: t('adminDashboard'), icon: HiOutlineChartBar },
     { href: '/admin/events', label: t('adminEvents'), icon: HiOutlineCalendar },
+    { href: '/admin/scanner-access', label: lang === 'es' ? 'Empleados de eventos' : 'Event staff', icon: HiOutlineUsers },
     { href: '/admin/events/create', label: lang === 'es' ? 'Crear evento para usuario' : 'Create event for user', icon: HiOutlineUserAdd },
     { href: '/admin/users', label: t('adminUsers'), icon: HiOutlineUsers },
     { href: '/admin/categories', label: t('adminCategories'), icon: HiOutlineTag },
