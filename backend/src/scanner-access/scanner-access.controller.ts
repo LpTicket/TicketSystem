@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ScannerAccessStatus } from '../database/entities';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { ScannerAccessStatus, UserRole } from '../database/entities';
 import { ScannerAccessService } from './scanner-access.service';
 
 @Controller('scanner-access')
@@ -21,6 +23,24 @@ export class ScannerAccessController {
   @Post('requests')
   requestAccess(@Body('eventId') eventId: string, @Request() req: any) {
     return this.scannerAccessService.requestAccess(eventId, req.user.id);
+  }
+
+  @Get('admin/events/search')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  searchEventsForAdmin(@Query('q') q: string) {
+    return this.scannerAccessService.searchEventsForAdmin(q);
+  }
+
+  @Post('admin/requests')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  requestAccessForUser(
+    @Body('eventId', new ParseUUIDPipe({ version: '4' })) eventId: string,
+    @Body('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
+    @Request() req: any,
+  ) {
+    return this.scannerAccessService.requestAccessForUser(eventId, userId, req.user);
   }
 
   @Get('organizer/requests')

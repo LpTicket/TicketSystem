@@ -38,6 +38,12 @@ This document tracks security hardening done on LPTicket and known follow-ups.
   saved-map synchronization and immutable audit creation share one pessimistic
   database transaction; repeated requests cannot reactivate or duplicate the
   revocation, and orders or financial records are never rewritten.
+- **Admin-created scanner requests are scoped** — an administrator may create
+  a pending scanner-access request for an active user and a published event.
+  The route requires JWT plus the admin role, the service repeats the role
+  check, and the existing access record identifies the administrative actor.
+  It does not impersonate the user or modify the event, inventory, tickets,
+  orders, prices, payments, or organizer ownership.
 
 ## Known follow-up: tokens in localStorage → httpOnly cookies (deferred)
 

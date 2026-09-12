@@ -3,11 +3,15 @@
 ## 2026-09-12 - Gestión administrativa de empleados de eventos en web
 
 - El panel administrativo web incorpora el acceso directo `Empleados de eventos`.
-- Desde allí, el administrador usa el mismo flujo seguro ya existente para todos los eventos: ve cada empleado por evento y su estado `Pendiente`, `Aprobado`, `Rechazado` o `Revocado`; puede aprobar, rechazar o revocar según corresponda.
+- Desde allí, el administrador puede buscar cualquier usuario activo y cualquier evento publicado, crear una solicitud pendiente para esa persona y aprobarla, rechazarla o revocarla desde la misma pantalla.
+- Cada evento de la lista incluye acceso directo a su gestión para que el administrador continúe el flujo autorizado.
+- La creación administrativa queda asociada al administrador actuante dentro del registro de acceso existente y nunca requiere entrar en la sesión del empleado.
 - La autorización continúa exclusivamente en backend: el administrador conserva la capacidad ya existente de operar cualquier evento y cada organizador solo opera los propios.
-- No se modificaron roles, API, base de datos, escaneo, tickets, pagos ni el acceso móvil.
+- El endpoint nuevo exige JWT y rol `admin`; el servicio repite esa validación y solo admite usuarios activos y eventos publicados.
+- La operación modifica exclusivamente el permiso `scanner_access`. No edita el evento en vivo, mapa, sillas, inventario, entradas, ventas, precios, pagos ni la aplicación móvil.
+- Validación local: dos pruebas específicas de permisos aprobadas y builds de NestJS y Next.js aprobados.
 
-Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; pendiente revisión visual y publicación autorizada.
+Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; pendiente prueba manual con una sesión administrativa y publicación autorizada.
 
 ## 2026-09-05 - Recuperación de Analíticas en web y móvil
 

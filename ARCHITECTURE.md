@@ -109,6 +109,13 @@ Las áreas de mayor impacto son:
 - **Events y Venue Templates:** eventos, mapas, inventario de asientos, mesas y zonas.
 - **Orders y Payments:** compras, cobros, tickets y estados de pago.
 - **Scanner Access y Door Sale:** validación de entradas y ventas presenciales.
+
+### Solicitudes administrativas de empleados
+
+- El administrador puede buscar usuarios activos y eventos publicados y crear una solicitud pendiente de acceso al escáner para la combinación seleccionada.
+- El endpoint administrativo exige JWT y rol `admin`; el servicio vuelve a verificar el rol, la actividad del usuario y el estado publicado del evento.
+- Crear la solicitud no suplanta la sesión del usuario ni concede acceso automáticamente. La aprobación continúa siendo una decisión separada y registrada.
+- La operación persiste únicamente en `scanner_access`. El evento se consulta como referencia y no se guardan cambios sobre su contenido, organizador, mapa, inventario, tickets, ventas, precios o pagos.
 - **Social Match:** perfiles, sugerencias, conexiones y mensajería.
 - **Admin, Marketing y Analytics:** operación interna, campañas y métricas.
 

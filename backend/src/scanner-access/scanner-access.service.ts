@@ -70,7 +70,53 @@ export class ScannerAccessService {
       .getMany();
   }
 
+  async searchEventsForAdmin(q: string) {
+    const search = String(q || '').trim();
+    const query = this.eventRepo
+      .createQueryBuilder('event')
+      .leftJoin('event.organizer', 'organizer')
+      .select([
+        'event.id',
+        'event.title',
+        'event.eventDate',
+        'event.status',
+        'event.venueName',
+        'event.organizerId',
+        'organizer.id',
+        'organizer.firstName',
+        'organizer.lastName',
+        'organizer.email',
+      ])
+      .where('event.status = :status', { status: EventStatus.PUBLISHED });
+
+    if (search) {
+      query.andWhere(
+        '(event.title ILIKE :contains OR event.venueName ILIKE :contains OR organizer.email ILIKE :contains OR organizer.firstName ILIKE :contains OR organizer.lastName ILIKE :contains)',
+        { contains: `%${search}%` },
+      );
+    }
+
+    return query
+      .orderBy('event.eventDate', 'DESC', 'NULLS LAST')
+      .take(20)
+      .getMany();
+  }
+
   async requestAccess(eventId: string, userId: string) {
+    return this.createAccessRequest(eventId, userId);
+  }
+
+  async requestAccessForUser(eventId: string, userId: string, admin: any) {
+    if (admin?.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only an administrator can request scanner access for another user');
+    }
+    if (admin.id === userId) {
+      throw new BadRequestException('Use your own scanner access flow for the administrator account');
+    }
+    return this.createAccessRequest(eventId, userId, admin.id);
+  }
+
+  private async createAccessRequest(eventId: string, userId: string, administrativeActorId?: string) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user?.isActive) throw new ForbiddenException('User is not active');
 
@@ -79,15 +125,16 @@ export class ScannerAccessService {
       throw new BadRequestException('The organizer already has scanner access for this event');
     }
 
-    let access = await this.scannerAccessRepo.findOne({ where: { eventId, userId }, relations: ['event', 'user'] });
+    let access = await this.scannerAccessRepo.findOne({ where: { eventId, userId }, relations: ['event', 'user', 'decidedBy'] });
     if (access) {
       if ([ScannerAccessStatus.REJECTED, ScannerAccessStatus.REVOKED].includes(access.status)) {
         access.status = ScannerAccessStatus.PENDING;
         access.approvedAt = null;
         access.rejectedAt = null;
         access.revokedAt = null;
-        access.decidedById = null;
-        return this.scannerAccessRepo.save(access);
+        access.decidedById = administrativeActorId || null;
+        await this.scannerAccessRepo.save(access);
+        return this.scannerAccessRepo.findOneOrFail({ where: { id: access.id }, relations: ['event', 'user', 'decidedBy'] });
       }
       return access;
     }
@@ -97,9 +144,10 @@ export class ScannerAccessService {
       organizerId: event.organizerId,
       userId,
       status: ScannerAccessStatus.PENDING,
+      decidedById: administrativeActorId || null,
     });
     await this.scannerAccessRepo.save(access);
-    return this.scannerAccessRepo.findOneOrFail({ where: { id: access.id }, relations: ['event', 'user'] });
+    return this.scannerAccessRepo.findOneOrFail({ where: { id: access.id }, relations: ['event', 'user', 'decidedBy'] });
   }
 
   async getMine(userId: string) {
