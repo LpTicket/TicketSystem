@@ -6,12 +6,21 @@ Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explíc
 
 ## Saldo del organizador — 2026-09-15
 
-Estado: `IMPLEMENTADO`; publicación y comprobación con una sesión autenticada pendientes.
+Estado: `PARCIALMENTE IMPLEMENTADO` en distribución. Commit `a54615aa` publicado en `main`; web pública comprobada y validación autenticada pendiente.
 
 - El panel del organizador muestra `Venta de entradas`, `Pagos registrados` y `Pendiente por pagar`; ya no presenta el cálculo incorrecto que restaba la comisión estándar de Stripe a la venta base.
 - Los pagos son los registros administrativos existentes en `organizer_payouts`. El pendiente se calcula como venta base menos ajustes aplicables y pagos registrados, igual que en administración.
 - El registro de un pago externo invalida las cachés financieras para reflejar el nuevo saldo inmediatamente. No envía dinero ni altera Stripe, órdenes o tickets.
-- Comprobación local: 39 pruebas de órdenes, build de backend y build de frontend aprobados. Falta verificar la presentación con datos reales y confirmar el resultado después de publicar.
+- Comprobación: 39 pruebas de órdenes, build de backend, build de frontend y TypeScript móvil aprobados. La web pública ya contiene `Estado de pagos`, `Pagos registrados` y `Pendiente por pagar`; falta comparar sus valores con una cuenta real.
+
+## Entradas de cortesía web — 2026-09-15
+
+Estado: `PARCIALMENTE IMPLEMENTADO` en distribución. Código publicado y componentes web públicos comprobados; emisión real pendiente.
+
+- El organizador dispone de `Entradas de cortesía` dentro de cada evento, con flujo para entrada general por cantidad o selección de sillas/mesas.
+- Cada entrega permite clasificar la cortesía, añadir una nota, confirmar el destinatario y emitir QR activos por `$0.00`. Las generales descuentan capacidad de forma transaccional; las ubicaciones asignadas conservan el bloqueo permanente.
+- Las órdenes se identifican como `complimentary`, no generan ingresos y quedan disponibles en el historial. El backend conserva la verificación de propiedad del evento y limita cada emisión general a 100 entradas.
+- La web pública contiene `Entradas de cortesía` y `Nueva cortesía general`. Falta emitir una cortesía controlada con una cuenta autenticada y confirmar recepción del correo, QR, capacidad e historial.
 
 ## Ingreso por comprador y confirmación Tap to Pay — 2026-09-15
 

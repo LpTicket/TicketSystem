@@ -36,6 +36,13 @@ PostgreSQL + servicios externos
 - El saldo pendiente compartido por administración y el dashboard del organizador se calcula como venta base menos ajustes de procesamiento aplicables y pagos registrados. Una conciliación Klarna pendiente se comunica como saldo sujeto a ajuste.
 - Después de registrar un pago se invalidan las cachés `admin:stats`, `admin:financials` y `organizer:stats:{organizerId}` para que ambas superficies lean el nuevo saldo.
 
+### Entradas de cortesía
+
+- El endpoint existente de cortesías acepta una selección de sillas o una sección general con cantidad, nunca ambas modalidades en la misma solicitud.
+- Una cortesía crea una orden pagada de total cero identificada con `salesChannel=complimentary` y tickets activos de precio cero. Sirve como registro operativo y no se suma a los ingresos.
+- La emisión general bloquea la sección durante el conteo y la creación para no superar su capacidad ante solicitudes simultáneas. Las cortesías con asiento conservan el estado bloqueado y sincronizan el mapa persistido.
+- La autorización continúa comprobando que el usuario sea administrador o propietario del evento. La interfaz web solicita confirmación explícita antes de emitir y comunica por separado la creación de tickets y el resultado del correo.
+
 ## Estructura del Repositorio
 
 | Área | Ruta absoluta | Tecnología principal |

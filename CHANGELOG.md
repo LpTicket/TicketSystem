@@ -2,12 +2,21 @@
 
 ## 2026-09-15 - Saldo real del organizador en su dashboard
 
-Estado: `IMPLEMENTADO`; pruebas automatizadas y builds locales aprobados. Validación autenticada y publicación pendientes.
+Estado: `PARCIALMENTE IMPLEMENTADO` en distribución; commit `a54615aa` publicado y web pública comprobada. Validación autenticada pendiente.
 
 - El dashboard del organizador reemplaza `Neto estimado`, que descontaba nuevamente una comisión estimada de Stripe, por `Pagos registrados` y `Pendiente por pagar`.
 - `Venta de entradas` conserva el subtotal base destinado al organizador. El pendiente usa la misma contabilidad administrativa: venta base menos ajustes de procesamiento aplicables ya conciliados y pagos externos registrados.
 - Registrar un pago desde administración invalida inmediatamente los resúmenes financieros del administrador y del organizador. No realiza transferencias ni modifica órdenes, tickets o cobros.
-- Validación local: 39 pruebas de órdenes, build de backend y build de frontend.
+- Validación: 39 pruebas de órdenes, build de backend, build de frontend, TypeScript móvil y presencia de los textos nuevos en los archivos públicos.
+
+## 2026-09-15 - Entradas de cortesía para generales y ubicaciones asignadas
+
+Estado: `PARCIALMENTE IMPLEMENTADO` en distribución; código y web publicados, emisión real pendiente.
+
+- La gestión web del evento incorpora un flujo premium `Entradas de cortesía` para emitir por cantidad en secciones generales o seleccionar sillas y mesas.
+- El backend valida destinatario, modalidad y propiedad del evento; limita la cantidad, protege la capacidad general con bloqueo transaccional y crea órdenes operativas `complimentary` de `$0.00` con QR activos.
+- Las cortesías permiten tipo y nota, aparecen en el historial, no generan ingresos y conservan las reglas existentes de bloqueo para ubicaciones asignadas.
+- La web pública ya contiene los controles nuevos. Falta una prueba autenticada y controlada que confirme correo, QR, capacidad e historial sin afectar un evento en operación.
 
 ## 2026-09-15 - Ingreso por comprador y confirmación de pago en puerta
 
