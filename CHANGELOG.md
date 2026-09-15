@@ -35,7 +35,7 @@ Estado: `PARCIALMENTE IMPLEMENTADO` en distribución; backend/web publicados y c
 
 - Commits `ee6312eb` (ingreso/pagos) y `4ef45e07` (versión móvil `1.0.9`) publicados en `main`. Se conservaron fuera de ambos commits los ajustes previos de Android en `mobile/eas.json` y sus notas.
 - Backend activo en Railway; web pública muestra los controles nuevos. GET de eventos y `/verify`: 200. Sin cobros reales ni consumo de tickets para pruebas.
-- iOS `1.0.9 (39)` compilado con el refresco silencioso del saldo y enviado a la cola de TestFlight (`31877ad4-6099-4a88-9053-58eb6fd99263`). Se cancelaron el envío anterior del build 38 y el build redundante 40 para evitar que avance una versión incompleta o duplicada. Android `1.0.9 (7)` permanece en la cola gratuita. Google Play mantiene la versión anterior en revisión. La disponibilidad móvil todavía depende del procesamiento de Apple y Google.
+- El envío EAS de iOS `1.0.9 (39)` fue cancelado antes de comenzar. Se generó localmente la misma fuente como `1.0.9 (40)` y Xcode la cargó directamente a App Store Connect con resultado `Upload succeeded`; Apple la muestra en estado `Procesando`. Android `1.0.9 (7)` permanece en la cola gratuita. Google Play mantiene la versión anterior en revisión. La instalación en TestFlight todavía depende del procesamiento final de Apple.
 
 ### Comprobaciones de esta implementación
 
