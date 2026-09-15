@@ -28,6 +28,7 @@ function buildService(overrides: Record<string, any> = {}) {
     ...overrides.orderRepo,
   };
   const mailService = overrides.mailService || { sendTicketEmail: jest.fn() };
+  const cache = overrides.cache || { del: jest.fn(), get: jest.fn(), set: jest.fn() };
   const service = new OrdersService(
     orderRepo as any,
     ticketRepo as any,
@@ -37,12 +38,13 @@ function buildService(overrides: Record<string, any> = {}) {
     (overrides.specialCodeRepo || {}) as any,
     (overrides.scannerAccessRepo || {}) as any,
     (overrides.paymentMethodRepo || {}) as any,
+    (overrides.organizerPayoutRepo || {}) as any,
     (overrides.configService || { get: jest.fn(() => undefined) }) as any,
     mailService as any,
     ({ sendTransactionalSms: jest.fn() }) as any,
-    ({ del: jest.fn(), get: jest.fn(), set: jest.fn() }) as any,
+    cache as any,
   );
-  return { service, ticketRepo, eventRepo, orderRepo, mailService };
+  return { service, ticketRepo, eventRepo, orderRepo, mailService, cache };
 }
 
 describe('OrdersService critical ticket safeguards', () => {
@@ -128,6 +130,169 @@ describe('OrdersService critical ticket safeguards', () => {
       processingFee: 2.89,
       total: 89.27,
     });
+  });
+
+  it('shows recorded payouts and the real organizer balance without subtracting Stripe again', async () => {
+    const query = (one?: any, many?: any[]) => ({
+      innerJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue(one),
+      getRawMany: jest.fn().mockResolvedValue(many || []),
+    });
+    const revenueQuery = query({
+      totalRevenue: '5140.00',
+      totalCharged: '5609.31',
+      organizerProcessingAdjustments: '200.00',
+      pendingFeeReconciliations: '0',
+      totalTickets: '162',
+      totalOrders: '51',
+    });
+    const dayQuery = query(undefined, [{ date: '2026-09-15', orders: '2', tickets: '6', revenue: '360.00' }]);
+    const checkinQuery = query({ scanned: '10', pending: '152' });
+    const payoutQuery = query({ organizerPaid: '1000.00' });
+    const cache = { del: jest.fn(), get: jest.fn().mockResolvedValue(null), set: jest.fn() };
+    const { service } = buildService({
+      orderRepo: { createQueryBuilder: jest.fn().mockReturnValueOnce(revenueQuery).mockReturnValueOnce(dayQuery) },
+      ticketRepo: { createQueryBuilder: jest.fn().mockReturnValue(checkinQuery) },
+      organizerPayoutRepo: { createQueryBuilder: jest.fn().mockReturnValue(payoutQuery) },
+      cache,
+    });
+
+    const stats = await service.getOrganizerStats('organizer-1');
+
+    expect(stats).toMatchObject({
+      totalRevenue: 5140,
+      organizerProcessingAdjustments: 200,
+      organizerPaid: 1000,
+      organizerPending: 3940,
+    });
+    expect(stats).not.toHaveProperty('netEstimated');
+    expect(cache.set).toHaveBeenCalledWith('organizer:stats:organizer-1', expect.objectContaining({
+      organizerPending: 3940,
+    }), 30_000);
+  });
+
+  it('issues general-admission courtesy tickets without creating revenue', async () => {
+    const sectionQuery = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue({
+        id: 'section-1',
+        eventId: 'event-1',
+        name: 'General VIP',
+        sectionType: 'standing',
+        capacity: 20,
+        rows: 0,
+        seatsPerRow: 0,
+      }),
+    };
+    const transactionTicketRepo = {
+      count: jest.fn().mockResolvedValue(7),
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => ({ id: `ticket-${Math.random()}`, ...value })),
+    };
+    const transactionOrderRepo = {
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => ({ id: 'courtesy-order-1', ...value })),
+    };
+    const manager = {
+      transaction: jest.fn(async (callback: any) => callback({
+        getRepository: (entity: any) => entity === VenueSection
+          ? { createQueryBuilder: jest.fn(() => sectionQuery) }
+          : entity === Ticket
+            ? transactionTicketRepo
+            : entity === Order
+              ? transactionOrderRepo
+              : {},
+      })),
+    };
+    const recipient = { id: 'guest-1', email: 'guest@example.com', firstName: 'Maria', lastName: 'Lopez' };
+    const eventRepo = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'event-1',
+        title: 'Evento Premium',
+        organizerId: 'organizer-1',
+        organizer: { email: 'guest@example.com' },
+      }),
+      manager: {
+        findOne: jest.fn().mockResolvedValue(recipient),
+        create: jest.fn(),
+        save: jest.fn(),
+      },
+    };
+    const mailService = { sendTicketEmail: jest.fn().mockResolvedValue(undefined) };
+    const { service } = buildService({ manager, eventRepo, mailService });
+
+    const result = await service.issueFreeTickets('event-1', {
+      sectionId: 'section-1',
+      quantity: 3,
+      name: 'Maria Lopez',
+      email: 'guest@example.com',
+      courtesyType: 'sponsor',
+      note: 'Sponsor principal',
+    }, 'organizer-1');
+
+    expect(result).toMatchObject({ success: true, count: 3, orderId: 'courtesy-order-1', emailSent: true });
+    expect(transactionOrderRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+      subtotal: 0,
+      total: 0,
+      ticketCount: 3,
+      salesChannel: 'complimentary',
+    }));
+    const savedOrderInput = transactionOrderRepo.create.mock.calls[0][0];
+    expect(JSON.parse(savedOrderInput.seatsData)[0]).toMatchObject({
+      sectionId: 'section-1',
+      courtesyType: 'sponsor',
+      note: 'Sponsor principal',
+      issuedBy: 'organizer-1',
+    });
+    expect(transactionTicketRepo.save).toHaveBeenCalledTimes(3);
+    expect(transactionTicketRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+      sectionId: 'section-1',
+      seatId: null,
+      price: 0,
+      status: TicketStatus.ACTIVE,
+    }));
+    expect(mailService.sendTicketEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not issue a general courtesy beyond the remaining capacity', async () => {
+    const sectionQuery = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue({
+        id: 'section-1', eventId: 'event-1', name: 'General', sectionType: 'standing', capacity: 10, rows: 0, seatsPerRow: 0,
+      }),
+    };
+    const transactionOrderRepo = { create: jest.fn(), save: jest.fn() };
+    const manager = {
+      transaction: jest.fn(async (callback: any) => callback({
+        getRepository: (entity: any) => entity === VenueSection
+          ? { createQueryBuilder: jest.fn(() => sectionQuery) }
+          : entity === Ticket
+            ? { count: jest.fn().mockResolvedValue(9) }
+            : entity === Order
+              ? transactionOrderRepo
+              : {},
+      })),
+    };
+    const eventRepo = {
+      findOne: jest.fn().mockResolvedValue({ id: 'event-1', title: 'Evento', organizerId: 'organizer-1', organizer: {} }),
+      manager: { findOne: jest.fn().mockResolvedValue({ id: 'guest-1' }) },
+    };
+    const { service } = buildService({ manager, eventRepo });
+
+    await expect(service.issueFreeTickets('event-1', {
+      sectionId: 'section-1', quantity: 2, name: 'Invitado', email: 'guest@example.com',
+    }, 'organizer-1')).rejects.toThrow('Quedan 1');
+    expect(transactionOrderRepo.save).not.toHaveBeenCalled();
   });
 
   it('does not consume a valid ticket when the selected event is different', async () => {

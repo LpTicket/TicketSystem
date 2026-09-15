@@ -7,7 +7,7 @@ import { In, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require('stripe');
-import { Order, OrderStatus, Ticket, TicketStatus, TicketRevocation, TicketRevocationSeatAction, Seat, SeatStatus, Event, EventStatus, VenueSection, SpecialCode, ScannerAccess, ScannerAccessStatus, UserRole, PaymentMethod, PaymentMethodType } from '../database/entities';
+import { Order, OrderStatus, Ticket, TicketStatus, TicketRevocation, TicketRevocationSeatAction, Seat, SeatStatus, Event, EventStatus, VenueSection, SpecialCode, ScannerAccess, ScannerAccessStatus, UserRole, PaymentMethod, PaymentMethodType, OrganizerPayout } from '../database/entities';
 import { User } from '../database/entities/user.entity';
 import { nanoid } from 'nanoid';
 import { createHash, createHmac, timingSafeEqual } from 'crypto';
@@ -16,6 +16,7 @@ import { MailService } from '../common/services/mail.service';
 import { isValidEmailFormat, suggestEmailFix } from '../common/utils/email-typo';
 import { MarketingService } from '../marketing/marketing.service';
 import { RevokeTicketsDto } from './dto/revoke-tickets.dto';
+import { IssueCourtesyTicketsDto } from './dto/issue-courtesy-tickets.dto';
 
 /**
  * Service constants for fee calculation.
@@ -64,6 +65,8 @@ export class OrdersService {
     private readonly scannerAccessRepo: Repository<ScannerAccess>,
     @InjectRepository(PaymentMethod)
     private readonly paymentMethodRepo: Repository<PaymentMethod>,
+    @InjectRepository(OrganizerPayout)
+    private readonly organizerPayoutRepo: Repository<OrganizerPayout>,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
     private readonly marketingService: MarketingService,
@@ -2161,8 +2164,8 @@ export class OrdersService {
     since.setDate(since.getDate() - 13);
     since.setHours(0, 0, 0, 0);
 
-    // Run all 3 aggregate queries in parallel — they are independent reads.
-    const [result, dayRows, checkin] = await Promise.all([
+    // Run aggregate queries in parallel — they are independent reads.
+    const [result, dayRows, checkin, payoutResult] = await Promise.all([
       this.orderRepo
         .createQueryBuilder('o')
         .innerJoin('events', 'e', 'e.id = o."eventId"')
@@ -2170,6 +2173,8 @@ export class OrdersService {
         .andWhere('o.status = :status', { status: OrderStatus.PAID })
         .select('COALESCE(SUM(o.subtotal), 0)', 'totalRevenue')
         .addSelect('COALESCE(SUM(o.total), 0)', 'totalCharged')
+        .addSelect('COALESCE(SUM(o."organizerProcessingAdjustment"), 0)', 'organizerProcessingAdjustments')
+        .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(o."paymentMethodType", '')) = 'klarna' AND COALESCE(o."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`, 'pendingFeeReconciliations')
         .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'totalTickets')
         .addSelect('COUNT(o.id)', 'totalOrders')
         .getRawOne(),
@@ -2193,23 +2198,36 @@ export class OrdersService {
         .select(`COUNT(CASE WHEN t.status = 'used' THEN 1 END)`, 'scanned')
         .addSelect(`COUNT(CASE WHEN t.status = 'active' THEN 1 END)`, 'pending')
         .getRawOne(),
+      this.organizerPayoutRepo
+        .createQueryBuilder('payout')
+        .where('payout."organizerUserId" = :organizerId', { organizerId })
+        .select('COALESCE(SUM(payout.amount), 0)', 'organizerPaid')
+        .getRawOne(),
     ]);
 
     const totalRevenue = Number(result?.totalRevenue) || 0;
     const totalCharged = Number(result?.totalCharged) || 0;
     const totalOrders = Number(result?.totalOrders) || 0;
+    const organizerProcessingAdjustments = Number(result?.organizerProcessingAdjustments) || 0;
+    const organizerPaid = Number(payoutResult?.organizerPaid) || 0;
+    const organizerPending = Math.max(
+      0,
+      +(totalRevenue - organizerProcessingAdjustments - organizerPaid).toFixed(2),
+    );
     const serviceFees = Math.max(0, +(totalCharged - totalRevenue).toFixed(2));
     const stripeFees = totalCharged > 0
       ? +(totalCharged * STRIPE_PERCENT + totalOrders * STRIPE_FIXED).toFixed(2)
       : 0;
-    const netEstimated = +Math.max(0, totalRevenue - stripeFees).toFixed(2);
 
     const stats = {
       totalRevenue,
       totalCharged,
       serviceFees,
       stripeFees,
-      netEstimated,
+      organizerProcessingAdjustments,
+      organizerPaid: +organizerPaid.toFixed(2),
+      organizerPending,
+      pendingFeeReconciliations: Number(result?.pendingFeeReconciliations) || 0,
       stripePercent: STRIPE_PERCENT,
       stripeFixed: STRIPE_FIXED,
       totalTickets: Number(result?.totalTickets) || 0,
@@ -2666,10 +2684,26 @@ export class OrdersService {
   }
 
   /**
-   * Organizer tool to issue free tickets (Invitations).
-   * Creates a dummy PAID order with $0 total and sends QR tickets to recipient.
+   * Organizer tool to issue complimentary tickets for assigned seats or a
+   * general-admission section. The $0 order is an operational record only and
+   * is explicitly separated from revenue through its sales channel.
    */
-  async issueFreeTickets(eventId: string, seatIds: string[], email: string, name: string, organizerId: string) {
+  async issueFreeTickets(eventId: string, dto: IssueCourtesyTicketsDto, organizerId: string) {
+    const email = dto.email.trim().toLowerCase();
+    const name = dto.name.trim();
+    const courtesyType = dto.courtesyType || 'courtesy';
+    const note = dto.note?.trim() || '';
+    const uniqueSeatIds = Array.from(new Set((dto.seatIds || []).filter(Boolean)));
+    const hasSeatSelection = uniqueSeatIds.length > 0;
+    const hasGeneralSelection = !!dto.sectionId || dto.quantity !== undefined;
+
+    if (hasSeatSelection === hasGeneralSelection) {
+      throw new BadRequestException('Selecciona sillas o una sección general, pero no ambas opciones');
+    }
+    if (!name || !isValidEmailFormat(email)) {
+      throw new BadRequestException('Ingresa un nombre y correo electrónico válidos');
+    }
+
     const event = await this.eventRepo.findOne({ where: { id: eventId }, relations: ['organizer'] });
     if (!event) throw new NotFoundException('Event not found');
     
@@ -2681,7 +2715,8 @@ export class OrdersService {
       }
     }
 
-    // Identify or provision the recipient user
+    // Identify or provision the recipient user. This reuses the same client
+    // account that receives ordinary tickets when the email already exists.
     let recipientUser = await this.eventRepo.manager.findOne('User' as any, { where: { email } }) as any;
     if (!recipientUser) {
       const [firstName, ...lastNameParts] = name.split(' ');
@@ -2699,105 +2734,171 @@ export class OrdersService {
       await this.eventRepo.manager.save(recipientUser);
     }
 
-    const uniqueSeatIds = Array.from(new Set((seatIds || []).filter(Boolean)));
-    if (uniqueSeatIds.length === 0) {
-      throw new BadRequestException('Selecciona al menos un asiento para emitir la cortesía');
-    }
-
-    const invitationSeats = await this.seatRepo.find({
-      where: { id: In(uniqueSeatIds) },
-      relations: ['section'],
-    });
-    if (invitationSeats.length !== uniqueSeatIds.length) {
-      throw new NotFoundException('Uno o más asientos no existen');
-    }
-    if (invitationSeats.some((seat) => seat.section?.eventId !== eventId)) {
-      throw new BadRequestException('Todos los asientos deben pertenecer a este evento');
-    }
-    if (invitationSeats.some((seat) => seat.status === SeatStatus.SOLD)) {
-      throw new BadRequestException('Uno o más asientos ya fueron vendidos y no pueden enviarse como cortesía');
-    }
-
-    // A courtesy is still a permanent block. Prevent a second invitation from
-    // being issued for a seat that already has an active/used complimentary QR.
-    const existingInvitation = await this.ticketRepo
-      .createQueryBuilder('ticket')
-      .innerJoin(Order, 'purchaseOrder', 'purchaseOrder.id = ticket.orderId')
-      .where('ticket.eventId = :eventId', { eventId })
-      .andWhere('ticket.seatId IN (:...seatIds)', { seatIds: uniqueSeatIds })
-      .andWhere('ticket.status IN (:...statuses)', { statuses: [TicketStatus.ACTIVE, TicketStatus.USED] })
-      .andWhere('COALESCE(ticket.price, 0) = 0')
-      .andWhere('purchaseOrder.status = :paidStatus', { paidStatus: OrderStatus.PAID })
-      .andWhere('COALESCE(purchaseOrder.total, 0) = 0')
-      .getOne();
-    if (existingInvitation) {
-      throw new BadRequestException('Uno o más asientos ya tienen una cortesía enviada');
-    }
-
-    // Create a Free ($0) Order record. It documents the courtesy delivery but
-    // must never turn the inventory into a sale.
-    const order = this.orderRepo.create({
-      userId: recipientUser.id,
-      eventId,
-      subtotal: 0,
-      lpFee: 0,
-      processingFee: 0,
-      total: 0,
-      status: OrderStatus.PAID,
-      paidAt: new Date(),
-      ticketCount: uniqueSeatIds.length,
-    });
-    const savedOrder = await this.orderRepo.save(order);
-    const orderId = savedOrder.id;
-
-    const createdTickets: any[] = [];
+    let invitationSeats: Seat[] = [];
+    let createdTickets: Ticket[] = [];
+    let orderId = '';
     const rawAppUrl = this.configService.get('APP_URL') || 'http://localhost:3000';
     const appUrl = (rawAppUrl.startsWith('http://') || rawAppUrl.startsWith('https://')) 
       ? rawAppUrl 
       : `https://${rawAppUrl}`;
 
-    for (const seat of invitationSeats) {
-      // A sent invitation remains blocked, whether or not its QR has already
-      // been used. Only a real paid purchase is allowed to use SOLD.
-      seat.status = SeatStatus.LOCKED;
-      seat.lockedBy = null as any;
-      seat.lockExpiresAt = null as any;
-
-      const ticketCode = nanoid(12).toUpperCase();
-      const qrData = await QRCode.toDataURL(`${appUrl}/verify/${ticketCode}`);
-
-      const ticket = this.ticketRepo.create({
-        ticketCode,
-        orderId,
-        eventId,
-        userId: recipientUser.id,
-        seatId: seat.id,
-        sectionId: seat.sectionId,
-        sectionName: seat.section.name,
-        rowLabel: seat.rowLabel,
-        seatNumber: seat.seatNumber,
-        qrData,
-        price: 0,
-        status: TicketStatus.ACTIVE,
+    if (hasSeatSelection) {
+      invitationSeats = await this.seatRepo.find({
+        where: { id: In(uniqueSeatIds) },
+        relations: ['section'],
       });
-      const savedTicket = await this.ticketRepo.save(ticket);
-      createdTickets.push(savedTicket);
+      if (invitationSeats.length !== uniqueSeatIds.length) {
+        throw new NotFoundException('Uno o más asientos no existen');
+      }
+      if (invitationSeats.some((seat) => seat.section?.eventId !== eventId)) {
+        throw new BadRequestException('Todos los asientos deben pertenecer a este evento');
+      }
+      if (invitationSeats.some((seat) => seat.status === SeatStatus.SOLD)) {
+        throw new BadRequestException('Uno o más asientos ya fueron vendidos y no pueden enviarse como cortesía');
+      }
+
+      const existingInvitation = await this.ticketRepo
+        .createQueryBuilder('ticket')
+        .innerJoin(Order, 'purchaseOrder', 'purchaseOrder.id = ticket.orderId')
+        .where('ticket.eventId = :eventId', { eventId })
+        .andWhere('ticket.seatId IN (:...seatIds)', { seatIds: uniqueSeatIds })
+        .andWhere('ticket.status IN (:...statuses)', { statuses: [TicketStatus.ACTIVE, TicketStatus.USED] })
+        .andWhere('COALESCE(ticket.price, 0) = 0')
+        .andWhere('purchaseOrder.status = :paidStatus', { paidStatus: OrderStatus.PAID })
+        .andWhere('COALESCE(purchaseOrder.total, 0) = 0')
+        .getOne();
+      if (existingInvitation) {
+        throw new BadRequestException('Uno o más asientos ya tienen una cortesía enviada');
+      }
+
+      const order = this.orderRepo.create({
+        userId: recipientUser.id,
+        eventId,
+        subtotal: 0,
+        lpFee: 0,
+        processingFee: 0,
+        total: 0,
+        status: OrderStatus.PAID,
+        paidAt: new Date(),
+        ticketCount: uniqueSeatIds.length,
+        salesChannel: 'complimentary',
+        seatsData: JSON.stringify(invitationSeats.map((seat) => ({
+          seatId: seat.id,
+          sectionId: seat.sectionId,
+          courtesyType,
+          note,
+          issuedBy: organizerId,
+        }))),
+      });
+      orderId = (await this.orderRepo.save(order)).id;
+
+      for (const seat of invitationSeats) {
+        seat.status = SeatStatus.LOCKED;
+        seat.lockedBy = null as any;
+        seat.lockExpiresAt = null as any;
+        const ticketCode = nanoid(12).toUpperCase();
+        const qrData = await QRCode.toDataURL(`${appUrl}/verify/${ticketCode}`);
+        createdTickets.push(await this.ticketRepo.save(this.ticketRepo.create({
+          ticketCode,
+          orderId,
+          eventId,
+          userId: recipientUser.id,
+          seatId: seat.id,
+          sectionId: seat.sectionId,
+          sectionName: seat.section.name,
+          rowLabel: seat.rowLabel,
+          seatNumber: seat.seatNumber,
+          qrData,
+          price: 0,
+          status: TicketStatus.ACTIVE,
+        })));
+      }
+
+      await this.seatRepo.manager.transaction(async (manager) => {
+        await manager.getRepository(Seat).save(invitationSeats);
+        await this.synchronizePermanentBlockMapState(
+          invitationSeats,
+          true,
+          manager.getRepository(VenueSection),
+        );
+      });
+      await this.invalidateSeatMapCaches(invitationSeats);
+    } else {
+      const quantity = Number(dto.quantity || 0);
+      if (!dto.sectionId || !Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+        throw new BadRequestException('Selecciona una sección general y una cantidad válida');
+      }
+
+      const result = await this.orderRepo.manager.transaction(async (manager) => {
+        const sectionRepo = manager.getRepository(VenueSection);
+        const ticketRepo = manager.getRepository(Ticket);
+        const orderRepo = manager.getRepository(Order);
+        const section = await sectionRepo
+          .createQueryBuilder('section')
+          .setLock('pessimistic_write')
+          .where('section.id = :sectionId', { sectionId: dto.sectionId })
+          .andWhere('section.eventId = :eventId', { eventId })
+          .getOne();
+        if (!section) throw new NotFoundException('La sección seleccionada no existe');
+        if (section.sectionType !== 'standing') {
+          throw new BadRequestException('Las cortesías por cantidad solo están disponibles para entradas generales');
+        }
+
+        const issued = await ticketRepo.count({
+          where: { sectionId: section.id, status: In([TicketStatus.ACTIVE, TicketStatus.USED]) },
+        });
+        const capacity = Math.max(Number(section.capacity || 0), Number(section.rows || 0) * Number(section.seatsPerRow || 0));
+        if (capacity <= 0 || issued + quantity > capacity) {
+          throw new BadRequestException(`No hay suficientes entradas disponibles. Quedan ${Math.max(capacity - issued, 0)}.`);
+        }
+
+        const order = await orderRepo.save(orderRepo.create({
+          userId: recipientUser.id,
+          eventId,
+          subtotal: 0,
+          lpFee: 0,
+          processingFee: 0,
+          total: 0,
+          status: OrderStatus.PAID,
+          paidAt: new Date(),
+          ticketCount: quantity,
+          salesChannel: 'complimentary',
+          seatsData: JSON.stringify(Array.from({ length: quantity }, () => ({
+            seatId: null,
+            sectionId: section.id,
+            courtesyType,
+            note,
+            issuedBy: organizerId,
+          }))),
+        }));
+
+        const tickets: Ticket[] = [];
+        for (let index = 0; index < quantity; index += 1) {
+          const ticketCode = nanoid(12).toUpperCase();
+          const qrData = await QRCode.toDataURL(`${appUrl}/verify/${ticketCode}`);
+          tickets.push(await ticketRepo.save(ticketRepo.create({
+            ticketCode,
+            orderId: order.id,
+            eventId,
+            userId: recipientUser.id,
+            seatId: null,
+            sectionId: section.id,
+            sectionName: section.name,
+            rowLabel: 'GA',
+            seatNumber: null as any,
+            qrData,
+            price: 0,
+            status: TicketStatus.ACTIVE,
+          })));
+        }
+        return { orderId: order.id, tickets };
+      });
+      orderId = result.orderId;
+      createdTickets = result.tickets;
     }
 
-    // Keep the persisted seat inventory and the saved map overlay in the same
-    // blocked state. This prevents web and mobile maps from counting a free
-    // invitation as sold on one surface and blocked on another.
-    await this.seatRepo.manager.transaction(async (manager) => {
-      await manager.getRepository(Seat).save(invitationSeats);
-      await this.synchronizePermanentBlockMapState(
-        invitationSeats,
-        true,
-        manager.getRepository(VenueSection),
-      );
-    });
-    await this.invalidateSeatMapCaches(invitationSeats);
-
     await this.invalidateUserPurchasesCache(recipientUser.id);
+    try { await this.cache.del(`organizer:stats:${event.organizerId}`); } catch { /* Courtesy is already persisted. */ }
 
     // Send the invitations via email to the recipient
     const ticketEmailParams = {
@@ -2806,9 +2907,11 @@ export class OrdersService {
       eventDate: event.eventDate?.toString(),
       eventTimezone: event.eventTimezone,
     };
+    let emailSent = true;
     try {
       await this.mailService.sendTicketEmail(email, name, event.title, createdTickets, ticketEmailParams);
     } catch (e) {
+      emailSent = false;
       console.error('Error sending free ticket email:', e);
     }
 
@@ -2826,7 +2929,7 @@ export class OrdersService {
       }
     }
 
-    return { success: true, count: createdTickets.length, tickets: createdTickets };
+    return { success: true, count: createdTickets.length, tickets: createdTickets, orderId, emailSent };
   }
 
   /**

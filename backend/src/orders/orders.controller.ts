@@ -26,6 +26,7 @@ import { UserRole } from '../database/entities';
 import { ValidateTicketDto } from './dto/validate-ticket.dto';
 import { TapPaymentStatusDto } from './dto/tap-payment-status.dto';
 import { RevokeTicketsDto } from './dto/revoke-tickets.dto';
+import { IssueCourtesyTicketsDto } from './dto/issue-courtesy-tickets.dto';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require('stripe');
 
@@ -423,10 +424,10 @@ export class OrdersController {
   @Post('event/:eventId/free-tickets')
   issueFreeTickets(
     @Param('eventId') eventId: string,
-    @Body() body: { seatIds: string[]; email: string; name: string },
+    @Body() body: IssueCourtesyTicketsDto,
     @Request() req: any
   ) {
-    return this.ordersService.issueFreeTickets(eventId, body.seatIds, body.email, body.name, req.user.id);
+    return this.ordersService.issueFreeTickets(eventId, body, req.user.id);
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)

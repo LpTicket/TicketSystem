@@ -1,12 +1,21 @@
 # LPTicket - Estado del Proyecto
 
-Última revisión documental: 2026-09-05
+Última revisión documental: 2026-09-12
 Fuente: revisión de código local, pruebas automatizadas y builds locales.
 Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explícita.
 
+## Saldo del organizador — 2026-09-15
+
+Estado: `IMPLEMENTADO`; publicación y comprobación con una sesión autenticada pendientes.
+
+- El panel del organizador muestra `Venta de entradas`, `Pagos registrados` y `Pendiente por pagar`; ya no presenta el cálculo incorrecto que restaba la comisión estándar de Stripe a la venta base.
+- Los pagos son los registros administrativos existentes en `organizer_payouts`. El pendiente se calcula como venta base menos ajustes aplicables y pagos registrados, igual que en administración.
+- El registro de un pago externo invalida las cachés financieras para reflejar el nuevo saldo inmediatamente. No envía dinero ni altera Stripe, órdenes o tickets.
+- Comprobación local: 39 pruebas de órdenes, build de backend y build de frontend aprobados. Falta verificar la presentación con datos reales y confirmar el resultado después de publicar.
+
 ## Ingreso por comprador y confirmación Tap to Pay — 2026-09-15
 
-Estado: `IMPLEMENTADO`. Pruebas locales y PostgreSQL temporal comprobados; publicación autorizada el 2026-09-15, verificación de despliegue y dispositivo pendiente.
+Estado: `PARCIALMENTE IMPLEMENTADO` en distribución. Código publicado en `main` (`ee6312eb`, versión móvil `4ef45e07`); backend activo en Railway y búsqueda nueva visible en la web. Entrega móvil y prueba física pendientes.
 
 - Web y móvil incorporan `Escanear QR / Buscar comprador`, disponibles reales, `Registrar 1 ingreso` para entradas generales equivalentes, selección individual para sillas/tipos distintos y acceso al historial. Mantienen al comprador abierto y refrescan las búsquedas cada cinco segundos mientras se consultan. La API protege cada ingreso con el cambio condicional `active → used` y guarda empleado, fecha y método en el mismo cambio.
 - La búsqueda primero identifica compradores y luego carga sus entradas completas del evento; no calcula un saldo parcial a partir de un código o de un límite de 200 tickets. Excluye anuladas/revocadas de los disponibles y enmascara el correo mostrado.
@@ -14,7 +23,16 @@ Estado: `IMPLEMENTADO`. Pruebas locales y PostgreSQL temporal comprobados; publi
 - La confirmación comprueba monto, moneda, orden y evento; verifica el resultado de captura y mantiene compatible el endpoint anterior. El envío de correo posterior de Tap to Pay ya no bloquea la respuesta de ingreso. Es una tarea de mejor esfuerzo en el proceso, no una cola persistente; falta probar entrega real y comportamiento ante reinicios del backend.
 - Validación: pruebas unitarias backend y del servicio móvil con proveedores simulados; TypeScript móvil y builds. Prueba web con datos ficticios: 3 → 2 disponibles, comprador conservado, actualización en segunda puerta y escáner a 320/390/768/1440 px. Se observó desbordamiento preexistente de la barra global a 320 px, fuera de este cambio.
 - PostgreSQL temporal: TypeORM generó exactamente tres `ADD` anulables; se conservaron 10 tickets históricos, búsqueda con/sin acentos y por código devolvió el saldo completo, dos validaciones simultáneas admitieron una sola vez y las revocadas se rechazaron.
-- Pendiente: publicación autorizada de backend/web y compilación nativa; iPhone con Stripe, medición de latencia, rechazo, desconexión y recuperación. No se hicieron cobros reales ni pruebas que consumieran tickets de producción.
+- Publicación: GET de eventos y `/verify` devolvieron 200; la web muestra `Escanear QR / Buscar comprador`. Sin sesión vigente para comprobar la búsqueda de compradores reales; no se consumieron tickets ni se hicieron cobros de producción.
+- Móvil `1.0.9`: iOS build 38 compilado en EAS (`3b528d36-c1e6-40a4-864c-50773a1f3656`) y envío a TestFlight programado (`1f9d86de-0d39-4f7e-9b54-346021eb5991`); Android build 7 en cola gratuita (`04941266-f11d-4455-b0df-31cfeee8da8e`), con espera estimada por EAS de unos 70 minutos al consultar. Apple tenía publicada `1.0.8 (37)` y se sincronizó el contador remoto antes de compilar.
+- Google Play conserva `1.0.8 (5)` en revisión con los mismos ocho países; no se retiró ese envío. Falta verificar en iPhone cobro confirmado, rechazo, desconexión, recuperación y latencia.
+
+## Publicación Android
+
+- `PARCIALMENTE IMPLEMENTADO`: el AAB Android `1.0.8` (`versionCode` 5) terminó correctamente en EAS y Google Play Console lo aceptó en la pista de producción de LP Ticket (`com.inhoustontexas.lpticket`). El paquete declara Android API 26+ y SDK de destino 36.
+- Se seleccionaron exactamente Venezuela, Colombia, Panamá, México, Argentina, Chile, Perú y Estados Unidos. Con autorización explícita del propietario se enviaron a revisión de Google Play dos cambios: lanzamiento completo de `1.0.8 (5)` y disponibilidad en esos ocho países. Play Console los muestra en la etapa de revisión mientras ejecuta verificaciones rápidas; la publicación pública aún no está confirmada. La publicación administrada está desactivada, por lo que una aprobación puede publicarlos automáticamente.
+- EAS no tiene una cuenta de servicio de Google Play configurada para envío automático. La carga del AAB se hizo manualmente desde Play Console. La advertencia sobre archivo de desofuscación no impidió aceptar el paquete.
+- La configuración de envío en `mobile/eas.json` queda dirigida a la pista Android `production` para un futuro envío automatizado, una vez configurada la credencial; no modifica iOS, backend, pagos ni datos.
 
 ## Estado Git Actual
 

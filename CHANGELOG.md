@@ -1,8 +1,17 @@
 # LPTicket - Historial de Cambios
 
+## 2026-09-15 - Saldo real del organizador en su dashboard
+
+Estado: `IMPLEMENTADO`; pruebas automatizadas y builds locales aprobados. Validación autenticada y publicación pendientes.
+
+- El dashboard del organizador reemplaza `Neto estimado`, que descontaba nuevamente una comisión estimada de Stripe, por `Pagos registrados` y `Pendiente por pagar`.
+- `Venta de entradas` conserva el subtotal base destinado al organizador. El pendiente usa la misma contabilidad administrativa: venta base menos ajustes de procesamiento aplicables ya conciliados y pagos externos registrados.
+- Registrar un pago desde administración invalida inmediatamente los resúmenes financieros del administrador y del organizador. No realiza transferencias ni modifica órdenes, tickets o cobros.
+- Validación local: 39 pruebas de órdenes, build de backend y build de frontend.
+
 ## 2026-09-15 - Ingreso por comprador y confirmación de pago en puerta
 
-Estado: `IMPLEMENTADO`; validado localmente y con PostgreSQL temporal. Publicación autorizada el 2026-09-15; dispositivo y despliegue pendientes de comprobación.
+Estado: `PARCIALMENTE IMPLEMENTADO` en distribución; backend/web publicados y comprobados. Entrega móvil en cola y prueba física pendiente.
 
 - `mobile/src/screens/ScanScreen.tsx` y `frontend/src/app/verify/page.tsx`: acceso directo a búsqueda, saldo disponible, ingreso de una persona, comprador conservado, selección de silla/tipo y estados anulados/revocados; historial desplegable y refresco de búsquedas visibles cada 5 segundos.
 - `backend/src/orders/orders.service.ts`, controladores de órdenes/empleados y DTO de validación: búsqueda con saldo completo por comprador, respuesta sin QR pesado, correo enmascarado y método de ingreso validado. La admisión comparte la protección condicional existente del QR y no cambia inventario, asientos ni ventas.
@@ -10,19 +19,34 @@ Estado: `IMPLEMENTADO`; validado localmente y con PostgreSQL temporal. Publicaci
 - Tap to Pay: endpoint de recuperación separado para conservar el contrato de apps anteriores; confirmación estricta de Stripe y entradas; cancelación solo de la compra pendiente y solo después de comprobar Stripe; procesamiento/captura pendientes nunca significan acceso.
 - `mobile/src/services/tapToPay.ts`, `doorSales.ts`, `DoorSaleScreen.tsx` y declaración del SDK: recuperación de la misma compra, persistencia local sin secretos ni datos de tarjeta, bloqueo de doble toque, verificación real de conexión y resultado final inequívoco. Reintentar no crea otra orden/PaymentIntent.
 - El correo postventa de Tap to Pay continúa después de la confirmación sin bloquear al comprador. Conserva destinatarios/copias existentes; sigue siendo mejor esfuerzo y no una cola durable.
-- Pruebas: backend de admisión/concurrencia/Stripe, pruebas del servicio móvil con SDK y servidor simulados, builds y prueba visual web con dos puertas y datos ficticios. No se hicieron cobros reales. Se prepara la publicación autorizada; los cambios previos de Android en `mobile/eas.json` se conservan fuera de este commit.
+- Pruebas: backend de admisión/concurrencia/Stripe, pruebas del servicio móvil con SDK y servidor simulados, builds y prueba visual web con dos puertas y datos ficticios. No se hicieron cobros reales. La publicación autorizada se detalla abajo; los cambios previos de Android en `mobile/eas.json` se conservan fuera de estos commits.
 
+
+### Publicación autorizada
+
+- Commits `ee6312eb` (ingreso/pagos) y `4ef45e07` (versión móvil `1.0.9`) publicados en `main`. Se conservaron fuera de ambos commits los ajustes previos de Android en `mobile/eas.json` y sus notas.
+- Backend activo en Railway; web pública muestra los controles nuevos. GET de eventos y `/verify`: 200. Sin cobros reales ni consumo de tickets para pruebas.
+- iOS `1.0.9 (38)` compilado; envío a TestFlight en cola. Android `1.0.9 (7)` en cola gratuita de compilación (EAS indicaba unos 70 minutos de espera). Google Play mantiene la versión anterior en revisión. La disponibilidad móvil todavía no está comprobada.
 
 ### Comprobaciones de esta implementación
 
 - PostgreSQL temporal aislado: esquema con exactamente tres columnas nuevas anulables, historial conservado, búsqueda completa con acentos/código y una sola admisión ante dos solicitudes simultáneas.
 
-- En `backend`: `npm test -- --runInBand --no-watchman orders.service.spec.ts scanner-access.service.spec.ts --silent` y `npm run build`.
+- En `backend`: `npm test -- --runInBand --no-watchman orders.service.spec.ts scanner-access.service.spec.ts --silent` (38 pruebas) y `npm run build`; la repetición previa al push encontró `EMFILE` local y pasó con `CHOKIDAR_USEPOLLING=true npm run build`.
 - En `mobile`: `npx tsc --noEmit`.
 - Desde la raíz: `node --test mobile/tests/tapToPay.test.cjs` (10 casos con SDK/HTTP simulados) y `git diff --check`.
 - En `frontend`: `npm run build`.
 - Navegador local con API ficticia: comprador con 10 entradas, 7 ingresadas, registro manual de una, saldo final 2, comprador abierto y actualización en otra puerta. Revisión del escáner a 320, 390, 768 y 1440 px; barra global existente desborda a 320 px y no se modificó.
 - Para la prueba física posterior: compilar e instalar la app nativa; usar un backend de pruebas con el esquema actualizado y Stripe configurado para pruebas. Verificar cobro confirmado, rechazo, pérdida de red después de acercar la tarjeta, reapertura de la app, verificación del mismo intento y cancelación. Comparar cada caso con Stripe y los tickets persistidos. No probar estos casos cobrando a asistentes de un evento en vivo.
+
+## 2026-09-12 - Preparación de la versión Android 1.0.8 para Play Store
+
+- El AAB firmado de LP Ticket `1.0.8` (`versionCode` 5) se compiló en EAS y se cargó en Google Play Console para producción. Android API mínima 26 y objetivo 36.
+- `mobile/eas.json` especifica la pista `production` para futuras entregas automáticas; EAS no pudo ejecutar el envío automático porque no dispone de una cuenta de servicio de Google Play. La carga manual no creó ni expuso credenciales.
+- Se seleccionaron Venezuela, Colombia, Panamá, México, Argentina, Chile, Perú y Estados Unidos. Con confirmación explícita del propietario se enviaron a revisión el lanzamiento completo y los ocho países. Google Play ejecuta verificaciones rápidas antes de iniciar la revisión; la publicación administrada está desactivada, así que podría publicarse automáticamente tras la aprobación. No se alteraron iOS, web, backend, pagos, datos ni la otra app de la cuenta.
+- Validación: `npx tsc --noEmit`, `git diff --check`, archivo AAB íntegro mediante `unzip -tq`, build EAS `FINISHED` y aceptación del paquete en Play Console. `expo-doctor` indicó una regresión de memoria conocida en Hermes V1 de SDK 56 y diferencias de dependencias; no se hizo una actualización mayor de SDK dentro de esta publicación.
+
+Estado: `PARCIALMENTE IMPLEMENTADO`; enviado a la etapa de revisión, todavía sin publicación pública confirmada.
 
 ## 2026-09-12 - Gestión administrativa de empleados de eventos en web
 

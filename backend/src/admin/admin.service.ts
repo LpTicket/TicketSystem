@@ -437,7 +437,7 @@ export class AdminService {
       throw new BadRequestException('El monto debe ser mayor a 0.');
     }
 
-    return this.organizerPayoutRepo.manager.transaction(async (manager) => {
+    const payout = await this.organizerPayoutRepo.manager.transaction(async (manager) => {
       const event = await manager.getRepository(Event).findOne({
         where: { id: eventId },
         lock: { mode: 'pessimistic_write' },
@@ -495,6 +495,18 @@ export class AdminService {
         }),
       );
     });
+
+    // The payout is already persisted; cache invalidation only makes the new
+    // balance visible immediately in both admin and organizer dashboards.
+    try {
+      await Promise.all([
+        this.cache.del('admin:stats'),
+        this.cache.del('admin:financials'),
+        this.cache.del(`organizer:stats:${payout.organizerUserId}`),
+      ]);
+    } catch { /* The saved payout remains the source of truth. */ }
+
+    return payout;
   }
 
   async getUsers(page: number, limit: number, role?: string, search?: string) {

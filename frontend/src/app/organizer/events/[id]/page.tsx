@@ -65,6 +65,19 @@ interface Attendee {
   user?: { firstName: string; lastName: string; email: string };
 }
 
+const getCourtesyMetadata = (order: any) => {
+  try {
+    const entries = JSON.parse(order?.seatsData || '[]');
+    const first = Array.isArray(entries) ? entries[0] : null;
+    return {
+      type: first?.courtesyType || 'courtesy',
+      note: first?.note || '',
+    };
+  } catch {
+    return { type: 'courtesy', note: '' };
+  }
+};
+
 const TIMEZONE_GROUPS = [
   {
     region: 'Americas - North & Central',
@@ -682,7 +695,15 @@ export default function EventDetailPage() {
   const [selectedBlockSection, setSelectedBlockSection] = useState('');
   const [selectedBlockSeats, setSelectedBlockSeats] = useState<string[]>([]);
   const [blockSeatView, setBlockSeatView] = useState<'all' | 'blocked'>('all');
-  const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
+  const [courtesyMode, setCourtesyMode] = useState<'general' | 'seats'>('general');
+  const [generalCourtesySection, setGeneralCourtesySection] = useState('');
+  const [generalCourtesyQuantity, setGeneralCourtesyQuantity] = useState(1);
+  const [inviteForm, setInviteForm] = useState({
+    name: '',
+    email: '',
+    courtesyType: 'courtesy' as 'courtesy' | 'sponsor' | 'press' | 'staff',
+    note: '',
+  });
   const [blockingActionLoading, setBlockingActionLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [expandedAttendee, setExpandedAttendee] = useState<string | null>(null);
@@ -824,6 +845,19 @@ export default function EventDetailPage() {
       });
   }, [activeTab, id]);
 
+  useEffect(() => {
+    if (loading) return;
+    const generalSections = sections.filter((section) => section.sectionType === 'standing');
+    if (generalSections.length === 0) {
+      setCourtesyMode('seats');
+      setGeneralCourtesySection('');
+      return;
+    }
+    if (!generalSections.some((section) => section.id === generalCourtesySection)) {
+      setGeneralCourtesySection(generalSections[0].id);
+    }
+  }, [sections, generalCourtesySection, loading]);
+
   const handlePublish = async () => {
     try {
       await api.post(`/events/${id}/publish`);
@@ -872,19 +906,90 @@ export default function EventDetailPage() {
       toast.error(lang === 'es' ? 'Por favor ingresa nombre y correo del invitado' : 'Please fill in the guest name and email address');
       return;
     }
+    const confirmed = await confirmDialog({
+      title: lang === 'es' ? 'Confirmar entradas de cortesía' : 'Confirm complimentary tickets',
+      message: lang === 'es'
+        ? `Se emitirán ${selectedBlockSeats.length} entrada(s) por $0.00 para ${inviteForm.name}. No se realizará ningún cobro.`
+        : `${selectedBlockSeats.length} ticket(s) will be issued for $0.00 to ${inviteForm.name}. No payment will be charged.`,
+      confirmLabel: lang === 'es' ? 'Emitir cortesías' : 'Issue tickets',
+    });
+    if (!confirmed) return;
+
     setBlockingActionLoading(true);
     try {
-      await api.post(`/orders/event/${id}/free-tickets`, {
+      const { data } = await api.post(`/orders/event/${id}/free-tickets`, {
         seatIds: selectedBlockSeats,
-        email: inviteForm.email,
-        name: inviteForm.name,
+        email: inviteForm.email.trim(),
+        name: inviteForm.name.trim(),
+        courtesyType: inviteForm.courtesyType,
+        note: inviteForm.note.trim() || undefined,
       });
-      toast.success(lang === 'es' ? '¡Invitación enviada con éxito por correo!' : 'Complimentary tickets issued and sent successfully!');
-      setInviteForm({ name: '', email: '' });
+      if (data?.emailSent === false) {
+        toast.error(lang === 'es' ? 'Las entradas se crearon, pero el correo no pudo enviarse. Abre el recibo desde el historial para recuperar los QR.' : 'Tickets were created, but the email could not be sent. Open the receipt from history to recover the QR codes.');
+      } else {
+        toast.success(lang === 'es' ? '¡Entradas de cortesía emitidas y enviadas!' : 'Complimentary tickets issued and sent!');
+      }
+      setInviteForm({ name: '', email: '', courtesyType: 'courtesy', note: '' });
       setSelectedBlockSeats([]);
       await loadEvent();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Error issuing free tickets');
+    } finally {
+      setBlockingActionLoading(false);
+    }
+  };
+
+  const handleSendGeneralCourtesy = async () => {
+    const quantity = Math.max(1, Math.floor(Number(generalCourtesyQuantity) || 0));
+    if (!generalCourtesySection) {
+      toast.error(lang === 'es' ? 'Selecciona una sección general' : 'Select a general-admission section');
+      return;
+    }
+    if (!inviteForm.name.trim() || !inviteForm.email.trim()) {
+      toast.error(lang === 'es' ? 'Ingresa el nombre y correo del invitado' : 'Enter the guest name and email');
+      return;
+    }
+    const section = sections.find((item) => item.id === generalCourtesySection);
+    if (!section) return;
+    const activeSectionTickets = ((sales?.orders || []) as any[])
+      .flatMap((order: any) => order.tickets || [])
+      .filter((ticket: any) => ticket.sectionId === section.id && ['active', 'used'].includes(ticket.status)).length;
+    const capacity = Math.max(Number(section.capacity || 0), Number(section.rows || 0) * Number(section.seatsPerRow || 0));
+    const available = Math.max(capacity - activeSectionTickets, 0);
+    if (quantity > available) {
+      toast.error(lang === 'es' ? `Solo quedan ${available} entradas disponibles` : `Only ${available} tickets remain`);
+      return;
+    }
+
+    const confirmed = await confirmDialog({
+      title: lang === 'es' ? 'Confirmar entradas de cortesía' : 'Confirm complimentary tickets',
+      message: lang === 'es'
+        ? `Se emitirán ${quantity} entrada(s) de ${section.name} por $0.00 para ${inviteForm.name}. Se descontarán de la capacidad y no se realizará ningún cobro.`
+        : `${quantity} ${section.name} ticket(s) will be issued for $0.00 to ${inviteForm.name}. They will reduce capacity and no payment will be charged.`,
+      confirmLabel: lang === 'es' ? 'Emitir cortesías' : 'Issue tickets',
+    });
+    if (!confirmed) return;
+
+    setBlockingActionLoading(true);
+    try {
+      const { data } = await api.post(`/orders/event/${id}/free-tickets`, {
+        sectionId: generalCourtesySection,
+        quantity,
+        email: inviteForm.email.trim(),
+        name: inviteForm.name.trim(),
+        courtesyType: inviteForm.courtesyType,
+        note: inviteForm.note.trim() || undefined,
+      });
+      if (data?.emailSent === false) {
+        toast.error(lang === 'es' ? 'Las entradas se crearon, pero el correo no pudo enviarse. Abre el recibo desde el historial para recuperar los QR.' : 'Tickets were created, but the email could not be sent. Open the receipt from history to recover the QR codes.');
+      } else {
+        toast.success(lang === 'es' ? `¡${quantity} entrada(s) de cortesía enviadas!` : `${quantity} complimentary ticket(s) sent!`);
+      }
+      setGeneralCourtesyQuantity(1);
+      setInviteForm({ name: '', email: '', courtesyType: 'courtesy', note: '' });
+      await loadEvent();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || (lang === 'es' ? 'No se pudieron emitir las cortesías' : 'Could not issue complimentary tickets'));
     } finally {
       setBlockingActionLoading(false);
     }
@@ -1415,9 +1520,9 @@ export default function EventDetailPage() {
           }}
           className={`group relative flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-xl border px-2.5 py-2 text-center text-[13px] font-extrabold leading-tight shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] sm:min-h-[46px] sm:px-3 sm:text-sm ${activeTab === 'blocks' ? 'border-[#F97316] bg-orange-50 text-[#F97316] shadow-md shadow-orange-500/10' : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50/80 hover:text-[#F97316] hover:shadow-md'}`}
         >
-          <HiOutlineBan className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
-          <span className="hidden min-w-0 truncate sm:inline">{lang === 'es' ? 'Bloqueos e Invitaciones' : 'Blocks & Invitations'}</span>
-          <span className="min-w-0 truncate sm:hidden">{lang === 'es' ? 'Bloqueos' : 'Blocks'}</span>
+          <HiOutlineTicket className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
+          <span className="hidden min-w-0 truncate sm:inline">{lang === 'es' ? 'Entradas de cortesía' : 'Complimentary tickets'}</span>
+          <span className="min-w-0 truncate sm:hidden">{lang === 'es' ? 'Cortesías' : 'Courtesy'}</span>
         </button>
         <button
           onClick={() => setActiveTab('commission')}
@@ -2327,15 +2432,182 @@ export default function EventDetailPage() {
 
       {/* Blocks & Invitations Tab */}
       {activeTab === 'blocks' && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="font-bold text-lg text-gray-900">{lang === 'es' ? 'Gestión de Bloqueos e Invitaciones' : 'Blocks & Free Invitations'}</h2>
-              <p className="text-xs text-gray-500 mt-1">{lang === 'es' ? 'Selecciona una sección para bloquear mesas/sillas o enviar cortesías gratis' : 'Select a section to block seats or tables or send free complimentary tickets'}</p>
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 space-y-6">
+          <section className="relative overflow-hidden rounded-[1.75rem] border border-[rgba(249,115,22,0.28)] bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.22),transparent_34%),linear-gradient(135deg,#0b2943_0%,#071a2d_58%,#050f1c_100%)] px-5 py-6 text-white shadow-[0_24px_70px_rgba(4,15,28,0.28)] sm:px-7 sm:py-7">
+            <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-2xl">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-orange-300/25 bg-orange-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-orange-200">
+                  <HiOutlineTicket className="h-4 w-4" />
+                  {lang === 'es' ? 'Acceso especial' : 'Special access'}
+                </div>
+                <h2 className="text-2xl font-black tracking-tight sm:text-3xl">{lang === 'es' ? 'Entradas de cortesía' : 'Complimentary tickets'}</h2>
+                <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-slate-300">
+                  {lang === 'es'
+                    ? 'Entrega entradas gratuitas a invitados, sponsors, prensa o equipo. Cada QR descuenta capacidad y queda registrado sin generar un cobro.'
+                    : 'Give free tickets to guests, sponsors, press, or staff. Every QR reduces capacity and is recorded without creating a charge.'}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/[0.06] p-2 backdrop-blur-sm">
+                <div className="rounded-xl bg-white/[0.06] px-4 py-3 text-center">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{lang === 'es' ? 'Cobro' : 'Charge'}</p>
+                  <p className="mt-1 text-lg font-black text-white">$0.00</p>
+                </div>
+                <div className="rounded-xl bg-white/[0.06] px-4 py-3 text-center">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">{lang === 'es' ? 'Entrega' : 'Delivery'}</p>
+                  <p className="mt-1 text-sm font-black text-emerald-300">QR + Email</p>
+                </div>
+              </div>
             </div>
-            
-            {/* Section Selector */}
-            <div className="shrink-0">
+          </section>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => { setCourtesyMode('general'); setSelectedBlockSeats([]); }}
+              disabled={!sections.some((section) => section.sectionType === 'standing')}
+              className={`rounded-2xl border p-4 text-left transition-all disabled:cursor-not-allowed disabled:opacity-45 ${courtesyMode === 'general' ? 'border-[#F97316] bg-orange-50 shadow-[0_12px_30px_rgba(249,115,22,0.12)]' : 'border-gray-200 bg-white hover:border-orange-200 hover:bg-orange-50/40'}`}
+            >
+              <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${courtesyMode === 'general' ? 'text-[#F97316]' : 'text-gray-400'}`}>{lang === 'es' ? 'Sin asiento asignado' : 'No assigned seat'}</p>
+              <p className="mt-1 text-base font-black text-gray-900">{lang === 'es' ? 'Entrada general' : 'General admission'}</p>
+              <p className="mt-1 text-xs leading-5 text-gray-500">{lang === 'es' ? 'Elige una sección y la cantidad que deseas obsequiar.' : 'Choose a section and the number of tickets to give.'}</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCourtesyMode('seats')}
+              className={`rounded-2xl border p-4 text-left transition-all ${courtesyMode === 'seats' ? 'border-[#F97316] bg-orange-50 shadow-[0_12px_30px_rgba(249,115,22,0.12)]' : 'border-gray-200 bg-white hover:border-orange-200 hover:bg-orange-50/40'}`}
+            >
+              <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${courtesyMode === 'seats' ? 'text-[#F97316]' : 'text-gray-400'}`}>{lang === 'es' ? 'Ubicación específica' : 'Specific location'}</p>
+              <p className="mt-1 text-base font-black text-gray-900">{lang === 'es' ? 'Sillas o mesas' : 'Seats or tables'}</p>
+              <p className="mt-1 text-xs leading-5 text-gray-500">{lang === 'es' ? 'Selecciona ubicaciones bloqueadas o disponibles en el mapa.' : 'Select blocked or available locations on the map.'}</p>
+            </button>
+          </div>
+
+          {courtesyMode === 'general' ? (() => {
+            const generalSections = sections.filter((section) => section.sectionType === 'standing');
+            const selectedSection = generalSections.find((section) => section.id === generalCourtesySection);
+            const issued = selectedSection
+              ? salesOrders.flatMap((order: any) => order.tickets || []).filter((ticket: any) => ticket.sectionId === selectedSection.id && ['active', 'used'].includes(ticket.status)).length
+              : 0;
+            const capacity = selectedSection ? Math.max(Number(selectedSection.capacity || 0), Number(selectedSection.rows || 0) * Number(selectedSection.seatsPerRow || 0)) : 0;
+            const available = Math.max(capacity - issued, 0);
+            const generalCourtesyOrders = complimentaryOrders.filter((order: any) => (order.tickets || []).some((ticket: any) => !ticket.seatId));
+
+            return (
+              <div className="space-y-5">
+                <section className="overflow-hidden rounded-[1.5rem] border border-gray-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] shadow-sm">
+                  <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
+                    <div className="space-y-5">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F97316]">{lang === 'es' ? 'Preparar entrega' : 'Prepare delivery'}</p>
+                        <h3 className="mt-1 text-xl font-black text-gray-950">{lang === 'es' ? 'Nueva cortesía general' : 'New general courtesy'}</h3>
+                        <p className="mt-1 text-sm leading-6 text-gray-500">{lang === 'es' ? 'Los QR quedarán activos y podrán validarse normalmente en la puerta.' : 'QR codes will be active and can be validated normally at the gate.'}</p>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <label className="space-y-1.5 sm:col-span-2">
+                          <span className="text-xs font-black uppercase tracking-wider text-gray-600">{lang === 'es' ? 'Sección general' : 'General section'}</span>
+                          <select value={generalCourtesySection} onChange={(e) => setGeneralCourtesySection(e.target.value)} className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100">
+                            {generalSections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}
+                          </select>
+                        </label>
+                        <label className="space-y-1.5">
+                          <span className="text-xs font-black uppercase tracking-wider text-gray-600">{lang === 'es' ? 'Cantidad' : 'Quantity'}</span>
+                          <input type="number" min={1} max={Math.min(available || 1, 100)} value={generalCourtesyQuantity} onChange={(e) => setGeneralCourtesyQuantity(Math.max(1, Math.min(100, Number(e.target.value) || 1)))} className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100" />
+                        </label>
+                        <label className="space-y-1.5">
+                          <span className="text-xs font-black uppercase tracking-wider text-gray-600">{lang === 'es' ? 'Tipo de cortesía' : 'Courtesy type'}</span>
+                          <select value={inviteForm.courtesyType} onChange={(e) => setInviteForm({ ...inviteForm, courtesyType: e.target.value as typeof inviteForm.courtesyType })} className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100">
+                            <option value="courtesy">{lang === 'es' ? 'Cortesía' : 'Courtesy'}</option>
+                            <option value="sponsor">Sponsor</option>
+                            <option value="press">{lang === 'es' ? 'Prensa' : 'Press'}</option>
+                            <option value="staff">Staff</option>
+                          </select>
+                        </label>
+                        <label className="space-y-1.5">
+                          <span className="text-xs font-black uppercase tracking-wider text-gray-600">{lang === 'es' ? 'Nombre del invitado' : 'Guest name'}</span>
+                          <input type="text" value={inviteForm.name} onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })} placeholder={lang === 'es' ? 'Nombre completo' : 'Full name'} className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#F97316] focus:ring-4 focus:ring-orange-100" />
+                        </label>
+                        <label className="space-y-1.5">
+                          <span className="text-xs font-black uppercase tracking-wider text-gray-600">{lang === 'es' ? 'Correo electrónico' : 'Email address'}</span>
+                          <input type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} placeholder="invitado@email.com" className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#F97316] focus:ring-4 focus:ring-orange-100" />
+                        </label>
+                        <label className="space-y-1.5 sm:col-span-2">
+                          <span className="text-xs font-black uppercase tracking-wider text-gray-600">{lang === 'es' ? 'Nota interna opcional' : 'Optional internal note'}</span>
+                          <textarea maxLength={240} rows={3} value={inviteForm.note} onChange={(e) => setInviteForm({ ...inviteForm, note: e.target.value })} placeholder={lang === 'es' ? 'Ej.: Invitación del sponsor principal' : 'E.g. Main sponsor invitation'} className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#F97316] focus:ring-4 focus:ring-orange-100" />
+                        </label>
+                      </div>
+                    </div>
+
+                    <aside className="flex flex-col rounded-2xl border border-[#163c5b] bg-[#08243b] p-5 text-white shadow-[0_18px_40px_rgba(8,36,59,0.18)]">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-300">{lang === 'es' ? 'Resumen' : 'Summary'}</p>
+                      <h4 className="mt-2 text-lg font-black">{selectedSection?.name || (lang === 'es' ? 'Selecciona una sección' : 'Select a section')}</h4>
+                      <div className="mt-5 grid grid-cols-3 gap-2">
+                        {[
+                          [lang === 'es' ? 'Capacidad' : 'Capacity', capacity],
+                          [lang === 'es' ? 'Emitidas' : 'Issued', issued],
+                          [lang === 'es' ? 'Disponibles' : 'Available', available],
+                        ].map(([label, value]) => (
+                          <div key={String(label)} className="rounded-xl border border-white/10 bg-white/[0.05] px-2 py-3 text-center">
+                            <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">{label}</p>
+                            <p className="mt-1 text-xl font-black text-white">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-5 space-y-2 border-t border-white/10 pt-5 text-xs font-semibold text-slate-300">
+                        <p className="flex items-center gap-2"><HiOutlineCheckCircle className="h-4 w-4 text-emerald-300" /> {lang === 'es' ? 'Sin cobro ni comisión' : 'No charge or fee'}</p>
+                        <p className="flex items-center gap-2"><HiOutlineCheckCircle className="h-4 w-4 text-emerald-300" /> {lang === 'es' ? 'QR individual por entrada' : 'Individual QR per ticket'}</p>
+                        <p className="flex items-center gap-2"><HiOutlineCheckCircle className="h-4 w-4 text-emerald-300" /> {lang === 'es' ? 'Descuenta capacidad disponible' : 'Reduces available capacity'}</p>
+                      </div>
+                      <button type="button" onClick={handleSendGeneralCourtesy} disabled={blockingActionLoading || !selectedSection || available < 1} className="mt-auto inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#F97316] px-4 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(249,115,22,0.28)] transition hover:bg-[#ea6a0b] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45">
+                        <HiOutlineMail className="h-5 w-5" />
+                        {blockingActionLoading ? (lang === 'es' ? 'Emitiendo...' : 'Issuing...') : (lang === 'es' ? 'Emitir y enviar cortesías' : 'Issue and send tickets')}
+                      </button>
+                    </aside>
+                  </div>
+                </section>
+
+                {generalCourtesyOrders.length > 0 && (
+                  <section className="rounded-[1.5rem] border border-gray-200 bg-white p-5 sm:p-6">
+                    <div className="flex items-end justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F97316]">{lang === 'es' ? 'Historial' : 'History'}</p>
+                        <h3 className="mt-1 text-lg font-black text-gray-950">{lang === 'es' ? 'Cortesías generales enviadas' : 'Sent general complimentary tickets'}</h3>
+                      </div>
+                      <span className="rounded-full bg-orange-50 px-3 py-1.5 text-xs font-black text-[#F97316]">{generalCourtesyOrders.reduce((sum: number, order: any) => sum + Number(order.ticketCount || 0), 0)}</span>
+                    </div>
+                    <div className="mt-4 grid gap-3">
+                      {generalCourtesyOrders.map((order: any) => {
+                        const metadata = getCourtesyMetadata(order);
+                        const typeLabels: Record<string, string> = { courtesy: lang === 'es' ? 'Cortesía' : 'Courtesy', sponsor: 'Sponsor', press: lang === 'es' ? 'Prensa' : 'Press', staff: 'Staff' };
+                        return (
+                          <div key={order.id} className="grid gap-4 rounded-2xl border border-gray-100 bg-slate-50/80 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="truncate font-black text-gray-950">{order.user?.firstName} {order.user?.lastName}</p>
+                                <span className="rounded-full border border-orange-200 bg-orange-50 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-[#C2410C]">{typeLabels[metadata.type] || typeLabels.courtesy}</span>
+                              </div>
+                              <p className="mt-1 truncate text-sm text-gray-500">{order.user?.email}</p>
+                              {metadata.note && <p className="mt-2 text-xs italic text-gray-500">{metadata.note}</p>}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-xl bg-[#0A375A] px-3 py-2 text-xs font-black text-white">{order.ticketCount} {lang === 'es' ? 'entradas' : 'tickets'}</span>
+                              <Link href={`/orders/${order.id}/receipt`} className="inline-flex h-9 items-center rounded-xl border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 transition hover:border-[#F97316] hover:text-[#F97316]">{lang === 'es' ? 'Ver recibo' : 'View receipt'}</Link>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+              </div>
+            );
+          })() : (
+            <>
+              <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="font-black text-gray-900">{lang === 'es' ? 'Administrar sillas o mesas' : 'Manage seats or tables'}</h3>
+                  <p className="mt-1 text-xs text-gray-500">{lang === 'es' ? 'Selecciona una sección para bloquear ubicaciones o emitir sus QR de cortesía.' : 'Select a section to block locations or issue complimentary QR codes.'}</p>
+                </div>
               <select
                 value={selectedBlockSection}
                 onChange={(e) => {
@@ -2343,7 +2615,7 @@ export default function EventDetailPage() {
                   setSelectedBlockSeats([]);
                   setBlockSeatView('all');
                 }}
-                className="w-full sm:w-64 px-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-900 outline-none focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 sm:w-72"
               >
                 <option value="">{lang === 'es' ? 'Selecciona una sección...' : 'Select a section...'}</option>
                 {sections.map(s => (
@@ -2351,7 +2623,6 @@ export default function EventDetailPage() {
                 ))}
               </select>
             </div>
-          </div>
 
           {(() => {
             const blockedSections = sections
@@ -2589,8 +2860,18 @@ export default function EventDetailPage() {
                                 <span className="rounded-full border border-[rgba(249,115,22,0.4)] bg-[rgba(249,115,22,0.12)] px-2.5 py-1 text-[10px] font-black text-orange-200">
                                   $0.00
                                 </span>
+                                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-300">
+                                  {getCourtesyMetadata(order).type === 'sponsor'
+                                    ? 'Sponsor'
+                                    : getCourtesyMetadata(order).type === 'press'
+                                      ? (lang === 'es' ? 'Prensa' : 'Press')
+                                      : getCourtesyMetadata(order).type === 'staff'
+                                        ? 'Staff'
+                                        : (lang === 'es' ? 'Cortesía' : 'Courtesy')}
+                                </span>
                               </div>
                               <p className="mt-1 truncate text-sm font-medium text-slate-300">{order.user?.email}</p>
+                              {getCourtesyMetadata(order).note && <p className="mt-2 text-xs italic text-slate-400">{getCourtesyMetadata(order).note}</p>}
                               <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
                                 <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-200">
                                   {order.tickets.length} {lang === 'es' ? 'entradas enviadas' : 'tickets sent'}
@@ -2673,6 +2954,24 @@ export default function EventDetailPage() {
                               onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
                               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none"
                             />
+                            <select
+                              value={inviteForm.courtesyType}
+                              onChange={(e) => setInviteForm({ ...inviteForm, courtesyType: e.target.value as typeof inviteForm.courtesyType })}
+                              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                            >
+                              <option value="courtesy">{lang === 'es' ? 'Cortesía' : 'Courtesy'}</option>
+                              <option value="sponsor">Sponsor</option>
+                              <option value="press">{lang === 'es' ? 'Prensa' : 'Press'}</option>
+                              <option value="staff">Staff</option>
+                            </select>
+                            <textarea
+                              rows={2}
+                              maxLength={240}
+                              placeholder={lang === 'es' ? 'Nota interna opcional' : 'Optional internal note'}
+                              value={inviteForm.note}
+                              onChange={(e) => setInviteForm({ ...inviteForm, note: e.target.value })}
+                              className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-orange-100"
+                            />
                             <button
                               onClick={handleSendFreeInvitations}
                               disabled={blockingActionLoading}
@@ -2693,6 +2992,8 @@ export default function EventDetailPage() {
             <div className="py-12 text-center text-gray-400 text-sm font-medium">
               {lang === 'es' ? 'Selecciona una sección para ver la distribución y comenzar' : 'Select a section to view layout and begin'}
             </div>
+          )}
+            </>
           )}
         </div>
       )}

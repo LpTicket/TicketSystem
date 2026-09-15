@@ -29,6 +29,13 @@ PostgreSQL + servicios externos
 - Las audiencias se preparan mediante una cola única con un máximo seguro de 450 llamadas `listsubscribe` por minuto. Los reportes por destinatario se consultan bajo demanda con caché temporal y actualizan estados locales de apertura, rebote y no enviado sin volver a enviar la campaña.
 - Los secretos OAuth de cliente se mantienen exclusivamente en variables privadas de Railway.
 
+### Saldos y pagos de organizadores
+
+- `Order.subtotal` representa la venta base de entradas destinada al organizador; los cargos cobrados adicionalmente al comprador no se descuentan de nuevo de ese subtotal.
+- `OrganizerPayout` registra pagos externos ya realizados por el administrador. Es un asiento de conciliación interna y no ejecuta una transferencia.
+- El saldo pendiente compartido por administración y el dashboard del organizador se calcula como venta base menos ajustes de procesamiento aplicables y pagos registrados. Una conciliación Klarna pendiente se comunica como saldo sujeto a ajuste.
+- Después de registrar un pago se invalidan las cachés `admin:stats`, `admin:financials` y `organizer:stats:{organizerId}` para que ambas superficies lean el nuevo saldo.
+
 ## Estructura del Repositorio
 
 | Área | Ruta absoluta | Tecnología principal |
@@ -63,7 +70,7 @@ Estado: `IMPLEMENTADO`, con pruebas locales y PostgreSQL temporal; iPhone y Stri
 - `POST /orders/door-sale/tap-to-pay-status` acepta orden, PaymentIntent y acción `verify` o `cancel`. Revalida permisos y pertenencia, monto/moneda/evento/canal. Solo `succeeded` y la emisión completa permiten `success: true`. La cancelación confirmada cambia únicamente la orden pendiente correspondiente a cancelada. El endpoint anterior `tap-to-pay-complete` continúa devolviendo error HTTP si falta confirmar, porque las apps antiguas asumen que cualquier 2xx es éxito.
 - La app conserva en AsyncStorage la referencia y el resumen de la compra pendiente por usuario; nunca el client secret ni tarjeta/contactos. Una recuperación consulta el mismo PaymentIntent. Un reintento explícito reutiliza ese intento; una red incierta mantiene bloqueada otra compra. La conexión del lector se verifica con el SDK y escucha desconexión/reconexión.
 - Tras persistir la orden y las entradas, Tap to Pay devuelve la confirmación sin esperar al correo ni tareas auxiliares. Estas siguen en el proceso con manejo de errores; no hay una cola persistente nueva. Compras online conservan su secuencia anterior.
-- Publicación autorizada: PostgreSQL temporal comprobó que la configuración existente `synchronize: true` genera únicamente tres `ADD` anulables desde el esquema anterior de tickets y conserva sus filas. Publicar backend compatible antes de entregar los clientes móviles; la app requiere compilación nativa.
+- Publicación autorizada: PostgreSQL temporal comprobó que la configuración existente `synchronize: true` genera únicamente tres `ADD` anulables desde el esquema anterior de tickets y conserva sus filas. Backend publicado y activo en Railway el 2026-09-15; web nueva visible. Los clientes móviles `1.0.9` se entregan mediante compilación nativa y sus colas de distribución.
 
 ### Revocación de entradas y asientos
 

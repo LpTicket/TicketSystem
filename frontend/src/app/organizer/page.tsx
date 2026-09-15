@@ -28,7 +28,8 @@ export default function OrganizerDashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalRevenue: 0, totalTickets: 0, activeEvents: 0, totalOrders: 0,
-    netEstimated: 0, scannedTickets: 0, pendingTickets: 0,
+    organizerPaid: 0, organizerPending: 0, organizerProcessingAdjustments: 0,
+    pendingFeeReconciliations: 0, scannedTickets: 0, pendingTickets: 0,
     salesByDay: [] as { date: string; orders: number; tickets: number; revenue: number }[],
   });
 
@@ -54,7 +55,10 @@ export default function OrganizerDashboard() {
         totalTickets: statsRes.data.totalTickets || 0,
         totalOrders: statsRes.data.totalOrders || 0,
         activeEvents,
-        netEstimated: statsRes.data.netEstimated || 0,
+        organizerPaid: statsRes.data.organizerPaid || 0,
+        organizerPending: statsRes.data.organizerPending || 0,
+        organizerProcessingAdjustments: statsRes.data.organizerProcessingAdjustments || 0,
+        pendingFeeReconciliations: statsRes.data.pendingFeeReconciliations || 0,
         scannedTickets: statsRes.data.scannedTickets || 0,
         pendingTickets: statsRes.data.pendingTickets || 0,
         salesByDay: statsRes.data.salesByDay || [],
@@ -87,7 +91,7 @@ export default function OrganizerDashboard() {
   const dateFnsLocale = lang === 'es' ? es : enUS;
 
   const statCards = [
-    { label: t('orgTotalRevenue'), value: `$${stats.totalRevenue.toFixed(2)}`, icon: HiOutlineCurrencyDollar, color: 'from-green-500 to-emerald-600', bg: 'bg-green-50', iconColor: 'text-green-600' },
+    { label: lang === 'es' ? 'Venta de entradas' : 'Ticket sales', value: `$${stats.totalRevenue.toFixed(2)}`, icon: HiOutlineCurrencyDollar, color: 'from-green-500 to-emerald-600', bg: 'bg-green-50', iconColor: 'text-green-600' },
     { label: t('orgTicketsSold'), value: stats.totalTickets.toString(), icon: HiOutlineTicket, color: 'from-blue-500 to-[#0A375A]', bg: 'bg-[rgba(10,55,90,0.06)]', iconColor: 'text-[#0A375A]' },
     { label: t('orgActiveEvents'), value: stats.activeEvents.toString(), icon: HiOutlineCalendar, color: 'from-orange-500 to-amber-600', bg: 'bg-orange-50', iconColor: 'text-[#F97316]' },
     { label: t('orgTotalOrders'), value: stats.totalOrders.toString(), icon: HiOutlineShoppingCart, color: 'from-[rgba(10,55,90,0.06)] to-[rgba(10,55,90,0.12)]', bg: 'bg-[rgba(10,55,90,0.05)]', iconColor: 'text-[#0A375A]' },
@@ -192,7 +196,7 @@ export default function OrganizerDashboard() {
           )}
         </div>
 
-        {/* Access control + net revenue */}
+        {/* Access control + organizer payout status */}
         <div className="space-y-4">
           <div className="premium-section-card p-6">
             <h2 className="font-bold text-lg text-gray-900 mb-1">{lang === 'es' ? 'Control de acceso' : 'Access control'}</h2>
@@ -225,9 +229,29 @@ export default function OrganizerDashboard() {
           </div>
 
           <div className="premium-section-card p-6">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Neto estimado' : 'Estimated net'}</p>
-            <p className="text-2xl font-black text-green-400 mt-1">${stats.netEstimated.toFixed(2)}</p>
-            <p className="text-[11px] text-gray-500 mt-1">{lang === 'es' ? 'Venta de entradas menos comisión de pago estimada.' : 'Ticket sales minus estimated processing fee.'}</p>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Estado de pagos' : 'Payout status'}</p>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
+              <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-green-300/80">{lang === 'es' ? 'Pagos registrados' : 'Recorded payouts'}</p>
+                <p className="mt-1 text-xl font-black text-green-400">${stats.organizerPaid.toFixed(2)}</p>
+              </div>
+              <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-orange-300/80">{lang === 'es' ? 'Pendiente por pagar' : 'Pending payout'}</p>
+                <p className="mt-1 text-xl font-black text-[#F97316]">${stats.organizerPending.toFixed(2)}</p>
+              </div>
+            </div>
+            <p className="mt-3 text-[11px] text-gray-500">
+              {lang === 'es'
+                ? 'Venta de entradas menos ajustes aplicables y pagos registrados.'
+                : 'Ticket sales minus applicable adjustments and recorded payouts.'}
+            </p>
+            {stats.pendingFeeReconciliations > 0 && (
+              <p className="mt-2 text-[11px] font-semibold text-amber-300">
+                {lang === 'es'
+                  ? 'Hay ventas con Klarna pendientes de conciliación; el saldo puede ajustarse.'
+                  : 'Some Klarna sales are awaiting reconciliation; the balance may be adjusted.'}
+              </p>
+            )}
           </div>
         </div>
       </div>

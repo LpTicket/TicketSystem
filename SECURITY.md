@@ -47,7 +47,7 @@ This document tracks security hardening done on LPTicket and known follow-ups.
 
 ## Gate admission and Tap to Pay — local implementation, 2026-09-15
 
-Status: `IMPLEMENTADO`; production and physical-device validation pending.
+Status: `IMPLEMENTADO`; backend deployed, physical-device payment and real gate-flow validation pending.
 
 - Admission audit fields are written with the existing conditional active-to-used update. The server determines actor/time; DTOs only allow the manual or QR method. Historical records remain nullable. Revoked/cancelled tickets cannot be admitted and are excluded from available balances.
 - Buyer search returns only operational fields and masked contact references, with no QR image or user credential fields. Existing event-specific authorization applies.
