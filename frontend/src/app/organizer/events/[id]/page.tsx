@@ -2494,28 +2494,28 @@ export default function EventDetailPage() {
 
             return (
               <div className="space-y-5">
-                <section className="overflow-hidden rounded-[1.5rem] border border-gray-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] shadow-sm">
+                <section className="overflow-hidden rounded-[1.5rem] border border-[rgba(117,132,153,0.2)] bg-[radial-gradient(circle_at_top_left,rgba(18,61,94,0.34),transparent_38%),linear-gradient(145deg,#0b2943_0%,#071d31_56%,#061726_100%)] text-white shadow-[0_20px_55px_rgba(0,0,0,0.28)]">
                   <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
                     <div className="space-y-5">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F97316]">{lang === 'es' ? 'Preparar entrega' : 'Prepare delivery'}</p>
-                        <h3 className="mt-1 text-xl font-black text-gray-950">{lang === 'es' ? 'Nueva cortesía general' : 'New general courtesy'}</h3>
-                        <p className="mt-1 text-sm leading-6 text-gray-500">{lang === 'es' ? 'Los QR quedarán activos y podrán validarse normalmente en la puerta.' : 'QR codes will be active and can be validated normally at the gate.'}</p>
+                        <h3 className="mt-1 text-xl font-black text-white">{lang === 'es' ? 'Nueva cortesía general' : 'New general courtesy'}</h3>
+                        <p className="mt-1 text-sm leading-6 text-slate-300">{lang === 'es' ? 'Los QR quedarán activos y podrán validarse normalmente en la puerta.' : 'QR codes will be active and can be validated normally at the gate.'}</p>
                       </div>
 
                       <div className="grid gap-4 sm:grid-cols-2">
                         <label className="space-y-1.5 sm:col-span-2">
-                          <span className="text-xs font-black uppercase tracking-wider text-gray-600">{lang === 'es' ? 'Sección general' : 'General section'}</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-slate-300">{lang === 'es' ? 'Sección general' : 'General section'}</span>
                           <select value={generalCourtesySection} onChange={(e) => setGeneralCourtesySection(e.target.value)} className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100">
                             {generalSections.map((section) => <option key={section.id} value={section.id}>{section.name}</option>)}
                           </select>
                         </label>
                         <label className="space-y-1.5">
-                          <span className="text-xs font-black uppercase tracking-wider text-gray-600">{lang === 'es' ? 'Cantidad' : 'Quantity'}</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-slate-300">{lang === 'es' ? 'Cantidad' : 'Quantity'}</span>
                           <input type="number" min={1} max={Math.min(available || 1, 100)} value={generalCourtesyQuantity} onChange={(e) => setGeneralCourtesyQuantity(Math.max(1, Math.min(100, Number(e.target.value) || 1)))} className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100" />
                         </label>
                         <label className="space-y-1.5">
-                          <span className="text-xs font-black uppercase tracking-wider text-gray-600">{lang === 'es' ? 'Tipo de cortesía' : 'Courtesy type'}</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-slate-300">{lang === 'es' ? 'Tipo de cortesía' : 'Courtesy type'}</span>
                           <select value={inviteForm.courtesyType} onChange={(e) => setInviteForm({ ...inviteForm, courtesyType: e.target.value as typeof inviteForm.courtesyType })} className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-900 outline-none transition focus:border-[#F97316] focus:ring-4 focus:ring-orange-100">
                             <option value="courtesy">{lang === 'es' ? 'Cortesía' : 'Courtesy'}</option>
                             <option value="sponsor">Sponsor</option>
@@ -2524,15 +2524,15 @@ export default function EventDetailPage() {
                           </select>
                         </label>
                         <label className="space-y-1.5">
-                          <span className="text-xs font-black uppercase tracking-wider text-gray-600">{lang === 'es' ? 'Nombre del invitado' : 'Guest name'}</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-slate-300">{lang === 'es' ? 'Nombre del invitado' : 'Guest name'}</span>
                           <input type="text" value={inviteForm.name} onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })} placeholder={lang === 'es' ? 'Nombre completo' : 'Full name'} className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#F97316] focus:ring-4 focus:ring-orange-100" />
                         </label>
                         <label className="space-y-1.5">
-                          <span className="text-xs font-black uppercase tracking-wider text-gray-600">{lang === 'es' ? 'Correo electrónico' : 'Email address'}</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-slate-300">{lang === 'es' ? 'Correo electrónico' : 'Email address'}</span>
                           <input type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} placeholder="invitado@email.com" className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#F97316] focus:ring-4 focus:ring-orange-100" />
                         </label>
                         <label className="space-y-1.5 sm:col-span-2">
-                          <span className="text-xs font-black uppercase tracking-wider text-gray-600">{lang === 'es' ? 'Nota interna opcional' : 'Optional internal note'}</span>
+                          <span className="text-xs font-black uppercase tracking-wider text-slate-300">{lang === 'es' ? 'Nota interna opcional' : 'Optional internal note'}</span>
                           <textarea maxLength={240} rows={3} value={inviteForm.note} onChange={(e) => setInviteForm({ ...inviteForm, note: e.target.value })} placeholder={lang === 'es' ? 'Ej.: Invitación del sponsor principal' : 'E.g. Main sponsor invitation'} className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#F97316] focus:ring-4 focus:ring-orange-100" />
                         </label>
                       </div>
