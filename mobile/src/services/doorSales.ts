@@ -85,6 +85,23 @@ export async function completeDoorSaleTapToPay(payload: {
   return apiPost<{ success: boolean; orderId: string; ticketCount?: number }>('/orders/door-sale/tap-to-pay-complete', payload);
 }
 
+export type TapPaymentStatus = {
+  success: boolean;
+  orderId: string;
+  paymentStatus: string;
+  ticketCount?: number;
+  retryAllowed?: boolean;
+  cancelled?: boolean;
+  clientSecret?: string;
+  message?: string;
+};
+
+export async function verifyDoorSaleTapToPay(payload: {
+  orderId: string; paymentIntentId: string; action?: 'verify' | 'cancel';
+}): Promise<TapPaymentStatus> {
+  return apiPost<TapPaymentStatus>('/orders/door-sale/tap-to-pay-status', payload);
+}
+
 export async function sendDoorSaleTicketDelivery(payload: {
   orderId: string;
   channel: 'sms' | 'email';

@@ -9,7 +9,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, AppState, Animated, Easing, Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { GradientButton } from '../components/GradientButton';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser, apiGet, apiPost, getImageUrl } from '../services/api';
@@ -54,7 +54,7 @@ type EventStats = {
 
 type ValidateResult = {
   valid: boolean;
-  reason?: 'accepted' | 'not_found' | 'wrong_event' | 'used' | 'cancelled' | 'forbidden' | 'network';
+  reason?: 'accepted' | 'not_found' | 'wrong_event' | 'used' | 'cancelled' | 'forbidden' | 'network' | 'revoked';
   message?: string;
   ticket?: TicketResult;
   eventStats?: EventStats;
@@ -116,6 +116,8 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   const scrollRef = useRef<ScrollView>(null);
 
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [doorMode, setDoorMode] = useState<'qr' | 'buyer'>('qr');
+  const [historyBuyer, setHistoryBuyer] = useState<string | null>(null);
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [manualCode, setManualCode] = useState('');
   const [scanResult, setScanResult] = useState<ValidateResult | null>(null);
@@ -124,9 +126,14 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
 
   // Gate search by name / email / table — grouped by buyer.
   type BuyerGroup = {
-    buyerId: string; name: string; email: string; ticketCount: number; scannedCount: number;
-    tickets: { ticketCode: string; status: string; seat: string }[];
+    buyerId: string; name: string; email: string; ticketCount: number; scannedCount: number; availableCount: number; unavailableCount: number;
+    tickets: { ticketCode: string; status: string; seat: string; seatId?: string | null; sectionId?: string | null; price?: number; sectionName?: string; usedAt?: string | null }[];
   };
+  const validationBusy = useRef(false);
+  const searchRequest = useRef(0);
+  const [searchRevision, setSearchRevision] = useState(0);
+  const [admissionMessage, setAdmissionMessage] = useState('');
+  const [admitting, setAdmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<BuyerGroup[]>([]);
   const [searching, setSearching] = useState(false);
@@ -264,7 +271,8 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
     );
   }, [t]);
 
-  const validateCode = useCallback(async (code: string) => {
+  const validateCode = useCallback(async (code: string, admissionMethod: 'qr' | 'manual' = 'qr') => {
+    if (validationBusy.current) return;
     const clean = code.trim().toUpperCase();
     if (!clean) return;
     if (mode === 'employee' && !selectedEventId) {
@@ -272,17 +280,26 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
       setScanState('denied');
       return;
     }
-    setScanState('validating');
+    validationBusy.current = true;
+    const manual = admissionMethod === 'manual';
+    if (manual) {
+      continuousScanRef.current = false;
+      if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+      setAdmitting(true);
+      setAdmissionMessage('');
+      setScanState('idle');
+    } else setScanState('validating');
     setScanResult(null);
     try {
       const path = mode === 'employee' && selectedEventId
         ? `/scanner-access/events/${selectedEventId}/ticket/${clean}/validate`
         : `/orders/ticket/${clean}/validate`;
-      const res = await apiPost<ValidateResult>(path, { eventId: selectedEventId });
+      const res = await apiPost<ValidateResult>(path, { eventId: selectedEventId, admissionMethod });
       setScanResult(res);
       if (res.eventStats) setEventStats(res.eventStats);
       registerScan(res, clean);
-      setScanState(res.valid ? 'approved' : 'denied');
+      if (manual) setAdmissionMessage(res.valid ? t('Ingreso registrado. Saldo actualizado abajo.', 'Entry recorded. Updated balance below.') : res.message || t('Ingreso no autorizado.', 'Entry not allowed.'));
+      else setScanState(res.valid ? 'approved' : 'denied');
     } catch (err: any) {
       const message = err?.message || t('No se pudo verificar por un problema de conexión.', 'Could not verify due to a connection problem.');
       const res: ValidateResult = {
@@ -292,8 +309,13 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
       };
       setScanResult(res);
       registerScan(res, clean);
-      setScanState('denied');
+      if (manual) setAdmissionMessage(t('No se pudo confirmar. Revisa esta entrada antes de registrar otra.', 'Could not confirm. Check this ticket before admitting another guest.'));
+      else setScanState('denied');
     } finally {
+      validationBusy.current = false;
+      setAdmitting(false);
+      setSearching(true);
+      setSearchRevision((v) => v + 1);
       if (selectedEventId) {
         const statsPath = mode === 'employee'
           ? `/scanner-access/events/${selectedEventId}/stats`
@@ -314,9 +336,11 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
 
   // Look up tickets by attendee name / email / code for the selected event.
   const runSearch = useCallback(async (raw: string) => {
+    const request = ++searchRequest.current;
     const q = raw.trim();
-    if (q.length < 2) { setSearchResults([]); return; }
+    if (q.length < 2) { setSearchResults([]); setSearching(false); return; }
     if (!selectedEventId) {
+      setSearching(false);
       setSearchResults([]);
       return;
     }
@@ -327,20 +351,44 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
         ? `/scanner-access/events/${selectedEventId}/search-tickets`
         : `/orders/event/${selectedEventId}/search-tickets`;
       const res = await apiGet<typeof searchResults>(path, { q });
-      setSearchResults(Array.isArray(res) ? res : []);
+      if (request === searchRequest.current) setSearchResults(Array.isArray(res) ? res : []);
     } catch (err: any) {
+      if (request !== searchRequest.current) return;
       setSearchResults([]);
       setSearchError(err?.message || t('No se pudo buscar. Revisa la conexión.', 'Search failed. Check the connection.'));
     } finally {
-      setSearching(false);
+      if (request === searchRequest.current) setSearching(false);
     }
-  }, [mode, selectedEventId]);
+  }, [mode, selectedEventId, t]);
 
   // Debounce the search so we don't hit the API on every keystroke.
   useEffect(() => {
     const id = setTimeout(() => runSearch(searchQuery), 350);
-    return () => clearTimeout(id);
-  }, [searchQuery, runSearch]);
+    return () => { clearTimeout(id); searchRequest.current += 1; };
+  }, [searchQuery, runSearch, searchRevision]);
+
+  useEffect(() => {
+    setSearchResults([]); setExpandedBuyer(null); setAdmissionMessage('');
+  }, [selectedEventId, searchQuery]);
+
+  useEffect(() => {
+    if (searchQuery.trim().length < 2 || !selectedEventId) return;
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active' && !validationBusy.current) setSearchRevision((v) => v + 1);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [searchQuery, selectedEventId]);
+
+  const confirmAdmission = (buyer: BuyerGroup, ticket: BuyerGroup['tickets'][number]) => {
+    if (validationBusy.current || searching) return;
+    continuousScanRef.current = false;
+    if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+    setScanState('idle');
+    Alert.alert(t('Registrar ingreso', 'Register entry'), `${buyer.name}\n${ticket.seat}\n${t('Se utilizará 1 entrada.', '1 ticket will be used.')}`, [
+      { text: t('Cancelar', 'Cancel'), style: 'cancel' },
+      { text: t('Registrar ingreso', 'Register entry'), onPress: () => void validateCode(ticket.ticketCode, 'manual') },
+    ]);
+  };
 
   const resetScanner = () => {
     continuousScanRef.current = false;
@@ -484,8 +532,13 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
         </View>
       )}
 
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+        {(['qr', 'buyer'] as const).map((value) => <TouchableOpacity key={value} accessibilityRole="button" accessibilityState={{ selected: doorMode === value }} disabled={admitting || scanState === 'validating'} onPress={() => { resetScanner(); setDoorMode(value); }} style={[styles.validateBtn, { flex: 1, minHeight: 48 }, doorMode === value && { backgroundColor: 'rgba(249,115,22,0.18)' }]}>
+          <Text style={styles.validateBtnText}>{value === 'qr' ? t('Escanear QR', 'Scan QR') : t('Buscar comprador', 'Find buyer')}</Text>
+        </TouchableOpacity>)}
+      </View>
       {/* Camera / scan box */}
-      {showIdle && (
+      {showIdle && doorMode === 'qr' && (
         <View style={styles.scannerCard}>
           {scanState === 'scanning' ? (
             Platform.OS === 'web' ? (
@@ -587,8 +640,9 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
       )}
 
       {/* ── Manual code input ── */}
-      {showIdle && (
+      {(showIdle || !!searchQuery.trim()) && (
         <View style={styles.manualSection}>
+          {doorMode === 'qr' && <>
           <View style={styles.separator}>
             <View style={styles.separatorLine} />
             <Text style={styles.separatorText}>{t('CÓDIGO MANUAL', 'MANUAL CODE')}</Text>
@@ -603,17 +657,18 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
               placeholderTextColor="rgba(148,163,184,0.60)"
               autoCapitalize="characters"
               style={styles.input}
-              onSubmitEditing={() => validateCode(manualCode)}
+              onSubmitEditing={() => validateCode(manualCode, 'manual')}
             />
           </View>
-          <TouchableOpacity style={styles.validateBtn} onPress={() => validateCode(manualCode)}>
+          <TouchableOpacity style={styles.validateBtn} onPress={() => validateCode(manualCode, 'manual')}>
             <Text style={styles.validateBtnText}>{t('VALIDAR CÓDIGO', 'VALIDATE CODE')}</Text>
           </TouchableOpacity>
 
+          </>}
           {/* ── Search by name / email (when the QR can't be scanned) ── */}
           <View style={[styles.separator, { marginTop: 16 }]}>
             <View style={styles.separatorLine} />
-            <Text style={styles.separatorText}>{t('BUSCAR POR NOMBRE / EMAIL', 'SEARCH BY NAME / EMAIL')}</Text>
+            <Text style={styles.separatorText}>{t('BUSCAR COMPRADOR', 'FIND BUYER')}</Text>
             <View style={styles.separatorLine} />
           </View>
           <View style={styles.inputShell}>
@@ -623,20 +678,24 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
               onChangeText={setSearchQuery}
               editable={!!selectedEventId}
               placeholder={selectedEventId
-                ? t('Nombre o correo del asistente', 'Attendee name or email')
+                ? t('Nombre o correo del comprador', 'Buyer name or email')
                 : t('Selecciona un evento primero', 'Select an event first')}
               placeholderTextColor="rgba(148,163,184,0.60)"
               autoCapitalize="none"
               style={[styles.input, !selectedEventId && { opacity: 0.6 }]}
             />
           </View>
+          {!!admissionMessage && <Text accessibilityLiveRegion="polite" style={styles.searchHint}>{admissionMessage}</Text>}
+          {admitting && <Text style={styles.searchHint}>{t('Registrando ingreso…', 'Registering entry…')}</Text>}
           {searching && <Text style={styles.searchHint}>{t('Buscando…', 'Searching…')}</Text>}
           {!!searchError && <Text style={styles.searchError}>{searchError}</Text>}
-          {!searching && searchQuery.trim().length >= 2 && selectedEventId && searchResults.length === 0 && (
+          {!searching && !searchError && searchQuery.trim().length >= 2 && selectedEventId && searchResults.length === 0 && (
             <Text style={styles.searchHint}>{t('Sin coincidencias.', 'No matches.')}</Text>
           )}
           {searchResults.map((buyer) => {
             const open = expandedBuyer === buyer.buyerId;
+            const available = buyer.tickets.filter((tk) => tk.status === 'active');
+            const quickTicket = available.length && available.every((tk) => !tk.seatId && tk.sectionId === available[0].sectionId && tk.price === available[0].price && tk.sectionName === available[0].sectionName) ? available[0] : null;
             return (
               <View key={buyer.buyerId} style={styles.buyerGroup}>
                 {/* Level 1: the buyer */}
@@ -646,32 +705,42 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
                   activeOpacity={0.85}
                 >
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.searchResultName} numberOfLines={1}>{buyer.name}</Text>
+                    <Text style={styles.searchResultName}>{buyer.name}</Text>
                     <Text style={styles.searchResultMeta} numberOfLines={1}>{buyer.email}</Text>
                   </View>
                   <View style={[styles.searchResultBadge, styles.searchBadgeActive]}>
-                    <Text style={styles.searchResultBadgeText}>{buyer.scannedCount}/{buyer.ticketCount}</Text>
+                    <Text style={styles.searchResultBadgeText}>{buyer.availableCount ?? available.length} {t('disponibles', 'available')}</Text>
                   </View>
                   <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="rgba(148,163,184,0.8)" style={{ marginLeft: 6 }} />
                 </TouchableOpacity>
 
+                {open && <View style={{ padding: 12, gap: 10 }}>
+                  <Text style={styles.searchResultMeta}>{buyer.ticketCount} {t('entradas', 'tickets')} · {buyer.scannedCount} {t('ingresaron', 'entered')} · {buyer.unavailableCount || 0} {t('anuladas', 'voided')}</Text>
+                  {quickTicket && <TouchableOpacity accessibilityRole="button" disabled={admitting || searching} style={[styles.nextButton, (admitting || searching) && { opacity: 0.5 }]} onPress={() => confirmAdmission(buyer, quickTicket)}>
+                    <Text style={styles.nextButtonText}>{t('Registrar 1 ingreso', 'Register 1 entry')}</Text>
+                  </TouchableOpacity>}
+                  {!available.length && <Text style={styles.searchHint}>{t('No quedan entradas disponibles.', 'No tickets remaining.')}</Text>}
+                </View>}
                 {/* Level 2: the buyer's tickets, each can be validated */}
-                {open && buyer.tickets.map((tk) => (
+                {open && buyer.tickets.some((tk) => tk.status !== 'active') && <TouchableOpacity accessibilityRole="button" style={{ minHeight: 44, paddingHorizontal: 12, justifyContent: 'center' }} onPress={() => setHistoryBuyer(historyBuyer === buyer.buyerId ? null : buyer.buyerId)}><Text style={styles.validateBtnText}>{historyBuyer === buyer.buyerId ? t('Ocultar historial', 'Hide history') : t('Ver ingresos y anuladas', 'View entries and voided tickets')}</Text></TouchableOpacity>}
+                {open && buyer.tickets.filter((tk) => historyBuyer === buyer.buyerId || tk.status === 'active').map((tk) => (
                   <View key={tk.ticketCode} style={styles.buyerTicketRow}>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={styles.buyerTicketSeat} numberOfLines={1}>{tk.seat}</Text>
                       <Text style={styles.buyerTicketCode} numberOfLines={1}>{tk.ticketCode}</Text>
+                      {!!tk.usedAt && <Text style={styles.buyerTicketCode}>{new Date(tk.usedAt).toLocaleTimeString()}</Text>}
                     </View>
                     {tk.status === 'used' ? (
-                      <View style={[styles.searchResultBadge, styles.searchBadgeUsed]}><Text style={styles.searchResultBadgeText}>{t('ESCANEADO', 'SCANNED')}</Text></View>
-                    ) : tk.status === 'cancelled' ? (
-                      <View style={[styles.searchResultBadge, styles.searchBadgeCancelled]}><Text style={styles.searchResultBadgeText}>{t('CANCELADO', 'CANCELLED')}</Text></View>
+                      <View style={[styles.searchResultBadge, styles.searchBadgeUsed]}><Text style={styles.searchResultBadgeText}>{t('INGRESÓ', 'ENTERED')}</Text></View>
+                    ) : tk.status !== 'active' ? (
+                      <View style={[styles.searchResultBadge, styles.searchBadgeCancelled]}><Text style={styles.searchResultBadgeText}>{tk.status === 'revoked' ? t('REVOCADA', 'REVOKED') : t('ANULADA', 'VOIDED')}</Text></View>
                     ) : (
                       <TouchableOpacity
                         style={styles.buyerValidateBtn}
-                        onPress={() => { setSearchResults([]); setSearchQuery(''); setExpandedBuyer(null); validateCode(tk.ticketCode); }}
+                        disabled={admitting || searching}
+                        onPress={() => confirmAdmission(buyer, tk)}
                       >
-                        <Text style={styles.buyerValidateBtnText}>{t('VALIDAR', 'VALIDATE')}</Text>
+                        <Text style={styles.buyerValidateBtnText}>{t('Registrar ingreso', 'Register entry')}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -967,8 +1036,8 @@ const styles = StyleSheet.create({
   },
   buyerTicketSeat: { color: '#E2E8F0', fontSize: 13, fontWeight: '600' },
   buyerTicketCode: { color: 'rgba(148,163,184,0.7)', fontSize: 10, fontFamily: 'monospace', marginTop: 2 },
-  buyerValidateBtn: { borderRadius: 10, backgroundColor: '#F97316', paddingHorizontal: 12, paddingVertical: 8 },
-  buyerValidateBtnText: { color: '#FFFFFF', fontSize: 10, fontWeight: '600' },
+  buyerValidateBtn: { minHeight: 44, justifyContent: 'center', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(249,115,22,0.4)', backgroundColor: 'rgba(249,115,22,0.1)', paddingHorizontal: 12, paddingVertical: 8 },
+  buyerValidateBtnText: { color: '#FB923C', fontSize: 10, fontWeight: '600' },
 
   // Event dropdown
   eventSection: { marginTop: 22 },

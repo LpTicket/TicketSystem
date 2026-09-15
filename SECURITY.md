@@ -45,6 +45,16 @@ This document tracks security hardening done on LPTicket and known follow-ups.
   It does not impersonate the user or modify the event, inventory, tickets,
   orders, prices, payments, or organizer ownership.
 
+## Gate admission and Tap to Pay — local implementation, 2026-09-15
+
+Status: `IMPLEMENTADO`; production and physical-device validation pending.
+
+- Admission audit fields are written with the existing conditional active-to-used update. The server determines actor/time; DTOs only allow the manual or QR method. Historical records remain nullable. Revoked/cancelled tickets cannot be admitted and are excluded from available balances.
+- Buyer search returns only operational fields and masked contact references, with no QR image or user credential fields. Existing event-specific authorization applies.
+- Tap payment recovery checks operator/event ownership, the exact order/PaymentIntent pair, amount, currency and metadata before completion or cancellation. Capture response must actually be succeeded. An old client never receives a 2xx pending response from the legacy completion endpoint.
+- Pending purchase storage is isolated by operator and contains only identifiers and sale summary, never a client secret or card/contact data. Network uncertainty does not clear it or automatically create another charge. Explicit retries reuse the original intent. Cancellation never rewrites a paid order.
+- An isolated temporary PostgreSQL database verified exactly three nullable ADD statements, preserved historical ticket values, and accepted only one concurrent admission. Production deployment was explicitly authorized on 2026-09-15; physical payment validation remains pending.
+
 ## Known follow-up: tokens in localStorage → httpOnly cookies (deferred)
 
 **Status:** intentionally deferred (low ROI for the risk).

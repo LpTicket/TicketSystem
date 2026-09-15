@@ -4,6 +4,18 @@
 Fuente: revisión de código local, pruebas automatizadas y builds locales.
 Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explícita.
 
+## Ingreso por comprador y confirmación Tap to Pay — 2026-09-15
+
+Estado: `IMPLEMENTADO`. Pruebas locales y PostgreSQL temporal comprobados; publicación autorizada el 2026-09-15, verificación de despliegue y dispositivo pendiente.
+
+- Web y móvil incorporan `Escanear QR / Buscar comprador`, disponibles reales, `Registrar 1 ingreso` para entradas generales equivalentes, selección individual para sillas/tipos distintos y acceso al historial. Mantienen al comprador abierto y refrescan las búsquedas cada cinco segundos mientras se consultan. La API protege cada ingreso con el cambio condicional `active → used` y guarda empleado, fecha y método en el mismo cambio.
+- La búsqueda primero identifica compradores y luego carga sus entradas completas del evento; no calcula un saldo parcial a partir de un código o de un límite de 200 tickets. Excluye anuladas/revocadas de los disponibles y enmascara el correo mostrado.
+- Tap to Pay solo permite la señal `Pago confirmado · Puede ingresar` después de recibir `succeeded` del servidor y comprobar todas las entradas. Conserva referencias de la compra pendiente por operador, incluso tras reiniciar, y permite verificar, reintentar el mismo PaymentIntent o cancelar con confirmación del servidor. Nunca reintenta automáticamente el cobro. La pantalla nativa de lectura sigue controlada por Stripe/Apple.
+- La confirmación comprueba monto, moneda, orden y evento; verifica el resultado de captura y mantiene compatible el endpoint anterior. El envío de correo posterior de Tap to Pay ya no bloquea la respuesta de ingreso. Es una tarea de mejor esfuerzo en el proceso, no una cola persistente; falta probar entrega real y comportamiento ante reinicios del backend.
+- Validación: pruebas unitarias backend y del servicio móvil con proveedores simulados; TypeScript móvil y builds. Prueba web con datos ficticios: 3 → 2 disponibles, comprador conservado, actualización en segunda puerta y escáner a 320/390/768/1440 px. Se observó desbordamiento preexistente de la barra global a 320 px, fuera de este cambio.
+- PostgreSQL temporal: TypeORM generó exactamente tres `ADD` anulables; se conservaron 10 tickets históricos, búsqueda con/sin acentos y por código devolvió el saldo completo, dos validaciones simultáneas admitieron una sola vez y las revocadas se rechazaron.
+- Pendiente: publicación autorizada de backend/web y compilación nativa; iPhone con Stripe, medición de latencia, rechazo, desconexión y recuperación. No se hicieron cobros reales ni pruebas que consumieran tickets de producción.
+
 ## Estado Git Actual
 
 - Rama de trabajo: `codex/marketing-copy-refinement`.

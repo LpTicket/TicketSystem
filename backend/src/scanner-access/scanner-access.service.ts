@@ -193,7 +193,7 @@ export class ScannerAccessService {
     return !!access;
   }
 
-  async validateTicketForEmployee(eventId: string, code: string, user: any) {
+  async validateTicketForEmployee(eventId: string, code: string, user: any, admissionMethod?: 'qr' | 'manual') {
     const access = await this.scannerAccessRepo.findOne({
       where: { eventId, userId: user.id, status: ScannerAccessStatus.APPROVED },
       relations: ['event'],
@@ -201,7 +201,7 @@ export class ScannerAccessService {
     if (!access) {
       throw new ForbiddenException('You do not have scanner access for this event');
     }
-    return this.ordersService.validateTicket(code, user, { eventId, allowScannerAccess: true });
+    return this.ordersService.validateTicket(code, user, { eventId, allowScannerAccess: true, admissionMethod });
   }
 
   async getEventStatsForEmployee(eventId: string, user: any) {

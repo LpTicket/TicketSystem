@@ -1,5 +1,29 @@
 # LPTicket - Historial de Cambios
 
+## 2026-09-15 - Ingreso por comprador y confirmación de pago en puerta
+
+Estado: `IMPLEMENTADO`; validado localmente y con PostgreSQL temporal. Publicación autorizada el 2026-09-15; dispositivo y despliegue pendientes de comprobación.
+
+- `mobile/src/screens/ScanScreen.tsx` y `frontend/src/app/verify/page.tsx`: acceso directo a búsqueda, saldo disponible, ingreso de una persona, comprador conservado, selección de silla/tipo y estados anulados/revocados; historial desplegable y refresco de búsquedas visibles cada 5 segundos.
+- `backend/src/orders/orders.service.ts`, controladores de órdenes/empleados y DTO de validación: búsqueda con saldo completo por comprador, respuesta sin QR pesado, correo enmascarado y método de ingreso validado. La admisión comparte la protección condicional existente del QR y no cambia inventario, asientos ni ventas.
+- `backend/src/database/entities/ticket.entity.ts`: campos nuevos y anulables `usedAt`, `usedBy`, `admissionMethod`. Los tickets históricos no reciben fechas ni actores inventados. Sin migración ejecutada.
+- Tap to Pay: endpoint de recuperación separado para conservar el contrato de apps anteriores; confirmación estricta de Stripe y entradas; cancelación solo de la compra pendiente y solo después de comprobar Stripe; procesamiento/captura pendientes nunca significan acceso.
+- `mobile/src/services/tapToPay.ts`, `doorSales.ts`, `DoorSaleScreen.tsx` y declaración del SDK: recuperación de la misma compra, persistencia local sin secretos ni datos de tarjeta, bloqueo de doble toque, verificación real de conexión y resultado final inequívoco. Reintentar no crea otra orden/PaymentIntent.
+- El correo postventa de Tap to Pay continúa después de la confirmación sin bloquear al comprador. Conserva destinatarios/copias existentes; sigue siendo mejor esfuerzo y no una cola durable.
+- Pruebas: backend de admisión/concurrencia/Stripe, pruebas del servicio móvil con SDK y servidor simulados, builds y prueba visual web con dos puertas y datos ficticios. No se hicieron cobros reales. Se prepara la publicación autorizada; los cambios previos de Android en `mobile/eas.json` se conservan fuera de este commit.
+
+
+### Comprobaciones de esta implementación
+
+- PostgreSQL temporal aislado: esquema con exactamente tres columnas nuevas anulables, historial conservado, búsqueda completa con acentos/código y una sola admisión ante dos solicitudes simultáneas.
+
+- En `backend`: `npm test -- --runInBand --no-watchman orders.service.spec.ts scanner-access.service.spec.ts --silent` y `npm run build`.
+- En `mobile`: `npx tsc --noEmit`.
+- Desde la raíz: `node --test mobile/tests/tapToPay.test.cjs` (10 casos con SDK/HTTP simulados) y `git diff --check`.
+- En `frontend`: `npm run build`.
+- Navegador local con API ficticia: comprador con 10 entradas, 7 ingresadas, registro manual de una, saldo final 2, comprador abierto y actualización en otra puerta. Revisión del escáner a 320, 390, 768 y 1440 px; barra global existente desborda a 320 px y no se modificó.
+- Para la prueba física posterior: compilar e instalar la app nativa; usar un backend de pruebas con el esquema actualizado y Stripe configurado para pruebas. Verificar cobro confirmado, rechazo, pérdida de red después de acercar la tarjeta, reapertura de la app, verificación del mismo intento y cancelación. Comparar cada caso con Stripe y los tickets persistidos. No probar estos casos cobrando a asistentes de un evento en vivo.
+
 ## 2026-09-12 - Gestión administrativa de empleados de eventos en web
 
 - El panel administrativo web incorpora el acceso directo `Empleados de eventos`.

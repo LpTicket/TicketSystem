@@ -3,14 +3,14 @@ import { SymbolView } from 'expo-symbols';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { GradientButton } from '../components/GradientButton';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser, apiGet, getImageUrl } from '../services/api';
-import { createDoorSaleCheckout, DoorSaleCheckout, DoorSalePreview, previewDoorSale, sendDoorSaleTicketDelivery } from '../services/doorSales';
+import { createDoorSaleCheckout, TapPaymentStatus, DoorSaleCheckout, DoorSalePreview, previewDoorSale, sendDoorSaleTicketDelivery } from '../services/doorSales';
 import { getMyScannerAccess } from '../services/scannerAccess';
 import { presentTapToPayEducation } from '../services/tapToPayEducation';
-import { prepareDoorSaleTapToPay, releaseDoorSaleTapToPay, runDoorSaleTapToPay } from '../services/tapToPay';
+import { getPendingTapPayment, PendingTapPayment, resolvePendingTapPayment, prepareDoorSaleTapToPay, releaseDoorSaleTapToPay, runDoorSaleTapToPay } from '../services/tapToPay';
 
 type Props = {
   user?: AuthUser | null;
@@ -91,7 +91,27 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   const [showTapGuide, setShowTapGuide] = useState(false);
   const [tapGuideSeen, setTapGuideSeen] = useState(false);
   const [tapPhase, setTapPhase] = useState<TapFlowPhase>('idle');
-  const [tapResult, setTapResult] = useState<{ success: boolean; message: string; orderId?: string } | null>(null);
+  const [tapResult, setTapResult] = useState<{ success: boolean; message: string; orderId?: string; retryAllowed?: boolean } | null>(null);
+  const paymentLock = useRef(false);
+  const [pendingTap, setPendingTap] = useState<PendingTapPayment | null>(null);
+  const [pendingLoaded, setPendingLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setPendingLoaded(false);
+    setPendingTap(null);
+    if (!user?.id) return;
+    getPendingTapPayment(user.id).then((pending) => {
+      if (!active) return;
+      setPendingTap(pending);
+      setPendingLoaded(true);
+      if (pending) {
+        setSelectedEventId(pending.eventId);
+        setTapResult({ success: false, message: t('Hay una compra pendiente. Verifica el pago antes de permitir el ingreso o volver a cobrar.', 'A purchase is pending. Verify payment before allowing entry or charging again.') });
+      }
+    }).catch(() => { if (active) setError(t('No se pudo recuperar el estado del cobro. Reabre esta pantalla antes de cobrar.', 'Could not recover payment status. Reopen this screen before charging.')); });
+    return () => { active = false; };
+  }, [user?.id]);
   const [deliveryMode, setDeliveryMode] = useState<'sms' | 'email' | null>(null);
   const [deliveryRecipient, setDeliveryRecipient] = useState('');
   const [deliverySending, setDeliverySending] = useState(false);
@@ -308,53 +328,81 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     setTapPhase('ready');
   };
 
+  const applyTapResult = async (completed: TapPaymentStatus) => {
+    if (!user?.id) return;
+    setPendingTap(completed.success || completed.cancelled ? null : await getPendingTapPayment(user.id));
+    if (completed.success && completed.paymentStatus === 'succeeded' && (completed.ticketCount || 0) > 0) {
+      setTapResult({ success: true, message: t('Pago confirmado y venta registrada. Puede ingresar.', 'Payment confirmed and sale recorded. Entry allowed.'), orderId: completed.orderId });
+      resetSaleForm();
+      setTapStatus(t('Pago confirmado. Puede ingresar.', 'Payment confirmed. Entry allowed.'));
+    } else {
+      setTapPhase('failed');
+      setTapResult({ success: false, message: completed.message || t('Espera la confirmación antes de permitir el ingreso.', 'Wait for confirmation before allowing entry.'), retryAllowed: completed.retryAllowed });
+    }
+  };
+
+  const showUncertainPayment = async (error?: any) => {
+    try {
+      if (user?.id) {
+        const pending = await getPendingTapPayment(user.id);
+        setPendingTap(pending);
+        if (!pending) {
+          setTapPhase('failed');
+          setTapResult({ success: false, message: error?.message || t('No se pudo iniciar Tap to Pay. Revisa la conexión y vuelve a intentarlo.', 'Could not start Tap to Pay. Check your connection and try again.') });
+          return;
+        }
+      }
+    } catch { setPendingLoaded(false); }
+    setTapPhase('failed');
+    setTapResult({ success: false, message: t('No se pudo confirmar el pago. Mantén al cliente en la puerta y verifica esta compra; no vuelvas a cobrar.', 'Could not confirm payment. Keep the customer at the gate and verify this purchase; do not charge again.') });
+  };
+
+  const recoverTapPayment = async (action: 'verify' | 'retry' | 'cancel') => {
+    if (!user?.id || !pendingTap || paymentLock.current) return;
+    paymentLock.current = true;
+    setCreating(true); setTapResult(null); setPaymentMethod('tap'); setTapPhase('processing');
+    setTapStatus(t('Verificando esta misma compra. Espera para permitir el ingreso.', 'Verifying this purchase. Wait before allowing entry.'));
+    try {
+      const result = action === 'retry'
+        ? await runDoorSaleTapToPay({ userId: user.id, retryPending: true, eventId: pendingTap.eventId, amount: Number(amount), quantity: pendingTap.quantity, canAcceptTerms: user.role === 'admin', merchantDisplayName: 'LPTicket', onStatus: setTapStatus, onPhase: setTapPhase })
+        : await resolvePendingTapPayment(user.id, action);
+      await applyTapResult(result);
+    } catch { await showUncertainPayment(); }
+    finally { paymentLock.current = false; setCreating(false); }
+  };
+
+  const confirmCancelTap = () => Alert.alert(
+    t('Cancelar esta compra', 'Cancel this purchase'),
+    t('Se comprobará primero si ya se cobró. Solo podrás iniciar otra compra después de resolver esta.', 'Payment will be checked first. Another purchase can start only after this one is resolved.'),
+    [{ text: t('Volver', 'Back'), style: 'cancel' }, { text: t('Cancelar compra', 'Cancel purchase'), style: 'destructive', onPress: () => void recoverTapPayment('cancel') }],
+  );
+
   const makeCheckout = async () => {
-    if (!selectedEventId || Number(amount || 0) <= 0 || creating) return;
-    setCreating(true);
-    setError('');
-    setTapStatus('');
-    setTapResult(null);
+    if (!user?.id || !pendingLoaded || paymentLock.current || !selectedEventId || Number(amount || 0) <= 0) return;
+    if (pendingTap) {
+      setTapResult({ success: false, message: t('Resuelve la compra pendiente antes de iniciar otro cobro.', 'Resolve the pending purchase before starting another payment.') });
+      return;
+    }
+    paymentLock.current = true;
+    setCreating(true); setError(''); setTapStatus(''); setTapResult(null);
     try {
       if (paymentMethod === 'tap') {
         setTapPhase('preparing');
         const completed = await runDoorSaleTapToPay({
-          eventId: selectedEventId,
-          amount: Number(amount),
-          quantity,
-          buyerEmail: undefined,
-          buyerName: undefined,
-          canAcceptTerms: user?.role === 'admin',
-          merchantDisplayName: selectedEvent?.title || 'LPTicket',
-          onStatus: setTapStatus,
-          onPhase: (phase) => setTapPhase(phase),
+          userId: user.id, eventId: selectedEventId, amount: Number(amount), quantity,
+          canAcceptTerms: user.role === 'admin', merchantDisplayName: selectedEvent?.title || 'LPTicket',
+          onStatus: setTapStatus, onPhase: setTapPhase,
         });
-        setTapResult({
-          success: true,
-          message: t('La venta quedó registrada y las entradas están listas.', 'The sale is recorded and the tickets are ready.'),
-          orderId: completed.orderId,
-        });
-        resetSaleForm();
-        setTapStatus(t('Pago aprobado. Entradas emitidas y Tap to Pay listo.', 'Payment approved. Tickets issued and Tap to Pay is ready.'));
+        await applyTapResult(completed);
         return;
       }
-
-      const data = await createDoorSaleCheckout({
-        eventId: selectedEventId,
-        amount: Number(amount),
-        quantity,
-      });
+      const data = await createDoorSaleCheckout({ eventId: selectedEventId, amount: Number(amount), quantity });
       setCheckout(data);
-      if (paymentMethod === 'link') {
-        Share.share({ message: data.url }).catch(() => {});
-      }
+      if (paymentMethod === 'link') Share.share({ message: data.url }).catch(() => {});
     } catch (err: any) {
-      const message = err?.message || t('No se pudo crear el cobro.', 'Could not create payment.');
-      setTapPhase(paymentMethod === 'tap' ? 'failed' : 'idle');
-      setError(message);
-      if (paymentMethod === 'tap') setTapResult({ success: false, message });
-    } finally {
-      setCreating(false);
-    }
+      if (paymentMethod === 'tap') await showUncertainPayment(err);
+      else setError(err?.message || t('No se pudo crear el cobro.', 'Could not create payment.'));
+    } finally { paymentLock.current = false; setCreating(false); }
   };
 
   const finishSuccessfulSale = () => {
@@ -515,7 +563,8 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         ) : null}
       </View>
 
-      <GradientButton height={56} onPress={handleTapPrimaryPress} disabled={creating || !preview}>
+      <Text style={styles.tapStatus}>{t('Permite el ingreso solo cuando LPTicket muestre: Pago confirmado · Puede ingresar.', 'Allow entry only when LPTicket shows: Payment confirmed · Entry allowed.')}</Text>
+      <GradientButton height={56} onPress={handleTapPrimaryPress} disabled={!pendingLoaded || creating || !preview}>
           {creating ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>Tap to Pay on iPhone</Text>}
       </GradientButton>
 
@@ -564,7 +613,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
       </View>
 
       {paymentMethod !== 'tap' ? (
-        <GradientButton height={56} onPress={makeCheckout} disabled={creating || !preview}>
+        <GradientButton height={56} onPress={makeCheckout} disabled={!pendingLoaded || creating || !preview}>
           {creating ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>{primaryLabel}</Text>}
         </GradientButton>
       ) : null}
@@ -639,8 +688,8 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
               icon="receipt-outline"
               title={t('Confirma el resultado', 'Confirm the result')}
               copy={t(
-                'La app mostrará si el pago fue aprobado o falló antes de emitir las entradas.',
-                'The app shows whether the payment was approved or failed before issuing tickets.'
+                'Espera la pantalla de LPTicket: Pago confirmado · Puede ingresar. La lectura de la tarjeta todavía no autoriza el acceso.',
+                'Wait for LPTicket: Payment confirmed · Entry allowed. Reading the card does not authorize entry yet.'
               )}
             />
 
@@ -666,6 +715,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           <View style={styles.tapProgressModal}>
             <ActivityIndicator size="large" color="#F97316" />
             <Text style={styles.tapProgressTitle}>{tapPhase === 'processing' ? t('Procesando pago', 'Processing payment') : t('Preparando Tap to Pay', 'Preparing Tap to Pay')}</Text>
+            <Text style={styles.tapProgressCopy}>{t('Espera. Todavía no permitas el ingreso.', 'Wait. Do not allow entry yet.')}</Text>
             <Text style={styles.tapProgressCopy}>{tapStatus || t('No cierres esta pantalla mientras se confirma la transacción.', 'Do not close this screen while the transaction is confirmed.')}</Text>
           </View>
         </View>
@@ -674,8 +724,14 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         <View style={styles.tapModalOverlay}>
           <View style={styles.tapProgressModal}>
             <Ionicons name={tapResult?.success ? 'checkmark-circle' : 'close-circle'} size={42} color={tapResult?.success ? '#34D399' : '#FCA5A5'} />
-            <Text style={styles.tapProgressTitle}>{tapResult?.success ? t('Pago aprobado', 'Payment approved') : t('Pago no completado', 'Payment not completed')}</Text>
+            <Text style={styles.tapProgressTitle}>{tapResult?.success ? t('Pago confirmado · Puede ingresar', 'Payment confirmed · Entry allowed') : t('No permitir ingreso', 'Do not allow entry')}</Text>
             <Text style={styles.tapProgressCopy}>{tapResult?.message}</Text>
+            {!tapResult?.success && pendingTap && <Text style={styles.tapProgressCopy}>{pendingTap.eventTitle || t('Compra pendiente', 'Pending purchase')} · {pendingTap.quantity} {t('entradas', 'tickets')}{pendingTap.total != null ? ` · ${money(pendingTap.total)} ${pendingTap.currency || ''}` : ''}</Text>}
+            {!tapResult?.success && pendingTap && <View style={styles.deliveryOptions}>
+              <GradientButton height={48} onPress={() => void recoverTapPayment('verify')} disabled={creating} style={{ alignSelf: 'stretch' }}><Text style={styles.tapModalButtonText}>{t('VERIFICAR PAGO', 'VERIFY PAYMENT')}</Text></GradientButton>
+              {tapResult?.retryAllowed && <TouchableOpacity style={styles.deliveryOption} disabled={creating} onPress={() => void recoverTapPayment('retry')}><Text style={styles.deliveryOptionText}>{t('Reintentar misma compra', 'Retry same purchase')}</Text></TouchableOpacity>}
+              <TouchableOpacity style={styles.deliverySkip} disabled={creating} onPress={confirmCancelTap}><Text style={styles.deliverySkipText}>{t('CANCELAR COMPRA', 'CANCEL PURCHASE')}</Text></TouchableOpacity>
+            </View>}
             {tapResult?.success && !deliveryMode && !deliveryMessage ? (
               <View style={styles.deliveryOptions}>
                 <TouchableOpacity style={styles.deliveryOption} onPress={() => { setDeliveryMode('sms'); setDeliveryRecipient(''); }}>

@@ -91,6 +91,16 @@ export class Ticket {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price: number;
 
+  // Nullable for historical tickets: never invent a past admission time/actor.
+  @Column({ type: 'timestamptz', nullable: true })
+  usedAt: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  usedBy: string | null;
+
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  admissionMethod: 'qr' | 'manual' | 'tap_to_pay' | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

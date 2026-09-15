@@ -47,6 +47,8 @@ const SCANNER_RECENT_STORAGE_KEY = 'lpticket_scanner_recent_scans';
 export default function TicketScannerPage() {
   const { lang } = useLang();
   const { isAuthenticated, user } = useAuthStore();
+  const [doorMode, setDoorMode] = useState<'qr' | 'buyer'>('qr');
+  const [historyBuyer, setHistoryBuyer] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -63,9 +65,13 @@ export default function TicketScannerPage() {
 
   // Gate search by attendee name / email / table — grouped by buyer.
   type BuyerGroup = {
-    buyerId: string; name: string; email: string; ticketCount: number; scannedCount: number;
-    tickets: { ticketCode: string; status: string; seat: string }[];
+    buyerId: string; name: string; email: string; ticketCount: number; scannedCount: number; availableCount: number; unavailableCount: number;
+    tickets: { ticketCode: string; status: string; seat: string; seatId?: string | null; sectionId?: string | null; price?: number; sectionName?: string; usedAt?: string | null }[];
   };
+  const validationBusy = useRef(false);
+  const [searchRevision, setSearchRevision] = useState(0);
+  const [searchError, setSearchError] = useState('');
+  const [admissionMessage, setAdmissionMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<BuyerGroup[]>([]);
   const [searching, setSearching] = useState(false);
@@ -169,8 +175,7 @@ export default function TicketScannerPage() {
     if (!selectedEventId) return;
 
     const fetchStats = () => {
-      if (isStaffEvent) return;
-      api.get(`/orders/event/${selectedEventId}/scanner-stats`)
+      api.get(isStaffEvent ? `/scanner-access/events/${selectedEventId}/stats` : `/orders/event/${selectedEventId}/scanner-stats`)
         .then(({ data }) => setEventTicketStats(data))
         .catch(() => {});
     };
@@ -253,7 +258,10 @@ export default function TicketScannerPage() {
     setIsScanning(false);
   };
 
-  const handleValidateTicket = async (code: string) => {
+  const handleValidateTicket = async (code: string, admissionMethod: 'qr' | 'manual' = 'qr') => {
+    if (validationBusy.current) return;
+    validationBusy.current = true;
+    setAdmissionMessage('');
     const cleanCode = code.trim().toUpperCase();
     setValidating(true);
     setValidationResult(null);
@@ -262,35 +270,20 @@ export default function TicketScannerPage() {
     setEventTicketStats(null);
 
     try {
-      let ticketData: any = null;
-
-      try {
-        const { data } = await api.get(`/orders/ticket/${cleanCode}`);
-        ticketData = data;
-      } catch {
-        const result = {
-          valid: false,
-          message: lang === 'es' ? 'Código de ticket no encontrado o inválido.' : 'Ticket code not found or invalid.',
-          code: cleanCode,
-        };
-        setValidationResult(result);
-        registerScan(result);
-        return;
-      }
-
       const validateUrl = isStaffEvent && selectedEventId
         ? `/scanner-access/events/${selectedEventId}/ticket/${cleanCode}/validate`
         : `/orders/ticket/${cleanCode}/validate`;
-      const { data: res } = await api.post(validateUrl);
+      const { data: res } = await api.post(validateUrl, { eventId: selectedEventId || undefined, admissionMethod });
       const result = {
         valid: Boolean(res.valid),
         message: res.message,
-        ticket: res.ticket || ticketData,
+        ticket: res.ticket,
         eventStats: res.eventStats,
         code: cleanCode,
       };
 
-      setValidationResult(result);
+      if (admissionMethod === 'manual') setAdmissionMessage(res.valid ? (lang === 'es' ? 'Ingreso registrado. Saldo actualizado abajo.' : 'Entry recorded. Updated balance below.') : res.message);
+      else setValidationResult(result);
       setEventTicketStats(result.eventStats || null);
       registerScan(result);
     } catch (err: any) {
@@ -299,10 +292,15 @@ export default function TicketScannerPage() {
         message: err.response?.data?.message || (lang === 'es' ? 'Ocurrió un error al procesar la validación.' : 'An error occurred during verification.'),
         code: cleanCode,
       };
-      setValidationResult(result);
+      if (admissionMethod === 'manual') setAdmissionMessage(lang === 'es' ? 'No se pudo confirmar. Revisa esta entrada antes de registrar otra.' : 'Could not confirm. Check this ticket before admitting another guest.');
+      else setValidationResult(result);
       registerScan(result);
     } finally {
+      validationBusy.current = false;
+      setSearching(true);
+      setSearchRevision((v) => v + 1);
       setValidating(false);
+      if (selectedEventId) api.get(isStaffEvent ? `/scanner-access/events/${selectedEventId}/stats` : `/orders/event/${selectedEventId}/scanner-stats`).then(({ data }) => setEventTicketStats(data)).catch(() => {});
     }
   };
 
@@ -310,11 +308,12 @@ export default function TicketScannerPage() {
   useEffect(() => {
     const q = searchQuery.trim();
     if (q.length < 2 || !selectedEventId) {
-      setSearchResults([]);
+      setSearchResults([]); setSearching(false);
       return;
     }
     let active = true;
     setSearching(true);
+    setSearchError('');
     const handle = setTimeout(async () => {
       try {
         const searchUrl = isStaffEvent
@@ -323,19 +322,38 @@ export default function TicketScannerPage() {
         const { data } = await api.get(searchUrl, { params: { q } });
         if (active) setSearchResults(Array.isArray(data) ? data : []);
       } catch {
-        if (active) setSearchResults([]);
+        if (active) { setSearchResults([]); setSearchError(lang === 'es' ? 'No se pudo actualizar. Revisa la conexión.' : 'Could not refresh. Check your connection.'); }
       } finally {
         if (active) setSearching(false);
       }
     }, 350);
     return () => { active = false; clearTimeout(handle); };
+  }, [searchQuery, selectedEventId, isStaffEvent, searchRevision, lang]);
+
+  useEffect(() => {
+    setSearchResults([]); setExpandedBuyer(null); setAdmissionMessage('');
+  }, [selectedEventId, searchQuery]);
+
+  useEffect(() => {
+    if (searchQuery.trim().length < 2 || !selectedEventId) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible' && !validationBusy.current) setSearchRevision((v) => v + 1);
+    }, 5000);
+    return () => clearInterval(timer);
   }, [searchQuery, selectedEventId]);
+
+  const confirmAdmission = async (buyer: BuyerGroup, ticket: BuyerGroup['tickets'][number]) => {
+    if (validationBusy.current || searching) return;
+    await stopCameraScan();
+    if (!window.confirm(`${buyer.name}\n${ticket.seat}\n${lang === 'es' ? '¿Registrar 1 ingreso? Se utilizará esta entrada.' : 'Register 1 entry? This ticket will be used.'}`)) return;
+    await handleValidateTicket(ticket.ticketCode, 'manual');
+  };
 
   const handleManualSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (manualCode.trim()) {
       stopCameraScan();
-      handleValidateTicket(manualCode.trim());
+      handleValidateTicket(manualCode.trim(), 'manual');
     }
   };
 
@@ -420,9 +438,9 @@ export default function TicketScannerPage() {
 
   return (
     <div className={`${shellClass} flex flex-col items-center justify-center px-4 py-8 md:py-12`}>
-      <div className="w-full max-w-6xl grid grid-cols-1 xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)] gap-5">
-        <div className={`w-full rounded-lg border p-5 md:p-7 space-y-5 overflow-hidden ${panelClass}`}>
-          <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0 w-full max-w-6xl grid grid-cols-1 xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)] gap-5">
+        <div className={`min-w-0 w-full rounded-lg border p-5 md:p-7 space-y-5 overflow-hidden ${panelClass}`}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-[#0A375A] px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-sm">
                 <HiOutlineQrcode className="h-4 w-4" />
@@ -453,7 +471,10 @@ export default function TicketScannerPage() {
             </div>
           )}
 
-          {!validationResult && !validating && (
+          <div className="grid grid-cols-2 gap-2">
+            {(['qr', 'buyer'] as const).map((value) => <button key={value} aria-pressed={doorMode === value} disabled={validating} onClick={() => { void stopCameraScan(); setValidationResult(null); setDoorMode(value); }} className={`min-h-[48px] rounded-lg border px-2 py-3 text-xs font-semibold ${doorMode === value ? 'border-orange-400 bg-orange-500/15 text-orange-300' : 'border-white/15 text-slate-300'}`}>{value === 'qr' ? (lang === 'es' ? 'Escanear QR' : 'Scan QR') : (lang === 'es' ? 'Buscar comprador' : 'Find buyer')}</button>)}
+          </div>
+          {!validationResult && !validating && doorMode === 'qr' && (
             <div className="relative overflow-hidden rounded-lg border border-[rgba(10,55,90,0.12)] bg-white text-[#0A375A] shadow-sm">
               {isScanning ? (
                 <div className="scanner-camera-frame relative w-full overflow-hidden">
@@ -611,8 +632,9 @@ export default function TicketScannerPage() {
             </div>
           )}
 
-          {!validationResult && !validating && (
+          {((!validationResult && !validating) || !!searchQuery.trim()) && (
             <>
+              {doorMode === 'qr' && <>
               <div className="relative flex items-center py-1">
                 <div className={`flex-grow border-t ${highContrast ? 'border-white/10' : 'border-slate-200'}`} />
                 <span className={`mx-4 flex-shrink text-[10px] font-black uppercase tracking-widest ${highContrast ? 'text-white/40' : 'text-slate-400'}`}>
@@ -643,10 +665,11 @@ export default function TicketScannerPage() {
                 </button>
               </form>
 
+              </>}
               {/* Search by name / email (when the QR can't be scanned) */}
               <div className="mt-5">
                 <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  {lang === 'es' ? 'Buscar por nombre / email' : 'Search by name / email'}
+                  {lang === 'es' ? 'Buscar comprador' : 'Find buyer'}
                 </p>
                 <div className="relative">
                   <HiOutlineSearch className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -658,7 +681,7 @@ export default function TicketScannerPage() {
                     placeholder={
                       !selectedEventId
                         ? (lang === 'es' ? 'Selecciona un evento primero' : 'Select an event first')
-                        : (lang === 'es' ? 'Nombre o correo del asistente' : 'Attendee name or email')
+                        : (lang === 'es' ? 'Nombre o correo del comprador' : 'Buyer name or email')
                     }
                     className={`w-full min-h-[52px] rounded-lg border px-12 py-4 text-sm font-semibold outline-none transition focus:ring-2 focus:ring-[#F97316] ${
                       !selectedEventId ? 'cursor-not-allowed opacity-60' : ''
@@ -667,39 +690,50 @@ export default function TicketScannerPage() {
                     }`}
                   />
                 </div>
+                {!!admissionMessage && <p role="status" className="mt-2 text-sm font-semibold">{admissionMessage}</p>}
+                {!!searchError && <p role="alert" className="mt-2 text-sm text-red-400">{searchError}</p>}
                 {searching && <p className="mt-2 text-xs text-slate-400">{lang === 'es' ? 'Buscando…' : 'Searching…'}</p>}
-                {!searching && searchQuery.trim().length >= 2 && selectedEventId && searchResults.length === 0 && (
+                {!searching && !searchError && searchQuery.trim().length >= 2 && selectedEventId && searchResults.length === 0 && (
                   <p className="mt-2 text-xs text-slate-400">{lang === 'es' ? 'Sin coincidencias.' : 'No matches.'}</p>
                 )}
                 {searchResults.length > 0 && (
                   <div className="mt-2 space-y-2">
                     {searchResults.map((buyer) => {
                       const open = expandedBuyer === buyer.buyerId;
+                      const available = buyer.tickets.filter((tk) => tk.status === 'active');
+                      const quickTicket = available.length && available.every((tk) => !tk.seatId && tk.sectionId === available[0].sectionId && tk.price === available[0].price && tk.sectionName === available[0].sectionName) ? available[0] : null;
                       return (
                         <div key={buyer.buyerId} className={`rounded-lg border overflow-hidden ${highContrast ? 'border-white/10' : 'border-slate-200'}`}>
                           {/* Level 1: the buyer */}
                           <button
                             onClick={() => setExpandedBuyer(open ? null : buyer.buyerId)}
-                            className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition ${highContrast ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-slate-50'}`}
+                            className={`flex w-full flex-wrap items-center gap-3 px-3 py-2.5 text-left transition ${highContrast ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-slate-50'}`}
                           >
-                            <div className="min-w-0 flex-1">
-                              <p className={`truncate text-sm font-bold ${highContrast ? 'text-white' : 'text-slate-900'}`}>{buyer.name}</p>
+                            <div className="min-w-0 flex-1 basis-32">
+                              <p className={`break-words text-sm font-bold ${highContrast ? 'text-white' : 'text-slate-900'}`}>{buyer.name}</p>
                               <p className="truncate text-[11px] text-slate-400">{buyer.email}</p>
                             </div>
                             <span className="shrink-0 rounded-full bg-orange-100 px-2.5 py-1 text-[10px] font-black text-orange-700">
-                              {buyer.scannedCount}/{buyer.ticketCount} {lang === 'es' ? 'entradas' : 'tickets'}
+                              {buyer.availableCount ?? available.length} {lang === 'es' ? 'disponibles' : 'available'}
                             </span>
                             <span className="shrink-0 text-slate-400">{open ? '▲' : '▼'}</span>
                           </button>
 
+                          {open && <div className="space-y-3 px-3 py-3">
+                            <p className="text-xs text-slate-400">{buyer.ticketCount} {lang === 'es' ? 'entradas' : 'tickets'} · {buyer.scannedCount} {lang === 'es' ? 'ingresaron' : 'entered'} · {buyer.unavailableCount || 0} {lang === 'es' ? 'anuladas' : 'voided'}</p>
+                            {quickTicket && <button disabled={validating || searching} onClick={() => void confirmAdmission(buyer, quickTicket)} className="min-h-[44px] w-full rounded-lg bg-[#F97316] px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{lang === 'es' ? 'Registrar 1 ingreso' : 'Register 1 entry'}</button>}
+                            {!available.length && <p className="text-sm">{lang === 'es' ? 'No quedan entradas disponibles.' : 'No tickets remaining.'}</p>}
+                          </div>}
                           {/* Level 2: the buyer's tickets */}
                           {open && (
                             <div className={`divide-y ${highContrast ? 'divide-white/10 bg-black/20' : 'divide-slate-100 bg-slate-50'}`}>
-                              {buyer.tickets.map((tk) => (
-                                <div key={tk.ticketCode} className="flex items-center gap-2 px-3 py-2.5">
+                              {buyer.tickets.some((tk) => tk.status !== 'active') && <button className="min-h-[44px] px-3 py-2 text-xs font-semibold text-orange-400" onClick={() => setHistoryBuyer(historyBuyer === buyer.buyerId ? null : buyer.buyerId)}>{historyBuyer === buyer.buyerId ? (lang === 'es' ? 'Ocultar historial' : 'Hide history') : (lang === 'es' ? 'Ver ingresos y anuladas' : 'View entries and voided tickets')}</button>}
+                              {buyer.tickets.filter((tk) => historyBuyer === buyer.buyerId || tk.status === 'active').map((tk) => (
+                                <div key={tk.ticketCode} className="flex flex-wrap items-center gap-2 px-3 py-2.5">
                                   <div className="min-w-0 flex-1">
                                     <p className={`truncate text-xs font-bold ${highContrast ? 'text-white' : 'text-slate-800'}`}>{tk.seat}</p>
                                     <p className="truncate text-[10px] font-mono text-slate-400">{tk.ticketCode}</p>
+                                    {!!tk.usedAt && <p className="text-[11px] text-slate-400">{new Date(tk.usedAt).toLocaleTimeString()}</p>}
                                   </div>
                                   {/* Open the full receipt (existing ticket page) */}
                                   <a
@@ -712,15 +746,16 @@ export default function TicketScannerPage() {
                                   </a>
                                   {/* Validate directly */}
                                   {tk.status === 'used' ? (
-                                    <span className="shrink-0 rounded-lg bg-green-100 px-2.5 py-1.5 text-[10px] font-black uppercase text-green-700">{lang === 'es' ? 'Escaneado' : 'Scanned'}</span>
-                                  ) : tk.status === 'cancelled' ? (
-                                    <span className="shrink-0 rounded-lg bg-red-100 px-2.5 py-1.5 text-[10px] font-black uppercase text-red-700">{lang === 'es' ? 'Cancelado' : 'Cancelled'}</span>
+                                    <span className="shrink-0 rounded-lg bg-green-100 px-2.5 py-1.5 text-[10px] font-black uppercase text-green-700">{lang === 'es' ? 'Ingresó' : 'Entered'}</span>
+                                  ) : tk.status !== 'active' ? (
+                                    <span className="shrink-0 rounded-lg bg-red-100 px-2.5 py-1.5 text-[10px] font-black uppercase text-red-700">{tk.status === 'revoked' ? (lang === 'es' ? 'Revocada' : 'Revoked') : (lang === 'es' ? 'Anulada' : 'Voided')}</span>
                                   ) : (
                                     <button
-                                      onClick={() => { setSearchResults([]); setSearchQuery(''); setExpandedBuyer(null); handleValidateTicket(tk.ticketCode); }}
-                                      className="shrink-0 rounded-lg bg-[#F97316] px-2.5 py-1.5 text-[10px] font-black uppercase text-white hover:bg-[#ea6a0c]"
+                                      disabled={validating || searching}
+                                      onClick={() => void confirmAdmission(buyer, tk)}
+                                      className="min-h-[44px] shrink-0 rounded-lg border border-orange-400/40 bg-orange-500/10 px-2.5 py-1.5 disabled:opacity-50 text-[10px] font-semibold text-orange-300 hover:bg-orange-500/20"
                                     >
-                                      {lang === 'es' ? 'Validar' : 'Validate'}
+                                      {lang === 'es' ? 'Registrar ingreso' : 'Register entry'}
                                     </button>
                                   )}
                                 </div>
@@ -846,7 +881,7 @@ export default function TicketScannerPage() {
             </div>
           )}
 
-          <div className="mt-5 grid grid-cols-3 gap-3">
+          <div className="mt-5 grid grid-cols-1 min-[380px]:grid-cols-3 gap-3">
             <div className={`rounded-lg border p-4 ${highContrast ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
               <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{lang === 'es' ? 'Total' : 'Total'}</p>
               <p className={`mt-2 text-3xl font-black ${highContrast ? 'text-white' : 'text-[#0A375A]'}`}>{liveStats.total}</p>

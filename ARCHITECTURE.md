@@ -54,6 +54,17 @@ PostgreSQL + servicios externos
 - Los tickets creados para ese canal nacen con estado `used`, porque el comprador ya está físicamente en la puerta y debe contabilizarse como admitido.
 - Los tickets de Checkout, QR, enlace y compra online nacen con estado `active` y requieren validación posterior mediante el escáner.
 
+### Ingreso manual y recuperación de Tap to Pay (2026-09-15)
+
+Estado: `IMPLEMENTADO`, con pruebas locales y PostgreSQL temporal; iPhone y Stripe físico pendientes.
+
+- El ingreso por nombre consume un ticket concreto a través del mismo `validateTicket` del QR. El DTO admite únicamente `qr` o `manual`; el servidor determina empleado y hora. La actualización condicional escribe estado y auditoría juntos en `tickets.usedAt`, `tickets.usedBy`, `tickets.admissionMethod`. Son columnas anulables para mantener el historial anterior sin inventar datos. Las entradas presenciales nuevas emitidas usadas registran `tap_to_pay` y al operador de la orden.
+- `search-tickets` obtiene hasta 30 compradores coincidentes y después sus tickets completos del evento, seleccionando solo campos operativos. Devuelve disponibles/ingresados/anulados y tickets individuales con hora/método/actor; las interfaces conservan el comprador y refrescan resultados visibles cada cinco segundos, con confirmación del servidor en cada ingreso. El acceso rápido se limita a generales sin silla y de igual sección/precio; el resto requiere selección de ticket.
+- `POST /orders/door-sale/tap-to-pay-status` acepta orden, PaymentIntent y acción `verify` o `cancel`. Revalida permisos y pertenencia, monto/moneda/evento/canal. Solo `succeeded` y la emisión completa permiten `success: true`. La cancelación confirmada cambia únicamente la orden pendiente correspondiente a cancelada. El endpoint anterior `tap-to-pay-complete` continúa devolviendo error HTTP si falta confirmar, porque las apps antiguas asumen que cualquier 2xx es éxito.
+- La app conserva en AsyncStorage la referencia y el resumen de la compra pendiente por usuario; nunca el client secret ni tarjeta/contactos. Una recuperación consulta el mismo PaymentIntent. Un reintento explícito reutiliza ese intento; una red incierta mantiene bloqueada otra compra. La conexión del lector se verifica con el SDK y escucha desconexión/reconexión.
+- Tras persistir la orden y las entradas, Tap to Pay devuelve la confirmación sin esperar al correo ni tareas auxiliares. Estas siguen en el proceso con manejo de errores; no hay una cola persistente nueva. Compras online conservan su secuencia anterior.
+- Publicación autorizada: PostgreSQL temporal comprobó que la configuración existente `synchronize: true` genera únicamente tres `ADD` anulables desde el esquema anterior de tickets y conserva sus filas. Publicar backend compatible antes de entregar los clientes móviles; la app requiere compilación nativa.
+
 ### Revocación de entradas y asientos
 
 - La revocación se solicita desde el detalle del asistente y se autoriza nuevamente en backend para el organizador propietario o un administrador.

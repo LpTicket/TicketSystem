@@ -439,6 +439,8 @@ describe('OrdersService critical ticket safeguards', () => {
       get: jest.fn((key: string) => key === 'TICKET_ARCHIVE_EMAIL' ? 'info@lpticket.com' : undefined),
     };
     const { service, mailService } = buildService({ manager, orderRepo, configService });
+    // A slow SMTP response must not hold the confirmed gate admission open.
+    mailService.sendTicketEmail.mockImplementation(() => new Promise<void>(() => {}));
 
     await (service as any).finalizePaidOrder(
       'order-1',
@@ -448,6 +450,7 @@ describe('OrdersService critical ticket safeguards', () => {
       { allowFallbackEmail: false },
     );
 
+    await new Promise((resolve) => setImmediate(resolve));
     expect(mailService.sendTicketEmail).toHaveBeenCalledTimes(1);
     expect(transactionTicketRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({ status: TicketStatus.USED }),
@@ -634,5 +637,120 @@ describe('OrdersService critical ticket safeguards', () => {
       'pendingOrder.stripePaymentIntent IS NOT NULL',
     );
     expect(pendingQuery.orderBy).toHaveBeenCalledWith('pendingOrder.paidAt', 'ASC');
+  });
+});
+
+describe('Gate admission and confirmed Tap to Pay', () => {
+  const actor = { id: 'admin-1', role: UserRole.ADMIN };
+  function paymentService(status = 'succeeded') {
+    const order = { id: 'order-1', eventId: 'event-1', userId: actor.id, total: 44.79, ticketCount: 1,
+      stripePaymentIntent: 'pi_test', salesChannel: 'door_sale_tap_to_pay', event: { currency: 'USD' } };
+    const pi = { id: 'pi_test', status, amount: 4479, currency: 'usd', client_secret: 'test-only',
+      metadata: { orderId: order.id, eventId: order.eventId, source: 'door_sale_tap_to_pay' } };
+    const { service } = buildService({ orderRepo: { findOne: jest.fn().mockResolvedValue(order), update: jest.fn().mockResolvedValue({ affected: 1 }) } });
+    const stripe = { paymentIntents: { retrieve: jest.fn().mockResolvedValue(pi), capture: jest.fn(), cancel: jest.fn() } };
+    (service as any).stripe = stripe;
+    const fulfill = jest.spyOn(service as any, 'finalizePaidOrder').mockResolvedValue([{ id: 'ticket-1' }]);
+    return { service, stripe, fulfill, pi, order };
+  }
+
+  it('records operator, time and manual method in the same conditional ticket update', async () => {
+    const { service, ticketRepo } = buildService();
+    ticketRepo.findOne.mockResolvedValue({ id: 'ticket-1', eventId: 'event-1', status: TicketStatus.ACTIVE });
+    ticketRepo.update.mockResolvedValue({ affected: 1 });
+    const result = await service.validateTicket('CODE', actor, { admissionMethod: 'manual' });
+    expect(result.valid).toBe(true);
+    expect(ticketRepo.update).toHaveBeenCalledWith({ id: 'ticket-1', status: TicketStatus.ACTIVE }, {
+      status: TicketStatus.USED, usedAt: expect.any(Date), usedBy: actor.id, admissionMethod: 'manual',
+    });
+  });
+
+  it('admits only once when two gates race for the last ticket', async () => {
+    const { service, ticketRepo } = buildService();
+    ticketRepo.findOne.mockImplementation(async () => ({ id: 'ticket-1', status: TicketStatus.ACTIVE }));
+    let active = true;
+    ticketRepo.update.mockImplementation(async () => { const affected = active ? 1 : 0; active = false; return { affected }; });
+    const results = await Promise.all([service.validateTicket('CODE', actor), service.validateTicket('CODE', actor)]);
+    expect(results.filter((r) => r.valid)).toHaveLength(1);
+  });
+
+  it('loads complete buyer balances after a code match and counts only active tickets as available', async () => {
+    const query: any = {};
+    for (const name of ['leftJoin', 'select', 'distinct', 'where', 'andWhere', 'orderBy', 'limit']) query[name] = jest.fn(() => query);
+    query.getRawMany = jest.fn().mockResolvedValue([{ buyerId: 'buyer-1' }]);
+    const tickets = ['active', 'used', 'revoked', 'cancelled'].map((status, index) => ({ ticketCode: `CODE${index}`, status, user: { id: 'buyer-1', firstName: 'María', lastName: 'López' } }));
+    const { service, ticketRepo } = buildService({ ticketRepo: { createQueryBuilder: jest.fn(() => query), find: jest.fn().mockResolvedValue(tickets) } });
+    jest.spyOn(service as any, 'assertEventAccess').mockResolvedValue(undefined);
+    const [buyer] = await service.searchEventTicketsGrouped('event-1', 'CODE0', actor);
+    expect(buyer).toMatchObject({ ticketCount: 4, scannedCount: 1, availableCount: 1, unavailableCount: 2 });
+    expect(ticketRepo.find).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ eventId: 'event-1', userId: expect.anything() }) }));
+  });
+
+  it.each(['processing', 'requires_payment_method', 'requires_confirmation', 'requires_action', 'canceled'])('never fulfills or approves %s', async (status) => {
+    const { service, fulfill } = paymentService(status);
+    const result = await service.completeDoorSaleTapToPay(actor, 'order-1', 'pi_test', { returnPending: true });
+    expect(result).toMatchObject({ success: false, paymentStatus: status });
+    expect(fulfill).not.toHaveBeenCalled();
+  });
+
+  it('keeps non-success responses out of the legacy completion contract', async () => {
+    const { service, fulfill } = paymentService('processing');
+    await expect(service.completeDoorSaleTapToPay(actor, 'order-1', 'pi_test')).rejects.toThrow('pendiente');
+    expect(fulfill).not.toHaveBeenCalled();
+  });
+
+  it('requires succeeded after capture, not just a successful capture HTTP response', async () => {
+    const { service, stripe, fulfill, pi } = paymentService('requires_capture');
+    stripe.paymentIntents.capture.mockResolvedValue({ ...pi, status: 'processing' });
+    const result = await service.completeDoorSaleTapToPay(actor, 'order-1', 'pi_test', { returnPending: true });
+    expect(result.success).toBe(false);
+    expect(fulfill).not.toHaveBeenCalled();
+  });
+
+  it('approves only a succeeded payment with all issued tickets', async () => {
+    const { service, fulfill } = paymentService();
+    expect(await service.completeDoorSaleTapToPay(actor, 'order-1', 'pi_test')).toMatchObject({ success: true, paymentStatus: 'succeeded', ticketCount: 1 });
+    fulfill.mockResolvedValue([]);
+    await expect(service.completeDoorSaleTapToPay(actor, 'order-1', 'pi_test')).rejects.toThrow('entradas pendientes');
+  });
+
+  it('rejects wrong amount or wrong order before fulfillment', async () => {
+    const { service, fulfill, pi } = paymentService();
+    pi.amount = 1;
+    await expect(service.completeDoorSaleTapToPay(actor, 'order-1', 'pi_test')).rejects.toThrow('no coincide');
+    expect(fulfill).not.toHaveBeenCalled();
+    await expect(service.completeDoorSaleTapToPay(actor, 'order-1', 'pi_other')).rejects.toThrow('does not match');
+  });
+
+  it('does not cancel a payment that completed while cancellation was in flight', async () => {
+    const { service, stripe, pi } = paymentService('requires_confirmation');
+    stripe.paymentIntents.cancel.mockRejectedValue(new Error('already completed'));
+    stripe.paymentIntents.retrieve.mockResolvedValueOnce(pi).mockResolvedValue({ ...pi, status: 'succeeded' });
+    expect(await service.completeDoorSaleTapToPay(actor, 'order-1', 'pi_test', { returnPending: true, cancel: true })).toMatchObject({ success: true });
+  });
+
+  it('denies an employee without an active grant before contacting Stripe', async () => {
+    const { service, stripe } = paymentService('requires_payment_method');
+    (service as any).scannerAccessRepo = { findOne: jest.fn().mockResolvedValue(null) };
+    await expect(service.completeDoorSaleTapToPay({ id: actor.id, role: UserRole.CLIENT }, 'order-1', 'pi_test', { returnPending: true, cancel: true })).rejects.toThrow('permission');
+    expect(stripe.paymentIntents.retrieve).not.toHaveBeenCalled();
+  });
+
+  it('denies cancellation of another employee order even with an event grant', async () => {
+    const { service, stripe } = paymentService('requires_payment_method');
+    (service as any).scannerAccessRepo = { findOne: jest.fn().mockResolvedValue({ id: 'grant-1' }) };
+    await expect(service.completeDoorSaleTapToPay({ id: 'other-employee', role: UserRole.CLIENT }, 'order-1', 'pi_test', { returnPending: true, cancel: true })).rejects.toThrow('permission');
+    expect(stripe.paymentIntents.retrieve).not.toHaveBeenCalled();
+  });
+
+  it('confirms cancellation before allowing a new purchase', async () => {
+    const { service, stripe, fulfill, pi } = paymentService('requires_payment_method');
+    stripe.paymentIntents.cancel.mockResolvedValue({ ...pi, status: 'canceled' });
+    expect(await service.completeDoorSaleTapToPay(actor, 'order-1', 'pi_test', { returnPending: true, cancel: true })).toMatchObject({ success: false, cancelled: true });
+    expect((service as any).orderRepo.update).toHaveBeenCalledWith(
+      { id: 'order-1', stripePaymentIntent: 'pi_test', status: OrderStatus.PENDING },
+      { status: OrderStatus.CANCELLED },
+    );
+    expect(fulfill).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { ValidateTicketDto } from '../orders/dto/validate-ticket.dto';
+import { Body, Controller, Get, Header, Param, ParseUUIDPipe, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -64,8 +65,8 @@ export class ScannerAccessController {
   }
 
   @Post('events/:eventId/ticket/:code/validate')
-  validateTicket(@Param('eventId') eventId: string, @Param('code') code: string, @Request() req: any) {
-    return this.scannerAccessService.validateTicketForEmployee(eventId, code, req.user);
+  validateTicket(@Param('eventId') eventId: string, @Param('code') code: string, @Body() body: ValidateTicketDto, @Request() req: any) {
+    return this.scannerAccessService.validateTicketForEmployee(eventId, code, req.user, body?.admissionMethod);
   }
 
   @Get('events/:eventId/stats')
@@ -74,6 +75,7 @@ export class ScannerAccessController {
   }
 
   // Gate search by name / email / code for an approved employee scanner.
+  @Header('Cache-Control', 'no-store')
   @Get('events/:eventId/search-tickets')
   searchTickets(@Param('eventId') eventId: string, @Query('q') q: string, @Request() req: any) {
     return this.scannerAccessService.searchTicketsForEmployee(eventId, q || '', req.user);

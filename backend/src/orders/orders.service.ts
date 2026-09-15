@@ -524,7 +524,7 @@ export class OrdersService {
     };
   }
 
-  async completeDoorSaleTapToPay(user: any, orderId: string, paymentIntentId: string) {
+  async completeDoorSaleTapToPay(user: any, orderId: string, paymentIntentId: string, options?: { returnPending?: boolean; cancel?: boolean }) {
     const startedAt = Date.now();
     if (!this.stripe) throw new BadRequestException('Stripe not configured');
     const order = await this.orderRepo.findOne({ where: { id: orderId }, relations: ['event'] });
@@ -540,19 +540,58 @@ export class OrdersService {
     if (user.role !== UserRole.ADMIN && order.event.organizerId !== user.id && order.userId !== user.id) {
       throw new ForbiddenException('You do not have permission to complete this order');
     }
-    if (order.stripePaymentIntent && order.stripePaymentIntent !== paymentIntentId) {
+    if (order.salesChannel !== DOOR_SALE_TAP_TO_PAY_CHANNEL) {
+      throw new BadRequestException('Esta orden no es una venta Tap to Pay.');
+    }
+    if (order.stripePaymentIntent !== paymentIntentId) {
       throw new BadRequestException('PaymentIntent does not match this order');
     }
 
-    const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+    let paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
     const stripeConfirmedAt = Date.now();
     if (paymentIntent.metadata?.orderId !== orderId) {
       throw new BadRequestException('PaymentIntent metadata does not match this order');
     }
+    if (paymentIntent.amount !== Math.round(Number(order.total) * 100)
+      || paymentIntent.currency !== (order.event.currency || 'USD').toLowerCase()
+      || paymentIntent.metadata?.eventId !== order.eventId
+      || paymentIntent.metadata?.source !== DOOR_SALE_TAP_TO_PAY_CHANNEL) {
+      throw new BadRequestException('El pago no coincide con la venta presencial.');
+    }
+    if (options?.cancel && ['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(paymentIntent.status)) {
+      try {
+        paymentIntent = await this.stripe.paymentIntents.cancel(paymentIntentId);
+      } catch {
+        // It may have succeeded while cancellation was in flight. Recheck, never
+        // tell the operator to charge again on a failed cancellation request.
+        paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+      }
+    }
     if (paymentIntent.status === 'requires_capture') {
-      await this.stripe.paymentIntents.capture(paymentIntentId);
-    } else if (paymentIntent.status !== 'succeeded') {
-      throw new BadRequestException(`Payment is not complete: ${paymentIntent.status}`);
+      paymentIntent = await this.stripe.paymentIntents.capture(paymentIntentId, {},
+        { idempotencyKey: `door-capture-${orderId}` });
+    }
+    if (paymentIntent.status !== 'succeeded') {
+      if (!options?.returnPending) {
+        throw new BadRequestException('Pago pendiente de confirmación. No permitas el ingreso todavía.');
+      }
+      if (paymentIntent.status === 'canceled') {
+        await this.orderRepo.update(
+          { id: orderId, stripePaymentIntent: paymentIntentId, status: OrderStatus.PENDING },
+          { status: OrderStatus.CANCELLED },
+        );
+        await this.invalidateUserPurchasesCache(order.userId);
+      }
+      const retryAllowed = ['requires_payment_method', 'requires_confirmation'].includes(paymentIntent.status);
+      return {
+        success: false, orderId, paymentStatus: paymentIntent.status,
+        retryAllowed, cancelled: paymentIntent.status === 'canceled',
+        clientSecret: retryAllowed ? paymentIntent.client_secret : undefined,
+        message: paymentIntent.status === 'canceled'
+          ? 'Cobro cancelado. No se permite el ingreso.'
+          : retryAllowed ? 'Pago no confirmado. Reintenta esta misma compra o cancélala.'
+          : 'Pago pendiente de confirmación. No permitas el ingreso ni vuelvas a cobrar.',
+      };
     }
 
     const tickets = await this.finalizePaidOrder(
@@ -562,6 +601,9 @@ export class OrdersService {
       paymentIntent.metadata?.buyerName || undefined,
       { allowFallbackEmail: false },
     );
+    if (tickets.length !== order.ticketCount || !tickets.length) {
+      throw new BadRequestException('Pago confirmado; entradas pendientes. Verifica esta misma compra sin volver a cobrar.');
+    }
     const fulfilledAt = Date.now();
     console.log('[TapToPay] completion timing', {
       stripeConfirmationMs: stripeConfirmedAt - startedAt,
@@ -571,6 +613,7 @@ export class OrdersService {
     });
     return {
       success: true,
+      paymentStatus: 'succeeded',
       orderId,
       ticketCount: tickets.length,
     };
@@ -643,6 +686,9 @@ export class OrdersService {
           qrData,
           price: seatInfo.price,
           status: initialTicketStatus,
+          ...(initialTicketStatus === TicketStatus.USED ? {
+            usedAt: new Date(), usedBy: order.userId, admissionMethod: 'tap_to_pay' as const,
+          } : {}),
         }));
         createdTickets.push(savedTicket);
 
@@ -661,75 +707,82 @@ export class OrdersService {
     const createdTickets = fulfillment.tickets;
     if (!order || !fulfillment.created) return createdTickets;
 
-    await this.invalidateUserPurchasesCache(order.userId);
+    const afterPayment = async () => {
+      await this.invalidateUserPurchasesCache(order.userId);
 
-    // Persist the real Stripe payment method after a successful payment
-    const finalPaymentIntent = stripePaymentIntent || order.stripePaymentIntent;
-    if (this.stripe && finalPaymentIntent && order.userId) {
+      // Persist the real Stripe payment method after a successful payment
+      const finalPaymentIntent = stripePaymentIntent || order.stripePaymentIntent;
+      if (this.stripe && finalPaymentIntent && order.userId) {
+        try {
+          const pi = await this.stripe.paymentIntents.retrieve(finalPaymentIntent, { expand: ['payment_method'] });
+          const pm = pi.payment_method;
+          if (pm && typeof pm === 'object' && pm.card) {
+            const existing = await this.paymentMethodRepo.findOne({ where: { providerId: pm.id } });
+            if (!existing) {
+              const count = await this.paymentMethodRepo.count({ where: { userId: order.userId } });
+              await this.paymentMethodRepo.save(this.paymentMethodRepo.create({
+                userId: order.userId,
+                type: PaymentMethodType.CREDIT_CARD,
+                brand: pm.card.brand || 'card',
+                last4: pm.card.last4 || '****',
+                providerId: pm.id,
+                isDefault: count === 0,
+              }));
+            }
+          }
+        } catch { /* non-critical */ }
+      }
+
       try {
-        const pi = await this.stripe.paymentIntents.retrieve(finalPaymentIntent, { expand: ['payment_method'] });
-        const pm = pi.payment_method;
-        if (pm && typeof pm === 'object' && pm.card) {
-          const existing = await this.paymentMethodRepo.findOne({ where: { providerId: pm.id } });
-          if (!existing) {
-            const count = await this.paymentMethodRepo.count({ where: { userId: order.userId } });
-            await this.paymentMethodRepo.save(this.paymentMethodRepo.create({
-              userId: order.userId,
-              type: PaymentMethodType.CREDIT_CARD,
-              brand: pm.card.brand || 'card',
-              last4: pm.card.last4 || '****',
-              providerId: pm.id,
-              isDefault: count === 0,
-            }));
+        const fullOrder = await this.orderRepo.findOne({
+          where: { id: orderId },
+          relations: ['user', 'event', 'event.organizer'],
+        });
+        if (fullOrder && fullOrder.user && createdTickets.length > 0) {
+          // Invalidate organizer caches so their panel reflects the new sale immediately.
+          const organizerId = fullOrder.event?.organizerId;
+          if (organizerId) {
+            await Promise.all([
+              this.cache.del(`organizer:events:${organizerId}`),
+              this.cache.del(`organizer:stats:${organizerId}`),
+            ]);
+          }
+          const buyerRecipient = buyerEmail?.trim();
+          const operationalRecipient = String(
+            this.configService.get('TICKET_ARCHIVE_EMAIL') || 'info@lpticket.com',
+          ).trim();
+          const emailRecipient = buyerRecipient
+            || (options?.allowFallbackEmail === false ? operationalRecipient : fullOrder.user.email);
+          if (emailRecipient) {
+            await this.mailService.sendTicketEmail(
+              emailRecipient,
+              buyerName || fullOrder.user.firstName,
+              fullOrder.event.title,
+              createdTickets,
+              {
+              venueName: fullOrder.event.venueName,
+              venueAddress: fullOrder.event.venueAddress,
+              eventDate: fullOrder.event.eventDate?.toString(),
+              eventTimezone: fullOrder.event.eventTimezone,
+              currency: fullOrder.event.currency || 'USD',
+              subtotal: Number(fullOrder.subtotal || 0),
+              lpFee: Number(fullOrder.lpFee || 0),
+              processingFee: Number(fullOrder.processingFee || 0),
+              total: Number(fullOrder.total || 0),
+              organizerEmail: fullOrder.event.organizer?.email || null,
+              },
+              { includeOperationalCopies: Boolean(buyerRecipient) },
+            );
           }
         }
-      } catch { /* non-critical */ }
-    }
-
-    try {
-      const fullOrder = await this.orderRepo.findOne({
-        where: { id: orderId },
-        relations: ['user', 'event', 'event.organizer'],
-      });
-      if (fullOrder && fullOrder.user && createdTickets.length > 0) {
-        // Invalidate organizer caches so their panel reflects the new sale immediately.
-        const organizerId = fullOrder.event?.organizerId;
-        if (organizerId) {
-          await Promise.all([
-            this.cache.del(`organizer:events:${organizerId}`),
-            this.cache.del(`organizer:stats:${organizerId}`),
-          ]);
-        }
-        const buyerRecipient = buyerEmail?.trim();
-        const operationalRecipient = String(
-          this.configService.get('TICKET_ARCHIVE_EMAIL') || 'info@lpticket.com',
-        ).trim();
-        const emailRecipient = buyerRecipient
-          || (options?.allowFallbackEmail === false ? operationalRecipient : fullOrder.user.email);
-        if (emailRecipient) {
-          await this.mailService.sendTicketEmail(
-            emailRecipient,
-            buyerName || fullOrder.user.firstName,
-            fullOrder.event.title,
-            createdTickets,
-            {
-            venueName: fullOrder.event.venueName,
-            venueAddress: fullOrder.event.venueAddress,
-            eventDate: fullOrder.event.eventDate?.toString(),
-            eventTimezone: fullOrder.event.eventTimezone,
-            currency: fullOrder.event.currency || 'USD',
-            subtotal: Number(fullOrder.subtotal || 0),
-            lpFee: Number(fullOrder.lpFee || 0),
-            processingFee: Number(fullOrder.processingFee || 0),
-            total: Number(fullOrder.total || 0),
-            organizerEmail: fullOrder.event.organizer?.email || null,
-            },
-            { includeOperationalCopies: Boolean(buyerRecipient) },
-          );
-        }
+      } catch (err) {
+        console.error('Error in post-payment email:', err);
       }
-    } catch (err) {
-      console.error('Error in post-payment email:', err);
+    };
+    if (order.salesChannel === DOOR_SALE_TAP_TO_PAY_CHANNEL) {
+      void afterPayment().catch(() => console.error('Tap to Pay post-payment tasks failed'));
+    } else {
+      await afterPayment();
     }
 
     return createdTickets;
@@ -1992,7 +2045,7 @@ export class OrdersService {
     };
   }
 
-  async validateTicket(code: string, user: any, options?: { eventId?: string; allowScannerAccess?: boolean }) {
+  async validateTicket(code: string, user: any, options?: { eventId?: string; allowScannerAccess?: boolean; admissionMethod?: 'qr' | 'manual' }) {
     if (options?.eventId && !options.allowScannerAccess) {
       await this.assertEventAccess(options.eventId, user);
     }
@@ -2033,14 +2086,18 @@ export class OrdersService {
 
     // Atomic state transition prevents two devices from accepting the same QR
     // at the same time during a busy entrance.
+    const admission = { status: TicketStatus.USED, usedAt: new Date(), usedBy: user.id, admissionMethod: options?.admissionMethod || 'qr' as const };
     const update = await this.ticketRepo.update(
       { id: ticket.id, status: TicketStatus.ACTIVE },
-      { status: TicketStatus.USED },
+      admission,
     );
     if (!update.affected) {
       return { valid: false, reason: 'used', message: 'Este ticket acaba de ser escaneado en otro dispositivo.', ticket };
     }
-    ticket.status = TicketStatus.USED;
+    Object.assign(ticket, admission);
+    if (ticket.event?.organizerId) {
+      try { await this.cache.del(`organizer:stats:${ticket.event.organizerId}`); } catch { /* Admission is already persisted. */ }
+    }
     return { valid: true, reason: 'accepted', message: 'Entrada confirmada.', ticket };
   }
 
@@ -2333,25 +2390,29 @@ export class OrdersService {
     const q = (query || '').trim();
     if (q.length < 2) return [];
 
-    const like = `%${q.toLowerCase()}%`;
-    const tickets = await this.ticketRepo
-      .createQueryBuilder('ticket')
-      .leftJoinAndSelect('ticket.user', 'user')
+    // First find people, then load ALL their event tickets. A ticket/code match
+    // and the result limit must never turn into an incorrect remaining balance.
+    const normalize = (field: string) => `TRANSLATE(LOWER(${field}), 'áéíóúüñ', 'aeiouun')`;
+    const like = `%${q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}%`;
+    const buyers = await this.ticketRepo.createQueryBuilder('ticket')
+      .leftJoin('ticket.user', 'user')
+      .select('ticket.userId', 'buyerId').distinct(true)
       .where('ticket.eventId = :eventId', { eventId })
-      .andWhere(
-        `(
-          LOWER(user.firstName) LIKE :like OR
-          LOWER(user.lastName) LIKE :like OR
-          LOWER(user.firstName || ' ' || user.lastName) LIKE :like OR
-          LOWER(user.email) LIKE :like OR
-          LOWER(ticket.sectionName) LIKE :like OR
-          LOWER(ticket.ticketCode) LIKE :like
-        )`,
-        { like },
-      )
-      .orderBy('ticket.createdAt', 'ASC')
-      .limit(200)
-      .getMany();
+      .andWhere(`(${normalize("COALESCE(user.firstName, '') || ' ' || COALESCE(user.lastName, '')")} LIKE :like
+        OR LOWER(user.email) LIKE :like OR ${normalize('ticket.sectionName')} LIKE :like
+        OR LOWER(ticket.ticketCode) LIKE :like)`, { like })
+      .orderBy('ticket.userId', 'ASC').limit(30).getRawMany();
+    if (!buyers.length) return [];
+    const tickets = await this.ticketRepo.find({
+      where: { eventId, userId: In(buyers.map((buyer) => buyer.buyerId)) },
+      relations: ['user'], order: { createdAt: 'ASC', id: 'ASC' },
+      select: {
+        id: true, userId: true, ticketCode: true, status: true, seatId: true, sectionId: true,
+        sectionName: true, rowLabel: true, seatNumber: true, price: true,
+        usedAt: true, usedBy: true, admissionMethod: true,
+        user: { id: true, firstName: true, lastName: true, email: true },
+      },
+    });
 
     // Group all matching tickets by buyer (by user id, falling back to email).
     const groups = new Map<string, {
@@ -2360,7 +2421,9 @@ export class OrdersService {
       email: string;
       ticketCount: number;
       scannedCount: number;
-      tickets: { ticketCode: string; status: string; seat: string }[];
+      availableCount: number;
+      unavailableCount: number;
+      tickets: { ticketCode: string; status: string; seat: string; seatId: string | null; sectionId: string | null; price: number; sectionName: string; usedAt: Date | null; usedBy: string | null; admissionMethod: string | null }[];
     }>();
 
     for (const ticket of tickets) {
@@ -2369,12 +2432,14 @@ export class OrdersService {
       const name = [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim() || u?.email || 'Invitado';
       const seat = [ticket.sectionName, ticket.rowLabel, ticket.seatNumber].filter(Boolean).join(' · ') || 'General';
       if (!groups.has(key)) {
-        groups.set(key, { buyerId: key, name, email: u?.email || '', ticketCount: 0, scannedCount: 0, tickets: [] });
+        groups.set(key, { buyerId: key, name, email: u?.email ? this.maskDeliveryRecipient('email', u.email) : '', ticketCount: 0, scannedCount: 0, availableCount: 0, unavailableCount: 0, tickets: [] });
       }
       const g = groups.get(key)!;
       g.ticketCount += 1;
       if (ticket.status === TicketStatus.USED) g.scannedCount += 1;
-      g.tickets.push({ ticketCode: ticket.ticketCode, status: ticket.status, seat });
+      if (ticket.status === TicketStatus.ACTIVE) g.availableCount += 1;
+      if (ticket.status === TicketStatus.CANCELLED || ticket.status === TicketStatus.REVOKED) g.unavailableCount += 1;
+      g.tickets.push({ ticketCode: ticket.ticketCode, status: ticket.status, seat, seatId: ticket.seatId, sectionId: ticket.sectionId, price: Number(ticket.price), sectionName: ticket.sectionName, usedAt: ticket.usedAt, usedBy: ticket.usedBy, admissionMethod: ticket.admissionMethod });
     }
 
     return Array.from(groups.values()).slice(0, 30);

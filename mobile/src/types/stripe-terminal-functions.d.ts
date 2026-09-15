@@ -7,6 +7,7 @@ declare module '@stripe/stripe-terminal-react-native/lib/typescript/src/function
   export function processPaymentIntent(params: any): Promise<any>;
   export function retrievePaymentIntent(clientSecret: string): Promise<any>;
   export function cancelCollectPaymentMethod(): Promise<any>;
+  export function getConnectionStatus(): Promise<'notConnected' | 'connecting' | 'connected' | 'discovering' | 'reconnecting'>;
   export function disconnectReader(): Promise<any>;
   export function setConnectionToken(token: string | undefined, errorMessage?: string): void;
   export function setConnectionTokenProvider(provider: any): any;

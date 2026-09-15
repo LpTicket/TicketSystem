@@ -23,6 +23,8 @@ import { WalletService } from '../common/services/wallet.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { UserRole } from '../database/entities';
+import { ValidateTicketDto } from './dto/validate-ticket.dto';
+import { TapPaymentStatusDto } from './dto/tap-payment-status.dto';
 import { RevokeTicketsDto } from './dto/revoke-tickets.dto';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require('stripe');
@@ -144,6 +146,15 @@ export class OrdersController {
       body.orderId,
       body.paymentIntentId,
     );
+  }
+
+  // Separate contract: older apps assume every 2xx completion means admission.
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Post('door-sale/tap-to-pay-status')
+  tapPaymentStatus(@Body() body: TapPaymentStatusDto, @Request() req: any) {
+    return this.ordersService.completeDoorSaleTapToPay(req.user, body.orderId, body.paymentIntentId,
+      { returnPending: true, cancel: body.action === 'cancel' });
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -275,10 +286,10 @@ export class OrdersController {
   @Post('ticket/:code/validate')
   validateTicket(
     @Param('code') code: string,
-    @Body() body: { eventId?: string },
+    @Body() body: ValidateTicketDto,
     @Request() req: any,
   ) {
-    return this.ordersService.validateTicket(code, req.user, body?.eventId ? { eventId: body.eventId } : undefined);
+    return this.ordersService.validateTicket(code, req.user, { eventId: body?.eventId, admissionMethod: body?.admissionMethod });
   }
 
   @Get('ticket/:code/apple-wallet')
@@ -346,6 +357,7 @@ export class OrdersController {
   // scanned), grouped by buyer so staff can see all of a person's tickets.
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Header('Cache-Control', 'no-store')
   @Get('event/:eventId/search-tickets')
   searchEventTickets(
     @Param('eventId') eventId: string,
