@@ -69,6 +69,9 @@ export default function TicketScannerPage() {
     tickets: { ticketCode: string; status: string; seat: string; seatId?: string | null; sectionId?: string | null; price?: number; sectionName?: string; usedAt?: string | null }[];
   };
   const validationBusy = useRef(false);
+  // The balance is refreshed while the gate is open, but that must not look
+  // like a new search every five seconds to the person admitting guests.
+  const silentSearchRefresh = useRef(false);
   const [searchRevision, setSearchRevision] = useState(0);
   const [searchError, setSearchError] = useState('');
   const [admissionMessage, setAdmissionMessage] = useState('');
@@ -297,7 +300,7 @@ export default function TicketScannerPage() {
       registerScan(result);
     } finally {
       validationBusy.current = false;
-      setSearching(true);
+      silentSearchRefresh.current = true;
       setSearchRevision((v) => v + 1);
       setValidating(false);
       if (selectedEventId) api.get(isStaffEvent ? `/scanner-access/events/${selectedEventId}/stats` : `/orders/event/${selectedEventId}/scanner-stats`).then(({ data }) => setEventTicketStats(data)).catch(() => {});
@@ -312,8 +315,12 @@ export default function TicketScannerPage() {
       return;
     }
     let active = true;
-    setSearching(true);
-    setSearchError('');
+    const backgroundRefresh = silentSearchRefresh.current;
+    silentSearchRefresh.current = false;
+    if (!backgroundRefresh) {
+      setSearching(true);
+      setSearchError('');
+    }
     const handle = setTimeout(async () => {
       try {
         const searchUrl = isStaffEvent
@@ -322,9 +329,15 @@ export default function TicketScannerPage() {
         const { data } = await api.get(searchUrl, { params: { q } });
         if (active) setSearchResults(Array.isArray(data) ? data : []);
       } catch {
-        if (active) { setSearchResults([]); setSearchError(lang === 'es' ? 'No se pudo actualizar. Revisa la conexión.' : 'Could not refresh. Check your connection.'); }
+        // Keep the result already visible if only the silent background refresh
+        // failed. The operator can keep working and will see a real error on a
+        // deliberate search instead of a blinking message every five seconds.
+        if (active && !backgroundRefresh) {
+          setSearchResults([]);
+          setSearchError(lang === 'es' ? 'No se pudo actualizar. Revisa la conexión.' : 'Could not refresh. Check your connection.');
+        }
       } finally {
-        if (active) setSearching(false);
+        if (active && !backgroundRefresh) setSearching(false);
       }
     }, 350);
     return () => { active = false; clearTimeout(handle); };
@@ -337,7 +350,10 @@ export default function TicketScannerPage() {
   useEffect(() => {
     if (searchQuery.trim().length < 2 || !selectedEventId) return;
     const timer = setInterval(() => {
-      if (document.visibilityState === 'visible' && !validationBusy.current) setSearchRevision((v) => v + 1);
+      if (document.visibilityState === 'visible' && !validationBusy.current) {
+        silentSearchRefresh.current = true;
+        setSearchRevision((v) => v + 1);
+      }
     }, 5000);
     return () => clearInterval(timer);
   }, [searchQuery, selectedEventId]);

@@ -131,6 +131,9 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   };
   const validationBusy = useRef(false);
   const searchRequest = useRef(0);
+  // Keep the buyer balance synchronized between doors without showing the
+  // normal "Searching" state on every background refresh.
+  const silentSearchRefresh = useRef(false);
   const [searchRevision, setSearchRevision] = useState(0);
   const [admissionMessage, setAdmissionMessage] = useState('');
   const [admitting, setAdmitting] = useState(false);
@@ -314,7 +317,7 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
     } finally {
       validationBusy.current = false;
       setAdmitting(false);
-      setSearching(true);
+      silentSearchRefresh.current = true;
       setSearchRevision((v) => v + 1);
       if (selectedEventId) {
         const statsPath = mode === 'employee'
@@ -335,7 +338,7 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   }, [mode, registerScan, selectedEventId, t]);
 
   // Look up tickets by attendee name / email / code for the selected event.
-  const runSearch = useCallback(async (raw: string) => {
+  const runSearch = useCallback(async (raw: string, backgroundRefresh = false) => {
     const request = ++searchRequest.current;
     const q = raw.trim();
     if (q.length < 2) { setSearchResults([]); setSearching(false); return; }
@@ -344,8 +347,10 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
       setSearchResults([]);
       return;
     }
-    setSearching(true);
-    setSearchError('');
+    if (!backgroundRefresh) {
+      setSearching(true);
+      setSearchError('');
+    }
     try {
       const path = mode === 'employee'
         ? `/scanner-access/events/${selectedEventId}/search-tickets`
@@ -353,17 +358,19 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
       const res = await apiGet<typeof searchResults>(path, { q });
       if (request === searchRequest.current) setSearchResults(Array.isArray(res) ? res : []);
     } catch (err: any) {
-      if (request !== searchRequest.current) return;
+      if (request !== searchRequest.current || backgroundRefresh) return;
       setSearchResults([]);
       setSearchError(err?.message || t('No se pudo buscar. Revisa la conexión.', 'Search failed. Check the connection.'));
     } finally {
-      if (request === searchRequest.current) setSearching(false);
+      if (request === searchRequest.current && !backgroundRefresh) setSearching(false);
     }
   }, [mode, selectedEventId, t]);
 
   // Debounce the search so we don't hit the API on every keystroke.
   useEffect(() => {
-    const id = setTimeout(() => runSearch(searchQuery), 350);
+    const backgroundRefresh = silentSearchRefresh.current;
+    silentSearchRefresh.current = false;
+    const id = setTimeout(() => runSearch(searchQuery, backgroundRefresh), 350);
     return () => { clearTimeout(id); searchRequest.current += 1; };
   }, [searchQuery, runSearch, searchRevision]);
 
@@ -374,7 +381,10 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   useEffect(() => {
     if (searchQuery.trim().length < 2 || !selectedEventId) return;
     const timer = setInterval(() => {
-      if (AppState.currentState === 'active' && !validationBusy.current) setSearchRevision((v) => v + 1);
+      if (AppState.currentState === 'active' && !validationBusy.current) {
+        silentSearchRefresh.current = true;
+        setSearchRevision((v) => v + 1);
+      }
     }, 5000);
     return () => clearInterval(timer);
   }, [searchQuery, selectedEventId]);
