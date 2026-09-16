@@ -472,6 +472,71 @@ describe('OrdersService critical ticket safeguards', () => {
     expect(mailService.sendTicketEmail).not.toHaveBeenCalled();
   });
 
+  it('sends one order email when several ticket resend requests arrive together', async () => {
+    const persistedOrder: any = {
+      id: 'order-1',
+      userId: 'buyer-1',
+      ticketDeliveryLog: null,
+    };
+    const lockedOrderRepo = {
+      createQueryBuilder: jest.fn(() => ({
+        setLock: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn(async () => ({ ...persistedOrder })),
+      })),
+      update: jest.fn(async (_id: string, values: any) => Object.assign(persistedOrder, values)),
+    };
+    let transactionQueue = Promise.resolve<any>(undefined);
+    const manager = {
+      transaction: jest.fn((callback: any) => {
+        const result = transactionQueue.then(() => callback({
+          getRepository: (entity: any) => entity === Order ? lockedOrderRepo : {},
+        }));
+        transactionQueue = result.then(() => undefined, () => undefined);
+        return result;
+      }),
+    };
+    const fullOrder = {
+      ...persistedOrder,
+      user: { firstName: 'Mariana', email: 'buyer@example.com' },
+      event: {
+        title: 'Evento',
+        organizerId: 'organizer-1',
+        organizer: { email: 'organizer@example.com' },
+      },
+    };
+    const orderRepo = { manager, findOne: jest.fn().mockResolvedValue(fullOrder) };
+    const ticketRepo = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'ticket-1', ticketCode: 'CODE-1', orderId: 'order-1', status: TicketStatus.ACTIVE,
+      }),
+      find: jest.fn().mockResolvedValue(Array.from({ length: 5 }, (_, index) => ({
+        id: `ticket-${index + 1}`, orderId: 'order-1', status: TicketStatus.ACTIVE,
+      }))),
+    };
+    const mailService = { sendTicketEmail: jest.fn().mockResolvedValue({ messageId: 'message-1' }) };
+    const { service } = buildService({ orderRepo, manager, ticketRepo, mailService });
+
+    const results = await Promise.all(Array.from({ length: 5 }, () =>
+      service.resendTicketEmailByCode('CODE-1', 'buyer-1')));
+
+    expect(mailService.sendTicketEmail).toHaveBeenCalledTimes(1);
+    expect(mailService.sendTicketEmail).toHaveBeenCalledWith(
+      'buyer@example.com',
+      'Mariana',
+      'Evento',
+      expect.arrayContaining([expect.objectContaining({ id: 'ticket-1' })]),
+      expect.any(Object),
+      { includeOperationalCopies: false },
+    );
+    expect(results.filter((result) => result.alreadySent === false)).toHaveLength(1);
+    expect(results.filter((result) => result.alreadySent === true)).toHaveLength(4);
+    const deliveryHistory = JSON.parse(persistedOrder.ticketDeliveryLog);
+    expect(deliveryHistory).toEqual([
+      expect.objectContaining({ channel: 'email', source: 'manual', status: 'sent' }),
+    ]);
+  });
+
   it('returns the existing ticket set when Stripe repeats fulfillment', async () => {
     const existingTicket = { id: 'ticket-1', orderId: 'order-1' };
     const transactionTicketRepo = {

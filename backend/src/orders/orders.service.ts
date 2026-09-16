@@ -26,6 +26,7 @@ const LPTICKET_FIXED_FEE_PER_TICKET = 1.98;
 const STRIPE_PERCENTAGE = 0.029; // 2.9% Stripe variable fee
 const STRIPE_FIXED = 0.30; // $0.30 Stripe fixed fee per transaction
 const USER_PURCHASES_CACHE_TTL = 30_000;
+const TICKET_EMAIL_DEDUPE_WINDOW_MS = 2 * 60_000;
 const DOOR_SALE_TAP_TO_PAY_CHANNEL = 'door_sale_tap_to_pay';
 const STRIPE_FEE_RECONCILIATION_PENDING = 'pending';
 const STRIPE_FEE_RECONCILIATION_RECONCILED = 'reconciled';
@@ -757,25 +758,39 @@ export class OrdersService {
           const emailRecipient = buyerRecipient
             || (options?.allowFallbackEmail === false ? operationalRecipient : fullOrder.user.email);
           if (emailRecipient) {
-            await this.mailService.sendTicketEmail(
-              emailRecipient,
-              buyerName || fullOrder.user.firstName,
-              fullOrder.event.title,
-              createdTickets,
-              {
-              venueName: fullOrder.event.venueName,
-              venueAddress: fullOrder.event.venueAddress,
-              eventDate: fullOrder.event.eventDate?.toString(),
-              eventTimezone: fullOrder.event.eventTimezone,
-              currency: fullOrder.event.currency || 'USD',
-              subtotal: Number(fullOrder.subtotal || 0),
-              lpFee: Number(fullOrder.lpFee || 0),
-              processingFee: Number(fullOrder.processingFee || 0),
-              total: Number(fullOrder.total || 0),
-              organizerEmail: fullOrder.event.organizer?.email || null,
-              },
-              { includeOperationalCopies: Boolean(buyerRecipient) },
-            );
+            const delivery = await this.claimTicketEmailDelivery(fullOrder.id, emailRecipient, 'payment');
+            if (delivery.claimed) {
+              try {
+                await this.mailService.sendTicketEmail(
+                  emailRecipient,
+                  buyerName || fullOrder.user.firstName,
+                  fullOrder.event.title,
+                  createdTickets,
+                  {
+                    venueName: fullOrder.event.venueName,
+                    venueAddress: fullOrder.event.venueAddress,
+                    eventDate: fullOrder.event.eventDate?.toString(),
+                    eventTimezone: fullOrder.event.eventTimezone,
+                    currency: fullOrder.event.currency || 'USD',
+                    subtotal: Number(fullOrder.subtotal || 0),
+                    lpFee: Number(fullOrder.lpFee || 0),
+                    processingFee: Number(fullOrder.processingFee || 0),
+                    total: Number(fullOrder.total || 0),
+                    organizerEmail: fullOrder.event.organizer?.email || null,
+                  },
+                  { includeOperationalCopies: Boolean(buyerRecipient) },
+                );
+                await this.completeTicketEmailDelivery(fullOrder.id, delivery.attemptId, 'sent');
+              } catch (error: any) {
+                await this.completeTicketEmailDelivery(
+                  fullOrder.id,
+                  delivery.attemptId,
+                  'failed',
+                  error?.message || 'Email delivery failed',
+                );
+                throw error;
+              }
+            }
           }
         }
       } catch (err) {
@@ -804,6 +819,78 @@ export class OrdersService {
 
   private deliveryRecipientKey(channel: 'sms' | 'email', recipient: string) {
     return createHash('sha256').update(`${channel}:${recipient.trim().toLowerCase()}`).digest('hex').slice(0, 20);
+  }
+
+  /**
+   * Atomically reserves one ticket-email delivery for an order and recipient.
+   * The row lock prevents repeated buttons, webhook retries or concurrent app
+   * instances from sending the same ticket bundle more than once.
+   */
+  private async claimTicketEmailDelivery(
+    orderId: string,
+    recipient: string,
+    source: 'payment' | 'manual',
+  ): Promise<{ claimed: boolean; attemptId: string }> {
+    return this.orderRepo.manager.transaction(async (manager) => {
+      const orderRepo = manager.getRepository(Order);
+      const order = await orderRepo
+        .createQueryBuilder('order')
+        .setLock('pessimistic_write')
+        .where('order.id = :orderId', { orderId })
+        .getOne();
+      if (!order) throw new NotFoundException('Pedido no encontrado');
+
+      let history: any[] = [];
+      try { history = JSON.parse(order.ticketDeliveryLog || '[]'); } catch {}
+      const recipientKey = this.deliveryRecipientKey('email', recipient);
+      const recentDuplicate = history.some((entry) =>
+        entry?.channel === 'email'
+        && entry?.recipientKey === recipientKey
+        && (entry?.status === 'pending' || entry?.status === 'sent')
+        && Date.now() - new Date(entry.at).getTime() < TICKET_EMAIL_DEDUPE_WINDOW_MS,
+      );
+      if (recentDuplicate) return { claimed: false, attemptId: '' };
+
+      const attemptId = nanoid(16);
+      history.push({
+        attemptId,
+        channel: 'email',
+        source,
+        recipient: this.maskDeliveryRecipient('email', recipient),
+        recipientKey,
+        status: 'pending',
+        at: new Date().toISOString(),
+      });
+      await orderRepo.update(orderId, { ticketDeliveryLog: JSON.stringify(history.slice(-20)) });
+      return { claimed: true, attemptId };
+    });
+  }
+
+  private async completeTicketEmailDelivery(
+    orderId: string,
+    attemptId: string,
+    status: 'sent' | 'failed',
+    detail?: string,
+  ) {
+    if (!attemptId) return;
+    await this.orderRepo.manager.transaction(async (manager) => {
+      const orderRepo = manager.getRepository(Order);
+      const order = await orderRepo
+        .createQueryBuilder('order')
+        .setLock('pessimistic_write')
+        .where('order.id = :orderId', { orderId })
+        .getOne();
+      if (!order) return;
+
+      let history: any[] = [];
+      try { history = JSON.parse(order.ticketDeliveryLog || '[]'); } catch {}
+      const delivery = history.find((entry) => entry?.attemptId === attemptId);
+      if (!delivery) return;
+      delivery.status = status;
+      delivery.completedAt = new Date().toISOString();
+      if (detail) delivery.detail = detail.slice(0, 180);
+      await orderRepo.update(orderId, { ticketDeliveryLog: JSON.stringify(history.slice(-20)) });
+    });
   }
 
   private getGuestTicketSecret() {
@@ -1718,26 +1805,43 @@ export class OrdersService {
       .filter((orderTicket) => orderTicket.status !== TicketStatus.REVOKED);
     if (!tickets.length) throw new NotFoundException('No hay entradas en este pedido');
 
-    await this.mailService.sendTicketEmail(
-      targetEmail,
-      order.user.firstName,
-      order.event.title,
-      tickets,
-      {
-        venueName: order.event.venueName,
-        venueAddress: order.event.venueAddress,
-        eventDate: order.event.eventDate?.toString(),
-        eventTimezone: order.event.eventTimezone,
-        currency: order.event.currency || 'USD',
-        subtotal: Number(order.subtotal || 0),
-        lpFee: Number(order.lpFee || 0),
-        processingFee: Number(order.processingFee || 0),
-        total: Number(order.total || 0),
-        organizerEmail: order.event.organizer?.email || null,
-      },
-    );
+    const delivery = await this.claimTicketEmailDelivery(order.id, targetEmail, 'manual');
+    if (!delivery.claimed) {
+      return { success: true, email: targetEmail, alreadySent: true };
+    }
 
-    return { success: true, email: targetEmail };
+    try {
+      await this.mailService.sendTicketEmail(
+        targetEmail,
+        order.user.firstName,
+        order.event.title,
+        tickets,
+        {
+          venueName: order.event.venueName,
+          venueAddress: order.event.venueAddress,
+          eventDate: order.event.eventDate?.toString(),
+          eventTimezone: order.event.eventTimezone,
+          currency: order.event.currency || 'USD',
+          subtotal: Number(order.subtotal || 0),
+          lpFee: Number(order.lpFee || 0),
+          processingFee: Number(order.processingFee || 0),
+          total: Number(order.total || 0),
+          organizerEmail: order.event.organizer?.email || null,
+        },
+        { includeOperationalCopies: false },
+      );
+      await this.completeTicketEmailDelivery(order.id, delivery.attemptId, 'sent');
+    } catch (error: any) {
+      await this.completeTicketEmailDelivery(
+        order.id,
+        delivery.attemptId,
+        'failed',
+        error?.message || 'Email delivery failed',
+      );
+      throw error;
+    }
+
+    return { success: true, email: targetEmail, alreadySent: false };
   }
 
   async fulfillPendingOrder(orderId: string) {

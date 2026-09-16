@@ -572,8 +572,13 @@ export function OrganizerPanelScreen({ section, onSectionChange, adminEvent, onA
     const attendee = attendees.find((a) => a.id === id);
     if (!attendee?.code) return;
     try {
-      await apiPost(`/orders/ticket/${attendee.code}/resend-email`, {});
-      Alert.alert(t('Enviado', 'Sent'), t('Ticket reenviado al comprador.', 'Ticket resent to buyer.'));
+      const result = await apiPost<{ alreadySent?: boolean }>(`/orders/ticket/${attendee.code}/resend-email`, {});
+      Alert.alert(
+        result?.alreadySent ? t('Correo ya enviado', 'Email already sent') : t('Enviado', 'Sent'),
+        result?.alreadySent
+          ? t('Ese correo ya se había enviado; no se duplicó.', 'That email was already sent; no duplicate was created.')
+          : t('Entradas reenviadas al comprador.', 'Tickets resent to buyer.'),
+      );
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Could not resend ticket');
     }

@@ -445,18 +445,14 @@ export class MailService {
           .map((email) => email.trim())))
         .filter((email) => email.toLowerCase() !== String(to || '').trim().toLowerCase());
 
-    try {
-      await this.transporter.sendMail({
-        from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
-        to,
-        ...(bccRecipients.length > 0 ? { bcc: bccRecipients } : {}),
-        subject: `Tus tickets para ${eventTitle} — LPTicket`,
-        html,
-        attachments,
-      });
-    } catch (err) {
-      console.error('Error sending email:', err);
-    }
+    return this.transporter.sendMail({
+      from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
+      to,
+      ...(bccRecipients.length > 0 ? { bcc: bccRecipients } : {}),
+      subject: `Tus tickets para ${eventTitle} — LPTicket`,
+      html,
+      attachments,
+    });
   }
 
   async sendManualInvoiceEmail(to: string, invoice: ManualInvoiceEmail) {

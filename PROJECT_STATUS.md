@@ -1,8 +1,18 @@
 # LPTicket - Estado del Proyecto
 
-Última revisión documental: 2026-09-12
+Última revisión documental: 2026-09-16
 Fuente: revisión de código local, pruebas automatizadas y builds locales.
 Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explícita.
+
+## Protección contra correos de entradas duplicados — 2026-09-16
+
+Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; prueba SMTP controlada pendiente.
+
+- La compra investigada corresponde a una sola orden pagada con cinco entradas; no hubo cinco cobros, cinco órdenes ni entradas duplicadas.
+- El reenvío estaba presentado por entrada, pero cada acción enviaba nuevamente todas las entradas vigentes de la orden. No existía una reserva atómica del envío, por lo que varios clics o solicitudes concurrentes podían generar copias idénticas y sus BCC operativos.
+- El backend ahora reserva cada envío por orden y destinatario bajo bloqueo de base de datos, registra `pending`, `sent` o `failed` en el historial enmascarado existente y descarta repeticiones inmediatas. Web y móvil informan cuando una repetición fue detenida. Los reenvíos manuales van únicamente al destinatario solicitado; la copia operativa queda reservada al envío inicial que ya la incluya.
+- No cambia Stripe, el pago, la orden, los cinco tickets, sus QR ni el inventario. No se añadieron columnas ni se ejecutaron migraciones.
+- Comprobación: 40 pruebas de órdenes aprobadas, incluida una simulación de cinco solicitudes simultáneas que produjo un solo correo; build de backend, build web, TypeScript móvil y `git diff --check` aprobados. La entrega real del proveedor SMTP permanece sin comprobar.
 
 ## Saldo del organizador — 2026-09-15
 

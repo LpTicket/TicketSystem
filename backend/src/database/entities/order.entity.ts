@@ -126,7 +126,7 @@ export class Order {
   paidAt: Date | null;
 
   /**
-   * Minimal audit trail for customer-requested ticket delivery after a door sale.
+   * Minimal audit trail for automatic and customer-requested ticket delivery.
    * Recipients are masked so the operational log does not duplicate full PII.
    */
   @Column({ type: 'text', nullable: true })

@@ -191,10 +191,12 @@ export function TicketsScreen({ scrollToTopSignal = 0, initialScrollOffset = 0, 
     if (resending) return;
     setResending(code);
     try {
-      const data = await apiPost<{ email?: string }>(`/orders/ticket/${code}/resend-email`);
+      const data = await apiPost<{ email?: string; alreadySent?: boolean }>(`/orders/ticket/${code}/resend-email`);
       Alert.alert(
-        t('Correo enviado', 'Email sent'),
-        t(`Entrada enviada a ${data?.email || 'tu correo'}`, `Ticket sent to ${data?.email || 'your email'}`),
+        data?.alreadySent ? t('Correo ya enviado', 'Email already sent') : t('Correo enviado', 'Email sent'),
+        data?.alreadySent
+          ? t('Ese correo ya se había enviado; no se duplicó.', 'That email was already sent; no duplicate was created.')
+          : t(`Entradas enviadas a ${data?.email || 'tu correo'}`, `Tickets sent to ${data?.email || 'your email'}`),
       );
     } catch {
       Alert.alert(

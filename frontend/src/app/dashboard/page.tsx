@@ -235,7 +235,9 @@ function DashboardPageBody() {
     try {
       const { data } = await api.post(`/orders/ticket/${code}/resend-email`);
       toast.success(
-        lang === 'es' ? `Entrada enviada a ${data?.email || 'tu correo'}` : `Ticket sent to ${data?.email || 'your email'}`,
+        data?.alreadySent
+          ? (lang === 'es' ? 'Ese correo ya se había enviado; no se duplicó.' : 'That email was already sent; no duplicate was created.')
+          : (lang === 'es' ? `Entradas enviadas a ${data?.email || 'tu correo'}` : `Tickets sent to ${data?.email || 'your email'}`),
         { id: loadingToast },
       );
     } catch (err: any) {

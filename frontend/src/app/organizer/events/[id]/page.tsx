@@ -1151,7 +1151,11 @@ export default function EventDetailPage() {
     setResendBusy(true);
     try {
       const { data } = await api.post(`/orders/ticket/${resendCode}/resend-email`, { email: resendEmail.trim() });
-      toast.success(lang === 'es' ? `Entrada enviada a ${data.email}` : `Ticket sent to ${data.email}`);
+      toast.success(
+        data?.alreadySent
+          ? (lang === 'es' ? 'Ese correo ya se había enviado; no se duplicó.' : 'That email was already sent; no duplicate was created.')
+          : (lang === 'es' ? `Entradas enviadas a ${data.email}` : `Tickets sent to ${data.email}`),
+      );
       setResendCode(null);
     } catch (err: any) {
       toast.error(

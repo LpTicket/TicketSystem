@@ -1,5 +1,18 @@
 # LPTicket - Historial de Cambios
 
+## 2026-09-16 - Protección contra correos de entradas duplicados
+
+Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; prueba SMTP controlada pendiente.
+
+- Se confirmó en producción que la compra investigada es una sola orden pagada con cinco tickets. No hubo duplicación del cobro, la orden ni las entradas.
+- La causa funcional estaba en el reenvío por ticket: cada botón enviaba el paquete completo de tickets vigentes de la orden y no existía una reserva atómica que rechazara solicitudes repetidas o concurrentes.
+- El backend reserva ahora el envío por orden y correo bajo bloqueo de escritura, conserva un historial enmascarado con estados `pending`, `sent` y `failed`, y devuelve `alreadySent` a las solicitudes repetidas dentro de la ventana de protección.
+- Los reenvíos manuales dejan de producir copias BCC para administración u organización. El envío automático inicial conserva su comportamiento operativo configurado.
+- Web y móvil muestran un mensaje específico cuando el backend detiene una repetición, en vez de afirmar que generaron otro envío.
+- `MailService.sendTicketEmail` propaga los errores del proveedor para que el historial no registre como exitoso un intento rechazado.
+- No se modificaron pagos, Stripe, órdenes, tickets, QR ni inventario. No hay cambio de esquema.
+- Validación local: `npm test -- --runInBand --no-watchman` (50 pruebas), `npm run build` en backend y frontend, `npx tsc --noEmit` en móvil y `git diff --check`.
+
 ## 2026-09-15 - Saldo real del organizador en su dashboard
 
 Estado: `PARCIALMENTE IMPLEMENTADO` en distribución; commit `a54615aa` publicado y web pública comprobada. Validación autenticada pendiente.
