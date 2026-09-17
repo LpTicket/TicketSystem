@@ -392,6 +392,7 @@ export function OrganizerAttendeesMobile({ attendees, revenueLabel, onToggle, on
                   <View style={[styles.badge, receipt.status === 'SCANNED' ? styles.badgeGreen : styles.badgeOrange]}>
                     <Text style={[styles.badgeText, receipt.status === 'SCANNED' ? styles.badgeGreenText : styles.badgeOrangeText]}>{receipt.status || '—'}</Text>
                   </View>
+                  {receipt.isCourtesy ? <View style={[styles.badge, styles.badgeOrange, { marginLeft: 8 }]}><Text style={[styles.badgeText, styles.badgeOrangeText]}>{t('CORTESÍA', 'COURTESY')}</Text></View> : null}
                 </View>
 
                 {/* Attendee + seat */}

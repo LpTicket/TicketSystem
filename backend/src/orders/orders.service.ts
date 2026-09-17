@@ -1994,11 +1994,24 @@ export class OrdersService {
     return QRCode.toBuffer(`${appUrl}/verify/${ticket.ticketCode}`, { width: 320, margin: 1 });
   }
 
+  private getCourtesyRecipientName(order: any): string | null {
+    if (order?.salesChannel !== 'complimentary') return null;
+    try {
+      const firstSeat = JSON.parse(order.seatsData || '[]')?.[0];
+      return typeof firstSeat?.recipientName === 'string'
+        ? firstSeat.recipientName.trim() || null
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
   private sanitizeTicket(ticket: Ticket) {
     const u = ticket.user;
-    const attendeeName =
-      [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim() || 'Invitado';
     const order = (ticket as any).order;
+    const courtesyRecipientName = this.getCourtesyRecipientName(order);
+    const attendeeName = courtesyRecipientName ||
+      [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim() || 'Invitado';
     return {
       // Fields the digital ticket / receipt needs. The QR and the attendee's
       // name are part of the ticket itself, so they are shown here. We still
@@ -2016,6 +2029,8 @@ export class OrdersService {
       qrData: ticket.qrData,
       createdAt: ticket.createdAt,
       attendeeName,
+      isCourtesy: order?.salesChannel === 'complimentary',
+      courtesyRecipientName,
       // Minimal buyer shape so existing receipt UI (ticket.user.firstName/lastName)
       // keeps working — name only, no contact details.
       user: u ? { firstName: u.firstName, lastName: u.lastName } : null,
@@ -2625,7 +2640,14 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
-    if (user && user.role !== 'admin' && order.userId !== user.id) {
+    // The event owner needs the same receipt visibility as the administrator
+    // for every ticket issued for their own event, including complimentary
+    // orders. Keep this scoped to the order's event; organizers never gain
+    // access to receipts from another event.
+    const isOwner = order.userId === user?.id;
+    const isEventOrganizer = order.event?.organizerId === user?.id;
+    const isAdmin = user?.role === UserRole.ADMIN;
+    if (user && !isOwner && !isEventOrganizer && !isAdmin) {
       throw new ForbiddenException('No tienes permiso para ver este recibo');
     }
 
@@ -2634,7 +2656,14 @@ export class OrdersService {
       order: { createdAt: 'ASC' },
     });
 
-    return { ...order, tickets };
+    const courtesyRecipientName = this.getCourtesyRecipientName(order);
+
+    return {
+      ...order,
+      tickets,
+      isCourtesy: order.salesChannel === 'complimentary',
+      courtesyRecipientName,
+    };
   }
 
   /**
@@ -2891,6 +2920,7 @@ export class OrdersService {
           sectionId: seat.sectionId,
           courtesyType,
           note,
+          recipientName: name,
           issuedBy: organizerId,
         }))),
       });
@@ -2972,6 +3002,7 @@ export class OrdersService {
             sectionId: section.id,
             courtesyType,
             note,
+            recipientName: name,
             issuedBy: organizerId,
           }))),
         }));

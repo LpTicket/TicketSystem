@@ -14,6 +14,10 @@ type Order = {
   ticketCount?: number;
   createdAt?: string;
   paidAt?: string;
+  salesChannel?: string;
+  isCourtesy?: boolean;
+  courtesyRecipientName?: string | null;
+  user?: { firstName?: string; lastName?: string };
   event?: { title?: string; eventDate?: string; venueName?: string; currency?: string };
   tickets?: OrderTicket[];
 };
@@ -84,12 +88,14 @@ function OrderDetail({ orderId }: { orderId: string }) {
   const processingFee = Number(detail.processingFee ?? 0);
   const total = Number(detail.total ?? 0);
   const purchaseDate = detail.paidAt || detail.createdAt;
+  const isCourtesy = detail.isCourtesy === true || detail.salesChannel === 'complimentary';
+  const guestName = detail.courtesyRecipientName || [detail.user?.firstName, detail.user?.lastName].filter(Boolean).join(' ') || t('Invitado', 'Guest');
 
   return (
     <View style={styles.receipt}>
       {/* Header */}
       <View style={styles.receiptHeader}>
-        <Text style={styles.receiptEyebrow}>{t('RECIBO DE COMPRA', 'PURCHASE RECEIPT')}</Text>
+        <Text style={styles.receiptEyebrow}>{isCourtesy ? t('CORTESÍA', 'COURTESY') : t('RECIBO DE COMPRA', 'PURCHASE RECEIPT')}</Text>
         <Text style={styles.receiptEvent} numberOfLines={2}>{detail.event?.title || t('Evento', 'Event')}</Text>
         {detail.event?.eventDate && (
           <Text style={styles.receiptMeta}>{formatDate(detail.event.eventDate, es)}</Text>
@@ -101,6 +107,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
           <Text style={styles.receiptMeta}>{t('Compra', 'Purchase')}: {formatDate(purchaseDate, es)}</Text>
         )}
         <Text style={styles.receiptOrderId} numberOfLines={1}>{t('Orden', 'Order')}: {orderId.slice(0, 20)}…</Text>
+        {isCourtesy && <Text style={styles.receiptMeta}>{t('Invitado', 'Guest')}: {guestName}</Text>}
       </View>
 
       {/* Tickets list */}

@@ -250,6 +250,7 @@ describe('OrdersService critical ticket safeguards', () => {
       sectionId: 'section-1',
       courtesyType: 'sponsor',
       note: 'Sponsor principal',
+      recipientName: 'Maria Lopez',
       issuedBy: 'organizer-1',
     });
     expect(transactionTicketRepo.save).toHaveBeenCalledTimes(3);
@@ -293,6 +294,25 @@ describe('OrdersService critical ticket safeguards', () => {
       sectionId: 'section-1', quantity: 2, name: 'Invitado', email: 'guest@example.com',
     }, 'organizer-1')).rejects.toThrow('Quedan 1');
     expect(transactionOrderRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('allows only the owning organizer to open a receipt for their event', async () => {
+    const order = {
+      id: 'courtesy-order-1',
+      userId: 'guest-1',
+      salesChannel: 'complimentary',
+      seatsData: JSON.stringify([{ recipientName: 'Maria Lopez' }]),
+      event: { organizerId: 'organizer-1' },
+    };
+    const { service } = buildService({
+      orderRepo: { findOne: jest.fn().mockResolvedValue(order) },
+      ticketRepo: { find: jest.fn().mockResolvedValue([]) },
+    });
+
+    await expect(service.getOrderById('courtesy-order-1', { id: 'organizer-1', role: 'client' }))
+      .resolves.toMatchObject({ isCourtesy: true, courtesyRecipientName: 'Maria Lopez' });
+    await expect(service.getOrderById('courtesy-order-1', { id: 'other-user', role: 'client' }))
+      .rejects.toThrow('No tienes permiso para ver este recibo');
   });
 
   it('does not consume a valid ticket when the selected event is different', async () => {

@@ -53,6 +53,8 @@ export default function OrderReceiptPage() {
     : '';
   const status = String(order.status || '').toUpperCase();
   const statusClass = order.status === 'paid' ? 'bg-green-100 text-green-700' : order.status === 'refunded' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600';
+  const isCourtesy = order.isCourtesy === true || order.salesChannel === 'complimentary';
+  const recipientName = order.courtesyRecipientName || [order.user?.firstName, order.user?.lastName].filter(Boolean).join(' ') || 'Invitado';
 
   return (
     <>
@@ -91,9 +93,12 @@ export default function OrderReceiptPage() {
           </div>
 
           <section className="px-8 py-5 space-y-4">
-            <span className={`inline-flex rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${statusClass}`}>Status: {status}</span>
+            <div className="flex flex-wrap gap-2">
+              <span className={`inline-flex rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${statusClass}`}>Status: {status}</span>
+              {isCourtesy && <span className="inline-flex rounded-full bg-orange-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white">CORTESÍA</span>}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Comprado por / Buyer</p><p className="mt-1 text-lg font-black uppercase leading-tight text-slate-950">{[order.user?.firstName, order.user?.lastName].filter(Boolean).join(' ') || 'Cliente'}</p></div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{isCourtesy ? 'Invitado / Guest' : 'Comprado por / Buyer'}</p><p className="mt-1 text-lg font-black uppercase leading-tight text-slate-950">{isCourtesy ? recipientName : ([order.user?.firstName, order.user?.lastName].filter(Boolean).join(' ') || 'Cliente')}</p></div>
               <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Entradas / Tickets</p><p className="mt-1 text-lg font-black uppercase leading-tight text-slate-950">{tickets.length || order.ticketCount || 0} {(tickets.length || order.ticketCount) === 1 ? 'entrada' : 'entradas'}</p></div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4"><p className="mb-3 text-[10px] font-black uppercase tracking-widest text-[#0a375a]">Detalles del pedido</p><div className="space-y-2 text-sm text-slate-600"><p><span className="inline-block w-32 font-black text-slate-900">ORDER ID:</span><span className="font-mono break-all">{order.id}</span></p>{purchaseDate && <p><span className="inline-block w-32 font-black text-slate-900">FECHA COMPRA:</span>{purchaseDate}</p>}{tickets.map((ticket: any) => <p key={ticket.id}><span className="inline-block w-32 font-black text-slate-900">TICKET:</span>{formatSeatLabel(ticket, ticket.sectionName, 'es')} <span className="font-mono text-xs">{ticket.ticketCode}</span></p>)}</div></div>

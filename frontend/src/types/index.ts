@@ -178,6 +178,9 @@ export interface Ticket {
   price: number;
   status: TicketStatus;
   createdAt: string;
+  attendeeName?: string;
+  isCourtesy?: boolean;
+  courtesyRecipientName?: string | null;
 }
 
 export interface EventsResponse {

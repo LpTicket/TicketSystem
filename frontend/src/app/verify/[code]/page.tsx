@@ -178,6 +178,8 @@ export default function VerifyTicketPage() {
   const individualLpFee = Number(receiptOrder?.lpFee || 0) * individualShare;
   const individualProcessingFee = Number(receiptOrder?.processingFee || 0) * individualShare;
   const individualTotal = individualSubtotal + individualLpFee + individualProcessingFee;
+  const isCourtesy = ticket.isCourtesy === true;
+  const attendeeName = ticket.attendeeName || [ticket.user?.firstName, ticket.user?.lastName].filter(Boolean).join(' ') || 'Invitado';
 
   const eventDateFormatted = ticket.event?.eventDate
     ? new Intl.DateTimeFormat('es', {
@@ -747,6 +749,7 @@ export default function VerifyTicketPage() {
                 >
                   STATUS: {statusLabel}
                 </span>
+                {isCourtesy && <span className="text-[10px] font-black tracking-widest uppercase px-3 py-1.5 rounded-full bg-orange-500 text-white">CORTESÍA</span>}
               </div>
 
               {/* Info grid */}
@@ -755,7 +758,7 @@ export default function VerifyTicketPage() {
                 <div className="col-span-2 sm:col-span-1 rounded-xl border border-slate-200 bg-white/80 p-4">
                   <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nombre / Name</span>
                   <span className="block text-lg font-black text-slate-950 uppercase leading-tight">
-                    {ticket.user?.firstName} {ticket.user?.lastName}
+                    {attendeeName}
                   </span>
                 </div>
 
@@ -787,8 +790,8 @@ export default function VerifyTicketPage() {
                     <span className="font-mono text-slate-600 break-all">{ticket.id}</span>
                   </div>
                   <div className="flex gap-2">
-                    <span className="font-black text-slate-900 w-32 shrink-0">COMPRADO POR:</span>
-                    <span>{ticket.user?.firstName} {ticket.user?.lastName}</span>
+                    <span className="font-black text-slate-900 w-32 shrink-0">{isCourtesy ? 'INVITADO:' : 'COMPRADO POR:'}</span>
+                    <span>{attendeeName}</span>
                   </div>
                   {ticket.createdAt && (
                     <div className="flex gap-2">
