@@ -77,6 +77,7 @@ function mergeDoorEvents(...groups: DoorEvent[][]): DoorEvent[] {
 
 export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'organizer', assignedEvents, initialSelectedEventId }: Props) {
   const { lang, t } = useLanguage();
+  const supportsTapToPayOnIphone = Platform.OS === 'ios';
   const [events, setEvents] = useState<DoorEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [amount, setAmount] = useState(DEFAULT_DOOR_SALE_AMOUNT);
@@ -86,7 +87,9 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('tap');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(() => (
+    Platform.OS === 'ios' ? 'tap' : 'qr'
+  ));
   const [tapStatus, setTapStatus] = useState('');
   const [showTapGuide, setShowTapGuide] = useState(false);
   const [tapGuideSeen, setTapGuideSeen] = useState(false);
@@ -563,36 +566,44 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         ) : null}
       </View>
 
-      <Text style={styles.tapStatus}>{t('Permite el ingreso solo cuando LPTicket muestre: Pago confirmado · Puede ingresar.', 'Allow entry only when LPTicket shows: Payment confirmed · Entry allowed.')}</Text>
-      <GradientButton height={56} onPress={handleTapPrimaryPress} disabled={!pendingLoaded || creating || !preview}>
-          {creating ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>Tap to Pay on iPhone</Text>}
-      </GradientButton>
+      {supportsTapToPayOnIphone ? (
+        <>
+          <Text style={styles.tapStatus}>{t('Permite el ingreso solo cuando LPTicket muestre: Pago confirmado · Puede ingresar.', 'Allow entry only when LPTicket shows: Payment confirmed · Entry allowed.')}</Text>
+          <GradientButton height={56} onPress={handleTapPrimaryPress} disabled={!pendingLoaded || creating || !preview}>
+              {creating ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>Tap to Pay on iPhone</Text>}
+          </GradientButton>
+        </>
+      ) : null}
 
       <View style={styles.payMethodCard}>
         <Text style={styles.eyebrow}>{t('FORMA DE COBRO', 'PAYMENT METHOD')}</Text>
-        <TouchableOpacity style={styles.tapGuideCard} onPress={() => setShowTapGuide(true)} activeOpacity={0.82}>
-          <View style={styles.tapGuideIcon}>
-            <SymbolView name="wave.3.right.circle.fill" size={20} tintColor="#F97316" />
-          </View>
-          <View style={styles.tapGuideText}>
-            <Text style={styles.tapGuideTitle}>{t('Tap to Pay on iPhone disponible', 'Tap to Pay on iPhone available')}</Text>
-            <Text style={styles.tapGuideCopy}>
-              {t(
-                'Acepta pagos sin contacto con tarjeta, Apple Pay y wallets digitales desde este iPhone.',
-                'Accept contactless cards, Apple Pay, and digital wallets from this iPhone.'
-              )}
-            </Text>
-          </View>
-          <Text style={styles.tapGuideLink}>{t('Guía', 'Guide')}</Text>
-        </TouchableOpacity>
-        <PaymentOption
-          icon="wave.3.right.circle.fill"
-          title="Tap to Pay on iPhone"
-          copy={t('Cobra acercando tarjeta o teléfono al iPhone.', 'Charge by tapping a card or phone on the iPhone.')}
-          status={paymentMethod === 'tap' ? t('Seleccionado', 'Selected') : t('App nativa', 'Native app')}
-          active={paymentMethod === 'tap'}
-          onPress={selectTapToPay}
-        />
+        {supportsTapToPayOnIphone ? (
+          <>
+            <TouchableOpacity style={styles.tapGuideCard} onPress={() => setShowTapGuide(true)} activeOpacity={0.82}>
+              <View style={styles.tapGuideIcon}>
+                <SymbolView name="wave.3.right.circle.fill" size={20} tintColor="#F97316" />
+              </View>
+              <View style={styles.tapGuideText}>
+                <Text style={styles.tapGuideTitle}>{t('Tap to Pay on iPhone disponible', 'Tap to Pay on iPhone available')}</Text>
+                <Text style={styles.tapGuideCopy}>
+                  {t(
+                    'Acepta pagos sin contacto con tarjeta, Apple Pay y wallets digitales desde este iPhone.',
+                    'Accept contactless cards, Apple Pay, and digital wallets from this iPhone.'
+                  )}
+                </Text>
+              </View>
+              <Text style={styles.tapGuideLink}>{t('Guía', 'Guide')}</Text>
+            </TouchableOpacity>
+            <PaymentOption
+              icon="wave.3.right.circle.fill"
+              title="Tap to Pay on iPhone"
+              copy={t('Cobra acercando tarjeta o teléfono al iPhone.', 'Charge by tapping a card or phone on the iPhone.')}
+              status={paymentMethod === 'tap' ? t('Seleccionado', 'Selected') : t('App nativa', 'Native app')}
+              active={paymentMethod === 'tap'}
+              onPress={selectTapToPay}
+            />
+          </>
+        ) : null}
         <PaymentOption
           icon="qr-code-outline"
           title={t('QR de pago', 'Payment QR')}
@@ -609,7 +620,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           active={paymentMethod === 'link'}
           onPress={() => setPaymentMethod('link')}
         />
-        {tapStatus ? <Text style={styles.tapStatus}>{tapStatus}</Text> : null}
+        {supportsTapToPayOnIphone && tapStatus ? <Text style={styles.tapStatus}>{tapStatus}</Text> : null}
       </View>
 
       {paymentMethod !== 'tap' ? (
