@@ -188,6 +188,9 @@ export class MailService {
       processingFee?: number;
       total?: number;
       organizerEmail?: string | null;
+      courtesyType?: 'courtesy' | 'sponsor' | 'press' | 'staff';
+      attendeeName?: string;
+      courtesyNote?: string;
     },
     deliveryOptions?: { includeOperationalCopies?: boolean },
   ) {
@@ -195,6 +198,22 @@ export class MailService {
     const eventAddress = [eventInfo?.venueName, eventInfo?.venueAddress].filter(Boolean).join(' — ');
     const currency = eventInfo?.currency || 'USD';
     const hasPaymentSummary = eventInfo?.total !== undefined;
+    const escapeHtml = (value: unknown) => String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    const courtesyLabels = {
+      courtesy: 'Cortesía',
+      sponsor: 'Sponsor',
+      press: 'Prensa',
+      staff: 'Staff',
+    } as const;
+    const courtesyLabel = eventInfo?.courtesyType
+      ? courtesyLabels[eventInfo.courtesyType]
+      : null;
+    const attendeeName = eventInfo?.attendeeName || userName;
     const money = (value?: number) => `${Number(value || 0).toFixed(2)} ${currency}`;
     const moneyFromCents = (value: number) => `${(value / 100).toFixed(2)} ${currency}`;
 
@@ -301,15 +320,18 @@ export class MailService {
           </div>
         </div>
 
-        <h3 style="margin-top: 0; margin-bottom: 8px; color: #0A375A; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">${eventTitle}</h3>
+        <h3 style="margin-top: 0; margin-bottom: 8px; color: #0A375A; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">${escapeHtml(eventTitle)}</h3>
+
+        ${courtesyLabel ? `<div style="display:inline-block;margin:0 0 10px 0;padding:6px 10px;border-radius:999px;background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;">${escapeHtml(courtesyLabel)}</div>` : ''}
 
         <!-- Info labels -->
         <div style="margin-bottom: 15px; font-size: 12px; color: #475569; line-height: 1.6;">
-          <p style="margin: 4px 0;"><strong>Comprador:</strong> ${userName}</p>
+          <p style="margin: 4px 0;"><strong>${courtesyLabel ? 'Invitado' : 'Comprador'}:</strong> ${escapeHtml(attendeeName)}</p>
           ${eventDateFormatted ? `<p style="margin: 4px 0;"><strong>Fecha y Hora:</strong> ${eventDateFormatted}</p>` : ''}
-          ${shouldShowSection ? `<p style="margin: 4px 0;"><strong>Sección:</strong> ${t.sectionName}</p>` : ''}
-          <p style="margin: 4px 0;"><strong>Ubicación:</strong> ${details}</p>
-          <p style="margin: 4px 0; font-family: monospace;"><strong>Código:</strong> <span style="color: #F97316; font-weight: bold;">${t.ticketCode}</span></p>
+          ${shouldShowSection ? `<p style="margin: 4px 0;"><strong>Sección:</strong> ${escapeHtml(t.sectionName)}</p>` : ''}
+          <p style="margin: 4px 0;"><strong>Ubicación:</strong> ${escapeHtml(details)}</p>
+          <p style="margin: 4px 0; font-family: monospace;"><strong>Código:</strong> <span style="color: #F97316; font-weight: bold;">${escapeHtml(t.ticketCode)}</span></p>
+          ${courtesyLabel && eventInfo?.courtesyNote ? `<p style="margin: 8px 0 0;"><strong>Nota:</strong> ${escapeHtml(eventInfo.courtesyNote)}</p>` : ''}
           ${hasPaymentSummary ? `
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border-spacing:0;margin:10px 0 0 0;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;">
             <tr>
@@ -367,8 +389,6 @@ export class MailService {
           LPTICKET.COM — TUS TICKETS. TUS EVENTOS.
         </div>
       </div>
-      </body>
-      </html>
     `;
     }).join('');
 
@@ -392,8 +412,8 @@ export class MailService {
       <div bgcolor="#ffffff" style="background:#ffffff !important; background-color:#ffffff !important; padding:30px 15px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
         <div style="max-width: 560px; margin: 0 auto;">
           <div style="margin-bottom: 25px; text-align: center;">
-            <h1 style="color: #0A375A; font-size: 24px; font-weight: 850; margin: 0; letter-spacing: -0.5px;">¡Hola, ${userName}! 👋</h1>
-            <p style="color: #475569; font-size: 14px; margin-top: 6px; margin-bottom: 0;">Gracias por tu compra. Aquí tienes tus entradas listas para el evento:</p>
+            <h1 style="color: #0A375A; font-size: 24px; font-weight: 850; margin: 0; letter-spacing: -0.5px;">¡Hola, ${escapeHtml(userName)}! 👋</h1>
+            <p style="color: #475569; font-size: 14px; margin-top: 6px; margin-bottom: 0;">${courtesyLabel ? `Aquí tienes tus entradas de ${escapeHtml(courtesyLabel)} listas para el evento:` : 'Gracias por tu compra. Aquí tienes tus entradas listas para el evento:'}</p>
           </div>
           
           ${hasPaymentSummary ? `
@@ -419,6 +439,8 @@ export class MailService {
           </div>
         </div>
       </div>
+      </body>
+      </html>
     `;
 
     // Build CID inline attachments from base64 qrData
@@ -449,7 +471,7 @@ export class MailService {
       from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
       to,
       ...(bccRecipients.length > 0 ? { bcc: bccRecipients } : {}),
-      subject: `Tus tickets para ${eventTitle} — LPTicket`,
+      subject: `${courtesyLabel ? `Tus entradas de ${courtesyLabel}` : 'Tus tickets'} para ${eventTitle} — LPTicket`,
       html,
       attachments,
     });

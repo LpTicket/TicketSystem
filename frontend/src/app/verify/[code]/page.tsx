@@ -180,6 +180,8 @@ export default function VerifyTicketPage() {
   const individualTotal = individualSubtotal + individualLpFee + individualProcessingFee;
   const isCourtesy = ticket.isCourtesy === true;
   const attendeeName = ticket.attendeeName || [ticket.user?.firstName, ticket.user?.lastName].filter(Boolean).join(' ') || 'Invitado';
+  const courtesyLabels: Record<string, string> = { courtesy: 'CORTESÍA', sponsor: 'SPONSOR', press: 'PRENSA', staff: 'STAFF' };
+  const courtesyLabel = courtesyLabels[ticket.courtesyType || 'courtesy'] || courtesyLabels.courtesy;
 
   const eventDateFormatted = ticket.event?.eventDate
     ? new Intl.DateTimeFormat('es', {
@@ -749,7 +751,7 @@ export default function VerifyTicketPage() {
                 >
                   STATUS: {statusLabel}
                 </span>
-                {isCourtesy && <span className="text-[10px] font-black tracking-widest uppercase px-3 py-1.5 rounded-full bg-orange-500 text-white">CORTESÍA</span>}
+                {isCourtesy && <span className="text-[10px] font-black tracking-widest uppercase px-3 py-1.5 rounded-full bg-orange-500 text-white">{courtesyLabel}</span>}
               </div>
 
               {/* Info grid */}

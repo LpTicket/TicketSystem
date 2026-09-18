@@ -1,5 +1,32 @@
 # LPTicket - Historial de Cambios
 
+## 2026-09-17 - Correo y recibo correctos para cortesías múltiples
+
+### Corrección
+- Se corrigió la estructura del correo compartido de entradas: las etiquetas de cierre ya no se repiten dentro de cada tarjeta, por lo que dos o más QR permanecen dentro de un solo documento HTML válido.
+- Las entradas gratuitas siguen usando el diseño oficial de tickets y ahora muestran el nombre del invitado y su tipo exacto: `Cortesía`, `Prensa`, `Sponsor` o `Staff`.
+- El asunto, el contenido del correo, el reenvío, la entrada digital y el recibo por orden conservan esa misma clasificación.
+- Los textos variables del invitado y del evento se escapan antes de insertarse en el HTML del correo.
+
+### Áreas protegidas
+- No se modificaron QR, inventario, capacidad, mapas, pagos, Stripe, permisos, entidades, migraciones ni la app móvil.
+
+### Pruebas ejecutadas
+```bash
+cd /Users/sundingalue/Documents/TicketSystem/backend
+npx jest --runInBand --no-watchman src/common/services/mail.service.spec.ts src/orders/orders.service.spec.ts
+npm run build
+
+cd /Users/sundingalue/Documents/TicketSystem/frontend
+npm run build
+```
+
+### Estado
+- IMPLEMENTADO Y COMPROBADO LOCALMENTE
+
+### Pendiente manual
+- Emitir dos entradas de cortesía controladas en producción y confirmar en un correo real que se ven ambos QR, el nombre correcto y la clasificación elegida.
+
 ## 2026-09-16 - Protección contra correos de entradas duplicados
 
 Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; prueba SMTP controlada pendiente.

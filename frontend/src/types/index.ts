@@ -181,6 +181,7 @@ export interface Ticket {
   attendeeName?: string;
   isCourtesy?: boolean;
   courtesyRecipientName?: string | null;
+  courtesyType?: 'courtesy' | 'sponsor' | 'press' | 'staff' | null;
 }
 
 export interface EventsResponse {

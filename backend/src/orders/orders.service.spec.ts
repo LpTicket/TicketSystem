@@ -261,6 +261,20 @@ describe('OrdersService critical ticket safeguards', () => {
       status: TicketStatus.ACTIVE,
     }));
     expect(mailService.sendTicketEmail).toHaveBeenCalledTimes(1);
+    expect(mailService.sendTicketEmail).toHaveBeenCalledWith(
+      'guest@example.com',
+      'Maria Lopez',
+      'Evento Premium',
+      expect.arrayContaining([expect.objectContaining({ sectionId: 'section-1' })]),
+      expect.objectContaining({
+        currency: 'USD',
+        subtotal: 0,
+        total: 0,
+        courtesyType: 'sponsor',
+        attendeeName: 'Maria Lopez',
+        courtesyNote: 'Sponsor principal',
+      }),
+    );
   });
 
   it('does not issue a general courtesy beyond the remaining capacity', async () => {
@@ -301,7 +315,7 @@ describe('OrdersService critical ticket safeguards', () => {
       id: 'courtesy-order-1',
       userId: 'guest-1',
       salesChannel: 'complimentary',
-      seatsData: JSON.stringify([{ recipientName: 'Maria Lopez' }]),
+      seatsData: JSON.stringify([{ recipientName: 'Maria Lopez', courtesyType: 'press' }]),
       event: { organizerId: 'organizer-1' },
     };
     const { service } = buildService({
@@ -310,7 +324,7 @@ describe('OrdersService critical ticket safeguards', () => {
     });
 
     await expect(service.getOrderById('courtesy-order-1', { id: 'organizer-1', role: 'client' }))
-      .resolves.toMatchObject({ isCourtesy: true, courtesyRecipientName: 'Maria Lopez' });
+      .resolves.toMatchObject({ isCourtesy: true, courtesyRecipientName: 'Maria Lopez', courtesyType: 'press' });
     await expect(service.getOrderById('courtesy-order-1', { id: 'other-user', role: 'client' }))
       .rejects.toThrow('No tienes permiso para ver este recibo');
   });

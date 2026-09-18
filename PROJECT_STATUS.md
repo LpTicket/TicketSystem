@@ -1,8 +1,18 @@
 # LPTicket - Estado del Proyecto
 
-Última revisión documental: 2026-09-16
+Última revisión documental: 2026-09-17
 Fuente: revisión de código local, pruebas automatizadas y builds locales.
 Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explícita.
+
+## Correo y recibo de entradas de cortesía — 2026-09-17
+
+Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; recepción SMTP real pendiente.
+
+- La causa del diseño roto al enviar varias entradas era HTML inválido: cada tarjeta cerraba `body` y `html`, por lo que la segunda entrada quedaba fuera del documento principal y algunos clientes de correo la cortaban o deformaban.
+- La plantilla compartida de tickets conserva ahora un solo documento HTML para cualquier cantidad. Las cortesías reutilizan exactamente esa plantilla, muestran el nombre del invitado y distinguen `Cortesía`, `Prensa`, `Sponsor` o `Staff` en asunto, encabezado y cada entrada.
+- El recibo por orden y la entrada digital individual muestran la misma clasificación y conservan el nombre del invitado. El reenvío también recupera esos datos desde la orden.
+- No cambia la emisión de QR, capacidad, asientos, pagos, Stripe, permisos, base de datos ni aplicaciones móviles.
+- Comprobación: 43 pruebas de correo y órdenes aprobadas, incluidos dos tickets en un solo HTML; build de backend y build de frontend aprobados. Falta emitir y recibir una cortesía real en producción para confirmar el render del proveedor y del cliente de correo.
 
 ## Protección contra correos de entradas duplicados — 2026-09-16
 

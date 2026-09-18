@@ -1804,6 +1804,7 @@ export class OrdersService {
     const tickets = (await this.ticketRepo.find({ where: { orderId: order.id } }))
       .filter((orderTicket) => orderTicket.status !== TicketStatus.REVOKED);
     if (!tickets.length) throw new NotFoundException('No hay entradas en este pedido');
+    const courtesyMetadata = this.getCourtesyMetadata(order);
 
     const delivery = await this.claimTicketEmailDelivery(order.id, targetEmail, 'manual');
     if (!delivery.claimed) {
@@ -1827,6 +1828,9 @@ export class OrdersService {
           processingFee: Number(order.processingFee || 0),
           total: Number(order.total || 0),
           organizerEmail: order.event.organizer?.email || null,
+          courtesyType: courtesyMetadata?.courtesyType,
+          attendeeName: courtesyMetadata?.recipientName || undefined,
+          courtesyNote: courtesyMetadata?.note,
         },
         { includeOperationalCopies: false },
       );
@@ -1994,22 +1998,34 @@ export class OrdersService {
     return QRCode.toBuffer(`${appUrl}/verify/${ticket.ticketCode}`, { width: 320, margin: 1 });
   }
 
-  private getCourtesyRecipientName(order: any): string | null {
+  private getCourtesyMetadata(order: any): {
+    recipientName: string | null;
+    courtesyType: 'courtesy' | 'sponsor' | 'press' | 'staff';
+    note: string;
+  } | null {
     if (order?.salesChannel !== 'complimentary') return null;
     try {
       const firstSeat = JSON.parse(order.seatsData || '[]')?.[0];
-      return typeof firstSeat?.recipientName === 'string'
-        ? firstSeat.recipientName.trim() || null
-        : null;
+      const validTypes = ['courtesy', 'sponsor', 'press', 'staff'];
+      return {
+        recipientName: typeof firstSeat?.recipientName === 'string'
+          ? firstSeat.recipientName.trim() || null
+          : null,
+        courtesyType: validTypes.includes(firstSeat?.courtesyType)
+          ? firstSeat.courtesyType
+          : 'courtesy',
+        note: typeof firstSeat?.note === 'string' ? firstSeat.note.trim() : '',
+      };
     } catch {
-      return null;
+      return { recipientName: null, courtesyType: 'courtesy', note: '' };
     }
   }
 
   private sanitizeTicket(ticket: Ticket) {
     const u = ticket.user;
     const order = (ticket as any).order;
-    const courtesyRecipientName = this.getCourtesyRecipientName(order);
+    const courtesyMetadata = this.getCourtesyMetadata(order);
+    const courtesyRecipientName = courtesyMetadata?.recipientName || null;
     const attendeeName = courtesyRecipientName ||
       [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim() || 'Invitado';
     return {
@@ -2031,6 +2047,7 @@ export class OrdersService {
       attendeeName,
       isCourtesy: order?.salesChannel === 'complimentary',
       courtesyRecipientName,
+      courtesyType: courtesyMetadata?.courtesyType || null,
       // Minimal buyer shape so existing receipt UI (ticket.user.firstName/lastName)
       // keeps working — name only, no contact details.
       user: u ? { firstName: u.firstName, lastName: u.lastName } : null,
@@ -2656,13 +2673,16 @@ export class OrdersService {
       order: { createdAt: 'ASC' },
     });
 
-    const courtesyRecipientName = this.getCourtesyRecipientName(order);
+    const courtesyMetadata = this.getCourtesyMetadata(order);
+    const courtesyRecipientName = courtesyMetadata?.recipientName || null;
 
     return {
       ...order,
       tickets,
       isCourtesy: order.salesChannel === 'complimentary',
       courtesyRecipientName,
+      courtesyType: courtesyMetadata?.courtesyType || null,
+      courtesyNote: courtesyMetadata?.note || '',
     };
   }
 
@@ -3041,6 +3061,14 @@ export class OrdersService {
       venueAddress: event.venueAddress,
       eventDate: event.eventDate?.toString(),
       eventTimezone: event.eventTimezone,
+      currency: event.currency || 'USD',
+      subtotal: 0,
+      lpFee: 0,
+      processingFee: 0,
+      total: 0,
+      courtesyType,
+      attendeeName: name,
+      courtesyNote: note,
     };
     let emailSent = true;
     try {

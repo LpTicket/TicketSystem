@@ -55,6 +55,8 @@ export default function OrderReceiptPage() {
   const statusClass = order.status === 'paid' ? 'bg-green-100 text-green-700' : order.status === 'refunded' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600';
   const isCourtesy = order.isCourtesy === true || order.salesChannel === 'complimentary';
   const recipientName = order.courtesyRecipientName || [order.user?.firstName, order.user?.lastName].filter(Boolean).join(' ') || 'Invitado';
+  const courtesyLabels: Record<string, string> = { courtesy: 'CORTESÍA', sponsor: 'SPONSOR', press: 'PRENSA', staff: 'STAFF' };
+  const courtesyLabel = courtesyLabels[order.courtesyType] || courtesyLabels.courtesy;
 
   return (
     <>
@@ -95,7 +97,7 @@ export default function OrderReceiptPage() {
           <section className="px-8 py-5 space-y-4">
             <div className="flex flex-wrap gap-2">
               <span className={`inline-flex rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${statusClass}`}>Status: {status}</span>
-              {isCourtesy && <span className="inline-flex rounded-full bg-orange-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white">CORTESÍA</span>}
+              {isCourtesy && <span className="inline-flex rounded-full bg-orange-500 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white">{courtesyLabel}</span>}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{isCourtesy ? 'Invitado / Guest' : 'Comprado por / Buyer'}</p><p className="mt-1 text-lg font-black uppercase leading-tight text-slate-950">{isCourtesy ? recipientName : ([order.user?.firstName, order.user?.lastName].filter(Boolean).join(' ') || 'Cliente')}</p></div>
