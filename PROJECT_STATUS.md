@@ -10,9 +10,10 @@ Estado: `IMPLEMENTADO Y COMPROBADO LOCALMENTE`; recepción SMTP real pendiente.
 
 - La causa del diseño roto al enviar varias entradas era HTML inválido: cada tarjeta cerraba `body` y `html`, por lo que la segunda entrada quedaba fuera del documento principal y algunos clientes de correo la cortaban o deformaban.
 - La plantilla compartida de tickets conserva ahora un solo documento HTML para cualquier cantidad. Las cortesías reutilizan exactamente esa plantilla, muestran el nombre del invitado y distinguen `Cortesía`, `Prensa`, `Sponsor` o `Staff` en asunto, encabezado y cada entrada.
+- La revisión visual con correos reales detectó que Gmail exponía los QR embebidos como adjuntos y no respetaba de forma consistente el margen entre contenedores `div`. Cada entrada usa ahora una tarjeta de tabla compatible con correo, sombra y separación fija; el QR se carga una sola vez dentro de su tarjeta y no se adjunta otra copia. En cortesías también se omite el resumen general de `$0.00` que se mostraba como un bloque blanco vacío, sin quitar el resumen individual de cada entrada.
 - El recibo por orden y la entrada digital individual muestran la misma clasificación y conservan el nombre del invitado. El reenvío también recupera esos datos desde la orden.
 - No cambia la emisión de QR, capacidad, asientos, pagos, Stripe, permisos, base de datos ni aplicaciones móviles.
-- Comprobación: 43 pruebas de correo y órdenes aprobadas, incluidos dos tickets en un solo HTML; build de backend y build de frontend aprobados. Falta emitir y recibir una cortesía real en producción para confirmar el render del proveedor y del cliente de correo.
+- Comprobación: 43 pruebas de correo y órdenes aprobadas, incluidos dos tickets separados, sin adjuntos QR y dentro de un solo HTML; build de backend y build de frontend aprobados. Falta emitir y recibir una cortesía nueva en producción para confirmar el render final en Gmail y Apple Mail.
 
 ## Protección contra correos de entradas duplicados — 2026-09-16
 

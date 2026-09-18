@@ -23,8 +23,8 @@ describe('MailService ticket email', () => {
       'María Invitada',
       'Evento Premium',
       [
-        { ticketCode: 'TICKET-ONE', rowLabel: 'GA', sectionName: 'General', price: 0 },
-        { ticketCode: 'TICKET-TWO', rowLabel: 'GA', sectionName: 'General', price: 0 },
+        { ticketCode: 'TICKET-ONE', rowLabel: 'GA', sectionName: 'General', price: 0, qrData: 'data:image/png;base64,AAAA' },
+        { ticketCode: 'TICKET-TWO', rowLabel: 'GA', sectionName: 'General', price: 0, qrData: 'data:image/png;base64,BBBB' },
       ],
       {
         currency: 'USD',
@@ -45,6 +45,11 @@ describe('MailService ticket email', () => {
     expect(message.html).toContain('TICKET-TWO');
     expect(message.html).toContain('<strong>Invitado:</strong> María Invitada');
     expect(message.html).toContain('Prensa');
+    expect((message.html.match(/box-shadow:0 10px 28px/g) || [])).toHaveLength(2);
+    expect((message.html.match(/height="28"/g) || [])).toHaveLength(2);
+    expect((message.html.match(/Resumen de esta entrada/g) || [])).toHaveLength(2);
+    expect(message.html).not.toContain('Total cobrado:');
+    expect(message).not.toHaveProperty('attachments');
     expect(message.subject).toBe('Tus entradas de Prensa para Evento Premium — LPTicket');
   });
 

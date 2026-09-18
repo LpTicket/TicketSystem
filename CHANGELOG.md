@@ -7,6 +7,9 @@
 - Las entradas gratuitas siguen usando el diseño oficial de tickets y ahora muestran el nombre del invitado y su tipo exacto: `Cortesía`, `Prensa`, `Sponsor` o `Staff`.
 - El asunto, el contenido del correo, el reenvío, la entrada digital y el recibo por orden conservan esa misma clasificación.
 - Los textos variables del invitado y del evento se escapan antes de insertarse en el HTML del correo.
+- Cada entrada se presenta como una tarjeta independiente basada en tablas, con la misma sombra y una separación fija que los clientes de correo móviles conservan mejor.
+- Se eliminaron los QR adjuntos redundantes que Gmail mostraba al final del mensaje; cada tarjeta conserva su único QR mediante el endpoint público y sus acciones existentes.
+- Las cortesías ya no muestran el resumen general de `$0.00` que algunos clientes renderizaban como un bloque blanco vacío. El resumen individual dentro de cada entrada permanece sin cambios.
 
 ### Áreas protegidas
 - No se modificaron QR, inventario, capacidad, mapas, pagos, Stripe, permisos, entidades, migraciones ni la app móvil.

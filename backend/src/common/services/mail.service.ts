@@ -293,7 +293,6 @@ export class MailService {
         !['general', 'general admission', 'ga', 'default', 'default section', 'null', 'undefined', 'sección única', 'seccion unica'].includes(cleanSection.toLowerCase()) &&
         !/^\d+$/.test(cleanSection); // hide purely numeric section names
 
-      const qrCid = `qr-${t.ticketCode}`;
       const guestAccess = (t as any).guestAccess as string | undefined;
       const ticketUrl = `${appUrl}/verify/${t.ticketCode}${guestAccess ? `?access=${encodeURIComponent(guestAccess)}` : ''}`;
       const whatsappShareUrl = `https://wa.me/?text=${encodeURIComponent(`Mi entrada para ${eventTitle}: ${ticketUrl}`)}`;
@@ -301,15 +300,10 @@ export class MailService {
       // certificates are configured on the server.
       const apiBase = (this.configService.get<string>('API_URL') || appUrl).replace(/\/$/, '').replace(/\/api$/, '');
       const appleWalletUrl = `${apiBase}/api/orders/ticket/${t.ticketCode}/apple-wallet`;
-      const ticketSubtotal = Number(t.price || 0);
-      const orderSubtotal = Number(eventInfo?.subtotal || 0);
-      const ticketShare = orderSubtotal > 0 ? ticketSubtotal / orderSubtotal : 1 / Math.max(tickets.length, 1);
-      const ticketLpFee = Number(eventInfo?.lpFee || 0) * ticketShare;
-      const ticketProcessingFee = Number(eventInfo?.processingFee || 0) * ticketShare;
-      const ticketTotal = ticketSubtotal + ticketLpFee + ticketProcessingFee;
 
       return `
-      <div bgcolor="#ffffff" style="background:#ffffff !important; background-color:#ffffff !important; color:#0f172a !important; border:1px solid #e2e8f0; border-radius:20px; padding:25px; margin-bottom:20px; box-shadow:0 4px 12px rgba(0,0,0,0.03); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #e2e8f0;border-radius:20px;box-shadow:0 10px 28px rgba(15,23,42,0.14);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <tr><td bgcolor="#ffffff" style="background:#ffffff !important;background-color:#ffffff !important;color:#0f172a !important;border-radius:20px;padding:25px;">
         <!-- Card branding header -->
         <div bgcolor="#ffffff" style="background:#ffffff !important; background-color:#ffffff !important; border-bottom:2px solid #f1f5f9; padding:12px 12px 14px 12px; margin-bottom:18px; display:table; width:100%; box-sizing:border-box;">
           <div bgcolor="#ffffff" style="display:table-cell; vertical-align:middle; background:#ffffff !important; background-color:#ffffff !important;">
@@ -365,8 +359,8 @@ export class MailService {
           ` : ''}
         </div>
 
-        <!-- Center QR. Uses the public PNG URL (renders even when a mail client
-             blocks inline CID images); CID stays as an attachment fallback. -->
+        <!-- The card contains the only QR representation. It uses the public
+             PNG URL so mail clients do not expose duplicate QR attachments. -->
         <div style="text-align: center; margin: 20px 0;">
           <img src="${apiBase}/api/orders/ticket/${t.ticketCode}/qr.png" alt="QR Code" width="160" height="160" style="border: 1px solid #e2e8f0; padding: 8px; border-radius: 12px; background: #ffffff;" />
           <span style="display: block; font-size: 10px; color: #94a3b8; margin-top: 8px; font-weight: bold; letter-spacing: 0.5px; text-transform: uppercase;">Presentar este código QR en el acceso</span>
@@ -388,7 +382,9 @@ export class MailService {
 <!-- Footer terms info -->    <div style="border-top: 1px dashed #cbd5e1; padding-top: 15px; margin-top: 15px; font-size: 9px; color: #94a3b8; text-align: center; line-height: 1.4; text-transform: uppercase; font-weight: bold;">
           LPTICKET.COM — TUS TICKETS. TUS EVENTOS.
         </div>
-      </div>
+      </td></tr>
+      </table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;"><tr><td height="28" style="height:28px;line-height:28px;font-size:1px;">&nbsp;</td></tr></table>
     `;
     }).join('');
 
@@ -416,7 +412,7 @@ export class MailService {
             <p style="color: #475569; font-size: 14px; margin-top: 6px; margin-bottom: 0;">${courtesyLabel ? `Aquí tienes tus entradas de ${escapeHtml(courtesyLabel)} listas para el evento:` : 'Gracias por tu compra. Aquí tienes tus entradas listas para el evento:'}</p>
           </div>
           
-          ${hasPaymentSummary ? `
+          ${hasPaymentSummary && !courtesyLabel ? `
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border-spacing:0;margin:0 0 16px 0;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
             <tr>
               <td style="padding:14px 16px;">
@@ -443,20 +439,6 @@ export class MailService {
       </html>
     `;
 
-    // Build CID inline attachments from base64 qrData
-    const attachments = tickets
-      .filter(t => t.qrData)
-      .map(t => {
-        const base64 = String(t.qrData).replace(/^data:image\/png;base64,/, '');
-        return {
-          filename: `qr-${t.ticketCode}.png`,
-          content: Buffer.from(base64, 'base64'),
-          cid: `qr-${t.ticketCode}`,
-          contentType: 'image/png',
-          contentDisposition: 'inline' as const,
-        };
-      });
-
     const bccRecipients = deliveryOptions?.includeOperationalCopies === false
       ? []
       : Array.from(new Set([
@@ -473,7 +455,6 @@ export class MailService {
       ...(bccRecipients.length > 0 ? { bcc: bccRecipients } : {}),
       subject: `${courtesyLabel ? `Tus entradas de ${courtesyLabel}` : 'Tus tickets'} para ${eventTitle} — LPTicket`,
       html,
-      attachments,
     });
   }
 
