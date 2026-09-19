@@ -67,6 +67,62 @@ type EmailCampaignSummary = {
 
 type EmailCampaignListItem = Omit<EmailCampaignSummary, 'recipients'>;
 
+type MarketingAudience = 'all' | 'city' | 'event' | 'specify';
+type RecipientChannel = 'email' | 'sms' | 'whatsapp';
+type Recipient = { id: string; name: string; email: string; phone: string };
+type RecipientSegmentEvent = {
+  id: string;
+  title: string;
+  eventDate?: string | null;
+  venueName?: string;
+  venueAddress?: string;
+  recipientCount: number;
+};
+
+const useSegmentRecipients = (audience: MarketingAudience, city: string, eventId: string) => {
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (audience !== 'city' && audience !== 'event') {
+      setRecipients([]);
+      setLoading(false);
+      return;
+    }
+    const normalizedCity = city.trim();
+    if ((audience === 'city' && normalizedCity.length < 2) || (audience === 'event' && !eventId)) {
+      setRecipients([]);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setRecipients([]);
+    setLoading(true);
+    const timer = window.setTimeout(() => {
+      api.get('/marketing/admin/recipients', {
+        params: audience === 'city' ? { city: normalizedCity } : { eventId },
+      })
+        .then(({ data }) => {
+          if (!cancelled) setRecipients(Array.isArray(data) ? data : []);
+        })
+        .catch(() => {
+          if (!cancelled) setRecipients([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, audience === 'city' ? 350 : 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [audience, city, eventId]);
+
+  return { recipients, loading };
+};
+
 const isZohoTokenThrottle = (error?: string | null) => /too many requests continuously|access token.*(?:limit|requests)|try again after some time/i.test(error || '');
 
 const requiresZohoReconnect = (error?: string | null) => !isZohoTokenThrottle(error)
@@ -162,18 +218,27 @@ export default function AdminMarketingPage() {
   const [sending, setSending] = useState<'' | 'email' | 'sms' | 'push' | 'whatsapp'>('');
 
   // Audience per channel: 'all' = todos, 'specify' = elegidos de la lista.
-  const [emailAudience, setEmailAudience] = useState<'all' | 'specify'>('all');
-  const [smsAudience, setSmsAudience] = useState<'all' | 'specify'>('all');
-  const [waAudience, setWaAudience] = useState<'all' | 'specify'>('all');
+  const [emailAudience, setEmailAudience] = useState<MarketingAudience>('all');
+  const [smsAudience, setSmsAudience] = useState<MarketingAudience>('all');
+  const [waAudience, setWaAudience] = useState<MarketingAudience>('all');
   const [waLang, setWaLang] = useState<'es' | 'en'>('es');
 
-  type Recipient = { id: string; name: string; email: string; phone: string };
   const [recipientsList, setRecipientsList] = useState<Recipient[]>([]);
+  const [recipientSegmentEvents, setRecipientSegmentEvents] = useState<RecipientSegmentEvent[]>([]);
+  const [emailCity, setEmailCity] = useState('');
+  const [smsCity, setSmsCity] = useState('');
+  const [waCity, setWaCity] = useState('');
+  const [emailEventId, setEmailEventId] = useState('');
+  const [smsEventId, setSmsEventId] = useState('');
+  const [waEventId, setWaEventId] = useState('');
   const [emailSel, setEmailSel] = useState<string[]>([]);
   const [smsSel, setSmsSel] = useState<string[]>([]);
   const [waSel, setWaSel] = useState<string[]>([]);
   const [pushEvents, setPushEvents] = useState<any[]>([]);
   const [pickerSearch, setPickerSearch] = useState<{ email: string; sms: string; whatsapp: string; push: string }>({ email: '', sms: '', whatsapp: '', push: '' });
+  const emailSegment = useSegmentRecipients(emailAudience, emailCity, emailEventId);
+  const smsSegment = useSegmentRecipients(smsAudience, smsCity, smsEventId);
+  const waSegment = useSegmentRecipients(waAudience, waCity, waEventId);
 
   // Styled confirmation modal (replaces native confirm()).
   const [confirmModal, setConfirmModal] = useState<{ title: string; message: string; resolve: (v: boolean) => void } | null>(null);
@@ -186,6 +251,9 @@ export default function AdminMarketingPage() {
 
   useEffect(() => {
     api.get('/marketing/admin/recipients').then((r) => setRecipientsList(r.data || [])).catch(() => {});
+    api.get('/marketing/admin/recipient-segments')
+      .then((r) => setRecipientSegmentEvents(Array.isArray(r.data?.events) ? r.data.events : []))
+      .catch(() => {});
     api.get('/marketing/admin/zoho/status')
       .then((r) => {
         setZohoConnected(Boolean(r.data?.connected));
@@ -337,6 +405,53 @@ export default function AdminMarketingPage() {
     );
   };
 
+  const renderSegmentFilter = (
+    channel: RecipientChannel,
+    audience: MarketingAudience,
+    city: string,
+    setCity: React.Dispatch<React.SetStateAction<string>>,
+    eventId: string,
+    setEventId: React.Dispatch<React.SetStateAction<string>>,
+    segment: { recipients: Recipient[]; loading: boolean },
+  ) => {
+    if (audience !== 'city' && audience !== 'event') return null;
+    const contactField = channel === 'email' ? 'email' : 'phone';
+    const reachableCount = segment.recipients.filter((recipient) => Boolean(recipient[contactField])).length;
+    return (
+      <div className="mt-2 rounded-xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-3">
+        {audience === 'city' ? (
+          <input
+            value={city}
+            onChange={(event) => setCity(event.target.value)}
+            placeholder="Ciudad del evento, por ejemplo Houston"
+            className="w-full rounded-lg border border-[rgba(246,198,95,0.18)] bg-[#071827] px-3 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-[#F97316]"
+          />
+        ) : (
+          <select
+            value={eventId}
+            onChange={(event) => setEventId(event.target.value)}
+            className="w-full rounded-lg border border-[rgba(246,198,95,0.18)] bg-[#071827] px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-[#F97316]"
+          >
+            <option value="">Selecciona un evento</option>
+            {recipientSegmentEvents.map((event) => (
+              <option key={event.id} value={event.id}>
+                {event.title}{event.eventDate ? ` · ${new Date(event.eventDate).toLocaleDateString('es-US')}` : ''}{event.venueName ? ` · ${event.venueName}` : ''} · {event.recipientCount} usuario(s)
+              </option>
+            ))}
+          </select>
+        )}
+        <p className="mt-2 text-[11px] leading-5 text-slate-400">
+          {segment.loading
+            ? 'Buscando compradores registrados…'
+            : `${segment.recipients.length} usuario(s) único(s) con compra pagada; ${reachableCount} con ${channel === 'email' ? 'correo' : 'teléfono'}.`}
+        </p>
+        {audience === 'city' && (
+          <p className="text-[10px] leading-4 text-slate-500">La ciudad se busca en el lugar y la dirección guardados en cada evento.</p>
+        )}
+      </div>
+    );
+  };
+
   const pushUserQuery = pickerSearch.push.trim().toLowerCase();
   const selectedPushUser = recipientsList.find((u) => u.id === pushUserId);
   const filteredPushUsers = recipientsList.filter((u) => {
@@ -350,10 +465,15 @@ export default function AdminMarketingPage() {
       toast.error('Agrega un asunto o nombre de campaña.');
       return;
     }
+    const emailAudienceUsers = emailAudience === 'city' || emailAudience === 'event'
+      ? emailSegment.recipients
+      : recipientsList;
     const recipients = emailAudience === 'specify'
       ? recipientsList.filter((u) => emailSel.includes(u.id)).map((u) => u.email).filter(Boolean)
-      : undefined;
-    if (emailAudience === 'specify' && (!recipients || recipients.length === 0)) {
+      : emailAudience === 'city' || emailAudience === 'event'
+        ? emailAudienceUsers.map((u) => u.email).filter(Boolean)
+        : undefined;
+    if (emailAudience !== 'all' && (!recipients || recipients.length === 0)) {
       toast.error('Selecciona al menos un destinatario.');
       return;
     }
@@ -431,10 +551,13 @@ export default function AdminMarketingPage() {
     const audience = channel === 'sms' ? smsAudience : waAudience;
     const sel = channel === 'sms' ? smsSel : waSel;
     if (!message.trim()) { toast.error('Escribe un mensaje.'); return; }
+    const segment = channel === 'sms' ? smsSegment : waSegment;
     const recipients = audience === 'specify'
       ? recipientsList.filter((u) => sel.includes(u.id)).map((u) => u.phone).filter(Boolean)
-      : undefined;
-    if (audience === 'specify' && (!recipients || recipients.length === 0)) {
+      : audience === 'city' || audience === 'event'
+        ? segment.recipients.map((u) => u.phone).filter(Boolean)
+        : undefined;
+    if (audience !== 'all' && (!recipients || recipients.length === 0)) {
       toast.error('Selecciona al menos un destinatario con teléfono.');
       return;
     }
@@ -817,12 +940,15 @@ export default function AdminMarketingPage() {
             </label>
             <select
               value={emailAudience}
-              onChange={(e) => setEmailAudience(e.target.value as 'all' | 'specify')}
+              onChange={(e) => setEmailAudience(e.target.value as MarketingAudience)}
               className="h-12 rounded-xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] text-slate-100 px-4 text-sm outline-none transition focus:border-[#F97316]"
             >
               <option value="all" className="bg-[#0b2236] text-slate-100">Enviar a todos los usuarios</option>
+              <option value="city" className="bg-[#0b2236] text-slate-100">Compradores por ciudad del evento</option>
+              <option value="event" className="bg-[#0b2236] text-slate-100">Compradores de un evento específico</option>
               <option value="specify" className="bg-[#0b2236] text-slate-100">Especificar destinatarios</option>
             </select>
+            {renderSegmentFilter('email', emailAudience, emailCity, setEmailCity, emailEventId, setEmailEventId, emailSegment)}
             {emailAudience === 'specify' && renderPicker('email', 'email', emailSel, setEmailSel)}
             <input
               value={campaignLink}
@@ -868,7 +994,11 @@ export default function AdminMarketingPage() {
             {sending === 'email' ? 'Enviando…' : 'Enviar campaña por email'}
           </button>
           <p className="mt-2 text-center text-[11px] text-gray-400">
-            {emailAudience === 'all' ? 'Se envía a todos los usuarios registrados.' : 'Se envía solo a los correos especificados.'}
+            {emailAudience === 'all'
+              ? 'Se envía a todos los usuarios registrados.'
+              : emailAudience === 'specify'
+                ? 'Se envía solo a los correos especificados.'
+                : 'Cada comprador registrado recibe un solo correo, sin importar cuántas entradas compró.'}
           </p>
 
           <div className="mt-5 rounded-2xl border border-[rgba(246,198,95,0.24)] bg-[#071827] p-4 text-slate-100">
@@ -1058,12 +1188,15 @@ export default function AdminMarketingPage() {
           </div>
           <select
             value={smsAudience}
-            onChange={(e) => setSmsAudience(e.target.value as 'all' | 'specify')}
+            onChange={(e) => setSmsAudience(e.target.value as MarketingAudience)}
             className="mt-4 h-11 w-full rounded-xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] px-3 text-sm text-slate-100 outline-none focus:border-[#F97316]"
           >
             <option value="all" className="bg-[#0b2236] text-slate-100">Enviar a todos los usuarios</option>
+            <option value="city" className="bg-[#0b2236] text-slate-100">Compradores por ciudad</option>
+            <option value="event" className="bg-[#0b2236] text-slate-100">Compradores por evento</option>
             <option value="specify" className="bg-[#0b2236] text-slate-100">Especificar números</option>
           </select>
+          {renderSegmentFilter('sms', smsAudience, smsCity, setSmsCity, smsEventId, setSmsEventId, smsSegment)}
           {smsAudience === 'specify' && renderPicker('sms', 'phone', smsSel, setSmsSel)}
           <textarea
             value={smsMessage}
@@ -1253,12 +1386,15 @@ export default function AdminMarketingPage() {
           </div>
           <select
             value={waAudience}
-            onChange={(e) => setWaAudience(e.target.value as 'all' | 'specify')}
+            onChange={(e) => setWaAudience(e.target.value as MarketingAudience)}
             className="mt-2 h-11 w-full rounded-xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] px-3 text-sm text-slate-100 outline-none focus:border-[#F97316]"
           >
             <option value="all" className="bg-[#0b2236] text-slate-100">Enviar a todos los usuarios</option>
+            <option value="city" className="bg-[#0b2236] text-slate-100">Compradores por ciudad</option>
+            <option value="event" className="bg-[#0b2236] text-slate-100">Compradores por evento</option>
             <option value="specify" className="bg-[#0b2236] text-slate-100">Especificar números</option>
           </select>
+          {renderSegmentFilter('whatsapp', waAudience, waCity, setWaCity, waEventId, setWaEventId, waSegment)}
           {waAudience === 'specify' && renderPicker('whatsapp', 'phone', waSel, setWaSel)}
           <p className="mt-2 text-[11px] text-gray-400">
             Tu texto va en <span className="font-bold text-[#F97316]">{'{{2}}'}</span>. El nombre del cliente se completa solo en <span className="font-bold text-[#F97316]">{'{{1}}'}</span>. Si quieres un enlace, escríbelo dentro del mensaje.

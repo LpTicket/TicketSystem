@@ -18,9 +18,11 @@ import { PushToken } from './push-token.entity';
 import { EmailCampaign } from './email-campaign.entity';
 import { EmailCampaignRecipient } from './email-campaign-recipient.entity';
 import { User } from '../database/entities/user.entity';
+import { Event } from '../database/entities/event.entity';
+import { Order, OrderStatus } from '../database/entities/order.entity';
 import { MailService } from '../common/services/mail.service';
 import { randomBytes } from 'crypto';
-import { isEmail } from 'class-validator';
+import { isEmail, isUUID } from 'class-validator';
 import { ZohoCampaignsService } from './zoho-campaigns.service';
 
 type CampaignResult = { sent: number; failed: number; total: number; error?: string };
@@ -46,6 +48,8 @@ export class MarketingService {
     private readonly emailCampaignRecipientRepo: Repository<EmailCampaignRecipient>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(Event)
+    private readonly eventRepo: Repository<Event>,
     private readonly mailService: MailService,
     private readonly zohoCampaigns: ZohoCampaignsService,
     private readonly config: ConfigService,
@@ -60,19 +64,78 @@ export class MarketingService {
     });
   }
 
-  /** Public list (admin) for the recipient picker: name + email + phone. */
-  async getRecipientsList() {
-    const users = await this.userRepo.find({
-      where: { isActive: true },
-      select: ['id', 'firstName', 'lastName', 'email', 'phone'],
-      order: { firstName: 'ASC' },
-    });
+  /** Public list (admin) for the recipient picker: name + email + phone.
+   * Event/city segments only include registered users with a paid order and
+   * remain unique even when a user bought many tickets or placed many orders. */
+  async getRecipientsList(filters?: { city?: string; eventId?: string }) {
+    const city = String(filters?.city || '').trim().toLowerCase();
+    const eventId = String(filters?.eventId || '').trim();
+    if (city.length > 100) throw new BadRequestException('La ciudad no puede superar 100 caracteres.');
+    if (eventId && !isUUID(eventId)) throw new BadRequestException('El evento seleccionado no es válido.');
+    const query = this.userRepo.createQueryBuilder('user')
+      .select(['user.id', 'user.firstName', 'user.lastName', 'user.email', 'user.phone'])
+      .where('user.isActive = :isActive', { isActive: true })
+      .orderBy('user.firstName', 'ASC')
+      .addOrderBy('user.lastName', 'ASC');
+
+    if (city || eventId) {
+      query
+        .innerJoin(Order, 'purchaseOrder', 'purchaseOrder.userId = user.id AND purchaseOrder.status = :paidStatus', {
+          paidStatus: OrderStatus.PAID,
+        })
+        .innerJoin(Event, 'purchasedEvent', 'purchasedEvent.id = purchaseOrder.eventId')
+        .distinct(true);
+    }
+    if (eventId) query.andWhere('purchasedEvent.id = :eventId', { eventId });
+    if (city) {
+      query.andWhere(
+        "LOWER(CONCAT(COALESCE(purchasedEvent.venueName, ''), ' ', COALESCE(purchasedEvent.venueAddress, ''))) LIKE :city",
+        { city: `%${city}%` },
+      );
+    }
+
+    const users = await query.getMany();
     return users.map((u) => ({
       id: u.id,
       name: `${u.firstName || ''} ${u.lastName || ''}`.trim(),
       email: u.email || '',
       phone: (u.phone || '').trim(),
     }));
+  }
+
+  /** Events with real paid buyers, used by Marketing's exact event segment. */
+  async getRecipientSegments() {
+    const rows = await this.eventRepo.createQueryBuilder('event')
+      .innerJoin(Order, 'purchaseOrder', 'purchaseOrder.eventId = event.id AND purchaseOrder.status = :paidStatus', {
+        paidStatus: OrderStatus.PAID,
+      })
+      .innerJoin(User, 'purchaser', 'purchaser.id = purchaseOrder.userId AND purchaser.isActive = :isActive', {
+        isActive: true,
+      })
+      .select('event.id', 'id')
+      .addSelect('event.title', 'title')
+      .addSelect('event.eventDate', 'eventDate')
+      .addSelect('event.venueName', 'venueName')
+      .addSelect('event.venueAddress', 'venueAddress')
+      .addSelect('COUNT(DISTINCT purchaser.id)', 'recipientCount')
+      .groupBy('event.id')
+      .addGroupBy('event.title')
+      .addGroupBy('event.eventDate')
+      .addGroupBy('event.venueName')
+      .addGroupBy('event.venueAddress')
+      .orderBy('event.eventDate', 'DESC')
+      .getRawMany();
+
+    return {
+      events: rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        eventDate: row.eventDate,
+        venueName: row.venueName || '',
+        venueAddress: row.venueAddress || '',
+        recipientCount: Number(row.recipientCount || 0),
+      })),
+    };
   }
 
   getZohoAuthorizationUrl() {

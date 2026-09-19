@@ -98,8 +98,15 @@ export class MarketingController {
   @Get('admin/recipients')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.ADMIN)
-  async getRecipientsList() {
-    return this.marketingService.getRecipientsList();
+  async getRecipientsList(@Query('city') city?: string, @Query('eventId') eventId?: string) {
+    return this.marketingService.getRecipientsList({ city, eventId });
+  }
+
+  @Get('admin/recipient-segments')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async getRecipientSegments() {
+    return this.marketingService.getRecipientSegments();
   }
 
   @Post('admin/email-campaign')
