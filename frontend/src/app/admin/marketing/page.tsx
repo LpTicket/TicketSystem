@@ -79,35 +79,50 @@ type RecipientSegmentEvent = {
   recipientCount: number;
 };
 
-const useSegmentRecipients = (audience: MarketingAudience, city: string, eventId: string) => {
+const useSegmentRecipients = (
+  audience: MarketingAudience,
+  city: string,
+  eventId: string,
+  contactField: 'email' | 'phone',
+) => {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (audience !== 'city' && audience !== 'event') {
       setRecipients([]);
+      setSelectedIds([]);
       setLoading(false);
       return;
     }
     const normalizedCity = city.trim();
     if ((audience === 'city' && normalizedCity.length < 2) || (audience === 'event' && !eventId)) {
       setRecipients([]);
+      setSelectedIds([]);
       setLoading(false);
       return;
     }
 
     let cancelled = false;
     setRecipients([]);
+    setSelectedIds([]);
     setLoading(true);
     const timer = window.setTimeout(() => {
       api.get('/marketing/admin/recipients', {
         params: audience === 'city' ? { city: normalizedCity } : { eventId },
       })
         .then(({ data }) => {
-          if (!cancelled) setRecipients(Array.isArray(data) ? data : []);
+          if (cancelled) return;
+          const nextRecipients: Recipient[] = Array.isArray(data) ? data : [];
+          setRecipients(nextRecipients);
+          setSelectedIds(nextRecipients.filter((recipient) => Boolean(recipient[contactField])).map((recipient) => recipient.id));
         })
         .catch(() => {
-          if (!cancelled) setRecipients([]);
+          if (!cancelled) {
+            setRecipients([]);
+            setSelectedIds([]);
+          }
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -118,9 +133,9 @@ const useSegmentRecipients = (audience: MarketingAudience, city: string, eventId
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [audience, city, eventId]);
+  }, [audience, city, eventId, contactField]);
 
-  return { recipients, loading };
+  return { recipients, selectedIds, setSelectedIds, loading };
 };
 
 const isZohoTokenThrottle = (error?: string | null) => /too many requests continuously|access token.*(?:limit|requests)|try again after some time/i.test(error || '');
@@ -236,9 +251,9 @@ export default function AdminMarketingPage() {
   const [waSel, setWaSel] = useState<string[]>([]);
   const [pushEvents, setPushEvents] = useState<any[]>([]);
   const [pickerSearch, setPickerSearch] = useState<{ email: string; sms: string; whatsapp: string; push: string }>({ email: '', sms: '', whatsapp: '', push: '' });
-  const emailSegment = useSegmentRecipients(emailAudience, emailCity, emailEventId);
-  const smsSegment = useSegmentRecipients(smsAudience, smsCity, smsEventId);
-  const waSegment = useSegmentRecipients(waAudience, waCity, waEventId);
+  const emailSegment = useSegmentRecipients(emailAudience, emailCity, emailEventId, 'email');
+  const smsSegment = useSegmentRecipients(smsAudience, smsCity, smsEventId, 'phone');
+  const waSegment = useSegmentRecipients(waAudience, waCity, waEventId, 'phone');
 
   // Styled confirmation modal (replaces native confirm()).
   const [confirmModal, setConfirmModal] = useState<{ title: string; message: string; resolve: (v: boolean) => void } | null>(null);
@@ -412,11 +427,17 @@ export default function AdminMarketingPage() {
     setCity: React.Dispatch<React.SetStateAction<string>>,
     eventId: string,
     setEventId: React.Dispatch<React.SetStateAction<string>>,
-    segment: { recipients: Recipient[]; loading: boolean },
+    segment: {
+      recipients: Recipient[];
+      selectedIds: string[];
+      setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
+      loading: boolean;
+    },
   ) => {
     if (audience !== 'city' && audience !== 'event') return null;
     const contactField = channel === 'email' ? 'email' : 'phone';
-    const reachableCount = segment.recipients.filter((recipient) => Boolean(recipient[contactField])).length;
+    const reachableRecipients = segment.recipients.filter((recipient) => Boolean(recipient[contactField]));
+    const reachableCount = reachableRecipients.length;
     return (
       <div className="mt-2 rounded-xl border border-[rgba(246,198,95,0.18)] bg-[#0b2236] p-3">
         {audience === 'city' ? (
@@ -443,8 +464,40 @@ export default function AdminMarketingPage() {
         <p className="mt-2 text-[11px] leading-5 text-slate-400">
           {segment.loading
             ? 'Buscando compradores registrados…'
-            : `${segment.recipients.length} usuario(s) único(s) con compra pagada; ${reachableCount} con ${channel === 'email' ? 'correo' : 'teléfono'}.`}
+            : `${segment.recipients.length} usuario(s) único(s) con compra pagada; ${segment.selectedIds.length} seleccionado(s) de ${reachableCount} con ${channel === 'email' ? 'correo' : 'teléfono'}.`}
         </p>
+        {!segment.loading && segment.recipients.length > 0 && (
+          <div className="mt-2 border-t border-white/10 pt-2">
+            <div className="flex items-center justify-between text-[11px] text-slate-400">
+              <span>Selecciona quién recibirá el mensaje</span>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => segment.setSelectedIds(reachableRecipients.map((recipient) => recipient.id))} className="font-bold text-[#F97316]">Todos</button>
+                <button type="button" onClick={() => segment.setSelectedIds([])} className="font-bold text-slate-400">Ninguno</button>
+              </div>
+            </div>
+            <div className="mt-2 max-h-48 space-y-1 overflow-y-auto custom-scrollbar">
+              {segment.recipients.map((recipient) => {
+                const contactValue = recipient[contactField];
+                const unavailable = !contactValue;
+                return (
+                  <label key={recipient.id} className={`flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5 ${unavailable ? 'opacity-50' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={segment.selectedIds.includes(recipient.id)}
+                      onChange={() => toggleSel(segment.setSelectedIds, recipient.id)}
+                      disabled={unavailable}
+                      className="accent-[#F97316]"
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{recipient.name || recipient.email}</span>
+                    <span className="shrink-0 max-w-[48%] truncate text-right text-[11px] text-slate-400">
+                      {unavailable ? (contactField === 'email' ? 'Sin correo' : 'Sin teléfono') : contactValue}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {audience === 'city' && (
           <p className="text-[10px] leading-4 text-slate-500">La ciudad se busca en el lugar y la dirección guardados en cada evento.</p>
         )}
@@ -465,13 +518,10 @@ export default function AdminMarketingPage() {
       toast.error('Agrega un asunto o nombre de campaña.');
       return;
     }
-    const emailAudienceUsers = emailAudience === 'city' || emailAudience === 'event'
-      ? emailSegment.recipients
-      : recipientsList;
     const recipients = emailAudience === 'specify'
       ? recipientsList.filter((u) => emailSel.includes(u.id)).map((u) => u.email).filter(Boolean)
       : emailAudience === 'city' || emailAudience === 'event'
-        ? emailAudienceUsers.map((u) => u.email).filter(Boolean)
+        ? emailSegment.recipients.filter((u) => emailSegment.selectedIds.includes(u.id)).map((u) => u.email).filter(Boolean)
         : undefined;
     if (emailAudience !== 'all' && (!recipients || recipients.length === 0)) {
       toast.error('Selecciona al menos un destinatario.');
@@ -555,7 +605,7 @@ export default function AdminMarketingPage() {
     const recipients = audience === 'specify'
       ? recipientsList.filter((u) => sel.includes(u.id)).map((u) => u.phone).filter(Boolean)
       : audience === 'city' || audience === 'event'
-        ? segment.recipients.map((u) => u.phone).filter(Boolean)
+        ? segment.recipients.filter((u) => segment.selectedIds.includes(u.id)).map((u) => u.phone).filter(Boolean)
         : undefined;
     if (audience !== 'all' && (!recipients || recipients.length === 0)) {
       toast.error('Selecciona al menos un destinatario con teléfono.');
