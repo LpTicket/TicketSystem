@@ -49,6 +49,10 @@ describe('MailService ticket email', () => {
     expect((message.html.match(/height="28"/g) || [])).toHaveLength(2);
     expect((message.html.match(/Resumen de esta entrada/g) || [])).toHaveLength(2);
     expect(message.html).not.toContain('Total cobrado:');
+    expect(message.html).toContain('Entrada de Prensa:');
+    expect(message.html).toContain('SIN COSTO');
+    expect(message.html).toContain('Este correo contiene tu entrada de cortesía y boleto de acceso.');
+    expect(message.html).not.toContain('comprobante de pago oficial');
     expect(message).not.toHaveProperty('attachments');
     expect(message.subject).toBe('Tus entradas de Prensa para Evento Premium — LPTicket');
   });

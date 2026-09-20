@@ -412,14 +412,14 @@ export class MailService {
             <p style="color: #475569; font-size: 14px; margin-top: 6px; margin-bottom: 0;">${courtesyLabel ? `Aquí tienes tus entradas de ${escapeHtml(courtesyLabel)} listas para el evento:` : 'Gracias por tu compra. Aquí tienes tus entradas listas para el evento:'}</p>
           </div>
           
-          ${hasPaymentSummary && !courtesyLabel ? `
+          ${hasPaymentSummary ? `
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border-spacing:0;margin:0 0 16px 0;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
             <tr>
               <td style="padding:14px 16px;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
                   <tr>
-                    <td style="font-size:13px;font-weight:900;color:#0A375A;text-transform:uppercase;letter-spacing:0.7px;">Total cobrado:</td>
-                    <td align="right" style="font-size:17px;font-weight:900;color:#F97316;">${money(eventInfo?.total)}</td>
+                    <td style="font-size:13px;font-weight:900;color:#0A375A;text-transform:uppercase;letter-spacing:0.7px;">${courtesyLabel ? `Entrada de ${escapeHtml(courtesyLabel)}:` : 'Total cobrado:'}</td>
+                    <td align="right" style="font-size:17px;font-weight:900;color:#F97316;">${courtesyLabel ? 'SIN COSTO' : money(eventInfo?.total)}</td>
                   </tr>
                 </table>
               </td>
@@ -430,7 +430,7 @@ export class MailService {
           ${ticketDetails}
           
           <div style="text-align: center; margin-top: 25px;">
-            <p style="color: #64748b; font-size: 11px; margin: 0;">Este correo sirve como comprobante de pago oficial y boleto de acceso.</p>
+            <p style="color: #64748b; font-size: 11px; margin: 0;">${courtesyLabel ? 'Este correo contiene tu entrada de cortesía y boleto de acceso.' : 'Este correo sirve como comprobante de pago oficial y boleto de acceso.'}</p>
             <p style="color: #64748b; font-size: 11px; margin: 4px 0 0 0;">Si tienes dudas o inquietudes, por favor contáctanos respondiendo a este email.</p>
           </div>
         </div>
