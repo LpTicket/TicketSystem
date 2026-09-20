@@ -46,9 +46,8 @@ describe('MailService ticket email', () => {
     expect(message.html).toContain('<strong>Invitado:</strong> María Invitada');
     expect(message.html).toContain('Prensa');
     expect((message.html.match(/box-shadow:0 10px 28px/g) || [])).toHaveLength(2);
-    expect((message.html.match(/data-ticket-shadow="true"/g) || [])).toHaveLength(2);
-    expect((message.html.match(/bgcolor="#cbd5e1"/g) || [])).toHaveLength(2);
-    expect((message.html.match(/padding:0 7px 9px 0/g) || [])).toHaveLength(2);
+    expect((message.html.match(/border-right:7px solid #cbd5e1/g) || [])).toHaveLength(2);
+    expect((message.html.match(/border-bottom:9px solid #cbd5e1/g) || [])).toHaveLength(2);
     expect((message.html.match(/height="28"/g) || [])).toHaveLength(2);
     expect((message.html.match(/Resumen de esta entrada/g) || [])).toHaveLength(2);
     expect(message.html).not.toContain('Total cobrado:');
