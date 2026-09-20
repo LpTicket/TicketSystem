@@ -302,6 +302,10 @@ export class MailService {
       const appleWalletUrl = `${apiBase}/api/orders/ticket/${t.ticketCode}/apple-wallet`;
 
       return `
+      <!-- Structural shadow fallback: Gmail mobile can ignore CSS box-shadow on
+           tables, so this offset background remains visible in email clients. -->
+      <table role="presentation" data-ticket-shadow="true" width="100%" cellpadding="0" cellspacing="0" bgcolor="#cbd5e1" style="width:100%;border-collapse:separate;border-spacing:0;background:#cbd5e1;background-color:#cbd5e1;border-radius:22px;">
+      <tr><td style="padding:0 7px 9px 0;background:#cbd5e1;background-color:#cbd5e1;border-radius:22px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;border-spacing:0;background:#ffffff;border:1px solid #e2e8f0;border-radius:20px;box-shadow:0 10px 28px rgba(15,23,42,0.14);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
       <tr><td bgcolor="#ffffff" style="background:#ffffff !important;background-color:#ffffff !important;color:#0f172a !important;border-radius:20px;padding:25px;">
         <!-- Card branding header -->
@@ -382,6 +386,8 @@ export class MailService {
 <!-- Footer terms info -->    <div style="border-top: 1px dashed #cbd5e1; padding-top: 15px; margin-top: 15px; font-size: 9px; color: #94a3b8; text-align: center; line-height: 1.4; text-transform: uppercase; font-weight: bold;">
           LPTICKET.COM — TUS TICKETS. TUS EVENTOS.
         </div>
+      </td></tr>
+      </table>
       </td></tr>
       </table>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;"><tr><td height="28" style="height:28px;line-height:28px;font-size:1px;">&nbsp;</td></tr></table>
