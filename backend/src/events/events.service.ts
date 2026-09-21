@@ -1146,11 +1146,33 @@ export class EventsService {
       ticketRows.map((r: any) => [r.sectionId, Number(r.count) || 0]),
     );
 
-    const result = sections.map(section => ({
-      ...section,
-      seats: allSeats.filter(s => s.sectionId === section.id),
-      soldTickets: soldBySection.get(section.id) || 0,
-    }));
+    const result = sections.map(section => {
+      const sectionSeats = allSeats.filter(s => s.sectionId === section.id);
+      const soldTickets = soldBySection.get(section.id) || 0;
+
+      // Older mobile builds derive General Admission availability from the
+      // seat list even though standing areas do not have physical seats.
+      // Keep the authoritative soldTickets field and add compatibility rows
+      // so those builds show the true remaining capacity too.
+      const soldPhysicalSeats = sectionSeats.filter(
+        seat => seat.status === SeatStatus.SOLD || (seat.status === SeatStatus.LOCKED && !seat.lockExpiresAt),
+      ).length;
+      const legacySoldSeats = section.sectionType === 'standing'
+        ? Array.from({ length: Math.max(0, soldTickets - soldPhysicalSeats) }, (_, index) => ({
+            id: `standing-sold-${section.id}-${index + 1}`,
+            sectionId: section.id,
+            status: SeatStatus.SOLD,
+            rowLabel: 'GA',
+            seatNumber: index + 1,
+          }))
+        : [];
+
+      return {
+        ...section,
+        seats: [...sectionSeats, ...legacySoldSeats],
+        soldTickets,
+      };
+    });
 
     // Short TTL: seat availability changes on every purchase/lock
     await this.cache.set(cacheKey, result, 15_000);
