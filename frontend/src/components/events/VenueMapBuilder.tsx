@@ -1351,7 +1351,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const displayBlockedCount = displayInventory?.blockedTickets ?? blockedCount;
   const displayHeldCount = displayInventory?.heldTickets ?? 0;
 
-  // Buyer name for a given sold seat, looked up in the seatBuyers map.
+  // Recipient name for a ticketed seat, including paid tickets and courtesies.
   const getSeatBuyer = (sectionName: string | undefined, rowLabel: string | number, seatNumber: string | number): string | undefined => {
     if (!seatBuyers || !sectionName) return undefined;
     const sec = String(sectionName).toLowerCase();
@@ -1377,7 +1377,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     const heldSeat = sStatus === 'held' ? findSeatByKey(sec, seatKey) : null;
     const buyer = sStatus === 'held'
       ? (heldSeat ? seatHolders?.[heldSeat.id] : undefined)
-      : sStatus === 'sold' ? getSeatBuyer(sec.name, row, num) : undefined;
+      : ['sold', 'reserved'].includes(sStatus) ? getSeatBuyer(sec.name, row, num) : undefined;
+    const isCourtesy = sStatus === 'reserved' && !!buyer;
     const es = lang === 'es';
     let status: string, statusClass: string;
     if (isDisabled) {
@@ -1390,8 +1391,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       status = es ? 'En proceso de compra' : 'In checkout';
       statusClass = 'bg-yellow-50 text-yellow-700 border-yellow-200';
     } else if (sStatus === 'reserved') {
-      status = es ? 'Reservado' : 'Reserved';
-      statusClass = 'bg-orange-50 text-orange-700 border-orange-200';
+      status = isCourtesy ? (es ? 'Cortesía enviada' : 'Courtesy sent') : (es ? 'Reservado' : 'Reserved');
+      statusClass = isCourtesy ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-orange-50 text-orange-700 border-orange-200';
     } else {
       status = es ? 'Disponible' : 'Available';
       statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
