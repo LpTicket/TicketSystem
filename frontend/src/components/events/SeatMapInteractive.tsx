@@ -383,6 +383,25 @@ export default function SeatMapInteractive({
     };
   };
 
+  const getStandingRemaining = (section: VenueSection) => {
+    const soldSeats = (section.seats || []).filter(s => s.status === SeatStatus.SOLD || (s.status === SeatStatus.LOCKED && !s.lockExpiresAt)).length;
+    const sold = Math.max(Number((section as any).soldTickets) || 0, soldSeats);
+    return Math.max(0, (Number(section.capacity) || 0) - sold);
+  };
+
+  const buildStandingInfo = (e: React.MouseEvent, section: VenueSection): SeatInfoCard => {
+    const remaining = getStandingRemaining(section);
+    return {
+      id: `standing-${section.id}`,
+      title: section.name,
+      subtitle: `${remaining} ${lang === 'es' ? 'disponibles' : 'available'}`,
+      price: Number(section.price || 0),
+      status: remaining === 0 ? (lang === 'es' ? 'No disponible' : 'Unavailable') : (lang === 'es' ? 'Disponible' : 'Available'),
+      statusClass: remaining === 0 ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      ...getPointerPosition(e),
+    };
+  };
+
   const activeSeatInfo = pinnedSeatInfo || hoveredSeatInfo;
 
   /**
@@ -742,7 +761,15 @@ export default function SeatMapInteractive({
                   boxShadow: isStage ? '0 0 20px rgba(59, 130, 246, 0.4)' : (isStanding ? `0 4px 15px ${section.color || '#8b5cf6'}44` : 'none'),
                   border: isDecor ? '1px solid #cbd5e1' : (isStage ? '2.5px solid #3b82f6' : (isStanding ? `2px solid ${section.color || '#8b5cf6'}` : 'none')),
                 }}
-                onClick={(e) => { if (!isStage && !isDecor) { e.stopPropagation(); handleSectionClick(section as VenueSection); } }}
+                onClick={(e) => {
+                  if (isStage || isDecor) return;
+                  e.stopPropagation();
+                  if (isStanding && getStandingRemaining(section as VenueSection) === 0) return;
+                  handleSectionClick(section as VenueSection);
+                }}
+                onMouseEnter={(e) => { if (isStanding) setHoveredSeatInfo(buildStandingInfo(e, section as VenueSection)); }}
+                onMouseMove={(e) => { if (isStanding && !pinnedSeatInfo) setHoveredSeatInfo(buildStandingInfo(e, section as VenueSection)); }}
+                onMouseLeave={() => { if (isStanding) setHoveredSeatInfo(null); }}
               >
                 {/* --- Decor/Text-only sections --- */}
                 {isDecor && (
@@ -795,7 +822,7 @@ export default function SeatMapInteractive({
                 )}
 
                 {/* --- Table Rendering Logic --- */}
-                {isTable ? (() => {
+                {isStanding ? null : isTable ? (() => {
                   let overrides = {};
                   try {
                     overrides = section.seatsConfig ? JSON.parse(section.seatsConfig) : {};
