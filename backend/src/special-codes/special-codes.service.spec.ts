@@ -49,13 +49,23 @@ describe('event referrals', () => {
     eventRepo.findOne.mockResolvedValue({ id: 'event-1', organizerId: 'organizer-1' });
     referralRepo.find.mockResolvedValue([{ id: 'ref-1', eventId: 'event-1', name: 'Beatriz', code: 'BEATRIZ' }]);
     orderRepo.find.mockResolvedValue([
-      { referralCode: 'BEATRIZ', ticketCount: 2, subtotal: 40 },
-      { referralCode: 'OTHER', ticketCount: 1, subtotal: 20 },
+      { id: 'order-1', referralCode: 'BEATRIZ', ticketCount: 2, subtotal: 40, user: { firstName: 'Ana', lastName: 'Pérez', email: 'private@example.com' } },
+      { id: 'order-2', referralCode: 'OTHER', ticketCount: 1, subtotal: 20, user: { firstName: 'Luis', lastName: 'Díaz' } },
     ]);
     const result = await service.getEventReferrals('event-1', { id: 'organizer-1' });
     expect(result[0]).toMatchObject({ orders: 1, tickets: 2, revenue: 40 });
+    expect(result[0].purchases).toEqual([{ id: 'order-1', buyerName: 'Ana Pérez', ticketCount: 2 }]);
     expect(orderRepo.find).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ eventId: 'event-1', status: OrderStatus.PAID }),
+      relations: ['user'],
     }));
+  });
+
+  it('does not reveal buyer names to someone outside the event', async () => {
+    const { service, eventRepo, orderRepo } = makeService();
+    eventRepo.findOne.mockResolvedValue({ id: 'event-1', organizerId: 'organizer-1' });
+    await expect(service.getEventReferrals('event-1', { id: 'other', role: 'client' }))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(orderRepo.find).not.toHaveBeenCalled();
   });
 });

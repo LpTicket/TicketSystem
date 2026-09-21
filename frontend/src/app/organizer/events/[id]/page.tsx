@@ -306,6 +306,7 @@ type EventReferral = {
   orders: number;
   tickets: number;
   revenue: number;
+  purchases: { id: string; buyerName: string | null; ticketCount: number }[];
 };
 
 function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string }) {
@@ -361,9 +362,24 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
       </div>
       <div className="mt-5 space-y-2">
         {referrals.map(referral => (
-          <div key={referral.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-700 bg-[#0b1c2d] p-4">
-            <div><p className="font-bold">{referral.name} <span className="ml-2 text-orange-400">{referral.code}</span></p><p className="text-sm text-slate-300">{referral.orders} {lang === 'es' ? 'compras' : 'orders'} · {referral.tickets} tickets · ${Number(referral.revenue || 0).toFixed(2)} {lang === 'es' ? 'en entradas' : 'in tickets'}</p></div>
-            <button className="rounded-lg border border-slate-500 px-3 py-1.5 text-sm" onClick={() => toggle(referral)}>{referral.isActive ? (lang === 'es' ? 'Pausar' : 'Pause') : (lang === 'es' ? 'Activar' : 'Activate')}</button>
+          <div key={referral.id} className="rounded-xl border border-slate-700 bg-[#0b1c2d] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><p className="font-bold">{referral.name} <span className="ml-2 text-orange-400">{referral.code}</span></p><p className="text-sm text-slate-300">{referral.orders} {lang === 'es' ? 'compras' : 'orders'} · {referral.tickets} tickets · ${Number(referral.revenue || 0).toFixed(2)} {lang === 'es' ? 'en entradas' : 'in tickets'}</p></div>
+              <button className="rounded-lg border border-slate-500 px-3 py-1.5 text-sm" onClick={() => toggle(referral)}>{referral.isActive ? (lang === 'es' ? 'Pausar' : 'Pause') : (lang === 'es' ? 'Activar' : 'Activate')}</button>
+            </div>
+            {(referral.purchases?.length ?? 0) > 0 && (
+              <details className="mt-3 border-t border-slate-700 pt-3 text-sm">
+                <summary className="cursor-pointer text-orange-400">{lang === 'es' ? 'Ver compradores' : 'View buyers'} ({referral.purchases.length})</summary>
+                <ul className="mt-2 space-y-1 text-slate-300">
+                  {referral.purchases.map(purchase => (
+                    <li key={purchase.id} className="flex flex-wrap justify-between gap-x-4">
+                      <span>{purchase.buyerName || (lang === 'es' ? 'Nombre no disponible' : 'Name unavailable')}</span>
+                      <span>{purchase.ticketCount} tickets</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </div>
         ))}
       </div>

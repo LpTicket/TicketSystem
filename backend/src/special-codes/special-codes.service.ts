@@ -56,7 +56,11 @@ export class SpecialCodesService {
     await this.assertEventAccess(eventId, user);
     const [referrals, orders] = await Promise.all([
       this.referralRepo.find({ where: { eventId }, order: { createdAt: 'ASC' } }),
-      this.orderRepo.find({ where: { eventId, status: OrderStatus.PAID, referralCode: Not(IsNull()) } }),
+      this.orderRepo.find({
+        where: { eventId, status: OrderStatus.PAID, referralCode: Not(IsNull()) },
+        relations: ['user'],
+        order: { paidAt: 'DESC', createdAt: 'DESC' },
+      }),
     ]);
     return referrals.map((referral) => {
       const sales = orders.filter((order) => order.referralCode === referral.code);
@@ -65,6 +69,11 @@ export class SpecialCodesService {
         orders: sales.length,
         tickets: sales.reduce((sum, order) => sum + Number(order.ticketCount || 0), 0),
         revenue: Math.round(sales.reduce((sum, order) => sum + Number(order.subtotal || 0), 0) * 100) / 100,
+        purchases: sales.map((order) => ({
+          id: order.id,
+          buyerName: order.user ? `${order.user.firstName || ''} ${order.user.lastName || ''}`.trim() || null : null,
+          ticketCount: Number(order.ticketCount || 0),
+        })),
       };
     });
   }
