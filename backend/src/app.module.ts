@@ -48,7 +48,9 @@ import { ScannerAccess } from './database/entities';
             database: config.get<string>('DB_NAME'),
           }),
           entities: [MarketingBanner, PushToken, EmailCampaign, EmailCampaignRecipient, MarketingIntegration, AnalyticsPageView, User, Event, VenueSection, Seat, Order, Ticket, TicketRevocation, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout, EventReferral, OrganizerPayout, ScannerAccess],
-          synchronize: true,
+          // Production schema changes must be reviewed and applied explicitly.
+          // Never let an application restart alter or drop existing customer data.
+          synchronize: false,
           logging: false,
           ssl: isProd ? { rejectUnauthorized: false } : false,
         };
