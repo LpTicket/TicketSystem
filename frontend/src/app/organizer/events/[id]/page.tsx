@@ -50,6 +50,7 @@ import {
   HiOutlineChartBar,
   HiOutlineChevronDown,
   HiOutlineChevronRight,
+  HiOutlineTag,
 } from 'react-icons/hi';
 import VenueMapBuilder from '@/components/events/VenueMapBuilder';
 import PremiumTimeSelect from '@/components/forms/PremiumTimeSelect';
@@ -296,6 +297,79 @@ type EventCode = {
     buyer?: { firstName: string; lastName: string; email: string } | null;
   }[];
 };
+
+type EventReferral = {
+  id: string;
+  name: string;
+  code: string;
+  isActive: boolean;
+  orders: number;
+  tickets: number;
+  revenue: number;
+};
+
+function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string }) {
+  const [referrals, setReferrals] = useState<EventReferral[]>([]);
+  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    try {
+      const { data } = await api.get(`/special-codes/by-event/${eventId}/referrals`);
+      setReferrals(data || []);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || (lang === 'es' ? 'No se pudieron cargar los referidos.' : 'Could not load referrals.'));
+    }
+  };
+
+  useEffect(() => { load(); }, [eventId]);
+
+  const create = async () => {
+    if (!name.trim() || !code.trim()) return;
+    setSaving(true);
+    try {
+      await api.post(`/special-codes/by-event/${eventId}/referrals`, { name: name.trim(), code: code.trim().toUpperCase() });
+      setName('');
+      setCode('');
+      await load();
+      toast.success(lang === 'es' ? 'Referido creado' : 'Referral created');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || (lang === 'es' ? 'No se pudo crear.' : 'Could not create referral.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggle = async (referral: EventReferral) => {
+    try {
+      await api.patch(`/special-codes/by-event/${eventId}/referrals/${referral.id}`, { isActive: !referral.isActive });
+      await load();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || (lang === 'es' ? 'No se pudo actualizar.' : 'Could not update referral.'));
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-700 bg-[#102337] p-5 text-white">
+      <h2 className="text-xl font-bold">{lang === 'es' ? 'Referidos del evento' : 'Event referrals'}</h2>
+      <p className="mt-1 text-sm text-slate-300">{lang === 'es' ? 'Crea un código para cada persona. Las compras pagadas quedarán atribuidas aquí. No genera comisiones.' : 'Create a code for each person. Paid purchases are tracked here. No commissions are generated.'}</p>
+      <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+        <input className="rounded-lg border border-slate-600 bg-[#0b1c2d] px-3 py-2" placeholder={lang === 'es' ? 'Nombre, ej. Beatriz' : 'Name, e.g. Beatriz'} value={name} maxLength={100} onChange={e => setName(e.target.value)} />
+        <input className="rounded-lg border border-slate-600 bg-[#0b1c2d] px-3 py-2 uppercase" placeholder={lang === 'es' ? 'Código, ej. BEATRIZ' : 'Code, e.g. BEATRIZ'} value={code} maxLength={40} onChange={e => setCode(e.target.value.toUpperCase().replace(/\s/g, ''))} />
+        <button className="rounded-lg bg-orange-600 px-5 py-2 font-bold disabled:opacity-50" disabled={saving || !name.trim() || !code.trim()} onClick={create}>{lang === 'es' ? 'Crear código' : 'Create code'}</button>
+      </div>
+      <div className="mt-5 space-y-2">
+        {referrals.map(referral => (
+          <div key={referral.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-700 bg-[#0b1c2d] p-4">
+            <div><p className="font-bold">{referral.name} <span className="ml-2 text-orange-400">{referral.code}</span></p><p className="text-sm text-slate-300">{referral.orders} {lang === 'es' ? 'compras' : 'orders'} · {referral.tickets} tickets · ${Number(referral.revenue || 0).toFixed(2)} {lang === 'es' ? 'en entradas' : 'in tickets'}</p></div>
+            <button className="rounded-lg border border-slate-500 px-3 py-1.5 text-sm" onClick={() => toggle(referral)}>{referral.isActive ? (lang === 'es' ? 'Pausar' : 'Pause') : (lang === 'es' ? 'Activar' : 'Activate')}</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function CreatorRewardsBlock({
   event,
@@ -671,7 +745,7 @@ export default function EventDetailPage() {
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [seatHolders, setSeatHolders] = useState<Record<string, string>>({});
   const [mapReady, setMapReady] = useState(false);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders' | 'commission'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders' | 'commission' | 'referrals'>('analytics');
   const tabRestoredRef = useRef(false);
   const restoredBlockEventsRef = useRef(new Set<string>());
 
@@ -679,7 +753,7 @@ export default function EventDetailPage() {
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(`lp_org_tab_${id}`);
-      const valid = ['analytics', 'details', 'overview', 'attendees', 'map', 'blocks', 'reminders', 'commission'];
+      const valid = ['analytics', 'details', 'overview', 'attendees', 'map', 'blocks', 'reminders', 'commission', 'referrals'];
       if (saved && valid.includes(saved)) setActiveTab(saved as any);
     } catch {
       /* storage unavailable */
@@ -1569,6 +1643,9 @@ export default function EventDetailPage() {
           {(Number(event.creatorCommission) > 0 && event.pendingCreatorCommission == null) && (
             <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
           )}
+        </button>
+        <button onClick={() => setActiveTab('referrals')} className={`group relative flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-extrabold ${activeTab === 'referrals' ? 'border-[#F97316] bg-orange-50 text-[#F97316]' : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50'}`}>
+          <HiOutlineTag className="h-4 w-4" /> {lang === 'es' ? 'Referidos' : 'Referrals'}
         </button>
       </div>
 
@@ -3421,6 +3498,7 @@ export default function EventDetailPage() {
           <CreatorRewardsBlock event={event} sections={sections} lang={lang} onSaved={loadEvent} />
         </div>
       )}
+      {activeTab === 'referrals' && <EventReferralsBlock eventId={event.id} lang={lang} />}
 
     </div>
   );

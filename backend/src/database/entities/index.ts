@@ -12,6 +12,7 @@ export { SocialMatchPreference, SocialMatchInterest } from './social-match-prefe
 export { SocialMatchConnection, SocialMatchConnectionStatus } from './social-match-connection.entity';
 export { SocialMatchMessage } from './social-match-message.entity';
 export { SpecialCode } from './special-code.entity';
+export { EventReferral } from './event-referral.entity';
 export { SpecialCodePayout } from './special-code-payout.entity';
 export { OrganizerPayout } from './organizer-payout.entity';
 export { ScannerAccess, ScannerAccessStatus } from './scanner-access.entity';

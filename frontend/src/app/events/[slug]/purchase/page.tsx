@@ -686,7 +686,7 @@ export default function PurchasePage() {
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-gray-600 mb-1">
-                    {lang === 'es' ? 'Código especial (opcional):' : 'Special code (optional):'}
+                    {lang === 'es' ? 'Código especial o de referido (opcional):' : 'Special or referral code (optional):'}
                   </label>
                   <input
                     className="input purchase-premium-input text-sm uppercase"

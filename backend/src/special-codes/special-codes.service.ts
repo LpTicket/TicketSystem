@@ -11,7 +11,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, IsNull, Repository } from 'typeorm';
-import { Event, Order, OrderStatus, SpecialCode, SpecialCodePayout, User } from '../database/entities';
+import { Event, EventReferral, Order, OrderStatus, SpecialCode, SpecialCodePayout, User } from '../database/entities';
 
 type CreateSpecialCodeDto = {
   code: string;
@@ -36,10 +36,61 @@ export class SpecialCodesService {
     private readonly orderRepo: Repository<Order>,
     @InjectRepository(SpecialCodePayout)
     private readonly payoutRepo: Repository<SpecialCodePayout>,
+    @InjectRepository(EventReferral)
+    private readonly referralRepo: Repository<EventReferral>,
   ) {}
 
   normalizeCode(code: string) {
     return code.trim().toUpperCase().replace(/\s+/g, '');
+  }
+
+  private async assertEventAccess(eventId: string, user: { id: string; role?: string }) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Evento no encontrado.');
+    if (user.role !== 'admin' && event.organizerId !== user.id) {
+      throw new ForbiddenException('No tienes permiso para administrar este evento.');
+    }
+  }
+
+  async getEventReferrals(eventId: string, user: { id: string; role?: string }) {
+    await this.assertEventAccess(eventId, user);
+    const [referrals, orders] = await Promise.all([
+      this.referralRepo.find({ where: { eventId }, order: { createdAt: 'ASC' } }),
+      this.orderRepo.find({ where: { eventId, status: OrderStatus.PAID, referralCode: Not(IsNull()) } }),
+    ]);
+    return referrals.map((referral) => {
+      const sales = orders.filter((order) => order.referralCode === referral.code);
+      return {
+        ...referral,
+        orders: sales.length,
+        tickets: sales.reduce((sum, order) => sum + Number(order.ticketCount || 0), 0),
+        revenue: Math.round(sales.reduce((sum, order) => sum + Number(order.subtotal || 0), 0) * 100) / 100,
+      };
+    });
+  }
+
+  async createEventReferral(eventId: string, user: { id: string; role?: string }, input: { name: string; code: string }) {
+    await this.assertEventAccess(eventId, user);
+    const name = String(input.name || '').trim();
+    const code = this.normalizeCode(String(input.code || ''));
+    if (!name || name.length > 100) throw new BadRequestException('Ingresa un nombre de hasta 100 caracteres.');
+    if (!/^[A-Z0-9_-]{3,40}$/.test(code)) throw new BadRequestException('El código debe tener de 3 a 40 letras, números, guiones o guiones bajos.');
+    const [sameEvent, special] = await Promise.all([
+      this.referralRepo.findOne({ where: { eventId, code } }),
+      this.specialCodeRepo.findOne({ where: { code } }),
+    ]);
+    if (sameEvent || (special && (!special.eventId || special.eventId === eventId))) {
+      throw new BadRequestException('Este código ya está en uso para el evento.');
+    }
+    return this.referralRepo.save(this.referralRepo.create({ eventId, name, code, isActive: true }));
+  }
+
+  async setEventReferralActive(eventId: string, referralId: string, user: { id: string; role?: string }, isActive: boolean) {
+    await this.assertEventAccess(eventId, user);
+    const referral = await this.referralRepo.findOne({ where: { id: referralId, eventId } });
+    if (!referral) throw new NotFoundException('Referido no encontrado.');
+    referral.isActive = isActive;
+    return this.referralRepo.save(referral);
   }
 
   async createCode(dto: CreateSpecialCodeDto) {
@@ -56,6 +107,8 @@ export class SpecialCodesService {
 
     const existing = await this.specialCodeRepo.findOne({ where: { code } });
     if (existing) throw new BadRequestException('Este codigo especial ya existe.');
+    const referrals = await this.referralRepo.find({ where: { code } });
+    if (referrals.some((referral) => !dto.eventId || referral.eventId === dto.eventId)) throw new BadRequestException('Este código ya se usa como referido.');
 
     return this.specialCodeRepo.save(
       this.specialCodeRepo.create({
@@ -90,6 +143,13 @@ export class SpecialCodesService {
         if (!event) throw new NotFoundException('Evento no encontrado.');
       }
       specialCode.eventId = dto.eventId || null;
+    }
+
+    if (dto.code !== undefined || dto.eventId !== undefined) {
+      const referrals = await this.referralRepo.find({ where: { code: specialCode.code } });
+      if (referrals.some((referral) => !specialCode.eventId || referral.eventId === specialCode.eventId)) {
+        throw new BadRequestException('Este código ya se usa como referido.');
+      }
     }
 
     if (dto.isActive !== undefined) {

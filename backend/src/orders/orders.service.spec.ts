@@ -43,11 +43,37 @@ function buildService(overrides: Record<string, any> = {}) {
     mailService as any,
     ({ sendTransactionalSms: jest.fn() }) as any,
     cache as any,
+    (overrides.referralRepo || {}) as any,
   );
   return { service, ticketRepo, eventRepo, orderRepo, mailService, cache };
 }
 
 describe('OrdersService critical ticket safeguards', () => {
+  it('attributes an event referral without creating a special-code commission owner', async () => {
+    const specialCodeRepo = { findOne: jest.fn().mockResolvedValue(null) };
+    const referralRepo = { findOne: jest.fn().mockResolvedValue({ eventId: 'event-1', code: 'BEATRIZ', isActive: true }) };
+    const { service } = buildService({ specialCodeRepo, referralRepo });
+    await expect((service as any).resolvePurchaseCode('event-1', ' beatriz ')).resolves.toEqual({
+      specialCode: null,
+      specialCodeId: null,
+      specialCodeOwnerId: null,
+      referralCode: 'BEATRIZ',
+    });
+    expect(referralRepo.findOne).toHaveBeenCalledWith({ where: { eventId: 'event-1', code: 'BEATRIZ' } });
+  });
+
+  it('keeps commission-bearing special codes separate from event referrals', async () => {
+    const specialCodeRepo = { findOne: jest.fn().mockResolvedValue({ id: 'code-1', code: 'CREATOR', eventId: null, ownerUserId: 'owner-1', isActive: true }) };
+    const referralRepo = { findOne: jest.fn() };
+    const { service } = buildService({ specialCodeRepo, referralRepo });
+    await expect((service as any).resolvePurchaseCode('event-1', 'creator')).resolves.toEqual({
+      specialCode: 'CREATOR',
+      specialCodeId: 'code-1',
+      specialCodeOwnerId: 'owner-1',
+      referralCode: null,
+    });
+    expect(referralRepo.findOne).not.toHaveBeenCalled();
+  });
   it('returns active seat holders only to the event organizer', async () => {
     const query = {
       innerJoinAndSelect: jest.fn().mockReturnThis(),

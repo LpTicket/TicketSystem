@@ -148,6 +148,10 @@ export class Order {
   @Column({ type: 'uuid', nullable: true })
   specialCodeOwnerId: string | null;
 
+  /** Event-scoped referral code, separate from commission-bearing special codes. */
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  referralCode: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

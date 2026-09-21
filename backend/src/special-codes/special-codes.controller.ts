@@ -10,6 +10,24 @@ export class SpecialCodesController {
   constructor(private readonly specialCodesService: SpecialCodesService) {}
 
   @UseGuards(AuthGuard('jwt'))
+  @Get('by-event/:eventId/referrals')
+  getEventReferrals(@Param('eventId') eventId: string, @Request() req: any) {
+    return this.specialCodesService.getEventReferrals(eventId, req.user);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('by-event/:eventId/referrals')
+  createEventReferral(@Param('eventId') eventId: string, @Body() body: { name: string; code: string }, @Request() req: any) {
+    return this.specialCodesService.createEventReferral(eventId, req.user, body);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('by-event/:eventId/referrals/:referralId')
+  setEventReferralActive(@Param('eventId') eventId: string, @Param('referralId') referralId: string, @Body() body: { isActive: boolean }, @Request() req: any) {
+    return this.specialCodesService.setEventReferralActive(eventId, referralId, req.user, body.isActive === true);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Get('by-event/:eventId/payout-summary')
   getEventPayoutSummary(@Param('eventId') eventId: string, @Request() req: any) {
     return this.specialCodesService.getEventPayoutSummary(eventId, req.user);

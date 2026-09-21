@@ -7,7 +7,7 @@ import { In, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require('stripe');
-import { Order, OrderStatus, Ticket, TicketStatus, TicketRevocation, TicketRevocationSeatAction, Seat, SeatStatus, Event, EventStatus, VenueSection, SpecialCode, ScannerAccess, ScannerAccessStatus, UserRole, PaymentMethod, PaymentMethodType, OrganizerPayout } from '../database/entities';
+import { Order, OrderStatus, Ticket, TicketStatus, TicketRevocation, TicketRevocationSeatAction, Seat, SeatStatus, Event, EventStatus, VenueSection, SpecialCode, EventReferral, ScannerAccess, ScannerAccessStatus, UserRole, PaymentMethod, PaymentMethodType, OrganizerPayout } from '../database/entities';
 import { User } from '../database/entities/user.entity';
 import { nanoid } from 'nanoid';
 import { createHash, createHmac, timingSafeEqual } from 'crypto';
@@ -81,6 +81,8 @@ export class OrdersService {
     private readonly mailService: MailService,
     private readonly marketingService: MarketingService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    @InjectRepository(EventReferral)
+    private readonly referralRepo: Repository<EventReferral>,
   ) {
     const mode = this.configService.get('STRIPE_MODE') || 'test';
     const key = mode === 'production'
@@ -322,6 +324,21 @@ export class OrdersService {
     }
 
     return klarnaEnabled ? ['card', 'klarna'] : ['card'];
+  }
+
+  private async resolvePurchaseCode(eventId: string, rawCode?: string) {
+    const empty = { specialCode: null as string | null, specialCodeId: null as string | null, specialCodeOwnerId: null as string | null, referralCode: null as string | null };
+    if (!rawCode?.trim()) return empty;
+    const code = rawCode.trim().toUpperCase().replace(/\s+/g, '');
+    const special = await this.specialCodeRepo.findOne({ where: { code } });
+    if (special && (!special.eventId || special.eventId === eventId)) {
+      if (!special.isActive) throw new BadRequestException('Este código especial no está activo.');
+      return { specialCode: code, specialCodeId: special.id, specialCodeOwnerId: special.ownerUserId, referralCode: null };
+    }
+    const referral = await this.referralRepo.findOne({ where: { eventId, code } });
+    if (!referral) throw new BadRequestException('Código no válido para este evento.');
+    if (!referral.isActive) throw new BadRequestException('Este código no está activo.');
+    return { ...empty, referralCode: referral.code };
   }
 
   private isKlarnaConfigurationError(error: any) {
@@ -1128,19 +1145,7 @@ export class OrdersService {
     const paymentMethodTypes = this.getWebCheckoutPaymentMethodTypes(currency, requestedPaymentMethod);
 
     // Validate special code if provided
-    let resolvedCode: string | null = null;
-    let resolvedCodeId: string | null = null;
-    let resolvedCodeOwnerId: string | null = null;
-    if (rawSpecialCode && rawSpecialCode.trim()) {
-      const normalizedCode = rawSpecialCode.trim().toUpperCase().replace(/\s+/g, '');
-      const sc = await this.specialCodeRepo.findOne({ where: { code: normalizedCode } });
-      if (!sc) throw new BadRequestException('Código especial no válido.');
-      if (!sc.isActive) throw new BadRequestException('Este código especial no está activo.');
-      if (sc.eventId && sc.eventId !== eventId) throw new BadRequestException('Este código especial no aplica para este evento.');
-      resolvedCode = normalizedCode;
-      resolvedCodeId = sc.id;
-      resolvedCodeOwnerId = sc.ownerUserId;
-    }
+    const purchaseCode = await this.resolvePurchaseCode(eventId, rawSpecialCode);
 
     const maxLimit = event.maxTicketsPerTransaction || 10;
     if (seatIds && seatIds.length > maxLimit) {
@@ -1329,9 +1334,7 @@ export class OrdersService {
       status: OrderStatus.PENDING,
       ticketCount: cleanSeatsInfo.length,
       seatsData: JSON.stringify(cleanSeatsInfo),
-      specialCode: resolvedCode,
-      specialCodeId: resolvedCodeId,
-      specialCodeOwnerId: resolvedCodeOwnerId,
+      ...purchaseCode,
       stripeFeeReconciliationStatus: paymentMethodTypes.includes('klarna')
         ? STRIPE_FEE_RECONCILIATION_PENDING
         : STRIPE_FEE_RECONCILIATION_NOT_REQUIRED,
