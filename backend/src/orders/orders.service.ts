@@ -35,6 +35,15 @@ const KLARNA_SUPPORTED_CURRENCIES = new Set([
   'aud', 'cad', 'chf', 'czk', 'dkk', 'eur', 'gbp', 'nok', 'nzd', 'pln', 'ron', 'sek', 'usd',
 ]);
 
+type EventInventorySummary = {
+  totalCapacity: number;
+  availableTickets: number;
+  soldTickets: number;
+  courtesyTickets: number;
+  blockedTickets: number;
+  heldTickets: number;
+};
+
 /**
  * OrdersService
  * EN: Core logic for managing orders, payments via Stripe, ticket issuance,
@@ -83,6 +92,63 @@ export class OrdersService {
         apiVersion: '2024-12-18.acacia' as any,
       });
     }
+  }
+
+  /**
+   * Single source of truth for an event's inventory. A courtesy occupies one
+   * place but is never reported as either a paid sale or an extra block.
+   */
+  private buildEventInventorySummary(
+    sections: VenueSection[],
+    seats: Seat[],
+    tickets: Ticket[],
+    orders: Order[],
+  ): EventInventorySummary {
+    const orderById = new Map(orders.map((order) => [order.id, order]));
+    const validTickets = tickets.filter((ticket) =>
+      ticket.status === TicketStatus.ACTIVE || ticket.status === TicketStatus.USED,
+    );
+    const courtesyTickets = validTickets.filter((ticket) => {
+      const order = orderById.get(ticket.orderId);
+      return order?.salesChannel === 'complimentary'
+        || (Number(ticket.price || 0) === 0 && Number(order?.total || 0) === 0);
+    });
+    const courtesyTicketIds = new Set(courtesyTickets.map((ticket) => ticket.id));
+    const occupiedSeatIds = new Set(validTickets.map((ticket) => ticket.seatId).filter(Boolean));
+    const now = new Date();
+
+    const totalCapacity = sections.reduce((sum, section) => {
+      if (section.sectionType === 'stage' || section.sectionType === 'decor') return sum;
+      if (section.sectionType === 'standing') return sum + Math.max(0, Number(section.capacity) || 0);
+      const sectionSeats = seats.filter((seat) => seat.sectionId === section.id);
+      return sum + (sectionSeats.length || Math.max(0, Number(section.rows || 0) * Number(section.seatsPerRow || 0)));
+    }, 0);
+
+    let blockedTickets = 0;
+    let heldTickets = 0;
+    let orphanSoldSeats = 0;
+    for (const seat of seats) {
+      if (seat.status === SeatStatus.SOLD && !occupiedSeatIds.has(seat.id)) {
+        // Preserve capacity for a legacy sold seat even when its historical
+        // ticket record is unavailable.
+        orphanSoldSeats++;
+        continue;
+      }
+      if (seat.status !== SeatStatus.LOCKED || occupiedSeatIds.has(seat.id)) continue;
+      if (seat.lockExpiresAt && seat.lockExpiresAt > now) heldTickets++;
+      else blockedTickets++;
+    }
+
+    const soldTickets = validTickets.filter((ticket) => !courtesyTicketIds.has(ticket.id)).length + orphanSoldSeats;
+    const availableTickets = Math.max(0, totalCapacity - soldTickets - courtesyTickets.length - blockedTickets - heldTickets);
+    return {
+      totalCapacity,
+      availableTickets,
+      soldTickets,
+      courtesyTickets: courtesyTickets.length,
+      blockedTickets,
+      heldTickets,
+    };
   }
 
   private async getOrCreateStripeCustomer(userId: string, email?: string): Promise<string | null> {
@@ -2261,14 +2327,17 @@ export class OrdersService {
         order.paidAt = order.createdAt;
       });
     }
-    const orderIds = orders.map((order) => order.id);
-    if (orderIds.length > 0) {
-      const tickets = await this.ticketRepo.find({
-        where: { orderId: In(orderIds) },
-        order: { createdAt: 'ASC' },
-      });
+    const tickets = await this.ticketRepo.find({
+      where: {
+        eventId,
+        status: In([TicketStatus.ACTIVE, TicketStatus.USED]),
+      },
+      order: { createdAt: 'ASC' },
+    });
+    const orderIds = new Set(orders.map((order) => order.id));
+    if (orderIds.size > 0) {
       const ticketsByOrder = new Map<string, Ticket[]>();
-      tickets.forEach((ticket) => {
+      tickets.filter((ticket) => orderIds.has(ticket.orderId)).forEach((ticket) => {
         const existingTickets = ticketsByOrder.get(ticket.orderId) || [];
         existingTickets.push(ticket);
         ticketsByOrder.set(ticket.orderId, existingTickets);
@@ -2281,7 +2350,13 @@ export class OrdersService {
     // Organizer revenue = ticket sales only (subtotal), excluding the buyer's service fee.
     const totalRevenue = orders.reduce((sum, o) => sum + Number(o.subtotal), 0);
     const totalTickets = orders.reduce((sum, o) => sum + o.ticketCount, 0);
-    return { orders, totalRevenue, totalTickets, totalOrders: orders.length };
+    const sections = await this.sectionRepo.find({ where: { eventId } });
+    const sectionIds = sections.map((section) => section.id);
+    const seats = sectionIds.length > 0
+      ? await this.seatRepo.find({ where: { sectionId: In(sectionIds) } })
+      : [];
+    const inventory = this.buildEventInventorySummary(sections, seats, tickets, orders);
+    return { orders, totalRevenue, totalTickets, totalOrders: orders.length, inventory };
   }
 
   /**

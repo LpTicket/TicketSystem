@@ -1286,7 +1286,7 @@ export default function EventDetailPage() {
   const paidOrders = salesOrders.filter((order: any) => Number(order.subtotal ?? order.total ?? 0) > 0);
   const totalOrders = paidOrders.length;
   const issuedTickets = Math.max(Number(sales?.totalTickets || 0), attendees.length);
-  const paidTickets = salesOrders.reduce((sum: number, order: any) => {
+  const derivedPaidTickets = salesOrders.reduce((sum: number, order: any) => {
     const orderTotal = Number(order.subtotal ?? order.total ?? 0);
     const tickets = Array.isArray(order.tickets) ? order.tickets : [];
     if (tickets.length > 0) {
@@ -1332,10 +1332,15 @@ export default function EventDetailPage() {
     const capacity = realSeatCount > 0 ? realSeatCount : Number(section.rows || 0) * Number(section.seatsPerRow || 0);
     return { capacity: acc.capacity + capacity, lockedSeats: nextLocked };
   }, { capacity: 0, lockedSeats: 0 });
-  const totalEventCapacity = sectionCapacityStats.capacity;
-  const unpaidIssuedTickets = Math.max(issuedTickets - paidTickets, 0);
-  const blockedTickets = unpaidIssuedTickets + sectionCapacityStats.lockedSeats;
-  const remainingEventCapacity = Math.max(totalEventCapacity - paidTickets - blockedTickets, 0);
+  const inventory = sales?.inventory;
+  const paidTickets = Number(inventory?.soldTickets ?? derivedPaidTickets);
+  const courtesyTickets = Number(inventory?.courtesyTickets ?? Math.max(issuedTickets - derivedPaidTickets, 0));
+  const blockedTickets = Number(inventory?.blockedTickets ?? sectionCapacityStats.lockedSeats);
+  const heldTickets = Number(inventory?.heldTickets ?? 0);
+  const totalEventCapacity = Number(inventory?.totalCapacity ?? sectionCapacityStats.capacity);
+  const remainingEventCapacity = Number(
+    inventory?.availableTickets ?? Math.max(totalEventCapacity - paidTickets - courtesyTickets - blockedTickets - heldTickets, 0),
+  );
   const averageOrder = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   const scanRate = issuedTickets > 0 ? Math.round((scannedTickets / issuedTickets) * 100) : 0;
   const formatSectionAnalyticsLabel = (sectionName: string) => {
@@ -1388,7 +1393,10 @@ export default function EventDetailPage() {
       [lang === 'es' ? 'Ingresos por entradas' : 'Ticket revenue', totalRevenue.toFixed(2)],
       [lang === 'es' ? 'Órdenes' : 'Orders', String(totalOrders)],
       [lang === 'es' ? 'Tickets vendidos pagados' : 'Paid tickets sold', String(paidTickets)],
-      [lang === 'es' ? 'Tickets bloqueados / sin ingreso' : 'Blocked / no-revenue tickets', String(blockedTickets)],
+      [lang === 'es' ? 'Cortesías' : 'Courtesy tickets', String(courtesyTickets)],
+      [lang === 'es' ? 'Tickets bloqueados' : 'Blocked tickets', String(blockedTickets)],
+      [lang === 'es' ? 'Tickets en proceso de compra' : 'Tickets in checkout', String(heldTickets)],
+      [lang === 'es' ? 'Tickets disponibles' : 'Available tickets', String(remainingEventCapacity)],
       [lang === 'es' ? 'Tickets emitidos' : 'Issued tickets', String(issuedTickets)],
       [lang === 'es' ? 'Tickets escaneados' : 'Scanned tickets', String(scannedTickets)],
       [lang === 'es' ? 'Asistentes pendientes' : 'Pending attendees', String(pendingTickets)],
@@ -1568,7 +1576,7 @@ export default function EventDetailPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-7">
               {[
                 {
                   label: lang === 'es' ? 'Ingresos por entradas' : 'Ticket revenue',
@@ -1585,7 +1593,19 @@ export default function EventDetailPage() {
                 {
                   label: lang === 'es' ? 'Tickets bloqueados' : 'Blocked tickets',
                   value: String(blockedTickets),
-                  note: lang === 'es' ? 'Sin ingreso recibido' : 'No revenue received',
+                  note: lang === 'es' ? 'Bloqueo permanente del mapa' : 'Permanent map block',
+                  icon: HiOutlineBan,
+                },
+                {
+                  label: lang === 'es' ? 'Cortesías' : 'Courtesy tickets',
+                  value: String(courtesyTickets),
+                  note: lang === 'es' ? 'Entradas emitidas sin cobro' : 'Issued without charge',
+                  icon: HiOutlineTicket,
+                },
+                {
+                  label: lang === 'es' ? 'En proceso de compra' : 'In checkout',
+                  value: String(heldTickets),
+                  note: lang === 'es' ? 'Reservas temporales activas' : 'Active temporary holds',
                   icon: HiOutlineBan,
                 },
                 {
@@ -1595,9 +1615,9 @@ export default function EventDetailPage() {
                   icon: HiOutlineCheckCircle,
                 },
                 {
-                  label: lang === 'es' ? 'Capacidad total' : 'Total capacity',
-                  value: String(totalEventCapacity),
-                  note: `${remainingEventCapacity} ${lang === 'es' ? 'por vender o asignar' : 'left to sell or assign'}`,
+                  label: lang === 'es' ? 'Disponibles' : 'Available tickets',
+                  value: String(remainingEventCapacity),
+                  note: `${totalEventCapacity} ${lang === 'es' ? 'de capacidad total' : 'total capacity'}`,
                   icon: HiOutlineUsers,
                 },
               ].map((card) => (
@@ -1723,6 +1743,7 @@ export default function EventDetailPage() {
           event={event}
           isAdmin={user?.role === 'admin'}
           seatBuyers={seatBuyers}
+          inventory={sales?.inventory}
           onSaved={handleMapSaved}
           onChange={handleMapChange}
         />

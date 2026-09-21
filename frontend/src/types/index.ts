@@ -196,6 +196,14 @@ export interface SalesReport {
   totalRevenue: number;
   totalTickets: number;
   totalOrders: number;
+  inventory?: {
+    totalCapacity: number;
+    availableTickets: number;
+    soldTickets: number;
+    courtesyTickets: number;
+    blockedTickets: number;
+    heldTickets: number;
+  };
 }
 
 // CATEGORY_INFO is removed as it's now dynamically fetched from CategoryContext

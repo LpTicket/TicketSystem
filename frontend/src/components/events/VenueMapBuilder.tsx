@@ -32,6 +32,15 @@ interface VenueMapBuilderProps {
   isAdmin?: boolean;
   /** Map of sold seats to the buyer name, keyed by `${sectionName}|${rowLabel}|${seatNumber}` (lowercased). */
   seatBuyers?: Record<string, string>;
+  /** Canonical event inventory, calculated by the backend. */
+  inventory?: {
+    totalCapacity: number;
+    availableTickets: number;
+    soldTickets: number;
+    courtesyTickets: number;
+    blockedTickets: number;
+    heldTickets: number;
+  };
 }
 
 const SECTION_COLORS = ['#3b82f6', '#f97316', '#10b981', '#a855f7', '#ec4899', '#ef4444', '#f59e0b', '#6366f1'];
@@ -82,7 +91,7 @@ function getRectangularTableDimensions(seatCount: number) {
   };
 }
 
-export default function VenueMapBuilder({ eventId, initialSections, onSaved, onChange, event, isAdmin, seatBuyers }: VenueMapBuilderProps) {
+export default function VenueMapBuilder({ eventId, initialSections, onSaved, onChange, event, isAdmin, seatBuyers, inventory }: VenueMapBuilderProps) {
   const { t, lang } = useLang();
   const [sections, setSections] = useState<Partial<VenueSection>[]>([]);
   const [dbTemplates, setDbTemplates] = useState<any[]>([]);
@@ -1332,6 +1341,13 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   }, 0);
   const blockedCount = Math.max(0, fullCapacity - mapCapacity);
   const availableCount = Math.max(0, mapCapacity - soldCount);
+  const displayInventory = inventory && Number.isFinite(inventory.totalCapacity) ? inventory : null;
+  const displayTotalCapacity = displayInventory?.totalCapacity ?? fullCapacity;
+  const displayAvailableCount = displayInventory?.availableTickets ?? availableCount;
+  const displaySoldCount = displayInventory?.soldTickets ?? soldCount;
+  const displayCourtesyCount = displayInventory?.courtesyTickets ?? 0;
+  const displayBlockedCount = displayInventory?.blockedTickets ?? blockedCount;
+  const displayHeldCount = displayInventory?.heldTickets ?? 0;
 
   // Buyer name for a given sold seat, looked up in the seatBuyers map.
   const getSeatBuyer = (sectionName: string | undefined, rowLabel: string | number, seatNumber: string | number): string | undefined => {
@@ -1431,17 +1447,25 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             <div className="flex flex-wrap items-center gap-1.5">
               <h2 className="font-semibold text-gray-800 text-sm leading-tight">{lang === 'es' ? 'Diseñador de Asientos' : 'Seat Designer'}</h2>
               <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-0.5 text-[11px] font-black text-[#1a73e8]">
-                {lang === 'es' ? 'Capacidad total' : 'Total capacity'}: {fullCapacity}
+                {lang === 'es' ? 'Capacidad total' : 'Total capacity'}: {displayTotalCapacity}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black text-emerald-600">
-                {lang === 'es' ? 'Disponibles' : 'Available'}: {availableCount}
+                {lang === 'es' ? 'Disponibles' : 'Available'}: {displayAvailableCount}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-orange-100 bg-orange-50 px-2.5 py-0.5 text-[11px] font-black text-[#F97316]">
-                {lang === 'es' ? 'Vendidas' : 'Sold'}: {soldCount}
+                {lang === 'es' ? 'Vendidas' : 'Sold'}: {displaySoldCount}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-violet-100 bg-violet-50 px-2.5 py-0.5 text-[11px] font-black text-violet-700">
+                {lang === 'es' ? 'Cortesías' : 'Courtesy'}: {displayCourtesyCount}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-[11px] font-black text-slate-600">
-                {lang === 'es' ? 'Bloqueadas' : 'Blocked'}: {blockedCount}
+                {lang === 'es' ? 'Bloqueadas' : 'Blocked'}: {displayBlockedCount}
               </span>
+              {displayHeldCount > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2.5 py-0.5 text-[11px] font-black text-amber-700">
+                  {lang === 'es' ? 'En proceso' : 'In checkout'}: {displayHeldCount}
+                </span>
+              )}
             </div>
           </div>
         </div>

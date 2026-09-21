@@ -48,6 +48,42 @@ function buildService(overrides: Record<string, any> = {}) {
 }
 
 describe('OrdersService critical ticket safeguards', () => {
+  it('keeps sold, courtesy, blocked, held and available inventory mutually exclusive', () => {
+    const { service } = buildService();
+    const future = new Date(Date.now() + 60_000);
+    const inventory = (service as any).buildEventInventorySummary(
+      [{ id: 'section-1', sectionType: 'seating', rows: 1, seatsPerRow: 10 }],
+      [
+        { id: 'seat-paid', sectionId: 'section-1', status: SeatStatus.SOLD },
+        { id: 'seat-courtesy', sectionId: 'section-1', status: SeatStatus.LOCKED },
+        { id: 'seat-blocked', sectionId: 'section-1', status: SeatStatus.LOCKED, lockExpiresAt: null },
+        { id: 'seat-held', sectionId: 'section-1', status: SeatStatus.LOCKED, lockExpiresAt: future },
+        ...Array.from({ length: 6 }, (_, index) => ({
+          id: `seat-available-${index}`,
+          sectionId: 'section-1',
+          status: SeatStatus.AVAILABLE,
+        })),
+      ],
+      [
+        { id: 'ticket-paid', orderId: 'order-paid', seatId: 'seat-paid', status: TicketStatus.ACTIVE, price: 25 },
+        { id: 'ticket-courtesy', orderId: 'order-courtesy', seatId: 'seat-courtesy', status: TicketStatus.ACTIVE, price: 0 },
+      ],
+      [
+        { id: 'order-paid', total: 25, salesChannel: 'web' },
+        { id: 'order-courtesy', total: 0, salesChannel: 'complimentary' },
+      ],
+    );
+
+    expect(inventory).toEqual({
+      totalCapacity: 10,
+      soldTickets: 1,
+      courtesyTickets: 1,
+      blockedTickets: 1,
+      heldTickets: 1,
+      availableTickets: 6,
+    });
+  });
+
   function buildRevocationTransaction(tickets: any[], seats: any[], sections: any[]) {
     const eventQuery = {
       setLock: jest.fn().mockReturnThis(),
