@@ -1448,6 +1448,16 @@ export class OrdersService {
     let baseTotal = 0;
     const seatsInfo: any[] = [];
 
+    // App Store builds represent General Admission selections with temporary
+    // standing-<sectionId>-<n>-<timestamp> identifiers. Checkout already
+    // supports them; normalize them here too so its invoice preview matches.
+    if (seatIds && seatIds.length > 0 && seatIds[0].startsWith('standing-')) {
+      const extractedSectionId = seatIds[0].slice('standing-'.length, 'standing-'.length + 36);
+      sectionId = sectionId || extractedSectionId;
+      quantity = quantity || seatIds.length;
+      seatIds = [];
+    }
+
     if (seatIds && seatIds.length > 0) {
       for (const seatId of seatIds) {
         const seat = await this.seatRepo.findOne({
