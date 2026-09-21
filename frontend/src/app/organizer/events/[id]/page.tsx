@@ -13,7 +13,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
 import { parseSafeDate, formatDateInTimezone, getTimezoneAbbr } from '@/lib/dateUtils';
@@ -660,6 +660,8 @@ export default function EventDetailPage() {
   const { user } = useAuthStore();
   const { t, lang } = useLang();
   const router = useRouter();
+  const isAdminEditor = usePathname().startsWith('/admin/events/edit/');
+  const eventsPath = isAdminEditor ? '/admin/events' : '/organizer/events';
   const searchParams = useSearchParams();
   const { categories, getCategoryInfo, refreshCategories } = useCategories();
 
@@ -667,6 +669,8 @@ export default function EventDetailPage() {
   const [sections, setSections] = useState<VenueSection[]>([]);
   const [sales, setSales] = useState<SalesReport | null>(null);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
+  const [seatHolders, setSeatHolders] = useState<Record<string, string>>({});
+  const [mapReady, setMapReady] = useState(false);
   const [activeTab, setActiveTab] = useState<'analytics' | 'details' | 'overview' | 'attendees' | 'map' | 'blocks' | 'reminders' | 'commission'>('analytics');
   const tabRestoredRef = useRef(false);
   const restoredBlockEventsRef = useRef(new Set<string>());
@@ -782,7 +786,7 @@ export default function EventDetailPage() {
       // Load event details
       const { data: events } = await api.get('/events', { params: { limit: 100, includePast: 'true' } });
       const ev = (events.events || []).find((e: Event) => e.id === id);
-      if (!ev || (ev.organizerId !== user?.id && user?.role !== 'admin')) { router.push('/organizer/events'); return; }
+      if (!ev || (ev.organizerId !== user?.id && user?.role !== 'admin')) { router.push(eventsPath); return; }
       setEvent(ev);
       setEditForm({
         title: ev.title || '',
@@ -826,11 +830,28 @@ export default function EventDetailPage() {
       if (salesResult.status === 'fulfilled') setSales(salesResult.value.data);
       if (attendeesResult.status === 'fulfilled') setAttendees(attendeesResult.value.data);
     } catch {
-      router.push('/organizer/events');
+      router.push(eventsPath);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab !== 'map' || loading) return;
+    let active = true;
+    Promise.allSettled([
+      api.get(`/events/${id}/seatmap`),
+      api.get(`/orders/event/${id}/seat-holds`),
+    ]).then(([mapResult, holdersResult]) => {
+      if (!active) return;
+      if (mapResult.status === 'fulfilled') setSections(mapResult.value.data);
+      setSeatHolders(holdersResult.status === 'fulfilled'
+        ? Object.fromEntries(holdersResult.value.data.map((hold: { seatId: string; holderName: string }) => [hold.seatId, hold.holderName]))
+        : {});
+      setMapReady(true);
+    });
+    return () => { active = false; };
+  }, [activeTab, id, loading]);
 
   useEffect(() => {
     if (activeTab !== 'blocks' || !id || restoredBlockEventsRef.current.has(id)) return;
@@ -877,7 +898,7 @@ export default function EventDetailPage() {
     try {
       await api.delete(`/events/${id}`);
       toast.success(lang === 'es' ? 'Evento eliminado con éxito' : 'Event deleted successfully');
-      router.push('/organizer/events');
+      router.push(eventsPath);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Error');
     }
@@ -1424,9 +1445,9 @@ export default function EventDetailPage() {
     <div className="premium-shell p-6 lg:p-8 space-y-6 animate-fade-in">
       {/* Back & Header */}
       <div>
-        <Link href="/organizer/events" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary-500 transition-colors mb-3">
+        <Link href={eventsPath} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary-500 transition-colors mb-3">
           <HiOutlineArrowLeft className="w-4 h-4" />
-          {t('orgMyEvents')}
+          {isAdminEditor ? (lang === 'es' ? 'Eventos de administración' : 'Admin events') : t('orgMyEvents')}
         </Link>
 
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -1518,7 +1539,7 @@ export default function EventDetailPage() {
           {attendees.length > 0 && <span className="shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-black text-[#F97316] sm:text-xs">{attendees.length} / {sales?.orders?.length || 0}</span>}
         </button>
         <button
-          onClick={() => setActiveTab('map')}
+          onClick={() => { if (activeTab !== 'map') setMapReady(false); setActiveTab('map'); }}
           className={`group relative flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-xl border px-2.5 py-2 text-center text-[13px] font-extrabold leading-tight shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] sm:min-h-[46px] sm:px-3 sm:text-sm ${activeTab === 'map' ? 'border-[#F97316] bg-orange-50 text-[#F97316] shadow-md shadow-orange-500/10' : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50/80 hover:text-[#F97316] hover:shadow-md'}`}
         >
           <HiOutlineMap className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
@@ -1576,7 +1597,7 @@ export default function EventDetailPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-7">
+            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {[
                 {
                   label: lang === 'es' ? 'Ingresos por entradas' : 'Ticket revenue',
@@ -1623,13 +1644,13 @@ export default function EventDetailPage() {
               ].map((card) => (
                 <div key={card.label} className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold uppercase tracking-wide text-gray-500">{card.label}</p>
                       <p className="mt-2 text-2xl font-black text-[#0A375A]">{card.value}</p>
                       <p className="mt-1 text-xs font-semibold text-gray-500">{card.note}</p>
                     </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[rgba(249,115,22,0.12)] text-[#0A375A]">
-                      <card.icon className="h-5 w-5" />
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-orange-400/35 bg-orange-500/15 text-orange-300 shadow-[0_0_18px_rgba(249,115,22,0.16)]">
+                      <card.icon className="h-5 w-5 shrink-0" />
                     </div>
                   </div>
                 </div>
@@ -1736,13 +1757,15 @@ export default function EventDetailPage() {
       )}
 
       {/* Map Builder Tab */}
-      {activeTab === 'map' && (
+      {activeTab === 'map' && !mapReady && <div className="premium-section-card p-6 text-sm text-slate-300">{lang === 'es' ? 'Cargando mapa…' : 'Loading map…'}</div>}
+      {activeTab === 'map' && mapReady && (
         <VenueMapBuilder
           eventId={id}
           initialSections={sections}
           event={event}
           isAdmin={user?.role === 'admin'}
           seatBuyers={seatBuyers}
+          seatHolders={seatHolders}
           inventory={sales?.inventory}
           onSaved={handleMapSaved}
           onChange={handleMapChange}

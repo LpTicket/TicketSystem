@@ -32,6 +32,8 @@ interface VenueMapBuilderProps {
   isAdmin?: boolean;
   /** Map of sold seats to the buyer name, keyed by `${sectionName}|${rowLabel}|${seatNumber}` (lowercased). */
   seatBuyers?: Record<string, string>;
+  /** Active checkout holders, keyed by database seat ID. */
+  seatHolders?: Record<string, string>;
   /** Canonical event inventory, calculated by the backend. */
   inventory?: {
     totalCapacity: number;
@@ -91,7 +93,7 @@ function getRectangularTableDimensions(seatCount: number) {
   };
 }
 
-export default function VenueMapBuilder({ eventId, initialSections, onSaved, onChange, event, isAdmin, seatBuyers, inventory }: VenueMapBuilderProps) {
+export default function VenueMapBuilder({ eventId, initialSections, onSaved, onChange, event, isAdmin, seatBuyers, seatHolders, inventory }: VenueMapBuilderProps) {
   const { t, lang } = useLang();
   const [sections, setSections] = useState<Partial<VenueSection>[]>([]);
   const [dbTemplates, setDbTemplates] = useState<any[]>([]);
@@ -1372,7 +1374,10 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     const rect = viewportRef.current?.getBoundingClientRect();
     const x = rect ? e.clientX - rect.left : 0;
     const y = rect ? e.clientY - rect.top : 0;
-    const buyer = getSeatBuyer(sec.name, row as any, num as any);
+    const heldSeat = sStatus === 'held' ? findSeatByKey(sec, seatKey) : null;
+    const buyer = sStatus === 'held'
+      ? (heldSeat ? seatHolders?.[heldSeat.id] : undefined)
+      : sStatus === 'sold' ? getSeatBuyer(sec.name, row, num) : undefined;
     const es = lang === 'es';
     let status: string, statusClass: string;
     if (isDisabled) {
@@ -1382,7 +1387,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       status = es ? 'Vendido' : 'Sold';
       statusClass = 'bg-slate-100 text-slate-600 border-slate-200';
     } else if (sStatus === 'held') {
-      status = es ? 'Bloqueado' : 'Held';
+      status = es ? 'En proceso de compra' : 'In checkout';
       statusClass = 'bg-yellow-50 text-yellow-700 border-yellow-200';
     } else if (sStatus === 'reserved') {
       status = es ? 'Reservado' : 'Reserved';
@@ -1400,7 +1405,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       subtitle,
       status,
       statusClass,
-      price: Number((sec as any).price || 0),
+      price: Number(getSeatsConfig(sec)[seatKey]?.price ?? sec.price ?? 0),
       buyer,
       x,
       y,

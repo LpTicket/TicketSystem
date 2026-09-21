@@ -597,7 +597,7 @@ export default function AdminEventsPage() {
                             {lang === 'es' ? 'Tarifa fija' : 'Fixed fees'}
                           </button>
                           <Link
-                            href={`/organizer/events/${ev.id}`}
+                            href={`/admin/events/edit/${ev.id}`}
                             title={lang === 'es' ? 'Editar evento' : 'Edit event'}
                             className="p-1.5 rounded-lg transition-colors bg-[#0A375A] text-white border border-[#0A375A] hover:bg-[#134c78] shadow-sm shrink-0"
                           >
@@ -735,7 +735,7 @@ export default function AdminEventsPage() {
                         {lang === 'es' ? 'TARIFA FIJA' : 'FIXED FEES'}
                       </button>
                       <Link
-                        href={`/organizer/events/${ev.id}`}
+                        href={`/admin/events/edit/${ev.id}`}
                         title={lang === 'es' ? 'Editar evento' : 'Edit event'}
                         className="p-2 bg-[#0A375A] text-white border border-[#0A375A] rounded-lg flex items-center justify-center active:scale-95 transition-all"
                       >

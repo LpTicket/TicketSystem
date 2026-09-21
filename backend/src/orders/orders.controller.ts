@@ -384,6 +384,14 @@ export class OrdersController {
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Header('Cache-Control', 'no-store')
+  @Get('event/:eventId/seat-holds')
+  getEventSeatHolds(@Param('eventId') eventId: string, @Request() req: any) {
+    return this.ordersService.getEventSeatHolds(eventId, req.user);
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.CLIENT, UserRole.ADMIN)
   @Post('event/:eventId/tickets/revoke')
   revokeEventTickets(
     @Param('eventId') eventId: string,

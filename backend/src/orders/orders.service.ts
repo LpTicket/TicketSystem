@@ -2468,6 +2468,29 @@ export class OrdersService {
     });
   }
 
+  async getEventSeatHolds(eventId: string, user: { id: string; role?: string }) {
+    await this.assertEventAccess(eventId, user);
+    const now = new Date();
+    const seats = await this.seatRepo.createQueryBuilder('seat')
+      .innerJoinAndSelect('seat.section', 'section')
+      .where('section.eventId = :eventId', { eventId })
+      .andWhere('seat.status = :status', { status: SeatStatus.LOCKED })
+      .andWhere('seat.lockExpiresAt > :now', { now })
+      .andWhere('seat.lockedBy IS NOT NULL')
+      .getMany();
+    const userIds = [...new Set(seats.map((seat) => seat.lockedBy))];
+    if (!userIds.length) return [];
+    const users = await this.eventRepo.manager.find(User, {
+      where: { id: In(userIds) },
+      select: ['id', 'firstName', 'lastName'],
+    });
+    const names = new Map(users.map((holder) => [holder.id, `${holder.firstName || ''} ${holder.lastName || ''}`.trim()]));
+    return seats.map((seat) => ({
+      seatId: seat.id,
+      holderName: names.get(seat.lockedBy) || '',
+    }));
+  }
+
   /**
    * Permanently revokes organizer-selected tickets while moving their seats to
    * the requested inventory state in the same database transaction. Orders and

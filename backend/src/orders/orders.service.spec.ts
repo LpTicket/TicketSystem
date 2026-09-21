@@ -48,6 +48,31 @@ function buildService(overrides: Record<string, any> = {}) {
 }
 
 describe('OrdersService critical ticket safeguards', () => {
+  it('returns active seat holders only to the event organizer', async () => {
+    const query = {
+      innerJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([
+        { id: 'seat-1', sectionId: 'section-1', lockedBy: 'buyer-1', rowLabel: 'A', seatNumber: 1 },
+      ]),
+    };
+    const users = { find: jest.fn().mockResolvedValue([{ id: 'buyer-1', firstName: 'Ana', lastName: 'López' }]) };
+    const { service } = buildService({
+      eventRepo: {
+        findOne: jest.fn().mockResolvedValue({ id: 'event-1', organizerId: 'organizer-1' }),
+        manager: { find: users.find },
+      },
+      seatRepo: { createQueryBuilder: jest.fn().mockReturnValue(query) },
+    });
+
+    await expect(service.getEventSeatHolds('event-1', { id: 'other-user', role: UserRole.CLIENT })).rejects.toThrow();
+    expect(query.getMany).not.toHaveBeenCalled();
+    await expect(service.getEventSeatHolds('event-1', { id: 'organizer-1', role: UserRole.CLIENT }))
+      .resolves.toEqual([{ seatId: 'seat-1', holderName: 'Ana López' }]);
+    expect(query.andWhere).toHaveBeenCalledWith('seat.lockExpiresAt > :now', expect.objectContaining({ now: expect.any(Date) }));
+  });
+
   it('keeps sold, courtesy, blocked, held and available inventory mutually exclusive', () => {
     const { service } = buildService();
     const future = new Date(Date.now() + 60_000);
