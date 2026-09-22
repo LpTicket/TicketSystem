@@ -548,7 +548,10 @@ export class EventsService {
     const orderRows = await this.eventRepo.manager.getRepository(Order)
       .createQueryBuilder('o')
       .select('o."eventId"', 'eventId')
-      .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'soldTickets')
+      // Keep the organizer event card aligned with Analytics: "sold" means
+      // tickets from paid orders. Complimentary $0 tickets remain issued
+      // capacity, but are not reported as sales.
+      .addSelect(`COALESCE(SUM(CASE WHEN COALESCE(o.subtotal, 0) > 0 THEN o."ticketCount" ELSE 0 END), 0)`, 'soldTickets')
       .addSelect('COALESCE(SUM(o.subtotal), 0)', 'totalRevenue')
       .where('o."eventId" IN (:...eventIds)', { eventIds })
       .andWhere('o.status = :status', { status: OrderStatus.PAID })
