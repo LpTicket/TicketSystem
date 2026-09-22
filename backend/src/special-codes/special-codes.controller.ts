@@ -28,6 +28,12 @@ export class SpecialCodesController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Delete('by-event/:eventId/referrals/:referralId')
+  deleteEventReferral(@Param('eventId') eventId: string, @Param('referralId') referralId: string, @Request() req: any) {
+    return this.specialCodesService.deleteEventReferral(eventId, referralId, req.user);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Get('by-event/:eventId/payout-summary')
   getEventPayoutSummary(@Param('eventId') eventId: string, @Request() req: any) {
     return this.specialCodesService.getEventPayoutSummary(eventId, req.user);

@@ -8,10 +8,11 @@ function makeService() {
     findOne: jest.fn(),
     create: jest.fn((data) => data),
     save: jest.fn(async (data) => data),
+    remove: jest.fn(async (data) => data),
   };
   const eventRepo = { findOne: jest.fn() };
   const specialCodeRepo = { findOne: jest.fn() };
-  const orderRepo = { find: jest.fn() };
+  const orderRepo = { find: jest.fn(), count: jest.fn() };
   const service = new SpecialCodesService(
     specialCodeRepo as any, {} as any, eventRepo as any, orderRepo as any, {} as any, referralRepo as any,
   );
@@ -67,5 +68,27 @@ describe('event referrals', () => {
     await expect(service.getEventReferrals('event-1', { id: 'other', role: 'client' }))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(orderRepo.find).not.toHaveBeenCalled();
+  });
+
+  it('deletes an unused event referral', async () => {
+    const { service, referralRepo, eventRepo, orderRepo } = makeService();
+    const referral = { id: 'ref-1', eventId: 'event-1', code: 'BEATRIZ' };
+    eventRepo.findOne.mockResolvedValue({ id: 'event-1', organizerId: 'organizer-1' });
+    referralRepo.findOne.mockResolvedValue(referral);
+    orderRepo.count.mockResolvedValue(0);
+
+    await expect(service.deleteEventReferral('event-1', 'ref-1', { id: 'organizer-1' })).resolves.toEqual({ success: true });
+    expect(referralRepo.remove).toHaveBeenCalledWith(referral);
+  });
+
+  it('preserves referral history when it already has purchases', async () => {
+    const { service, referralRepo, eventRepo, orderRepo } = makeService();
+    eventRepo.findOne.mockResolvedValue({ id: 'event-1', organizerId: 'organizer-1' });
+    referralRepo.findOne.mockResolvedValue({ id: 'ref-1', eventId: 'event-1', code: 'BEATRIZ' });
+    orderRepo.count.mockResolvedValue(1);
+
+    await expect(service.deleteEventReferral('event-1', 'ref-1', { id: 'organizer-1' }))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(referralRepo.remove).not.toHaveBeenCalled();
   });
 });

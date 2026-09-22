@@ -314,6 +314,7 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -351,6 +352,26 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
     }
   };
 
+  const remove = async (referral: EventReferral) => {
+    const confirmed = window.confirm(
+      lang === 'es'
+        ? `¿Eliminar por completo el referido ${referral.code}? Esta acción no se puede deshacer.`
+        : `Permanently delete referral ${referral.code}? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingId(referral.id);
+    try {
+      await api.delete(`/special-codes/by-event/${eventId}/referrals/${referral.id}`);
+      await load();
+      toast.success(lang === 'es' ? 'Referido eliminado' : 'Referral deleted');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || (lang === 'es' ? 'No se pudo eliminar el referido.' : 'Could not delete referral.'));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-slate-700 bg-[#102337] p-5 text-white">
       <h2 className="text-xl font-bold">{lang === 'es' ? 'Referidos del evento' : 'Event referrals'}</h2>
@@ -365,7 +386,14 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
           <div key={referral.id} className="rounded-xl border border-slate-700 bg-[#0b1c2d] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><p className="font-bold">{referral.name} <span className="ml-2 text-orange-400">{referral.code}</span></p><p className="text-sm text-slate-300">{referral.orders} {lang === 'es' ? 'compras' : 'orders'} · {referral.tickets} tickets · ${Number(referral.revenue || 0).toFixed(2)} {lang === 'es' ? 'en entradas' : 'in tickets'}</p></div>
-              <button className="rounded-lg border border-slate-500 px-3 py-1.5 text-sm" onClick={() => toggle(referral)}>{referral.isActive ? (lang === 'es' ? 'Pausar' : 'Pause') : (lang === 'es' ? 'Activar' : 'Activate')}</button>
+              <div className="flex items-center gap-2">
+                <button className="rounded-lg border border-slate-500 px-3 py-1.5 text-sm" onClick={() => toggle(referral)}>{referral.isActive ? (lang === 'es' ? 'Pausar' : 'Pause') : (lang === 'es' ? 'Activar' : 'Activate')}</button>
+                {referral.orders === 0 && (
+                  <button className="rounded-lg border border-red-400 px-3 py-1.5 text-sm font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50" disabled={deletingId === referral.id} onClick={() => remove(referral)}>
+                    {deletingId === referral.id ? (lang === 'es' ? 'Eliminando...' : 'Deleting...') : (lang === 'es' ? 'Eliminar' : 'Delete')}
+                  </button>
+                )}
+              </div>
             </div>
             {(referral.purchases?.length ?? 0) > 0 && (
               <details className="mt-3 border-t border-slate-700 pt-3 text-sm">

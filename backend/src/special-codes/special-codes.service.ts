@@ -102,6 +102,22 @@ export class SpecialCodesService {
     return this.referralRepo.save(referral);
   }
 
+  async deleteEventReferral(eventId: string, referralId: string, user: { id: string; role?: string }) {
+    await this.assertEventAccess(eventId, user);
+    const referral = await this.referralRepo.findOne({ where: { id: referralId, eventId } });
+    if (!referral) throw new NotFoundException('Referido no encontrado.');
+
+    const purchaseCount = await this.orderRepo.count({
+      where: { eventId, status: OrderStatus.PAID, referralCode: referral.code },
+    });
+    if (purchaseCount > 0) {
+      throw new BadRequestException('No se puede eliminar un referido que ya tiene compras. Puedes pausarlo para conservar su historial.');
+    }
+
+    await this.referralRepo.remove(referral);
+    return { success: true };
+  }
+
   async createCode(dto: CreateSpecialCodeDto) {
     const code = this.normalizeCode(dto.code);
     if (!code) throw new BadRequestException('El codigo es requerido.');
