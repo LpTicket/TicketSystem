@@ -326,16 +326,16 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
       />
       <div className="event-dark max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-8 lg:pt-24">
       {/* Hero Image */}
-      <div className="event-premium-hero relative mb-8 aspect-[4/3] overflow-hidden bg-[#071827] sm:aspect-[21/8]">
+      <div className="event-premium-hero relative mb-8 overflow-hidden bg-[#071827] sm:aspect-[21/8]">
         {(event.bannerImageUrl || event.imageUrl) ? (
           <img 
             src={eventImageUrl} 
             alt={event.title} 
-            className="h-full w-full object-contain sm:object-cover"
+            className="block h-auto w-full sm:h-full sm:object-cover"
             style={{ objectPosition: event.bannerPosition || 'center' }}
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-r from-[#0A375A] to-[#F97316] flex items-center justify-center">
+          <div className="flex aspect-[4/3] w-full items-center justify-center bg-gradient-to-r from-[#0A375A] to-[#F97316] sm:h-full sm:aspect-auto">
             <span className="text-8xl">{categoryInfo.icon}</span>
           </div>
         )}
