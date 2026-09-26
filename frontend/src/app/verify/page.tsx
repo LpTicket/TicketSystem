@@ -13,7 +13,6 @@ import {
   HiOutlineCamera,
   HiOutlineTicket,
   HiOutlineExternalLink,
-  HiOutlineRefresh,
   HiOutlineClock,
   HiOutlineChevronDown,
 } from 'react-icons/hi';
@@ -24,6 +23,8 @@ type MyEvent = { id: string; title: string; date: string; status: string; access
 type EventTicketStats = {
   totalPurchased: number;
   totalIssued?: number;
+  soldTickets?: number;
+  courtesyTickets?: number;
   ticketsToScan: number;
   ticketsEntered?: number;
   totalCapacity?: number;
@@ -41,7 +42,6 @@ type RecentScan = {
   time: string;
 };
 
-const SCANNER_STATS_STORAGE_KEY = 'lpticket_scanner_stats';
 const SCANNER_RECENT_STORAGE_KEY = 'lpticket_scanner_recent_scans';
 
 export default function TicketScannerPage() {
@@ -55,12 +55,12 @@ export default function TicketScannerPage() {
   const [scannerInstance, setScannerInstance] = useState<any>(null);
   const [highContrast, setHighContrast] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [liveStats, setLiveStats] = useState({ total: 0, approved: 0, denied: 0 });
   const [eventTicketStats, setEventTicketStats] = useState<EventTicketStats | null>(null);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
 
   const [myEvents, setMyEvents] = useState<MyEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const refreshEventStats = useRef<() => void>(() => {});
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Gate search by attendee name / email / table — grouped by buyer.
@@ -93,16 +93,6 @@ export default function TicketScannerPage() {
     if (typeof window === 'undefined') return;
 
     try {
-      const storedStats = localStorage.getItem(SCANNER_STATS_STORAGE_KEY);
-      if (storedStats) {
-        const parsedStats = JSON.parse(storedStats);
-        setLiveStats({
-          total: Number(parsedStats.total || 0),
-          approved: Number(parsedStats.approved || 0),
-          denied: Number(parsedStats.denied || 0),
-        });
-      }
-
       const storedRecentScans = localStorage.getItem(SCANNER_RECENT_STORAGE_KEY);
       if (storedRecentScans) {
         const parsedRecentScans = JSON.parse(storedRecentScans);
@@ -112,11 +102,6 @@ export default function TicketScannerPage() {
       }
     } catch {}
   }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(SCANNER_STATS_STORAGE_KEY, JSON.stringify(liveStats));
-  }, [liveStats]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -177,15 +162,19 @@ export default function TicketScannerPage() {
     setEventTicketStats(null);
     if (!selectedEventId) return;
 
+    let active = true;
+    let revision = 0;
     const fetchStats = () => {
+      const request = ++revision;
       api.get(isStaffEvent ? `/scanner-access/events/${selectedEventId}/stats` : `/orders/event/${selectedEventId}/scanner-stats`)
-        .then(({ data }) => setEventTicketStats(data))
-        .catch(() => {});
+        .then(({ data }) => { if (active && request === revision) setEventTicketStats(data); })
+        .catch(() => { if (active && request === revision) setEventTicketStats(null); });
     };
 
+    refreshEventStats.current = fetchStats;
     fetchStats();
     pollIntervalRef.current = setInterval(fetchStats, 15000);
-    return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
+    return () => { active = false; refreshEventStats.current = () => {}; if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
   }, [selectedEventId, isStaffEvent]);
 
   const playFeedback = (valid: boolean) => {
@@ -216,12 +205,6 @@ export default function TicketScannerPage() {
   };
 
   const registerScan = (result: { valid: boolean; message: string; code: string; ticket?: any }) => {
-    setLiveStats((prev) => ({
-      total: prev.total + 1,
-      approved: prev.approved + (result.valid ? 1 : 0),
-      denied: prev.denied + (result.valid ? 0 : 1),
-    }));
-
     const attendee = result.ticket?.user
       ? `${result.ticket.user.firstName || ''} ${result.ticket.user.lastName || ''}`.trim()
       : undefined;
@@ -303,7 +286,7 @@ export default function TicketScannerPage() {
       silentSearchRefresh.current = true;
       setSearchRevision((v) => v + 1);
       setValidating(false);
-      if (selectedEventId) api.get(isStaffEvent ? `/scanner-access/events/${selectedEventId}/stats` : `/orders/event/${selectedEventId}/scanner-stats`).then(({ data }) => setEventTicketStats(data)).catch(() => {});
+      refreshEventStats.current();
     }
   };
 
@@ -437,15 +420,6 @@ export default function TicketScannerPage() {
     setValidationResult(null);
     setScanResult(null);
     startCameraScan();
-  };
-
-  const resetStats = () => {
-    setLiveStats({ total: 0, approved: 0, denied: 0 });
-    setRecentScans([]);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(SCANNER_STATS_STORAGE_KEY);
-      localStorage.removeItem(SCANNER_RECENT_STORAGE_KEY);
-    }
   };
 
   const shellClass = 'page-dark-shell min-h-screen';
@@ -822,21 +796,25 @@ export default function TicketScannerPage() {
                 {lang === 'es' ? 'Operación de puerta' : 'Door operation'}
               </h2>
             </div>
-
-            <button
-              type="button"
-              onClick={resetStats}
-              className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-wide transition ${
-                highContrast ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              <HiOutlineRefresh className="h-4 w-4" />
-              {lang === 'es' ? 'Reiniciar' : 'Reset'}
-            </button>
           </div>
 
           {eventTicketStats && (
             <div className="mt-5 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-orange-400/20 bg-orange-500/10 p-4">
+                  <p className="text-xs text-orange-400">{lang === 'es' ? 'Vendidas' : 'Sold'}</p>
+                  <p className="mt-2 text-3xl font-black text-orange-400">{eventTicketStats.soldTickets ?? '—'}</p>
+                </div>
+                <div className="rounded-lg border border-slate-400/20 p-4">
+                  <p className="text-xs text-slate-400">{lang === 'es' ? 'Cortesías' : 'Complimentary'}</p>
+                  <p className="mt-2 text-3xl font-black text-slate-400">{eventTicketStats.courtesyTickets ?? '—'}</p>
+                </div>
+              </div>
+              <p className="text-sm text-orange-400">
+                {(eventTicketStats.totalIssued ?? eventTicketStats.totalPurchased) > (eventTicketStats.totalCapacity ?? 0)
+                  ? (lang === 'es' ? 'Capacidad excedida: ' : 'Capacity exceeded: ') + ((eventTicketStats.totalIssued ?? eventTicketStats.totalPurchased) - (eventTicketStats.totalCapacity ?? 0))
+                  : (lang === 'es' ? 'Margen hasta la capacidad (incluye cortesías): ' : 'Capacity margin (includes complimentary): ') + ((eventTicketStats.totalCapacity ?? 0) - (eventTicketStats.totalIssued ?? eventTicketStats.totalPurchased))}
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 <div className={`rounded-lg border p-4 ${highContrast ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
                   <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{lang === 'es' ? 'Entradas emitidas' : 'Issued tickets'}</p>
@@ -897,25 +875,12 @@ export default function TicketScannerPage() {
             </div>
           )}
 
-          <div className="mt-5 grid grid-cols-1 min-[380px]:grid-cols-3 gap-3">
-            <div className={`rounded-lg border p-4 ${highContrast ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
-              <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{lang === 'es' ? 'Total' : 'Total'}</p>
-              <p className={`mt-2 text-3xl font-black ${highContrast ? 'text-white' : 'text-[#0A375A]'}`}>{liveStats.total}</p>
-            </div>
-            <div className="rounded-lg border border-emerald-400/20 bg-emerald-500/10 p-4">
-              <p className="text-[10px] font-black uppercase tracking-wide text-emerald-300">{lang === 'es' ? 'Aprobados' : 'Approved'}</p>
-              <p className="mt-2 text-3xl font-black text-emerald-300">{liveStats.approved}</p>
-            </div>
-            <div className="rounded-lg border border-red-400/20 bg-red-500/10 p-4">
-              <p className="text-[10px] font-black uppercase tracking-wide text-red-300">{lang === 'es' ? 'Denegados' : 'Denied'}</p>
-              <p className="mt-2 text-3xl font-black text-red-300">{liveStats.denied}</p>
-            </div>
-          </div>
+          <p className="mt-3 text-xs text-slate-400">{lang === 'es' ? 'Todos los dispositivos · actualización cada 15 s' : 'All devices · updates every 15 s'}</p>
 
           <div className="mt-6">
             <div className="mb-3 flex items-center justify-between">
               <h3 className={`text-sm font-black ${highContrast ? 'text-white' : 'text-slate-900'}`}>
-                {lang === 'es' ? 'Últimos escaneados' : 'Last scanned'}
+                {lang === 'es' ? 'Últimos escaneados en este dispositivo' : 'Last scanned on this device'}
               </h3>
               <HiOutlineClock className="h-5 w-5 text-[#F97316]" />
             </div>

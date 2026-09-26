@@ -47,6 +47,8 @@ type TicketResult = {
 type EventStats = {
   totalPurchased?: number;
   totalIssued?: number;
+  soldTickets?: number;
+  courtesyTickets?: number;
   ticketsToScan?: number;
   ticketsEntered?: number;
   totalCapacity?: number;
@@ -122,7 +124,6 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   const [manualCode, setManualCode] = useState('');
   const [scanResult, setScanResult] = useState<ValidateResult | null>(null);
   const [recentScans, setRecentScans] = useState<RecentScan[]>([]);
-  const [sessionStats, setSessionStats] = useState({ total: 0, approved: 0, denied: 0 });
 
   // Gate search by name / email / table — grouped by buyer.
   type BuyerGroup = {
@@ -148,6 +149,7 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [eventStats, setEventStats] = useState<EventStats | null>(null);
+  const refreshEventStats = useRef<() => void>(() => {});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastQrCode = useRef<string>('');
   const continuousScanRef = useRef(false);
@@ -171,7 +173,6 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
         if (!raw) return;
         const saved = JSON.parse(raw);
         if (saved?.selectedEventId && !initialSelectedEventId) setSelectedEventId(saved.selectedEventId);
-        if (saved?.sessionStats) setSessionStats(saved.sessionStats);
         if (Array.isArray(saved?.recentScans)) setRecentScans(saved.recentScans.slice(0, 10));
       })
       .catch(() => {})
@@ -180,8 +181,8 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
 
   useEffect(() => {
     if (!sessionStorageKey || !sessionHydrated) return;
-    AsyncStorage.setItem(sessionStorageKey, JSON.stringify({ selectedEventId, sessionStats, recentScans })).catch(() => {});
-  }, [recentScans, selectedEventId, sessionHydrated, sessionStats, sessionStorageKey]);
+    AsyncStorage.setItem(sessionStorageKey, JSON.stringify({ selectedEventId, recentScans })).catch(() => {});
+  }, [recentScans, selectedEventId, sessionHydrated, sessionStorageKey]);
 
   useEffect(() => () => {
     if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
@@ -232,14 +233,22 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
     if (pollRef.current) clearInterval(pollRef.current);
     setEventStats(null);
     if (!selectedEventId) return;
-    const fetchStats = () =>
+    let active = true;
+    let revision = 0;
+    const fetchStats = () => {
+      if (AppState.currentState !== 'active') return;
+      const request = ++revision;
       apiGet<EventStats>(mode === 'employee'
         ? `/scanner-access/events/${selectedEventId}/stats`
         : `/orders/event/${selectedEventId}/scanner-stats`)
-        .then(setEventStats).catch(() => {});
+        .then((stats) => { if (active && request === revision) setEventStats(stats); })
+        .catch(() => { if (active && request === revision) setEventStats(null); });
+    };
+    refreshEventStats.current = fetchStats;
+    const subscription = AppState.addEventListener('change', (state) => { if (state === 'active') fetchStats(); });
     fetchStats();
     pollRef.current = setInterval(fetchStats, 15000);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    return () => { active = false; refreshEventStats.current = () => {}; subscription.remove(); if (pollRef.current) clearInterval(pollRef.current); };
   }, [mode, selectedEventId]);
 
   useEffect(() => {
@@ -257,11 +266,6 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
   const scanTranslateY = scanAnim.interpolate({ inputRange: [0, 1], outputRange: [18, 218] });
 
   const registerScan = useCallback((result: ValidateResult, code: string) => {
-    setSessionStats((prev) => ({
-      total: prev.total + 1,
-      approved: prev.approved + (result.valid ? 1 : 0),
-      denied: prev.denied + (result.valid ? 0 : 1),
-    }));
     const u = result.ticket?.user;
     const name = [u?.firstName, u?.lastName].filter(Boolean).join(' ') || u?.email || t('Visitante', 'Guest');
     const tk = result.ticket;
@@ -319,12 +323,7 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
       setAdmitting(false);
       silentSearchRefresh.current = true;
       setSearchRevision((v) => v + 1);
-      if (selectedEventId) {
-        const statsPath = mode === 'employee'
-          ? `/scanner-access/events/${selectedEventId}/stats`
-          : `/orders/event/${selectedEventId}/scanner-stats`;
-        apiGet<EventStats>(statsPath).then(setEventStats).catch(() => {});
-      }
+      refreshEventStats.current();
       if (continuousScanRef.current) {
         if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
         resultTimerRef.current = setTimeout(() => {
@@ -820,32 +819,37 @@ export function ScanScreen({ onBack: _onBack, user, mode = 'organizer', assigned
         </View>
       )}
 
-      {/* ── Live count (session stats) ── */}
+      {/* ── Shared server count ── */}
       <View style={styles.liveSection}>
         <View style={styles.liveSectionHeader}>
           <View>
             <Text style={styles.liveEyebrow}>{t('CONTEO EN VIVO', 'LIVE COUNT')}</Text>
             <Text style={styles.liveTitle}>{t('Operación de puerta', 'Door operation')}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.resetBtn}
-            onPress={() => setSessionStats({ total: 0, approved: 0, denied: 0 })}
-          >
-            <Ionicons name="refresh-outline" size={13} color="#CBD5E1" />
-            <Text style={styles.resetBtnText}>{t('RESET', 'RESET')}</Text>
-          </TouchableOpacity>
+        </View>
+        <Text style={styles.recentMeta}>{t('Todos los dispositivos · actualización cada 15 s', 'All devices · updates every 15 s')}</Text>
+        <View style={styles.sessionGrid}>
+          <SessionStat label={t('VENDIDAS', 'SOLD')} value={String(eventStats?.soldTickets ?? '—')} />
+          <SessionStat label={t('CORTESÍAS', 'COMPLIMENTARY')} value={String(eventStats?.courtesyTickets ?? '—')} />
+          <SessionStat label={t('CAPACIDAD', 'CAPACITY')} value={String(eventStats?.totalCapacity ?? '—')} />
         </View>
         <View style={styles.sessionGrid}>
-          <SessionStat label={t('TOTAL', 'TOTAL')} value={String(sessionStats.total)} />
-          <SessionStat label={t('APROBADOS', 'APPROVED')} value={String(sessionStats.approved)} tone="green" />
-          <SessionStat label={t('DENEGADOS', 'DENIED')} value={String(sessionStats.denied)} tone="red" />
+          <SessionStat label={t('INGRESARON', 'ENTERED')} value={String(eventStats?.ticketsEntered ?? '—')} tone="green" />
+          <SessionStat label={t('POR INGRESAR', 'TO ENTER')} value={String(eventStats?.ticketsToScan ?? '—')} />
         </View>
+        {eventStats && (
+          <Text style={styles.recentMeta}>
+            {(eventStats.totalIssued ?? 0) > (eventStats.totalCapacity ?? 0)
+              ? t(`Capacidad excedida por ${(eventStats.totalIssued ?? 0) - (eventStats.totalCapacity ?? 0)} entradas emitidas.`, `Capacity exceeded by ${(eventStats.totalIssued ?? 0) - (eventStats.totalCapacity ?? 0)} issued tickets.`)
+              : t(`Margen hasta la capacidad: ${(eventStats.totalCapacity ?? 0) - (eventStats.totalIssued ?? 0)} (incluye cortesías).`, `Capacity margin: ${(eventStats.totalCapacity ?? 0) - (eventStats.totalIssued ?? 0)} (includes complimentary tickets).`)}
+          </Text>
+        )}
       </View>
 
       {/* ── Last scanned ── */}
       <View style={styles.recentSection}>
         <View style={styles.recentHeader}>
-          <Text style={styles.recentTitle}>{t('Últimos escaneados', 'Last scanned')}</Text>
+          <Text style={styles.recentTitle}>{t('Últimos escaneados aquí', 'Last scanned here')}</Text>
           <Ionicons name="time-outline" size={20} color="#F97316" />
         </View>
         {recentScans.length === 0 ? (

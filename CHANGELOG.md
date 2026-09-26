@@ -1,5 +1,14 @@
 # LPTicket - Historial de Cambios
 
+## 2026-09-26 - Conteo compartido de puerta y cancelación de Tap to Pay
+
+- Escáner móvil y web muestran ingresos del backend en lugar de contadores locales reiniciables. El historial reciente sigue siendo local y se identifica como tal.
+- Estadísticas del evento separan vendidas y cortesías; ambas consumen capacidad. Se conserva `totalPurchased` como alias histórico de emitidas para clientes anteriores.
+- Venta en puerta móvil muestra vendidas, cortesías, capacidad, ingresos y margen o exceso de capacidad. Actualiza al confirmar una venta y cada 15 segundos mientras la app está activa; el escáner conserva su intervalo de 15 segundos y actualiza tras escanear.
+- Cancelar en la pantalla nativa solicita cancelar el mismo PaymentIntent al backend. Solo una cancelación confirmada libera la compra y vuelve a dejar la pantalla lista sin modal de error. Pagos completados o inciertos conservan la verificación contra duplicados.
+- Validación local: 15 pruebas del servicio móvil Tap to Pay, 48 pruebas de órdenes y acceso de escáner; compilación de backend y TypeScript de móvil/web. Sin migraciones ni despliegue.
+- Pendiente: prueba nativa con dos iPhone, cancelación/reintento, confirmación de totales contra datos reales y medición de tiempos en la red del evento. El margen mostrado es capacidad menos entradas vigentes; no equivale a inventario vendible porque no descuenta bloqueos o reservas.
+
 ## 2026-09-17 - Correo y recibo correctos para cortesías múltiples
 
 ### Corrección

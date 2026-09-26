@@ -269,18 +269,22 @@ export async function runDoorSaleTapToPay({
     terminal ??= await ensureTapToPayReady({ eventId, merchantDisplayName, canAcceptTerms, onStatus, onPhase });
     onStatus?.('Acerca la tarjeta. Espera después la confirmación de ingreso de LPTicket.');
     onPhase?.('collecting');
+    let cancelledByOperator = false;
     try {
       const retrieved = await terminal.retrievePaymentIntent(clientSecret);
       if (retrieved.error || !retrieved.paymentIntent) throw new Error('No se pudo preparar el lector.');
-      await terminal.processPaymentIntent({ paymentIntent: retrieved.paymentIntent });
+      const processed = await terminal.processPaymentIntent({ paymentIntent: retrieved.paymentIntent });
+      cancelledByOperator = processed.error?.code === 'CANCELED';
       // Even SDK errors/timeouts can mask a successful charge. Always reconcile
       // this exact intent with the backend; never create or retry a charge here.
-    } catch {
-      // The server below is the authority, including when the native call fails.
+    } catch (error: any) {
+      cancelledByOperator = error?.code === 'CANCELED';
+      // Unknown errors still require verification; only an explicit native
+      // cancellation requests cancellation of this exact server-side intent.
     }
     onStatus?.('Confirmando pago e ingreso. Mantén al cliente en la puerta.');
     onPhase?.('processing');
-    const result = await resolvePayment(userId, pending);
+    const result = await resolvePayment(userId, pending, cancelledByOperator ? 'cancel' : 'verify');
     if (result.success) {
       onStatus?.('Pago confirmado. Puede ingresar.');
       onPhase?.('complete');

@@ -1105,3 +1105,34 @@ describe('Gate admission and confirmed Tap to Pay', () => {
     expect(fulfill).not.toHaveBeenCalled();
   });
 });
+
+describe('Shared scanner totals', () => {
+  it('returns fresh event-wide sales, complimentary admissions and capacity for every device', async () => {
+    const sections: any = {};
+    for (const method of ['select', 'addSelect', 'leftJoin', 'where', 'groupBy']) sections[method] = jest.fn(() => sections);
+    sections.getRawMany = jest.fn().mockResolvedValue([
+      { sectionType: 'standing', capacity: 100 },
+      { sectionType: 'seated', seatCount: 20, rows: 2, seatsPerRow: 10 },
+      { sectionType: 'stage', capacity: 500 },
+    ]);
+    const tickets: any = {};
+    for (const method of ['select', 'addSelect', 'leftJoin', 'where', 'andWhere']) tickets[method] = jest.fn(() => tickets);
+    tickets.getRawOne = jest.fn()
+      .mockResolvedValueOnce({ active: '30', used: '50', courtesy: '5' })
+      .mockResolvedValueOnce({ active: '29', used: '52', courtesy: '5' });
+    const { service } = buildService({
+      sectionRepo: { createQueryBuilder: () => sections },
+      ticketRepo: { createQueryBuilder: () => tickets },
+    });
+    expect(await service.getScannerEventStatsForApprovedEmployee('event-1')).toEqual({
+      totalCapacity: 120, totalIssued: 80, totalPurchased: 80,
+      soldTickets: 75, courtesyTickets: 5, ticketsToScan: 30, ticketsEntered: 50,
+    });
+    // Another door admitted a QR and completed a Tap to Pay sale.
+    expect(await service.getScannerEventStatsForApprovedEmployee('event-1')).toMatchObject({
+      totalIssued: 81, soldTickets: 76, ticketsToScan: 29, ticketsEntered: 52,
+    });
+    expect(tickets.where).toHaveBeenCalledWith('ticket.eventId = :eventId', { eventId: 'event-1' });
+    expect(tickets.andWhere).toHaveBeenCalledWith('ticket.status IN (:...statuses)', { statuses: ['active', 'used'] });
+  });
+});

@@ -11,6 +11,7 @@ function setup() {
   const storage = new Map();
   let created = 0, processed = 0, connects = 0, initialized = 0;
   let status = { success: true, orderId: 'order1', paymentStatus: 'succeeded', ticketCount: 1 };
+  let sdkResult = {}, sdkThrown;
   let sdkError = false, networkError = false, connection = 'notConnected';
   const verified = [];
   const terminal = {
@@ -18,7 +19,7 @@ function setup() {
     easyConnect: async () => { connects++; connection = 'connected'; return {}; },
     getConnectionStatus: async () => connection,
     retrievePaymentIntent: async () => ({ paymentIntent: { id: 'pi_test' } }),
-    processPaymentIntent: async () => { processed++; if (sdkError) throw new Error('timeout'); return { paymentIntent: { id: 'pi_test' } }; },
+    processPaymentIntent: async () => { processed++; if (sdkThrown) throw sdkThrown; if (sdkError) throw new Error('timeout'); return { paymentIntent: { id: 'pi_test' }, ...sdkResult }; },
     setConnectionToken: async () => {}, disconnectReader: async () => {},
   };
   const api = {
@@ -39,6 +40,7 @@ function setup() {
     return exports;
   }
   return { service: load(), reload: load, storage, verified, setStatus: (v) => status = v,
+    setSDKResult: (v) => sdkResult = v, throwSDK: (v) => sdkThrown = v,
     failSDK: () => sdkError = true, setOffline: (v) => networkError = v, disconnect: () => connection = 'notConnected',
     counts: () => ({ created, processed, connects, initialized }) };
 }
@@ -104,4 +106,38 @@ test('background preparation and a charge share initialization and reader connec
   assert.equal(env.counts().initialized, 1);
   assert.equal(env.counts().connects, 1);
   assert.equal(env.counts().processed, 1);
+});
+
+for (const throws of [false, true]) {
+  test(`native cancellation (${throws ? 'thrown' : 'returned'}) resolves and allows the next sale with a warm reader`, async () => {
+    const env = setup();
+    if (throws) env.throwSDK({ code: 'CANCELED' });
+    else env.setSDKResult({ error: { code: 'CANCELED' } });
+    env.setStatus({ success: false, orderId: 'order1', paymentStatus: 'canceled', cancelled: true });
+    await env.service.runDoorSaleTapToPay(params);
+    assert.equal(env.verified[0].action, 'cancel');
+    assert.equal(env.storage.size, 0);
+    env.throwSDK(undefined); env.setSDKResult({});
+    env.setStatus({ success: true, orderId: 'order1', paymentStatus: 'succeeded', ticketCount: 1 });
+    assert.equal((await env.service.runDoorSaleTapToPay(params)).success, true);
+    assert.equal(env.counts().created, 2);
+    assert.equal(env.counts().connects, 1);
+  });
+}
+test('cancellation racing with a successful charge reports success without another charge', async () => {
+  const env = setup(); env.setSDKResult({ error: { code: 'CANCELED' } });
+  assert.equal((await env.service.runDoorSaleTapToPay(params)).success, true);
+  assert.equal(env.verified[0].action, 'cancel'); assert.equal(env.counts().processed, 1);
+});
+test('cancellation with offline confirmation keeps the purchase pending', async () => {
+  const env = setup(); env.setSDKResult({ error: { code: 'CANCELED' } }); env.setOffline(true);
+  await assert.rejects(env.service.runDoorSaleTapToPay(params));
+  assert.equal(env.storage.size, 1);
+  await assert.rejects(env.service.runDoorSaleTapToPay(params));
+  assert.equal(env.counts().created, 1);
+});
+test('a non-cancellation SDK error only verifies the payment', async () => {
+  const env = setup(); env.setSDKResult({ error: { code: 'CANCELED_DUE_TO_INTEGRATION_ERROR' } });
+  await env.service.runDoorSaleTapToPay(params);
+  assert.equal(env.verified[0].action, 'verify');
 });

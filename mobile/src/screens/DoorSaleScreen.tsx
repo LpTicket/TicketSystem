@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { GradientButton } from '../components/GradientButton';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser, apiGet, getImageUrl } from '../services/api';
@@ -23,6 +23,7 @@ type Props = {
 
 type DoorEvent = {
   id: string;
+  organizerId?: string;
   title: string;
   eventDate?: string;
   venueName?: string;
@@ -58,6 +59,7 @@ function fmtDate(value?: string) {
 function normalizeDoorEvent(event: any): DoorEvent {
   return {
     id: String(event.id),
+    organizerId: event.organizerId,
     title: event.title || 'Evento',
     eventDate: event.eventDate || undefined,
     venueName: event.venueName || event.venue || undefined,
@@ -95,6 +97,31 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   const [tapGuideSeen, setTapGuideSeen] = useState(false);
   const [tapPhase, setTapPhase] = useState<TapFlowPhase>('idle');
   const [tapResult, setTapResult] = useState<{ success: boolean; message: string; orderId?: string; retryAllowed?: boolean } | null>(null);
+  const [gateStats, setGateStats] = useState<{ soldTickets?: number; courtesyTickets?: number; totalIssued: number; totalCapacity: number; ticketsEntered: number } | null>(null);
+  const useEmployeeStats = eventSource === 'employee' && user?.role !== 'admin'
+    && events.find((event) => event.id === selectedEventId)?.organizerId !== user?.id;
+  const refreshGateStats = useRef<() => void>(() => {});
+  useEffect(() => {
+    setGateStats(null);
+    if (!selectedEventId) return;
+    let active = true;
+    let revision = 0;
+    const refresh = () => {
+      if (AppState.currentState !== 'active') return;
+      const request = ++revision;
+      const path = useEmployeeStats
+        ? `/scanner-access/events/${selectedEventId}/stats`
+        : `/orders/event/${selectedEventId}/scanner-stats`;
+      apiGet<NonNullable<typeof gateStats>>(path)
+        .then((stats) => { if (active && request === revision) setGateStats(stats); })
+        .catch(() => { if (active && request === revision) setGateStats(null); });
+    };
+    refreshGateStats.current = refresh;
+    refresh();
+    const interval = setInterval(refresh, 15000);
+    const subscription = AppState.addEventListener('change', (state) => { if (state === 'active') refresh(); });
+    return () => { active = false; refreshGateStats.current = () => {}; clearInterval(interval); subscription.remove(); };
+  }, [selectedEventId, useEmployeeStats]);
   const paymentLock = useRef(false);
   const [pendingTap, setPendingTap] = useState<PendingTapPayment | null>(null);
   const [pendingLoaded, setPendingLoaded] = useState(false);
@@ -159,7 +186,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         const ownEvents = ownResult.status === 'fulfilled'
           ? listFrom(ownResult.value)
             .filter((event) => (event.status || 'published') === 'published')
-            .map(normalizeDoorEvent)
+            .map((event) => normalizeDoorEvent({ ...event, organizerId: user?.id }))
           : [];
         return mergeDoorEvents(ownEvents, approvedEvents);
       }
@@ -337,7 +364,13 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     if (completed.success && completed.paymentStatus === 'succeeded' && (completed.ticketCount || 0) > 0) {
       setTapResult({ success: true, message: t('Pago confirmado y venta registrada. Puede ingresar.', 'Payment confirmed and sale recorded. Entry allowed.'), orderId: completed.orderId });
       resetSaleForm();
+      refreshGateStats.current();
       setTapStatus(t('Pago confirmado. Puede ingresar.', 'Payment confirmed. Entry allowed.'));
+    } else if (completed.cancelled && completed.paymentStatus === 'canceled') {
+      setTapResult(null);
+      setError('');
+      setTapPhase('ready');
+      setTapStatus(t('Cobro cancelado. Listo para volver a cobrar.', 'Payment cancelled. Ready to charge again.'));
     } else {
       setTapPhase('failed');
       setTapResult({ success: false, message: completed.message || t('Espera la confirmación antes de permitir el ingreso.', 'Wait for confirmation before allowing entry.'), retryAllowed: completed.retryAllowed });
@@ -520,6 +553,20 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           </View>
         ) : null}
       </View>
+
+      {selectedEventId ? (
+        <View style={styles.section}>
+          <Text style={styles.eyebrow}>{t('TOTALES DEL EVENTO', 'EVENT TOTALS')}</Text>
+          <Text style={styles.doorTicketTitle}>{t('Vendidas', 'Sold')}: {gateStats?.soldTickets ?? '—'} · {t('Capacidad', 'Capacity')}: {gateStats?.totalCapacity ?? '—'}</Text>
+          <Text style={styles.subtitle}>{t('Cortesías', 'Complimentary')}: {gateStats?.courtesyTickets ?? '—'} · {t('Ingresaron', 'Entered')}: {gateStats?.ticketsEntered ?? '—'}</Text>
+          {gateStats ? <Text style={styles.subtitle}>
+            {gateStats.totalIssued > gateStats.totalCapacity
+              ? t(`Capacidad excedida: ${gateStats.totalIssued - gateStats.totalCapacity}`, `Capacity exceeded: ${gateStats.totalIssued - gateStats.totalCapacity}`)
+              : t(`Margen hasta la capacidad: ${gateStats.totalCapacity - gateStats.totalIssued} (incluye cortesías)`, `Capacity margin: ${gateStats.totalCapacity - gateStats.totalIssued} (includes complimentary)`)}
+          </Text> : <Text style={styles.subtitle}>{t('Esperando totales del servidor…', 'Waiting for server totals…')}</Text>}
+          <Text style={styles.subtitle}>{t('Todos los dispositivos · actualización cada 15 s', 'All devices · updates every 15 s')}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.keypadCard}>
         <View style={styles.doorTicketHeader}>

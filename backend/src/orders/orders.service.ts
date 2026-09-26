@@ -2247,17 +2247,29 @@ export class OrdersService {
         : Math.max(seatCount, rowsCalc);   // seated/vip/table
     }
 
-    const [activeTickets, usedTickets] = await Promise.all([
-      this.ticketRepo.count({ where: { eventId, status: TicketStatus.ACTIVE } }),
-      this.ticketRepo.count({ where: { eventId, status: TicketStatus.USED } }),
-    ]);
-
+    // One snapshot across all devices/channels. Free invitations consume
+    // capacity, but must not inflate paid sales (same rule as inventory).
+    const counts = await this.ticketRepo.createQueryBuilder('ticket')
+      .leftJoin(Order, 'ticketOrder', 'ticketOrder.id = ticket.orderId')
+      .select("COUNT(CASE WHEN ticket.status = 'active' THEN 1 END)", 'active')
+      .addSelect("COUNT(CASE WHEN ticket.status = 'used' THEN 1 END)", 'used')
+      .addSelect(`COUNT(CASE WHEN ticketOrder.salesChannel = 'complimentary'
+        OR (COALESCE(ticket.price, 0) = 0 AND COALESCE(ticketOrder.total, 0) = 0)
+        THEN 1 END)`, 'courtesy')
+      .where('ticket.eventId = :eventId', { eventId })
+      .andWhere('ticket.status IN (:...statuses)', { statuses: [TicketStatus.ACTIVE, TicketStatus.USED] })
+      .getRawOne();
+    const activeTickets = Number(counts?.active) || 0;
+    const usedTickets = Number(counts?.used) || 0;
+    const courtesyTickets = Number(counts?.courtesy) || 0;
     const totalIssued = activeTickets + usedTickets;
 
     return {
       totalCapacity,
       totalIssued,
-      totalPurchased: totalIssued,
+      totalPurchased: totalIssued, // Legacy issued-count alias for older clients.
+      soldTickets: totalIssued - courtesyTickets,
+      courtesyTickets,
       ticketsToScan: activeTickets,
       ticketsEntered: usedTickets,
     };
