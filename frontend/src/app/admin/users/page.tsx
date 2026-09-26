@@ -222,14 +222,14 @@ export default function AdminUsersPage() {
   const roleFilters = [
     { key: '', label: lang === 'es' ? 'Todos' : 'All' },
     { key: 'client', label: lang === 'es' ? 'Clientes' : 'Clients' },
+    { key: 'organizer', label: lang === 'es' ? 'Organizadores' : 'Organizers' },
     { key: 'admin', label: t('adminAdmins') },
   ];
 
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case 'admin': return { label: 'Admin', classes: 'bg-red-100 text-red-700' };
-      default: return { label: lang === 'es' ? 'Cliente' : 'Client', classes: 'bg-[rgba(10,55,90,0.10)] text-[#0A375A]' };
-    }
+  const getRoleBadge = (user: User) => {
+    if (user.role === 'admin') return { label: 'Admin', classes: 'bg-red-100 text-red-700' };
+    if (user.isOrganizer) return { label: lang === 'es' ? 'Organizador' : 'Organizer', classes: 'bg-orange-100 text-orange-700' };
+    return { label: lang === 'es' ? 'Cliente' : 'Client', classes: 'bg-[rgba(10,55,90,0.10)] text-[#0A375A]' };
   };
 
   return (
@@ -309,7 +309,7 @@ export default function AdminUsersPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {users.map((u) => {
-                    const roleBadge = getRoleBadge(u.role);
+                    const roleBadge = getRoleBadge(u);
                     return (
                       <tr 
                         key={u.id} 
@@ -381,7 +381,7 @@ export default function AdminUsersPage() {
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
             {users.map((u) => {
-              const roleBadge = getRoleBadge(u.role);
+              const roleBadge = getRoleBadge(u);
               return (
                 <div 
                   key={u.id}

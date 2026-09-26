@@ -12,7 +12,7 @@ import { Injectable, NotFoundException, BadRequestException, ConflictException, 
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole, Event, EventStatus, Order, OrderStatus, Ticket, VenueSection, Seat, SeatStatus, OrganizerPayout } from '../database/entities';
 import { RecordOrganizerPayoutDto } from './dto/record-organizer-payout.dto';
@@ -516,28 +516,53 @@ export class AdminService {
   async getUsers(page: number, limit: number, role?: string, search?: string) {
     const safePage = Math.max(1, Number(page) || 1);
     const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
-    const where: any = {};
-    if (role && ['client', 'admin'].includes(role)) {
-      where.role = role;
+    const term = search?.trim();
+    const query = this.userRepo
+      .createQueryBuilder('user')
+      .select([
+        'user.id', 'user.email', 'user.username', 'user.firstName', 'user.lastName',
+        'user.phone', 'user.role', 'user.isActive', 'user.avatarUrl', 'user.createdAt',
+      ]);
+
+    if (role === 'organizer') {
+      query.andWhere('EXISTS (SELECT 1 FROM events event WHERE event."organizerId" = user.id)');
+    } else if (role && ['client', 'admin'].includes(role)) {
+      query.andWhere('user.role = :role', { role });
     }
 
-    const term = search?.trim();
-    const searchWhere = term
-      ? ['firstName', 'lastName', 'username', 'email'].map((field) => ({
-          ...where,
-          [field]: ILike(`%${term}%`),
-        }))
-      : where;
+    if (term) {
+      query.andWhere(
+        `(user."firstName" ILIKE :term
+          OR user."lastName" ILIKE :term
+          OR CONCAT_WS(' ', user."firstName", user."lastName") ILIKE :term
+          OR user.username ILIKE :term
+          OR user.email ILIKE :term)`,
+        { term: `%${term}%` },
+      );
+    }
 
-    const [users, total] = await this.userRepo.findAndCount({
-      where: searchWhere,
-      order: { createdAt: 'DESC' },
-      skip: (safePage - 1) * safeLimit,
-      take: safeLimit,
-      select: ['id', 'email', 'username', 'firstName', 'lastName', 'phone', 'role', 'isActive', 'avatarUrl', 'createdAt'],
-    });
+    const [users, total] = await query
+      .orderBy('user.createdAt', 'DESC')
+      .skip((safePage - 1) * safeLimit)
+      .take(safeLimit)
+      .getManyAndCount();
 
-    return { users, total, page: safePage, totalPages: Math.ceil(total / safeLimit) };
+    const userIds = users.map((user) => user.id);
+    const organizerRows = userIds.length
+      ? await this.eventRepo
+          .createQueryBuilder('event')
+          .select('DISTINCT event."organizerId"', 'organizerId')
+          .where('event."organizerId" IN (:...userIds)', { userIds })
+          .getRawMany()
+      : [];
+    const organizerIds = new Set(organizerRows.map((row) => row.organizerId));
+
+    return {
+      users: users.map((user) => ({ ...user, isOrganizer: organizerIds.has(user.id) })),
+      total,
+      page: safePage,
+      totalPages: Math.ceil(total / safeLimit),
+    };
   }
 
   async createUser(dto: {

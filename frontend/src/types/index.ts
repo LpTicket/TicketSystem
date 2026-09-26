@@ -15,6 +15,7 @@ export interface User {
   address?: string;
   avatarUrl?: string;
   role: UserRole;
+  isOrganizer?: boolean;
   isActive: boolean;
   createdAt: string;
 }
