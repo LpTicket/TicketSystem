@@ -1,8 +1,25 @@
 # LPTicket - Estado del Proyecto
 
-Última revisión documental: 2026-09-17
-Fuente: revisión de código local, pruebas automatizadas y builds locales.
+Última revisión documental: 2026-09-26
+Fuente: revisión de código, pruebas automatizadas, builds de producción, estados de Railway/GitHub y confirmaciones visibles de App Store Connect y Google Play Console.
 Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explícita.
+
+## Conteo compartido y cancelación Tap to Pay — 2026-09-26
+
+Estado: `PUBLICADO EN WEB/BACKEND`; móvil `ENVIADO A REVISIÓN`, todavía sin aprobación confirmada.
+
+- Código y versión móvil 1.0.10 publicados en `main`, commit `1ecfec175fbebcfa49f02d78e4a61c8cd55ab668`. Railway confirmó `success` para backend y frontend.
+- Prueba de lectura en producción: el escáner de Noche de #TBT mostró 63 vendidas, 10 cortesías, 73 emitidas, 42 ingresos y capacidad 456. No se escanearon entradas ni se realizaron cobros de prueba en producción.
+- iOS 1.0.10 (41): compilación EAS terminada, envío a App Store Connect terminado y revisión enviada; Apple mostró `Pendiente de revisión`. Publicación automática tras aprobación, conservando la configuración existente.
+  - Build: https://expo.dev/accounts/lpticket-app/projects/lpticket-mobile/builds/85ea024e-9b23-4604-80c8-316b103df292
+  - Envío: https://expo.dev/accounts/lpticket-app/projects/lpticket-mobile/submissions/0746d940-34d6-44fa-add9-7c0b5874ae91
+  - Revisión: https://appstoreconnect.apple.com/apps/6777589448/distribution/reviewsubmissions/details/b40e4fa3-ed98-4786-9a0a-26b2b2f62e2f
+- Android 1.0.10 (9): compilación EAS terminada, AAB aceptado en Google Play y un cambio enviado para lanzamiento completo. Google mostró `Cambios en la etapa de revisión` con verificaciones rápidas en curso. Se conservaron los países de destino existentes y la publicación administrada desactivada.
+  - Build: https://expo.dev/accounts/lpticket-app/projects/lpticket-mobile/builds/a597277a-9000-4ccb-85c4-672613eec20d
+  - Publicación: https://play.google.com/console/u/3/developers/5636558073205327527/app/4973015954364359499/publishing
+- Advertencia no bloqueante de Google: falta archivo de desofuscación. El paquete incluye símbolos nativos, API mínima 26 y SDK de destino 36.
+- Validación: 15 pruebas Tap to Pay móvil, 48 pruebas backend, TypeScript móvil/web, builds de producción backend/web y builds firmados iOS/Android.
+- Pendiente: aprobación de ambas tiendas, disponibilidad pública y prueba física en iPhone de cancelación, reintento, concurrencia de puertas y latencia con la red del evento.
 
 ## Correo y recibo de entradas de cortesía — 2026-09-17
 
