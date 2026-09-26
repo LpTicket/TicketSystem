@@ -55,6 +55,13 @@ type EventApprovalRequestEmail = {
   category?: string | null;
 };
 
+type EventApprovedEmail = {
+  organizerName: string;
+  organizerEmail: string;
+  eventTitle: string;
+  eventSlug: string;
+};
+
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
@@ -168,6 +175,62 @@ export class MailService {
       return true;
     } catch (error) {
       console.error('No se pudo enviar el aviso de evento pendiente:', error instanceof Error ? error.message : error);
+      return false;
+    }
+  }
+
+  /** Notifies the organizer after an administrator publishes the event. */
+  async sendEventApprovedEmail(data: EventApprovedEmail): Promise<boolean> {
+    const to = String(data.organizerEmail || '').trim();
+    if (!to) return false;
+
+    const appUrl = this.getAppUrl();
+    const supportEmail = String(this.configService.get('CONTACT_EMAIL') || 'info@lpticket.com').trim();
+    const escapeHtml = (value: unknown) => String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    const eventUrl = `${appUrl}/events/${encodeURIComponent(data.eventSlug)}`;
+    const year = new Date().getFullYear();
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#0a1420;">
+  <span style="display:none;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">Tu evento fue aprobado y publicado en LPTicket.</span>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a1420;padding:24px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#0b1622;border-radius:16px;overflow:hidden;border:1px solid rgba(246,198,95,0.16);">
+        <tr><td align="center" style="background:#0A375A;padding:24px;"><img src="${appUrl}/logo-email-orange.png" alt="LPTicket" width="190" style="display:block;width:190px;max-width:190px;height:auto;border:0;" /></td></tr>
+        <tr><td style="padding:34px 28px 8px;">
+          <p style="margin:0 0 8px;color:#22c55e;font-size:12px;font-weight:800;letter-spacing:1px;font-family:'Helvetica Neue',Arial,sans-serif;">EVENTO APROBADO</p>
+          <h1 style="margin:0 0 18px;color:#ffffff;font-size:25px;font-weight:800;font-family:'Helvetica Neue',Arial,sans-serif;">¡Tu evento ya está publicado!</h1>
+          <p style="margin:0 0 14px;color:#cbd5e1;font-size:15px;line-height:1.6;font-family:'Helvetica Neue',Arial,sans-serif;">Hola ${escapeHtml(data.organizerName)},</p>
+          <p style="margin:0 0 14px;color:#9fb2c6;font-size:15px;line-height:1.6;font-family:'Helvetica Neue',Arial,sans-serif;">Tu evento <strong style="color:#ffffff;">${escapeHtml(data.eventTitle)}</strong> fue aprobado por nuestro equipo y ya se encuentra publicado.</p>
+          <p style="margin:0;color:#9fb2c6;font-size:15px;line-height:1.6;font-family:'Helvetica Neue',Arial,sans-serif;">Para mayor información, puedes comunicarte con nosotros en <a href="mailto:${escapeHtml(supportEmail)}" style="color:#f59e0b;text-decoration:none;">${escapeHtml(supportEmail)}</a>.</p>
+        </td></tr>
+        <tr><td align="center" style="padding:28px;">
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr><td align="center" style="border-radius:12px;background:#F97316;"><a href="${eventUrl}" target="_blank" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:16px;font-weight:800;text-decoration:none;font-family:'Helvetica Neue',Arial,sans-serif;">Ver evento publicado</a></td></tr></table>
+        </td></tr>
+        <tr><td align="center" style="background:#08111c;padding:20px 28px;border-top:1px solid rgba(255,255,255,0.05);"><p style="margin:0;color:#475569;font-size:11px;font-family:'Helvetica Neue',Arial,sans-serif;">© ${year} LPTicket</p></td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    try {
+      await this.transporter.sendMail({
+        from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
+        to,
+        subject: `Tu evento fue aprobado: ${data.eventTitle}`,
+        html,
+      });
+      return true;
+    } catch (error) {
+      console.error('No se pudo enviar el aviso de evento aprobado:', error instanceof Error ? error.message : error);
       return false;
     }
   }

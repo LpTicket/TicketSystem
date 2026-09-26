@@ -338,8 +338,25 @@ export default function AdminEventsPage() {
     } catch {} finally { setLoading(false); }
   };
 
-  const handleApprove = async (id: string) => {
-    try { await api.patch(`/admin/events/${id}/approve`); await loadEvents(); }
+  const handleApprove = async (event: Event) => {
+    const organizerName = [event.organizer?.firstName, event.organizer?.lastName].filter(Boolean).join(' ') || (lang === 'es' ? 'Organizador sin nombre' : 'Unnamed organizer');
+    const organizerEmail = event.organizer?.email || (lang === 'es' ? 'Correo no disponible' : 'Email unavailable');
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Aprobar y notificar' : 'Approve and notify',
+      message: lang === 'es'
+        ? `Se publicará “${event.title}” y se enviará un aviso a ${organizerName} (${organizerEmail}).`
+        : `“${event.title}” will be published and a notice will be sent to ${organizerName} (${organizerEmail}).`,
+      confirmLabel: lang === 'es' ? 'Aprobar y notificar' : 'Approve and notify',
+    })) return;
+    try {
+      const { data } = await api.patch(`/admin/events/${event.id}/approve`);
+      await loadEvents();
+      if (data.notificationSent) {
+        toast.success(lang === 'es' ? 'Evento aprobado y organizador notificado' : 'Event approved and organizer notified');
+      } else {
+        toast.error(lang === 'es' ? 'Evento aprobado, pero el correo no pudo enviarse' : 'Event approved, but the email could not be sent');
+      }
+    }
     catch (err: any) { toast.error(err.response?.data?.message || 'Error'); }
   };
 
@@ -433,7 +450,13 @@ export default function AdminEventsPage() {
     { key: 'cancelled', label: lang === 'es' ? 'Rechazados' : 'Rejected' },
   ];
 
-  const filteredEvents = events.filter((e) => !search || e.title.toLowerCase().includes(search.toLowerCase()));
+  const filteredEvents = events.filter((event) => {
+    if (!search) return true;
+    const query = search.toLowerCase();
+    const organizerName = [event.organizer?.firstName, event.organizer?.lastName].filter(Boolean).join(' ');
+    return [event.title, organizerName, event.organizer?.email]
+      .some((value) => value?.toLowerCase().includes(query));
+  });
 
   return (
     <div>
@@ -462,7 +485,7 @@ export default function AdminEventsPage() {
           <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder={lang === 'es' ? 'Buscar eventos...' : 'Search events...'}
+            placeholder={lang === 'es' ? 'Buscar evento u organizador...' : 'Search event or organizer...'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
@@ -481,6 +504,7 @@ export default function AdminEventsPage() {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('adminEventTitle' as any)}</th>
+                  <th className="text-left px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Organizador' : 'Organizer'}</th>
                   <th className="text-left px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('adminCategory' as any)}</th>
                   <th className="text-left px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('adminDate' as any)}</th>
                   <th className="text-center px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Estado' : 'Status'}</th>
@@ -506,6 +530,12 @@ export default function AdminEventsPage() {
                           <span className="font-medium text-gray-900 text-sm truncate max-w-[200px]">{ev.title}</span>
                         </div>
                       </td>
+                      <td className="px-4 py-4 text-sm">
+                        <p className="font-semibold text-gray-900">{[ev.organizer?.firstName, ev.organizer?.lastName].filter(Boolean).join(' ') || (lang === 'es' ? 'Sin nombre' : 'No name')}</p>
+                        {ev.organizer?.email ? (
+                          <a href={`mailto:${ev.organizer.email}?subject=${encodeURIComponent(`${lang === 'es' ? 'Información sobre' : 'Information about'} ${ev.title}`)}`} className="text-xs text-blue-600 hover:text-blue-800 hover:underline">{ev.organizer.email}</a>
+                        ) : <p className="text-xs text-gray-400">{lang === 'es' ? 'Correo no disponible' : 'Email unavailable'}</p>}
+                      </td>
                       <td className="px-4 py-4 text-sm text-gray-600">
                         {catLabel}
                       </td>
@@ -520,7 +550,7 @@ export default function AdminEventsPage() {
                           {(ev.status === 'draft' || ev.status === 'pending_approval') && (
                             <>
                               <button
-                                onClick={() => handleApprove(ev.id)}
+                                onClick={() => handleApprove(ev)}
                                 className="px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors flex items-center gap-1"
                               >
                                 <HiOutlineCheckCircle className="w-4 h-4" />
@@ -646,6 +676,8 @@ export default function AdminEventsPage() {
                         <HiOutlineCalendar className="w-3 h-3" />
                         {formatDateInTimezone(ev.eventDate, ev.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </p>
+                      <p className="mt-1 text-xs font-semibold text-gray-700">{[ev.organizer?.firstName, ev.organizer?.lastName].filter(Boolean).join(' ') || (lang === 'es' ? 'Organizador sin nombre' : 'Unnamed organizer')}</p>
+                      {ev.organizer?.email && <a href={`mailto:${ev.organizer.email}?subject=${encodeURIComponent(`${lang === 'es' ? 'Información sobre' : 'Information about'} ${ev.title}`)}`} className="block truncate text-[11px] text-blue-600 hover:underline">{ev.organizer.email}</a>}
                       <div className="mt-2">
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${badge.classes}`}>
                           {badge.label}
@@ -658,7 +690,7 @@ export default function AdminEventsPage() {
                     {(ev.status === 'draft' || ev.status === 'pending_approval') && (
                       <>
                         <button
-                          onClick={() => handleApprove(ev.id)}
+                          onClick={() => handleApprove(ev)}
                           className="flex-1 bg-green-600 text-white text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
                         >
                           <HiOutlineCheckCircle className="w-4 h-4" />

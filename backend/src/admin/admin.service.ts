@@ -8,7 +8,7 @@
  *     tarifas, precios y comisiones de creador, además de órdenes y desglose
  *     financiero por evento.
  */
-import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject, Logger } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,9 +16,12 @@ import { ILike, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole, Event, EventStatus, Order, OrderStatus, Ticket, VenueSection, Seat, SeatStatus, OrganizerPayout } from '../database/entities';
 import { RecordOrganizerPayoutDto } from './dto/record-organizer-payout.dto';
+import { MailService } from '../common/services/mail.service';
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Event) private readonly eventRepo: Repository<Event>,
@@ -28,6 +31,7 @@ export class AdminService {
     @InjectRepository(Seat) private readonly seatRepo: Repository<Seat>,
     @InjectRepository(OrganizerPayout) private readonly organizerPayoutRepo: Repository<OrganizerPayout>,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly mailService: MailService,
   ) {}
 
   private routeBase64EventImage(
@@ -706,13 +710,26 @@ export class AdminService {
   }
 
   async approveEvent(eventId: string) {
-    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    const event = await this.eventRepo.findOne({ where: { id: eventId }, relations: ['organizer'] });
     if (!event) throw new NotFoundException('Evento no encontrado');
 
+    const shouldNotify = event.status !== EventStatus.PUBLISHED;
     event.status = EventStatus.PUBLISHED;
     const result = await this.eventRepo.save(event);
     await this.invalidateEventCache(event);
-    return result;
+
+    let notificationSent: boolean | null = null;
+    if (shouldNotify) {
+      notificationSent = await this.mailService.sendEventApprovedEmail({
+        organizerName: [event.organizer?.firstName, event.organizer?.lastName].filter(Boolean).join(' ') || 'Organizador',
+        organizerEmail: event.organizer?.email || '',
+        eventTitle: event.title,
+        eventSlug: event.slug,
+      });
+      if (!notificationSent) this.logger.warn(`El evento ${event.id} fue aprobado, pero no se envió el aviso al organizador.`);
+    }
+
+    return { ...result, notificationSent };
   }
 
   async rejectEvent(eventId: string) {
