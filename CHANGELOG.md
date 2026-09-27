@@ -1,5 +1,13 @@
 # LPTicket - Historial de Cambios
 
+## 2026-09-27 - Activar o desactivar Klarna por evento en la web
+
+- Administración puede guardar `klarnaEnabled` desde Editar evento → Detalles e Imágenes. El backend impide que un organizador modifique esta opción.
+- El resumen de compra entrega los métodos disponibles según el evento, la moneda y el interruptor global existente. La web muestra Klarna solo si el backend lo permite; una petición directa con Klarna desactivado se rechaza antes de crear órdenes o reservar inventario.
+- Migración aditiva aplicada en producción antes del despliegue: columna booleana `events.klarnaEnabled`, no anulable y activada por defecto. Se comprobaron los mismos 13 eventos, 816 órdenes y 1.794 tickets antes y después; los 13 eventos conservaron Klarna activado.
+- El ajuste afecta nuevas sesiones de pago. No cancela sesiones de Stripe ya abiertas ni modifica compras, tickets, QR o pagos históricos.
+- Validación: 58 pruebas de eventos/órdenes y builds de frontend/backend aprobados. Sin cambios de móvil; no se completaron compras reales para probar este ajuste.
+
 ## 2026-09-26 - Conteo compartido de puerta y cancelación de Tap to Pay
 
 - Escáner móvil y web muestran ingresos del backend en lugar de contadores locales reiniciables. El historial reciente sigue siendo local y se identifica como tal.

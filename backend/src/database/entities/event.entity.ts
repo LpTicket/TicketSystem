@@ -115,6 +115,10 @@ export class Event {
   @Column({ default: true })
   publicVisible: boolean;
 
+  /** Admin-controlled availability of Klarna for new web Checkout sessions. */
+  @Column({ default: true })
+  klarnaEnabled: boolean;
+
   /** Denotes the cheapest ticket price available for search sorting */
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   minPrice: number;

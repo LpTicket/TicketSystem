@@ -882,6 +882,43 @@ describe('OrdersService critical ticket safeguards', () => {
       .toThrow('Klarna no está disponible para la moneda de este evento. Puedes pagar con tarjeta.');
   });
 
+  it('keeps card payments available when Klarna is disabled for the event', () => {
+    const { service } = buildService();
+    expect((service as any).getWebCheckoutPaymentMethodTypes('usd', undefined, false)).toEqual(['card']);
+    expect((service as any).getWebCheckoutPaymentMethodTypes('usd', 'card', false)).toEqual(['card']);
+    expect(() => (service as any).getWebCheckoutPaymentMethodTypes('usd', 'klarna', false))
+      .toThrow('Klarna está desactivado para este evento. Puedes pagar con tarjeta.');
+    expect((service as any).getWebCheckoutPaymentMethodTypes('usd', undefined, true)).toEqual(['card', 'klarna']);
+  });
+
+  it('rejects disabled Klarna before reserving inventory or creating an order', async () => {
+    const orderRepo = { save: jest.fn() };
+    const seatRepo = { findOne: jest.fn() };
+    const specialCodeRepo = { findOne: jest.fn() };
+    const { service } = buildService({
+      eventRepo: { findOne: jest.fn().mockResolvedValue({ id: 'event-1', currency: 'USD', klarnaEnabled: false }) },
+      orderRepo,
+      seatRepo,
+      specialCodeRepo,
+    });
+
+    await expect(service.createCheckoutSession('buyer-1', 'event-1', ['seat-1'], undefined, undefined, 'CODE', undefined, undefined, 'klarna'))
+      .rejects.toThrow('Klarna está desactivado para este evento. Puedes pagar con tarjeta.');
+    expect(orderRepo.save).not.toHaveBeenCalled();
+    expect(seatRepo.findOne).not.toHaveBeenCalled();
+    expect(specialCodeRepo.findOne).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])('returns current Klarna availability in the invoice preview (%s)', async (klarnaEnabled) => {
+    const { service } = buildService({
+      eventRepo: { findOne: jest.fn().mockResolvedValue({ id: 'event-1', currency: 'USD', klarnaEnabled }) },
+      sectionRepo: { findOne: jest.fn().mockResolvedValue({ id: 'section-1', name: 'General', price: 20 }) },
+    });
+    const invoice = await service.previewInvoice('event-1', [], 'section-1', 1);
+    expect(invoice.paymentMethodTypes).toEqual(klarnaEnabled ? ['card', 'klarna'] : ['card']);
+    expect(invoice.total).toBeGreaterThan(0);
+  });
+
   it('does not issue tickets when Checkout completes before a delayed payment is paid', async () => {
     const { service } = buildService();
     const finalize = jest.spyOn(service as any, 'finalizePaidCheckoutSession').mockResolvedValue(undefined);

@@ -1,8 +1,15 @@
 # LPTicket - Estado del Proyecto
 
-Última revisión documental: 2026-09-26
+Última revisión documental: 2026-09-27
 Fuente: revisión de código, pruebas automatizadas, builds de producción, estados de Railway/GitHub y confirmaciones visibles de App Store Connect y Google Play Console.
 Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explícita.
+
+## Control de Klarna por evento en web — 2026-09-27
+
+- Interruptor para administradores en Editar evento → Detalles e Imágenes. La disponibilidad del pago se calcula en backend y también se comprueba al crear una nueva sesión de Stripe.
+- Migración aditiva `events.klarnaEnabled` aplicada y verificada en Postgres de producción, con valor predeterminado `true`. Los 13 eventos mantuvieron Klarna activo; totales comprobados antes/después: 816 órdenes y 1.794 tickets.
+- Validación local: 58 pruebas de eventos/órdenes y builds de producción de backend/frontend aprobados. La app móvil y las sesiones de pago abiertas mantienen sus flujos existentes.
+- Pendiente: prueba completa de una compra nueva con un método real de Stripe. No se efectuaron cobros para validar este cambio.
 
 ## Conteo compartido y cancelación Tap to Pay — 2026-09-26
 

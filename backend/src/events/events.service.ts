@@ -363,6 +363,10 @@ export class EventsService {
       throw new ForbiddenException('No tienes permiso para editar este evento');
     }
 
+    if (cleanDto.klarnaEnabled !== undefined && user?.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Solo un administrador puede activar o desactivar Klarna.');
+    }
+
     // Approval flow for published events
     if (event.status === EventStatus.PUBLISHED && user?.role !== 'admin') {
       const pendingUpdate: Partial<Event> = {

@@ -874,6 +874,7 @@ export default function EventDetailPage() {
     hasSeatMap: false,
     bannerPosition: 'center',
     maxTicketsPerTransaction: 10,
+    klarnaEnabled: true,
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
@@ -919,6 +920,7 @@ export default function EventDetailPage() {
         hasSeatMap: ev.hasSeatMap || false,
         bannerPosition: ev.bannerPosition || 'center',
         maxTicketsPerTransaction: ev.maxTicketsPerTransaction || 10,
+        klarnaEnabled: ev.klarnaEnabled !== false,
       });
 
       // Load reminder settings
@@ -1212,6 +1214,7 @@ export default function EventDetailPage() {
         hasSeatMap: true,
         bannerPosition: editForm.bannerPosition,
         maxTicketsPerTransaction: editForm.maxTicketsPerTransaction ? Number(editForm.maxTicketsPerTransaction) : 10,
+        ...(user?.role === 'admin' ? { klarnaEnabled: editForm.klarnaEnabled } : {}),
       });
 
       // 2. Upload cover image if selected
@@ -3178,6 +3181,29 @@ export default function EventDetailPage() {
           </div>
 
           <form onSubmit={handleSaveEvent} className="space-y-6 max-w-3xl">
+            {user?.role === 'admin' && (
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-pink-400/25 bg-pink-400/5 p-5">
+                <div className="min-w-0 flex-1">
+                  <h3 id="klarna-setting-label" className="text-sm font-bold text-gray-900">{lang === 'es' ? 'Pagos con Klarna' : 'Klarna payments'}</h3>
+                  <p id="klarna-setting-description" className="mt-1 text-xs leading-relaxed text-gray-500">{lang === 'es' ? 'Permite pagar en cuotas en la web. Guarda los cambios para aplicar esta opción a nuevos pagos.' : 'Allow installment payments on the web. Save changes to apply this setting to new payments.'}</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={editForm.klarnaEnabled}
+                  aria-labelledby="klarna-setting-label"
+                  aria-describedby="klarna-setting-description"
+                  disabled={savingEdit}
+                  onClick={() => setEditForm({ ...editForm, klarnaEnabled: !editForm.klarnaEnabled })}
+                  className="inline-flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-2 text-sm font-semibold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-400 disabled:opacity-50"
+                >
+                  <span aria-hidden="true" className={`relative h-6 w-11 rounded-full transition-colors ${editForm.klarnaEnabled ? 'bg-[#f97316]' : 'bg-[#475569]'}`}>
+                    <span className={`absolute top-1 h-4 w-4 rounded-full bg-[#ffffff] transition-transform ${editForm.klarnaEnabled ? 'translate-x-6' : 'translate-x-1'} left-0`} />
+                  </span>
+                  {editForm.klarnaEnabled ? (lang === 'es' ? 'Activado' : 'Enabled') : (lang === 'es' ? 'Desactivado' : 'Disabled')}
+                </button>
+              </div>
+            )}
             {/* Title */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Título' : 'Title'}</label>

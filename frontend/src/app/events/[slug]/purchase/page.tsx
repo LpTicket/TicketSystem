@@ -741,29 +741,33 @@ export default function PurchasePage() {
                     <>{lang === 'es' ? '💳 Pagar' : '💳 Pay'} ${Number(invoice.total).toFixed(2)} {invoice.currency || 'USD'} {lang === 'es' ? 'con Stripe' : 'with Stripe'}</>
                   )}
                 </button>
-                <button
-                  onClick={() => handlePay('klarna')}
-                  disabled={buying}
-                  className="flex w-full items-center justify-center gap-3 rounded-lg border border-black/10 bg-[#FFB3C7] px-4 py-3.5 text-sm font-black text-black shadow-lg shadow-pink-200/30 transition hover:bg-[#FFA5BD] focus:outline-none focus:ring-2 focus:ring-[#FFB3C7] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {buyingMethod === 'klarna' ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                      </svg>
-                      {lang === 'es' ? 'Abriendo Klarna...' : 'Opening Klarna...'}
-                    </span>
-                  ) : (
-                    <>
-                      <span className="rounded bg-black px-2 py-1 text-xs font-black text-white" aria-hidden="true">Klarna.</span>
-                      <span>{lang === 'es' ? 'Pagar en cuotas con Klarna' : 'Pay over time with Klarna'}</span>
-                    </>
-                  )}
-                </button>
-                <p className="text-center text-[10px] font-medium text-gray-400">
-                  {lang === 'es' ? 'Las opciones de cuotas están sujetas a elegibilidad y aprobación de Klarna.' : 'Installment options are subject to Klarna eligibility and approval.'}
-                </p>
+                {invoice.paymentMethodTypes?.includes('klarna') && (
+                  <>
+                    <button
+                      onClick={() => handlePay('klarna')}
+                      disabled={buying}
+                      className="flex w-full items-center justify-center gap-3 rounded-lg border border-black/10 bg-[#FFB3C7] px-4 py-3.5 text-sm font-black text-black shadow-lg shadow-pink-200/30 transition hover:bg-[#FFA5BD] focus:outline-none focus:ring-2 focus:ring-[#FFB3C7] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {buyingMethod === 'klarna' ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                          </svg>
+                          {lang === 'es' ? 'Abriendo Klarna...' : 'Opening Klarna...'}
+                        </span>
+                      ) : (
+                        <>
+                          <span className="rounded bg-black px-2 py-1 text-xs font-black text-white" aria-hidden="true">Klarna.</span>
+                          <span>{lang === 'es' ? 'Pagar en cuotas con Klarna' : 'Pay over time with Klarna'}</span>
+                        </>
+                      )}
+                    </button>
+                    <p className="text-center text-[10px] font-medium text-gray-400">
+                      {lang === 'es' ? 'Las opciones de cuotas están sujetas a elegibilidad y aprobación de Klarna.' : 'Installment options are subject to Klarna eligibility and approval.'}
+                    </p>
+                  </>
+                )}
                 <p className="text-center text-[10px] text-gray-400">
                   {lang === 'es' ? 'Pagos seguros encriptados — procesado por Stripe' : 'Secure encrypted payments — processed by Stripe'}
                 </p>

@@ -54,6 +54,7 @@ export interface Event {
   status: EventStatus;
   isFeatured: boolean;
   publicVisible?: boolean;
+  klarnaEnabled?: boolean;
   minPrice?: number;
   maxPrice?: number;
   currency?: string;

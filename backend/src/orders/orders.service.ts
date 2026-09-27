@@ -307,16 +307,19 @@ export class OrdersService {
    * KLARNA_WEB_ENABLED=false is the emergency rollback switch; unsupported
    * event currencies remain card-only.
    */
-  private getWebCheckoutPaymentMethodTypes(currency: string, requestedMethod?: 'card' | 'klarna') {
+  private getWebCheckoutPaymentMethodTypes(currency: string, requestedMethod?: 'card' | 'klarna', eventKlarnaEnabled = true) {
     if (requestedMethod && !['card', 'klarna'].includes(requestedMethod)) {
       throw new BadRequestException('Método de pago no válido.');
     }
     const configured = String(this.configService.get('KLARNA_WEB_ENABLED') ?? 'true').toLowerCase();
-    const klarnaEnabled = !['false', '0', 'off', 'no'].includes(configured)
+    const klarnaEnabled = eventKlarnaEnabled && !['false', '0', 'off', 'no'].includes(configured)
       && KLARNA_SUPPORTED_CURRENCIES.has(currency.toLowerCase());
 
     if (requestedMethod === 'card') return ['card'];
     if (requestedMethod === 'klarna') {
+      if (!eventKlarnaEnabled) {
+        throw new BadRequestException('Klarna está desactivado para este evento. Puedes pagar con tarjeta.');
+      }
       if (!klarnaEnabled) {
         throw new BadRequestException('Klarna no está disponible para la moneda de este evento. Puedes pagar con tarjeta.');
       }
@@ -1142,7 +1145,7 @@ export class OrdersService {
     // the dedicated Klarna action honest and avoids locking seats for a method
     // that is disabled or unsupported for the event currency.
     const currency = (event.currency || 'USD').toLowerCase();
-    const paymentMethodTypes = this.getWebCheckoutPaymentMethodTypes(currency, requestedPaymentMethod);
+    const paymentMethodTypes = this.getWebCheckoutPaymentMethodTypes(currency, requestedPaymentMethod, event.klarnaEnabled !== false);
 
     // Validate special code if provided
     const purchaseCode = await this.resolvePurchaseCode(eventId, rawSpecialCode);
@@ -1533,6 +1536,7 @@ export class OrdersService {
       processingFee,
       total,
       seatsInfo: cleanSeatsInfo,
+      paymentMethodTypes: this.getWebCheckoutPaymentMethodTypes((event.currency || 'USD').toLowerCase(), undefined, event.klarnaEnabled !== false),
     };
   }
 

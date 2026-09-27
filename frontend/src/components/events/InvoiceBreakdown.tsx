@@ -18,6 +18,7 @@ export interface InvoiceData {
   total: number;
   seatsInfo: InvoiceItem[];
   currency?: string;
+  paymentMethodTypes?: ('card' | 'klarna')[];
 }
 
 interface InvoiceBreakdownProps {

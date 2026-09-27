@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsDateString, IsBoolean, IsNumber, Min, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsDateString, IsBoolean, IsNumber, Min, IsUUID, ValidateIf } from 'class-validator';
 import { EventCategory } from '../../database/entities';
 
 export class CreateEventDto {
@@ -107,6 +107,10 @@ export class UpdateEventDto {
   @IsOptional()
   @IsBoolean()
   publicVisible?: boolean;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsBoolean()
+  klarnaEnabled?: boolean;
 
   @IsOptional()
   @IsString()
