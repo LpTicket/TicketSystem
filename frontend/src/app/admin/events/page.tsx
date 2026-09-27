@@ -460,20 +460,20 @@ export default function AdminEventsPage() {
 
   return (
     <div>
-      <div className="premium-shell p-6 lg:p-8 space-y-6 animate-fade-in">
+      <div className="premium-shell px-4 py-6 sm:px-6 lg:px-8 lg:py-10 space-y-8 animate-fade-in">
       <div>
         <h1 className="premium-page-title font-black text-2xl">{t('adminEventManagement')}</h1>
         <p className="text-sm text-gray-500 mt-1">{lang === 'es' ? 'Aprueba, rechaza y gestiona los eventos de la plataforma' : 'Approve, reject and manage platform events'}</p>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col lg:flex-row gap-3">
-        <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-col xl:flex-row xl:items-center gap-4">
+        <div className="flex flex-wrap gap-2">
           {statusFilters.map((f) => (
             <button
               key={f.key}
               onClick={() => { setFilter(f.key); setPage(1); }}
-              className={`flex-1 sm:flex-none justify-center px-3.5 py-2.5 sm:py-2 text-xs font-semibold rounded-lg transition-all whitespace-nowrap active:scale-95 ${
+              className={`justify-center px-3.5 py-2.5 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
                 filter === f.key ? 'bg-gradient-to-b from-[#ff8a18] via-[#f46c00] to-[#c93f00] text-white font-bold border border-[rgba(255,151,45,0.62)] shadow-[0_10px_24px_rgba(255,104,0,0.24)]' : 'bg-[rgba(8,31,51,0.6)] border border-[rgba(246,198,95,0.18)] text-slate-300 hover:bg-[rgba(249,115,22,0.12)] hover:border-[rgba(249,115,22,0.4)] hover:text-white'
               }`}
             >
@@ -481,7 +481,7 @@ export default function AdminEventsPage() {
             </button>
           ))}
         </div>
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative w-full sm:max-w-sm xl:ml-auto xl:w-80 xl:shrink-0">
           <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
@@ -498,297 +498,73 @@ export default function AdminEventsPage() {
         <div className="space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-16 skeleton rounded-lg" />)}</div>
       ) : filteredEvents.length > 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('adminEventTitle' as any)}</th>
-                  <th className="text-left px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Organizador' : 'Organizer'}</th>
-                  <th className="text-left px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('adminCategory' as any)}</th>
-                  <th className="text-left px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('adminDate' as any)}</th>
-                  <th className="text-center px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Estado' : 'Status'}</th>
-                  <th className="text-right px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{lang === 'es' ? 'Acciones' : 'Actions'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredEvents.map((ev) => {
-                  const badge = getStatusBadge(ev.status);
-                  const catInfo = getCategoryInfo(ev.category);
-                  const catLabel = catInfo ? (lang === 'en' ? catInfo.labelEn : catInfo.labelEs) : ev.category;
-                  return (
-                    <tr key={ev.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
-                            {ev.imageUrl ? (
-                              <img src={getImageUrl(ev.imageUrl)} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-lg">{catInfo?.icon || '🎫'}</span>
-                            )}
-                          </div>
-                          <span className="font-medium text-gray-900 text-sm truncate max-w-[200px]">{ev.title}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-sm">
-                        <p className="font-semibold text-gray-900">{[ev.organizer?.firstName, ev.organizer?.lastName].filter(Boolean).join(' ') || (lang === 'es' ? 'Sin nombre' : 'No name')}</p>
-                        {ev.organizer?.email ? (
-                          <a href={`mailto:${ev.organizer.email}?subject=${encodeURIComponent(`${lang === 'es' ? 'Información sobre' : 'Information about'} ${ev.title}`)}`} className="text-xs text-blue-600 hover:text-blue-800 hover:underline">{ev.organizer.email}</a>
-                        ) : <p className="text-xs text-gray-400">{lang === 'es' ? 'Correo no disponible' : 'Email unavailable'}</p>}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-600">
-                        {catLabel}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-600">
-                        {formatDateInTimezone(ev.eventDate, ev.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {(ev.status === 'draft' || ev.status === 'pending_approval') && (
-                            <>
-                              <button
-                                onClick={() => handleApprove(ev)}
-                                className="px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium hover:bg-green-100 transition-colors flex items-center gap-1"
-                              >
-                                <HiOutlineCheckCircle className="w-4 h-4" />
-                                {t('adminApprove' as any)}
-                              </button>
-                              <button
-                                onClick={() => handleReject(ev.id)}
-                                className="px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-xs font-medium hover:bg-red-100 transition-colors flex items-center gap-1"
-                              >
-                                <HiOutlineXCircle className="w-4 h-4" />
-                                {t('adminReject' as any)}
-                              </button>
-                            </>
-                          )}
-                          {ev.status === 'published' && (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleToggleFeatured(ev.id)}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 active:scale-95 ${
-                                  ev.isFeatured
-                                    ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-200 shadow-sm'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-transparent'
-                                }`}
-                              >
-                                {ev.isFeatured ? <HiStar className="w-4.5 h-4.5 text-amber-500 fill-amber-500 shrink-0" /> : <HiOutlineStar className="w-4.5 h-4.5 text-gray-500 shrink-0" />}
-                                <span>{ev.isFeatured ? (lang === 'es' ? 'Banner Activo' : 'Banner Active') : (lang === 'es' ? 'Poner Banner' : 'Set Banner')}</span>
-                              </button>
-                              <button
-                                onClick={() => handleTogglePublicVisibility(ev.id)}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 active:scale-95 ${
-                                  ev.publicVisible === false
-                                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
-                                    : 'bg-[#dbeafe] text-[#1d4ed8] hover:bg-[#bfdbfe] border border-[#bfdbfe] shadow-sm'
-                                }`}
-                                title={ev.publicVisible === false ? (lang === 'es' ? 'Oculto de Home y Eventos' : 'Hidden from Home and Events') : (lang === 'es' ? 'Visible en Home y Eventos' : 'Visible on Home and Events')}
-                              >
-                                {ev.publicVisible === false ? <HiOutlineEyeOff className="w-4.5 h-4.5 shrink-0" /> : <HiOutlineEye className="w-4.5 h-4.5 shrink-0" />}
-                                <span>{ev.publicVisible === false ? (lang === 'es' ? 'Oculto' : 'Hidden') : (lang === 'es' ? 'Visible' : 'Visible')}</span>
-                              </button>
-                            </div>
-                          )}
-                          {hasPendingChanges(ev) && (
-                            <button
-                              onClick={() => setSelectedEventForChanges(ev)}
-                              className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold hover:bg-amber-100 transition-colors flex items-center gap-1 shrink-0 shadow-sm border border-amber-200"
-                              title={lang === 'es' ? 'Aprobar o Rechazar Cambios' : 'Approve or Reject Changes'}
-                            >
-                              <HiOutlineCheckCircle className="w-4 h-4 text-amber-600 animate-pulse" />
-                              {lang === 'es' ? 'Ver cambios' : 'Review changes'}
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleOpenReportModal(ev)}
-                            className="px-4 py-2 rounded-xl bg-[#F97316] text-white text-xs font-black hover:bg-[#ea6c10] transition-colors flex items-center gap-2 shrink-0 shadow-sm shadow-orange-100 active:scale-95"
-                            title={lang === 'es' ? 'Enviar resumen final del evento' : 'Send final event report'}
-                          >
-                            <HiOutlineMail className="w-4 h-4" />
-                            {lang === 'es' ? 'Enviar resumen' : 'Send report'}
-                          </button>
-                          <button
-                            onClick={() => handleOpenPricesModal(ev)}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1 shrink-0 shadow-sm border border-emerald-200"
-                            title={lang === 'es' ? 'Gestionar Precios' : 'Manage Prices'}
-                          >
-                            <HiOutlineCurrencyDollar className="w-4 h-4" />
-                            {lang === 'es' ? 'Precios' : 'Prices'}
-                          </button>
-                          <button
-                            onClick={() => handleOpenFeesModal(ev)}
-                            className="px-3 py-1.5 rounded-lg bg-[#e2e8f0] text-[#334155] text-xs font-bold hover:bg-[#cbd5e1] transition-colors flex items-center gap-1 shrink-0 shadow-sm border border-[#cbd5e1]"
-                            title={lang === 'es' ? 'Ver política de tarifas fijas' : 'View fixed-fee policy'}
-                          >
-                            <HiOutlineCog className="w-4 h-4" />
-                            {lang === 'es' ? 'Tarifa fija' : 'Fixed fees'}
-                          </button>
-                          <Link
-                            href={`/admin/events/edit/${ev.id}`}
-                            title={lang === 'es' ? 'Editar evento' : 'Edit event'}
-                            className="p-1.5 rounded-lg transition-colors bg-[#0A375A] text-white border border-[#0A375A] hover:bg-[#134c78] shadow-sm shrink-0"
-                          >
-                            <HiOutlinePencilAlt className="w-4 h-4" />
-                          </Link>
-                          <Link
-                            href={`/admin/events/${ev.id}`}
-                            title={lang === 'es' ? 'Ver detalle administrativo' : 'View admin detail'}
-                            className="p-1.5 rounded-lg transition-colors bg-[#dbeafe] text-[#1d4ed8] border border-[#bfdbfe] hover:bg-[#bfdbfe] shadow-sm shrink-0"
-                          >
-                            <HiOutlineDocumentText className="w-4 h-4" />
-                          </Link>
-                          <button
-                            onClick={() => handleDelete(ev.id, ev.title)}
-                            className="p-1.5 rounded-lg transition-colors text-red-500 hover:bg-red-50"
-                          >
-                            <HiOutlineTrash className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Card View */}
-          <div className="md:hidden divide-y divide-gray-100">
+          <div className="divide-y divide-white/10">
             {filteredEvents.map((ev) => {
               const badge = getStatusBadge(ev.status);
               const catInfo = getCategoryInfo(ev.category);
+              const catLabel = catInfo ? (lang === 'en' ? catInfo.labelEn : catInfo.labelEs) : ev.category;
+              const organizerName = [ev.organizer?.firstName, ev.organizer?.lastName].filter(Boolean).join(' ') || (lang === 'es' ? 'Sin nombre' : 'No name');
+              const actionClass = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors';
               return (
-                <div key={ev.id} className="p-5 space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center border border-gray-200">
-                      {ev.imageUrl ? (
-                        <img src={getImageUrl(ev.imageUrl)} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-2xl">{catInfo?.icon || '🎫'}</span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-extrabold text-gray-900 text-sm leading-tight mb-1">{ev.title}</h3>
-                      <p className="text-[10px] text-gray-500 flex items-center gap-1 font-medium">
-                        <HiOutlineCalendar className="w-3 h-3" />
-                        {formatDateInTimezone(ev.eventDate, ev.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </p>
-                      <p className="mt-1 text-xs font-semibold text-gray-700">{[ev.organizer?.firstName, ev.organizer?.lastName].filter(Boolean).join(' ') || (lang === 'es' ? 'Organizador sin nombre' : 'Unnamed organizer')}</p>
-                      {ev.organizer?.email && <a href={`mailto:${ev.organizer.email}?subject=${encodeURIComponent(`${lang === 'es' ? 'Información sobre' : 'Information about'} ${ev.title}`)}`} className="block truncate text-[11px] text-blue-600 hover:underline">{ev.organizer.email}</a>}
-                      <div className="mt-2">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${badge.classes}`}>
-                          {badge.label}
-                        </span>
+                <article key={ev.id} className="px-4 py-5 sm:px-6 sm:py-6 hover:bg-white/[0.025] transition-colors">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex min-w-0 flex-1 items-start gap-4">
+                      <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-[#102b43] flex items-center justify-center sm:h-16 sm:w-16">
+                        {ev.imageUrl ? <img src={getImageUrl(ev.imageUrl)} alt="" className="h-full w-full object-cover" /> : <span className="text-2xl">{catInfo?.icon || '🎫'}</span>}
                       </div>
+                      <div className="min-w-0 pt-0.5">
+                        <h2 className="text-base font-bold leading-snug text-white break-words sm:text-lg">{ev.title}</h2>
+                      </div>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${badge.classes}`}>{badge.label}</span>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 rounded-xl border border-white/10 bg-[#071b2d]/60 p-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-6">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{lang === 'es' ? 'Organizador' : 'Organizer'}</p>
+                      <p className="mt-1.5 text-sm font-semibold text-slate-100 break-words">{organizerName}</p>
+                      {ev.organizer?.email ? <a href={`mailto:${ev.organizer.email}?subject=${encodeURIComponent(`${lang === 'es' ? 'Información sobre' : 'Information about'} ${ev.title}`)}`} className="mt-1 block text-xs text-sky-400 hover:underline break-all">{ev.organizer.email}</a> : <p className="mt-1 text-xs text-slate-500">{lang === 'es' ? 'Correo no disponible' : 'Email unavailable'}</p>}
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{lang === 'es' ? 'Fecha' : 'Date'}</p>
+                      <p className="mt-1.5 text-sm font-medium text-slate-100">{formatDateInTimezone(ev.eventDate, ev.eventTimezone || 'UTC', lang === 'es' ? 'es' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{lang === 'es' ? 'Categoría' : 'Category'}</p>
+                      <p className="mt-1.5 text-sm font-medium text-slate-100 break-words">{catLabel}</p>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 pt-2">
+                  <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/10 pt-5">
                     {(ev.status === 'draft' || ev.status === 'pending_approval') && (
                       <>
-                        <button
-                          onClick={() => handleApprove(ev)}
-                          className="flex-1 bg-green-600 text-white text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
-                        >
-                          <HiOutlineCheckCircle className="w-4 h-4" />
-                          {t('adminApprove')}
+                        <button onClick={() => handleApprove(ev)} className={`${actionClass} border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20`}><HiOutlineCheckCircle className="h-4 w-4 shrink-0" />{t('adminApprove' as any)}</button>
+                        <button onClick={() => handleReject(ev.id)} className={`${actionClass} border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20`}><HiOutlineXCircle className="h-4 w-4 shrink-0" />{t('adminReject' as any)}</button>
+                      </>
+                    )}
+                    {ev.status === 'published' && (
+                      <>
+                        <button onClick={() => handleToggleFeatured(ev.id)} className={`${actionClass} ${ev.isFeatured ? 'border-amber-400/40 bg-amber-400/15 text-amber-200 hover:bg-amber-400/25' : 'border-white/15 bg-white/5 text-slate-200 hover:bg-white/10'}`}>
+                          {ev.isFeatured ? <HiStar className="h-4 w-4 shrink-0" /> : <HiOutlineStar className="h-4 w-4 shrink-0" />}
+                          {ev.isFeatured ? (lang === 'es' ? 'Banner activo' : 'Banner active') : (lang === 'es' ? 'Poner banner' : 'Set banner')}
                         </button>
-                        <button
-                          onClick={() => handleReject(ev.id)}
-                          className="flex-1 bg-red-50 text-red-600 border border-red-100 text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                        >
-                          <HiOutlineXCircle className="w-4 h-4" />
-                          {t('adminReject')}
+                        <button onClick={() => handleTogglePublicVisibility(ev.id)} title={ev.publicVisible === false ? (lang === 'es' ? 'Oculto de Home y Eventos' : 'Hidden from Home and Events') : (lang === 'es' ? 'Visible en Home y Eventos' : 'Visible on Home and Events')} className={`${actionClass} border-sky-400/30 bg-sky-400/10 text-sky-200 hover:bg-sky-400/20`}>
+                          {ev.publicVisible === false ? <HiOutlineEyeOff className="h-4 w-4 shrink-0" /> : <HiOutlineEye className="h-4 w-4 shrink-0" />}
+                          {ev.publicVisible === false ? (lang === 'es' ? 'Oculto' : 'Hidden') : (lang === 'es' ? 'Visible' : 'Visible')}
                         </button>
                       </>
                     )}
-                    
-                    {ev.status === 'published' && (
-                      <div className="grid grid-cols-2 gap-2 w-full">
-                        <button
-                          onClick={() => handleToggleFeatured(ev.id)}
-                          className={`text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-sm border ${
-                            ev.isFeatured
-                              ? 'bg-amber-100 text-amber-800 border-amber-200'
-                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                          }`}
-                        >
-                          {ev.isFeatured ? <HiStar className="w-4 h-4 text-amber-500 fill-amber-500" /> : <HiOutlineStar className="w-4 h-4 text-gray-400" />}
-                          {ev.isFeatured ? (lang === 'es' ? 'BANNER ACTIVO' : 'BANNER ACTIVE') : (lang === 'es' ? 'PONER BANNER' : 'SET BANNER')}
-                        </button>
-                        <button
-                          onClick={() => handleTogglePublicVisibility(ev.id)}
-                          className={`text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-sm border ${
-                            ev.publicVisible === false
-                              ? 'bg-gray-100 text-gray-700 border-gray-200'
-                              : 'bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]'
-                          }`}
-                        >
-                          {ev.publicVisible === false ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
-                          {ev.publicVisible === false ? (lang === 'es' ? 'OCULTO' : 'HIDDEN') : (lang === 'es' ? 'VISIBLE' : 'VISIBLE')}
-                        </button>
-                      </div>
-                    )}
-
-                    {hasPendingChanges(ev) && (
-                      <button
-                        onClick={() => setSelectedEventForChanges(ev)}
-                        className="w-full bg-amber-500 text-white text-[10px] font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all"
-                      >
-                        <HiOutlineCheckCircle className="w-4 h-4 text-amber-600 animate-pulse" />
-                        {lang === 'es' ? 'REVISAR CAMBIOS SOLICITADOS' : 'REVIEW REQUESTED CHANGES'}
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => handleOpenReportModal(ev)}
-                      className="w-full bg-[#F97316] text-white text-[10px] font-black py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-orange-100 active:scale-95 transition-all"
-                    >
-                      <HiOutlineMail className="w-4 h-4" />
-                      {lang === 'es' ? 'ENVIAR RESUMEN' : 'SEND REPORT'}
-                    </button>
-
-                    <div className="flex gap-2 w-full mt-1">
-                      <button
-                        onClick={() => handleOpenPricesModal(ev)}
-                        className="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                      >
-                        <HiOutlineCurrencyDollar className="w-4 h-4" />
-                        {lang === 'es' ? 'PRECIOS' : 'PRICES'}
-                      </button>
-                      <button
-                        onClick={() => handleOpenFeesModal(ev)}
-                        className="flex-1 bg-[rgba(10,55,90,0.05)] text-[#0A375A] border border-[rgba(10,55,90,0.10)] text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                      >
-                        <HiOutlineCog className="w-4 h-4" />
-                        {lang === 'es' ? 'TARIFA FIJA' : 'FIXED FEES'}
-                      </button>
-                      <Link
-                        href={`/admin/events/edit/${ev.id}`}
-                        title={lang === 'es' ? 'Editar evento' : 'Edit event'}
-                        className="p-2 bg-[#0A375A] text-white border border-[#0A375A] rounded-lg flex items-center justify-center active:scale-95 transition-all"
-                      >
-                        <HiOutlinePencilAlt className="w-4.5 h-4.5" />
-                      </Link>
-                      <Link
-                        href={`/admin/events/${ev.id}`}
-                        title={lang === 'es' ? 'Ver detalle administrativo' : 'View admin detail'}
-                        className="p-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg flex items-center justify-center active:scale-95 transition-all"
-                      >
-                        <HiOutlineDocumentText className="w-4.5 h-4.5" />
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(ev.id, ev.title)}
-                        className="p-2 bg-red-50 text-red-600 border border-red-100 rounded-lg active:scale-95 transition-all"
-                      >
-                        <HiOutlineTrash className="w-4.5 h-4.5" />
-                      </button>
+                    {hasPendingChanges(ev) && <button onClick={() => setSelectedEventForChanges(ev)} className={`${actionClass} border-amber-400/40 bg-amber-400/15 text-amber-200 hover:bg-amber-400/25`}><HiOutlineCheckCircle className="h-4 w-4 shrink-0" />{lang === 'es' ? 'Ver cambios' : 'Review changes'}</button>}
+                    <button onClick={() => handleOpenReportModal(ev)} title={lang === 'es' ? 'Enviar resumen final del evento' : 'Send final event report'} className={`${actionClass} border-orange-400 bg-[#f97316] text-white hover:bg-[#e9680d]`}><HiOutlineMail className="h-4 w-4 shrink-0" />{lang === 'es' ? 'Enviar resumen' : 'Send report'}</button>
+                    <button onClick={() => handleOpenPricesModal(ev)} className={`${actionClass} border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20`}><HiOutlineCurrencyDollar className="h-4 w-4 shrink-0" />{lang === 'es' ? 'Precios' : 'Prices'}</button>
+                    <button onClick={() => handleOpenFeesModal(ev)} className={`${actionClass} border-white/15 bg-white/5 text-slate-200 hover:bg-white/10`}><HiOutlineCog className="h-4 w-4 shrink-0" />{lang === 'es' ? 'Tarifa fija' : 'Fixed fees'}</button>
+                    <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                      <Link href={`/admin/events/edit/${ev.id}`} title={lang === 'es' ? 'Editar evento' : 'Edit event'} aria-label={lang === 'es' ? `Editar ${ev.title}` : `Edit ${ev.title}`} className={`${actionClass} border-white/15 bg-white/5 text-slate-200 hover:bg-white/10`}><HiOutlinePencilAlt className="h-4 w-4" /></Link>
+                      <Link href={`/admin/events/${ev.id}`} title={lang === 'es' ? 'Ver detalle administrativo' : 'View admin detail'} aria-label={lang === 'es' ? `Ver detalle de ${ev.title}` : `View details of ${ev.title}`} className={`${actionClass} border-white/15 bg-white/5 text-slate-200 hover:bg-white/10`}><HiOutlineDocumentText className="h-4 w-4" /></Link>
+                      <button onClick={() => handleDelete(ev.id, ev.title)} title={lang === 'es' ? 'Eliminar evento' : 'Delete event'} aria-label={lang === 'es' ? `Eliminar ${ev.title}` : `Delete ${ev.title}`} className={`${actionClass} border-red-500/25 bg-red-500/10 text-red-300 hover:bg-red-500/20`}><HiOutlineTrash className="h-4 w-4" /></button>
                     </div>
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>
