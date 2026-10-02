@@ -6201,3 +6201,42 @@ body {
   .hero-arrow-left  { left:  0.25rem !important; }
   .hero-arrow-right { right: 0.25rem !important; }
 }
+
+/* Keep the event purchase controls usable in Android mobile browsers. */
+@media (max-width: 767px) {
+  html.android-event-browser .seatmap-selection-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  html.android-event-browser .seatmap-selection-details {
+    width: 100%;
+    min-width: 0;
+    gap: 0.75rem;
+  }
+
+  html.android-event-browser .seatmap-selection-details > div {
+    min-width: 0;
+  }
+
+  html.android-event-browser .seatmap-selection-details h3,
+  html.android-event-browser .seatmap-selection-details p {
+    overflow-wrap: anywhere;
+  }
+
+  html.android-event-browser .seatmap-selection-quantity {
+    width: 100%;
+    flex: none;
+  }
+
+  html.android-event-browser .seatmap-selection-quantity > div {
+    max-width: 100%;
+  }
+
+  html.android-event-browser .fixed.bottom-4.left-0:has(.floating-action-pill),
+  html.android-event-browser .fixed.right-0:has(.floating-action-pill) {
+    display: none;
+  }
+}

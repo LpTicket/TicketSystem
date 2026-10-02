@@ -30,6 +30,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const hideFloatingWidgets = /^\/organizer\/events\/[^/]+/.test(pathname);
 
   useEffect(() => {
+    const androidEventPage = /Android/i.test(navigator.userAgent)
+      && /^\/events\/[^/]+\/?$/.test(pathname);
+    document.documentElement.classList.toggle('android-event-browser', androidEventPage);
+    return () => document.documentElement.classList.remove('android-event-browser');
+  }, [pathname]);
+
+  useEffect(() => {
     if (!isTicketPage) loadUser();
   }, [isTicketPage, loadUser]);
 

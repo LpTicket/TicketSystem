@@ -1186,9 +1186,9 @@ export default function SeatMapInteractive({
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="absolute bottom-0 left-0 right-0 bg-[#1e2228] text-white p-4 shadow-2xl z-50 flex items-center justify-between"
+              className="seatmap-selection-toolbar absolute bottom-0 left-0 right-0 bg-[#1e2228] text-white p-4 shadow-2xl z-50 flex items-center justify-between"
             >
-              <div className="flex items-center gap-4">
+              <div className="seatmap-selection-details flex items-center gap-4">
                 <button
                   onClick={() => resetView()}
                   className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
@@ -1214,7 +1214,7 @@ export default function SeatMapInteractive({
                   </p>
                 </div>
               </div>
-              <div className="flex-1 flex justify-center">
+              <div className="seatmap-selection-quantity flex-1 flex justify-center">
                 {sections.find((s) => s.id === focusedSection)?.sectionType === 'standing' ? (
                   <div className="flex items-center gap-4 bg-white/10 rounded-2xl p-1.5 px-4 border border-white/10">
                     <button
