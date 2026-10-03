@@ -8,6 +8,7 @@ import { Animated, AppState, Easing, Linking, Modal, SafeAreaView, ScrollView, S
 // filter for it lives in index.ts (must run before expo wraps console.error).
 LogBox.ignoreLogs(["ScrollView doesn't take rejection well"]);
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -63,6 +64,7 @@ const NAV_ICON_RAISE = 1;
 
 function AppContent() {
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const navIndicatorX = useRef(new Animated.Value(0)).current;
   const adminNavIndicatorX = useRef(new Animated.Value(0)).current;
@@ -679,7 +681,11 @@ function AppContent() {
   return (
     <View style={styles.root}>
       <ScreenBackground />
-      <SafeAreaView style={[styles.safe, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}>
+      <SafeAreaView style={[
+        styles.safe,
+        Platform.OS === 'android' && { paddingTop: insets.top + 4, paddingBottom: insets.bottom },
+        Platform.OS === 'web' && { backgroundColor: 'transparent' },
+      ]}>
         <StatusBar style="light" />
         <View
           style={[styles.app, Platform.OS === 'web' && { backgroundColor: 'transparent' }]}
@@ -986,10 +992,12 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <LanguageProvider>
-        {!splashDone && <SplashVideo onFinish={() => setSplashDone(true)} />}
-        <AppContent />
-      </LanguageProvider>
+      <SafeAreaProvider style={{ flex: 1 }}>
+        <LanguageProvider>
+          {!splashDone && <SplashVideo onFinish={() => setSplashDone(true)} />}
+          <AppContent />
+        </LanguageProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
