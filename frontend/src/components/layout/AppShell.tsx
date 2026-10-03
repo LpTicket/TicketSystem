@@ -46,10 +46,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       {supportSession && (
-        <div role="status" className="sticky top-0 z-[300] flex flex-wrap items-center justify-center gap-3 bg-[#0A375A] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
+        <div role="status" className="relative z-40 flex flex-wrap items-center justify-center gap-3 bg-[#0A375A] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
           <span>
             {lang === 'es' ? 'Sesión de soporte:' : 'Support session:'} {supportSession.user.firstName} {supportSession.user.lastName}
-            {' · '}{lang === 'es' ? 'Compras y cambios sensibles desactivados' : 'Purchases and sensitive changes disabled'}
+            {' · '}{lang === 'es' ? 'Acciones registradas' : 'Actions logged'}
           </span>
           <button
             type="button"
@@ -66,13 +66,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
       {!standalone && !isCheckout && <Header />}
-      {!supportSession && <Suspense fallback={null}>
+      <Suspense fallback={null}>
         <AnalyticsTracker />
-      </Suspense>}
+      </Suspense>
       <main className="min-h-screen w-full max-w-full overflow-x-clip">{children}</main>
       {!standalone && !isCheckout && <Footer />}
-      {!supportSession && !standalone && !hideFloatingWidgets && <Chatbot />}
-      {!supportSession && !standalone && !hideFloatingWidgets && <SocialMatchWidget />}
+      {!standalone && !hideFloatingWidgets && <Chatbot />}
+      {!standalone && !hideFloatingWidgets && <SocialMatchWidget />}
       <ConfirmDialogHost />
     </>
   );

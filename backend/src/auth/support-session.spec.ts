@@ -2,6 +2,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { UserRole } from '../database/entities';
+import { RolesGuard } from '../common/guards/roles.guard';
 
 const admin = { id: 'admin-1', email: 'admin@example.com', role: UserRole.ADMIN, isActive: true };
 const client = { id: 'client-1', email: 'client@example.com', role: UserRole.CLIENT, isActive: true, firstName: 'Ana', lastName: 'Test', passwordHash: 'secret' };
@@ -16,20 +17,29 @@ describe('Web support sessions', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  it('allows reads and profile edits under the client identity', async () => {
+  it('allows client actions, including checkout and payment methods, under the client identity', async () => {
     await expect(strategy.validate({ method: 'GET', url: '/api/orders/my-tickets' }, payload)).resolves.toMatchObject({
       id: client.id, role: UserRole.CLIENT, supportActorId: admin.id,
     });
     await expect(strategy.validate({ method: 'PATCH', url: '/api/auth/profile' }, payload)).resolves.toMatchObject({
       id: client.id, supportActorId: admin.id,
     });
-  });
-
-  it('blocks checkout and payment changes at authentication', async () => {
-    await expect(strategy.validate({ method: 'POST', url: '/api/orders/checkout' }, payload)).rejects.toThrow('no está disponible');
-    await expect(strategy.validate({ method: 'POST', url: '/api/payments/setup-session' }, payload)).rejects.toThrow('no está disponible');
-    await expect(strategy.validate({ method: 'GET', url: '/api/payments/methods' }, payload)).rejects.toThrow('no está disponible');
-    await expect(strategy.validate({ method: 'PATCH', url: '/api/admin/users/client-1/role' }, payload)).rejects.toThrow('no está disponible');
+    await expect(strategy.validate({ method: 'POST', url: '/api/orders/checkout' }, payload)).resolves.toMatchObject({
+      id: client.id, role: UserRole.CLIENT, supportActorId: admin.id,
+    });
+    await expect(strategy.validate({ method: 'POST', url: '/api/payments/setup-session' }, payload)).resolves.toMatchObject({
+      id: client.id, role: UserRole.CLIENT, supportActorId: admin.id,
+    });
+    const supportUser = await strategy.validate({ method: 'PATCH', url: '/api/admin/users/client-1/role' }, { ...payload, role: UserRole.ADMIN });
+    expect(supportUser).toMatchObject({
+      role: UserRole.CLIENT, supportActorId: admin.id,
+    });
+    const adminGuard = new RolesGuard({ getAllAndOverride: () => [UserRole.ADMIN] } as any);
+    expect(adminGuard.canActivate({
+      getHandler: () => null,
+      getClass: () => null,
+      switchToHttp: () => ({ getRequest: () => ({ user: supportUser }) }),
+    } as any)).toBe(false);
   });
 
   it('invalidates support when the actor loses admin rights', async () => {
@@ -37,12 +47,12 @@ describe('Web support sessions', () => {
     await expect(strategy.validate({ method: 'GET', url: '/api/auth/profile' }, payload)).rejects.toThrow('inválida');
   });
 
-  it('never accepts password changes through the allowed profile route', async () => {
+  it('allows an administrator to update the client profile, including password', async () => {
     const controller = new AuthController(authService as any, {} as any, {} as any);
     await expect(controller.updateProfile(
       { user: { id: client.id, supportActorId: admin.id } }, { password: 'changed-password' },
-    )).rejects.toThrow('contraseña');
-    expect(authService.updateProfile).not.toHaveBeenCalled();
+    )).resolves.toEqual(client);
+    expect(authService.updateProfile).toHaveBeenCalledWith(client.id, { password: 'changed-password' });
   });
 
   it('issues a short-lived token only for an active client', async () => {
@@ -52,11 +62,11 @@ describe('Web support sessions', () => {
     );
     jest.spyOn(service, 'validateUser').mockImplementation(async (id: string) => id === admin.id ? admin as any : id === client.id ? client as any : null);
     await expect(service.startSupportSession(admin.id, client.id)).resolves.toMatchObject({
-      accessToken: 'support-token', expiresIn: 900, user: { id: client.id },
+      accessToken: 'support-token', expiresIn: 3600, user: { id: client.id },
     });
     expect(sign).toHaveBeenCalledWith(
       expect.objectContaining({ sub: client.id, actorId: admin.id, purpose: 'support' }),
-      { expiresIn: '15m' },
+      { expiresIn: '1h' },
     );
     await expect(service.startSupportSession(admin.id, admin.id)).rejects.toThrow('clientes');
     await expect(service.startSupportSession(client.id, client.id)).rejects.toThrow('administrador');

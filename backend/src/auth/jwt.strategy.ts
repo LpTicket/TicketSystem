@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -55,13 +55,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         throw new UnauthorizedException('Sesión de soporte inválida');
       }
       const path = req.url.split('?')[0];
-      const isRead = req.method === 'GET' || req.method === 'HEAD';
-      const isProfileEdit = req.method === 'PATCH' && path === '/api/auth/profile';
-      if ((isRead && path.startsWith('/api/payments/')) || (!isRead && !isProfileEdit)) {
-        this.logger.warn(`Support action denied actor=${actor.id} user=${user.id} method=${req.method} path=${path}`);
-        throw new ForbiddenException('Esta acción no está disponible durante una sesión de soporte');
-      }
-      if (isRead) this.logger.log(`Support access actor=${actor.id} user=${user.id} method=${req.method} path=${path}`);
+      this.logger.log(`Support access actor=${actor.id} user=${user.id} method=${req.method} path=${path}`);
       return { id: user.id, email: user.email, role: user.role, supportActorId: actor.id };
     }
     if (payload.purpose || payload.actorId) throw new UnauthorizedException('Sesión inválida');

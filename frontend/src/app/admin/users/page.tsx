@@ -75,8 +75,8 @@ export default function AdminUsersPage() {
     if (!await confirmDialog({
       title: lang === 'es' ? 'Entrar como usuario' : 'Open user account',
       message: lang === 'es'
-        ? `Abrirás temporalmente la cuenta de ${u.firstName} ${u.lastName}. Podrás consultar y editar su perfil; las compras y acciones sensibles estarán bloqueadas.`
-        : `You will temporarily open ${u.firstName} ${u.lastName}'s account. You can view and edit the profile; purchases and sensitive actions will be blocked.`,
+        ? `Abrirás temporalmente la cuenta de ${u.firstName} ${u.lastName} para ayudarle también con compras y otras gestiones. Tus acciones quedarán registradas.`
+        : `You will temporarily open ${u.firstName} ${u.lastName}'s account to help with purchases and other tasks. Your actions will be logged.`,
       confirmLabel: lang === 'es' ? 'Entrar' : 'Enter',
     })) return;
     setOpeningUserId(u.id);

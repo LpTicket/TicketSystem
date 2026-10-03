@@ -243,11 +243,11 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(
       { sub: user.id, actorId: admin.id, purpose: 'support', role: UserRole.CLIENT },
-      { expiresIn: '15m' },
+      { expiresIn: '1h' },
     );
     this.logger.log(`Support session started actor=${admin.id} user=${user.id}`);
     const { passwordHash, ...userData } = user;
-    return { accessToken, user: userData, expiresIn: 900 };
+    return { accessToken, user: userData, expiresIn: 3600 };
   }
 
   private getRefreshSecret(): string {
