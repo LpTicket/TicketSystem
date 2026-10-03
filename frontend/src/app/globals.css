@@ -6240,3 +6240,11 @@ body {
     display: none;
   }
 }
+
+/* Keep the navigation below the support banner while viewing a client account. */
+html body:has(.lp-support-banner) header.site-header-future {
+  position: relative !important;
+  top: 0 !important;
+  left: auto !important;
+  right: auto !important;
+}

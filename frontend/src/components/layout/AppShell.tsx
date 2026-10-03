@@ -46,7 +46,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       {supportSession && (
-        <div role="status" className="relative z-40 flex flex-wrap items-center justify-center gap-3 bg-[#0A375A] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
+        <div role="status" className="lp-support-banner relative z-40 flex flex-wrap items-center justify-center gap-3 bg-[#0A375A] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
           <span>
             {lang === 'es' ? 'Sesión de soporte:' : 'Support session:'} {supportSession.user.firstName} {supportSession.user.lastName}
             {' · '}{lang === 'es' ? 'Acciones registradas' : 'Actions logged'}
