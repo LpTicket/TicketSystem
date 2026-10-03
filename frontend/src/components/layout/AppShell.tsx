@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import Header from '@/components/layout/Header';
@@ -9,9 +9,12 @@ import Chatbot from '@/components/support/Chatbot';
 import SocialMatchWidget from '@/components/social/SocialMatchWidget';
 import AnalyticsTracker from '@/components/analytics/AnalyticsTracker';
 import ConfirmDialogHost from '@/components/ui/ConfirmDialogHost';
+import { useLang } from '@/context/LanguageContext';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { loadUser } = useAuthStore();
+  const { loadUser, supportSession, stopSupportSession } = useAuthStore();
+  const { lang } = useLang();
+  const [restoringAdmin, setRestoringAdmin] = useState(false);
   const pathname = usePathname() || '';
 
   // Ticket and order-receipt pages render clean, without the site chrome that
@@ -42,14 +45,34 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      {supportSession && (
+        <div role="status" className="sticky top-0 z-[300] flex flex-wrap items-center justify-center gap-3 bg-[#0A375A] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
+          <span>
+            {lang === 'es' ? 'Sesión de soporte:' : 'Support session:'} {supportSession.user.firstName} {supportSession.user.lastName}
+            {' · '}{lang === 'es' ? 'Compras y cambios sensibles desactivados' : 'Purchases and sensitive changes disabled'}
+          </span>
+          <button
+            type="button"
+            disabled={restoringAdmin}
+            onClick={async () => {
+              setRestoringAdmin(true);
+              const restored = await stopSupportSession();
+              window.location.href = restored ? '/admin/users' : '/login';
+            }}
+            className="rounded-lg bg-[#F97316] px-4 py-2 font-bold text-white hover:bg-orange-600 disabled:opacity-60"
+          >
+            {restoringAdmin ? (lang === 'es' ? 'Volviendo...' : 'Returning...') : (lang === 'es' ? 'Volver al administrador' : 'Return to admin')}
+          </button>
+        </div>
+      )}
       {!standalone && !isCheckout && <Header />}
-      <Suspense fallback={null}>
+      {!supportSession && <Suspense fallback={null}>
         <AnalyticsTracker />
-      </Suspense>
+      </Suspense>}
       <main className="min-h-screen w-full max-w-full overflow-x-clip">{children}</main>
       {!standalone && !isCheckout && <Footer />}
-      {!standalone && !hideFloatingWidgets && <Chatbot />}
-      {!standalone && !hideFloatingWidgets && <SocialMatchWidget />}
+      {!supportSession && !standalone && !hideFloatingWidgets && <Chatbot />}
+      {!supportSession && !standalone && !hideFloatingWidgets && <SocialMatchWidget />}
       <ConfirmDialogHost />
     </>
   );

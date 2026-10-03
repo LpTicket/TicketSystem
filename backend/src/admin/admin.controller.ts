@@ -9,6 +9,8 @@ import { RecordOrganizerPayoutDto } from './dto/record-organizer-payout.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { UserRole } from '../database/entities';
+import { AuthService } from '../auth/auth.service';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('admin')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -18,6 +20,7 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly adminInvoicesService: AdminInvoicesService,
     private readonly ordersService: OrdersService,
+    private readonly authService: AuthService,
   ) {}
 
   // Dashboard stats
@@ -61,6 +64,12 @@ export class AdminController {
     @Query('search') search?: string,
   ) {
     return this.adminService.getUsers(page || 1, limit || 20, role, search);
+  }
+
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Post('users/:id/support-session')
+  startSupportSession(@Param('id') id: string, @Request() req: any) {
+    return this.authService.startSupportSession(req.user.id, id);
   }
 
   @Post('users')

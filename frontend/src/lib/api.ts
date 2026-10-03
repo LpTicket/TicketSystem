@@ -10,6 +10,7 @@
  *     resuelve rutas de imagen relativas contra el host de la API.
  */
 import axios from 'axios';
+import { clearSupportSession, getSupportSession } from './supportSession';
 
 // API_URL is always a string — never undefined
 export const API_URL: string =
@@ -24,7 +25,7 @@ const api = axios.create({
 // Attach token to requests
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('accessToken');
+    const token = getSupportSession()?.accessToken || localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -37,6 +38,15 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
+      // Returning to the admin session handles an expired admin refresh token itself.
+      if (error.config?.url === '/auth/refresh' && getSupportSession()) {
+        return Promise.reject(error);
+      }
+      if (getSupportSession()) {
+        clearSupportSession();
+        window.location.href = '/admin/users';
+        return Promise.reject(error);
+      }
       // Ticket pages decide whether to show a guest-link error or request login.
       if (window.location.pathname.startsWith('/verify/')) {
         return Promise.reject(error);

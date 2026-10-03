@@ -12,6 +12,8 @@ import {
   Res,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
@@ -34,6 +36,7 @@ function getClientIp(req: any): string | undefined {
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
@@ -152,8 +155,15 @@ export class AuthController {
 
   @UseGuards(AuthGuard('jwt'))
   @Patch('profile')
-  updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
-    return this.authService.updateProfile(req.user.id, dto);
+  async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
+    if (req.user.supportActorId && dto.password) {
+      throw new ForbiddenException('No se puede cambiar la contraseña durante una sesión de soporte');
+    }
+    const result = await this.authService.updateProfile(req.user.id, dto);
+    if (req.user.supportActorId) {
+      this.logger.log(`Support profile updated actor=${req.user.supportActorId} user=${req.user.id} fields=${Object.keys(dto).join(',')}`);
+    }
+    return result;
   }
 
   @Throttle({ default: { ttl: 60_000, limit: 10 } })

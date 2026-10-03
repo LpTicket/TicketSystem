@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +11,7 @@ import { AuthService } from './auth.service';
  */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
+  private readonly logger = new Logger(JwtStrategy.name);
   constructor(
     private readonly configService: ConfigService,
     private readonly authService: AuthService,
@@ -27,6 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ]),
       ignoreExpiration: false,
       secretOrKey: secret,
+      passReqToCallback: true,
     });
   }
 
@@ -38,7 +40,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * @param payload Decoded content of the JWT
    * @returns An object that becomes accessible via 'req.user' in controllers
    */
-  async validate(payload: { sub: string; email: string; role: string }) {
+  async validate(req: { method: string; url: string }, payload: { sub: string; email?: string; role: string; actorId?: string; purpose?: string }) {
     // sub contains the unique user UUID
     const user = await this.authService.validateUser(payload.sub);
     
@@ -46,7 +48,24 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // If user was deleted but still has a valid token
       throw new UnauthorizedException('User no longer exists or session is invalid');
     }
-    
+
+    if (payload.purpose === 'support') {
+      const actor = payload.actorId && await this.authService.validateUser(payload.actorId);
+      if (!actor || actor.role !== 'admin' || user.role !== 'client') {
+        throw new UnauthorizedException('Sesión de soporte inválida');
+      }
+      const path = req.url.split('?')[0];
+      const isRead = req.method === 'GET' || req.method === 'HEAD';
+      const isProfileEdit = req.method === 'PATCH' && path === '/api/auth/profile';
+      if ((isRead && path.startsWith('/api/payments/')) || (!isRead && !isProfileEdit)) {
+        this.logger.warn(`Support action denied actor=${actor.id} user=${user.id} method=${req.method} path=${path}`);
+        throw new ForbiddenException('Esta acción no está disponible durante una sesión de soporte');
+      }
+      if (isRead) this.logger.log(`Support access actor=${actor.id} user=${user.id} method=${req.method} path=${path}`);
+      return { id: user.id, email: user.email, role: user.role, supportActorId: actor.id };
+    }
+    if (payload.purpose || payload.actorId) throw new UnauthorizedException('Sesión inválida');
+
     // Return relevant user metadata for route-based authorization
     return { id: payload.sub, email: payload.email, role: payload.role };
   }

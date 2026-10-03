@@ -13,6 +13,7 @@
 import { create } from 'zustand';
 import api from '@/lib/api';
 import { User, AuthResponse } from '@/types';
+import { clearSupportSession, getSupportSession, saveSupportSession, SupportSession } from '@/lib/supportSession';
 
 export type UserMode = 'buyer' | 'organizer';
 
@@ -21,6 +22,7 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   mode: UserMode;
+  supportSession: SupportSession | null;
   setMode: (mode: UserMode) => void;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { email: string; username: string; password: string; firstName: string; lastName: string; idType?: string; idNumber?: string; phone?: string; role?: string }) => Promise<void>;
@@ -29,6 +31,8 @@ interface AuthState {
   updateProfile: (data: Partial<User>) => Promise<void>;
   uploadAvatar: (file: File) => Promise<void>;
   setAuth: (user: User, accessToken: string, refreshToken: string) => void;
+  startSupportSession: (userId: string) => Promise<void>;
+  stopSupportSession: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -36,6 +40,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
   isAuthenticated: false,
   mode: (typeof window !== 'undefined' ? localStorage.getItem('userMode') as UserMode : 'buyer') || 'buyer',
+  supportSession: null,
 
   setMode: (mode) => {
     localStorage.setItem('userMode', mode);
@@ -44,32 +49,44 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (email, password) => {
     const { data } = await api.post<AuthResponse>('/auth/login', { email, password });
+    clearSupportSession();
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     localStorage.setItem('cachedUser', JSON.stringify(data.user));
-    set({ user: data.user, isAuthenticated: true, isLoading: false });
+    set({ user: data.user, isAuthenticated: true, isLoading: false, supportSession: null });
   },
 
   register: async (formData) => {
     const { data } = await api.post<AuthResponse>('/auth/register', formData);
+    clearSupportSession();
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     localStorage.setItem('cachedUser', JSON.stringify(data.user));
-    set({ user: data.user, isAuthenticated: true, isLoading: false });
+    set({ user: data.user, isAuthenticated: true, isLoading: false, supportSession: null });
   },
 
   logout: () => {
+    clearSupportSession();
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('cachedUser');
-    set({ user: null, isAuthenticated: false, isLoading: false });
+    set({ user: null, isAuthenticated: false, isLoading: false, supportSession: null });
   },
 
   loadUser: async () => {
     try {
+      const supportSession = getSupportSession();
+      if (supportSession) {
+        set({ user: supportSession.user, supportSession, isAuthenticated: true, isLoading: false, mode: 'buyer' });
+        const { data } = await api.get<User>('/auth/profile');
+        const updated = { ...supportSession, user: data };
+        saveSupportSession(updated);
+        set({ user: data, supportSession: updated, isAuthenticated: true, isLoading: false });
+        return;
+      }
       const token = localStorage.getItem('accessToken');
       if (!token) {
-        set({ isLoading: false });
+        set({ user: null, supportSession: null, isAuthenticated: false, isLoading: false });
         return;
       }
       // Hydrate instantly from cache so the UI never blocks on a network round-trip
@@ -83,17 +100,24 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Refresh in the background — update state when it arrives
       const { data } = await api.get<User>('/auth/profile');
       localStorage.setItem('cachedUser', JSON.stringify(data));
-      set({ user: data, isAuthenticated: true, isLoading: false });
+      set({ user: data, supportSession: null, isAuthenticated: true, isLoading: false });
     } catch {
       localStorage.removeItem('cachedUser');
-      set({ user: null, isAuthenticated: false, isLoading: false });
+      set({ user: null, isAuthenticated: false, isLoading: false, supportSession: null });
     }
   },
 
   updateProfile: async (profileData) => {
     const { data } = await api.patch<User>('/auth/profile', profileData);
-    localStorage.setItem('cachedUser', JSON.stringify(data));
-    set({ user: data });
+    const supportSession = getSupportSession();
+    if (supportSession) {
+      const updated = { ...supportSession, user: data };
+      saveSupportSession(updated);
+      set({ user: data, supportSession: updated });
+    } else {
+      localStorage.setItem('cachedUser', JSON.stringify(data));
+      set({ user: data });
+    }
   },
   
   uploadAvatar: async (file) => {
@@ -106,8 +130,38 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   setAuth: (user, accessToken, refreshToken) => {
+    clearSupportSession();
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
-    set({ user, isAuthenticated: true, isLoading: false });
+    set({ user, isAuthenticated: true, isLoading: false, supportSession: null });
+  },
+
+  startSupportSession: async (userId) => {
+    const { data } = await api.post<SupportSession>(`/admin/users/${userId}/support-session`);
+    const session = { accessToken: data.accessToken, user: data.user };
+    saveSupportSession(session);
+    set({ user: data.user, supportSession: session, isAuthenticated: true, isLoading: false, mode: 'buyer' });
+  },
+
+  stopSupportSession: async () => {
+    try {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) throw new Error('No hay sesión de administrador');
+      const { data } = await api.post<AuthResponse>('/auth/refresh', { refreshToken });
+      if (data.user.role !== 'admin') throw new Error('La cuenta ya no es administradora');
+      clearSupportSession();
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('cachedUser', JSON.stringify(data.user));
+      set({ user: data.user, supportSession: null, isAuthenticated: true, isLoading: false });
+      return true;
+    } catch {
+      clearSupportSession();
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('cachedUser');
+      set({ user: null, supportSession: null, isAuthenticated: false, isLoading: false });
+      return false;
+    }
   },
 }));

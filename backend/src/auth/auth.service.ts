@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, ForbiddenException, NotFoundException, Logger, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { JwtService } from '@nestjs/jwt';
@@ -14,6 +14,8 @@ import { MailService } from '../common/services/mail.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
@@ -231,6 +233,23 @@ export class AuthService {
     return this.userRepo.findOne({ where: { id: userId, isActive: true } });
   }
 
+  async startSupportSession(adminId: string, userId: string) {
+    const admin = await this.validateUser(adminId);
+    if (admin?.role !== UserRole.ADMIN) throw new ForbiddenException('Solo un administrador puede abrir esta sesión');
+
+    const user = await this.validateUser(userId);
+    if (!user) throw new NotFoundException('Usuario activo no encontrado');
+    if (user.role !== UserRole.CLIENT) throw new ForbiddenException('Solo se pueden abrir cuentas de clientes');
+
+    const accessToken = this.jwtService.sign(
+      { sub: user.id, actorId: admin.id, purpose: 'support', role: UserRole.CLIENT },
+      { expiresIn: '15m' },
+    );
+    this.logger.log(`Support session started actor=${admin.id} user=${user.id}`);
+    const { passwordHash, ...userData } = user;
+    return { accessToken, user: userData, expiresIn: 900 };
+  }
+
   private getRefreshSecret(): string {
     const secret = this.configService.get<string>('JWT_REFRESH_SECRET');
     if (!secret) {
@@ -247,6 +266,12 @@ export class AuthService {
       });
     } catch {
       throw new UnauthorizedException('Refresh token inválido o expirado');
+    }
+
+    // A support access token must never be exchangeable for a full client session,
+    // even if an installation happens to use the same secret for both token types.
+    if (payload.purpose || payload.actorId) {
+      throw new UnauthorizedException('Una sesión de soporte no puede renovarse');
     }
 
     const user = await this.userRepo.findOne({ where: { id: payload.sub, isActive: true } });

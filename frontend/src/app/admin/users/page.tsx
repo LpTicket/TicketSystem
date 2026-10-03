@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import { useLang } from '@/context/LanguageContext';
 import { confirmDialog } from '@/lib/dialog';
 import { User } from '@/types';
+import { useAuthStore } from '@/stores/auth';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
@@ -26,11 +27,14 @@ import {
   HiOutlineTicket,
   HiOutlinePencil,
   HiOutlineUserAdd,
+  HiOutlineLogin,
 } from 'react-icons/hi';
 
 export default function AdminUsersPage() {
   const { t, lang } = useLang();
   const router = useRouter();
+  const startSupportSession = useAuthStore((state) => state.startSupportSession);
+  const [openingUserId, setOpeningUserId] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -66,6 +70,24 @@ export default function AdminUsersPage() {
   const [creatingLoading, setCreatingLoading] = useState(false);
 
   const closeUserModal = () => { setSelectedUser(null); setIsEditing(false); };
+
+  const handleOpenAccount = async (u: User) => {
+    if (!await confirmDialog({
+      title: lang === 'es' ? 'Entrar como usuario' : 'Open user account',
+      message: lang === 'es'
+        ? `Abrirás temporalmente la cuenta de ${u.firstName} ${u.lastName}. Podrás consultar y editar su perfil; las compras y acciones sensibles estarán bloqueadas.`
+        : `You will temporarily open ${u.firstName} ${u.lastName}'s account. You can view and edit the profile; purchases and sensitive actions will be blocked.`,
+      confirmLabel: lang === 'es' ? 'Entrar' : 'Enter',
+    })) return;
+    setOpeningUserId(u.id);
+    try {
+      await startSupportSession(u.id);
+      window.location.assign('/dashboard?tab=profile');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || (lang === 'es' ? 'No se pudo abrir la cuenta' : 'Could not open account'));
+      setOpeningUserId(null);
+    }
+  };
 
   const handleSelectUser = async (u: User, startEditing: boolean = false) => {
     setSelectedUser(u);
@@ -341,6 +363,18 @@ export default function AdminUsersPage() {
                         </td>
                         <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
+                            {u.role === 'client' && u.isActive && (
+                              <button
+                                type="button"
+                                disabled={openingUserId !== null}
+                                onClick={() => handleOpenAccount(u)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-[#0A375A] px-3 py-2 text-xs font-bold text-white hover:bg-[#164b72] disabled:opacity-50"
+                                title={lang === 'es' ? 'Entrar como usuario' : 'Open user account'}
+                              >
+                                <HiOutlineLogin className="h-4 w-4" />
+                                {lang === 'es' ? 'Entrar como usuario' : 'Open account'}
+                              </button>
+                            )}
                             <select
                               value={u.role}
                               onChange={(e) => handleChangeRole(u.id, e.target.value)}
@@ -428,6 +462,17 @@ export default function AdminUsersPage() {
                       <option value="admin">Admin</option>
                     </select>
                     <div className="flex gap-1">
+                      {u.role === 'client' && u.isActive && (
+                        <button
+                          type="button"
+                          disabled={openingUserId !== null}
+                          onClick={() => handleOpenAccount(u)}
+                          className="inline-flex items-center gap-1 rounded-xl bg-[#0A375A] px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                        >
+                          <HiOutlineLogin className="h-4 w-4" />
+                          {lang === 'es' ? 'Entrar' : 'Enter'}
+                        </button>
+                      )}
                       <button
                         onClick={(e) => { e.stopPropagation(); handleSelectUser(u, true); }}
                         className="p-2.5 rounded-xl border border-[rgba(10,55,90,0.14)] text-[#0A375A] bg-[rgba(10,55,90,0.06)]"

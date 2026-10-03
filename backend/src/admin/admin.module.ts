@@ -5,9 +5,10 @@ import { AdminService } from './admin.service';
 import { AdminInvoicesService } from './admin-invoices.service';
 import { User, Event, Order, Ticket, VenueSection, Seat, OrganizerPayout } from '../database/entities';
 import { OrdersModule } from '../orders/orders.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Event, Order, Ticket, VenueSection, Seat, OrganizerPayout]), OrdersModule],
+  imports: [TypeOrmModule.forFeature([User, Event, Order, Ticket, VenueSection, Seat, OrganizerPayout]), OrdersModule, AuthModule],
   controllers: [AdminController],
   providers: [AdminService, AdminInvoicesService],
 })

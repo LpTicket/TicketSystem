@@ -40,7 +40,7 @@ import MySpecialCodesPanel from '@/components/special-codes/MySpecialCodesPanel'
 import { Suspense } from 'react';
 
 function DashboardPageBody() {
-  const { user, isAuthenticated, isLoading, updateProfile, mode, setMode } = useAuthStore();
+  const { user, isAuthenticated, isLoading, updateProfile, mode, setMode, supportSession } = useAuthStore();
   const { t, lang } = useLang();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -97,10 +97,14 @@ function DashboardPageBody() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
+    if (supportSession && (tabParam === 'payments' || tabParam === 'social' || tabParam === 'codes')) {
+      setActiveTab('profile');
+      return;
+    }
     if (tabParam === 'profile' || tabParam === 'orders' || tabParam === 'tickets' || tabParam === 'payments' || tabParam === 'social' || tabParam === 'codes') {
       setActiveTab(tabParam as 'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'codes');
     }
-  }, [searchParams]);
+  }, [searchParams, supportSession]);
 
   useEffect(() => {
     if (isAuthenticated && activeTab === 'orders' && !ordersLoaded && !ordersLoading && !ordersError) {
@@ -256,9 +260,11 @@ function DashboardPageBody() {
   const tabs = [
     { id: 'tickets' as const, label: t('clientMyTickets'), icon: HiOutlineTicket, count: tickets.length },
     { id: 'orders' as const, label: t('clientReceipts'), icon: HiOutlineShoppingCart, count: orders.length },
-    { id: 'payments' as const, label: t('clientPayments'), icon: HiOutlineCreditCard },
-    { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles, count: pendingSocialRequests },
-    { id: 'codes' as const, label: lang === 'es' ? 'Códigos' : 'Codes', icon: HiOutlineTag },
+    ...(!supportSession ? [
+      { id: 'payments' as const, label: t('clientPayments'), icon: HiOutlineCreditCard },
+      { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles, count: pendingSocialRequests },
+      { id: 'codes' as const, label: lang === 'es' ? 'Códigos' : 'Codes', icon: HiOutlineTag },
+    ] : []),
     { id: 'profile' as const, label: t('clientProfile'), icon: HiOutlineUser },
   ];
 
@@ -509,7 +515,7 @@ function DashboardPageBody() {
                     <span className="text-3xl font-black text-white uppercase">{user.firstName[0]}{user.lastName[0]}</span>
                   )}
                 </div>
-                <label className="absolute bottom-1 right-1 w-9 h-9 bg-[#F97316] rounded-full shadow-lg shadow-orange-900/25 border-2 border-white flex items-center justify-center cursor-pointer hover:bg-orange-600 transition-colors">
+                {!supportSession && <label className="absolute bottom-1 right-1 w-9 h-9 bg-[#F97316] rounded-full shadow-lg shadow-orange-900/25 border-2 border-white flex items-center justify-center cursor-pointer hover:bg-orange-600 transition-colors">
                   <HiOutlineCamera className="w-4 h-4 text-white" />
                   <input 
                     type="file" 
@@ -527,7 +533,7 @@ function DashboardPageBody() {
                       }
                     }} 
                   />
-                </label>
+                </label>}
               </div>
               <h3 className="font-black text-3xl text-white mb-2 tracking-tight">{user.firstName} {user.lastName}</h3>
               <p className="inline-flex items-center rounded-full bg-white/12 px-3 py-1 text-[11px] tracking-[0.18em] uppercase font-black text-white/80 border border-white/15">{t(user.role as any) || user.role}</p>
@@ -573,10 +579,10 @@ function DashboardPageBody() {
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Dirección' : 'Address'}</label>
                     <textarea value={profileForm.address} onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })} className="w-full input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold min-h-[96px] py-3" />
                   </div>
-                  <div className="sm:col-span-2 space-y-2">
+                  {!supportSession && <div className="sm:col-span-2 space-y-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Nueva Contraseña (Opcional)' : 'New Password (Optional)'}</label>
                     <input type="password" value={profileForm.password || ''} onChange={(e) => setProfileForm({ ...profileForm, password: e.target.value })} placeholder="******" className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" />
-                  </div>
+                  </div>}
                   <div className="sm:col-span-2 pt-2">
                     <button onClick={handleSaveProfile} className="btn-primary w-full py-4 rounded-2xl font-black shadow-xl shadow-orange-500/20">{t('clientSave')}</button>
                   </div>
@@ -645,20 +651,20 @@ function DashboardPageBody() {
         </div>
       )}
 
-      {activeTab === 'social' && (
+      {activeTab === 'social' && !supportSession && (
         <div className="max-w-3xl mx-auto">
           <SocialMatchPanel lang={lang === 'es' ? 'es' : 'en'} />
         </div>
       )}
 
-      {activeTab === 'codes' && (
+      {activeTab === 'codes' && !supportSession && (
         <div className="max-w-3xl mx-auto">
           <MySpecialCodesPanel lang={lang === 'es' ? 'es' : 'en'} />
         </div>
       )}
 
       {/* Payments */}
-      {activeTab === 'payments' && (
+      {activeTab === 'payments' && !supportSession && (
         <PaymentMethods />
       )}
 
