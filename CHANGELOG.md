@@ -1,5 +1,10 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-02 - Ajuste de pantalla Android y envío a Google Play
+
+- La app Android respeta las áreas ocupadas por la barra de estado y la navegación del sistema para que el encabezado y el menú inferior sean visibles.
+- Versión 1.0.11 (10) compilada en EAS y enviada como lanzamiento completo a revisión de Google Play. TypeScript móvil y build firmado aprobados; disponibilidad pública pendiente de Google.
+
 ## 2026-09-27 - Activar o desactivar Klarna por evento en la web
 
 - Administración puede guardar `klarnaEnabled` desde Editar evento → Detalles e Imágenes. El backend impide que un organizador modifique esta opción.

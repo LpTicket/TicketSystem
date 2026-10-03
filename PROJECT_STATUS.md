@@ -1,8 +1,17 @@
 # LPTicket - Estado del Proyecto
 
-Última revisión documental: 2026-09-27
+Última revisión documental: 2026-10-02
 Fuente: revisión de código, pruebas automatizadas, builds de producción, estados de Railway/GitHub y confirmaciones visibles de App Store Connect y Google Play Console.
 Estado de servicios externos y producción: `NO COMPROBADO` salvo prueba explícita.
+
+## Android: áreas seguras y publicación 1.0.11 — 2026-10-02
+
+- La app Android añade espacio para la barra de estado y la navegación nativa mediante `react-native-safe-area-context`; iOS conserva su disposición anterior.
+- Versión 1.0.11 (código 10), commit `a857ee69`, publicada en `main`. TypeScript móvil pasó y EAS terminó el AAB firmado de producción.
+- Google Play aceptó el AAB y muestra el lanzamiento completo en `Cambios en la etapa de revisión`, con verificaciones rápidas en curso. Se conservaron los países de destino y la publicación administrada desactivada. La versión activa comprobada sigue siendo 1.0.10 (9).
+  - Build: https://expo.dev/accounts/lpticket-app/projects/lpticket-mobile/builds/08b42cb2-7ed7-4024-bad4-e95edbe753f8
+  - Publicación: https://play.google.com/console/u/3/developers/5636558073205327527/app/4973015954364359499/publishing
+- La única advertencia no bloqueante es la falta del archivo de desofuscación, igual que en el lanzamiento anterior. Pendiente: aprobación de Google y comprobar que 1.0.11 aparece activa en Play Store.
 
 ## Control de Klarna por evento en web — 2026-09-27
 
