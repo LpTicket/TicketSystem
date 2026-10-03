@@ -135,7 +135,7 @@ describe('OrdersService critical ticket safeguards', () => {
     });
   });
 
-  function buildRevocationTransaction(tickets: any[], seats: any[], sections: any[]) {
+  function buildRevocationTransaction(tickets: any[], seats: any[], sections: any[], activeTableTickets: any[] = tickets) {
     const eventQuery = {
       setLock: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
@@ -146,7 +146,7 @@ describe('OrdersService critical ticket safeguards', () => {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
-      getMany: jest.fn().mockResolvedValue(tickets),
+      getMany: jest.fn().mockResolvedValueOnce(tickets).mockResolvedValue(activeTableTickets),
     };
     const seatQuery = {
       setLock: jest.fn().mockReturnThis(),
@@ -496,7 +496,7 @@ describe('OrdersService critical ticket safeguards', () => {
     const result = await service.revokeEventTickets(
       'event-1',
       { ticketIds: [ticket.id], seatAction: TicketRevocationSeatAction.RELEASE, reason: 'Solicitud confirmada' },
-      { id: 'organizer-1', role: UserRole.CLIENT },
+      { id: 'admin-1', role: UserRole.ADMIN },
     );
 
     expect(manager.transaction).toHaveBeenCalledTimes(1);
@@ -505,7 +505,7 @@ describe('OrdersService critical ticket safeguards', () => {
     expect(seat.lockedBy).toBeNull();
     expect(JSON.parse(section.seatsConfig)['A-1']).toBeUndefined();
     expect(repositories.revocation.save).toHaveBeenCalledWith(expect.objectContaining({
-      revokedByUserId: 'organizer-1',
+      revokedByUserId: 'admin-1',
       ticketIds: ['ticket-1'],
       seatIds: ['seat-1'],
       reason: 'Solicitud confirmada',
@@ -538,11 +538,11 @@ describe('OrdersService critical ticket safeguards', () => {
     const result = await service.revokeEventTickets(
       'event-1',
       { ticketIds: tickets.map((ticket) => ticket.id), seatAction: TicketRevocationSeatAction.BLOCK, reason: 'Reemplazo por invitación' },
-      { id: 'organizer-1', role: UserRole.CLIENT },
+      { id: 'admin-1', role: UserRole.ADMIN },
     );
 
     expect(tickets.every((ticket) => ticket.status === TicketStatus.REVOKED)).toBe(true);
-    expect(seats.every((seat) => seat.status === SeatStatus.LOCKED && seat.lockedBy === 'organizer-1' && seat.lockExpiresAt === null)).toBe(true);
+    expect(seats.every((seat) => seat.status === SeatStatus.LOCKED && seat.lockedBy === 'admin-1' && seat.lockExpiresAt === null)).toBe(true);
     expect(JSON.parse(section.seatsConfig)).toMatchObject({
       'A-1': { reserved: true, status: 'reserved' },
       'A-2': { reserved: true, status: 'reserved' },
@@ -561,14 +561,72 @@ describe('OrdersService critical ticket safeguards', () => {
     const result = await service.revokeEventTickets(
       'event-1',
       { ticketIds: [ticket.id], seatAction: TicketRevocationSeatAction.RELEASE, reason: 'Intento repetido' },
-      { id: 'organizer-1', role: UserRole.CLIENT },
+      { id: 'admin-1', role: UserRole.ADMIN },
     );
 
     expect(result).toMatchObject({ alreadyRevoked: true, revoked: 0 });
     expect(repositories.revocation.save).not.toHaveBeenCalled();
   });
 
-  it('rejects a revocation requested by a user who does not own the event', async () => {
+  it('refuses to release a table when another active ticket still occupies it', async () => {
+    const section = { id: 'table-23', eventId: 'event-1', sectionType: 'table', seatsConfig: '{}' };
+    const seat = { id: 'seat-1', sectionId: section.id, rowLabel: 'Mesa', seatNumber: 1, status: SeatStatus.SOLD };
+    const ticket = { id: 'ticket-1', ticketCode: 'CODE-1', eventId: 'event-1', sectionId: section.id, userId: 'buyer-1', seatId: seat.id, status: TicketStatus.ACTIVE };
+    const otherTicket = { id: 'ticket-2', ticketCode: 'CODE-2', eventId: 'event-1', sectionId: section.id, userId: 'buyer-2', seatId: 'seat-2', status: TicketStatus.ACTIVE };
+    const { manager, repositories } = buildRevocationTransaction([ticket], [seat], [section], [ticket, otherTicket]);
+    const { service } = buildService({ manager });
+
+    await expect(service.revokeEventTickets(
+      'event-1',
+      { ticketIds: [ticket.id], seatAction: TicketRevocationSeatAction.RELEASE, reason: 'Solicitud confirmada' },
+      { id: 'admin-1', role: UserRole.ADMIN },
+    )).rejects.toThrow('todas las entradas vigentes de la mesa');
+
+    expect(repositories.ticket.save).not.toHaveBeenCalled();
+    expect(repositories.seat.save).not.toHaveBeenCalled();
+  });
+
+  it('releases every seat of a selected complete table', async () => {
+    const section = { id: 'table-23', eventId: 'event-1', sectionType: 'table', seatsConfig: '{}' };
+    const seats = [1, 2].map((seatNumber) => ({
+      id: `table-23-seat-${seatNumber}`, sectionId: section.id, rowLabel: 'Mesa', seatNumber,
+      status: SeatStatus.SOLD, lockedBy: null, lockExpiresAt: null,
+    }));
+    const tickets = seats.map((seat, index) => ({
+      id: `table-23-ticket-${index + 1}`, ticketCode: `CODE-${index + 1}`,
+      eventId: 'event-1', sectionId: section.id, userId: 'buyer-1', seatId: seat.id, status: TicketStatus.ACTIVE,
+    }));
+    const { manager, repositories } = buildRevocationTransaction(tickets, seats, [section]);
+    const { service } = buildService({ manager });
+
+    const result = await service.revokeEventTickets(
+      'event-1',
+      { ticketIds: tickets.map((ticket) => ticket.id), seatAction: TicketRevocationSeatAction.RELEASE, reason: 'Solicitud confirmada' },
+      { id: 'admin-1', role: UserRole.ADMIN },
+    );
+
+    expect(result).toMatchObject({ revoked: 2, affectedSeats: 2, seatAction: 'release' });
+    expect(tickets.every((ticket) => ticket.status === TicketStatus.REVOKED)).toBe(true);
+    expect(seats.every((seat) => seat.status === SeatStatus.AVAILABLE)).toBe(true);
+    expect(repositories.ticket.save).toHaveBeenCalledWith(tickets);
+    expect(repositories.seat.save).toHaveBeenCalledWith(seats);
+  });
+
+  it('refuses to release a seat whose ticket has been scanned', async () => {
+    const ticket = { id: 'ticket-1', ticketCode: 'CODE-1', eventId: 'event-1', userId: 'buyer-1', seatId: 'seat-1', status: TicketStatus.USED };
+    const { manager, repositories } = buildRevocationTransaction([ticket], [], []);
+    const { service } = buildService({ manager });
+
+    await expect(service.revokeEventTickets(
+      'event-1',
+      { ticketIds: [ticket.id], seatAction: TicketRevocationSeatAction.RELEASE, reason: 'Solicitud confirmada' },
+      { id: 'admin-1', role: UserRole.ADMIN },
+    )).rejects.toThrow('ya fueron escaneadas');
+
+    expect(repositories.ticket.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects a revocation requested by the event organizer', async () => {
     const ticket = {
       id: 'ticket-1', ticketCode: 'CODE-1', eventId: 'event-1', userId: 'buyer-1', seatId: 'seat-1', status: TicketStatus.ACTIVE,
     };
@@ -578,7 +636,7 @@ describe('OrdersService critical ticket safeguards', () => {
     await expect(service.revokeEventTickets(
       'event-1',
       { ticketIds: [ticket.id], seatAction: TicketRevocationSeatAction.RELEASE, reason: 'Sin autorización' },
-      { id: 'another-organizer', role: UserRole.CLIENT },
+      { id: 'organizer-1', role: UserRole.CLIENT },
     )).rejects.toThrow('No tienes permiso');
 
     expect(repositories.ticket.save).not.toHaveBeenCalled();

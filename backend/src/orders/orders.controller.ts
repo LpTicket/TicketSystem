@@ -391,7 +391,7 @@ export class OrdersController {
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles(UserRole.CLIENT, UserRole.ADMIN)
+  @Roles(UserRole.ADMIN)
   @Post('event/:eventId/tickets/revoke')
   revokeEventTickets(
     @Param('eventId') eventId: string,

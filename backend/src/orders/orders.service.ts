@@ -2521,9 +2521,8 @@ export class OrdersService {
   }
 
   /**
-   * Permanently revokes organizer-selected tickets while moving their seats to
-   * the requested inventory state in the same database transaction. Orders and
-   * financial records are intentionally untouched.
+   * Permanently revokes admin-selected tickets while moving their seats to
+   * the requested inventory state in the same database transaction.
    */
   async revokeEventTickets(
     eventId: string,
@@ -2545,7 +2544,7 @@ export class OrdersService {
         .where('event.id = :eventId', { eventId })
         .getOne();
       if (!event) throw new NotFoundException('Evento no encontrado');
-      if (user.role !== UserRole.ADMIN && event.organizerId !== user.id) {
+      if (user.role !== UserRole.ADMIN) {
         throw new ForbiddenException('No tienes permiso para revocar entradas de este evento');
       }
 
@@ -2573,6 +2572,9 @@ export class OrdersService {
           seatAction: dto.seatAction,
         };
       }
+      if (dto.seatAction === TicketRevocationSeatAction.RELEASE && ticketsToRevoke.some((ticket) => ticket.status === TicketStatus.USED)) {
+        throw new BadRequestException('No se pueden liberar sillas de entradas que ya fueron escaneadas');
+      }
 
       const seatIds = [...new Set(ticketsToRevoke.map((ticket) => ticket.seatId).filter(Boolean))] as string[];
       const seats = seatIds.length > 0
@@ -2598,6 +2600,21 @@ export class OrdersService {
         : [];
       if (sections.length !== sectionIds.length) {
         throw new NotFoundException('No se encontraron todas las secciones de las sillas seleccionadas');
+      }
+      const tableSectionIds = sections.filter((section) => section.sectionType === 'table').map((section) => section.id);
+      if (dto.seatAction === TicketRevocationSeatAction.RELEASE && tableSectionIds.length > 0) {
+        const activeTableTickets = await ticketRepository
+          .createQueryBuilder('ticket')
+          .setLock('pessimistic_write')
+          .where('ticket.eventId = :eventId', { eventId })
+          .andWhere('ticket.sectionId IN (:...tableSectionIds)', { tableSectionIds })
+          .andWhere('ticket.status IN (:...statuses)', { statuses: [TicketStatus.ACTIVE, TicketStatus.USED] })
+          .orderBy('ticket.id', 'ASC')
+          .getMany();
+        const selectedIds = new Set(ticketsToRevoke.map((ticket) => ticket.id));
+        if (activeTableTickets.some((ticket) => !selectedIds.has(ticket.id))) {
+          throw new BadRequestException('Selecciona todas las entradas vigentes de la mesa para liberarla');
+        }
       }
       const sectionById = new Map(sections.map((section) => [section.id, section]));
       for (const seat of seats) seat.section = sectionById.get(seat.sectionId)!;
