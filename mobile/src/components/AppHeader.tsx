@@ -60,8 +60,8 @@ export function AppHeader({ onOpenMenu, onGoHome, onOpenLogin, showLoginButton =
         </View>
 
         {showLoginButton && (
-          <TouchableOpacity style={[styles.iconButton, styles.loginButton]} onPress={onOpenLogin} activeOpacity={0.84}>
-            <Text style={styles.loginButtonText}>{lang === 'es' ? 'Inicio' : 'Login'}</Text>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={lang === "es" ? "Iniciar sesión" : "Sign in"} style={[styles.iconButton, styles.loginButton]} onPress={onOpenLogin} activeOpacity={0.84}>
+            <Text style={styles.loginButtonText}>{lang === 'es' ? 'Entrar' : 'Sign in'}</Text>
           </TouchableOpacity>
         )}
 

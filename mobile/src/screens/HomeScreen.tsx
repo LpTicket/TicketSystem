@@ -112,7 +112,16 @@ function SharePointIcon() {
   );
 }
 
-function PremiumEventCard({ event, onOpenEvent, t }: { event: MobileEvent; onOpenEvent: (event: MobileEvent) => void; t: (es: string, en: string) => string }) {
+function PremiumEventCard({ event, onOpenEvent, t, lang, categoryLabel }: { event: MobileEvent; onOpenEvent: (event: MobileEvent) => void; t: (es: string, en: string) => string; lang: 'es' | 'en'; categoryLabel: string }) {
+  let dateLabel = event.date;
+  if (event.eventDate) {
+    try {
+      dateLabel = new Intl.DateTimeFormat(lang === 'es' ? 'es' : 'en-US', {
+        ...(event.eventTimezone ? { timeZone: event.eventTimezone } : {}),
+        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+      }).format(new Date(event.eventDate));
+    } catch { /* Keep the existing label for unavailable or invalid dates/timezones. */ }
+  }
   const pressProgress = useRef(new Animated.Value(0)).current;
   const [pressed, setPressed] = useState(false);
   const scale = pressProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.985] });
@@ -137,8 +146,7 @@ function PremiumEventCard({ event, onOpenEvent, t }: { event: MobileEvent; onOpe
         onPressIn={() => animatePress(true)}
         onPressOut={() => animatePress(false)}
         activeOpacity={1}
-        accessibilityRole="button"
-        accessibilityLabel={`${t('Ver evento', 'View event')}: ${event.title}`}
+        accessible={false}
       >
         <View style={styles.eventPoster}>
           <Image source={getPosterImageSource(event)} style={styles.eventPosterImage} resizeMode="contain" />
@@ -146,13 +154,13 @@ function PremiumEventCard({ event, onOpenEvent, t }: { event: MobileEvent; onOpe
         </View>
         <View style={styles.eventInfo}>
           <View style={styles.badgeRow}>
-            {!!event.tag && <View style={styles.privateBadge}><Text style={styles.privateBadgeText}>{event.tag}</Text></View>}
+            {!!categoryLabel && <View style={styles.privateBadge}><Text style={styles.privateBadgeText}>{categoryLabel}</Text></View>}
             {event.featured && <View style={styles.featuredBadge}><Text style={styles.featuredText}>{t('Destacado', 'Featured')}</Text></View>}
           </View>
           <Text style={styles.eventName} numberOfLines={2}>{event.title}</Text>
           <View style={styles.metaRow}>
             <Ionicons name="calendar-outline" size={15} color="#F97316" />
-            <Text style={styles.eventMeta} numberOfLines={1}>{event.date}</Text>
+            <Text style={styles.eventMeta} numberOfLines={2}>{dateLabel}</Text>
           </View>
           <View style={styles.metaRow}>
             <Ionicons name="location-outline" size={15} color="#F97316" />
@@ -860,7 +868,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0, initialScrollOf
       ) : null}
 
       {filteredEvents.map((event, index) => (
-        <PremiumEventCard key={`${event.id || event.slug || event.title || 'event'}-${index}`} event={event} onOpenEvent={onOpenEvent} t={t} />
+        <PremiumEventCard key={`${event.id || event.slug || event.title || 'event'}-${index}`} event={event} onOpenEvent={onOpenEvent} t={t} lang={lang} categoryLabel={categories.find(item => normalizeCategory(item.slug) === normalizeCategory(event.tag))?.label || event.tag} />
       ))}
 
       {trustSection}

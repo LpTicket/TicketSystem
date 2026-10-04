@@ -17,6 +17,8 @@ type Props = {
 export function GradientButton({ label, children, onPress, style, textStyle, height = 58, disabled }: Props) {
   return (
     <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityState={{ disabled: Boolean(disabled) }}
       activeOpacity={0.9}
       onPress={onPress}
       disabled={disabled}

@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-04 - Revisión nativa y preparación móvil 1.0.12
+
+- Inicio muestra fechas con año e idioma seleccionado, conservando la zona horaria del evento; las categorías usan las etiquetas del catálogo. Compartir y Ver entradas se exponen como controles separados para lectores de pantalla.
+- El acceso del encabezado dice Entrar; los botones compartidos informan su función y estado deshabilitado. No se modificaron controladores, servicios, compras, Stripe, tickets, QR ni recibos.
+- Validación: TypeScript, compilación nativa iOS, exportación Android y arranque Android sin errores de JavaScript. En simulador iPhone se comprobaron carteles, pausa del carrusel, vuelta al listado conservando posición, acceso, cambio a registro y visibilidad de contraseña, sin enviar formularios ni realizar compras.
+- Versión preparada: 1.0.12. Distribución pendiente; revisión visual Android pendiente.
+
 ## 2026-10-04 - Adaptación móvil de Inicio y acceso
 
 - Inicio alinea tarjetas con la web: carteles completos, etiquetas debajo de la imagen, destacado condicionado al evento, títulos compactos y acción Ver entradas. Campos de búsqueda de 16 px y carrusel con pausa; animaciones existentes conservadas.
