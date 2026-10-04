@@ -28,6 +28,12 @@ export class SpecialCodesController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Patch('by-event/:eventId/referrals/:referralId/limit')
+  setEventReferralLimit(@Param('eventId') eventId: string, @Param('referralId') referralId: string, @Body() body: { maxTickets: number | null }, @Request() req: any) {
+    return this.specialCodesService.setEventReferralLimit(eventId, referralId, req.user, body.maxTickets);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
   @Delete('by-event/:eventId/referrals/:referralId')
   deleteEventReferral(@Param('eventId') eventId: string, @Param('referralId') referralId: string, @Request() req: any) {
     return this.specialCodesService.deleteEventReferral(eventId, referralId, req.user);

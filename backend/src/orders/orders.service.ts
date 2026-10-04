@@ -344,6 +344,40 @@ export class OrdersService {
     return { ...empty, referralCode: referral.code };
   }
 
+  private async saveCheckoutOrderWithReferralQuota(order: Order) {
+    if (!order.referralCode) return this.orderRepo.save(order);
+
+    return this.orderRepo.manager.transaction(async (manager) => {
+      // A row lock serializes checkout reservations and limit edits for this code.
+      const referral = await manager.getRepository(EventReferral)
+        .createQueryBuilder('referral')
+        .setLock('pessimistic_write')
+        .where('referral.eventId = :eventId AND referral.code = :code', {
+          eventId: order.eventId, code: order.referralCode,
+        })
+        .getOne();
+      if (!referral || !referral.isActive) {
+        throw new BadRequestException('Este código de referido ya no está disponible.');
+      }
+
+      if (referral.maxTickets !== null && referral.maxTickets !== undefined) {
+        const result = await manager.getRepository(Order)
+          .createQueryBuilder('existingOrder')
+          .select('COALESCE(SUM(existingOrder.ticketCount), 0)', 'usedTickets')
+          .where('existingOrder.eventId = :eventId', { eventId: order.eventId })
+          .andWhere('existingOrder.referralCode = :code', { code: order.referralCode })
+          .andWhere('existingOrder.status IN (:...statuses)', { statuses: [OrderStatus.PAID, OrderStatus.PENDING] })
+          .getRawOne();
+        const usedTickets = Number(result?.usedTickets || 0);
+        if (usedTickets + order.ticketCount > referral.maxTickets) {
+          throw new BadRequestException(`El código ${referral.code} solo admite ${referral.maxTickets} entradas. Quedan ${Math.max(0, referral.maxTickets - usedTickets)} disponibles.`);
+        }
+      }
+
+      return manager.getRepository(Order).save(order);
+    });
+  }
+
   private isKlarnaConfigurationError(error: any) {
     const message = `${error?.message || ''} ${error?.raw?.message || ''}`.toLowerCase();
     return message.includes('klarna')
@@ -1326,7 +1360,20 @@ export class OrdersService {
       });
     }
 
-    // Persist order in DB
+    const checkoutBuyerEmail = buyerEmail?.trim();
+    const checkoutBuyerName = buyerName?.trim();
+    if (checkoutBuyerEmail) {
+      if (!isValidEmailFormat(checkoutBuyerEmail)) {
+        throw new BadRequestException('El correo no es válido. Revísalo antes de pagar.');
+      }
+      const suggestion = suggestEmailFix(checkoutBuyerEmail);
+      if (suggestion) {
+        throw new BadRequestException(`Revisa tu correo: ¿quisiste decir ${suggestion}?`);
+      }
+    }
+    if (!this.stripe) throw new BadRequestException('Stripe no está configurado en el servidor.');
+
+    // Persist order in DB, reserving referral capacity atomically when needed.
     const order = this.orderRepo.create({
       userId,
       eventId,
@@ -1342,7 +1389,7 @@ export class OrdersService {
         ? STRIPE_FEE_RECONCILIATION_PENDING
         : STRIPE_FEE_RECONCILIATION_NOT_REQUIRED,
     });
-    const savedOrder = await this.orderRepo.save(order);
+    const savedOrder = await this.saveCheckoutOrderWithReferralQuota(order);
     await this.invalidateUserPurchasesCache(userId);
 
     // Determine correct redirect URL based on environment
@@ -1351,24 +1398,14 @@ export class OrdersService {
       ? (rawAppUrl.startsWith('http') ? rawAppUrl : `https://${rawAppUrl}`)
       : 'https://ticketsystem-jzgf.onrender.com';
 
-    const checkoutBuyerEmail = buyerEmail?.trim();
-    const checkoutBuyerName = buyerName?.trim();
-
-    // Guard against common email typos that bounce (e.g. icloud.con -> NXDOMAIN).
-    if (checkoutBuyerEmail) {
-      if (!isValidEmailFormat(checkoutBuyerEmail)) {
-        throw new BadRequestException('El correo no es válido. Revísalo antes de pagar.');
-      }
-      const suggestion = suggestEmailFix(checkoutBuyerEmail);
-      if (suggestion) {
-        throw new BadRequestException(`Revisa tu correo: ¿quisiste decir ${suggestion}?`);
-      }
-    }
-
-    if (!this.stripe) throw new BadRequestException('Stripe no está configurado en el servidor.');
-
     // Attach Stripe customer so saved cards appear pre-selected in Checkout
-    const stripeCustomerId = await this.getOrCreateStripeCustomer(userId, checkoutBuyerEmail);
+    let stripeCustomerId: string | null;
+    try {
+      stripeCustomerId = await this.getOrCreateStripeCustomer(userId, checkoutBuyerEmail);
+    } catch (error) {
+      await this.cancelPendingCheckoutOrder(savedOrder.id);
+      throw error;
+    }
 
     const stripeMetadata = {
       orderId: savedOrder.id,
@@ -1402,15 +1439,21 @@ export class OrdersService {
       // A disabled/unsupported Klarna account must never break ordinary card sales.
       if (paymentMethodTypes.length > 1 && paymentMethodTypes.includes('klarna') && this.isKlarnaConfigurationError(stripeErr)) {
         console.warn('[Checkout] Klarna unavailable; retrying this session with card only.');
-        session = await this.stripe.checkout.sessions.create({
-          ...sessionParams,
-          payment_method_types: ['card'],
-        });
+        try {
+          session = await this.stripe.checkout.sessions.create({
+            ...sessionParams,
+            payment_method_types: ['card'],
+          });
+        } catch (fallbackError) {
+          await this.cancelPendingCheckoutOrder(savedOrder.id);
+          throw fallbackError;
+        }
         await this.orderRepo.update(savedOrder.id, {
           stripeFeeReconciliationStatus: STRIPE_FEE_RECONCILIATION_NOT_REQUIRED,
         });
       } else {
         console.error('[Checkout] Stripe session creation failed:', stripeErr?.message, stripeErr?.type, JSON.stringify(stripeErr?.raw || {}));
+        await this.cancelPendingCheckoutOrder(savedOrder.id);
         throw stripeErr;
       }
     }

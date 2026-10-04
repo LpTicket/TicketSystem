@@ -1,5 +1,6 @@
 import {
   Event,
+  EventReferral,
   Order,
   OrderStatus,
   Seat,
@@ -49,6 +50,46 @@ function buildService(overrides: Record<string, any> = {}) {
 }
 
 describe('OrdersService critical ticket safeguards', () => {
+  function quotaTransaction(maxTickets: number | null, usedTickets: number) {
+    const referralQuery = {
+      setLock: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue({ code: 'BEATRIZ', isActive: true, maxTickets }),
+    };
+    const orderQuery = {
+      select: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(), getRawOne: jest.fn().mockResolvedValue({ usedTickets }),
+    };
+    const transactionalOrders = { createQueryBuilder: jest.fn(() => orderQuery), save: jest.fn(async (order) => order) };
+    const manager = { transaction: jest.fn(async (callback: any) => callback({
+      getRepository: (entity: any) => entity === EventReferral
+        ? { createQueryBuilder: () => referralQuery }
+        : entity === Order ? transactionalOrders : {},
+    })) };
+    return { manager, referralQuery, orderQuery, transactionalOrders };
+  }
+
+  it('reserves only the remaining referral tickets before checkout', async () => {
+    const { manager, orderQuery, transactionalOrders } = quotaTransaction(10, 5);
+    const { service } = buildService({ manager });
+    const order = { eventId: 'event-1', referralCode: 'BEATRIZ', ticketCount: 5 } as Order;
+
+    await expect((service as any).saveCheckoutOrderWithReferralQuota(order)).resolves.toBe(order);
+    expect(transactionalOrders.save).toHaveBeenCalledWith(order);
+    expect(orderQuery.andWhere).toHaveBeenCalledWith(
+      'existingOrder.status IN (:...statuses)',
+      { statuses: [OrderStatus.PAID, OrderStatus.PENDING] },
+    );
+  });
+
+  it('rejects the eleventh referral ticket without saving an order', async () => {
+    const { manager, transactionalOrders } = quotaTransaction(10, 5);
+    const { service } = buildService({ manager });
+    const order = { eventId: 'event-1', referralCode: 'BEATRIZ', ticketCount: 6 } as Order;
+
+    await expect((service as any).saveCheckoutOrderWithReferralQuota(order)).rejects.toThrow('Quedan 5 disponibles');
+    expect(transactionalOrders.save).not.toHaveBeenCalled();
+  });
+
   it('attributes an event referral without creating a special-code commission owner', async () => {
     const specialCodeRepo = { findOne: jest.fn().mockResolvedValue(null) };
     const referralRepo = { findOne: jest.fn().mockResolvedValue({ eventId: 'event-1', code: 'BEATRIZ', isActive: true }) };

@@ -10,7 +10,7 @@
  */
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, IsNull, Repository } from 'typeorm';
+import { Not, IsNull, In, Repository } from 'typeorm';
 import { Event, EventReferral, Order, OrderStatus, SpecialCode, SpecialCodePayout, User } from '../database/entities';
 
 type CreateSpecialCodeDto = {
@@ -54,12 +54,16 @@ export class SpecialCodesService {
 
   async getEventReferrals(eventId: string, user: { id: string; role?: string }) {
     await this.assertEventAccess(eventId, user);
-    const [referrals, orders] = await Promise.all([
+    const [referrals, orders, pendingOrders] = await Promise.all([
       this.referralRepo.find({ where: { eventId }, order: { createdAt: 'ASC' } }),
       this.orderRepo.find({
         where: { eventId, status: OrderStatus.PAID, referralCode: Not(IsNull()) },
         relations: ['user'],
         order: { paidAt: 'DESC', createdAt: 'DESC' },
+      }),
+      this.orderRepo.find({
+        where: { eventId, status: OrderStatus.PENDING, referralCode: Not(IsNull()) },
+        select: ['referralCode', 'ticketCount'],
       }),
     ]);
     return referrals.map((referral) => {
@@ -68,6 +72,9 @@ export class SpecialCodesService {
         ...referral,
         orders: sales.length,
         tickets: sales.reduce((sum, order) => sum + Number(order.ticketCount || 0), 0),
+        reservedTickets: pendingOrders
+          .filter((order) => order.referralCode === referral.code)
+          .reduce((sum, order) => sum + Number(order.ticketCount || 0), 0),
         revenue: Math.round(sales.reduce((sum, order) => sum + Number(order.subtotal || 0), 0) * 100) / 100,
         purchases: sales.map((order) => ({
           id: order.id,
@@ -102,16 +109,33 @@ export class SpecialCodesService {
     return this.referralRepo.save(referral);
   }
 
+  async setEventReferralLimit(eventId: string, referralId: string, user: { id: string; role?: string }, maxTickets: number | null) {
+    await this.assertEventAccess(eventId, user);
+    if (maxTickets !== null && (!Number.isSafeInteger(maxTickets) || maxTickets < 1 || maxTickets > 1000000)) {
+      throw new BadRequestException('El límite debe ser un número entero entre 1 y 1,000,000, o sin límite.');
+    }
+    return this.referralRepo.manager.transaction(async (manager) => {
+      const referralRepo = manager.getRepository(EventReferral);
+      const referral = await referralRepo.createQueryBuilder('referral')
+        .setLock('pessimistic_write')
+        .where('referral.id = :referralId AND referral.eventId = :eventId', { referralId, eventId })
+        .getOne();
+      if (!referral) throw new NotFoundException('Referido no encontrado.');
+      referral.maxTickets = maxTickets;
+      return referralRepo.save(referral);
+    });
+  }
+
   async deleteEventReferral(eventId: string, referralId: string, user: { id: string; role?: string }) {
     await this.assertEventAccess(eventId, user);
     const referral = await this.referralRepo.findOne({ where: { id: referralId, eventId } });
     if (!referral) throw new NotFoundException('Referido no encontrado.');
 
     const purchaseCount = await this.orderRepo.count({
-      where: { eventId, status: OrderStatus.PAID, referralCode: referral.code },
+      where: { eventId, status: In([OrderStatus.PAID, OrderStatus.PENDING]), referralCode: referral.code },
     });
     if (purchaseCount > 0) {
-      throw new BadRequestException('No se puede eliminar un referido que ya tiene compras. Puedes pausarlo para conservar su historial.');
+      throw new BadRequestException('No se puede eliminar un referido con compras o pagos pendientes. Puedes pausarlo para conservar su historial.');
     }
 
     await this.referralRepo.remove(referral);

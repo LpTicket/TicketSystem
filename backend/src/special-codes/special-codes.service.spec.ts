@@ -4,6 +4,7 @@ import { SpecialCodesService } from './special-codes.service';
 
 function makeService() {
   const referralRepo = {
+    manager: {} as any,
     find: jest.fn(),
     findOne: jest.fn(),
     create: jest.fn((data) => data),
@@ -49,10 +50,10 @@ describe('event referrals', () => {
     const { service, referralRepo, eventRepo, orderRepo } = makeService();
     eventRepo.findOne.mockResolvedValue({ id: 'event-1', organizerId: 'organizer-1' });
     referralRepo.find.mockResolvedValue([{ id: 'ref-1', eventId: 'event-1', name: 'Beatriz', code: 'BEATRIZ' }]);
-    orderRepo.find.mockResolvedValue([
+    orderRepo.find.mockImplementation(async (options: any) => options.where.status === OrderStatus.PAID ? [
       { id: 'order-1', referralCode: 'BEATRIZ', ticketCount: 2, subtotal: 40, user: { firstName: 'Ana', lastName: 'Pérez', email: 'private@example.com' } },
       { id: 'order-2', referralCode: 'OTHER', ticketCount: 1, subtotal: 20, user: { firstName: 'Luis', lastName: 'Díaz' } },
-    ]);
+    ] : []);
     const result = await service.getEventReferrals('event-1', { id: 'organizer-1' });
     expect(result[0]).toMatchObject({ orders: 1, tickets: 2, revenue: 40 });
     expect(result[0].purchases).toEqual([{ id: 'order-1', buyerName: 'Ana Pérez', ticketCount: 2 }]);
@@ -60,6 +61,37 @@ describe('event referrals', () => {
       where: expect.objectContaining({ eventId: 'event-1', status: OrderStatus.PAID }),
       relations: ['user'],
     }));
+  });
+
+  it('sets a referral ticket limit and allows clearing it', async () => {
+    const { service, referralRepo, eventRepo } = makeService();
+    eventRepo.findOne.mockResolvedValue({ id: 'event-1', organizerId: 'organizer-1' });
+    const referral = { id: 'ref-1', eventId: 'event-1', maxTickets: null };
+    const query = { setLock: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValue(referral) };
+    const transactionalRepo = { createQueryBuilder: jest.fn(() => query), save: jest.fn(async (value) => value) };
+    referralRepo.manager = { transaction: jest.fn(async (callback) => callback({ getRepository: () => transactionalRepo })) };
+
+    await service.setEventReferralLimit('event-1', 'ref-1', { id: 'organizer-1' }, 10);
+    expect(referral.maxTickets).toBe(10);
+    await service.setEventReferralLimit('event-1', 'ref-1', { id: 'organizer-1' }, null);
+    expect(referral.maxTickets).toBeNull();
+    expect(query.setLock).toHaveBeenCalledWith('pessimistic_write');
+  });
+
+  it('rejects invalid limits before changing a referral', async () => {
+    const { service, referralRepo, eventRepo } = makeService();
+    eventRepo.findOne.mockResolvedValue({ id: 'event-1', organizerId: 'organizer-1' });
+    await expect(service.setEventReferralLimit('event-1', 'ref-1', { id: 'organizer-1' }, 1.5))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(referralRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('does not let another event owner change a referral limit', async () => {
+    const { service, referralRepo, eventRepo } = makeService();
+    eventRepo.findOne.mockResolvedValue({ id: 'event-1', organizerId: 'organizer-1' });
+    await expect(service.setEventReferralLimit('event-1', 'ref-1', { id: 'other', role: 'client' }, 10))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(referralRepo.manager.transaction).toBeUndefined();
   });
 
   it('does not reveal buyer names to someone outside the event', async () => {

@@ -23,6 +23,9 @@ export class EventReferral {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ name: 'maxtickets', type: 'integer', nullable: true })
+  maxTickets: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }
