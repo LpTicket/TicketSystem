@@ -65,7 +65,7 @@ const FAQS: FAQItem[] = [
 ];
 
 export default function SupportPage() {
-  const { lang, t } = useLang();
+  const { lang } = useLang();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'payments' | 'tickets' | 'events'>('all');
   const [openFAQIdx, setOpenFAQIdx] = useState<number | null>(null);
@@ -121,6 +121,13 @@ export default function SupportPage() {
             <TrustBadges />
           </div>
 
+          <nav aria-label={lang === 'es' ? 'Accesos de ayuda' : 'Help shortcuts'} className="flex flex-wrap justify-center gap-3 pt-3">
+            <Link href="/dashboard?tab=tickets" className="btn-secondary">{lang === 'es' ? 'Mis entradas' : 'My tickets'}</Link>
+            <Link href="/dashboard?tab=orders" className="btn-secondary">{lang === 'es' ? 'Mis recibos' : 'My receipts'}</Link>
+            <Link href="/dashboard?tab=profile" className="btn-secondary">{lang === 'es' ? 'Mi perfil' : 'My profile'}</Link>
+            <a href="#support-contact" className="btn-secondary">{lang === 'es' ? 'Contactar soporte' : 'Contact support'}</a>
+          </nav>
+
           {/* Search bar */}
           <div className="max-w-md mx-auto pt-4 relative">
             <input
@@ -152,6 +159,7 @@ export default function SupportPage() {
               return (
                 <button
                   key={cat.id}
+                  aria-pressed={isActive}
                   onClick={() => { setSelectedCategory(cat.id as any); setOpenFAQIdx(null); }}
                   className={`p-4 rounded-lg border text-center flex flex-col items-center justify-center gap-2 transition-all ${
                     isActive 
@@ -166,6 +174,7 @@ export default function SupportPage() {
             })}
           </div>
 
+          <p role="status" className="text-sm text-slate-400">{lang === 'es' ? `${filteredFAQs.length} respuestas encontradas` : `${filteredFAQs.length} answers found`}</p>
           {/* FAQ Accordion List */}
           <div className="space-y-3">
             {filteredFAQs.length > 0 ? (
@@ -196,21 +205,23 @@ export default function SupportPage() {
               })
             ) : (
               <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 text-gray-400 text-sm">
-                {lang === 'es' ? 'No encontramos respuestas para tu búsqueda.' : 'No matching FAQs found.'}
+                <p>{lang === 'es' ? 'No encontramos respuestas para tu búsqueda.' : 'No matching FAQs found.'}</p>
+                <button onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setOpenFAQIdx(null); }} className="btn-secondary mt-4">{lang === 'es' ? 'Limpiar búsqueda' : 'Clear search'}</button>
+                <a href="#support-contact" className="btn-primary mt-4 ml-2">{lang === 'es' ? 'Contactar soporte' : 'Contact support'}</a>
               </div>
             )}
           </div>
         </div>
 
         {/* Right Column: Contact Ticket Form */}
-        <div className="public-premium-card p-6 sm:p-8 space-y-6 h-fit">
+        <section id="support-contact" aria-labelledby="support-contact-title" className="public-premium-card p-6 sm:p-8 space-y-6 h-fit scroll-mt-28">
           <div>
-            <h3 className="font-semibold text-lg text-[#0A375A]">{lang === 'es' ? '¿Tienes otra consulta?' : 'Have another question?'}</h3>
+            <h2 id="support-contact-title" className="font-semibold text-lg text-[#0A375A]">{lang === 'es' ? '¿Tienes otra consulta?' : 'Have another question?'}</h2>
             <p className="text-xs text-gray-500 mt-1">{lang === 'es' ? 'Envíanos los detalles de tu consulta. Nuestro equipo te responderá por correo.' : 'Send us the details of your question. Our team will reply by email.'}</p>
           </div>
 
           {successMsg ? (
-            <div className="p-4 bg-green-50 text-green-700 rounded-2xl border border-green-100 text-sm text-center font-semibold space-y-3">
+            <div role="status" className="p-4 bg-green-50 text-green-700 rounded-2xl border border-green-100 text-sm text-center font-semibold space-y-3">
               <p>{successMsg}</p>
               <button onClick={() => setSuccessMsg('')} className="text-xs text-primary-600 hover:underline">
                 {lang === 'es' ? 'Enviar otro mensaje' : 'Send another message'}
@@ -282,7 +293,7 @@ export default function SupportPage() {
               </button>
             </form>
           )}
-        </div>
+        </section>
 
       </div>
     </div>

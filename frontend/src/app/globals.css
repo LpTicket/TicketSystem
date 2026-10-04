@@ -6353,3 +6353,14 @@ html body:has(.lp-support-banner) header.site-header-future {
 
 .lp-refined .event-card-date { font-weight: 500 !important; }
 .lp-refined label[for^="support-"] { font-size: .875rem !important; }
+
+/* Buyer workspace: legible actions without changing ticket or payment behavior. */
+.lp-refined .account-workspace :is(button,a.btn-primary,a.btn-secondary) { min-height: 44px; }
+.lp-refined .account-workspace .dashboard-premium-ticket button { font-size: .8125rem; }
+.lp-refined .account-workspace .dashboard-premium-ticket p { overflow-wrap: anywhere; }
+.lp-refined .account-workspace .dashboard-premium-ticket :is(.text-gray-400,.text-gray-500) { color: var(--lp-muted) !important; }
+.lp-refined .account-workspace :is(.font-black,.font-extrabold) { font-weight: 600; }
+.lp-refined .account-workspace .dashboard-premium-ticket img { object-fit: contain; }
+.lp-refined .account-workspace .dashboard-premium-tabs { overflow: visible; }
+.lp-refined .account-workspace label:has(input[type='file']:focus-visible) { outline: 2px solid var(--lp-focus); outline-offset: 3px; }
+.lp-refined .event-detail-meta-item { min-width: 0; overflow-wrap: anywhere; }

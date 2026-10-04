@@ -3375,7 +3375,7 @@ export default function EventDetailPage() {
               {/* Cover Image Upload */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Foto de Portada' : 'Cover Image'}</label>
-                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Formato móvil web: 1080 × 1440 px' : 'Mobile web format: 1080 × 1440 px'}</p>
+                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Portada: 6 × 8 pulgadas · referencia: 180 ppp' : 'Cover: 6 × 8 inches · reference: 180 ppi'}</p>
                 
                 {/* Active Preview */}
                 {(imageFile || event.imageUrl) && (
@@ -3383,7 +3383,7 @@ export default function EventDetailPage() {
                     <img 
                       src={imageFile ? URL.createObjectURL(imageFile) : getImageUrl(event.imageUrl, event.updatedAt)} 
                       alt="Current Cover" 
-                      className="w-full h-full object-cover" 
+                      className="w-full h-full object-contain"
                     />
                     <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-[10px] font-black text-white px-2.5 py-1 rounded-full uppercase tracking-wider shadow-lg">
                       {imageFile ? (lang === 'es' ? 'Nueva Selección' : 'New Selection') : (lang === 'es' ? 'Foto Actual' : 'Current Photo')}
@@ -3432,12 +3432,12 @@ export default function EventDetailPage() {
               {/* Banner Image Upload */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Foto de Banner de Inicio' : 'Homepage Banner Image'}</label>
-                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Formato escritorio: 1080 × 360 px' : 'Desktop format: 1080 × 360 px'}</p>
+                <p className="text-[10px] text-gray-400 font-medium mb-1.5">{lang === 'es' ? 'Banner: 6 × 2 pulgadas · referencia: 180 ppp' : 'Banner: 6 × 2 inches · reference: 180 ppi'}</p>
 
                 {/* Active Preview */}
                 {(bannerFile || event?.bannerImageUrl) && (
                   <div className="space-y-4 mb-3">
-                    <div className="w-full aspect-[21/8] relative rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden shadow-inner group/preview">
+                    <div className="w-full aspect-[3/1] relative rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden shadow-inner group/preview">
                       <img 
                         src={bannerFile ? URL.createObjectURL(bannerFile) : getImageUrl(event?.bannerImageUrl, event.updatedAt)} 
                         alt="Current Banner" 

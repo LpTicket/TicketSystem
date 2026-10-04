@@ -1006,9 +1006,9 @@ function AdminEventsPageBody() {
                     <div className="grid grid-cols-2 gap-4 text-xs">
                       <div className="space-y-1.5">
                         <span className="font-bold text-gray-400 block">{lang === 'es' ? 'Actual:' : 'Current:'}</span>
-                        <div className="aspect-video relative rounded-xl border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center">
+                        <div className="aspect-[3/4] relative rounded-xl border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center">
                           {selectedEventForChanges.imageUrl ? (
-                            <img src={getImageUrl(selectedEventForChanges.imageUrl)} alt="Current" className="w-full h-full object-cover" />
+                            <img src={getImageUrl(selectedEventForChanges.imageUrl)} alt="Current" className="w-full h-full object-contain" />
                           ) : (
                             <span className="text-xs text-gray-400 font-medium">{lang === 'es' ? 'Sin imagen' : 'No image'}</span>
                           )}
@@ -1016,8 +1016,8 @@ function AdminEventsPageBody() {
                       </div>
                       <div className="space-y-1.5">
                         <span className="font-bold text-white block bg-[#F97316] rounded-t-xl px-2 py-1">{lang === 'es' ? 'Propuesto:' : 'Proposed:'}</span>
-                        <div className="aspect-video relative rounded-b-xl border border-[#F97316] bg-[#F97316] overflow-hidden flex items-center justify-center">
-                          <img src={getImageUrl(selectedEventForChanges.pendingImageUrl)} alt="Proposed" className="w-full h-full object-cover" />
+                        <div className="aspect-[3/4] relative rounded-b-xl border border-[#F97316] bg-[#F97316] overflow-hidden flex items-center justify-center">
+                          <img src={getImageUrl(selectedEventForChanges.pendingImageUrl)} alt="Proposed" className="w-full h-full object-contain" />
                         </div>
                       </div>
                     </div>

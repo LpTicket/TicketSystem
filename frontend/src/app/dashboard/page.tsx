@@ -35,6 +35,7 @@ import {
   HiOutlineTag,
 } from 'react-icons/hi';
 import PaymentMethods from '@/components/dashboard/PaymentMethods';
+import { useListNavigation } from '@/components/layout/useListNavigation';
 import SocialMatchPanel from '@/components/social/SocialMatchPanel';
 import MySpecialCodesPanel from '@/components/special-codes/MySpecialCodesPanel';
 import { Suspense } from 'react';
@@ -54,12 +55,23 @@ function DashboardPageBody() {
   const [ticketsPagination, setTicketsPagination] = useState({ total: 0, pages: 1 });
   const [loadingMoreTickets, setLoadingMoreTickets] = useState(false);
   const [ticketsError, setTicketsError] = useState('');
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [ticketRetryPage, setTicketRetryPage] = useState(1);
+  const { filter: ticketFilter, search: ticketSearch, updateFilters: updateTicketFilters } = useListNavigation('all', ['all', 'upcoming', 'past']);
+  const visibleTickets = tickets.filter(ticket => {
+    const query = ticketSearch.trim().toLocaleLowerCase();
+    const matchesSearch = !query || [ticket.event?.title, ticket.event?.venueName, ticket.ticketCode, ticket.sectionName].some(value => value?.toLocaleLowerCase().includes(query));
+    const date = Date.parse(ticket.event?.eventDate || '');
+    const matchesDate = ticketFilter === 'all' || (Number.isFinite(date) && (ticketFilter === 'upcoming' ? date >= Date.now() : date < Date.now()));
+    return matchesSearch && matchesDate;
+  });
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersPagination, setOrdersPagination] = useState({ total: 0, pages: 1 });
   const [loadingMoreOrders, setLoadingMoreOrders] = useState(false);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState('');
+  const [orderRetryPage, setOrderRetryPage] = useState(1);
   const [profileForm, setProfileForm] = useState({ 
     firstName: '', 
     lastName: '', 
@@ -108,6 +120,7 @@ function DashboardPageBody() {
 
   const loadTickets = async (ticketPage: number = 1) => {
     setTicketsError('');
+    setTicketsLoading(true);
     try {
       const t = await api.get('/orders/my-tickets', {
         params: { page: ticketPage, limit: 12 },
@@ -121,13 +134,16 @@ function DashboardPageBody() {
       setTicketsPagination(t.data.pagination);
       setTicketsPage(ticketPage);
     } catch (error) {
+      setTicketRetryPage(ticketPage);
       console.error('No se pudieron cargar los tickets:', error);
       setTicketsError(lang === 'es' ? 'No pudimos cargar tus tickets. Verifica tu conexión e inténtalo de nuevo.' : 'We could not load your tickets. Check your connection and try again.');
+    } finally {
+      setTicketsLoading(false);
     }
   };
 
   const loadOrders = async (orderPage: number = 1) => {
-    if (orderPage === 1) setOrdersError('');
+    setOrdersError('');
     setOrdersLoading(true);
     try {
       const o = await api.get('/orders/my-orders', {
@@ -144,11 +160,10 @@ function DashboardPageBody() {
       setOrdersLoaded(true);
     } catch (error) {
       console.error('No se pudieron cargar los recibos:', error);
-      if (orderPage === 1) {
-        setOrdersError(lang === 'es'
-          ? 'No pudimos cargar tus recibos. Inténtalo de nuevo.'
-          : 'We could not load your receipts. Please try again.');
-      }
+      setOrderRetryPage(orderPage);
+      setOrdersError(lang === 'es'
+        ? 'No pudimos cargar tus recibos. Inténtalo de nuevo.'
+        : 'We could not load your receipts. Please try again.');
     } finally {
       setOrdersLoading(false);
     }
@@ -157,7 +172,7 @@ function DashboardPageBody() {
   const retryOrders = () => {
     setOrdersLoaded(false);
     setOrdersError('');
-    loadOrders(1);
+    loadOrders(orderRetryPage);
   };
 
   const loadMoreTickets = async () => {
@@ -252,8 +267,8 @@ function DashboardPageBody() {
   );
 
   const tabs = [
-    { id: 'tickets' as const, label: t('clientMyTickets'), icon: HiOutlineTicket, count: tickets.length },
-    { id: 'orders' as const, label: t('clientReceipts'), icon: HiOutlineShoppingCart, count: orders.length },
+    { id: 'tickets' as const, label: t('clientMyTickets'), icon: HiOutlineTicket, count: ticketsPagination.total },
+    { id: 'orders' as const, label: t('clientReceipts'), icon: HiOutlineShoppingCart, count: ordersLoaded ? ordersPagination.total : undefined },
     { id: 'payments' as const, label: t('clientPayments'), icon: HiOutlineCreditCard },
     { id: 'social' as const, label: 'Social Match', icon: HiOutlineSparkles, count: pendingSocialRequests },
     { id: 'codes' as const, label: lang === 'es' ? 'Códigos' : 'Codes', icon: HiOutlineTag },
@@ -277,18 +292,21 @@ function DashboardPageBody() {
   };
 
   return (
-    <div className="page-dark-shell min-h-screen">
+    <div className="page-dark-shell account-workspace min-h-screen">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
         <h1 className="font-black text-2xl text-white">{t('clientHello')}, {user.firstName} 👋</h1>
         <p className="text-slate-500 text-sm mt-1 font-medium">{t('clientManage')}</p>
+        </div>
+        <Link href="/support" className="btn-secondary">{lang === 'es' ? 'Ayuda con mis compras' : 'Help with my purchases'}</Link>
       </div>
 
       {/* Tabs */}
       <div className="dashboard-premium-tabs grid grid-cols-2 sm:flex sm:flex-row gap-1 mb-8">
         {tabs.map((tab) => (
-          <button key={tab.id} aria-pressed={activeTab === tab.id} onClick={() => { if (activeTab !== tab.id) window.history.pushState(null, '', `/dashboard?tab=${tab.id}`); }}
+          <button key={tab.id} aria-pressed={activeTab === tab.id} onClick={() => { if (activeTab !== tab.id) { const params = new URLSearchParams(window.location.search); params.set('tab', tab.id); window.history.pushState(null, '', `/dashboard?${params}`); } }}
             className={`dashboard-premium-tab flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-3 text-xs sm:text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-primary-500 text-white shadow-sm' : 'text-slate-300 hover:bg-[rgba(255,255,255,0.06)] hover:text-white'}`}>
             <tab.icon className="w-4 h-4 shrink-0" />
             <span className="truncate">{tab.label}</span>
@@ -299,27 +317,37 @@ function DashboardPageBody() {
 
       {/* Tickets */}
       {activeTab === 'tickets' && (
-        ticketsError ? (
-          <div className="dashboard-premium-card text-center py-16">
+        <section aria-label={t('clientMyTickets')} className="space-y-4">
+          <div className="dashboard-premium-card p-4 space-y-3">
+            <label htmlFor="ticket-search" className="block text-sm text-slate-200">{lang === 'es' ? 'Buscar mis entradas' : 'Search my tickets'}</label>
+            <input id="ticket-search" type="search" value={ticketSearch} onChange={e => updateTicketFilters({ search: e.target.value }, true)} placeholder={lang === 'es' ? 'Evento, lugar, sección o código' : 'Event, venue, section or code'} className="input dashboard-premium-input w-full" />
+            <div className="flex flex-wrap gap-2" aria-label={lang === 'es' ? 'Filtrar por fecha del evento' : 'Filter by event date'}>
+              {([['all', 'Todas', 'All'], ['upcoming', 'Próximos eventos', 'Upcoming events'], ['past', 'Eventos pasados', 'Past events']] as const).map(([id, es, en]) => <button key={id} aria-pressed={ticketFilter === id} onClick={() => updateTicketFilters({ filter: id })} className={ticketFilter === id ? 'btn-primary' : 'btn-secondary'}>{lang === 'es' ? es : en}</button>)}
+            </div>
+            <p className="text-sm text-slate-400" role="status">{lang === 'es' ? `${visibleTickets.length} de ${tickets.length} entradas cargadas. Los filtros se aplican a las entradas cargadas.` : `${visibleTickets.length} of ${tickets.length} loaded tickets. Filters apply to loaded tickets.`}</p>
+          </div>
+        {ticketsError && (
+          <div role="alert" className="dashboard-premium-card text-center p-6">
             <HiOutlineTicket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 font-medium mb-4">{ticketsError}</p>
             <button
-              onClick={() => loadTickets(1)}
+              onClick={() => loadTickets(ticketRetryPage)} disabled={ticketsLoading}
               className="btn-primary text-sm inline-flex"
             >
               {lang === 'es' ? 'Reintentar' : 'Try again'}
             </button>
           </div>
-        ) : tickets.length > 0 ? (
+        )}
+        {ticketsError && tickets.length === 0 ? null : ticketsLoading && tickets.length === 0 ? <div role="status" className="dashboard-premium-card p-8 text-center text-slate-300">{lang === 'es' ? 'Cargando tus entradas...' : 'Loading your tickets...'}</div> : visibleTickets.length > 0 ? (
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {tickets.map((ticket) => {
+              {visibleTickets.map((ticket) => {
               const badge = getTicketStatus(ticket.status);
               return (
                 <div key={ticket.id} className="dashboard-premium-ticket p-5 space-y-3 transition-all">
                   <div className="flex justify-between items-start">
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-black text-[#0A375A] truncate">{ticket.event?.title || 'Evento'}</h3>
+                      <h3 className="font-semibold text-[#0A375A] break-words">{ticket.event?.title || 'Evento'}</h3>
                       <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 font-semibold">
                         <HiOutlineCalendar className="w-3.5 h-3.5 shrink-0" />
                         {ticket.event?.eventDate && (
@@ -346,7 +374,7 @@ function DashboardPageBody() {
                   </div>
                   {ticket.qrData && (
                     <div className="flex justify-center pt-1">
-                      <img src={ticket.qrData} alt="QR" className="w-28 h-28 rounded-lg border border-gray-200" />
+                      <img src={ticket.qrData} alt={lang === 'es' ? `Código QR de la entrada ${ticket.ticketCode}` : `QR code for ticket ${ticket.ticketCode}`} className="w-40 h-40 rounded-lg border border-gray-200 bg-white p-2" />
                     </div>
                   )}
                   <div className="flex flex-col gap-2 pt-2">
@@ -400,11 +428,21 @@ function DashboardPageBody() {
             })}
             </div>
 
+
+          </div>
+        ) : (
+          <div className="dashboard-premium-card text-center py-16">
+            <HiOutlineTicket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-600 font-medium mb-4">{tickets.length ? (lang === 'es' ? 'No hay coincidencias entre las entradas cargadas.' : 'No matches among loaded tickets.') : t('clientNoTickets')}</p>
+            {tickets.length > 0 && <button onClick={() => updateTicketFilters({ search: '', filter: 'all' })} className="btn-secondary mr-2">{lang === 'es' ? 'Limpiar filtros' : 'Clear filters'}</button>}
+            <Link href="/events" className="btn-primary text-sm inline-flex">{t('clientExplore')}</Link>
+          </div>
+        )}
             {ticketsPagination.pages > ticketsPage && (
               <div className="flex justify-center pt-4">
                 <button
                   onClick={loadMoreTickets}
-                  disabled={loadingMoreTickets}
+                  disabled={ticketsLoading}
                   className="px-6 py-2.5 bg-[#F97316] hover:bg-[#ea650c] text-white rounded-lg font-bold text-sm transition-all disabled:opacity-60 flex items-center gap-2"
                 >
                   {loadingMoreTickets ? (
@@ -415,27 +453,22 @@ function DashboardPageBody() {
                 </button>
               </div>
             )}
-          </div>
-        ) : (
-          <div className="dashboard-premium-card text-center py-16">
-            <HiOutlineTicket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600 font-medium mb-4">{t('clientNoTickets')}</p>
-            <Link href="/events" className="btn-primary text-sm inline-flex">{t('clientExplore')}</Link>
-          </div>
-        )
+        </section>
       )}
 
       {/* Orders */}
       {activeTab === 'orders' && (
-        ordersError ? (
-          <div className="dashboard-premium-card text-center py-16">
+        <section aria-label={t('clientReceipts')} className="space-y-4">
+        {ordersError && (
+          <div role="alert" className="dashboard-premium-card text-center p-6">
             <HiOutlineShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 font-medium mb-4">{ordersError}</p>
             <button onClick={retryOrders} className="btn-primary text-sm inline-flex">
               {lang === 'es' ? 'Reintentar' : 'Try again'}
             </button>
           </div>
-        ) : ordersLoading && !ordersLoaded ? (
+        )}
+        {ordersError && orders.length === 0 ? null : ordersLoading && !ordersLoaded ? (
           <div className="dashboard-premium-card text-center py-16">
             <div className="w-7 h-7 mx-auto border-2 border-[#0A375A] border-t-transparent rounded-full animate-spin" />
             <p className="text-gray-600 font-medium mt-4">{lang === 'es' ? 'Cargando recibos...' : 'Loading receipts...'}</p>
@@ -449,19 +482,19 @@ function DashboardPageBody() {
                   return (
                     <div key={order.id} className="px-5 py-4 flex items-center justify-between hover:bg-[rgba(10,55,90,0.04)] transition-colors">
                       <div className="min-w-0 flex-1">
-                        <h4 className="font-semibold text-gray-900 text-sm truncate">{order.event?.title || 'Evento'}</h4>
+                        <h4 className="font-semibold text-gray-900 text-sm truncate">{order.event?.title || (lang === 'es' ? 'Evento' : 'Event')}</h4>
                         <p className="text-xs text-gray-500 mt-0.5">
                           {format(parseSafeDate(order.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })} · {order.ticketCount} ticket(s)
                         </p>
                       </div>
                       <div className="text-right shrink-0 ml-4 space-y-2">
-                        <div className="font-bold text-gray-900">${Number(order.total).toFixed(2)}</div>
+                        <div className="font-bold text-gray-900">${Number(order.total).toFixed(2)} {order.event?.currency || 'USD'}</div>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
                         <Link
                           href={`/orders/${order.id}/receipt`}
                           className="block text-[11px] font-black text-[#0A375A] border border-[#0A375A]/20 rounded-lg px-3 py-1 hover:bg-[#0A375A]/5 transition-colors"
                         >
-                          Ver recibo
+                          {lang === 'es' ? 'Ver recibo' : 'View receipt'}
                         </Link>
                       </div>
                     </div>
@@ -474,7 +507,7 @@ function DashboardPageBody() {
               <div className="flex justify-center pt-2">
                 <button
                   onClick={loadMoreOrders}
-                  disabled={loadingMoreOrders}
+                  disabled={ordersLoading || loadingMoreOrders}
                   className="px-6 py-2.5 bg-[#F97316] hover:bg-[#ea650c] text-white rounded-lg font-bold text-sm transition-all disabled:opacity-60 flex items-center gap-2"
                 >
                   {loadingMoreOrders ? (
@@ -491,7 +524,8 @@ function DashboardPageBody() {
             <HiOutlineShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 font-medium">{t('clientNoOrders')}</p>
           </div>
-        )
+        )}
+        </section>
       )}
 
       {/* Profile */}
@@ -507,11 +541,12 @@ function DashboardPageBody() {
                     <span className="text-3xl font-black text-white uppercase">{user.firstName[0]}{user.lastName[0]}</span>
                   )}
                 </div>
-                <label className="absolute bottom-1 right-1 w-9 h-9 bg-[#F97316] rounded-full shadow-lg shadow-orange-900/25 border-2 border-white flex items-center justify-center cursor-pointer hover:bg-orange-600 transition-colors">
+                <label className="absolute bottom-1 right-1 w-11 h-11 bg-[#F97316] rounded-full shadow-lg shadow-orange-900/25 border-2 border-white flex items-center justify-center cursor-pointer hover:bg-orange-600 transition-colors">
                   <HiOutlineCamera className="w-4 h-4 text-white" />
+                  <span className="sr-only">{lang === 'es' ? 'Cambiar foto de perfil' : 'Change profile photo'}</span>
                   <input 
                     type="file" 
-                    className="hidden" 
+                    className="sr-only"
                     accept="image/*" 
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
@@ -546,34 +581,34 @@ function DashboardPageBody() {
               {editMode ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in">
                   <div className="space-y-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('firstName')}</label>
-                    <input type="text" value={profileForm.firstName} onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })} className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" />
+                    <label htmlFor="profile-firstName" className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('firstName')}</label>
+                    <input id="profile-firstName" type="text" value={profileForm.firstName} onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })} className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" />
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('lastName')}</label>
-                    <input type="text" value={profileForm.lastName} onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })} className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" />
+                    <label htmlFor="profile-lastName" className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('lastName')}</label>
+                    <input id="profile-lastName" type="text" value={profileForm.lastName} onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })} className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" />
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Nombre de Usuario' : 'Username'}</label>
-                    <input type="text" value={profileForm.username} onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })} className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" />
+                    <label htmlFor="profile-username" className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Nombre de Usuario' : 'Username'}</label>
+                    <input id="profile-username" type="text" value={profileForm.username} onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })} className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" />
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('email')}</label>
-                    <input type="email" value={profileForm.email} onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" />
+                    <label htmlFor="profile-email" className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('email')}</label>
+                    <input id="profile-email" type="email" value={profileForm.email} onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" />
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('phone')}</label>
-                    <input type="tel" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" placeholder={lang === 'es' ? 'Ej: +54 9 342 610 2734' : 'E.g. +1 305 555 1234'} />
+                    <label htmlFor="profile-phone" className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('phone')}</label>
+                    <input id="profile-phone" type="tel" value={profileForm.phone} onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" placeholder={lang === 'es' ? 'Ej: +54 9 342 610 2734' : 'E.g. +1 305 555 1234'} />
                     <p className="text-[11px] text-gray-400">{lang === 'es' ? 'Incluye el código de país (ej. +54, +1) para recibir WhatsApp/SMS.' : 'Include your country code (e.g. +54, +1) to receive WhatsApp/SMS.'}</p>
                   </div>
 
                   <div className="sm:col-span-2 space-y-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Dirección' : 'Address'}</label>
-                    <textarea value={profileForm.address} onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })} className="w-full input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold min-h-[96px] py-3" />
+                    <label htmlFor="profile-address" className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Dirección' : 'Address'}</label>
+                    <textarea id="profile-address" value={profileForm.address} onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })} className="w-full input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold min-h-[96px] py-3" />
                   </div>
                   <div className="sm:col-span-2 space-y-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Nueva Contraseña (Opcional)' : 'New Password (Optional)'}</label>
-                    <input type="password" value={profileForm.password || ''} onChange={(e) => setProfileForm({ ...profileForm, password: e.target.value })} placeholder="******" className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" />
+                    <label htmlFor="profile-password" className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{lang === 'es' ? 'Nueva Contraseña (Opcional)' : 'New Password (Optional)'}</label>
+                    <input id="profile-password" type="password" value={profileForm.password || ''} onChange={(e) => setProfileForm({ ...profileForm, password: e.target.value })} placeholder="******" className="input dashboard-premium-input bg-white border-slate-200 focus:bg-white focus:border-[#F97316] focus:ring-4 focus:ring-orange-100 rounded-2xl font-semibold" />
                   </div>
                   <div className="sm:col-span-2 pt-2">
                     <button onClick={handleSaveProfile} className="btn-primary w-full py-4 rounded-2xl font-black shadow-xl shadow-orange-500/20">{t('clientSave')}</button>
@@ -587,7 +622,7 @@ function DashboardPageBody() {
                     </div>
                     <p className="text-[#0A375A] font-black flex items-center justify-between gap-3 break-words">
                       {user.firstName}
-                      <HiOutlinePencil className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => setEditMode(true)} />
+
                     </p>
                   </div>
                   <div className="group cursor-default rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:border-orange-100 hover:shadow-md transition-all">
@@ -596,7 +631,7 @@ function DashboardPageBody() {
                     </div>
                     <p className="text-[#0A375A] font-black flex items-center justify-between gap-3 break-words">
                       {user.lastName}
-                      <HiOutlinePencil className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => setEditMode(true)} />
+
                     </p>
                   </div>
                   <div className="group cursor-default rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:border-orange-100 hover:shadow-md transition-all">
@@ -605,7 +640,7 @@ function DashboardPageBody() {
                     </div>
                     <p className="text-[#0A375A] font-black flex items-center justify-between gap-3 break-words">
                       @{user.username || '—'}
-                      <HiOutlinePencil className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => setEditMode(true)} />
+
                     </p>
                   </div>
                   <div className="group cursor-default rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:border-orange-100 hover:shadow-md transition-all">
@@ -614,7 +649,7 @@ function DashboardPageBody() {
                     </div>
                     <p className="text-[#0A375A] font-black flex items-center justify-between gap-3 break-words">
                       {user.email}
-                      <HiOutlinePencil className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => setEditMode(true)} />
+
                     </p>
                   </div>
                   <div className="group cursor-default rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:border-orange-100 hover:shadow-md transition-all">
@@ -623,7 +658,7 @@ function DashboardPageBody() {
                     </div>
                     <p className="text-[#0A375A] font-black flex items-center justify-between gap-3 break-words">
                       {user.phone || '—'}
-                      <HiOutlinePencil className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => setEditMode(true)} />
+
                     </p>
                   </div>
 
@@ -633,7 +668,7 @@ function DashboardPageBody() {
                     </div>
                     <p className="text-[#0A375A] font-black flex items-center justify-between gap-3 break-words">
                       {user.address || '—'}
-                      <HiOutlinePencil className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" onClick={() => setEditMode(true)} />
+
                     </p>
                   </div>
                 </div>

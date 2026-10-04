@@ -1504,7 +1504,7 @@ export default function AdminMarketingPage() {
                   <HiOutlineUpload className="h-6 w-6" />
                 </div>
                 <p className="mt-2 text-sm font-black text-gray-950">{bannerType === 'ad' ? 'Nueva publicidad' : 'Nuevo banner'}</p>
-                  <p className="text-xs font-bold text-gray-400">Escritorio · 1080 × 360 px</p>
+                  <p className="text-xs font-bold text-gray-400">Escritorio · 6 × 2 pulgadas</p>
               </button>
               <button
                 type="button"
@@ -1518,7 +1518,7 @@ export default function AdminMarketingPage() {
                   <HiOutlineDeviceMobile className="h-6 w-6" />
                 </div>
                 <p className="mt-2 text-sm font-black text-gray-950">{bannerType === 'ad' ? 'Nueva publicidad' : 'Nuevo banner'}</p>
-                  <p className="text-xs font-bold text-gray-400">Móvil web · 1080 × 1440 px</p>
+                  <p className="text-xs font-bold text-gray-400">Móvil web · 6 × 8 pulgadas</p>
               </button>
               {visibleMarketingBanners.map((item, index) => {
                 const img = item.imageData || item.imageUrl || '';
@@ -1549,7 +1549,7 @@ export default function AdminMarketingPage() {
               <div className="mb-3">
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wide text-gray-500">Escritorio</h3>
-                  <p className="text-xs text-gray-400">Proporción 3:1 · recomendado 1080 × 360 px.</p>
+                  <p className="text-xs text-gray-400">6 × 2 pulgadas · referencia de diseño: 180 ppp.</p>
                 </div>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleBannerFile(event.target.files?.[0])} />
@@ -1569,13 +1569,13 @@ export default function AdminMarketingPage() {
               <div className="mb-3">
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wide text-gray-500">Móvil web</h3>
-                  <p className="text-xs text-gray-400">Proporción 3:4 · recomendado 1080 × 1440 px.</p>
+                  <p className="text-xs text-gray-400">6 × 8 pulgadas · referencia de diseño: 180 ppp.</p>
                 </div>
               </div>
               <input ref={mobileFileInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleMobileBannerFile(event.target.files?.[0])} />
               {mobileBannerPreview ? (
                 <div className="mx-auto max-w-[220px] overflow-hidden rounded-2xl bg-black shadow-sm">
-                  <img src={mobileBannerPreview} alt="Preview movil del banner" className="aspect-[3/4] w-full object-cover" />
+                  <img src={mobileBannerPreview} alt="Preview movil del banner" className="aspect-[3/4] w-full object-contain" />
                 </div>
               ) : (
                 <button type="button" onClick={() => mobileFileInputRef.current?.click()} className="mx-auto flex aspect-[3/4] w-full max-w-[220px] items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white text-sm font-bold text-gray-400">

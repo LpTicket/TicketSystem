@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-04 - Cuenta, eventos, soporte y medidas de flyers en la web
+
+- Portadas: 6 × 8 pulgadas; banners: 6 × 2 pulgadas, como referencia de diseño a 180 ppp. Indicaciones consistentes en creación, edición y marketing; marcos de portada 3:4 y banners 3:1. La aprobación de portadas muestra la imagen completa.
+- Mis entradas incorpora búsqueda entre las entradas cargadas y filtros por fecha del evento, conservados al cambiar de pestaña y volver. QR más grande sin cambiar su contenido, títulos completos y reintento de la página que falló conservando los resultados anteriores.
+- Recibos muestra moneda y reintentos; perfil incorpora etiquetas accesibles. Eventos añade accesos internos, reintento de carga y aviso manejable con teclado. Soporte añade accesos a cuenta y recuperación de búsquedas vacías.
+- Validación: build de producción con TypeScript, revisión del diff y comparación de 19 funciones sensibles sin cambios. Navegador local con datos ficticios: filtros, búsqueda, Atrás, perfil, soporte, aviso y marcos en escritorio y ancho móvil. No se realizaron compras, envíos ni escrituras de gestión reales; backend y móvil sin cambios.
+
 ## 2026-10-04 - Seguimiento de distribución móvil 1.0.12
 
 - EAS confirmó que el build firmado iOS 1.0.12 (43) terminó correctamente. El panel de EAS identificó el rechazo inicial por un acuerdo de Apple; se confirmaron ambos acuerdos comerciales activos y el contrato del Developer Program aceptado hoy. Una vez que la API reconoció ese cambio, el envío del mismo archivo terminó correctamente (submission `b00fa309-c755-4bde-87a3-cbf5933e012d`). App Store Connect muestra 1.0.12 (43) en procesamiento; instalación en TestFlight y publicación pública aún no confirmadas. No se cambiaron credenciales ni permisos.

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { formatSeatLabel } from '@/lib/seatLabel';
@@ -26,15 +26,15 @@ const STRIPE_FIXED = 0.30;
 const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 const ceilMoney = (value: number) => Math.ceil((value - Number.EPSILON) * 100) / 100;
 
-const getTimezoneAbbr = (timezone: string): string => {
+const getTimezoneAbbr = (timezone: string, eventDate: string): string => {
   if (!timezone) return '';
   try {
-    const now = new Date();
+    const date = new Date(eventDate);
     const formatter = new Intl.DateTimeFormat('en', {
       timeZone: timezone,
       timeZoneName: 'short',
     });
-    const parts = formatter.formatToParts(now);
+    const parts = formatter.formatToParts(date);
     const tzPart = parts.find(p => p.type === 'timeZoneName');
     return tzPart?.value || '';
   } catch {
@@ -64,6 +64,14 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
   // If the server already supplied the event, there is no skeleton to show.
   const [loading, setLoading] = useState(!initialEvent);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const alertCloseRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!alertMessage) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    alertCloseRef.current?.focus();
+    return () => previousFocus?.focus();
+  }, [alertMessage]);
 
   useEffect(() => {
     // Server already preloaded the event via ISR — skip the initial client fetch.
@@ -83,6 +91,8 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
   }, [initialEvent?.id]);
 
   const loadEvent = async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const { data } = await api.get(`/events/${slug}`);
       setEvent(data);
@@ -90,7 +100,7 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
         const { data: map } = await api.get(`/events/${data.id}/seatmap`);
         setSeatMap(map);
       }
-    } catch { router.push('/events'); }
+    } catch { setLoadError(true); }
     finally { setLoading(false); }
   };
 
@@ -274,6 +284,7 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
   };
 
   if (loading) return <div className="event-premium-shell max-w-7xl mx-auto px-4 py-8"><div className="h-64 skeleton rounded-lg mb-6" /><div className="h-6 skeleton rounded w-1/2 mb-3" /></div>;
+  if (loadError) return <div role="alert" className="event-dark max-w-3xl mx-auto px-4 pt-28 pb-16 space-y-5"><h1>{lang === 'es' ? 'No pudimos cargar el evento' : 'We could not load this event'}</h1><p>{lang === 'es' ? 'Revisa tu conexión o vuelve al listado para encontrar otro evento.' : 'Check your connection or return to the list to find another event.'}</p><button onClick={loadEvent} className="btn-primary">{lang === 'es' ? 'Reintentar' : 'Try again'}</button><Link href={returnTo} className="btn-secondary ml-3">{lang === 'es' ? 'Volver a eventos' : 'Back to events'}</Link></div>;
   if (!event) return null;
 
   const matchedCategory = getCategoryInfo(event.category);
@@ -339,12 +350,12 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
         <span aria-current="page" className="min-w-0 break-words text-slate-200">{event.title}</span>
       </nav>
       {/* Hero Image */}
-      <div className="event-premium-hero relative mb-8 overflow-hidden bg-[#071827] sm:aspect-[21/8] lg:aspect-[3/1]">
+      <div className="event-premium-hero relative mb-8 overflow-hidden bg-[#071827] sm:aspect-[3/1]">
         {(event.bannerImageUrl || event.imageUrl) ? (
           <img 
             src={eventImageUrl} 
             alt={event.title} 
-            className="block h-auto w-full sm:h-full sm:object-cover lg:object-contain"
+            className="block h-auto w-full sm:h-full sm:object-contain"
             style={{ objectPosition: event.bannerPosition || 'center' }}
           />
         ) : (
@@ -370,6 +381,13 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
             />
           </div>
 
+          <nav aria-label={lang === 'es' ? 'Secciones del evento' : 'Event sections'} className="flex flex-wrap gap-2">
+            {event.description && <a href="#event-about" className="btn-secondary">{t('aboutEvent')}</a>}
+            {seatMap.length > 0 && <a href="#event-seats" className="btn-secondary">{lang === 'es' ? 'Elegir entradas' : 'Choose tickets'}</a>}
+            <a href="#event-summary" className="btn-secondary">{t('purchaseSummary')}</a>
+            <Link href="/support" className="btn-secondary">{lang === 'es' ? 'Necesito ayuda' : 'Get help'}</Link>
+          </nav>
+
           {/* Quick info */}
           <div className="event-detail-meta grid grid-cols-1 sm:grid-cols-3">
             <div className="event-detail-meta-item flex items-center gap-3 p-5 sm:p-4">
@@ -385,7 +403,7 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
                 <div className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">{t('timeLabel')}</div>
                 <div className="mt-1 text-sm font-semibold text-gray-900">
                   {formatDateInTimezone(event.eventDate, event.eventTimezone || 'UTC', lang === 'en' ? 'en-US' : 'es', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                  {event?.eventTimezone && <span className="text-gray-500 ml-1">({getTimezoneAbbr(event.eventTimezone)})</span>}
+                  {event?.eventTimezone && <span className="text-gray-500 ml-1">({getTimezoneAbbr(event.eventTimezone, event.eventDate)})</span>}
                 </div>
               </div>
             </div>
@@ -403,7 +421,7 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
 
           {/* Description */}
           {event.description && (
-            <div className="event-premium-panel p-6">
+            <div id="event-about" className="event-premium-panel p-6 scroll-mt-28">
               <h2 className="event-premium-title font-black text-lg mb-3">{t('aboutEvent')}</h2>
               <div className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">{event.description}</div>
             </div>
@@ -411,7 +429,7 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
 
           {/* Seat Map */}
           {seatMap.length > 0 && (
-            <div className="event-premium-panel overflow-hidden">
+            <div id="event-seats" className="event-premium-panel overflow-hidden scroll-mt-28">
               <div className="font-black text-base sm:text-lg text-[#0A375A] py-3 px-6 border-b border-[rgba(10,55,90,0.10)] bg-[rgba(10,55,90,0.04)]">
                 <span>{lang === 'es' ? 'Selecciona tus asientos' : 'Select your seats'}</span>
               </div>
@@ -433,7 +451,7 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
         {/* Sidebar — Purchase */}
         <div className="lg:col-span-1">
           <div className="sticky top-20">
-            <div className="event-premium-panel p-6 space-y-4">
+            <div id="event-summary" className="event-premium-panel p-6 space-y-4 scroll-mt-28">
               <h3 className="font-black text-lg text-[#0A375A]">{t('purchaseSummary')}</h3>
 
               {seatMap.length > 0 && (
@@ -548,7 +566,7 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
       {/* Custom Premium Glassmorphic Modal Alert */}
       {alertMessage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-300 animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 transform scale-100 transition-all duration-300 animate-scaleUp">
+          <div role="alertdialog" aria-modal="true" aria-labelledby="event-alert-title" aria-describedby="event-alert-message" onKeyDown={e => { if (e.key === 'Escape') setAlertMessage(null); if (e.key === 'Tab') { e.preventDefault(); alertCloseRef.current?.focus(); } }} className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 transform scale-100 transition-all duration-300 animate-scaleUp">
             <div className="flex flex-col items-center text-center space-y-4">
               {/* Animated Warning Icon */}
               <div className="w-16 h-16 rounded-full bg-orange-50 flex items-center justify-center text-[#F97316] animate-bounce-slow shadow-inner">
@@ -557,15 +575,16 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
                 </svg>
               </div>
               
-              <h4 className="text-[17px] font-black text-slate-800 leading-tight">
+              <h4 id="event-alert-title" className="text-[17px] font-black text-slate-800 leading-tight">
                 {lang === 'es' ? 'Atención' : 'Attention'}
               </h4>
               
-              <p className="text-sm text-slate-500 font-semibold leading-relaxed">
+              <p id="event-alert-message" className="text-sm text-slate-500 font-semibold leading-relaxed">
                 {alertMessage}
               </p>
 
               <button 
+                ref={alertCloseRef}
                 onClick={() => setAlertMessage(null)}
                 className="w-full py-3 bg-[#F97316] hover:bg-[#ea650c] active:scale-[0.98] text-white font-extrabold rounded-lg transition-all shadow-md shadow-orange-500/20 text-sm tracking-wide uppercase"
               >
