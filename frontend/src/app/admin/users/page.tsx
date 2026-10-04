@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useAdminListState } from '@/components/admin/useAdminListState';
 import api from '@/lib/api';
 import { formatDateInTimezone, parseSafeDate } from '@/lib/dateUtils';
 import { formatSeatLabel } from '@/lib/seatLabel';
@@ -30,7 +31,7 @@ import {
   HiOutlineLogin,
 } from 'react-icons/hi';
 
-export default function AdminUsersPage() {
+function AdminUsersPageBody() {
   const { t, lang } = useLang();
   const router = useRouter();
   const startSupportSession = useAuthStore((state) => state.startSupportSession);
@@ -39,10 +40,11 @@ export default function AdminUsersPage() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('');
-  const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState('');
-  const [page, setPage] = useState(1);
+  const { page, filter, search, updateFilters } = useAdminListState('', ['', 'client', 'organizer', 'admin']);
+  const [loadError, setLoadError] = useState(false);
+  const requestId = useRef(0);
+  const [searchInput, setSearchInput] = useState(search);
+  useEffect(() => { setSearchInput(search); }, [search]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUserTickets, setSelectedUserTickets] = useState<any[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
@@ -191,26 +193,25 @@ export default function AdminUsersPage() {
   useEffect(() => {
     const debounce = window.setTimeout(() => {
       const nextSearch = searchInput.trim();
-      setSearch((currentSearch) => {
-        if (currentSearch === nextSearch) return currentSearch;
-        setPage(1);
-        return nextSearch;
-      });
+      if (search !== nextSearch) updateFilters({ search: nextSearch, page: 1 }, true);
     }, 250);
     return () => window.clearTimeout(debounce);
   }, [searchInput]);
 
   const loadUsers = async () => {
+    const currentRequest = ++requestId.current;
+    setLoadError(false);
     setLoading(true);
     try {
       const params: any = { page, limit: 20 };
       if (filter) params.role = filter;
       if (search) params.search = search;
       const { data } = await api.get('/admin/users', { params });
+      if (currentRequest !== requestId.current) return;
       setUsers(data.users);
       setTotal(data.total);
       setTotalPages(data.totalPages);
-    } catch {} finally { setLoading(false); }
+    } catch { if (currentRequest === requestId.current) setLoadError(true); } finally { if (currentRequest === requestId.current) setLoading(false); }
   };
 
   const handleToggleActive = async (userId: string) => {
@@ -269,7 +270,7 @@ export default function AdminUsersPage() {
             {roleFilters.map((f) => (
               <button
                 key={f.key}
-                onClick={() => { setFilter(f.key); setPage(1); }}
+                aria-pressed={filter === f.key} onClick={() => updateFilters({ filter: f.key, page: 1 })}
                 className={`flex-1 sm:flex-none justify-center px-4 py-2.5 sm:py-2 text-xs font-semibold rounded-lg transition-all whitespace-nowrap active:scale-95 ${
                   filter === f.key ? 'bg-gradient-to-b from-[#ff8a18] via-[#f46c00] to-[#c93f00] text-white font-bold border border-[rgba(255,151,45,0.62)] shadow-[0_10px_24px_rgba(255,104,0,0.24)]' : 'bg-[rgba(8,31,51,0.6)] border border-[rgba(246,198,95,0.18)] text-slate-300 hover:bg-[rgba(249,115,22,0.12)] hover:border-[rgba(249,115,22,0.4)] hover:text-white'
                 }`}
@@ -303,6 +304,11 @@ export default function AdminUsersPage() {
       {/* Users Table / Cards */}
       {loading ? (
         <div className="space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-14 skeleton rounded-lg" />)}</div>
+      ) : loadError ? (
+        <div role="alert" className="rounded-xl border border-orange-500/30 p-6 space-y-3 text-center">
+          <p>{lang === 'es' ? 'No pudimos actualizar la lista. Inténtalo de nuevo.' : 'We could not update the list. Please try again.'}</p>
+          <button type="button" onClick={loadUsers} className="btn-secondary">{lang === 'es' ? 'Reintentar' : 'Retry'}</button>
+        </div>
       ) : users.length > 0 ? (
         <div className="space-y-4">
           {/* Desktop Table View */}
@@ -499,16 +505,7 @@ export default function AdminUsersPage() {
             })}
           </div>
 
-          {/* Pagination */}
-          {total > 20 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 bg-white rounded-xl border border-gray-200 shadow-sm">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{total} {lang === 'es' ? 'usuarios' : 'users'}</p>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1} className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors uppercase tracking-tight">{lang === 'es' ? 'Anterior' : 'Prev'}</button>
-                <button onClick={() => setPage(page + 1)} disabled={page >= totalPages} className="px-3 py-1 text-xs border rounded hover:bg-white disabled:opacity-50 transition-colors">{lang === 'es' ? 'Siguiente' : 'Next'}</button>
-              </div>
-            </div>
-          )}
+
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 px-6 py-16 text-center">
@@ -516,6 +513,16 @@ export default function AdminUsersPage() {
           <p className="text-gray-600 font-medium">{t('adminNoUsers')}</p>
         </div>
       )}
+          {/* Pagination */}
+          {!loading && !loadError && (totalPages > 1 || page > 1) && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{total} {lang === 'es' ? 'usuarios' : 'users'}</p>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button onClick={() => updateFilters({ page: Math.max(1, page - 1) })} disabled={page <= 1} className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors uppercase tracking-tight">{lang === 'es' ? 'Anterior' : 'Prev'}</button>
+                <button onClick={() => updateFilters({ page: page + 1 })} disabled={page >= totalPages} className="px-3 py-1 text-xs border rounded hover:bg-white disabled:opacity-50 transition-colors">{lang === 'es' ? 'Siguiente' : 'Next'}</button>
+              </div>
+            </div>
+          )}
       </div>
 
       {/* Selected User Detail Centered Modal */}
@@ -944,4 +951,8 @@ export default function AdminUsersPage() {
       )}
     </>
   );
+}
+
+export default function AdminUsersPage() {
+  return <Suspense fallback={<div role="status" className="p-6"><div className="h-8 w-48 skeleton rounded" /></div>}><AdminUsersPageBody /></Suspense>;
 }

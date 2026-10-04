@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useAdminListState } from '@/components/admin/useAdminListState';
 import api, { getImageUrl } from '@/lib/api';
 import { formatDateInTimezone } from '@/lib/dateUtils';
 import toast from 'react-hot-toast';
@@ -86,18 +87,18 @@ function writeEventsCache(data: AdminEventsCache) {
   } catch {}
 }
 
-export default function AdminEventsPage() {
+function AdminEventsPageBody() {
   const { t, lang } = useLang();
   const { getCategoryInfo } = useCategories();
-  const [filter, setFilter] = useState('all');
-  const [page, setPage] = useState(1);
+  const { page, filter, search, updateFilters } = useAdminListState('all', ['all', 'pending_approval', 'draft', 'published', 'cancelled']);
+  const [loadError, setLoadError] = useState(false);
+  const requestId = useRef(0);
 
   // Seed state from session cache so the first paint shows real rows, not skeletons.
-  const initialCache = typeof window !== 'undefined' ? readEventsCache('all', 1) : null;
+  const initialCache = typeof window !== 'undefined' ? readEventsCache(filter, page) : null;
   const [events, setEvents] = useState<Event[]>(initialCache?.events || []);
   const [total, setTotal] = useState(initialCache?.total || 0);
   const [loading, setLoading] = useState(!initialCache);
-  const [search, setSearch] = useState('');
   const [selectedEventForChanges, setSelectedEventForChanges] = useState<Event | null>(null);
   const [processingField, setProcessingField] = useState<string | null>(null);
   const [selectedEventForReport, setSelectedEventForReport] = useState<Event | null>(null);
@@ -312,6 +313,8 @@ export default function AdminEventsPage() {
   useEffect(() => { loadEvents(); }, [page, filter]);
 
   const loadEvents = async () => {
+    const currentRequest = ++requestId.current;
+    setLoadError(false);
     // Stale-while-revalidate: if we have cached data for this (filter, page),
     // show it immediately and refresh in the background. Otherwise, show skeleton.
     const cached = readEventsCache(filter, page);
@@ -326,6 +329,7 @@ export default function AdminEventsPage() {
       const params: any = { page, limit: 15 };
       if (filter !== 'all') params.status = filter;
       const { data } = await api.get('/admin/events', { params });
+      if (currentRequest !== requestId.current) return;
       setEvents(data.events);
       setTotal(data.total);
       writeEventsCache({
@@ -335,7 +339,7 @@ export default function AdminEventsPage() {
         filter,
         cachedAt: Date.now(),
       });
-    } catch {} finally { setLoading(false); }
+    } catch { if (currentRequest === requestId.current) setLoadError(true); } finally { if (currentRequest === requestId.current) setLoading(false); }
   };
 
   const handleApprove = async (event: Event) => {
@@ -472,7 +476,7 @@ export default function AdminEventsPage() {
           {statusFilters.map((f) => (
             <button
               key={f.key}
-              onClick={() => { setFilter(f.key); setPage(1); }}
+              aria-pressed={filter === f.key} onClick={() => updateFilters({ filter: f.key, page: 1 })}
               className={`justify-center px-3.5 py-2.5 text-xs font-semibold rounded-lg transition-all active:scale-95 ${
                 filter === f.key ? 'bg-gradient-to-b from-[#ff8a18] via-[#f46c00] to-[#c93f00] text-white font-bold border border-[rgba(255,151,45,0.62)] shadow-[0_10px_24px_rgba(255,104,0,0.24)]' : 'bg-[rgba(8,31,51,0.6)] border border-[rgba(246,198,95,0.18)] text-slate-300 hover:bg-[rgba(249,115,22,0.12)] hover:border-[rgba(249,115,22,0.4)] hover:text-white'
               }`}
@@ -485,9 +489,9 @@ export default function AdminEventsPage() {
           <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder={lang === 'es' ? 'Buscar evento u organizador...' : 'Search event or organizer...'}
+            placeholder={lang === 'es' ? 'Buscar en esta página...' : 'Search this page...'}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => updateFilters({ search: e.target.value }, true)}
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
           />
         </div>
@@ -496,6 +500,11 @@ export default function AdminEventsPage() {
       {/* Events Table/Cards Container */}
       {loading ? (
         <div className="space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="h-16 skeleton rounded-lg" />)}</div>
+      ) : loadError ? (
+        <div role="alert" className="rounded-xl border border-orange-500/30 p-6 space-y-3 text-center">
+          <p>{lang === 'es' ? 'No pudimos actualizar la lista. Inténtalo de nuevo.' : 'We could not update the list. Please try again.'}</p>
+          <button type="button" onClick={loadEvents} className="btn-secondary">{lang === 'es' ? 'Reintentar' : 'Retry'}</button>
+        </div>
       ) : filteredEvents.length > 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
           <div className="divide-y divide-white/10">
@@ -568,29 +577,6 @@ export default function AdminEventsPage() {
               );
             })}
           </div>
-
-          {/* Pagination */}
-          {total > 15 && (
-            <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-200">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{total} {lang === 'es' ? 'eventos' : 'events'}</p>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setPage(Math.max(1, page - 1))} 
-                  disabled={page <= 1} 
-                  className="px-4 py-2 text-[10px] font-bold border border-gray-200 rounded-xl hover:bg-white disabled:opacity-50 transition-colors uppercase tracking-widest shadow-sm"
-                >
-                  {lang === 'es' ? 'Anterior' : 'Previous'}
-                </button>
-                <button 
-                  onClick={() => setPage(page + 1)} 
-                  disabled={filteredEvents.length < 15} 
-                  className="px-4 py-2 text-[10px] font-bold border border-gray-200 rounded-xl hover:bg-white disabled:opacity-50 transition-colors uppercase tracking-widest shadow-sm"
-                >
-                  {lang === 'es' ? 'Siguiente' : 'Next'}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 px-6 py-16 text-center">
@@ -598,6 +584,28 @@ export default function AdminEventsPage() {
           <p className="text-gray-600 font-medium">{t('adminNoEvents')}</p>
         </div>
       )}
+          {/* Pagination */}
+          {!loading && !loadError && (total > 15 || page > 1) && (
+            <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-200">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{total} {lang === 'es' ? 'eventos' : 'events'}</p>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => updateFilters({ page: Math.max(1, page - 1) })}
+                  disabled={page <= 1} 
+                  className="px-4 py-2 text-[10px] font-bold border border-gray-200 rounded-xl hover:bg-white disabled:opacity-50 transition-colors uppercase tracking-widest shadow-sm"
+                >
+                  {lang === 'es' ? 'Anterior' : 'Previous'}
+                </button>
+                <button 
+                  onClick={() => updateFilters({ page: page + 1 })}
+                  disabled={page * 15 >= total}
+                  className="px-4 py-2 text-[10px] font-bold border border-gray-200 rounded-xl hover:bg-white disabled:opacity-50 transition-colors uppercase tracking-widest shadow-sm"
+                >
+                  {lang === 'es' ? 'Siguiente' : 'Next'}
+                </button>
+              </div>
+            </div>
+          )}
       </div>
 
       {/* Post-event Report Modal */}
@@ -1594,4 +1602,8 @@ export default function AdminEventsPage() {
       )}
     </div>
   );
+}
+
+export default function AdminEventsPage() {
+  return <Suspense fallback={<div role="status" className="p-6"><div className="h-8 w-48 skeleton rounded" /></div>}><AdminEventsPageBody /></Suspense>;
 }

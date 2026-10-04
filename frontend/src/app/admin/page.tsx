@@ -9,6 +9,8 @@
  *     (requiere rol admin).
  */
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { adminNavigation } from '@/components/admin/navigation';
 import api from '@/lib/api';
 import { formatDateInTimezone } from '@/lib/dateUtils';
 import { useLang } from '@/context/LanguageContext';
@@ -225,6 +227,16 @@ export default function AdminDashboard() {
         <h1 className="premium-page-title font-black text-2xl">{t('adminDashboard')}</h1>
         <p className="premium-muted text-sm mt-1 font-medium">{lang === 'es' ? 'Vista general de la plataforma' : 'Platform overview'}</p>
       </div>
+
+      <section aria-labelledby="admin-tools-title" className="space-y-3">
+        <h2 id="admin-tools-title" className="text-lg font-semibold text-white">{lang === 'es' ? '¿Qué necesitas gestionar?' : 'What do you need to manage?'}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {adminNavigation.filter(item => item.href !== '/admin').map(item => <Link key={item.href} href={item.href} className="admin-tool-card flex items-start gap-3 rounded-xl border border-white/10 p-4 transition-colors hover:border-primary-500/50 hover:bg-white/5">
+            <item.icon aria-hidden="true" className="mt-1 w-5 h-5 shrink-0 text-primary-400" />
+            <div><h3 className="text-sm font-semibold text-white">{lang === 'es' ? item.es : item.en}</h3><p className="mt-1 text-xs leading-5 text-slate-400">{lang === 'es' ? item.descriptionEs : item.descriptionEn}</p></div>
+          </Link>)}
+        </div>
+      </section>
 
       {/* Main Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

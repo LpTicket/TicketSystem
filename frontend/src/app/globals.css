@@ -6270,3 +6270,16 @@ html body:has(.lp-support-banner) header.site-header-future {
     animation: none !important;
   }
 }
+
+/* Administration only: consistent hierarchy, compact tools and safe mobile access. */
+.admin-workspace { overflow-x: clip; overflow-y: visible; }
+.admin-workspace .admin-desktop-sidebar { position: sticky; top: 70px; height: calc(100dvh - 70px); }
+.admin-workspace .admin-nav-group { color: #94a3b8; font-size: .6875rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
+.admin-workspace .admin-context-bar { border-bottom: 1px solid rgba(255,255,255,.08); background: rgba(5,17,31,.65); }
+.admin-workspace h1 { font-size: clamp(1.375rem, 2vw, 1.75rem); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.admin-workspace h2, .admin-workspace h3 { font-weight: 600; line-height: 1.4; }
+.admin-workspace .lp-sidebar-link { font-weight: 500 !important; }
+.admin-workspace .admin-tool-card p { color: #94a3b8 !important; }
+.admin-workspace .admin-navigation-drawer { padding-top: 0 !important; }
+.admin-workspace :where(a,button,input,select,textarea):focus-visible { outline: 2px solid #ff9b45 !important; outline-offset: 3px; }
+@media print { .admin-desktop-sidebar, .admin-context-bar { display: none !important; } }

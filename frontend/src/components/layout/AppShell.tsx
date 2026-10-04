@@ -27,10 +27,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // so they don't collide with the sticky wizard breadcrumb.
   const isCheckout = pathname.endsWith('/purchase');
 
-  // The organizer event editor (esp. the venue-map tab) has its own dense toolbar
-  // and floating controls; the global chat/social widgets overlap it and break the
-  // layout on small screens (e.g. iPhone SE). Hide them there.
-  const hideFloatingWidgets = /^\/organizer\/events\/[^/]+/.test(pathname);
+  // Keep global chat/social widgets clear of administration and the dense event editor.
+  const hideFloatingWidgets = pathname.startsWith('/admin') || /^\/organizer\/events\/[^/]+/.test(pathname);
 
   useEffect(() => {
     const androidEventPage = /Android/i.test(navigator.userAgent)

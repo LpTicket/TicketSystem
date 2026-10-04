@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-04 - Organización del administrador web
+
+- Menú agrupado para las diez herramientas, accesos directos en Resumen y ubicación visible en cada sección; menú móvil con cierre por Escape y navegación por teclado.
+- Eventos y Usuarios conservan filtros, búsqueda y página en el historial. La paginación permanece disponible aunque la página esté vacía; los fallos de carga muestran reintento.
+- Jerarquía de títulos más ligera y widgets flotantes ocultos en administración. Sin cambios en backend, Stripe, checkout, QR, recibos ni datos existentes.
+- Validación: compilación de frontend y pruebas de escritorio/móvil con datos ficticios y escrituras bloqueadas. No se ejecutaron operaciones reales de administración ni compras.
+
 ## 2026-10-04 - Navegación y legibilidad de la web
 
 - Eventos conserva búsqueda, categoría y página en la URL y recupera esos estados al usar Atrás. Las solicitudes anteriores se cancelan al cambiar filtros; los errores muestran una opción de reintento.
