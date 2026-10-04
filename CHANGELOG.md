@@ -1,5 +1,14 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-04 - Revisión de formularios, diálogos y recuperación de sesión web
+
+- Confirmaciones y ventanas de usuarios mantienen el foco del teclado, permiten Escape y devuelven el foco al abrir/cerrar. Enter sobre Cancelar ya no confirma una acción. Formularios de usuarios por encima del encabezado, con fondo legible y contraseña oculta.
+- Entradas del usuario y selección de organizador distinguen errores de carga de resultados vacíos, con reintento. Personal y accesos evita mostrar una lista vacía cuando falla la carga.
+- Etiquetas accesibles en creación/edición de eventos, usuarios y datos de compra; selector horario devuelve el foco, cargas de imágenes accesibles con teclado y zona UTC visible cuando está seleccionada. Campos de edición de eventos de 16 px y al menos 44 px de altura.
+- Compra espera la recuperación de sesión antes de decidir si debe enviar al acceso. Importes, envío a Stripe y funciones de escritura de gestión conservan su lógica.
+- Validación: build de producción, 70 pruebas de backend en cuatro suites, comparación de 38 funciones de acciones sin modificaciones y revisión local de administrador/organizador/cliente con datos ficticios en escritorio y ancho móvil de 390 px. Se comprobó compra hasta el resumen previo al pago, recarga autenticada, protección de acceso, errores/reintentos y teclado. Sin cargos, mensajes ni escrituras de gestión reales; backend y móvil sin cambios.
+- Pendiente: compra completa en entorno aislado con Stripe de prueba, dispositivos físicos, auditoría completa de lector de pantalla/contraste y operaciones complejas de mapas/asientos. La revisión no se declara completa al 100%.
+
 ## 2026-10-04 - Recuperación de navegación y accesibilidad web
 
 - Página 404 con accesos a eventos, inicio y soporte; Contacto añade ayuda con entradas, teléfono y correo accionables. El idioma del documento sigue la selección español/inglés.

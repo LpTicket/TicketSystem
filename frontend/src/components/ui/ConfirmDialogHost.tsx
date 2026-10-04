@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useModalFocus } from './useModalFocus';
 import { HiOutlineExclamation, HiOutlineX } from 'react-icons/hi';
 import { useLang } from '@/context/LanguageContext';
 import { DIALOG_REQUEST_EVENT, DialogRequest } from '@/lib/dialog';
@@ -9,7 +10,6 @@ export default function ConfirmDialogHost() {
   const { lang } = useLang();
   const [dialog, setDialog] = useState<DialogRequest | null>(null);
   const [inputValue, setInputValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleRequest = (event: Event) => {
@@ -26,10 +26,6 @@ export default function ConfirmDialogHost() {
     return () => window.removeEventListener(DIALOG_REQUEST_EVENT, handleRequest as EventListener);
   }, []);
 
-  useEffect(() => {
-    if (dialog?.kind === 'prompt') requestAnimationFrame(() => inputRef.current?.focus());
-  }, [dialog]);
-
   const close = (value: boolean | string | null) => {
     if (!dialog) return;
     if (dialog.kind === 'confirm') dialog.resolve(value === true);
@@ -37,15 +33,7 @@ export default function ConfirmDialogHost() {
     setDialog(null);
   };
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!dialog) return;
-      if (event.key === 'Escape') close(null);
-      if (event.key === 'Enter' && dialog.kind === 'confirm') close(true);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [dialog]);
+  const panelRef = useModalFocus(Boolean(dialog), () => close(null));
 
   if (!dialog) return null;
 
@@ -57,17 +45,20 @@ export default function ConfirmDialogHost() {
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-sm"
+      className="lp-confirm-overlay fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-sm"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) close(null);
       }}
     >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="lpticket-dialog-title"
-        className="w-full max-w-md overflow-hidden rounded-2xl border border-white/15 bg-[#0b1c2e] shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
+        aria-describedby="lpticket-dialog-message"
+        className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl border border-white/15 bg-[#0b1c2e] shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
       >
         <div className="flex items-start gap-4 px-6 pb-4 pt-6">
           <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${isDanger ? 'border-red-400/35 bg-red-500/15 text-red-300' : 'border-orange-400/35 bg-orange-500/15 text-orange-300'}`}>
@@ -75,11 +66,11 @@ export default function ConfirmDialogHost() {
           </div>
           <div className="min-w-0 flex-1">
             <h2 id="lpticket-dialog-title" className="text-lg font-bold text-white">{title}</h2>
-            <p className="mt-1.5 whitespace-pre-line text-sm leading-6 text-slate-300">{dialog.message}</p>
+            <p id="lpticket-dialog-message" className="mt-1.5 whitespace-pre-line text-sm leading-6 text-slate-300">{dialog.message}</p>
           </div>
           <button
             onClick={() => close(null)}
-            className="-mr-2 -mt-2 rounded-lg p-2 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+            className="-mr-2 -mt-2 min-h-11 min-w-11 rounded-lg p-2 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
             aria-label={cancelLabel}
           >
             <HiOutlineX className="h-5 w-5" />
@@ -89,7 +80,8 @@ export default function ConfirmDialogHost() {
         {isPrompt && (
           <div className="px-6 pb-2">
             <input
-              ref={inputRef}
+              data-modal-autofocus
+              aria-label={dialog.placeholder || title}
               value={inputValue}
               onChange={(event) => setInputValue(event.target.value)}
               onKeyDown={(event) => {
@@ -104,14 +96,14 @@ export default function ConfirmDialogHost() {
         <div className="flex items-center justify-end gap-3 border-t border-white/10 px-6 py-4">
           <button
             onClick={() => close(null)}
-            className="rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-bold text-slate-100 transition-colors hover:bg-white/10"
+            className="min-h-11 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-bold text-slate-100 transition-colors hover:bg-white/10"
           >
             {cancelLabel}
           </button>
           <button
             onClick={() => close(isPrompt ? inputValue.trim() || null : true)}
             disabled={isPrompt && !inputValue.trim()}
-            className={`rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${isDanger ? 'bg-red-500 hover:bg-red-400' : 'bg-[#f97316] hover:bg-[#fb923c]'}`}
+            className={`min-h-11 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${isDanger ? 'bg-red-500 hover:bg-red-400' : 'bg-[#f97316] hover:bg-[#fb923c]'}`}
           >
             {confirmLabel}
           </button>

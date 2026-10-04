@@ -29,10 +29,10 @@ import TrustBadges from '@/components/layout/TrustBadges';
 type Step = 'section' | 'seats' | 'info' | 'payment';
 type CheckoutPaymentMethod = 'card' | 'klarna';
 const STEPS: { key: Step; label: string }[] = [
-  { key: 'section', label: 'Section' },
-  { key: 'seats',   label: 'Seats' },
-  { key: 'info',    label: 'Identification' },
-  { key: 'payment', label: 'Pay' },
+  { key: 'section', label: 'Sección' },
+  { key: 'seats',   label: 'Entradas' },
+  { key: 'info',    label: 'Datos' },
+  { key: 'payment', label: 'Pago' },
 ];
 
 /**
@@ -47,7 +47,7 @@ export default function PurchasePage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const { lang } = useLang();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
 
   /**
    * Calculates the price for a specific seat, considering potential overrides
@@ -111,12 +111,13 @@ export default function PurchasePage() {
    * Redirect to login if not authenticated.
    */
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated) { 
       router.push(`/login?redirect=/events/${slug}/purchase`); 
       return; 
     }
     loadEvent();
-  }, [slug, isAuthenticated]);
+  }, [slug, isAuthenticated, authLoading]);
 
   /**
    * Pre-fill user information once available from the auth store.
@@ -648,18 +649,18 @@ export default function PurchasePage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Nombre:' : 'First Name:'}</label>
-                  <input className="input purchase-premium-input text-sm" value={personalInfo.firstName}
+                  <label htmlFor="purchase-field-1" className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Nombre:' : 'First Name:'}</label>
+                  <input id="purchase-field-1" className="input purchase-premium-input text-sm" value={personalInfo.firstName}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, firstName: e.target.value }))} required />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Apellido:' : 'Last Name:'}</label>
-                  <input className="input purchase-premium-input text-sm" value={personalInfo.lastName}
+                  <label htmlFor="purchase-field-2" className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Apellido:' : 'Last Name:'}</label>
+                  <input id="purchase-field-2" className="input purchase-premium-input text-sm" value={personalInfo.lastName}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, lastName: e.target.value }))} required />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Correo electrónico:' : 'Email Address:'}</label>
-                  <input className="input purchase-premium-input text-sm" type="email" value={personalInfo.email}
+                  <label htmlFor="purchase-field-3" className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Correo electrónico:' : 'Email Address:'}</label>
+                  <input id="purchase-field-3" className="input purchase-premium-input text-sm" type="email" value={personalInfo.email}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, email: e.target.value }))} required />
                   {(() => {
                     const sug = suggestEmailFix(personalInfo.email);
@@ -680,15 +681,15 @@ export default function PurchasePage() {
                   })()}
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Teléfono:' : 'Phone:'}</label>
-                  <input className="input purchase-premium-input text-sm" value={personalInfo.phone}
+                  <label htmlFor="purchase-field-4" className="block text-xs font-medium text-gray-600 mb-1">{lang === 'es' ? 'Teléfono:' : 'Phone:'}</label>
+                  <input id="purchase-field-4" className="input purchase-premium-input text-sm" value={personalInfo.phone}
                     onChange={(e) => setPersonalInfo((p) => ({ ...p, phone: e.target.value }))} />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                  <label htmlFor="purchase-field-5" className="block text-xs font-medium text-gray-600 mb-1">
                     {lang === 'es' ? 'Código especial o de referido (opcional):' : 'Special or referral code (optional):'}
                   </label>
-                  <input
+                  <input id="purchase-field-5"
                     className="input purchase-premium-input text-sm uppercase"
                     placeholder={lang === 'es' ? 'Ej: LPTICKET2026' : 'E.g. LPTICKET2026'}
                     value={specialCode}

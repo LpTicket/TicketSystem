@@ -8,6 +8,7 @@ import { formatSeatLabel } from '@/lib/seatLabel';
 import { toast } from 'react-hot-toast';
 import { useLang } from '@/context/LanguageContext';
 import { confirmDialog } from '@/lib/dialog';
+import { useModalFocus } from '@/components/ui/useModalFocus';
 import { User } from '@/types';
 import { useAuthStore } from '@/stores/auth';
 import { format } from 'date-fns';
@@ -48,6 +49,8 @@ function AdminUsersPageBody() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUserTickets, setSelectedUserTickets] = useState<any[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
+  const [ticketsError, setTicketsError] = useState(false);
+  const ticketRequestId = useRef(0);
 
   // User Profile Editing states
   const [isEditing, setIsEditing] = useState(false);
@@ -71,7 +74,9 @@ function AdminUsersPageBody() {
   const [createAddress, setCreateAddress] = useState('');
   const [creatingLoading, setCreatingLoading] = useState(false);
 
-  const closeUserModal = () => { setSelectedUser(null); setIsEditing(false); };
+  const closeUserModal = () => { ticketRequestId.current++; setSelectedUser(null); setIsEditing(false); };
+  const userModalRef = useModalFocus(Boolean(selectedUser), closeUserModal);
+  const createModalRef = useModalFocus(isCreating, () => { if (!creatingLoading) setIsCreating(false); });
 
   const handleOpenAccount = async (u: User) => {
     if (!await confirmDialog({
@@ -101,16 +106,21 @@ function AdminUsersPageBody() {
     setEditAddress(u.address || '');
     setEditPassword('');
 
+    await loadUserTickets(u.id);
+  };
+
+  const loadUserTickets = async (userId: string) => {
+    const request = ++ticketRequestId.current;
     setLoadingTickets(true);
+    setTicketsError(false);
     setSelectedUserTickets([]);
     try {
-      const { data } = await api.get(`/orders/user/${u.id}/tickets`);
-      // The API returns { data: Ticket[], pagination }, not the ticket list directly.
-      setSelectedUserTickets(Array.isArray(data?.data) ? data.data : []);
-    } catch (err) {
-      console.error('Error loading tickets for user profile:', err);
+      const { data } = await api.get(`/orders/user/${userId}/tickets`);
+      if (request === ticketRequestId.current) setSelectedUserTickets(Array.isArray(data?.data) ? data.data : []);
+    } catch {
+      if (request === ticketRequestId.current) setTicketsError(true);
     } finally {
-      setLoadingTickets(false);
+      if (request === ticketRequestId.current) setLoadingTickets(false);
     }
   };
 
@@ -284,6 +294,7 @@ function AdminUsersPageBody() {
             <input
               type="text"
               placeholder={lang === 'es' ? 'Buscar usuarios...' : 'Search users...'}
+              aria-label={lang === 'es' ? 'Buscar usuarios' : 'Search users'}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white"
@@ -382,7 +393,7 @@ function AdminUsersPageBody() {
                               </button>
                             )}
                             <select
-                              value={u.role}
+                              aria-label={`${lang === 'es' ? 'Rol de' : 'Role for'} ${u.firstName} ${u.lastName}`} value={u.role}
                               onChange={(e) => handleChangeRole(u.id, e.target.value)}
                               className="text-[11px] font-bold border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
                             >
@@ -397,12 +408,14 @@ function AdminUsersPageBody() {
                               <HiOutlinePencil className="w-5 h-5" />
                             </button>
                             <button
+                              aria-label={`${u.isActive ? (lang === 'es' ? 'Desactivar' : 'Deactivate') : (lang === 'es' ? 'Activar' : 'Activate')} ${u.firstName} ${u.lastName}`}
                               onClick={() => handleToggleActive(u.id)}
                               className={`p-2 rounded-lg transition-colors ${u.isActive ? 'text-red-400 hover:text-red-600 hover:bg-red-50' : 'text-green-400 hover:text-green-600 hover:bg-green-50'}`}
                             >
                               {u.isActive ? <HiOutlineBan className="w-5 h-5" /> : <HiOutlineCheckCircle className="w-5 h-5" />}
                             </button>
                             <button
+                              aria-label={`${lang === 'es' ? 'Eliminar' : 'Delete'} ${u.firstName} ${u.lastName}`}
                               onClick={() => handleDeleteUser(u.id, u.firstName)}
                               className="p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50"
                             >
@@ -460,7 +473,7 @@ function AdminUsersPageBody() {
 
                   <div className="flex items-center justify-between pt-3 border-t border-gray-100 gap-2" onClick={e => e.stopPropagation()}>
                     <select
-                      value={u.role}
+                      aria-label={`${lang === 'es' ? 'Rol de' : 'Role for'} ${u.firstName} ${u.lastName}`} value={u.role}
                       onChange={(e) => handleChangeRole(u.id, e.target.value)}
                       className="flex-1 text-[11px] font-bold border border-gray-200 rounded-lg px-2 py-2 bg-gray-50"
                     >
@@ -487,12 +500,14 @@ function AdminUsersPageBody() {
                         <HiOutlinePencil className="w-5 h-5" />
                       </button>
                       <button
+                        aria-label={`${u.isActive ? (lang === 'es' ? 'Desactivar' : 'Deactivate') : (lang === 'es' ? 'Activar' : 'Activate')} ${u.firstName} ${u.lastName}`}
                         onClick={() => handleToggleActive(u.id)}
                         className={`p-2.5 rounded-xl border ${u.isActive ? 'border-red-100 text-red-500 bg-red-50' : 'border-green-100 text-green-500 bg-green-50'}`}
                       >
                         {u.isActive ? <HiOutlineBan className="w-5 h-5" /> : <HiOutlineCheckCircle className="w-5 h-5" />}
                       </button>
                       <button
+                        aria-label={`${lang === 'es' ? 'Eliminar' : 'Delete'} ${u.firstName} ${u.lastName}`}
                         onClick={() => handleDeleteUser(u.id, u.firstName)}
                         className="p-2.5 rounded-xl border border-gray-100 text-gray-400 bg-gray-50"
                       >
@@ -527,7 +542,7 @@ function AdminUsersPageBody() {
 
       {/* Selected User Detail Centered Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
+        <div className="user-management-overlay fixed inset-0 z-[120] overflow-hidden flex items-center justify-center p-4">
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-gray-950/40 backdrop-blur-md transition-opacity"
@@ -535,7 +550,7 @@ function AdminUsersPageBody() {
           />
           
           {/* Centered Modal Panel */}
-          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl flex flex-col z-10 max-h-[85vh] overflow-hidden animate-[scaleIn_0.2s_ease-out]">
+          <div ref={userModalRef} role="dialog" aria-modal="true" aria-labelledby="user-profile-title" tabIndex={-1} className="user-management-dialog relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl flex flex-col z-10 max-h-[85vh] overflow-hidden animate-[scaleIn_0.2s_ease-out]">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
               <div className="flex items-center gap-3">
@@ -543,12 +558,13 @@ function AdminUsersPageBody() {
                   {selectedUser.firstName[0]}{selectedUser.lastName[0]}
                 </div>
                 <div>
-                  <h2 className="font-bold text-base text-gray-900 leading-tight">{selectedUser.firstName} {selectedUser.lastName}</h2>
+                  <h2 id="user-profile-title" className="font-bold text-base text-gray-900 leading-tight">{selectedUser.firstName} {selectedUser.lastName}</h2>
                   <p className="text-xs text-gray-500 mt-0.5">@{selectedUser.username} · {selectedUser.role.toUpperCase()}</p>
                 </div>
               </div>
               <button
                 onClick={closeUserModal}
+                aria-label={lang === 'es' ? 'Cerrar perfil' : 'Close profile'}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 <HiOutlineX className="w-5 h-5" />
@@ -564,18 +580,18 @@ function AdminUsersPageBody() {
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Nombre' : 'First Name'}</label>
+                      <label htmlFor="admin-user-editFirstName" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Nombre' : 'First Name'}</label>
                       <input 
-                        type="text" 
+                        id="admin-user-editFirstName" type="text"
                         value={editFirstName} 
                         onChange={e => setEditFirstName(e.target.value)} 
                         className="w-full bg-gray-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl px-3 py-2 text-xs outline-none transition-all font-medium text-gray-800"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Apellido' : 'Last Name'}</label>
+                      <label htmlFor="admin-user-editLastName" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Apellido' : 'Last Name'}</label>
                       <input 
-                        type="text" 
+                        id="admin-user-editLastName" type="text"
                         value={editLastName} 
                         onChange={e => setEditLastName(e.target.value)} 
                         className="w-full bg-gray-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl px-3 py-2 text-xs outline-none transition-all font-medium text-gray-800"
@@ -585,18 +601,18 @@ function AdminUsersPageBody() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Correo Electrónico' : 'Email Address'}</label>
+                      <label htmlFor="admin-user-editEmail" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Correo Electrónico' : 'Email Address'}</label>
                       <input 
-                        type="email" 
+                        id="admin-user-editEmail" type="email"
                         value={editEmail} 
                         onChange={e => setEditEmail(e.target.value)} 
                         className="w-full bg-gray-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl px-3 py-2 text-xs outline-none transition-all font-medium text-gray-800"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Teléfono' : 'Phone'}</label>
+                      <label htmlFor="admin-user-editPhone" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Teléfono' : 'Phone'}</label>
                       <input 
-                        type="text" 
+                        id="admin-user-editPhone" type="text"
                         value={editPhone} 
                         onChange={e => setEditPhone(e.target.value)} 
                         className="w-full bg-gray-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl px-3 py-2 text-xs outline-none transition-all font-medium text-gray-800"
@@ -606,18 +622,18 @@ function AdminUsersPageBody() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Dirección' : 'Address'}</label>
+                      <label htmlFor="admin-user-editAddress" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Dirección' : 'Address'}</label>
                       <input 
-                        type="text" 
+                        id="admin-user-editAddress" type="text"
                         value={editAddress} 
                         onChange={e => setEditAddress(e.target.value)} 
                         className="w-full bg-gray-50 border border-gray-200 focus:border-primary-500 focus:bg-white rounded-xl px-3 py-2 text-xs outline-none transition-all font-medium text-gray-800"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Nueva Contraseña (Opcional)' : 'New Password (Optional)'}</label>
+                      <label htmlFor="admin-user-editPassword" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">{lang === 'es' ? 'Nueva Contraseña (Opcional)' : 'New Password (Optional)'}</label>
                       <input 
-                        type="password" 
+                        id="admin-user-editPassword" type="password"
                         value={editPassword} 
                         onChange={e => setEditPassword(e.target.value)} 
                         placeholder={lang === 'es' ? 'Dejar en blanco para no cambiar' : 'Leave blank to keep current'}
@@ -661,6 +677,11 @@ function AdminUsersPageBody() {
                       {[...Array(4)].map((_, i) => (
                         <div key={i} className="h-20 skeleton rounded-2xl" />
                       ))}
+                    </div>
+                  ) : ticketsError ? (
+                    <div role="alert" className="space-y-3 p-4">
+                      <p>{lang === 'es' ? 'No pudimos cargar las entradas de este usuario.' : 'We could not load this user’s tickets.'}</p>
+                      <button className="btn-secondary" onClick={() => loadUserTickets(selectedUser.id)}>{lang === 'es' ? 'Reintentar' : 'Try again'}</button>
                     </div>
                   ) : selectedUserTickets.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -760,7 +781,7 @@ function AdminUsersPageBody() {
       )}
       {/* Create User Centered Modal */}
       {isCreating && (
-        <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
+        <div className="user-management-overlay fixed inset-0 z-[120] overflow-hidden flex items-center justify-center p-4">
           {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-gray-950/40 backdrop-blur-md transition-opacity animate-fade-in"
@@ -768,7 +789,7 @@ function AdminUsersPageBody() {
           />
           
           {/* Centered Modal Panel */}
-          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl flex flex-col z-10 max-h-[90vh] overflow-hidden animate-[scaleIn_0.2s_ease-out]">
+          <div ref={createModalRef} role="dialog" aria-modal="true" aria-labelledby="user-create-title" tabIndex={-1} className="user-management-dialog relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl flex flex-col z-10 max-h-[90vh] overflow-hidden animate-[scaleIn_0.2s_ease-out]">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
               <div className="flex items-center gap-3">
@@ -776,7 +797,7 @@ function AdminUsersPageBody() {
                   ➕
                 </div>
                 <div>
-                  <h2 className="font-bold text-base text-gray-900 leading-tight">
+                  <h2 id="user-create-title" className="font-bold text-base text-gray-900 leading-tight">
                     {lang === 'es' ? 'Crear Nuevo Usuario' : 'Create New User'}
                   </h2>
                   <p className="text-xs text-gray-500 mt-0.5">
@@ -786,6 +807,7 @@ function AdminUsersPageBody() {
               </div>
               <button 
                 onClick={() => setIsCreating(false)}
+                aria-label={lang === 'es' ? 'Cerrar creación de usuario' : 'Close user creation'}
                 className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 <HiOutlineX className="w-5 h-5" />
@@ -797,11 +819,11 @@ function AdminUsersPageBody() {
               {/* Form Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
+                  <label htmlFor="admin-user-createFirstName" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
                     {lang === 'es' ? 'Nombre *' : 'First Name *'}
                   </label>
                   <input 
-                    type="text" 
+                    id="admin-user-createFirstName" type="text"
                     value={createFirstName} 
                     onChange={e => setCreateFirstName(e.target.value)} 
                     placeholder={lang === 'es' ? 'Ej. Juan' : 'e.g. John'}
@@ -809,11 +831,11 @@ function AdminUsersPageBody() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
+                  <label htmlFor="admin-user-createLastName" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
                     {lang === 'es' ? 'Apellido *' : 'Last Name *'}
                   </label>
                   <input 
-                    type="text" 
+                    id="admin-user-createLastName" type="text"
                     value={createLastName} 
                     onChange={e => setCreateLastName(e.target.value)} 
                     placeholder={lang === 'es' ? 'Ej. Pérez' : 'e.g. Doe'}
@@ -824,11 +846,11 @@ function AdminUsersPageBody() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
+                  <label htmlFor="admin-user-createUsername" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
                     {lang === 'es' ? 'Nombre de Usuario *' : 'Username *'}
                   </label>
                   <input 
-                    type="text" 
+                    id="admin-user-createUsername" type="text"
                     value={createUsername} 
                     onChange={e => setCreateUsername(e.target.value)} 
                     placeholder={lang === 'es' ? 'Ej. juanperez' : 'e.g. johndoe'}
@@ -836,11 +858,11 @@ function AdminUsersPageBody() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
+                  <label htmlFor="admin-user-createEmail" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
                     {lang === 'es' ? 'Correo Electrónico *' : 'Email Address *'}
                   </label>
                   <input 
-                    type="email" 
+                    id="admin-user-createEmail" type="email"
                     value={createEmail} 
                     onChange={e => setCreateEmail(e.target.value)} 
                     placeholder="juan@lpticket.com"
@@ -851,11 +873,11 @@ function AdminUsersPageBody() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
+                  <label htmlFor="admin-user-createRole" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
                     {lang === 'es' ? 'Rol *' : 'Role *'}
                   </label>
                   <select 
-                    value={createRole} 
+                    id="admin-user-createRole" value={createRole}
                     onChange={e => setCreateRole(e.target.value)} 
                     className="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs outline-none transition-all font-bold text-gray-800"
                   >
@@ -864,7 +886,7 @@ function AdminUsersPageBody() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5 flex items-center justify-between">
+                  <label htmlFor="admin-user-createPassword" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5 flex items-center justify-between">
                     <span>{lang === 'es' ? 'Contraseña (Opcional)' : 'Password (Optional)'}</span>
                     <button 
                       type="button" 
@@ -880,10 +902,10 @@ function AdminUsersPageBody() {
                     </button>
                   </label>
                   <input 
-                    type="text" 
+                    id="admin-user-createPassword" type="password"
                     value={createPassword} 
                     onChange={e => setCreatePassword(e.target.value)} 
-                    placeholder={lang === 'es' ? 'Por defecto: LPticket2026!' : 'Default: LPticket2026!'}
+                    placeholder={lang === 'es' ? 'Contraseña opcional' : 'Optional password'}
                     className="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs outline-none transition-all font-medium text-gray-800"
                   />
                 </div>
@@ -891,11 +913,11 @@ function AdminUsersPageBody() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
+                  <label htmlFor="admin-user-createPhone" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
                     {lang === 'es' ? 'Teléfono' : 'Phone'}
                   </label>
                   <input 
-                    type="text" 
+                    id="admin-user-createPhone" type="text"
                     value={createPhone} 
                     onChange={e => setCreatePhone(e.target.value)} 
                     placeholder="+54 9 11 1234-5678"
@@ -903,11 +925,11 @@ function AdminUsersPageBody() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
+                  <label htmlFor="admin-user-createAddress" className="block text-[11px] font-bold text-gray-500 uppercase mb-1.5">
                     {lang === 'es' ? 'Dirección' : 'Address'}
                   </label>
                   <input 
-                    type="text" 
+                    id="admin-user-createAddress" type="text"
                     value={createAddress} 
                     onChange={e => setCreateAddress(e.target.value)} 
                     placeholder="Av. Santa Fe 1234, CABA"

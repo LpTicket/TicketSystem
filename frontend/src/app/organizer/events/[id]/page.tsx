@@ -3198,7 +3198,7 @@ export default function EventDetailPage() {
             <p className="text-sm text-gray-500 mt-0.5">{lang === 'es' ? 'Actualiza los campos de texto y las imágenes del evento' : 'Update text fields and event images'}</p>
           </div>
 
-          <form onSubmit={handleSaveEvent} className="space-y-6 max-w-3xl">
+          <form onSubmit={handleSaveEvent} className="event-edit-form space-y-6 max-w-3xl">
             {user?.role === 'admin' && (
               <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-pink-400/25 bg-pink-400/5 p-5">
                 <div className="min-w-0 flex-1">
@@ -3224,23 +3224,23 @@ export default function EventDetailPage() {
             )}
             {/* Title */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Título' : 'Title'}</label>
-              <input
+              <label htmlFor="event-edit-field-1" className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Título' : 'Title'}</label>
+              <input id="event-edit-field-1"
                 type="text"
                 value={editForm.title}
                 onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-base min-h-11 focus:border-primary-500 focus:outline-none"
                 required
               />
             </div>
 
             {/* Description */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Descripción' : 'Description'}</label>
-              <textarea
+              <label htmlFor="event-edit-field-2" className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Descripción' : 'Description'}</label>
+              <textarea id="event-edit-field-2"
                 value={editForm.description}
                 onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none h-32 resize-none"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-base min-h-11 focus:border-primary-500 focus:outline-none h-32 resize-none"
                 required
               />
             </div>
@@ -3248,11 +3248,11 @@ export default function EventDetailPage() {
             {/* Row: Category & Date */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Categoría' : 'Category'}</label>
-                <select
+                <label htmlFor="event-edit-field-3" className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Categoría' : 'Category'}</label>
+                <select id="event-edit-field-3"
                   value={editForm.category}
                   onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-base min-h-11 focus:border-primary-500 focus:outline-none"
                   required
                 >
                   <option value="" disabled>{lang === 'es' ? 'Seleccionar categoría' : 'Select category'}</option>
@@ -3265,8 +3265,8 @@ export default function EventDetailPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Fecha del Evento' : 'Event Date'}</label>
-                <input
+                <label htmlFor="event-edit-field-4" className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Fecha del Evento' : 'Event Date'}</label>
+                <input id="event-edit-field-4"
                   type="date"
                   value={editForm.eventDate}
                   onChange={(e) => setEditForm({ ...editForm, eventDate: e.target.value })}
@@ -3275,14 +3275,14 @@ export default function EventDetailPage() {
                       e.currentTarget.blur();
                     }
                   }}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-base min-h-11 focus:border-primary-500 focus:outline-none"
                   required
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Hora del Evento' : 'Event Time'}</label>
-                <PremiumTimeSelect
+                <label htmlFor="event-edit-field-5" className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Hora del Evento' : 'Event Time'}</label>
+                <PremiumTimeSelect id="event-edit-field-5"
                   value={editForm.eventTime}
                   options={TIME_OPTIONS}
                   onChange={(value) => setEditForm({ ...editForm, eventTime: value })}
@@ -3292,8 +3292,8 @@ export default function EventDetailPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Hora de Finalización (opcional)' : 'End Time (optional)'}</label>
-                <PremiumTimeSelect
+                <label htmlFor="event-edit-field-6" className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Hora de Finalización (opcional)' : 'End Time (optional)'}</label>
+                <PremiumTimeSelect id="event-edit-field-6"
                   value={editForm.eventEndTime}
                   options={TIME_OPTIONS}
                   onChange={(value) => setEditForm({ ...editForm, eventEndTime: value })}
@@ -3304,13 +3304,14 @@ export default function EventDetailPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Zona Horaria' : 'Timezone'}</label>
-                <select
+                <label htmlFor="event-edit-field-7" className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Zona Horaria' : 'Timezone'}</label>
+                <select id="event-edit-field-7"
                   value={editForm.eventTimezone}
                   onChange={(e) => setEditForm({ ...editForm, eventTimezone: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-base min-h-11 focus:border-primary-500 focus:outline-none"
                   required
                 >
+                  <option value="UTC">UTC</option>
                   {TIMEZONE_GROUPS.map(group => (
                     <optgroup key={group.region} label={group.region}>
                       {group.zones.map(tz => (
@@ -3327,30 +3328,30 @@ export default function EventDetailPage() {
             {/* Venue Name & Address */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Lugar / Venue' : 'Venue Name'}</label>
-                <input
+                <label htmlFor="event-edit-field-8" className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Lugar / Venue' : 'Venue Name'}</label>
+                <input id="event-edit-field-8"
                   type="text"
                   value={editForm.venueName}
                   onChange={(e) => setEditForm({ ...editForm, venueName: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-base min-h-11 focus:border-primary-500 focus:outline-none"
                   required
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Ciudad / Dirección' : 'City / Address'}</label>
-                <input
+                <label htmlFor="event-edit-field-9" className="text-xs font-bold text-gray-700 uppercase tracking-wider">{lang === 'es' ? 'Ciudad / Dirección' : 'City / Address'}</label>
+                <input id="event-edit-field-9"
                   type="text"
                   value={editForm.venueAddress}
                   onChange={(e) => setEditForm({ ...editForm, venueAddress: e.target.value })}
                   placeholder={lang === 'es' ? 'Ej: Miami, FL, Estados Unidos' : 'Ex: Miami, FL, United States'}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-base min-h-11 focus:border-primary-500 focus:outline-none"
                 />
               </div>
             </div>
 
             {/* Ticket limits */}
             <div className="pt-4 border-t border-gray-100 space-y-1.5">
-              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <label htmlFor="event-edit-ticket-limit" className="text-xs font-bold text-gray-700 uppercase tracking-wider">
                 {lang === 'es' ? 'Límite de Venta (Máx. entradas por transacción)' : 'Sale Limits (Max tickets per transaction)'}
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -3359,9 +3360,9 @@ export default function EventDetailPage() {
                     type="number"
                     min="1"
                     max="100"
-                    value={editForm.maxTicketsPerTransaction}
+                    id="event-edit-ticket-limit" value={editForm.maxTicketsPerTransaction}
                     onChange={(e) => setEditForm({ ...editForm, maxTicketsPerTransaction: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-sm focus:border-primary-500 focus:outline-none"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-base min-h-11 focus:border-primary-500 focus:outline-none"
                     required
                   />
                   <p className="text-[10px] text-gray-400 font-medium">
@@ -3417,6 +3418,7 @@ export default function EventDetailPage() {
                 <div className="border-2 border-dashed border-gray-200 hover:border-gray-300 rounded-2xl p-6 transition-all text-center relative cursor-pointer group bg-gray-50/50">
                   <input
                     type="file"
+                    aria-label={lang === 'es' ? 'Seleccionar foto de portada' : 'Select cover image'}
                     accept="image/*"
                     onChange={(e) => setImageFile(e.target.files?.[0] || null)}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -3542,6 +3544,7 @@ export default function EventDetailPage() {
                 <div className="border-2 border-dashed border-gray-200 hover:border-gray-300 rounded-2xl p-6 transition-all text-center relative cursor-pointer group bg-gray-50/50">
                   <input
                     type="file"
+                    aria-label={lang === 'es' ? 'Seleccionar banner' : 'Select banner'}
                     accept="image/*"
                     onChange={(e) => setBannerFile(e.target.files?.[0] || null)}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"

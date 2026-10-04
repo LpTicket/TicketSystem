@@ -9,6 +9,7 @@ type TimeOption = {
 };
 
 type PremiumTimeSelectProps = {
+  id?: string;
   value: string;
   options: TimeOption[];
   onChange: (value: string) => void;
@@ -19,6 +20,7 @@ type PremiumTimeSelectProps = {
 };
 
 export default function PremiumTimeSelect({
+  id,
   value,
   options,
   onChange,
@@ -29,6 +31,7 @@ export default function PremiumTimeSelect({
 }: PremiumTimeSelectProps) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
   const selected = options.find((option) => option.value === value);
 
   useEffect(() => {
@@ -37,7 +40,10 @@ export default function PremiumTimeSelect({
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape' && wrapRef.current?.contains(document.activeElement)) {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
     };
 
     document.addEventListener('pointerdown', handlePointerDown);
@@ -52,11 +58,14 @@ export default function PremiumTimeSelect({
   const choose = (nextValue: string) => {
     onChange(nextValue);
     setOpen(false);
+    buttonRef.current?.focus();
   };
 
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
       <button
+        id={id}
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((current) => !current)}
         className={`input flex w-full items-center justify-between text-left !border-[#2b435c] !bg-[#0b2135] !text-white ${compact ? 'py-2.5' : 'py-3'}`}

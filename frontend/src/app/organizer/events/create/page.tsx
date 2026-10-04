@@ -361,14 +361,14 @@ export default function CreateEventPage() {
 
 
   return (
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto animate-fade-in">
+    <div className="event-create-shell p-4 lg:p-8 max-w-6xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="mb-6">
         <Link href={returnPath} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary-500 transition-colors mb-3">
           <HiOutlineArrowLeft className="w-4 h-4" />
           {isAdminCreate ? (lang === 'es' ? 'Eventos' : 'Events') : t('orgMyEvents')}
         </Link>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="font-bold text-2xl lg:text-3xl text-gray-900">{step === 1 ? t('orgCreateEvent') : (salesMode === 'map' ? (lang === 'es' ? 'Diseño del Escenario' : 'Stage Design') : (lang === 'es' ? 'Entrada General' : 'General Admission'))}</h1>
           <div className="flex items-center gap-2 text-sm font-medium">
             <span className={`px-4 py-1.5 rounded-lg border transition-all ${step === 1 ? 'bg-gradient-to-b from-[#ff8a18] via-[#f46c00] to-[#c93f00] text-white border-[rgba(255,151,45,0.62)] shadow-[0_10px_24px_rgba(255,104,0,0.24)]' : 'bg-[rgba(8,31,51,0.6)] border-[rgba(246,198,95,0.18)] text-slate-300'}`}>{lang === 'es' ? '1. Detalles' : '1. Details'}</span>
@@ -396,8 +396,8 @@ export default function CreateEventPage() {
               <div className="space-y-6">
                 {/* Title */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgEventTitle')} *</label>
-                  <input
+                  <label htmlFor="event-create-field-1" className="block text-sm font-semibold text-gray-700 mb-2">{t('orgEventTitle')} *</label>
+                  <input id="event-create-field-1"
                     type="text"
                     value={form.title}
                     onChange={(e) => updateForm('title', e.target.value)}
@@ -409,8 +409,8 @@ export default function CreateEventPage() {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgEventDesc')}</label>
-                  <textarea
+                  <label htmlFor="event-create-field-2" className="block text-sm font-semibold text-gray-700 mb-2">{t('orgEventDesc')}</label>
+                  <textarea id="event-create-field-2"
                     value={form.description}
                     onChange={(e) => updateForm('description', e.target.value)}
                     className="input min-h-[160px] resize-y py-3 text-base"
@@ -421,8 +421,8 @@ export default function CreateEventPage() {
                 {/* Category + Venue + Address */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgCategory')} *</label>
-                    <select value={form.category} onChange={(e) => updateForm('category', e.target.value)} className="input py-3" required>
+                    <label htmlFor="event-create-field-3" className="block text-sm font-semibold text-gray-700 mb-2">{t('orgCategory')} *</label>
+                    <select id="event-create-field-3" value={form.category} onChange={(e) => updateForm('category', e.target.value)} className="input py-3" required>
                       <option value="" disabled>{lang === 'es' ? '-- Selecciona una categoría --' : '-- Select a category --'}</option>
                       {categories.filter((cat) => cat.slug !== 'todos' && cat.slug !== 'todas').map((cat) => (
                         <option key={cat.id} value={cat.slug}>{cat.icon} {lang === 'en' ? cat.labelEn : cat.labelEs}</option>
@@ -430,8 +430,8 @@ export default function CreateEventPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgVenue')} *</label>
-                    <input
+                    <label htmlFor="event-create-field-4" className="block text-sm font-semibold text-gray-700 mb-2">{t('orgVenue')} *</label>
+                    <input id="event-create-field-4"
                       type="text"
                       value={form.venueName}
                       onChange={(e) => updateForm('venueName', e.target.value)}
@@ -441,8 +441,8 @@ export default function CreateEventPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgVenueAddress')}</label>
-                    <input
+                    <label htmlFor="event-create-field-5" className="block text-sm font-semibold text-gray-700 mb-2">{t('orgVenueAddress')}</label>
+                    <input id="event-create-field-5"
                       type="text"
                       value={form.venueAddress}
                       onChange={(e) => updateForm('venueAddress', e.target.value)}
@@ -455,8 +455,8 @@ export default function CreateEventPage() {
                 {/* Dates */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgEventDate')} *</label>
-                    <input
+                    <label htmlFor="event-create-field-6" className="block text-sm font-semibold text-gray-700 mb-2">{t('orgEventDate')} *</label>
+                    <input id="event-create-field-6"
                       type="date"
                       value={form.eventDate}
                       onChange={(e) => updateForm('eventDate', e.target.value)}
@@ -470,8 +470,8 @@ export default function CreateEventPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Hora del evento *' : 'Event Time *'}</label>
-                    <PremiumTimeSelect
+                    <label htmlFor="event-create-field-7" className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Hora del evento *' : 'Event Time *'}</label>
+                    <PremiumTimeSelect id="event-create-field-7"
                       value={form.eventTime}
                       options={TIME_OPTIONS}
                       onChange={(value) => updateForm('eventTime', value)}
@@ -479,8 +479,8 @@ export default function CreateEventPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Hora de finalización (opcional)' : 'End Time (optional)'}</label>
-                    <PremiumTimeSelect
+                    <label htmlFor="event-create-field-8" className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Hora de finalización (opcional)' : 'End Time (optional)'}</label>
+                    <PremiumTimeSelect id="event-create-field-8"
                       value={form.eventEndTime}
                       options={TIME_OPTIONS}
                       onChange={(value) => updateForm('eventEndTime', value)}
@@ -489,13 +489,14 @@ export default function CreateEventPage() {
                     <p className="text-xs text-gray-400 mt-1 leading-tight">{lang === 'es' ? 'El evento se sigue mostrando y vendiendo hasta esta hora. Vacío = 6 h tras el inicio.' : 'The event stays listed and on sale until this time. Empty = 6h after start.'}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Zona horaria del evento *' : 'Event Timezone *'}</label>
-                    <select
+                    <label htmlFor="event-create-field-9" className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'es' ? 'Zona horaria del evento *' : 'Event Timezone *'}</label>
+                    <select id="event-create-field-9"
                       value={form.eventTimezone}
                       onChange={(e) => updateForm('eventTimezone', e.target.value)}
                       className="input py-3"
                       required
                     >
+                      <option value="UTC">UTC • {getCurrentTimeInTimezone('UTC')}</option>
                       {TIMEZONE_GROUPS.map(group => (
                         <optgroup key={group.region} label={group.region}>
                           {group.zones.map(tz => (
@@ -508,8 +509,8 @@ export default function CreateEventPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{t('orgDoorsOpen')}</label>
-                    <PremiumTimeSelect
+                    <label htmlFor="event-create-field-10" className="block text-sm font-semibold text-gray-700 mb-2">{t('orgDoorsOpen')}</label>
+                    <PremiumTimeSelect id="event-create-field-10"
                       value={form.doorsOpen}
                       options={TIME_OPTIONS}
                       onChange={(value) => updateForm('doorsOpen', value)}
@@ -556,16 +557,16 @@ export default function CreateEventPage() {
                     <div className="mt-4 rounded-xl border border-[rgba(77,117,151,0.58)] bg-[rgba(8,31,51,0.9)] p-4">
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
-                          <label className="block text-sm font-semibold text-slate-200 mb-2">{lang === 'es' ? 'Nombre de la entrada' : 'Ticket name'} *</label>
-                          <input type="text" value={form.generalTicketName} onChange={(e) => updateForm('generalTicketName', e.target.value)} className="input py-3 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder={lang === 'es' ? 'Entrada General' : 'General Admission'} required={salesMode === 'general'} maxLength={40} />
+                          <label htmlFor="event-create-field-11" className="block text-sm font-semibold text-slate-200 mb-2">{lang === 'es' ? 'Nombre de la entrada' : 'Ticket name'} *</label>
+                          <input id="event-create-field-11" type="text" value={form.generalTicketName} onChange={(e) => updateForm('generalTicketName', e.target.value)} className="input py-3 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder={lang === 'es' ? 'Entrada General' : 'General Admission'} required={salesMode === 'general'} maxLength={40} />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-slate-200 mb-2">{lang === 'es' ? 'Precio por entrada (USD)' : 'Ticket price (USD)'} *</label>
-                          <input type="number" value={form.generalTicketPrice} onChange={(e) => updateForm('generalTicketPrice', e.target.value)} className="input py-3 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder="0.00" min="0" step="0.01" required={salesMode === 'general'} />
+                          <label htmlFor="event-create-field-12" className="block text-sm font-semibold text-slate-200 mb-2">{lang === 'es' ? 'Precio por entrada (USD)' : 'Ticket price (USD)'} *</label>
+                          <input id="event-create-field-12" type="number" value={form.generalTicketPrice} onChange={(e) => updateForm('generalTicketPrice', e.target.value)} className="input py-3 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder="0.00" min="0" step="0.01" required={salesMode === 'general'} />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-slate-200 mb-2">{lang === 'es' ? 'Capacidad total' : 'Total capacity'} *</label>
-                          <input type="number" value={form.generalTicketCapacity} onChange={(e) => updateForm('generalTicketCapacity', e.target.value)} className="input py-3 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder="100" min="1" step="1" required={salesMode === 'general'} />
+                          <label htmlFor="event-create-field-13" className="block text-sm font-semibold text-slate-200 mb-2">{lang === 'es' ? 'Capacidad total' : 'Total capacity'} *</label>
+                          <input id="event-create-field-13" type="number" value={form.generalTicketCapacity} onChange={(e) => updateForm('generalTicketCapacity', e.target.value)} className="input py-3 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder="100" min="1" step="1" required={salesMode === 'general'} />
                         </div>
                       </div>
                       <p className="text-xs text-slate-400 mt-3">{lang === 'es' ? 'Los clientes verán una entrada general y elegirán la cantidad que desean comprar.' : 'Customers will see one general-admission ticket and choose their quantity.'}</p>
@@ -575,10 +576,10 @@ export default function CreateEventPage() {
                   <h3 className="font-bold text-base text-gray-900 mb-4">{lang === 'es' ? 'Límites de Venta' : 'Sale Limits'}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label htmlFor="event-create-field-14" className="block text-sm font-semibold text-gray-700 mb-2">
                         {lang === 'es' ? 'Máx. entradas por persona/transacción *' : 'Max tickets per person/transaction *'}
                       </label>
-                      <input
+                      <input id="event-create-field-14"
                         type="number"
                         min="1"
                         max="100"
@@ -617,7 +618,7 @@ export default function CreateEventPage() {
                     {lang === 'es' ? 'Foto de portada' : 'Cover Image'}
                   </div>
                   <span className="text-[10px] opacity-60 font-medium">({lang === 'es' ? '6 × 8 pulgadas · referencia: 180 ppp' : '6 × 8 inches · reference: 180 ppi'})</span>
-                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                  <input type="file" accept="image/*" onChange={handleImageChange} className="sr-only" />
                 </label>
 
                 <h2 className="font-bold text-lg text-gray-900 mt-6 mb-4">{lang === 'es' ? 'Imagen Banner' : 'Banner Image'}</h2>
@@ -635,7 +636,7 @@ export default function CreateEventPage() {
                     {lang === 'es' ? 'Subir Banner' : 'Upload Banner'}
                   </div>
                   <span className="text-[10px] opacity-60 font-medium">({lang === 'es' ? '6 × 2 pulgadas · referencia: 180 ppp' : '6 × 2 inches · reference: 180 ppi'})</span>
-                  <input type="file" accept="image/*" onChange={handleBannerChange} className="hidden" />
+                  <input type="file" accept="image/*" onChange={handleBannerChange} className="sr-only" />
                 </label>
                 <p className="text-[10px] text-center text-gray-400 font-bold uppercase tracking-widest">
                   PNG, JPG · {lang === 'es' ? 'Máx 5MB' : 'Max 5MB'}

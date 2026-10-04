@@ -35,6 +35,7 @@ export default function OrganizerScannerAccessPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [requestsLoadError, setRequestsLoadError] = useState(false);
   const [success, setSuccess] = useState('');
   const [userQuery, setUserQuery] = useState('');
   const [userOptions, setUserOptions] = useState<AdminUserOption[]>([]);
@@ -105,11 +106,13 @@ export default function OrganizerScannerAccessPage() {
 
   const loadRequests = async () => {
     setLoading(true);
+    setRequestsLoadError(false);
     setError('');
     try {
       const { data } = await api.get('/scanner-access/organizer/requests');
       setRequests(Array.isArray(data) ? data : []);
     } catch (err: any) {
+      setRequestsLoadError(true);
       setError(err.response?.data?.message || (lang === 'es' ? 'No se pudieron cargar las solicitudes.' : 'Could not load requests.'));
     } finally {
       setLoading(false);
@@ -178,14 +181,14 @@ export default function OrganizerScannerAccessPage() {
           <h1 className="premium-page-title font-black text-3xl">{labels.title}</h1>
           <p className="premium-muted text-sm mt-1 font-medium">{labels.subtitle}</p>
         </div>
-        <button type="button" onClick={loadRequests} className="btn-outline inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm">
+        <button type="button" onClick={loadRequests} disabled={loading} className="btn-outline inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm">
           <HiOutlineRefresh className="w-4 h-4" />
           {labels.refresh}
         </button>
       </div>
 
-      {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
-      {success && <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">{success}</div>}
+      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
+      {success && <div role="status" className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">{success}</div>}
 
       {user?.role === 'admin' && (
         <section className="premium-section-card bg-white/95 p-5">
@@ -210,7 +213,7 @@ export default function OrganizerScannerAccessPage() {
               ) : (
                 <div className="relative">
                   <HiOutlineSearch className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
-                  <input value={userQuery} onChange={(event) => setUserQuery(event.target.value)} placeholder={lang === 'es' ? 'Buscar por nombre o correo...' : 'Search by name or email...'} className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm text-gray-950 outline-none focus:border-[#F97316]" />
+                  <input aria-label={lang === 'es' ? 'Buscar empleado' : 'Search staff member'} value={userQuery} onChange={(event) => setUserQuery(event.target.value)} placeholder={lang === 'es' ? 'Buscar por nombre o correo...' : 'Search by name or email...'} className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm text-gray-950 outline-none focus:border-[#F97316]" />
                   <div className="mt-2 max-h-52 space-y-1 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-2">
                     {searchingUsers ? <p className="px-3 py-2 text-xs font-bold text-gray-500">{lang === 'es' ? 'Buscando...' : 'Searching...'}</p> : userOptions.map((option) => (
                       <button key={option.id} type="button" onClick={() => setSelectedUser(option)} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white">
@@ -233,7 +236,7 @@ export default function OrganizerScannerAccessPage() {
               ) : (
                 <div className="relative">
                   <HiOutlineSearch className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
-                  <input value={eventQuery} onChange={(event) => setEventQuery(event.target.value)} placeholder={lang === 'es' ? 'Buscar evento u organizador...' : 'Search event or organizer...'} className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm text-gray-950 outline-none focus:border-[#F97316]" />
+                  <input aria-label={lang === 'es' ? 'Buscar evento' : 'Search event'} value={eventQuery} onChange={(event) => setEventQuery(event.target.value)} placeholder={lang === 'es' ? 'Buscar evento u organizador...' : 'Search event or organizer...'} className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm text-gray-950 outline-none focus:border-[#F97316]" />
                   <div className="mt-2 max-h-52 space-y-1 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-2">
                     {searchingEvents ? <p className="px-3 py-2 text-xs font-bold text-gray-500">{lang === 'es' ? 'Buscando...' : 'Searching...'}</p> : eventOptions.map((option) => (
                       <button key={option.id} type="button" onClick={() => setSelectedEvent(option)} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white">
@@ -258,7 +261,7 @@ export default function OrganizerScannerAccessPage() {
         <div className="space-y-3">
           {[...Array(3)].map((_, index) => <div key={index} className="h-28 skeleton rounded-xl" />)}
         </div>
-      ) : grouped.length === 0 ? (
+      ) : requestsLoadError && grouped.length === 0 ? null : grouped.length === 0 ? (
         <div className="premium-section-card bg-white/95 p-10 text-center">
           <HiOutlineUserGroup className="mx-auto h-10 w-10 text-gray-300" />
           <p className="mt-3 text-sm font-bold text-gray-500">{labels.empty}</p>

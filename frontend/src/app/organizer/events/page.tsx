@@ -170,7 +170,7 @@ function OrganizerEventsPageBody() {
           <input
             type="text"
             placeholder={lang === 'es' ? 'Buscar eventos...' : 'Search events...'}
-            value={search}
+            aria-label={lang === 'es' ? 'Buscar mis eventos' : 'Search my events'} value={search}
             onChange={(e) => updateFilters({ search: e.target.value }, true)}
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
@@ -241,7 +241,7 @@ function OrganizerEventsPageBody() {
                           <Link href={`/organizer/events/${ev.id}`} className="p-1.5 rounded-lg text-[#0A375A] hover:bg-[rgba(10,55,90,0.06)] transition-colors" title={t('orgEditEvent')}>
                             <HiOutlinePencil className="w-4 h-4" />
                           </Link>
-                          <button onClick={() => exportCSV(ev.id)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors" title={t('orgExportCSV')}>
+                          <button aria-label={t('orgExportCSV')} onClick={() => exportCSV(ev.id)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors" title={t('orgExportCSV')}>
                             <HiOutlineDownload className="w-4 h-4" />
                           </button>
                           <button onClick={() => handleDelete(ev.id)} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors" title={t('orgDeleteEvent')}>
@@ -289,7 +289,7 @@ function OrganizerEventsPageBody() {
                     <Link href={`/organizer/events/${ev.id}`} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1">
                       <HiOutlinePencil className="w-3.5 h-3.5" /> {t('orgEditEvent')}
                     </Link>
-                    <button onClick={() => exportCSV(ev.id)} className="btn-secondary text-xs py-1.5 px-3 rounded-lg">
+                    <button aria-label={t('orgExportCSV')} onClick={() => exportCSV(ev.id)} className="btn-secondary text-xs py-1.5 px-3 rounded-lg">
                       <HiOutlineDownload className="w-3.5 h-3.5" />
                     </button>
                   </div>

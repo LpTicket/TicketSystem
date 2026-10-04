@@ -24,9 +24,12 @@ export default function AdminCreateEventPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     const loadUsers = async () => {
+      setLoading(true);
+      setError('');
       try {
         const { data } = await api.get('/admin/users', { params: { limit: 200, role: 'client' } });
         setUsers((data?.users || []).filter((user: EventOwner) => user.isActive !== false));
@@ -37,7 +40,7 @@ export default function AdminCreateEventPage() {
       }
     };
     loadUsers();
-  }, [lang]);
+  }, [lang, retry]);
 
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -64,11 +67,11 @@ export default function AdminCreateEventPage() {
           </div>
         </div>
 
-        {error ? <div className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-medium text-red-200">{error}</div> : (
+        {error ? <div role="alert" className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-medium text-red-200"><p>{error}</p><button type="button" disabled={loading} onClick={() => setRetry(value => value + 1)} className="btn-secondary mt-3">{lang === 'es' ? 'Reintentar' : 'Try again'}</button></div> : (
           <>
             <div className="relative mt-7">
               <HiOutlineSearch className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-              <input value={search} onChange={(event) => setSearch(event.target.value)} className="input w-full py-3 pl-11 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder={lang === 'es' ? 'Buscar por nombre, usuario o correo...' : 'Search by name, username, or email...'} />
+              <input aria-label={lang === 'es' ? 'Buscar organizador' : 'Search organizer'} value={search} onChange={(event) => setSearch(event.target.value)} className="input w-full py-3 pl-11 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder={lang === 'es' ? 'Buscar por nombre, usuario o correo...' : 'Search by name, username, or email...'} />
             </div>
 
             <div className="mt-4 overflow-hidden rounded-xl border border-[rgba(77,117,151,0.42)] bg-[rgba(6,25,42,0.72)]">
