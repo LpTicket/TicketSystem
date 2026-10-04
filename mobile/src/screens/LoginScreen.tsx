@@ -302,14 +302,14 @@ export function LoginScreen({ onSignIn }: Props) {
               <Text style={styles.label}>{t('Nombre', 'First name')}</Text>
               <View style={styles.inputWrap}>
                 <Ionicons name="person-outline" size={18} color="rgba(226,232,240,0.52)" />
-                <TextInput value={firstName} onChangeText={setFirstName} placeholder={t('Nombre', 'First name')} placeholderTextColor="rgba(226,232,240,0.40)" style={styles.input} />
+                <TextInput accessibilityLabel={t("Nombre", "First name")} value={firstName} onChangeText={setFirstName} placeholder={t('Nombre', 'First name')} placeholderTextColor="rgba(226,232,240,0.40)" style={styles.input} />
               </View>
             </View>
             <View style={[styles.field, styles.rowItem]}>
               <Text style={styles.label}>{t('Apellido', 'Last name')}</Text>
               <View style={styles.inputWrap}>
                 <Ionicons name="person-outline" size={18} color="rgba(226,232,240,0.52)" />
-                <TextInput value={lastName} onChangeText={setLastName} placeholder={t('Apellido', 'Last name')} placeholderTextColor="rgba(226,232,240,0.40)" style={styles.input} />
+                <TextInput accessibilityLabel={t("Apellido", "Last name")} value={lastName} onChangeText={setLastName} placeholder={t('Apellido', 'Last name')} placeholderTextColor="rgba(226,232,240,0.40)" style={styles.input} />
               </View>
             </View>
           </View>
@@ -320,7 +320,7 @@ export function LoginScreen({ onSignIn }: Props) {
           <View style={styles.inputWrap}>
             <Ionicons name="mail-outline" size={18} color="rgba(226,232,240,0.52)" />
             <TextInput
-              value={email}
+              accessibilityLabel={t("Correo electrónico", "Email address")} value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
@@ -337,7 +337,7 @@ export function LoginScreen({ onSignIn }: Props) {
             <View style={styles.inputWrap}>
               <Ionicons name="call-outline" size={18} color="rgba(226,232,240,0.52)" />
               <TextInput
-                value={phone}
+                accessibilityLabel={t("Teléfono", "Phone")} value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
                 placeholder="+1 305 555 1234"
@@ -360,14 +360,14 @@ export function LoginScreen({ onSignIn }: Props) {
           <View style={styles.inputWrap}>
             <Ionicons name="lock-closed-outline" size={18} color="rgba(226,232,240,0.52)" />
             <TextInput
-              value={password}
+              accessibilityLabel={t("Contraseña", "Password")} value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               placeholder={t('Contraseña', 'Password')}
               placeholderTextColor="rgba(226,232,240,0.40)"
               style={styles.input}
             />
-            <TouchableOpacity onPress={() => setShowPassword((value) => !value)} hitSlop={8}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={showPassword ? t("Ocultar contraseña", "Hide password") : t("Mostrar contraseña", "Show password")} accessibilityState={{ selected: showPassword }} onPress={() => setShowPassword((value) => !value)} hitSlop={8} style={{ minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" }}>
               <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="rgba(226,232,240,0.58)" />
             </TouchableOpacity>
           </View>
@@ -379,7 +379,7 @@ export function LoginScreen({ onSignIn }: Props) {
             <View style={styles.inputWrap}>
               <Ionicons name="shield-checkmark-outline" size={18} color="rgba(226,232,240,0.52)" />
               <TextInput
-                value={confirm}
+                accessibilityLabel={t("Confirmar contraseña", "Confirm password")} value={confirm}
                 onChangeText={setConfirm}
                 secureTextEntry={!showPassword}
                 placeholder={t('Confirmar contraseña', 'Confirm password')}
@@ -545,8 +545,8 @@ const styles = StyleSheet.create({
   },
   label: {
     color: '#CBD5E1',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
   },
   forgotText: {
     color: colors.orange,
@@ -567,8 +567,8 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '400',
     paddingVertical: 0,
     minHeight: 50,
   },

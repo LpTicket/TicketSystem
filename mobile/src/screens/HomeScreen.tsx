@@ -141,31 +141,14 @@ function PremiumEventCard({ event, onOpenEvent, t }: { event: MobileEvent; onOpe
         accessibilityLabel={`${t('Ver evento', 'View event')}: ${event.title}`}
       >
         <View style={styles.eventPoster}>
-          <Image source={getPosterImageSource(event)} style={styles.eventPosterImage} resizeMode="cover" />
-          <View style={styles.posterShade} />
+          <Image source={getPosterImageSource(event)} style={styles.eventPosterImage} resizeMode="contain" />
           <Animated.View pointerEvents="none" style={[styles.posterPressGlow, { opacity: pressProgress }]} />
-          <View style={styles.privateBadge}><Text style={styles.privateBadgeText}>● {event.tag}</Text></View>
-          <View style={styles.featuredBadge}>
-            <LinearGradient
-              colors={['#ff8a18', '#f46c00', '#c93f00']}
-              locations={[0, 0.46, 1]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <View pointerEvents="none" style={styles.featuredShine}>
-              <LinearGradient
-                colors={['rgba(255,235,205,0)', 'rgba(255,235,205,0.85)', 'rgba(255,235,205,0)']}
-                locations={[0, 0.5, 1]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={StyleSheet.absoluteFill}
-              />
-            </View>
-            <Text style={styles.featuredText}>{t('DESTACADO', 'FEATURED')}</Text>
-          </View>
         </View>
         <View style={styles.eventInfo}>
+          <View style={styles.badgeRow}>
+            {!!event.tag && <View style={styles.privateBadge}><Text style={styles.privateBadgeText}>{event.tag}</Text></View>}
+            {event.featured && <View style={styles.featuredBadge}><Text style={styles.featuredText}>{t('Destacado', 'Featured')}</Text></View>}
+          </View>
           <Text style={styles.eventName} numberOfLines={2}>{event.title}</Text>
           <View style={styles.metaRow}>
             <Ionicons name="calendar-outline" size={15} color="#F97316" />
@@ -186,6 +169,8 @@ function PremiumEventCard({ event, onOpenEvent, t }: { event: MobileEvent; onOpe
           <View style={styles.ctaRow}>
             <TouchableOpacity
               style={styles.shareButton}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('Compartir evento', 'Share event')}: ${event.title}`}
               onPress={() => Share.share({
                 title: event.title,
                 message: `${event.title} — ${event.date}\n${event.venue}\n\nlpticket://events/${event.slug || event.id}\nhttps://www.lpticket.com/events/${event.slug || event.id}`,
@@ -195,10 +180,10 @@ function PremiumEventCard({ event, onOpenEvent, t }: { event: MobileEvent; onOpe
             </TouchableOpacity>
             <GradientButton
               onPress={() => onOpenEvent(event)}
-              height={56}
+              height={48}
               style={styles.buyButton}
               textStyle={styles.buyText}
-              label={t('VER EVENTO', 'VIEW EVENT')}
+              label={t('Ver entradas', 'View tickets')}
             />
           </View>
         </View>
@@ -252,6 +237,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0, initialScrollOf
   const [category, setCategory] = useState('All');
   const [sortBy, setSortBy] = useState<'date' | 'price'>('date');
   const [sortOpen, setSortOpen] = useState(false);
+  const [heroPaused, setHeroPaused] = useState(false);
   const [shiningCategory, setShiningCategory] = useState('All');
   const categoryShine = useRef(new Animated.Value(0)).current;
   const categoryImageScale = useRef(new Animated.Value(1.12)).current;
@@ -264,7 +250,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0, initialScrollOf
   const heroTransitionStarted = useRef(false);
   const prefetchedHeroImages = useRef(new Set<string>());
   const eventSearchPlaceholder = t('Conciertos, teatro, talleres...', 'Concerts, theater, workshops...') || (lang === 'es' ? 'Conciertos, teatro, talleres...' : 'Concerts, theater, workshops...');
-  const placeSearchPlaceholder = t('Ciudad o venue', 'City or venue') || (lang === 'es' ? 'Ciudad o venue' : 'City or venue');
+  const placeSearchPlaceholder = t('Ciudad o recinto', 'City or venue') || (lang === 'es' ? 'Ciudad o recinto' : 'City or venue');
 
   useEffect(() => {
     if (!scrollToTopSignal) return;
@@ -533,7 +519,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0, initialScrollOf
   }, [categories, category]);
 
   useEffect(() => {
-    if (heroSlides.length <= 1) return;
+    if (heroSlides.length <= 1 || heroPaused) return;
     if (incomingHeroIndex !== null) return;
 
     const timer = setTimeout(() => {
@@ -541,7 +527,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0, initialScrollOf
     }, 4500);
 
     return () => clearTimeout(timer);
-  }, [heroSlides.length, heroIndex, incomingHeroIndex]);
+  }, [heroSlides.length, heroIndex, incomingHeroIndex, heroPaused]);
 
   const goPrevHero = () => {
     if (heroSlides.length <= 1) return;
@@ -737,6 +723,8 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0, initialScrollOf
         </TouchableOpacity>
       </View>
 
+      {heroSlides.length > 1 && <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: heroPaused }} accessibilityLabel={heroPaused ? t('Reanudar carrusel', 'Resume carousel') : t('Pausar carrusel', 'Pause carousel')} onPress={() => setHeroPaused(value => !value)} style={styles.pauseButton}><Text style={styles.pauseText}>{heroPaused ? t('Reanudar', 'Resume') : t('Pausar', 'Pause')}</Text></TouchableOpacity>}
+
       <View style={styles.searchPanel}>
         <LinearGradient
           pointerEvents="none"
@@ -853,7 +841,7 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0, initialScrollOf
 
       <View style={styles.highlights}>
         <Text style={styles.eyebrow}>{t('DESTACADOS', 'HIGHLIGHTS')}</Text>
-        <Text style={styles.eventsTitle}>{t('Eventos cerca de ti', 'Events near you')}</Text>
+        <Text style={styles.eventsTitle}>{t('Eventos destacados', 'Featured events')}</Text>
         <Text style={styles.eventsCount}>{filteredEvents.length} {t('eventos disponibles', 'available events')}</Text>
       </View>
 
@@ -886,6 +874,9 @@ export function HomeScreen({ onOpenEvent, scrollToTopSignal = 0, initialScrollOf
 }
 
 const styles = StyleSheet.create({
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  pauseButton: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, marginBottom: 8 },
+  pauseText: { color: colors.textMuted, fontSize: 14, fontWeight: '500' },
   searchPanelGlow: { position: 'absolute', top: 0, left: 46, right: 46, height: 1, borderRadius: 999, backgroundColor: 'rgba(249,115,22,0.16)', shadowColor: '#F97316', shadowOpacity: 0.08, shadowRadius: 5, shadowOffset: { width: 0, height: 0 }, elevation: 1 },
   orangeButtonTop: { position: 'absolute', top: 4, left: 14, right: 14, height: 1.5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.26)', zIndex: 2 },
   orangeButtonBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '48%', backgroundColor: 'rgba(154,52,18,0.22)', zIndex: 1 },
@@ -916,7 +907,7 @@ const styles = StyleSheet.create({
   field: { minHeight: 57, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 11, backgroundColor: '#030B14', justifyContent: 'center', gap: 5 },
   fieldLabel: { color: '#FFFFFF', fontSize: 14, fontWeight: '600', letterSpacing: 0 },
   fieldRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  fieldInput: { flex: 1, fontSize: 12, color: '#FFFFFF', fontWeight: '500', outlineStyle: 'none' as any, padding: 0 },
+  fieldInput: { flex: 1, fontSize: 16, color: '#FFFFFF', fontWeight: '400', outlineStyle: 'none' as any, padding: 0 },
   searchText: { fontSize: 14, letterSpacing: 0 },
   categoryRow: { paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.14)' },
   categoryScroll: { gap: CATEGORY_CARD_GAP, paddingRight: 18, paddingTop: 6, paddingBottom: 10, position: 'relative' },
@@ -956,19 +947,17 @@ const styles = StyleSheet.create({
   sortOptionTextActive: { color: '#F97316' },
   highlights: { marginHorizontal: 16, marginTop: 46, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'rgba(255,255,255,0.018)', padding: 16 },
   eyebrow: { color: colors.orange, fontSize: 12, letterSpacing: 0, fontWeight: '600', marginBottom: 12 },
-  eventsTitle: { color: '#FFFFFF', fontSize: 32, lineHeight: 36, fontWeight: '600' },
+  eventsTitle: { color: colors.textPrimary, fontSize: 26, lineHeight: 32, fontWeight: '600' },
   eventsCount: { color: 'rgba(203,213,225,0.72)', fontSize: 16, fontWeight: '400', marginTop: 12 },
   eventCard: { marginHorizontal: 16, marginTop: 18, backgroundColor: 'rgba(255,255,255,0.018)', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
   eventCardPressed: { borderColor: 'rgba(249,115,22,0.78)', shadowColor: '#F97316', shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
   eventPoster: { width: '100%', aspectRatio: 3 / 4, position: 'relative', backgroundColor: 'rgba(255,255,255,0.012)' },
   eventPosterImage: { width: '100%', height: '100%' },
-  posterShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(5,24,44,0.12)' },
   posterPressGlow: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(249,115,22,0.10)' },
-  privateBadge: { position: 'absolute', top: 16, left: 14, backgroundColor: 'rgba(16,185,129,0.18)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(16,185,129,0.46)', paddingHorizontal: 12, paddingVertical: 8, shadowColor: '#10B981', shadowOpacity: 0.16, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
-  privateBadgeText: { color: '#D1FAE5', fontSize: 12, fontWeight: '600', letterSpacing: 0 },
-  featuredBadge: { position: 'absolute', top: 16, right: 14, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,151,45,0.62)', shadowColor: '#ff6800', shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
-  featuredShine: { position: 'absolute', left: 10, right: 10, top: 5, height: 1 },
-  featuredText: { color: colors.white, fontSize: 12, fontWeight: '600', letterSpacing: 1.2, textShadowColor: 'rgba(0,0,0,0.24)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
+  privateBadge: { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  privateBadgeText: { color: colors.textMuted, fontSize: 12, fontWeight: '500' },
+  featuredBadge: { backgroundColor: colors.orange, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  featuredText: { color: colors.white, fontSize: 12, fontWeight: '500' },
   plusBadge: { position: 'absolute', top: 76, right: 24, width: 48, height: 48, borderRadius: 24, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   plusText: { color: '#8B1E24', fontSize: 20, fontWeight: '600' },
   mockPosterText: { position: 'absolute', left: 18, right: 18, bottom: 34, alignItems: 'center' },
@@ -976,15 +965,15 @@ const styles = StyleSheet.create({
   mockEvent: { color: colors.white, fontSize: 22, fontWeight: '600', marginTop: 10, textAlign: 'center' },
   mockLine: { color: colors.white, fontSize: 15, fontWeight: '600', marginTop: 18, letterSpacing: 2 },
   eventInfo: { padding: 18, backgroundColor: '#030B14', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.14)' },
-  eventName: { color: '#F8FAFC', fontSize: 21, fontWeight: '600', lineHeight: 25, marginBottom: 14 },
+  eventName: { color: colors.textPrimary, fontSize: 18, fontWeight: '600', lineHeight: 25, marginBottom: 6 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   metaCol: { flex: 1 },
-  eventMeta: { color: '#F97316', fontSize: 15, fontWeight: '500' },
-  eventAddress: { color: 'rgba(226,232,240,0.55)', fontSize: 13, fontWeight: '400', marginTop: 1 },
+  eventMeta: { flexShrink: 1, color: colors.textMuted, fontSize: 14, fontWeight: '400', lineHeight: 20 },
+  eventAddress: { color: colors.textFaint, fontSize: 13, fontWeight: '400', lineHeight: 18, marginTop: 2 },
   divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.14)', marginVertical: 20 },
-  price: { color: '#F8FAFC', fontSize: 20, fontWeight: '600' },
-  ctaRow: { flexDirection: 'row', gap: 14, marginTop: 22 },
-  shareButton: { width: 56, height: 56, borderRadius: 8, backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(249,115,22,0.62)', alignItems: 'center', justifyContent: 'center' },
+  price: { color: colors.textPrimary, fontSize: 17, fontWeight: '600' },
+  ctaRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  shareButton: { width: 48, height: 48, borderRadius: 10, backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(249,115,22,0.62)', alignItems: 'center', justifyContent: 'center' },
   shareText: { color: colors.white, fontSize: 26, fontWeight: '400' },
   buyButton: { flex: 1 },
   buyText: { fontSize: 14, letterSpacing: 0 },

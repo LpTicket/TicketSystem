@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-04 - Adaptación móvil de Inicio y acceso
+
+- Inicio alinea tarjetas con la web: carteles completos, etiquetas debajo de la imagen, destacado condicionado al evento, títulos compactos y acción Ver entradas. Campos de búsqueda de 16 px y carrusel con pausa; animaciones existentes conservadas.
+- Acceso y registro incorporan etiquetas accesibles, campos más legibles y un control de contraseña de al menos 44 px. Sus cinco controladores se compararon con la versión anterior y permanecen iguales.
+- Validación: TypeScript móvil y revisión del diff aprobados. Sin cambios de servicios, navegación raíz, compras, Stripe, tickets, QR ni escaneo.
+- Pendiente: revisión visual y del carrusel en iPhone/Android, generación y distribución de una versión móvil. Estos cambios de código no actualizan las aplicaciones instaladas.
+
 ## 2026-10-04 - Refinamiento visual y navegación web
 
 - Tipografía, tarjetas, botones, formularios y foco de teclado consistentes; carteles completos, fechas con año y etiquetas fuera de las imágenes. Menos elementos flotantes en formularios y gestión.
