@@ -170,7 +170,6 @@ function DashboardPageBody() {
   };
 
   const retryOrders = () => {
-    setOrdersLoaded(false);
     setOrdersError('');
     loadOrders(orderRetryPage);
   };
@@ -463,12 +462,12 @@ function DashboardPageBody() {
           <div role="alert" className="dashboard-premium-card text-center p-6">
             <HiOutlineShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 font-medium mb-4">{ordersError}</p>
-            <button onClick={retryOrders} className="btn-primary text-sm inline-flex">
+            <button onClick={retryOrders} disabled={ordersLoading} className="btn-primary text-sm inline-flex">
               {lang === 'es' ? 'Reintentar' : 'Try again'}
             </button>
           </div>
         )}
-        {ordersError && orders.length === 0 ? null : ordersLoading && !ordersLoaded ? (
+        {ordersError && orders.length === 0 ? null : ordersLoading && orders.length === 0 ? (
           <div className="dashboard-premium-card text-center py-16">
             <div className="w-7 h-7 mx-auto border-2 border-[#0A375A] border-t-transparent rounded-full animate-spin" />
             <p className="text-gray-600 font-medium mt-4">{lang === 'es' ? 'Cargando recibos...' : 'Loading receipts...'}</p>
@@ -480,14 +479,14 @@ function DashboardPageBody() {
                 {orders.map((order) => {
                   const badge = getOrderStatus(order.status);
                   return (
-                    <div key={order.id} className="px-5 py-4 flex items-center justify-between hover:bg-[rgba(10,55,90,0.04)] transition-colors">
+                    <div key={order.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[rgba(10,55,90,0.04)] transition-colors">
                       <div className="min-w-0 flex-1">
-                        <h4 className="font-semibold text-gray-900 text-sm truncate">{order.event?.title || (lang === 'es' ? 'Evento' : 'Event')}</h4>
+                        <h4 className="font-semibold text-gray-900 text-sm break-words">{order.event?.title || (lang === 'es' ? 'Evento' : 'Event')}</h4>
                         <p className="text-xs text-gray-500 mt-0.5">
                           {format(parseSafeDate(order.createdAt), "dd MMM yyyy — hh:mm a", { locale: dateFnsLocale })} · {order.ticketCount} ticket(s)
                         </p>
                       </div>
-                      <div className="text-right shrink-0 ml-4 space-y-2">
+                      <div className="text-right shrink-0 sm:ml-4 space-y-2">
                         <div className="font-bold text-gray-900">${Number(order.total).toFixed(2)} {order.event?.currency || 'USD'}</div>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.classes}`}>{badge.label}</span>
                         <Link

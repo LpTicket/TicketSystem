@@ -6364,3 +6364,7 @@ html body:has(.lp-support-banner) header.site-header-future {
 .lp-refined .account-workspace .dashboard-premium-tabs { overflow: visible; }
 .lp-refined .account-workspace label:has(input[type='file']:focus-visible) { outline: 2px solid var(--lp-focus); outline-offset: 3px; }
 .lp-refined .event-detail-meta-item { min-width: 0; overflow-wrap: anywhere; }
+
+.lp-refined .category-workspace button { min-height: 44px; min-width: 44px; }
+.lp-refined .category-workspace label:has(input[type='file']:focus-visible) { outline: 2px solid var(--lp-focus); outline-offset: 3px; }
+.lp-refined .account-workspace a[href^='/orders/'][href$='/receipt'] { display: flex; min-height: 44px; align-items: center; justify-content: center; font-size: .8125rem; }

@@ -565,6 +565,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('lpticket_lang', l);
   };
 
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   const t = (key: TranslationKeys): string => translations[lang][key] ?? translations.es[key];
 
   return (

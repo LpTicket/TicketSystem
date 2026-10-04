@@ -76,6 +76,7 @@ export default function AdminSpecialCodesPage() {
   const [editForm, setEditForm] = useState(emptyForm);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [payoutModal, setPayoutModal] = useState<CommissionEntry | null>(null);
@@ -86,6 +87,7 @@ export default function AdminSpecialCodesPage() {
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [codesRes, usersRes, eventsRes, commissionsRes, salesRes] = await Promise.all([
         api.get('/special-codes'),
@@ -100,6 +102,7 @@ export default function AdminSpecialCodesPage() {
       setCommissions(commissionsRes.data || []);
       setCodeSales(salesRes.data || []);
     } catch (err: any) {
+      setLoadError(true);
       toast.error(err.response?.data?.message || (lang === 'es' ? 'No se pudo cargar la información.' : 'Could not load information.'));
     } finally {
       setLoading(false);
@@ -291,27 +294,28 @@ export default function AdminSpecialCodesPage() {
       </div>
 
       {/* Stats */}
+      {loadError && <div role="alert" className="public-premium-card p-4"><p>{lang === 'es' ? 'No pudimos actualizar la información. Los datos mostrados corresponden a la última carga correcta.' : 'We could not refresh the information. Displayed data is from the last successful load.'}</p><button onClick={loadData} disabled={loading} className="btn-secondary mt-3">{lang === 'es' ? 'Reintentar' : 'Try again'}</button></div>}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="public-premium-card p-5">
           <div className="flex items-center justify-between">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">Total</p>
             <HiOutlineTag className="w-6 h-6 text-primary-500" />
           </div>
-          <p className="text-3xl font-black text-[#0A375A] mt-3">{codes.length}</p>
+          <p className="text-3xl font-black text-[#0A375A] mt-3">{loading || (loadError && codes.length === 0) ? '—' : codes.length}</p>
         </div>
         <div className="public-premium-card p-5">
           <div className="flex items-center justify-between">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">{lang === 'es' ? 'Activos' : 'Active'}</p>
             <HiOutlineCheckCircle className="w-6 h-6 text-green-500" />
           </div>
-          <p className="text-3xl font-black text-[#0A375A] mt-3">{activeCount}</p>
+          <p className="text-3xl font-black text-[#0A375A] mt-3">{loading || (loadError && codes.length === 0) ? '—' : activeCount}</p>
         </div>
         <div className="public-premium-card p-5">
           <div className="flex items-center justify-between">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-400">{lang === 'es' ? 'Globales' : 'Global'}</p>
             <HiOutlineCalendar className="w-6 h-6 text-primary-500" />
           </div>
-          <p className="text-3xl font-black text-[#0A375A] mt-3">{globalCount}</p>
+          <p className="text-3xl font-black text-[#0A375A] mt-3">{loading || (loadError && codes.length === 0) ? '—' : globalCount}</p>
         </div>
       </div>
 
@@ -388,7 +392,7 @@ export default function AdminSpecialCodesPage() {
 
         {loading ? (
           <div className="p-5 space-y-4">{[...Array(4)].map((_, i) => <div key={i} className="h-20 skeleton rounded-xl" />)}</div>
-        ) : filteredCodes.length === 0 ? (
+        ) : loadError && codes.length === 0 ? null : filteredCodes.length === 0 ? (
           <div className="p-10 text-center"><HiOutlineTag className="w-10 h-10 text-gray-300 mx-auto" /><p className="text-sm text-gray-500 mt-3">{lang === 'es' ? 'Todavía no hay códigos.' : 'No codes yet.'}</p></div>
         ) : (
           <div className="divide-y divide-gray-100">

@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-04 - Recuperación de navegación y accesibilidad web
+
+- Página 404 con accesos a eventos, inicio y soporte; Contacto añade ayuda con entradas, teléfono y correo accionables. El idioma del documento sigue la selección español/inglés.
+- Categorías incorpora etiquetas accesibles, selección anunciada, foco del selector de imagen y controles de al menos 44 px. Categorías y códigos especiales distinguen errores de carga de listas vacías y ofrecen reintento; los indicadores no presentan un fallo como cero registros.
+- Recibos conserva los resultados anteriores durante el reintento y muestra nombres completos, distribución móvil y acceso de al menos 44 px.
+- Validación: build de producción, revisión de cambios, 69 enlaces internos comprobados y comparación de 19 funciones de escritura/estado sin modificaciones. Navegador con datos ficticios en escritorio y móvil de 390 px: errores y recuperación de categorías/códigos/recibos, enlaces de ayuda, página 404 e idioma. Backend, móvil, Stripe y datos de clientes sin cambios; no se realizaron cobros, envíos ni escrituras de gestión reales.
+
 ## 2026-10-04 - Cuenta, eventos, soporte y medidas de flyers en la web
 
 - Portadas: 6 × 8 pulgadas; banners: 6 × 2 pulgadas, como referencia de diseño a 180 ppp. Indicaciones consistentes en creación, edición y marketing; marcos de portada 3:4 y banners 3:1. La aprobación de portadas muestra la imagen completa.

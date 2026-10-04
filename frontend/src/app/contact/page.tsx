@@ -3,6 +3,7 @@
 import { toast } from 'react-hot-toast';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useLang } from '@/context/LanguageContext';
 import { HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker } from 'react-icons/hi';
 import api from '@/lib/api';
@@ -36,6 +37,10 @@ export default function ContactPage() {
           <h1 className="public-premium-title text-3xl md:text-4xl font-semibold mb-4">{t('contactPageTitle')}</h1>
           <p className="text-lg text-gray-500 max-w-2xl mx-auto">{t('contactSubtitle')}</p>
           <div className="w-24 h-1 bg-[#F97316] mx-auto rounded-full mt-6"></div>
+          <nav aria-label={lang === 'es' ? 'Ayuda y eventos' : 'Help and events'} className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link href="/support" className="btn-secondary">{lang === 'es' ? 'Ayuda con mis entradas' : 'Help with my tickets'}</Link>
+            <Link href="/events" className="btn-secondary">{lang === 'es' ? 'Explorar eventos' : 'Explore events'}</Link>
+          </nav>
         </div>
 
         <div className="grid md:grid-cols-2 gap-8">
@@ -47,7 +52,7 @@ export default function ContactPage() {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900 mb-1">{t('contactOnline')}</h3>
-                <p className="text-gray-600 font-medium">{t('contactPhone')}</p>
+                <a href="tel:+12816256383" className="inline-flex min-h-11 items-center text-gray-600 font-medium hover:underline">{t('contactPhone')}</a>
               </div>
             </div>
 
@@ -68,7 +73,7 @@ export default function ContactPage() {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900 mb-1">{t('contactEmailTitle')}</h3>
-                <p className="text-gray-600 font-medium">{t('contactEmail')}</p>
+                <a href="mailto:info@lpticket.com" className="inline-flex min-h-11 items-center break-all text-gray-600 font-medium hover:underline">{t('contactEmail')}</a>
               </div>
             </div>
           </div>
@@ -78,7 +83,7 @@ export default function ContactPage() {
             <h2 className="text-2xl font-semibold text-[#0A375A] mb-6">{lang === 'es' ? 'Envíanos un mensaje' : 'Send us a message'}</h2>
             
             {successMsg ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
+              <div role="status" className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
                 <div className="w-16 h-16 bg-green-50 text-green-500 rounded-full flex items-center justify-center">
                   <HiOutlineMail className="w-8 h-8" />
                 </div>
