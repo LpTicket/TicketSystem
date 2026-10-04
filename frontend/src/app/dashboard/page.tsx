@@ -47,7 +47,8 @@ function DashboardPageBody() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [pendingSocialRequests, setPendingSocialRequests] = useState(0);
-  const [activeTab, setActiveTab] = useState<'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'codes'>('tickets');
+  const tabParam = searchParams.get('tab');
+  const activeTab = tabParam && ['tickets', 'orders', 'profile', 'payments', 'social', 'codes'].includes(tabParam) ? tabParam : 'tickets';
   const [editMode, setEditMode] = useState(false);
   const [ticketsPage, setTicketsPage] = useState(1);
   const [ticketsPagination, setTicketsPagination] = useState({ total: 0, pages: 1 });
@@ -72,8 +73,11 @@ function DashboardPageBody() {
   });
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) router.push('/login');
-  }, [isLoading, isAuthenticated]);
+    if (!isLoading && !isAuthenticated) {
+      const destination = `/dashboard${searchParams.size ? `?${searchParams}` : ''}`;
+      router.replace(`/login?redirect=${encodeURIComponent(destination)}`);
+    }
+  }, [isLoading, isAuthenticated, router, searchParams]);
 
 
   useEffect(() => {
@@ -95,12 +99,6 @@ function DashboardPageBody() {
     }
   }, [isAuthenticated, user]);
 
-  useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam === 'profile' || tabParam === 'orders' || tabParam === 'tickets' || tabParam === 'payments' || tabParam === 'social' || tabParam === 'codes') {
-      setActiveTab(tabParam as 'tickets' | 'orders' | 'profile' | 'payments' | 'social' | 'codes');
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     if (isAuthenticated && activeTab === 'orders' && !ordersLoaded && !ordersLoading && !ordersError) {
@@ -290,7 +288,7 @@ function DashboardPageBody() {
       {/* Tabs */}
       <div className="dashboard-premium-tabs grid grid-cols-2 sm:flex sm:flex-row gap-1 mb-8">
         {tabs.map((tab) => (
-          <button key={tab.id} onClick={() => { setActiveTab(tab.id); window.history.replaceState(null, '', `/dashboard?tab=${tab.id}`); }}
+          <button key={tab.id} aria-pressed={activeTab === tab.id} onClick={() => { if (activeTab !== tab.id) window.history.pushState(null, '', `/dashboard?tab=${tab.id}`); }}
             className={`dashboard-premium-tab flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-3 text-xs sm:text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-primary-500 text-white shadow-sm' : 'text-slate-300 hover:bg-[rgba(255,255,255,0.06)] hover:text-white'}`}>
             <tab.icon className="w-4 h-4 shrink-0" />
             <span className="truncate">{tab.label}</span>

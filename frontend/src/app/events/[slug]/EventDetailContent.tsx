@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
@@ -49,6 +50,11 @@ interface EventDetailContentProps {
 export default function EventDetailContent({ initialEvent, initialSeatMap }: EventDetailContentProps) {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
+  const [returnTo, setReturnTo] = useState('/events');
+  useEffect(() => {
+    const source = new URLSearchParams(window.location.search).get('returnTo');
+    if (source === '/' || source === '/events' || source?.startsWith('/events?')) setReturnTo(source);
+  }, [slug]);
   const { lang, t } = useLang();
   const { isAuthenticated } = useAuthStore();
   const { getCategoryInfo, loading: categoriesLoading } = useCategories();
@@ -325,6 +331,13 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
         dangerouslySetInnerHTML={{ __html: JSON.stringify(eventJsonLd).replace(/</g, '\\u003c') }}
       />
       <div className="event-dark max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-8 lg:pt-24">
+      <nav aria-label={lang === 'es' ? 'Ubicación' : 'Breadcrumb'} className="mb-6 flex flex-wrap items-center gap-3 text-sm text-slate-400">
+        <Link href="/" className="hover:text-white">{lang === 'es' ? 'Inicio' : 'Home'}</Link>
+        <span aria-hidden="true">/</span>
+        <Link href={returnTo} className="hover:text-white">{returnTo === '/' ? (lang === 'es' ? 'Volver al inicio' : 'Back to home') : (lang === 'es' ? 'Volver a eventos' : 'Back to events')}</Link>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page" className="min-w-0 break-words text-slate-200">{event.title}</span>
+      </nav>
       {/* Hero Image */}
       <div className="event-premium-hero relative mb-8 overflow-hidden bg-[#071827] sm:aspect-[21/8] lg:aspect-[3/1]">
         {(event.bannerImageUrl || event.imageUrl) ? (

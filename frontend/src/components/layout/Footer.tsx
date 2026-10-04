@@ -43,48 +43,48 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-12 gap-y-12 mb-12">
           {/* Column 1: LPTICKET */}
           <div className="flex flex-col gap-5">
-            <h4 className="text-[14px] font-black uppercase tracking-wider text-white/90">LPTICKET</h4>
+            <h4 className="text-[14px] font-semibold uppercase tracking-wider text-white/90">LPTICKET</h4>
             <div className="flex flex-col gap-3">
-              <Link href="/about" className="text-[13px] font-bold text-white/60 hover:text-blue-400 transition-colors">{t('whoWeAre')}</Link>
+              <Link href="/about" className="text-[13px] font-medium text-white/60 hover:text-blue-400 transition-colors">{t('whoWeAre')}</Link>
             </div>
           </div>
           
           {/* Column 2: TU EVENTO */}
           <div className="flex flex-col gap-5">
-            <h4 className="text-[14px] font-black uppercase tracking-wider text-white/90">{lang === 'es' ? 'TU EVENTO' : 'YOUR EVENT'}</h4>
+            <h4 className="text-[14px] font-semibold uppercase tracking-wider text-white/90">{lang === 'es' ? 'TU EVENTO' : 'YOUR EVENT'}</h4>
             <div className="flex flex-col gap-3">
-              <Link href="/events" className="text-[13px] font-bold text-white/60 hover:text-blue-400 transition-colors">{t('events')}</Link>
-              <Link href="/refunds" className="text-[13px] font-bold text-white/60 hover:text-blue-400 transition-colors">{lang === 'es' ? 'Reembolsos' : 'Refunds'}</Link>
-              <Link href="/dashboard" className="text-[13px] font-bold text-white/60 hover:text-blue-400 transition-colors">{t('myTickets')}</Link>
+              <Link href="/events" className="text-[13px] font-medium text-white/60 hover:text-blue-400 transition-colors">{t('events')}</Link>
+              <Link href="/refunds" className="text-[13px] font-medium text-white/60 hover:text-blue-400 transition-colors">{lang === 'es' ? 'Reembolsos' : 'Refunds'}</Link>
+              <Link href="/dashboard?tab=tickets" className="text-[13px] font-medium text-white/60 hover:text-blue-400 transition-colors">{t('myTickets')}</Link>
             </div>
           </div>
 
           {/* Column 3: LEGAL */}
           <div className="flex flex-col gap-5">
-            <h4 className="text-[14px] font-black uppercase tracking-wider text-white/90">{lang === 'es' ? 'LEGAL' : 'LEGAL'}</h4>
+            <h4 className="text-[14px] font-semibold uppercase tracking-wider text-white/90">{lang === 'es' ? 'LEGAL' : 'LEGAL'}</h4>
             <div className="flex flex-col gap-3">
-              <Link href="/terms" className="text-[13px] font-bold text-white/60 hover:text-blue-400 transition-colors">{t('terms')}</Link>
-              <Link href="/privacy" className="text-[13px] font-bold text-white/60 hover:text-blue-400 transition-colors">{lang === 'es' ? 'Privacidad' : 'Privacy'}</Link>
-              <Link href="/support" className="text-[13px] font-bold text-white/60 hover:text-blue-400 transition-colors">{t('support')}</Link>
-              <Link href="/organizer-agreement" className="text-[13px] font-bold text-white/60 hover:text-blue-400 transition-colors">{lang === 'es' ? 'Acuerdo de Organizador' : 'Organizer Agreement'}</Link>
+              <Link href="/terms" className="text-[13px] font-medium text-white/60 hover:text-blue-400 transition-colors">{t('terms')}</Link>
+              <Link href="/privacy" className="text-[13px] font-medium text-white/60 hover:text-blue-400 transition-colors">{lang === 'es' ? 'Privacidad' : 'Privacy'}</Link>
+              <Link href="/support" className="text-[13px] font-medium text-white/60 hover:text-blue-400 transition-colors">{t('support')}</Link>
+              <Link href="/organizer-agreement" className="text-[13px] font-medium text-white/60 hover:text-blue-400 transition-colors">{lang === 'es' ? 'Acuerdo de Organizador' : 'Organizer Agreement'}</Link>
             </div>
           </div>
           
           {/* Column 4: CONTACTO */}
           <div className="flex flex-col gap-5">
-            <h4 className="text-[14px] font-black uppercase tracking-wider text-white/90">{lang === 'es' ? 'CONTACTO' : 'CONTACT'}</h4>
+            <h4 className="text-[14px] font-semibold uppercase tracking-wider text-white/90">{lang === 'es' ? 'CONTACTO' : 'CONTACT'}</h4>
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/30">{lang === 'es' ? 'Dirección' : 'Address'}</span>
-                <p className="text-[12px] font-bold text-white/70">1325 Main St Suite 203, Katy, TX 77494</p>
+                <span className="text-[9px] font-semibold uppercase tracking-widest text-white/30">{lang === 'es' ? 'Dirección' : 'Address'}</span>
+                <p className="text-[12px] font-medium text-white/70">1325 Main St Suite 203, Katy, TX 77494</p>
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/30">{lang === 'es' ? 'Teléfono' : 'Phone'}</span>
-                <p className="text-[12px] font-bold text-white/70">281.625.6383</p>
+                <span className="text-[9px] font-semibold uppercase tracking-widest text-white/30">{lang === 'es' ? 'Teléfono' : 'Phone'}</span>
+                <p className="text-[12px] font-medium text-white/70">281.625.6383</p>
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/30">{lang === 'es' ? 'Correo' : 'Email'}</span>
-                <p className="text-[12px] font-bold text-white/70">info@lpticket.com</p>
+                <span className="text-[9px] font-semibold uppercase tracking-widest text-white/30">{lang === 'es' ? 'Correo' : 'Email'}</span>
+                <p className="text-[12px] font-medium text-white/70">info@lpticket.com</p>
               </div>
             </div>
           </div>
@@ -98,7 +98,7 @@ export default function Footer() {
               : 'Important: LP Ticket is not responsible for the quality, organization, changes, cancellation, or satisfaction of the published events. LP Ticket is a platform that provides online ticket sales and event access management services. By using this site, you accept the terms and conditions of the application.'
             }
           </p>
-          <div className="flex justify-center items-center gap-4 text-[10px] font-black uppercase tracking-[0.3em] text-white/15">
+          <div className="flex justify-center items-center gap-4 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/15">
             <span>Copyright © 2026 LP Ticket</span>
             <span className="w-1 h-1 bg-white/10 rounded-full" />
             <span>{t('copyright')}</span>

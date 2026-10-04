@@ -1,5 +1,14 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-04 - Navegación y legibilidad de la web
+
+- Eventos conserva búsqueda, categoría y página en la URL y recupera esos estados al usar Atrás. Las solicitudes anteriores se cancelan al cambiar filtros; los errores muestran una opción de reintento.
+- El detalle del evento ofrece una vuelta al listado filtrado o al inicio; compartir mantiene el enlace público sin parámetros de navegación.
+- Las pestañas de la cuenta conservan historial. Se unificaron enlaces de Mis Tickets y la sección activa del organizador al editar eventos.
+- Menús con cierre al navegar o pulsar Escape, nombres accesibles y señalización de la página activa. Títulos y menú móvil con tamaños y pesos más moderados.
+- Ayuda de acceso dirige a Soporte en lugar de una ruta inexistente. Buscar en Inicio abre Eventos; al filtrar por lugar muestra los resultados locales existentes.
+- Validación: build de producción con TypeScript aprobado; búsqueda, detalle, Atrás y menú comprobados en navegador, incluido ancho móvil de 390 px. Flujos privados requieren verificación con sesión; no se realizaron compras ni cambios de datos.
+
 ## 2026-10-02 - Ajuste de pantalla Android y envío a Google Play
 
 - La app Android respeta las áreas ocupadas por la barra de estado y la navegación del sistema para que el encabezado y el menú inferior sean visibles.

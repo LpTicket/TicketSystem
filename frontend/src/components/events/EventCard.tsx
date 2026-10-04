@@ -13,9 +13,10 @@ import { formatDateInTimezone, getTimezoneAbbr } from '@/lib/dateUtils';
 interface EventCardProps {
   event: Event;
   priority?: boolean;
+  returnTo?: string;
 }
 
-export default function EventCard({ event, priority = false }: EventCardProps) {
+export default function EventCard({ event, priority = false, returnTo = '/' }: EventCardProps) {
   const { getCategoryInfo } = useCategories();
   const { lang } = useLang();
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -42,9 +43,11 @@ export default function EventCard({ event, priority = false }: EventCardProps) {
   const eventTzAbbr = event.eventTimezone ? getTimezoneAbbr(eventTz, event.eventDate) : '';
   const eventHref = `/events/${event.slug}`;
 
+  const navigationHref = `${eventHref}?returnTo=${encodeURIComponent(returnTo)}`;
+
   return (
     <article className="event-signature-card group">
-      <Link href={eventHref} className="block">
+      <Link href={navigationHref} className="block">
         <div className="relative aspect-[3/4] overflow-hidden bg-[#0A375A]">
           {!imageLoaded && (
             <div className="absolute inset-0 z-10 h-full w-full animate-shimmer" />
@@ -107,7 +110,7 @@ export default function EventCard({ event, priority = false }: EventCardProps) {
             className="!h-12 !w-12 !rounded-lg !border-[#ff7a00]/70 !bg-transparent !text-white !shadow-[0_0_18px_rgba(255,122,0,0.18)] hover:!border-[#ff7a00] hover:!bg-[rgba(255,122,0,0.08)]"
           />
           <Link
-            href={eventHref}
+            href={navigationHref}
             className="event-card-buy-button inline-flex flex-1 items-center justify-center rounded-lg bg-primary-500 px-4 text-[11px] font-black uppercase text-white transition-all hover:bg-primary-600"
           >
             {lang === 'es' ? 'Comprar tickets' : 'Buy tickets'}

@@ -162,6 +162,23 @@ export default function Header() {
   };
 
   const pathname = usePathname();
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setProfileDropdown(false);
+    setCartDropdown(false);
+  }, [pathname, setMobileMenuOpen]);
+
+  useEffect(() => {
+    const closeMenus = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setMobileMenuOpen(false);
+      setProfileDropdown(false);
+      setCartDropdown(false);
+    };
+    document.addEventListener('keydown', closeMenus);
+    return () => document.removeEventListener('keydown', closeMenus);
+  }, [setMobileMenuOpen]);
+
   const navItems = [
     { href: '/events', label: t('events'), width: '', match: (path: string) => path.startsWith('/events') },
     { href: '/about', label: t('whoWeAre'), width: '', match: (path: string) => path.startsWith('/about') },
@@ -188,13 +205,14 @@ export default function Header() {
           </div>
 
           {/* Navigation Links: Fixed widths to prevent layout shifting */}
-          <nav className="header-main-nav hidden lg:flex items-center gap-2">
+          <nav aria-label={lang === 'es' ? 'Navegación principal' : 'Main navigation'} className="header-main-nav hidden lg:flex items-center gap-2">
             {navItems.map((item) => {
               const active = item.match(pathname);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={active ? 'page' : undefined}
                   className={`header-nav-link ${active ? 'is-active' : ''}`}
                 >
                   {item.label}
@@ -267,7 +285,7 @@ export default function Header() {
             {/* 4. User Profile (Only if Auth) */}
             {isAuthenticated && user && (
               <div ref={profileRef} className="flex items-center">
-                <button onClick={() => setProfileDropdown(!profileDropdown)} className={`premium-user-button ${profileDropdown ? 'active' : ''}`}>
+                <button aria-label={lang === 'es' ? 'Abrir cuenta' : 'Open account'} aria-expanded={profileDropdown} onClick={() => setProfileDropdown(!profileDropdown)} className={`premium-user-button ${profileDropdown ? 'active' : ''}`}>
                   <HiOutlineUser className="w-4 h-4 shrink-0" />
                   <span className="truncate max-w-[65px]">{user.firstName}</span>
                 </button>
@@ -431,7 +449,7 @@ export default function Header() {
             )}
 
             {/* Hamburger */}
-            <button className="h-8 w-8 flex items-center justify-center text-white rounded-md border border-white/20" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <button aria-label={lang === 'es' ? (mobileMenuOpen ? 'Cerrar menú' : 'Abrir menú') : (mobileMenuOpen ? 'Close menu' : 'Open menu')} aria-expanded={mobileMenuOpen} aria-controls="mobile-site-menu" className="h-8 w-8 flex items-center justify-center text-white rounded-md border border-white/20" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <HiOutlineX className="w-5 h-5" /> : <HiOutlineMenu className="w-5 h-5" />}
             </button>
           </div>
@@ -440,7 +458,7 @@ export default function Header() {
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="hamburger-menu-panel lg:hidden animate-fade-in">
+        <nav id="mobile-site-menu" aria-label={lang === 'es' ? 'Navegación principal' : 'Main navigation'} className="hamburger-menu-panel lg:hidden animate-fade-in">
           <div className="hamburger-menu-inner space-y-3">
             
             {/* Nav Links */}
@@ -461,6 +479,7 @@ export default function Header() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={active ? 'page' : undefined}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`hamburger-nav-link ${active ? 'is-active' : ''}`}
                   >
@@ -542,7 +561,7 @@ export default function Header() {
               </div>
             )}
           </div>
-        </div>
+        </nav>
       )}
     </header>
     

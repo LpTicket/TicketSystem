@@ -81,11 +81,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <p className="text-xs text-gray-500 mt-1">{user.firstName} {user.lastName}</p>
         </div>
-        <nav className="flex-1 p-3 space-y-1">
+        <nav aria-label={lang === 'es' ? 'Panel de gestión' : 'Management panel'} className="flex-1 p-3 space-y-1">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive(item.href) ? 'page' : undefined}
               className={`lp-sidebar-link flex items-center gap-3 px-4 py-2.5 text-sm transition-all ${isActive(item.href) ? 'active' : ''}`}
             >
               <item.icon className="w-5 h-5" />
@@ -116,11 +117,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <h2 className="font-bold text-lg text-gray-900">{t('adminPanel')}</h2>
               </div>
             </div>
-            <nav className="flex-1 p-3 space-y-1">
+            <nav aria-label={lang === 'es' ? 'Panel de gestión' : 'Management panel'} className="flex-1 p-3 space-y-1">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={isActive(item.href) ? 'page' : undefined}
                   onClick={() => setSidebarOpen(false)}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive(item.href) ? 'bg-primary-50 text-primary-600 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'

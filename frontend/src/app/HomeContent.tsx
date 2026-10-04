@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getImageUrl } from '@/lib/api';
 import EventCard from '@/components/events/EventCard';
 import TrustBadges from '@/components/layout/TrustBadges';
@@ -63,6 +64,7 @@ interface HomeContentProps {
 
 export default function HomeContent({ initialEvents, initialBanners }: HomeContentProps) {
   const { t, lang } = useLang();
+  const router = useRouter();
   const { categories, loading: categoriesLoading } = useCategories();
   const [activeCategory, setActiveCategory] = useState('');
   const [currentBannerIdx, setCurrentBannerIdx] = useState(0);
@@ -143,7 +145,11 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
     const params = new URLSearchParams();
     if (searchQuery.trim()) params.set('search', searchQuery.trim());
     if (activeCategory) params.set('category', activeCategory);
-    if (params.toString()) window.location.href = `/events?${params.toString()}`;
+    if (locationQuery.trim()) {
+      document.getElementById('home-events')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      return;
+    }
+    router.push(`/events${params.size ? `?${params}` : ''}`);
   };
 
   return (
@@ -204,7 +210,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
                     <span className="h-1.5 w-1.5 rounded-full bg-primary-400 shadow-[0_0_14px_rgba(249,115,22,0.9)]" />
                     {lang === 'es' ? 'Evento destacado' : 'Featured event'}
                   </div>
-                  <h1 className="hidden max-w-4xl text-4xl font-black leading-[0.98] tracking-normal text-white sm:block sm:text-6xl lg:text-7xl">
+                  <h1 className="hidden max-w-4xl text-3xl font-semibold leading-[0.98] tracking-normal text-white sm:block sm:text-4xl lg:text-5xl">
                     {bannerEvent.title}
                   </h1>
                   <div className="mt-5 hidden flex-wrap items-center gap-3 text-sm font-semibold text-white/90 sm:flex">
@@ -250,7 +256,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
           <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
             <div className="home-empty-hero">
               <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-primary-600">LPTicket</p>
-              <h1 className="max-w-3xl text-4xl font-black leading-tight text-[#0A375A] sm:text-6xl">
+              <h1 className="max-w-3xl text-3xl font-semibold leading-tight text-[#0A375A] sm:text-4xl">
                 {lang === 'es' ? 'Descubre tu próximo evento.' : 'Discover your next event.'}
               </h1>
               <p className="mt-4 max-w-2xl text-base font-medium text-gray-500">
@@ -360,13 +366,13 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
         <TrustBadges />
       </section>
 
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-14 mt-14">
+      <section id="home-events" className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-14 mt-14 scroll-mt-28">
         <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{lang === 'es' ? 'Destacados' : 'Highlights'}</p>
-            <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">{lang === 'es' ? 'Eventos cerca de ti' : 'Events near you'}</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">{lang === 'es' ? 'Eventos cerca de ti' : 'Events near you'}</h2>
           </div>
-          <p className="text-sm font-semibold text-gray-500">{sortedEvents.length} {lang === 'es' ? 'eventos disponibles' : 'available events'}</p>
+          <div className="flex flex-wrap items-center gap-4"><Link href="/events" className="text-sm font-medium text-primary-400 hover:text-white">{lang === 'es' ? 'Ver todos los eventos →' : 'View all events →'}</Link><p className="text-sm font-medium text-gray-500">{sortedEvents.length} {lang === 'es' ? 'eventos disponibles' : 'available events'}</p></div>
         </div>
 
         {sortedEvents.length > 0 ? (

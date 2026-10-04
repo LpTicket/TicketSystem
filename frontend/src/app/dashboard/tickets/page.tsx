@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 export default function DashboardTicketsPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/dashboard');
+    router.replace('/dashboard?tab=tickets');
   }, [router]);
   return null;
 }

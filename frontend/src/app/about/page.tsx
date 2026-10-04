@@ -16,7 +16,7 @@ export default function AboutPage() {
           <span className="inline-flex items-center px-3 py-1 bg-primary-50 text-primary-600 rounded-full text-xs font-bold tracking-wider uppercase">
             LPTicket
           </span>
-          <h1 className="public-premium-title text-4xl sm:text-5xl font-black tracking-tight">
+          <h1 className="public-premium-title text-3xl sm:text-4xl font-semibold tracking-tight">
             {es ? 'Quiénes somos' : 'About us'}
           </h1>
           <p className="text-gray-500 max-w-3xl mx-auto text-base sm:text-lg leading-relaxed">
@@ -48,7 +48,7 @@ export default function AboutPage() {
         {/* Mission & Vision */}
         <div className="grid gap-6 md:grid-cols-2">
           <article className="public-premium-card p-8 transition-all">
-            <h2 className="public-premium-title text-2xl font-black">{es ? 'Nuestra misión' : 'Our mission'}</h2>
+            <h2 className="public-premium-title text-2xl font-semibold">{es ? 'Nuestra misión' : 'Our mission'}</h2>
             <p className="mt-4 text-sm sm:text-base leading-7 text-slate-600">
               {es
                 ? 'Ofrecer una plataforma de boletería moderna, segura y accesible que permita a organizadores, productores, empresas y marcas vender tickets de manera profesional, rápida y confiable, brindando al público una experiencia de compra simple, clara y segura.'
@@ -57,7 +57,7 @@ export default function AboutPage() {
           </article>
 
           <article className="public-premium-card p-8 transition-all">
-            <h2 className="public-premium-title text-2xl font-black">{es ? 'Nuestra visión' : 'Our vision'}</h2>
+            <h2 className="public-premium-title text-2xl font-semibold">{es ? 'Nuestra visión' : 'Our vision'}</h2>
             <div className="mt-4 space-y-4 text-sm sm:text-base leading-7 text-slate-600">
               <p>
                 {es
@@ -76,7 +76,7 @@ export default function AboutPage() {
         {/* CTA */}
         <div className="public-premium-card p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-primary-100">
           <div>
-            <h2 className="public-premium-title text-lg font-black">
+            <h2 className="public-premium-title text-lg font-semibold">
               {es ? 'Crea, vende y valida tickets con LPTicket' : 'Create, sell and validate tickets with LPTicket'}
             </h2>
             <p className="mt-1 text-sm text-slate-500">

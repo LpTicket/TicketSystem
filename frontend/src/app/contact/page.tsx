@@ -33,7 +33,7 @@ export default function ContactPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 md:mt-16">
         
         <div className="text-center mb-16 animate-fade-in">
-          <h1 className="public-premium-title text-4xl md:text-5xl font-black mb-4">{t('contactPageTitle')}</h1>
+          <h1 className="public-premium-title text-3xl md:text-4xl font-semibold mb-4">{t('contactPageTitle')}</h1>
           <p className="text-lg text-gray-500 max-w-2xl mx-auto">{t('contactSubtitle')}</p>
           <div className="w-24 h-1 bg-[#F97316] mx-auto rounded-full mt-6"></div>
         </div>
@@ -75,7 +75,7 @@ export default function ContactPage() {
 
           {/* Contact Form */}
           <div className="public-premium-card p-8 md:p-10 flex flex-col h-full animate-fade-in" style={{ animationDelay: '0.4s' }}>
-            <h2 className="text-2xl font-black text-[#0A375A] mb-6">{lang === 'es' ? 'Envíanos un mensaje' : 'Send us a message'}</h2>
+            <h2 className="text-2xl font-semibold text-[#0A375A] mb-6">{lang === 'es' ? 'Envíanos un mensaje' : 'Send us a message'}</h2>
             
             {successMsg ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center space-y-4">
@@ -124,7 +124,7 @@ export default function ContactPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-primary w-full py-4 rounded-lg font-black transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50"
+                  className="btn-primary w-full py-4 rounded-lg font-semibold transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50"
                 >
                   {loading ? (lang === 'es' ? 'Enviando...' : 'Sending...') : (lang === 'es' ? 'ENVIAR MENSAJE' : 'SEND MESSAGE')}
                 </button>

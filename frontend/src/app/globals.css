@@ -979,6 +979,9 @@ html {
 .premium-page-title {
   color: #0A375A !important;
   letter-spacing: -0.02em;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .premium-muted {
@@ -1424,6 +1427,9 @@ html {
 .public-premium-title {
   color: #0A375A !important;
   letter-spacing: -0.02em;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .public-premium-icon {
@@ -4025,11 +4031,11 @@ footer .rounded-full:hover {
   color: #ffffff !important;
 }
 
-/* Título de tarjetas 30% más grande */
+/* Event titles: readable at every card width. */
 .event-signature-card h3 {
-  font-size: 1.35rem !important;
-  line-height: 1.08 !important;
-  font-weight: 800 !important;
+  font-size: 1.125rem !important;
+  line-height: 1.4 !important;
+  font-weight: 600 !important;
   color: #ffffff !important;
 }
 
@@ -4957,8 +4963,8 @@ footer .rounded-full:hover {
     background-image: none !important;
     box-shadow: none !important;
     color: #ffffff !important;
-    font-size: 1.28rem !important;
-    font-weight: 900 !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
     line-height: 1.1 !important;
     text-align: left !important;
     letter-spacing: 0 !important;
@@ -5897,7 +5903,7 @@ html body {
 .event-dark h1, .event-dark h2, .event-dark h3,
 .purchase-premium-shell h1, .purchase-premium-shell h2, .purchase-premium-shell h3,
 .lp-management-layout h1, .lp-management-layout h2, .lp-management-layout h3 {
-  text-shadow: 0 0 12px rgba(255, 255, 255, 0.20), 0 1px 2px rgba(0, 0, 0, 0.28);
+  text-shadow: none;
 }
 /* Soften the thick/bright light borders so they read like the Home's faint lines
    instead of solid white lines on the dark profile/dashboard cards. */
@@ -6247,4 +6253,20 @@ html body:has(.lp-support-banner) header.site-header-future {
   top: 0 !important;
   left: auto !important;
   right: auto !important;
+}
+
+/* Clear keyboard navigation without changing the brand palette. */
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid #ff9b45;
+  outline-offset: 4px;
+}
+.events-filter-bar > div { min-width: 0; }
+.events-filter-bar { scroll-margin-top: 6rem; }
+.event-dark h1 { overflow-wrap: anywhere; line-height: 1.25; }
+@media (prefers-reduced-motion: reduce) {
+  .event-signature-card, .event-signature-card img,
+  .header-nav-link, .hamburger-nav-link, .dashboard-premium-tab {
+    transition: none !important;
+    animation: none !important;
+  }
 }

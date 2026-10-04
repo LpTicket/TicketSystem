@@ -110,7 +110,7 @@ export default function SupportPage() {
             <HiOutlineSupport className="w-4 h-4" />
             {lang === 'es' ? 'Centro de Ayuda' : 'Help & Support'}
           </span>
-          <h1 className="public-premium-title text-3xl sm:text-5xl font-black tracking-tight leading-none">
+          <h1 className="public-premium-title text-3xl sm:text-4xl font-semibold tracking-tight leading-none">
             {lang === 'es' ? '¿Cómo podemos ayudarte?' : 'How can we help you?'}
           </h1>
           <p className="text-gray-500 max-w-xl mx-auto text-sm sm:text-base">
@@ -205,7 +205,7 @@ export default function SupportPage() {
         {/* Right Column: Contact Ticket Form */}
         <div className="public-premium-card p-6 sm:p-8 space-y-6 h-fit">
           <div>
-            <h3 className="font-black text-lg text-[#0A375A]">{lang === 'es' ? '¿Tienes otra consulta?' : 'Have another question?'}</h3>
+            <h3 className="font-semibold text-lg text-[#0A375A]">{lang === 'es' ? '¿Tienes otra consulta?' : 'Have another question?'}</h3>
             <p className="text-xs text-gray-500 mt-1">{lang === 'es' ? 'Completa el formulario de abajo y nuestro equipo te responderá en menos de 24 horas.' : 'Fill out the form below and our team will get back to you within 24 hours.'}</p>
           </div>
 
@@ -275,7 +275,7 @@ export default function SupportPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="btn-primary w-full py-3 rounded-lg font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-orange-500/20"
+                className="btn-primary w-full py-3 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-orange-500/20"
               >
                 <HiOutlineSupport className="w-4 h-4" />
                 {submitting ? (lang === 'es' ? 'Enviando...' : 'Sending...') : (lang === 'es' ? 'Enviar Mensaje' : 'Send Message')}

@@ -114,7 +114,7 @@ function LoginContent() {
           <div>
             <div className="flex justify-between items-center mb-1.5">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('password')}</label>
-              <Link href="/forgot-password" className="text-xs text-[#0A375A] hover:text-[#F97316] hover:underline font-bold">{t('forgotPassword')}</Link>
+              <Link href="/support" className="text-xs text-[#0A375A] hover:text-[#F97316] hover:underline font-bold">{lang === 'es' ? 'Ayuda para acceder' : 'Sign-in help'}</Link>
             </div>
             <div className="relative">
               <HiOutlineLockClosed className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400 z-10" />
