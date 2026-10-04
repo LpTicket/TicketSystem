@@ -5,7 +5,7 @@
 - Inicio muestra fechas con año e idioma seleccionado, conservando la zona horaria del evento; las categorías usan las etiquetas del catálogo. Compartir y Ver entradas se exponen como controles separados para lectores de pantalla.
 - El acceso del encabezado dice Entrar; los botones compartidos informan su función y estado deshabilitado. No se modificaron controladores, servicios, compras, Stripe, tickets, QR ni recibos.
 - Validación: TypeScript, compilación nativa iOS, exportación Android y arranque Android sin errores de JavaScript. En simulador iPhone se comprobaron carteles, pausa del carrusel, vuelta al listado conservando posición, acceso, cambio a registro y visibilidad de contraseña, sin enviar formularios ni realizar compras.
-- Versión preparada: 1.0.12. Distribución pendiente; revisión visual Android pendiente.
+- Código publicado en `main` (`6ca0799b`). iOS 1.0.12 (43) enviado a compilar en EAS y envío a TestFlight programado (build `7aaa4fd5-7ec4-4e20-9dc4-3dcf2dd52ab2`, submission `4efcbe9e-4079-44d9-8d61-96fd84dfd1a7`); no disponible todavía. Apple indicó un acuerdo pendiente o vencido, que debe revisar el titular. El primer build (42) falló por la ruta temporal; preparación corregida. Revisión visual Android pendiente; sin publicación Android.
 
 ## 2026-10-04 - Adaptación móvil de Inicio y acceso
 
