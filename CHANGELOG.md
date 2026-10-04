@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-04 - Seguimiento de distribución móvil 1.0.12
+
+- EAS confirmó que el build firmado iOS 1.0.12 (43) terminó correctamente. El panel de EAS identificó el rechazo inicial por un acuerdo de Apple; se confirmaron ambos acuerdos comerciales activos y el contrato del Developer Program aceptado hoy. Una vez que la API reconoció ese cambio, el envío del mismo archivo terminó correctamente (submission `b00fa309-c755-4bde-87a3-cbf5933e012d`). App Store Connect muestra 1.0.12 (43) en procesamiento; instalación en TestFlight y publicación pública aún no confirmadas. No se cambiaron credenciales ni permisos.
+- Android 1.0.12 (11) enviado a compilar con la firma existente (build `32edc984-918c-43fe-80d1-6321ca6435df`), sin envío a Google Play. Revisión visual Android pendiente porque el emulador no está disponible en la herramienta de control visual.
+- El diagnóstico de EAS detectó una advertencia de memoria de Hermes V1 y desajustes de versiones de dependencias. La documentación de Expo identifica especialmente aplicaciones que importan Reanimated/Worklets; no se encontraron esas importaciones ni dependencias directas en esta app. No se reprodujo el problema ni se modificaron dependencias. Evaluar una actualización y pruebas nativas separadas: https://expo.dev/changelog/sdk-57#known-regressions.
+- Sin cambios nuevos de código, backend, datos de clientes, pagos, tickets, QR ni recibos en este seguimiento.
+
 ## 2026-10-04 - Revisión nativa y preparación móvil 1.0.12
 
 - Inicio muestra fechas con año e idioma seleccionado, conservando la zona horaria del evento; las categorías usan las etiquetas del catálogo. Compartir y Ver entradas se exponen como controles separados para lectores de pantalla.
