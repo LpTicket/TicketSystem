@@ -2,7 +2,8 @@
 
 import toast from 'react-hot-toast';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useListNavigation } from '@/components/layout/useListNavigation';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
 import { parseSafeDate, formatDateInTimezone } from '@/lib/dateUtils';
@@ -24,22 +25,24 @@ import {
   HiOutlineSearch,
 } from 'react-icons/hi';
 
-export default function OrganizerEventsPage() {
+function OrganizerEventsPageBody() {
   const { user } = useAuthStore();
   const { t, lang } = useLang();
   const { getCategoryInfo } = useCategories();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
+  const { filter, search, updateFilters } = useListNavigation('all', ['all', 'draft', 'pending_approval', 'published', 'cancelled']);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => { loadEvents(); }, []);
 
   const loadEvents = async () => {
+    setLoading(true);
+    setLoadError(false);
     try {
       const { data } = await api.get('/events/mine/list');
       setEvents(data || []);
-    } catch {} finally { setLoading(false); }
+    } catch { setLoadError(true); } finally { setLoading(false); }
   };
 
   const handlePublish = async (id: string) => {
@@ -78,7 +81,7 @@ export default function OrganizerEventsPage() {
       a.href = URL.createObjectURL(blob);
       a.download = `attendees-${id}.csv`;
       a.click();
-    } catch {}
+    } catch { toast.error(lang === 'es' ? 'No pudimos descargar los asistentes. Inténtalo de nuevo.' : 'We could not download attendees. Please try again.'); }
   };
 
   const dateFnsLocale = lang === 'es' ? es : enUS;
@@ -103,6 +106,7 @@ export default function OrganizerEventsPage() {
   const statusFilters = [
     { key: 'all', label: lang === 'es' ? 'Todos' : 'All' },
     { key: 'draft', label: t('orgDraft') },
+    { key: 'pending_approval', label: t('orgPending') },
     { key: 'published', label: t('orgPublished') },
     { key: 'cancelled', label: t('orgCancelled') },
   ];
@@ -125,7 +129,7 @@ export default function OrganizerEventsPage() {
         </div>
         <div>
           <h4 className="font-bold text-sm text-amber-300">
-            {lang === 'es' ? 'Recordatorio Importante sobre la Publicación de Eventos' : 'Important Event Publication Reminder'}
+            {lang === 'es' ? 'Publicación de eventos' : 'Event publication'}
           </h4>
           <p className="text-xs text-amber-100/80 mt-1 leading-relaxed">
             {lang === 'es' 
@@ -150,7 +154,7 @@ export default function OrganizerEventsPage() {
           {statusFilters.map((f) => (
             <button
               key={f.key}
-              onClick={() => setFilter(f.key)}
+              aria-pressed={filter === f.key} onClick={() => updateFilters({ filter: f.key })}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap border ${
                 filter === f.key
                   ? 'bg-gradient-to-b from-[#ff8a18] via-[#f46c00] to-[#c93f00] text-white border-[rgba(255,151,45,0.62)] shadow-[0_10px_24px_rgba(255,104,0,0.24)]'
@@ -167,14 +171,16 @@ export default function OrganizerEventsPage() {
             type="text"
             placeholder={lang === 'es' ? 'Buscar eventos...' : 'Search events...'}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => updateFilters({ search: e.target.value }, true)}
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
         </div>
       </div>
 
       {/* Events Table */}
-      {filteredEvents.length > 0 ? (
+      {loadError ? (
+        <div role="alert" className="p-6 space-y-3 text-center"><p>{lang === 'es' ? 'No pudimos cargar tus eventos. Inténtalo de nuevo.' : 'We could not load your events. Please try again.'}</p><button type="button" onClick={loadEvents} className="btn-secondary">{lang === 'es' ? 'Reintentar' : 'Retry'}</button></div>
+      ) : filteredEvents.length > 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           {/* Desktop Table */}
           <div className="hidden md:block overflow-x-auto">
@@ -304,4 +310,8 @@ export default function OrganizerEventsPage() {
       )}
     </div>
   );
+}
+
+export default function OrganizerEventsPage() {
+  return <Suspense fallback={<div role="status" className="p-6"><div className="h-8 skeleton rounded" /></div>}><OrganizerEventsPageBody /></Suspense>;
 }

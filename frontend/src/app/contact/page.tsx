@@ -89,7 +89,9 @@ export default function ContactPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
-                <input
+                <div className="space-y-1.5">
+                <label htmlFor="contact-name" className="block text-sm font-medium">{lang === 'es' ? 'Nombre completo' : 'Full name'}</label>
+                <input id="contact-name" name="name"
                   type="text"
                   required
                   placeholder={lang === 'es' ? 'Nombre completo' : 'Full name'}
@@ -97,7 +99,10 @@ export default function ContactPage() {
                   onChange={(e) => setForm({...form, name: e.target.value})}
                   className="w-full px-4 py-3 border border-gray-200 public-premium-input text-sm"
                 />
-                <input
+                </div>
+                <div className="space-y-1.5">
+                <label htmlFor="contact-email" className="block text-sm font-medium">{lang === 'es' ? 'Correo electrónico' : 'Email address'}</label>
+                <input id="contact-email" name="email"
                   type="email"
                   required
                   placeholder={lang === 'es' ? 'Correo electrónico' : 'Email address'}
@@ -105,7 +110,10 @@ export default function ContactPage() {
                   onChange={(e) => setForm({...form, email: e.target.value})}
                   className="w-full px-4 py-3 border border-gray-200 public-premium-input text-sm"
                 />
-                <input
+                </div>
+                <div className="space-y-1.5">
+                <label htmlFor="contact-subject" className="block text-sm font-medium">{lang === 'es' ? 'Asunto' : 'Subject'}</label>
+                <input id="contact-subject" name="subject"
                   type="text"
                   required
                   placeholder={lang === 'es' ? 'Asunto' : 'Subject'}
@@ -113,7 +121,10 @@ export default function ContactPage() {
                   onChange={(e) => setForm({...form, subject: e.target.value})}
                   className="w-full px-4 py-3 border border-gray-200 public-premium-input text-sm"
                 />
-                <textarea
+                </div>
+                <div className="space-y-1.5">
+                <label htmlFor="contact-message" className="block text-sm font-medium">{lang === 'es' ? 'Mensaje' : 'Message'}</label>
+                <textarea id="contact-message" name="message"
                   required
                   rows={4}
                   placeholder={lang === 'es' ? '¿En qué podemos ayudarte?' : 'How can we help you?'}
@@ -121,6 +132,7 @@ export default function ContactPage() {
                   onChange={(e) => setForm({...form, message: e.target.value})}
                   className="w-full px-4 py-3 border border-gray-200 public-premium-input text-sm resize-none"
                 />
+                </div>
                 <button
                   type="submit"
                   disabled={loading}

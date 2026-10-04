@@ -1,5 +1,13 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-04 - Refinamiento visual y navegación web
+
+- Tipografía, tarjetas, botones, formularios y foco de teclado consistentes; carteles completos, fechas con año y etiquetas fuera de las imágenes. Menos elementos flotantes en formularios y gestión.
+- Inicio conserva un orden determinista de destacados para evitar diferencias entre servidor y navegador. Carrusel con pausa y respeto a movimiento reducido; selector de orden accesible.
+- Organización incorpora herramientas agrupadas, ubicación visible y menú móvil accesible. Mis eventos conserva filtro y búsqueda al volver y permite reintentar cargas fallidas.
+- Marketing añade accesos a sus secciones y elimina indicadores estáticos que podían confundirse con mediciones reales. Los controladores de envío permanecen iguales.
+- Validación: build de producción con TypeScript; navegador en escritorio y ancho móvil; gestión con datos sintéticos y escrituras bloqueadas. Sin cambios de backend, móvil, Stripe, checkout, QR o recibos; no se realizaron compras ni operaciones reales de gestión.
+
 ## 2026-10-04 - Organización del administrador web
 
 - Menú agrupado para las diez herramientas, accesos directos en Resumen y ubicación visible en cada sección; menú móvil con cierre por Escape y navegación por teclado.

@@ -1,7 +1,7 @@
 'use client';
 import { useSearchParams } from 'next/navigation';
 
-export function useAdminListState(defaultFilter: string, allowedFilters: readonly string[]) {
+export function useListNavigation(defaultFilter: string, allowedFilters: readonly string[]) {
   const params = useSearchParams();
   const rawPage = Number(params.get('page') || 1);
   const page = Number.isSafeInteger(rawPage) && rawPage > 0 ? rawPage : 1;

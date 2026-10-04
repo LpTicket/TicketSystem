@@ -70,7 +70,9 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
   const [currentBannerIdx, setCurrentBannerIdx] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
-  const [sortOpen, setSortOpen] = useState(false);
+  const [bannerPaused, setBannerPaused] = useState(false);
+  const [bannerInteracting, setBannerInteracting] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const [sortBy, setSortBy] = useState('fecha');
 
   const filteredEvents = useMemo(() => {
@@ -106,7 +108,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
   const bannerEvents = useMemo<HomeBannerItem[]>(() => {
     const eventBanners = initialEvents
       .filter((e) => e.status === EventStatus.PUBLISHED && e.isFeatured)
-      .sort(() => Math.random() - 0.5)
+      .sort((a, b) => parseSafeDate(a.eventDate).getTime() - parseSafeDate(b.eventDate).getTime())
       .slice(0, 15);
 
     const activeBanners = initialBanners
@@ -135,10 +137,18 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
   const prevBanner = () => setCurrentBannerIdx((prev) => (prev - 1 + bannerEvents.length) % bannerEvents.length);
 
   useEffect(() => {
-    if (bannerEvents.length <= 1) return;
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setReducedMotion(query.matches);
+    sync();
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+
+  useEffect(() => {
+    if (bannerEvents.length <= 1 || bannerPaused || bannerInteracting || reducedMotion) return;
     const interval = setInterval(nextBanner, 6000);
     return () => clearInterval(interval);
-  }, [bannerEvents.length]);
+  }, [bannerEvents.length, bannerPaused, bannerInteracting, reducedMotion]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,7 +167,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
       {bannerEvent ? (
         <section className="home-hero-shell">
           <div className="mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
-            <div className="home-hero-frame group">
+            <div className="home-hero-frame group" onMouseEnter={() => setBannerInteracting(true)} onMouseLeave={() => setBannerInteracting(false)} onFocusCapture={() => setBannerInteracting(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setBannerInteracting(false); }}>
               <Link
                 href={isMarketingBanner(bannerEvent) ? marketingBannerLink || '#' : `/events/${bannerEvent.slug}`}
                 onClick={(event) => {
@@ -210,7 +220,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
                     <span className="h-1.5 w-1.5 rounded-full bg-primary-400 shadow-[0_0_14px_rgba(249,115,22,0.9)]" />
                     {lang === 'es' ? 'Evento destacado' : 'Featured event'}
                   </div>
-                  <h1 className="hidden max-w-4xl text-3xl font-semibold leading-[0.98] tracking-normal text-white sm:block sm:text-4xl lg:text-5xl">
+                  <h1 className="sr-only sm:not-sr-only max-w-4xl text-3xl font-semibold leading-[0.98] tracking-normal text-white sm:text-4xl lg:text-5xl">
                     {bannerEvent.title}
                   </h1>
                   <div className="mt-5 hidden flex-wrap items-center gap-3 text-sm font-semibold text-white/90 sm:flex">
@@ -238,12 +248,14 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
               </div>
               )}
 
+              {bannerEvents.length > 1 && !reducedMotion && <button type="button" aria-pressed={bannerPaused} onClick={() => setBannerPaused(!bannerPaused)} className="absolute bottom-3 right-3 z-30 rounded-lg border border-white/30 bg-[#05111f]/90 px-3 py-2 text-sm text-white">{bannerPaused ? (lang === 'es' ? 'Reanudar' : 'Resume') : (lang === 'es' ? 'Pausar' : 'Pause')}</button>}
+
               {bannerEvents.length > 1 && (
                 <>
-                  <button onClick={(e) => { e.preventDefault(); prevBanner(); }} className="home-hero-arrow left-3 sm:left-5" aria-label="Previous event">
+                  <button onClick={(e) => { e.preventDefault(); prevBanner(); }} className="home-hero-arrow left-3 sm:left-5" aria-label={lang === 'es' ? 'Anterior' : 'Previous'}>
                     <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 19l-7-7 7-7" /></svg>
                   </button>
-                  <button onClick={(e) => { e.preventDefault(); nextBanner(); }} className="home-hero-arrow right-3 sm:right-5" aria-label="Next event">
+                  <button onClick={(e) => { e.preventDefault(); nextBanner(); }} className="home-hero-arrow right-3 sm:right-5" aria-label={lang === 'es' ? 'Siguiente' : 'Next'}>
                     <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5l7 7-7 7" /></svg>
                   </button>
                 </>
@@ -282,7 +294,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
               <span className="home-search-field-label">{lang === 'es' ? 'Lugar' : 'Place'}</span>
               <div>
                 <HiOutlineLocationMarker className="h-5 w-5 text-[#0A375A]/70" />
-                <input type="text" placeholder={lang === 'es' ? 'Ciudad o venue' : 'City or venue'} value={locationQuery} onChange={(e) => setLocationQuery(e.target.value)} />
+                <input type="text" placeholder={lang === 'es' ? 'Ciudad o recinto' : 'City or venue'} value={locationQuery} onChange={(e) => setLocationQuery(e.target.value)} />
               </div>
             </label>
 
@@ -340,23 +352,11 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
             </div>
 
             <div className="relative shrink-0 w-full lg:w-[10.5rem]">
-              <button onClick={() => setSortOpen(!sortOpen)} className="home-sort-button">
-                {t('sortBy')}
-                <span className="text-[10px] opacity-70">▼</span>
-              </button>
-              {sortOpen && (
-                <div className="absolute right-0 top-full mt-2 w-full lg:w-44 bg-[#0b2236] border border-[rgba(246,198,95,0.18)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-[60] animate-fade-in-up">
-                  <div className="px-4 py-2 border-b border-white/10 bg-white/5">
-                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">{lang === 'es' ? 'Ordenar por' : 'Sort by'}</span>
-                  </div>
-                  <button onClick={() => { setSortBy('fecha'); setSortOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'fecha' ? 'bg-[rgba(249,115,22,0.16)] text-[#F97316]' : 'text-slate-200 hover:bg-white/5'}`}>
-                    📅 {t('date')}
-                  </button>
-                  <button onClick={() => { setSortBy('precio'); setSortOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold transition-colors ${sortBy === 'precio' ? 'bg-[rgba(249,115,22,0.16)] text-[#F97316]' : 'text-slate-200 hover:bg-white/5'}`}>
-                    💰 {t('price')}
-                  </button>
-                </div>
-              )}
+              <label htmlFor="home-sort" className="sr-only">{lang === 'es' ? 'Ordenar eventos' : 'Sort events'}</label>
+              <select id="home-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value)} className="home-sort-button w-full">
+                <option value="fecha">{lang === 'es' ? 'Por fecha' : 'By date'}</option>
+                <option value="precio">{lang === 'es' ? 'Por precio' : 'By price'}</option>
+              </select>
             </div>
           </div>
         </div>
@@ -370,7 +370,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
         <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{lang === 'es' ? 'Destacados' : 'Highlights'}</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">{lang === 'es' ? 'Eventos cerca de ti' : 'Events near you'}</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">{lang === 'es' ? 'Eventos destacados' : 'Featured events'}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-4"><Link href="/events" className="text-sm font-medium text-primary-400 hover:text-white">{lang === 'es' ? 'Ver todos los eventos →' : 'View all events →'}</Link><p className="text-sm font-medium text-gray-500">{sortedEvents.length} {lang === 'es' ? 'eventos disponibles' : 'available events'}</p></div>
         </div>

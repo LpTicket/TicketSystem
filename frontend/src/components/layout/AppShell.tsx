@@ -28,7 +28,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isCheckout = pathname.endsWith('/purchase');
 
   // Keep global chat/social widgets clear of administration and the dense event editor.
-  const hideFloatingWidgets = pathname.startsWith('/admin') || /^\/organizer\/events\/[^/]+/.test(pathname);
+  const hideFloatingWidgets = isCheckout || pathname.startsWith('/admin') || pathname.startsWith('/organizer') || pathname.startsWith('/staff') || pathname.startsWith('/dashboard') || pathname === '/login' || pathname === '/register' || pathname === '/contact' || pathname === '/support';
+
+  // Presentation refinement stays outside checkout, receipts and operational editors.
+  const refinePresentation = !standalone && !isCheckout && !pathname.startsWith('/checkout')
+    && !pathname.startsWith('/staff') && !/^\/organizer\/(events\/[^/]+|door-sale)/.test(pathname)
+    && !pathname.startsWith('/admin/events/edit/');
 
   useEffect(() => {
     const androidEventPage = /Android/i.test(navigator.userAgent)
@@ -63,11 +68,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       )}
-      {!standalone && !isCheckout && <Header />}
+      {!standalone && !isCheckout && <><a href="#main-content" className="lp-skip-link">{lang === 'es' ? 'Ir al contenido' : 'Skip to content'}</a><Header /></>}
       <Suspense fallback={null}>
         <AnalyticsTracker />
       </Suspense>
-      <main className="min-h-screen w-full max-w-full overflow-x-clip">{children}</main>
+      <main id="main-content" tabIndex={-1} className={`min-h-screen w-full max-w-full overflow-x-clip ${refinePresentation ? 'lp-refined' : ''}`}>{children}</main>
       {!standalone && !isCheckout && <Footer />}
       {!standalone && !hideFloatingWidgets && <Chatbot />}
       {!standalone && !hideFloatingWidgets && <SocialMatchWidget />}

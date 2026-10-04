@@ -76,8 +76,8 @@ function LoginContent() {
   };
 
   return (
-    <div className="page-dark-shell flex items-start justify-center px-4 pt-40 pb-12 min-h-[calc(100vh-80px)]">
-      <div className="w-full max-w-md mt-20">
+    <div className="page-dark-shell auth-refined-shell flex items-start justify-center px-4 pt-40 pb-12 min-h-[calc(100vh-80px)]">
+      <div className="w-full max-w-md mt-6">
         <div className="text-center mb-6">
           <h1 className="public-premium-title font-black text-2xl mt-3">{t('loginTitle')}</h1>
           <p className="text-gray-500 text-sm mt-1">{t('loginSubtitle')}</p>
@@ -90,11 +90,11 @@ function LoginContent() {
           className="auth-premium-card p-6 sm:p-8 space-y-5"
         >
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm text-center font-medium">{error}</div>
+            <div role="alert" className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm text-center font-medium">{error}</div>
           )}
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">{t('email')}</label>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-500 mb-1.5">{t('email')}</label>
             <div className="relative">
               <HiOutlineMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400 z-10" />
               <input 
@@ -113,7 +113,7 @@ function LoginContent() {
 
           <div>
             <div className="flex justify-between items-center mb-1.5">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">{t('password')}</label>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-500">{t('password')}</label>
               <Link href="/support" className="text-xs text-[#0A375A] hover:text-[#F97316] hover:underline font-bold">{lang === 'es' ? 'Ayuda para acceder' : 'Sign-in help'}</Link>
             </div>
             <div className="relative">
@@ -129,7 +129,7 @@ function LoginContent() {
                 placeholder="••••••••" 
                 required 
               />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none z-10">
+              <button type="button" aria-controls="password" aria-pressed={showPassword} aria-label={showPassword ? (lang === 'es' ? 'Ocultar contraseña' : 'Hide password') : (lang === 'es' ? 'Mostrar contraseña' : 'Show password')} onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none z-10">
                 {showPassword ? <HiOutlineEyeOff className="w-4.5 h-4.5" /> : <HiOutlineEye className="w-4.5 h-4.5" />}
               </button>
             </div>
@@ -152,7 +152,7 @@ function LoginContent() {
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 rounded-lg font-black text-sm tracking-wide shadow-lg shadow-orange-500/20">
-            {loading ? t('loginLoading') : t('loginBtn')}
+            {loading ? t('loginLoading') : (lang === 'es' ? 'Iniciar sesión' : 'Sign in')}
           </button>
 
           {/* Social Divider */}

@@ -38,7 +38,7 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
   const catLabel = lang === 'en' ? categoryInfo?.labelEn : categoryInfo?.labelEs;
   const eventLocale = lang === 'es' ? 'es' : 'en-US';
   const eventTz = event.eventTimezone || 'UTC';
-  const eventDay = formatDateInTimezone(event.eventDate, eventTz, eventLocale, { day: '2-digit', month: '2-digit' });
+  const eventDay = formatDateInTimezone(event.eventDate, eventTz, eventLocale, { day: '2-digit', month: 'short', year: 'numeric' });
   const eventTime = formatDateInTimezone(event.eventDate, eventTz, eventLocale, { hour: '2-digit', minute: '2-digit', hour12: true });
   const eventTzAbbr = event.eventTimezone ? getTimezoneAbbr(eventTz, event.eventDate) : '';
   const eventHref = `/events/${event.slug}`;
@@ -60,27 +60,29 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
             decoding="async"
             fetchPriority={priority ? 'high' : 'auto'}
             onLoad={() => setImageLoaded(true)}
-            className="h-full w-full object-cover transition-all duration-700 group-hover:scale-[1.035]"
+            className="h-full w-full object-contain transition-opacity duration-200"
             onError={() => { setImageError(true); setImageLoaded(true); }}
           />
-          <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-[#0A375A] shadow-sm">
+        </div>
+
+        <div className="event-card-body space-y-3 p-4 pb-3">
+          <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-slate-200">
             <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
             {catLabel}
           </div>
           {event.isFeatured && (
-            <div className="absolute right-3 top-3 rounded-lg bg-primary-500 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-white shadow-sm">
+            <div className="rounded-lg bg-primary-500 px-2.5 py-1.5 text-xs font-medium text-white">
               {lang === 'es' ? 'Destacado' : 'Featured'}
             </div>
           )}
-        </div>
-
-        <div className="event-card-body space-y-3 p-4 pb-3">
-          <h3 className="line-clamp-2 min-h-[3.6rem] text-[1.3rem] font-black leading-tight text-white">
+          </div>
+          <h3 className="line-clamp-2 min-h-[3rem] text-lg font-semibold leading-tight text-white">
             {event.title}
           </h3>
           <div className="event-card-date flex items-center gap-1.5 text-sm font-semibold">
             <HiOutlineCalendar className="h-4 w-4 shrink-0" />
-            <span>{eventDay} {lang === 'es' ? 'a las' : 'at'} {eventTime}{eventTzAbbr && <span className="ml-1 font-medium text-gray-500">({eventTzAbbr})</span>}</span>
+            <span>{`${eventDay} ${lang === 'es' ? 'a las' : 'at'} ${eventTime}`}{eventTzAbbr && <span className="ml-1 font-medium text-gray-500">({eventTzAbbr})</span>}</span>
           </div>
           <div className="event-card-location flex min-w-0 items-start gap-1.5 text-sm font-semibold text-gray-500">
             <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0" />
@@ -97,7 +99,7 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
       <div className="event-card-footer mx-4 flex flex-col gap-3 border-t border-gray-100 pb-4 pt-3">
         <div className="flex min-w-0 items-center gap-1.5 text-white">
           <HiOutlineTag className="h-4 w-4 shrink-0 text-primary-500" />
-          <span className="event-card-price text-sm font-black leading-tight">
+          <span className="event-card-price text-sm font-semibold leading-tight">
             {lang === 'es' ? 'Desde' : 'From'} {Number(event.minPrice || 0).toFixed(2)} {event.currency || 'USD'}
           </span>
         </div>
@@ -107,13 +109,13 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
             eventPath={eventHref}
             label={lang === 'es' ? 'Comparte con tus amigos' : 'Share with friends'}
             compact
-            className="!h-12 !w-12 !rounded-lg !border-[#ff7a00]/70 !bg-transparent !text-white !shadow-[0_0_18px_rgba(255,122,0,0.18)] hover:!border-[#ff7a00] hover:!bg-[rgba(255,122,0,0.08)]"
+            className="!h-12 !w-12 !rounded-lg !border-[#ff7a00]/70 !bg-transparent !text-white !shadow-none hover:!border-[#ff7a00] hover:!bg-[rgba(255,122,0,0.08)]"
           />
           <Link
             href={navigationHref}
-            className="event-card-buy-button inline-flex flex-1 items-center justify-center rounded-lg bg-primary-500 px-4 text-[11px] font-black uppercase text-white transition-all hover:bg-primary-600"
+            className="event-card-buy-button inline-flex flex-1 items-center justify-center rounded-lg bg-primary-500 px-4 text-sm font-semibold text-white transition-all hover:bg-primary-600"
           >
-            {lang === 'es' ? 'Comprar tickets' : 'Buy tickets'}
+            {lang === 'es' ? 'Ver entradas' : 'View tickets'}
           </Link>
         </div>
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, Suspense } from 'react';
-import { useAdminListState } from '@/components/admin/useAdminListState';
+import { useListNavigation } from '@/components/layout/useListNavigation';
 import api from '@/lib/api';
 import { formatDateInTimezone, parseSafeDate } from '@/lib/dateUtils';
 import { formatSeatLabel } from '@/lib/seatLabel';
@@ -40,7 +40,7 @@ function AdminUsersPageBody() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
-  const { page, filter, search, updateFilters } = useAdminListState('', ['', 'client', 'organizer', 'admin']);
+  const { page, filter, search, updateFilters } = useListNavigation('', ['', 'client', 'organizer', 'admin']);
   const [loadError, setLoadError] = useState(false);
   const requestId = useRef(0);
   const [searchInput, setSearchInput] = useState(search);

@@ -6,7 +6,6 @@ import api from '@/lib/api';
 import {
   HiOutlineBadgeCheck,
   HiOutlineBell,
-  HiOutlineChartBar,
   HiOutlineChatAlt2,
   HiOutlineCursorClick,
   HiOutlineDeviceMobile,
@@ -158,33 +157,6 @@ const getCampaignFailureLabel = (error?: string | null) => {
   const plain = error.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   return plain.length > 110 ? `${plain.slice(0, 107)}…` : plain;
 };
-
-const channels = [
-  {
-    title: 'Banner Home',
-    description: 'Banner publicitario dentro del carrusel principal.',
-    status: 'Activo',
-    icon: HiOutlinePhotograph,
-  },
-  {
-    title: 'Email Marketing',
-    description: 'Diseno premium listo para preparar campanas visuales.',
-    status: 'Diseno',
-    icon: HiOutlineMail,
-  },
-  {
-    title: 'SMS',
-    description: 'Recordatorios, accesos y promociones urgentes.',
-    status: 'Disponible',
-    icon: HiOutlineDeviceMobile,
-  },
-  {
-    title: 'WhatsApp',
-    description: 'Mensajes directos para audiencias segmentadas.',
-    status: 'Disponible',
-    icon: HiOutlineChatAlt2,
-  },
-];
 
 export default function AdminMarketingPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -877,10 +849,10 @@ export default function AdminMarketingPage() {
     || (zohoConnected !== true && Boolean(emailCampaign?.recipients.some((recipient) => requiresZohoReconnect(recipient.error))));
   const needsZohoReconnect = hasZohoConnectionIssue && !isZohoTokenThrottle(zohoConnectionError);
   const statCards = [
-    { label: 'Banners activos', value: String(marketingBanners.length), icon: HiOutlinePhotograph },
-    { label: 'Audiencias', value: '0', icon: HiOutlineUsers },
-    { label: 'Campanas', value: emailArtPreview || campaignName ? '1' : '0', icon: HiOutlinePresentationChartLine },
-    { label: 'Clicks', value: '0', icon: HiOutlineCursorClick },
+    { label: 'Banners cargados', value: String(marketingBanners.length), icon: HiOutlinePhotograph },
+    { label: 'Audiencias · sin medición', value: '—', icon: HiOutlineUsers },
+    { label: 'Campañas registradas', value: loadingCampaigns || campaignsLoadError ? '—' : String(emailCampaigns.length), icon: HiOutlinePresentationChartLine },
+    { label: 'Clics · sin medición', value: '—', icon: HiOutlineCursorClick },
   ];
 
   return (
@@ -896,7 +868,7 @@ export default function AdminMarketingPage() {
               Centro de marketing
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">
-              Administra banners y prepara campanas visuales premium antes de activar envios reales.
+              Administra banners, prepara campañas y consulta su historial.
             </p>
           </div>
 
@@ -906,7 +878,7 @@ export default function AdminMarketingPage() {
             className="btn-primary w-fit px-5"
           >
             <HiOutlineSparkles className="h-5 w-5" />
-            Disenar email
+            Diseñar correo
           </button>
         </div>
 
@@ -928,15 +900,19 @@ export default function AdminMarketingPage() {
         </div>
       </div>
 
-      <section id="email-designer" className="grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">
+      <nav aria-label="Secciones de marketing" className="flex flex-wrap gap-2">
+        {[['email-designer','Correo'],['marketing-sms','SMS'],['marketing-push','Notificaciones'],['marketing-whatsapp','WhatsApp'],['marketing-banners','Banners']].map(([id,label]) => <a key={id} href={`#${id}`} className="btn-secondary">{label}</a>)}
+      </nav>
+
+      <section id="email-designer" className="scroll-mt-28 grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">
         <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-[#F97316]">
               <HiOutlineMail className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-gray-950">Disenador de Email Marketing</h2>
-              <p className="text-sm text-gray-500">Envia correos reales a los destinatarios seleccionados.</p>
+              <h2 className="text-xl font-black text-gray-950">Diseñador de correo</h2>
+              <p className="text-sm text-gray-500">Prepara el correo, revisa sus destinatarios y confirma el envío.</p>
             </div>
           </div>
 
@@ -1171,7 +1147,7 @@ export default function AdminMarketingPage() {
         <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-black text-gray-950">Preview premium</h2>
+              <h2 className="text-xl font-black text-gray-950">Vista previa del correo</h2>
               <p className="text-sm text-gray-500">Vista tipo email para aprobar el arte antes de activar pruebas.</p>
             </div>
             <span className="w-fit rounded-full bg-orange-50 px-4 py-2 text-sm font-black text-orange-600">Mail</span>
@@ -1192,7 +1168,7 @@ export default function AdminMarketingPage() {
               ) : (
                 <div className="mx-6 flex min-h-[320px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 text-center">
                   <HiOutlinePhotograph className="h-12 w-12 text-gray-300" />
-                  <p className="mt-4 text-sm font-black text-gray-400">Tu arte de Photoshop aparecera aqui</p>
+                  <p className="mt-4 text-sm font-black text-gray-400">La imagen de tu campaña aparecerá aquí</p>
                 </div>
               )}
 
@@ -1232,7 +1208,7 @@ export default function AdminMarketingPage() {
               <HiOutlineDeviceMobile className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-black text-gray-950">SMS</h2>
+              <h2 id="marketing-sms" className="scroll-mt-28 text-base font-semibold text-gray-950">SMS</h2>
               <p className="text-xs text-gray-500">Recordatorios, accesos y promociones urgentes.</p>
             </div>
           </div>
@@ -1268,7 +1244,7 @@ export default function AdminMarketingPage() {
               <HiOutlineBell className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-black text-gray-950">Notificaciones push</h2>
+              <h2 id="marketing-push" className="scroll-mt-28 text-base font-semibold text-gray-950">Notificaciones push</h2>
               <p className="text-xs text-gray-500">Avisos directos a la app, para todos o un usuario.</p>
             </div>
           </div>
@@ -1423,7 +1399,7 @@ export default function AdminMarketingPage() {
               <HiOutlineChatAlt2 className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-black text-gray-950">WhatsApp</h2>
+              <h2 id="marketing-whatsapp" className="scroll-mt-28 text-base font-semibold text-gray-950">WhatsApp</h2>
               <p className="text-xs text-gray-500">Mensajes directos para audiencias segmentadas.</p>
             </div>
           </div>
@@ -1481,7 +1457,7 @@ export default function AdminMarketingPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+      <section id="marketing-banners" className="scroll-mt-28 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-gray-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-black uppercase tracking-wide text-gray-500">Gestión de banner</h2>
@@ -1656,41 +1632,6 @@ export default function AdminMarketingPage() {
                 Borrar escritorio
               </button>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {channels.map((channel) => {
-          const Icon = channel.icon;
-          const active = channel.status === 'Activo';
-          const ready = channel.status === 'Diseno';
-
-          return (
-            <div key={channel.title} className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-[#0A375A]">
-                <Icon className="h-6 w-6" />
-              </div>
-              <h3 className="mt-5 text-lg font-black text-gray-950">{channel.title}</h3>
-              <p className="mt-2 min-h-[54px] text-sm leading-6 text-gray-500">{channel.description}</p>
-              <span className={`mt-5 inline-flex rounded-full px-3 py-1 text-xs font-black ${active ? 'bg-green-50 text-green-600' : ready ? 'bg-blue-50 text-[#0A375A]' : 'bg-orange-50 text-[#F97316]'}`}>
-                {channel.status}
-              </span>
-            </div>
-          );
-        })}
-      </section>
-
-      <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-[#0A375A]">
-            <HiOutlineChartBar className="h-6 w-6" />
-          </div>
-          <div>
-            <h2 className="text-lg font-black text-gray-950">Proximas conexiones</h2>
-            <p className="text-sm leading-6 text-gray-500">
-              Luego conectamos guardado de campanas, prueba al administrador, agenda, envios reales y analiticas de apertura.
-            </p>
           </div>
         </div>
       </section>

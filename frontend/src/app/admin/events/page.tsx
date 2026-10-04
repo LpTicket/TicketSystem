@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, Suspense } from 'react';
-import { useAdminListState } from '@/components/admin/useAdminListState';
+import { useListNavigation } from '@/components/layout/useListNavigation';
 import api, { getImageUrl } from '@/lib/api';
 import { formatDateInTimezone } from '@/lib/dateUtils';
 import toast from 'react-hot-toast';
@@ -90,7 +90,7 @@ function writeEventsCache(data: AdminEventsCache) {
 function AdminEventsPageBody() {
   const { t, lang } = useLang();
   const { getCategoryInfo } = useCategories();
-  const { page, filter, search, updateFilters } = useAdminListState('all', ['all', 'pending_approval', 'draft', 'published', 'cancelled']);
+  const { page, filter, search, updateFilters } = useListNavigation('all', ['all', 'pending_approval', 'draft', 'published', 'cancelled']);
   const [loadError, setLoadError] = useState(false);
   const requestId = useRef(0);
 

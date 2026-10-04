@@ -567,14 +567,14 @@ export default function Header() {
     
     {/* 
         Floating Shopping Cart Popup (Bottom Right)
-        This component stays visible across standard pages but hides in management panels.
+        The cart stays available while browsing events; stored selections are unchanged.
     */}
-    {!pathname.includes('/admin') && !pathname.includes('/organizer') && !pathname.includes('/dashboard') && !pathname.includes('/login') && !pathname.includes('/register') && (
+    {(pathname === '/' || pathname === '/events' || /^\/events\/[^/]+\/?$/.test(pathname)) && (
       <div ref={cartShellRef} className="fixed bottom-4 right-0 px-4 sm:px-6 z-[100] flex flex-col items-end gap-3 print:hidden pointer-events-none">
         
         {/* Cart Dropdown Content */}
         {cartDropdown && (
-          <div className="lp-floating-dark w-[min(320px,calc(100vw-2rem))] rounded-2xl shadow-elevated border p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden pointer-events-auto">
+          <div id="site-cart-panel" className="lp-floating-dark w-[min(320px,calc(100vw-2rem))] rounded-2xl shadow-elevated border p-5 animate-fade-in-up mb-2 max-h-[420px] flex flex-col overflow-hidden pointer-events-auto">
             {/* Cart Header */}
             <div className="flex justify-between items-center mb-3 shrink-0">
               <div className="flex items-center gap-2">
@@ -670,7 +670,7 @@ export default function Header() {
         )}
         
         {/* Main Floating Cart Toggle Button */}
-        <button 
+        <button type="button" aria-expanded={cartDropdown} aria-controls="site-cart-panel" aria-label={cartDropdown ? (lang === 'es' ? 'Cerrar carrito' : 'Close cart') : (lang === 'es' ? 'Abrir carrito' : 'Open cart')}
           onClick={() => {
             if (!cartDropdown) notifyFloatingPanelOpen(CART_PANEL);
             setCartDropdown(!cartDropdown);

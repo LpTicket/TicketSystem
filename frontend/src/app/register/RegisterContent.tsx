@@ -81,7 +81,7 @@ export default function RegisterContent() {
   };
 
   return (
-    <div className="page-dark-shell flex items-start justify-center px-4 pt-40 pb-12 min-h-[calc(100vh-80px)]">
+    <div className="page-dark-shell auth-refined-shell flex items-start justify-center px-4 pt-40 pb-12 min-h-[calc(100vh-80px)]">
       <div className="w-full max-w-md mt-8">
         <div className="text-center mb-8">
           <h1 className="public-premium-title font-black text-2xl mt-4 tracking-tight">{t('registerTitle')}</h1>
@@ -91,37 +91,37 @@ export default function RegisterContent() {
         </div>
 
         <form onSubmit={handleSubmit} className="auth-premium-card p-8 space-y-5">
-          {error && <div className="p-3 rounded-lg bg-red-50 border border-red-100 text-red-600 text-sm text-center animate-shake">{error}</div>}
+          {error && <div role="alert" className="p-3 rounded-lg bg-red-50 border border-red-100 text-red-600 text-sm text-center animate-shake">{error}</div>}
 
           {/* First + Last Name */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">{t('firstName')}</label>
-              <input type="text" value={form.firstName} onChange={update('firstName')} className="input public-premium-input" placeholder={t('firstNamePlaceholder' as any)} required />
+              <label htmlFor="register-firstName" className="block text-sm font-medium text-gray-700 mb-1.5">{t('firstName')}</label>
+              <input id="register-firstName" name="firstName" autoComplete="given-name" type="text" value={form.firstName} onChange={update('firstName')} className="input public-premium-input" placeholder={t('firstNamePlaceholder' as any)} required />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">{t('lastName')}</label>
-              <input type="text" value={form.lastName} onChange={update('lastName')} className="input public-premium-input" placeholder={t('lastNamePlaceholder' as any)} required />
+              <label htmlFor="register-lastName" className="block text-sm font-medium text-gray-700 mb-1.5">{t('lastName')}</label>
+              <input id="register-lastName" name="lastName" autoComplete="family-name" type="text" value={form.lastName} onChange={update('lastName')} className="input public-premium-input" placeholder={t('lastNamePlaceholder' as any)} required />
             </div>
           </div>
 
           {/* Phone */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">{t('phone')}</label>
-            <input type="tel" value={form.phone} onChange={update('phone')} className="input public-premium-input" placeholder={lang === 'es' ? 'Ej: +54 9 342 610 2734' : 'E.g. +1 305 555 1234'} required />
+            <label htmlFor="register-phone" className="block text-sm font-medium text-gray-700 mb-1.5">{t('phone')}</label>
+            <input id="register-phone" name="phone" autoComplete="tel" type="tel" value={form.phone} onChange={update('phone')} className="input public-premium-input" placeholder={lang === 'es' ? 'Ej: +54 9 342 610 2734' : 'E.g. +1 305 555 1234'} required />
             <p className="mt-1.5 text-[11px] text-gray-400">{lang === 'es' ? 'Incluye el código de país (ej. +54 Argentina, +1 USA) para recibir WhatsApp/SMS.' : 'Include your country code (e.g. +54 Argentina, +1 USA) to receive WhatsApp/SMS.'}</p>
           </div>
 
           {/* Email */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">{t('email')}</label>
-            <input type="email" value={form.email} onChange={update('email')} className="input public-premium-input" placeholder={t('emailPlaceholder' as any)} required />
+            <label htmlFor="register-email" className="block text-sm font-medium text-gray-700 mb-1.5">{t('email')}</label>
+            <input id="register-email" name="email" autoComplete="email" type="email" value={form.email} onChange={update('email')} className="input public-premium-input" placeholder={t('emailPlaceholder' as any)} required />
           </div>
 
           {/* Address */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">{t('address')}</label>
-            <textarea 
+            <label htmlFor="register-address" className="block text-sm font-medium text-gray-700 mb-1.5">{t('address')}</label>
+            <textarea id="register-address" name="address" autoComplete="street-address"
               value={form.address} 
               onChange={(e: any) => update('address')(e)} 
               className="input public-premium-input min-h-[80px] py-2 resize-none" 
@@ -133,19 +133,19 @@ export default function RegisterContent() {
           {/* Password */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">{t('password')}</label>
+              <label htmlFor="register-password" className="block text-sm font-medium text-gray-700 mb-1.5">{t('password')}</label>
               <div className="relative">
-                <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={update('password')} className="input public-premium-input pr-10" placeholder="••••••••" minLength={6} required />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <input id="register-password" name="password" autoComplete="new-password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={update('password')} className="input public-premium-input pr-10" placeholder="••••••••" minLength={6} required />
+                <button type="button" aria-controls="register-password" aria-pressed={showPassword} aria-label={showPassword ? (lang === 'es' ? 'Ocultar contraseña' : 'Hide password') : (lang === 'es' ? 'Mostrar contraseña' : 'Show password')} onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   {showPassword ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">{t('confirmPassword')}</label>
+              <label htmlFor="register-confirmPassword" className="block text-sm font-medium text-gray-700 mb-1.5">{t('confirmPassword')}</label>
               <div className="relative">
-                <input type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={update('confirmPassword')} className="input public-premium-input pr-10" placeholder="••••••••" required />
-                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <input id="register-confirmPassword" name="confirmPassword" autoComplete="new-password" type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={update('confirmPassword')} className="input public-premium-input pr-10" placeholder="••••••••" required />
+                <button type="button" aria-controls="register-confirmPassword" aria-pressed={showConfirmPassword} aria-label={showConfirmPassword ? (lang === 'es' ? 'Ocultar confirmación de contraseña' : 'Hide password confirmation') : (lang === 'es' ? 'Mostrar confirmación de contraseña' : 'Show password confirmation')} onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   {showConfirmPassword ? <HiOutlineEyeOff className="w-4 h-4" /> : <HiOutlineEye className="w-4 h-4" />}
                 </button>
               </div>
@@ -154,14 +154,14 @@ export default function RegisterContent() {
 
           {/* Captcha Real */}
           <div className="pt-2 border-t border-gray-50">
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">
+            <label htmlFor="register-captcha" className="block text-sm font-medium text-gray-700 mb-3">
               {t('captcha')}
             </label>
             <div className="space-y-3">
               <VisualCaptcha ref={captchaRef} onVerify={() => {}} />
               <input
                 type="text"
-                value={captchaInput}
+                id="register-captcha" autoComplete="off" value={captchaInput}
                 onChange={(e) => setCaptchaInput(e.target.value)}
                 className="input public-premium-input text-center tracking-widest font-bold uppercase"
                 placeholder={t('enterCode' as any)}

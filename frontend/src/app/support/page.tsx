@@ -126,8 +126,8 @@ export default function SupportPage() {
             <input
               type="text"
               placeholder={lang === 'es' ? 'Buscar respuestas...' : 'Search for questions...'}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label={lang === 'es' ? 'Buscar respuestas' : 'Search answers'} value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setOpenFAQIdx(null); }}
               className="public-premium-input w-full px-5 py-3.5 text-sm"
             />
           </div>
@@ -174,7 +174,7 @@ export default function SupportPage() {
                 return (
                   <div key={idx} className="public-premium-card overflow-hidden">
                     <button
-                      onClick={() => setOpenFAQIdx(isOpen ? null : idx)}
+                      id={`faq-question-${idx}`} aria-expanded={isOpen} aria-controls={`faq-answer-${idx}`} onClick={() => setOpenFAQIdx(isOpen ? null : idx)}
                       className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50/50 transition-colors"
                     >
                       <span className="font-bold text-sm sm:text-base text-gray-900">
@@ -187,7 +187,7 @@ export default function SupportPage() {
                       )}
                     </button>
                     {isOpen && (
-                      <div className="px-6 pb-5 pt-1 text-sm text-gray-600 leading-relaxed border-t border-gray-50 animate-fade-in">
+                      <div id={`faq-answer-${idx}`} role="region" aria-labelledby={`faq-question-${idx}`} className="px-6 pb-5 pt-1 text-sm text-gray-600 leading-relaxed border-t border-gray-50 animate-fade-in">
                         {lang === 'es' ? faq.answerEs : faq.answerEn}
                       </div>
                     )}
@@ -196,7 +196,7 @@ export default function SupportPage() {
               })
             ) : (
               <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 text-gray-400 text-sm">
-                {lang === 'es' ? 'No se encontraron preguntas frecuentes matching tu búsqueda.' : 'No matching FAQs found.'}
+                {lang === 'es' ? 'No encontramos respuestas para tu búsqueda.' : 'No matching FAQs found.'}
               </div>
             )}
           </div>
@@ -206,7 +206,7 @@ export default function SupportPage() {
         <div className="public-premium-card p-6 sm:p-8 space-y-6 h-fit">
           <div>
             <h3 className="font-semibold text-lg text-[#0A375A]">{lang === 'es' ? '¿Tienes otra consulta?' : 'Have another question?'}</h3>
-            <p className="text-xs text-gray-500 mt-1">{lang === 'es' ? 'Completa el formulario de abajo y nuestro equipo te responderá en menos de 24 horas.' : 'Fill out the form below and our team will get back to you within 24 hours.'}</p>
+            <p className="text-xs text-gray-500 mt-1">{lang === 'es' ? 'Envíanos los detalles de tu consulta. Nuestro equipo te responderá por correo.' : 'Send us the details of your question. Our team will reply by email.'}</p>
           </div>
 
           {successMsg ? (
@@ -219,10 +219,10 @@ export default function SupportPage() {
           ) : (
             <form onSubmit={handleContactSubmit} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{lang === 'es' ? 'Tu Nombre' : 'Your Name'}</label>
+                <label htmlFor="support-name" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{lang === 'es' ? 'Tu Nombre' : 'Your Name'}</label>
                 <div className="relative">
                   <HiOutlineUser className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400" />
-                  <input
+                  <input id="support-name" name="name"
                     type="text"
                     required
                     value={contactForm.name}
@@ -234,10 +234,10 @@ export default function SupportPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{lang === 'es' ? 'Tu Correo' : 'Your Email'}</label>
+                <label htmlFor="support-email" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{lang === 'es' ? 'Tu Correo' : 'Your Email'}</label>
                 <div className="relative">
                   <HiOutlineMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400" />
-                  <input
+                  <input id="support-email" name="email"
                     type="email"
                     required
                     value={contactForm.email}
@@ -249,8 +249,8 @@ export default function SupportPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{lang === 'es' ? 'Asunto' : 'Subject'}</label>
-                <input
+                <label htmlFor="support-subject" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{lang === 'es' ? 'Asunto' : 'Subject'}</label>
+                <input id="support-subject" name="subject"
                   type="text"
                   required
                   value={contactForm.subject}
@@ -261,8 +261,8 @@ export default function SupportPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{lang === 'es' ? 'Mensaje o Detalle' : 'Message or Detail'}</label>
-                <textarea
+                <label htmlFor="support-message" className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">{lang === 'es' ? 'Mensaje o Detalle' : 'Message or Detail'}</label>
+                <textarea id="support-message" name="message"
                   required
                   rows={4}
                   value={contactForm.message}
