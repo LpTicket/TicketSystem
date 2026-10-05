@@ -85,6 +85,7 @@ export default function SeatMapInteractive({
   showStage = false,
 }: SeatMapInteractiveProps) {
   const { lang } = useLang();
+  const [whiteBackground, setWhiteBackground] = useState(false);
   
   // State for camera/view transformation
   const [zoom, setZoom] = useState(0.8);
@@ -654,7 +655,17 @@ export default function SeatMapInteractive({
   return (
     <div className="flex flex-col gap-3">
       {/* --- Viewport Controls --- */}
-      <div className="flex items-center justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <button
+          type="button"
+          aria-pressed={whiteBackground}
+          onClick={() => setWhiteBackground(value => !value)}
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
+          title={lang === 'es' ? 'Alternar entre fondo blanco y azul' : 'Switch between white and blue backgrounds'}
+        >
+          <span aria-hidden="true" className="h-4 w-4 rounded border border-slate-400" style={{ backgroundColor: whiteBackground ? '#ffffff' : '#0d2138' }} />
+          {lang === 'es' ? 'Fondo blanco' : 'White background'}
+        </button>
         <div className="flex items-center gap-1 bg-white rounded-lg shadow-sm border border-gray-200 p-1">
           <button onClick={zoomOut} className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-gray-700" title="Zoom Out">
             <HiOutlineZoomOut className="w-4 h-4" />
@@ -679,7 +690,7 @@ export default function SeatMapInteractive({
       <div
         ref={containerRef}
         className="relative bg-[#0d2138] border border-[rgba(246,198,95,0.14)] rounded overflow-hidden shadow-inner"
-        style={{ height: '65vh', minHeight: 450, cursor: isDragging.current ? 'grabbing' : 'grab', touchAction: 'none' }}
+        style={{ height: '65vh', minHeight: 450, cursor: isDragging.current ? 'grabbing' : 'grab', touchAction: 'none', backgroundColor: whiteBackground ? '#ffffff' : '#0d2138' }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
@@ -692,13 +703,17 @@ export default function SeatMapInteractive({
         <div 
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(rgba(148,163,184,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.10) 1px, transparent 1px)`,
+            backgroundImage: whiteBackground
+              ? 'linear-gradient(rgba(107,114,128,0.22) 1px, transparent 1px), linear-gradient(90deg, rgba(107,114,128,0.22) 1px, transparent 1px)'
+              : 'linear-gradient(rgba(148,163,184,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.10) 1px, transparent 1px)',
             backgroundSize: '100px 100px',
             backgroundPosition: 'center center'
           }}
         >
           <div className="absolute inset-0" style={{
-            backgroundImage: `linear-gradient(rgba(148,163,184,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.05) 1px, transparent 1px)`,
+            backgroundImage: whiteBackground
+              ? 'linear-gradient(rgba(107,114,128,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(107,114,128,0.10) 1px, transparent 1px)'
+              : 'linear-gradient(rgba(148,163,184,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.05) 1px, transparent 1px)',
             backgroundSize: '20px 20px',
             backgroundPosition: 'center center'
           }} />

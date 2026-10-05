@@ -1,5 +1,10 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-04 - Fondo alternativo del mapa público
+
+- Botón Fondo blanco junto al zoom permite alternar entre azul oscuro y blanco con cuadrícula gris. Cambia solo la presentación local del fondo; no guarda cambios en el mapa ni modifica asientos, disponibilidad o importes.
+- Validación: build de producción y revisión en navegador con datos ficticios, escritorio y móvil de 390 px. Se comprobó igualdad de posiciones, colores de asientos, zoom, selección y total al alternar, uso con teclado y rechazo de selección de asientos vendidos/bloqueados. Sin cargos ni cambios de datos reales.
+
 ## 2026-10-04 - Revisión de formularios, diálogos y recuperación de sesión web
 
 - Confirmaciones y ventanas de usuarios mantienen el foco del teclado, permiten Escape y devuelven el foco al abrir/cerrar. Enter sobre Cancelar ya no confirma una acción. Formularios de usuarios por encima del encabezado, con fondo legible y contraseña oculta.
