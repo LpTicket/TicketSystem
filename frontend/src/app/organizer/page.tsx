@@ -1,6 +1,5 @@
 'use client';
 
-import FlowGuide from '@/components/motion/FlowGuide';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import api, { getImageUrl } from '@/lib/api';
@@ -256,8 +255,6 @@ export default function OrganizerDashboard() {
           </div>
         </div>
       </div>
-
-      <FlowGuide organizer />
 
       {/* Recent Events */}
       <div className="premium-section-card">

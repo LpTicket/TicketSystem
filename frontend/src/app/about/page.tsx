@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import AppShowcase from '@/components/motion/AppShowcase';
 import { useLang } from '@/context/LanguageContext';
 
 export default function AboutPage() {
@@ -73,8 +72,6 @@ export default function AboutPage() {
             </div>
           </article>
         </div>
-
-        <AppShowcase />
 
         {/* CTA */}
         <div className="public-premium-card p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-primary-100">

@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { EventMotionLink, eventMotionName } from '@/components/motion/EventMotion';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
@@ -346,12 +345,12 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
       <nav aria-label={lang === 'es' ? 'Ubicación' : 'Breadcrumb'} className="mb-6 flex flex-wrap items-center gap-3 text-sm text-slate-400">
         <Link href="/" className="hover:text-white">{lang === 'es' ? 'Inicio' : 'Home'}</Link>
         <span aria-hidden="true">/</span>
-        <EventMotionLink href={returnTo} className="hover:text-white">{returnTo === '/' ? (lang === 'es' ? 'Volver al inicio' : 'Back to home') : (lang === 'es' ? 'Volver a eventos' : 'Back to events')}</EventMotionLink>
+        <Link href={returnTo} className="hover:text-white">{returnTo === '/' ? (lang === 'es' ? 'Volver al inicio' : 'Back to home') : (lang === 'es' ? 'Volver a eventos' : 'Back to events')}</Link>
         <span aria-hidden="true">/</span>
         <span aria-current="page" className="min-w-0 break-words text-slate-200">{event.title}</span>
       </nav>
       {/* Hero Image */}
-      <div className="event-premium-hero relative mb-8 overflow-hidden bg-[#071827] sm:aspect-[3/1]" style={{ viewTransitionName: eventMotionName(event.slug) }}>
+      <div className="event-premium-hero relative mb-8 overflow-hidden bg-[#071827] sm:aspect-[3/1]">
         {(event.bannerImageUrl || event.imageUrl) ? (
           <img 
             src={eventImageUrl} 
@@ -373,7 +372,7 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
             {showCategoryPill && (
               <span className="category-pill text-xs mb-3 inline-block">{categoryInfo.icon} {lang === 'en' ? categoryInfo.labelEn : categoryInfo.labelEs}</span>
             )}
-            <h1 style={{ viewTransitionName: `${eventMotionName(event.slug)}-title` }} className="font-bold text-2xl sm:text-3xl text-gray-900">{event.title}</h1>
+            <h1 className="font-bold text-2xl sm:text-3xl text-gray-900">{event.title}</h1>
             <ShareEventButton
               eventTitle={event.title}
               eventPath={`/events/${event.slug}`}

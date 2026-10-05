@@ -173,7 +173,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
                 onClick={(event) => {
                   if (isMarketingBanner(bannerEvent) && !marketingBannerLink) event.preventDefault();
                 }}
-                className="lp-campaign-reveal absolute inset-0 z-[5] block overflow-hidden"
+                className="absolute inset-0 z-[5] block overflow-hidden"
                 aria-label={isMarketingBanner(bannerEvent) ? (bannerEvent.fileName || 'Banner publicitario LPTicket') : bannerEvent.title}
               >
                 {/* Shimmer skeleton behind the banner image while it loads */}
@@ -186,11 +186,11 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
                     // Smooth cross-fade: incoming fades in, outgoing fades out.
                     // The dark hero overlay was removed, so the frame behind is
                     // plain black (not blue) — no blue veil during the change.
-                    initial={reducedMotion ? false : { opacity: 0, scale: 1.015 }}
+                    initial={{ opacity: 0, scale: 1.02 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: reducedMotion ? 0 : .45, ease: [.22, 1, .36, 1] }}
-                    className="absolute inset-0 block h-full w-full object-cover sm:hidden"
+                    transition={{ duration: 1.2, ease: 'easeInOut' }}
+                    className="absolute inset-0 block h-full w-full object-cover transition-transform duration-[1600ms] group-hover:scale-[1.025] sm:hidden"
                     style={{ objectPosition: bannerEvent.bannerPosition || 'center' }}
                     loading="eager"
                     fetchPriority="high"
@@ -200,11 +200,11 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
                     key={`${bannerEvent.id}-desktop`}
                     src={isMarketingBanner(bannerEvent) ? resolveHomeImage(bannerEvent.imageUrl || bannerEvent.imageData) : (getImageUrl(bannerEvent.bannerImageUrl || bannerEvent.imageUrl) || '/demo/concert.png')}
                     alt={isMarketingBanner(bannerEvent) ? (bannerEvent.fileName || 'Banner publicitario LPTicket') : bannerEvent.title}
-                    initial={reducedMotion ? false : { opacity: 0, scale: 1.015 }}
+                    initial={{ opacity: 0, scale: 1.02 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: reducedMotion ? 0 : .45, ease: [.22, 1, .36, 1] }}
-                    className="absolute inset-0 hidden h-full w-full object-cover sm:block"
+                    transition={{ duration: 1.2, ease: 'easeInOut' }}
+                    className="absolute inset-0 hidden h-full w-full object-cover transition-transform duration-[1600ms] group-hover:scale-[1.025] sm:block"
                     style={{ objectPosition: bannerEvent.bannerPosition || 'center' }}
                     loading="eager"
                     fetchPriority="high"
@@ -377,7 +377,7 @@ export default function HomeContent({ initialEvents, initialBanners }: HomeConte
 
         {sortedEvents.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            {sortedEvents.map((event, idx) => <EventCard key={event.id} event={event} motionIndex={idx} priority={idx < 8} />)}
+            {sortedEvents.map((event, idx) => <EventCard key={event.id} event={event} priority={idx < 8} />)}
           </div>
         ) : (
           <div className="text-center py-20 rounded-3xl border border-[rgba(246,198,95,0.16)] bg-[linear-gradient(180deg,rgba(8,31,51,0.88),rgba(5,17,31,0.84))] shadow-[0_24px_60px_rgba(0,0,0,0.32)]">

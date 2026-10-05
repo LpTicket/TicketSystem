@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import DailyTrend from '@/components/motion/DailyTrend';
 import api from '@/lib/api';
 import { useLang } from '@/context/LanguageContext';
 import { HiChevronDown, HiChevronUp, HiOutlineChartBar, HiOutlineCursorClick, HiOutlineEye, HiOutlineUsers } from 'react-icons/hi';
@@ -178,8 +177,6 @@ export default function AdminAnalyticsPage() {
               </div>
             ))}
           </div>
-
-          <DailyTrend daily={summary.daily || []} />
 
           <section className="premium-section-card overflow-hidden bg-white/95 shadow-sm">
             <div className="border-b border-gray-100 px-5 py-4">

@@ -4,7 +4,6 @@ import { toast } from 'react-hot-toast';
 
 import { useState } from 'react';
 import Link from 'next/link';
-import FlowGuide from '@/components/motion/FlowGuide';
 import { useLang } from '@/context/LanguageContext';
 import {
   HiOutlineQuestionMarkCircle,
@@ -141,8 +140,6 @@ export default function SupportPage() {
           </div>
         </div>
       </section>
-
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8"><FlowGuide /></div>
 
       {/* Main Content */}
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
