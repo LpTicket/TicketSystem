@@ -341,7 +341,7 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
         // break out of the JSON-LD block and inject markup (XSS).
         dangerouslySetInnerHTML={{ __html: JSON.stringify(eventJsonLd).replace(/</g, '\\u003c') }}
       />
-      <div className="event-dark max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-8 lg:pt-24">
+      <div className="event-dark max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 lg:pt-24">
       <nav aria-label={lang === 'es' ? 'Ubicación' : 'Breadcrumb'} className="mb-6 flex flex-wrap items-center gap-3 text-sm text-slate-400">
         <Link href="/" className="hover:text-white">{lang === 'es' ? 'Inicio' : 'Home'}</Link>
         <span aria-hidden="true">/</span>
@@ -349,22 +349,28 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
         <span aria-hidden="true">/</span>
         <span aria-current="page" className="min-w-0 break-words text-slate-200">{event.title}</span>
       </nav>
+      </div>
+      <div className="event-dark mx-auto max-w-[1500px] px-4 sm:px-6 lg:px-8">
       {/* Hero Image */}
-      <div className="event-premium-hero relative mb-8 overflow-hidden bg-[#071827] sm:aspect-[3/1]">
+      <div className="event-premium-hero relative mb-8 aspect-[3/4] overflow-hidden bg-[#071827] sm:aspect-[3/1]">
         {(event.bannerImageUrl || event.imageUrl) ? (
+          <picture>
+            <source media="(max-width: 639px)" srcSet={getImageUrl(event.imageUrl, eventImageVersion) || eventImageUrl} />
           <img 
             src={eventImageUrl} 
             alt={event.title} 
-            className="block h-auto w-full sm:h-full sm:object-contain"
+            className="block h-full w-full object-cover"
             style={{ objectPosition: event.bannerPosition || 'center' }}
           />
+          </picture>
         ) : (
-          <div className="flex aspect-[4/3] w-full items-center justify-center bg-gradient-to-r from-[#0A375A] to-[#F97316] sm:h-full sm:aspect-auto">
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-r from-[#0A375A] to-[#F97316]">
             <span className="text-8xl">{categoryInfo.icon}</span>
           </div>
         )}
       </div>
-
+      </div>
+      <div className="event-dark max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Event Info */}
         <div className="lg:col-span-2 space-y-6">
