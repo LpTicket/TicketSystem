@@ -22,6 +22,8 @@ import {
 import { FaWheelchair } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { formatDateInTimezone } from '@/lib/dateUtils';
+import type { MapStatistic } from '@/lib/exportVenueMapPdf';
 
 interface VenueMapBuilderProps {
   eventId: string;
@@ -107,6 +109,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [selectionMode, setSelectionMode] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [whiteBackground, setWhiteBackground] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [customViewport, setCustomViewport] = useState<{ x: number; y: number; scale: number } | null>(null);
   const [hasMoved, setHasMoved] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -1350,6 +1354,33 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const displayCourtesyCount = displayInventory?.courtesyTickets ?? 0;
   const displayBlockedCount = displayInventory?.blockedTickets ?? blockedCount;
   const displayHeldCount = displayInventory?.heldTickets ?? 0;
+  const mapStatistics: MapStatistic[] = [
+    { label: lang === 'es' ? 'Capacidad total' : 'Total capacity', value: displayTotalCapacity, color: '#60a5fa' },
+    { label: lang === 'es' ? 'Disponibles' : 'Available', value: displayAvailableCount, color: '#34d399' },
+    { label: lang === 'es' ? 'Vendidas' : 'Sold', value: displaySoldCount, color: '#fb923c' },
+    { label: lang === 'es' ? 'Cortesías' : 'Courtesy', value: displayCourtesyCount, color: '#c084fc' },
+    { label: lang === 'es' ? 'Bloqueadas' : 'Blocked', value: displayBlockedCount, color: '#94a3b8' },
+    ...(displayHeldCount > 0 ? [{ label: lang === 'es' ? 'En proceso' : 'In checkout', value: displayHeldCount, color: '#fbbf24' }] : []),
+  ];
+  const handleExportPdf = async () => {
+    if (exportingPdf || !canvasRef.current || !viewportRef.current || !event?.title) return;
+    setExportingPdf(true);
+    try {
+      const { exportVenueMapPdf } = await import('@/lib/exportVenueMapPdf');
+      const date = event.eventDate
+        ? formatDateInTimezone(event.eventDate, event.eventTimezone || 'UTC', lang === 'es' ? 'es-US' : 'en-US', { dateStyle: 'full', timeStyle: 'short' })
+        : (lang === 'es' ? 'Fecha por confirmar' : 'Date to be confirmed');
+      await exportVenueMapPdf(canvasRef.current, {
+        title: event.title, date, lang, statistics: mapStatistics,
+        background: getComputedStyle(viewportRef.current).backgroundColor,
+      });
+    } catch (error) {
+      console.error('Map PDF export failed', error);
+      toast.error(lang === 'es' ? 'No se pudo exportar el PDF. Inténtalo de nuevo.' : 'Could not export the PDF. Please try again.');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   // Recipient name for a ticketed seat, including paid tickets and courtesies.
   const getSeatBuyer = (sectionName: string | undefined, rowLabel: string | number, seatNumber: string | number): string | undefined => {
@@ -1442,41 +1473,29 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
   return (
     <div className="venue-builder-dark flex flex-col h-[100vh] md:h-[calc(100vh-170px)] md:min-h-[800px] border border-gray-300 rounded-lg overflow-hidden bg-white relative font-sans">
-      {/* ── Top Bar (Seats.io Style) ─────────────────────────────────── */}
+      {/* Map title and tools; inventory has its own row below. */}
       <div className="min-h-14 bg-white border-b border-gray-300 flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 shrink-0 z-40 shadow-sm">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 bg-[#1a73e8] rounded flex items-center justify-center text-white font-black text-xs tracking-tighter">
-            LPT
-          </div>
+          <img src="/logo.png" alt="LPTicket" className="h-8 w-24 object-contain" />
           <div className="flex flex-col">
-            <span className="text-[10px] text-gray-400 font-bold tracking-wider uppercase">Chart</span>
+            <span className="text-[10px] text-gray-400 font-medium tracking-wider uppercase">{lang === 'es' ? 'Mapa del evento' : 'Event map'}</span>
             <div className="flex flex-wrap items-center gap-1.5">
               <h2 className="font-semibold text-gray-800 text-sm leading-tight">{lang === 'es' ? 'Diseñador de Asientos' : 'Seat Designer'}</h2>
-              <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-0.5 text-[11px] font-black text-[#1a73e8]">
-                {lang === 'es' ? 'Capacidad total' : 'Total capacity'}: {displayTotalCapacity}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black text-emerald-600">
-                {lang === 'es' ? 'Disponibles' : 'Available'}: {displayAvailableCount}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-orange-100 bg-orange-50 px-2.5 py-0.5 text-[11px] font-black text-[#F97316]">
-                {lang === 'es' ? 'Vendidas' : 'Sold'}: {displaySoldCount}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-violet-100 bg-violet-50 px-2.5 py-0.5 text-[11px] font-black text-violet-700">
-                {lang === 'es' ? 'Cortesías' : 'Courtesy'}: {displayCourtesyCount}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-[11px] font-black text-slate-600">
-                {lang === 'es' ? 'Bloqueadas' : 'Blocked'}: {displayBlockedCount}
-              </span>
-              {displayHeldCount > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2.5 py-0.5 text-[11px] font-black text-amber-700">
-                  {lang === 'es' ? 'En proceso' : 'In checkout'}: {displayHeldCount}
-                </span>
-              )}
             </div>
           </div>
         </div>
         
-        <div className="flex items-center gap-2 lg:gap-3">
+        <div className="flex flex-wrap items-center gap-2 lg:gap-3">
+          <div className="hidden lg:flex items-center gap-2">
+            <button type="button" aria-pressed={whiteBackground} onClick={() => setWhiteBackground(value => !value)} className="venue-map-action" title={lang === 'es' ? 'Alternar entre fondo blanco y azul' : 'Switch between white and blue backgrounds'}>
+              <span aria-hidden="true" className="h-3.5 w-3.5 rounded border border-slate-400" style={{ backgroundColor: whiteBackground ? '#ffffff' : '#0d2138' }} />
+              {lang === 'es' ? 'Fondo blanco' : 'White background'}
+            </button>
+            <button type="button" onClick={handleExportPdf} disabled={exportingPdf || !event?.title || !sections.length} className="venue-map-action">
+              <HiOutlineSave className="h-4 w-4" />
+              {exportingPdf ? (lang === 'es' ? 'Exportando…' : 'Exporting…') : (lang === 'es' ? 'Exportar PDF' : 'Export PDF')}
+            </button>
+          </div>
           {/* Preset templates stay in the main toolbar so their full names remain readable. */}
           <div ref={templatesRef} className="relative">
             <button 
@@ -1595,6 +1614,12 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         </div>
       </div>
 
+      <dl className="venue-map-statistics">
+        {mapStatistics.map(stat => <div key={stat.label} className="venue-map-statistic">
+          <dt><span aria-hidden="true" style={{ backgroundColor: stat.color }} />{stat.label}</dt>
+          <dd>{stat.value.toLocaleString(lang === 'es' ? 'es-US' : 'en-US')}</dd>
+        </div>)}
+      </dl>
       <div className="flex flex-1 relative min-h-0 bg-[#0d2138]">
         {/* Infinite Grid Background */}
         <div
@@ -2308,7 +2333,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       {/* ── Canvas Viewport (Seats.io Light Grid Style) ─────────────────────────────────────────── */}
       <div
         ref={viewportRef}
-        className="flex-1 relative overflow-hidden bg-[#0d2138]"
+        className="venue-map-viewport flex-1 relative overflow-hidden bg-[#0d2138]"
+        data-white-background={whiteBackground}
         style={{ cursor: 'default', userSelect: 'none', touchAction: 'none' }}
         onPointerDown={onViewportPointerDown}
         onPointerMove={onViewportPointerMove}
@@ -2352,14 +2378,14 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
         <div 
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: `linear-gradient(rgba(148,163,184,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.10) 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(var(--map-grid-major, rgba(148,163,184,0.10)) 1px, transparent 1px), linear-gradient(90deg, var(--map-grid-major, rgba(148,163,184,0.10)) 1px, transparent 1px)`,
             backgroundSize: '100px 100px',
             backgroundPosition: 'center center'
           }}
         >
           {/* Subtle minor grid */}
           <div className="absolute inset-0" style={{
-            backgroundImage: `linear-gradient(rgba(148,163,184,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.05) 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(var(--map-grid-minor, rgba(148,163,184,0.05)) 1px, transparent 1px), linear-gradient(90deg, var(--map-grid-minor, rgba(148,163,184,0.05)) 1px, transparent 1px)`,
             backgroundSize: '20px 20px',
             backgroundPosition: 'center center'
           }} />
@@ -2812,6 +2838,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 {/* Resize Handle */}
                 {isSelected && selectedIds.size <= 1 && (
                   <div
+                    data-export-exclude="true"
                     onPointerDown={e => { e.stopPropagation(); onSectionPointerDown(e, sec, 'resize'); }}
                     style={{
                       position: 'absolute',

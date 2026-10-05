@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-04 - Herramientas de presentación del mapa de organización
+
+- Capacidad, disponibilidad, ventas, cortesías y bloqueos en tarjetas separadas y legibles; las cifras conservan la fuente y los cálculos existentes.
+- Fondo blanco trasladado del cliente al editor del organizador/administrador, únicamente en escritorio web. No se guarda como cambio del mapa.
+- Exportación PDF A3 de una página con el mapa completo, logo LP Ticket, nombre/fecha del evento y resumen inferior de inventario. Genera una copia visual sin mover, guardar ni modificar el mapa activo.
+- Validación: revisión visual del PDF con 24 grupos de asientos, elementos girados y posiciones fuera del lienzo inicial; igualdad del mapa y cifras antes/después del fondo y exportación; controles ocultos en web de 390 px y ausentes en la vista pública. Sin cobros ni escrituras reales de gestión; backend y móvil sin cambios.
+
 ## 2026-10-04 - Fondo alternativo del mapa público
 
 - Botón Fondo blanco junto al zoom permite alternar entre azul oscuro y blanco con cuadrícula gris. Cambia solo la presentación local del fondo; no guarda cambios en el mapa ni modifica asientos, disponibilidad o importes.
