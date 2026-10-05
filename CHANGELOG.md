@@ -1,5 +1,14 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-04 - Movimiento accesible en la web
+
+- Tarjetas de eventos con aparición escalonada y movimiento al ordenar; transición compartida hacia el detalle y regreso al listado en navegadores compatibles. Navegación normal con movimiento reducido o sin soporte, y salida de la transición si la carga tarda.
+- Pestañas de cuenta y gestión con fundido; menús y ventanas con entrada suave; avisos con resorte por encima de los diálogos. QR y paneles operativos de mapas/acceso quedan fuera del fundido.
+- Filtros móviles expandibles, revelado inicial del banner y cambios de diapositiva breves. Guías de compra y organización con trazos animados; presentación ilustrada de la app con perspectiva en Quiénes Somos.
+- Analíticas incorpora visitas por día con transición entre barras y línea y tabla de cifras exactas; utiliza los mismos datos existentes sin cambiar importes ni consultas.
+- Validación: build de producción aprobado, siete comprobaciones de navegación y comparación de 24 controladores sin cambios. Revisión local con datos ficticios en escritorio y ancho móvil de 390 px: filtros y regreso, ordenación, pestañas, gráfica, guías, banner y aviso sobre diálogo. Ajuste final de la máscara comprobado en navegador y análisis JSX específico.
+- Backend, móvil, Stripe y datos de clientes sin cambios. Sin cargos, mensajes ni escrituras de gestión reales. Dispositivos físicos y auditoría completa de lector de pantalla siguen pendientes.
+
 ## 2026-10-04 - Revisión de formularios, diálogos y recuperación de sesión web
 
 - Confirmaciones y ventanas de usuarios mantienen el foco del teclado, permiten Escape y devuelven el foco al abrir/cerrar. Enter sobre Cancelar ya no confirma una acción. Formularios de usuarios por encima del encabezado, con fondo legible y contraseña oculta.

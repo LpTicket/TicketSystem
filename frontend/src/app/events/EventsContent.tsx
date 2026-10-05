@@ -31,6 +31,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
   const firstLoad = useRef(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => { setSearch(appliedSearch); }, [appliedSearch]);
 
@@ -101,8 +102,11 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
           <button type="submit" className="px-4 py-3 text-sm font-medium text-primary-400">{lang === 'es' ? 'Buscar' : 'Search'}</button>
         </form>
 
-        {/* Categories (Scrollable) */}
-        <div className="flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+        {/* Mobile filter button expands into the same category panel. */}
+        <div className="lp-filter-morph" data-open={filtersOpen}>
+          <button type="button" className="lp-filter-toggle" aria-expanded={filtersOpen} aria-controls="event-category-options" onClick={() => setFiltersOpen(value => !value)}><span>{lang === 'es' ? 'Filtros de eventos' : 'Event filters'}{category && <> · {categories.find(item => item.slug === category)?.[lang === 'es' ? 'labelEs' : 'labelEn'] || category}</>}</span> <span aria-hidden="true">{filtersOpen ? '−' : '+'}</span></button>
+          <div id="event-category-options" className="lp-filter-panel">
+        <div className="lp-filter-options flex-1 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
           <button
             onClick={() => updateFilters({ category: '', page: 1 })}
             aria-pressed={!category}
@@ -121,6 +125,8 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
             </button>
           ))}
         </div>
+          </div>
+        </div>
       </div>
 
       <p role="status" className="text-sm text-gray-400 mb-4">{loading ? (lang === 'es' ? 'Buscando… ' : 'Searching… ') : error ? '' : <>{total} {lang === 'es' ? (total === 1 ? 'evento encontrado' : 'eventos encontrados') : (total === 1 ? 'event found' : 'events found')}</>}</p>
@@ -136,7 +142,7 @@ export default function EventsContent({ initialEvents, initialTotal, initialTota
           </div>
         ) : events.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            {events.map((event, idx) => <EventCard key={event.id} event={event} priority={idx < 8} returnTo={`/events${searchParams.size ? `?${searchParams}` : ''}`} />)}
+            {events.map((event, idx) => <EventCard key={event.id} event={event} motionIndex={idx} priority={idx < 8} returnTo={`/events${searchParams.size ? `?${searchParams}` : ''}`} />)}
           </div>
         ) : (
           <div className="text-center py-20 border border-gray-200 rounded-lg"><p className="text-gray-500">{lang === 'es' ? 'No se encontraron eventos' : 'No events found'}</p></div>

@@ -11,6 +11,7 @@
  *     recordatorios), Mapa Visual, Bloqueos e Invitaciones y Comisión. Es la
  *     referencia canónica que el OrganizerPanel del mobile replica 1:1.
  */
+import CrossfadePanel from '@/components/motion/CrossfadePanel';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -1744,6 +1745,7 @@ export default function EventDetailPage() {
       </div>
 
       {/* Event Analytics Tab */}
+      <CrossfadePanel scene={activeTab} enabled={['analytics', 'details', 'overview', 'commission', 'referrals'].includes(activeTab)}>
       {activeTab === 'analytics' && sales && (
         <div className="space-y-5 animate-fade-in">
           <div className="overflow-hidden rounded-2xl border border-[rgba(10,55,90,0.10)] bg-white shadow-sm">
@@ -3590,6 +3592,7 @@ export default function EventDetailPage() {
         </div>
       )}
       {activeTab === 'referrals' && <EventReferralsBlock eventId={event.id} lang={lang} />}
+      </CrossfadePanel>
 
     </div>
   );

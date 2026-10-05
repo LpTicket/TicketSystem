@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import CrossfadePanel from '@/components/motion/CrossfadePanel';
 import api, { getImageUrl } from '@/lib/api';
 import { formatSeatLabel } from '@/lib/seatLabel';
 import { useAuthStore } from '@/stores/auth';
@@ -314,6 +315,7 @@ function DashboardPageBody() {
         ))}
       </div>
 
+      <CrossfadePanel scene={activeTab} enabled={activeTab !== 'tickets'}>
       {/* Tickets */}
       {activeTab === 'tickets' && (
         <section aria-label={t('clientMyTickets')} className="space-y-4">
@@ -693,6 +695,7 @@ function DashboardPageBody() {
       {activeTab === 'payments' && (
         <PaymentMethods />
       )}
+      </CrossfadePanel>
 
     </div>
     </div>

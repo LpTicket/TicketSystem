@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
+import { motion, useReducedMotion } from 'framer-motion';
+import { EventMotionLink, eventMotionName } from '@/components/motion/EventMotion';
 import { Event } from '@/types';
 import { useCategories } from '@/context/CategoryContext';
 import { useLang } from '@/context/LanguageContext';
@@ -14,11 +15,13 @@ interface EventCardProps {
   event: Event;
   priority?: boolean;
   returnTo?: string;
+  motionIndex?: number;
 }
 
-export default function EventCard({ event, priority = false, returnTo = '/' }: EventCardProps) {
+export default function EventCard({ event, priority = false, returnTo = '/', motionIndex = 0 }: EventCardProps) {
   const { getCategoryInfo } = useCategories();
   const { lang } = useLang();
+  const reduced = useReducedMotion();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -46,9 +49,9 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
   const navigationHref = `${eventHref}?returnTo=${encodeURIComponent(returnTo)}`;
 
   return (
-    <article className="event-signature-card group">
-      <Link href={navigationHref} className="block">
-        <div className="relative aspect-[3/4] overflow-hidden bg-[#0A375A]">
+    <motion.article layout={reduced ? false : "position"} initial={false} whileInView={reduced ? undefined : { opacity: [0.65, 1], y: [8, 0] }} viewport={{ once: true, amount: .1 }} transition={{ duration: .28, delay: Math.min(motionIndex, 5) * .035, layout: { duration: .25 } }} className="event-signature-card group">
+      <EventMotionLink href={navigationHref} className="block">
+        <div className="relative aspect-[3/4] overflow-hidden bg-[#0A375A]" style={{ viewTransitionName: eventMotionName(event.slug) }}>
           {!imageLoaded && (
             <div className="absolute inset-0 z-10 h-full w-full animate-shimmer" />
           )}
@@ -77,7 +80,7 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
             </div>
           )}
           </div>
-          <h3 className="line-clamp-2 min-h-[3rem] text-lg font-semibold leading-tight text-white">
+          <h3 style={{ viewTransitionName: `${eventMotionName(event.slug)}-title` }} className="line-clamp-2 min-h-[3rem] text-lg font-semibold leading-tight text-white">
             {event.title}
           </h3>
           <div className="event-card-date flex items-center gap-1.5 text-sm font-semibold">
@@ -94,7 +97,7 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
             </span>
           </div>
         </div>
-      </Link>
+      </EventMotionLink>
 
       <div className="event-card-footer mx-4 flex flex-col gap-3 border-t border-gray-100 pb-4 pt-3">
         <div className="flex min-w-0 items-center gap-1.5 text-white">
@@ -111,14 +114,14 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
             compact
             className="!h-12 !w-12 !rounded-lg !border-[#ff7a00]/70 !bg-transparent !text-white !shadow-none hover:!border-[#ff7a00] hover:!bg-[rgba(255,122,0,0.08)]"
           />
-          <Link
+          <EventMotionLink
             href={navigationHref}
             className="event-card-buy-button inline-flex flex-1 items-center justify-center rounded-lg bg-primary-500 px-4 text-sm font-semibold text-white transition-all hover:bg-primary-600"
           >
             {lang === 'es' ? 'Ver entradas' : 'View tickets'}
-          </Link>
+          </EventMotionLink>
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 }

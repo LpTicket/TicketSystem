@@ -9,6 +9,7 @@ import Chatbot from '@/components/support/Chatbot';
 import SocialMatchWidget from '@/components/social/SocialMatchWidget';
 import AnalyticsTracker from '@/components/analytics/AnalyticsTracker';
 import ConfirmDialogHost from '@/components/ui/ConfirmDialogHost';
+import { EventMotionProvider } from '@/components/motion/EventMotion';
 import { useLang } from '@/context/LanguageContext';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -47,7 +48,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [isTicketPage, loadUser]);
 
   return (
-    <>
+    <EventMotionProvider>
       {supportSession && (
         <div role="status" className="lp-support-banner relative z-40 flex flex-wrap items-center justify-center gap-3 bg-[#0A375A] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
           <span>
@@ -77,6 +78,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {!standalone && !hideFloatingWidgets && <Chatbot />}
       {!standalone && !hideFloatingWidgets && <SocialMatchWidget />}
       <ConfirmDialogHost />
-    </>
+    </EventMotionProvider>
   );
 }

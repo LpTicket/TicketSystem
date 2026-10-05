@@ -3,7 +3,7 @@ import "./globals.css";
 import AppShell from "@/components/layout/AppShell";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { CategoryProvider } from "@/context/CategoryContext";
-import { Toaster } from "react-hot-toast";
+import MotionToaster from "@/components/motion/MotionToaster";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.lpticket.com";
 
@@ -46,12 +46,12 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </head>
       <body className="antialiased overflow-x-hidden w-screen">
-        <Toaster position="top-right" toastOptions={{ duration: 4000, style: { background: '#333', color: '#fff' } }} />
         <LanguageProvider>
           <CategoryProvider>
             <AppShell>{children}</AppShell>
           </CategoryProvider>
         </LanguageProvider>
+        <MotionToaster />
       </body>
     </html>
   );
