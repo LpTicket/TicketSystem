@@ -1,5 +1,10 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-05 - Flyers completos en tarjetas de eventos
+
+- El marco de las tarjetas de Inicio y Eventos se adapta a las dimensiones reales del flyer, eliminando las franjas añadidas por una proporción fija y conservando el contenido completo sin estirar ni recortar.
+- Comprobación en navegador con flyers publicados de distintas proporciones, incluido Greenville 1000 × 1500, en escritorio y web de 390 px. Sin cambios de archivos originales, datos de eventos, precios, entradas o pagos.
+
 ## 2026-10-04 - Herramientas de presentación del mapa de organización
 
 - Capacidad, disponibilidad, ventas, cortesías y bloqueos en tarjetas separadas y legibles; las cifras conservan la fuente y los cálculos existentes.

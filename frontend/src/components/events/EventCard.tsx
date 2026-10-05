@@ -21,6 +21,7 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
   const { lang } = useLang();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [imageAspectRatio, setImageAspectRatio] = useState(3 / 4);
   const imgRef = useRef<HTMLImageElement>(null);
 
   const resolvedSrc = !imageError && event.imageUrl
@@ -29,9 +30,13 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
 
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setImageAspectRatio(imgRef.current.naturalWidth / imgRef.current.naturalHeight);
       setImageLoaded(true);
+    } else {
+      setImageAspectRatio(3 / 4);
+      setImageLoaded(false);
     }
-  }, []);
+  }, [resolvedSrc]);
 
   const defaultCategory = { labelEs: 'Otro', labelEn: 'Other', icon: '🎫', color: '#6366f1' };
   const categoryInfo = getCategoryInfo(event.category) || defaultCategory;
@@ -48,7 +53,7 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
   return (
     <article className="event-signature-card group">
       <Link href={navigationHref} className="block">
-        <div className="relative aspect-[3/4] overflow-hidden bg-[#0A375A]">
+        <div className="relative overflow-hidden bg-[#0A375A]" style={{ aspectRatio: imageAspectRatio }}>
           {!imageLoaded && (
             <div className="absolute inset-0 z-10 h-full w-full animate-shimmer" />
           )}
@@ -59,8 +64,14 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
             loading={priority ? 'eager' : 'lazy'}
             decoding="async"
             fetchPriority={priority ? 'high' : 'auto'}
-            onLoad={() => setImageLoaded(true)}
-            className="h-full w-full object-contain transition-opacity duration-200"
+            onLoad={(e) => {
+              const image = e.currentTarget;
+              if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+                setImageAspectRatio(image.naturalWidth / image.naturalHeight);
+              }
+              setImageLoaded(true);
+            }}
+            className="block h-full w-full object-contain transition-opacity duration-200"
             onError={() => { setImageError(true); setImageLoaded(true); }}
           />
         </div>
