@@ -71,7 +71,7 @@ export default function AdminCreateEventPage() {
           <>
             <div className="relative mt-7">
               <HiOutlineSearch className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-              <input aria-label={lang === 'es' ? 'Buscar organizador' : 'Search organizer'} value={search} onChange={(event) => setSearch(event.target.value)} className="input w-full py-3 pl-11 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder={lang === 'es' ? 'Buscar por nombre, usuario o correo...' : 'Search by name, username, or email...'} />
+              <input aria-label={lang === 'es' ? 'Buscar organizador' : 'Search organizer'} value={search} onChange={(event) => setSearch(event.target.value)} className="input w-full py-3 !pl-11 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder={lang === 'es' ? 'Buscar por nombre, usuario o correo...' : 'Search by name, username, or email...'} />
             </div>
 
             <div className="mt-4 overflow-hidden rounded-xl border border-[rgba(77,117,151,0.42)] bg-[rgba(6,25,42,0.72)]">
