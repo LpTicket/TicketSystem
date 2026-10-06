@@ -1,5 +1,10 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-05 - Corrección del menú móvil web
+
+- Las reglas finales del menú apuntan al elemento nav actual, eliminando el panel estrecho y el contenido desplazado. Fondo opaco a todo el ancho, debajo del encabezado de 5.1 rem, y desplazamiento interno cuando falta altura.
+- Verificado en web de 390 px y 320 px, y horizontal de 844 × 390: apertura, cierre por Escape, navegación y acceso a Soporte mediante desplazamiento. Solo CSS móvil; sin cambios de autenticación, enlaces, carrito, asientos ni pagos.
+
 ## 2026-10-05 - Flyers completos en tarjetas de eventos
 
 - El marco de las tarjetas de Inicio y Eventos se adapta a las dimensiones reales del flyer, eliminando las franjas añadidas por una proporción fija y conservando el contenido completo sin estirar ni recortar.
