@@ -37,11 +37,11 @@ export default function InvoiceBreakdown({ invoice, eventTitle }: InvoiceBreakdo
       {/* Header */}
       <div className="bg-gray-50/50 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
         <div>
-          <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Resumen de Pago</h3>
+          <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">{Number(invoice.total) === 0 ? 'Resumen de registro gratuito' : 'Resumen de Pago'}</h3>
           {eventTitle && <p className="text-xs text-gray-400 font-medium truncate max-w-[200px]">{eventTitle}</p>}
         </div>
         <div className="text-right">
-          <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-md uppercase tracking-tighter">FACTURA DIGITAL</span>
+          <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-md uppercase tracking-tighter">{Number(invoice.total) === 0 ? 'SIN CARGOS' : 'FACTURA DIGITAL'}</span>
         </div>
       </div>
 
@@ -88,8 +88,8 @@ export default function InvoiceBreakdown({ invoice, eventTitle }: InvoiceBreakdo
         {/* Total Box */}
         <div className="mt-6 bg-primary-50 rounded-2xl p-5 border border-primary-100 flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-0.5">Total a Pagar</p>
-            <p className="text-xs text-primary-400 font-medium">Incluye impuestos y cargos</p>
+            <p className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-0.5">{Number(invoice.total) === 0 ? 'Total del registro' : 'Total a Pagar'}</p>
+            <p className="text-xs text-primary-400 font-medium">{Number(invoice.total) === 0 ? 'Sin comisión ni procesamiento' : 'Incluye impuestos y cargos'}</p>
           </div>
           <div className="text-right">
             <p className="text-2xl font-black text-primary-700 tracking-tighter leading-none">
@@ -102,7 +102,7 @@ export default function InvoiceBreakdown({ invoice, eventTitle }: InvoiceBreakdo
       {/* Footer Info */}
       <div className="bg-gray-50/30 px-6 py-3 border-t border-gray-100 flex items-center gap-2 justify-center">
         <div className="w-1 h-1 rounded-full bg-green-500" />
-        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Transacción Protegida por Stripe</span>
+        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">{Number(invoice.total) === 0 ? 'Entrada digital con QR' : 'Transacción Protegida por Stripe'}</span>
       </div>
     </div>
   );

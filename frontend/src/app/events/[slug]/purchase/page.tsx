@@ -27,7 +27,7 @@ import TrustBadges from '@/components/layout/TrustBadges';
  * Steps for the checkout wizard.
  */
 type Step = 'section' | 'seats' | 'info' | 'payment';
-type CheckoutPaymentMethod = 'card' | 'klarna';
+type CheckoutPaymentMethod = 'card' | 'klarna' | 'free';
 const STEPS: { key: Step; label: string }[] = [
   { key: 'section', label: 'Sección' },
   { key: 'seats',   label: 'Entradas' },
@@ -103,6 +103,7 @@ export default function PurchasePage() {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [buying, setBuying] = useState(false);
   const [buyingMethod, setBuyingMethod] = useState<CheckoutPaymentMethod | null>(null);
+  const freeRequest = useRef<{ selection: string; id: string } | null>(null);
   const [hasLoadedSaved, setHasLoadedSaved] = useState(false);
   const [specialCode, setSpecialCode] = useState('');
   const [specialCodeError, setSpecialCodeError] = useState('');
@@ -383,9 +384,28 @@ export default function PurchasePage() {
       }
       if (specialCode.trim()) payload.specialCode = specialCode.trim().toUpperCase();
 
-      const { data } = await api.post('/orders/checkout', payload);
+      const free = paymentMethod === 'free';
+      if (free) {
+        delete payload.paymentMethod;
+        delete payload.specialCode;
+        const selection = JSON.stringify({ eventId: payload.eventId, sectionId: payload.sectionId, quantity: payload.quantity, seatIds: payload.seatIds });
+        if (freeRequest.current?.selection !== selection) {
+          let previous: { selection: string; id: string } | null = null;
+          try { previous = JSON.parse(sessionStorage.getItem(`freeRegistration_${event!.id}`) || 'null'); } catch {}
+          freeRequest.current = previous?.selection === selection && typeof previous.id === 'string'
+            ? previous : { selection, id: crypto.randomUUID() };
+          sessionStorage.setItem(`freeRegistration_${event!.id}`, JSON.stringify(freeRequest.current));
+        }
+        payload.requestId = freeRequest.current.id;
+      }
+      const { data } = await api.post(free ? '/orders/free-registration' : '/orders/checkout', payload);
       localStorage.setItem('pendingCheckoutEventId', event!.id);
       localStorage.setItem('pendingCheckoutEventSlug', event!.slug);
+      if (free && data.orderId) {
+        setSeatsLocked(false);
+        router.push(`/checkout/success?order_id=${encodeURIComponent(data.orderId)}`);
+        return;
+      }
       // Redirect the user to the Stripe-hosted checkout page
       if (data.url) window.location.href = data.url;
     } catch (err: any) {
@@ -440,7 +460,7 @@ export default function PurchasePage() {
               onClick={() => i < stepIndex && goToStep(s.key)}
             >
               {i < stepIndex && <HiOutlineCheckCircle className="w-3.5 h-3.5 shrink-0" />}
-              {lang === 'es' ? s.label : (s.key === 'section' ? 'Section' : s.key === 'seats' ? 'Seats' : s.key === 'info' ? 'Identification' : 'Pay')}
+              {s.key === 'payment' && invoice && Number(invoice.total) === 0 ? (lang === 'es' ? 'Registro' : 'Registration') : (lang === 'es' ? s.label : (s.key === 'section' ? 'Section' : s.key === 'seats' ? 'Seats' : s.key === 'info' ? 'Identification' : 'Pay'))}
             </button>
           </span>
         ))}
@@ -719,18 +739,18 @@ export default function PurchasePage() {
           {step === 'payment' && invoice && (
             <div className="purchase-premium-panel p-5 step-panel">
               <h2 className="font-bold text-base text-[#0A375A] mb-4 border-b border-gray-100 pb-2">
-                {lang === 'es' ? 'Forma de pago' : 'Payment Method'}
+                {Number(invoice.total) === 0 ? (lang === 'es' ? 'Confirma tus entradas gratis' : 'Confirm your free tickets') : (lang === 'es' ? 'Forma de pago' : 'Payment Method')}
               </h2>
 
               <InvoiceBreakdown invoice={invoice} eventTitle={event.title} />
 
               <div className="mt-5 space-y-3">
                 <button
-                  onClick={() => handlePay('card')}
+                  onClick={() => handlePay(Number(invoice.total) === 0 ? 'free' : 'card')}
                   disabled={buying}
                   className="btn-primary w-full py-3.5 rounded-lg text-sm font-black disabled:opacity-50 shadow-lg shadow-orange-500/20"
                 >
-                  {buyingMethod === 'card' ? (
+                  {buyingMethod === 'card' || buyingMethod === 'free' ? (
                     <span className="flex items-center gap-2 justify-center">
                       <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -739,10 +759,12 @@ export default function PurchasePage() {
                       {lang === 'es' ? 'Procesando...' : 'Processing...'}
                     </span>
                   ) : (
-                    <>{lang === 'es' ? '💳 Pagar' : '💳 Pay'} ${Number(invoice.total).toFixed(2)} {invoice.currency || 'USD'} {lang === 'es' ? 'con Stripe' : 'with Stripe'}</>
+                    Number(invoice.total) === 0
+                      ? <>{lang === 'es' ? 'Obtener entradas gratis' : 'Get free tickets'}</>
+                      : <>{lang === 'es' ? '💳 Pagar' : '💳 Pay'} ${Number(invoice.total).toFixed(2)} {invoice.currency || 'USD'} {lang === 'es' ? 'con Stripe' : 'with Stripe'}</>
                   )}
                 </button>
-                {invoice.paymentMethodTypes?.includes('klarna') && (
+                {Number(invoice.total) > 0 && invoice.paymentMethodTypes?.includes('klarna') && (
                   <>
                     <button
                       onClick={() => handlePay('klarna')}
@@ -770,9 +792,9 @@ export default function PurchasePage() {
                   </>
                 )}
                 <p className="text-center text-[10px] text-gray-400">
-                  {lang === 'es' ? 'Pagos seguros encriptados — procesado por Stripe' : 'Secure encrypted payments — processed by Stripe'}
+                  {Number(invoice.total) === 0 ? (lang === 'es' ? 'Entrada y cargos: $0. No necesitas tarjeta de pago.' : 'Tickets and fees: $0. No payment card required.') : (lang === 'es' ? 'Pagos seguros encriptados — procesado por Stripe' : 'Secure encrypted payments — processed by Stripe')}
                 </p>
-                <TrustBadges compact />
+                {Number(invoice.total) > 0 && <TrustBadges compact />}
                 <button onClick={handleCancel} className="w-full py-2 text-xs text-red-500 hover:text-red-700 font-medium">
                   🗑 {lang === 'es' ? 'Eliminar reservación' : 'Delete reservation'}
                 </button>

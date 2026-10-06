@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-06 - Registro gratuito en la web, sin Stripe
+
+- Opción «Evento gratis» al crear eventos con entrada general o mapa: precios y ajustes individuales a $0. Se conserva el modelo de precios existente, sin columnas ni migraciones nuevas.
+- Adquisición pública autenticada de entradas de precio cero mediante un endpoint separado: emisión de orden y QR en una transacción, sin sesión de Stripe, comisión ni procesamiento. Verifica estado/fecha del evento, pertenencia, capacidad, límites, mesas completas y bloqueos; bloquea inventario y precios durante la emisión.
+- Reintentos con identificador estable y confirmación limitada a las entradas del usuario y orden. La confirmación permite abrir cada entrada para imprimir o guardar PDF, también en la web móvil.
+- Validación: 95 pruebas de registros gratuitos y regresiones existentes de órdenes/eventos; compilación de backend/frontend y pruebas de interfaz con datos ficticios para creación general/mapa, tres entradas y vista móvil. La adquisición gratuita de la app nativa queda fuera de este cambio; no se alteran el checkout pago, Stripe, órdenes históricas ni eventos existentes.
+
 ## 2026-10-05 - Flyers 6 × 8 al ras y datos más juntos
 
 - Marcos de imagen en proporción 3:4 (6 × 8); el flyer ocupa todo el marco. Los archivos de otra proporción se estiran visualmente conforme a la solicitud del usuario, sin modificar el archivo guardado.

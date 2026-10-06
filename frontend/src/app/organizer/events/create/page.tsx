@@ -198,6 +198,7 @@ export default function CreateEventPage() {
     generalTicketCapacity: '',
   });
   const [salesMode, setSalesMode] = useState<'map' | 'general'>('map');
+  const [isFree, setIsFree] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -252,7 +253,7 @@ export default function CreateEventPage() {
       }
       if (salesMode === 'general') {
         const capacity = Number(form.generalTicketCapacity);
-        const price = Number(form.generalTicketPrice);
+        const price = isFree ? 0 : Number(form.generalTicketPrice);
         if (!Number.isInteger(capacity) || capacity < 1) {
           setError(lang === 'es' ? 'Indica una capacidad válida para la entrada general' : 'Enter a valid general-admission capacity');
           setCreating(false);
@@ -311,7 +312,7 @@ export default function CreateEventPage() {
             rows: 1,
             seatsPerRow: 1,
             capacity: Number(form.generalTicketCapacity),
-            price: Number(form.generalTicketPrice),
+            price: isFree ? 0 : Number(form.generalTicketPrice),
             color: '#6366f1',
             mapX: 0,
             mapY: 0,
@@ -522,6 +523,10 @@ export default function CreateEventPage() {
 
                 {/* Ticket limits */}
                 <div className="pt-6 border-t border-gray-100">
+                  <label className="mb-5 flex cursor-pointer items-start gap-3 rounded-xl border border-[rgba(77,117,151,0.45)] bg-[#112e47] p-4">
+                    <input type="checkbox" checked={isFree} onChange={(e) => setIsFree(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-[#ff7900]" />
+                    <span><span className="block font-bold text-white">{lang === 'es' ? 'Evento gratis' : 'Free event'}</span><span className="mt-1 block text-sm text-slate-300">{lang === 'es' ? 'Todas las entradas serán gratuitas. Sin comisión, procesamiento ni tarjeta de pago.' : 'All tickets are free. No service fees, processing fees, or payment card required.'}</span></span>
+                  </label>
                   <h3 className="font-bold text-base text-slate-100 mb-2">{lang === 'es' ? 'Tipo de Venta' : 'Sales Type'}</h3>
                   <p className="text-sm text-slate-400 mb-4">{lang === 'es' ? 'Elige si este evento venderá ubicaciones en un mapa o una sola entrada general.' : 'Choose whether this event sells mapped seating or one general-admission ticket.'}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -562,7 +567,7 @@ export default function CreateEventPage() {
                         </div>
                         <div>
                           <label htmlFor="event-create-field-12" className="block text-sm font-semibold text-slate-200 mb-2">{lang === 'es' ? 'Precio por entrada (USD)' : 'Ticket price (USD)'} *</label>
-                          <input id="event-create-field-12" type="number" value={form.generalTicketPrice} onChange={(e) => updateForm('generalTicketPrice', e.target.value)} className="input py-3 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder="0.00" min="0" step="0.01" required={salesMode === 'general'} />
+                          <input id="event-create-field-12" type="number" value={isFree ? '0' : form.generalTicketPrice} disabled={isFree} onChange={(e) => updateForm('generalTicketPrice', e.target.value)} className="input py-3 !bg-[#112e47] !border-[#365874] !text-white placeholder:!text-slate-500" placeholder="0.00" min="0" step="0.01" required={salesMode === 'general' && !isFree} />
                         </div>
                         <div>
                           <label htmlFor="event-create-field-13" className="block text-sm font-semibold text-slate-200 mb-2">{lang === 'es' ? 'Capacidad total' : 'Total capacity'} *</label>
@@ -674,17 +679,21 @@ export default function CreateEventPage() {
             <div className="rounded-2xl border border-[rgba(255,119,0,0.48)] bg-[rgba(255,119,0,0.08)] p-6 lg:p-8">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="rounded-xl border border-[rgba(77,117,151,0.62)] bg-[#112e47] p-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{lang === 'es' ? 'Entrada' : 'Ticket'}</p><p className="mt-1 font-bold text-white">{form.generalTicketName.trim() || (lang === 'es' ? 'Entrada General' : 'General Admission')}</p></div>
-                <div className="rounded-xl border border-[rgba(77,117,151,0.62)] bg-[#112e47] p-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{lang === 'es' ? 'Precio' : 'Price'}</p><p className="mt-1 font-bold text-white">${Number(form.generalTicketPrice || 0).toFixed(2)}</p></div>
+                <div className="rounded-xl border border-[rgba(77,117,151,0.62)] bg-[#112e47] p-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{lang === 'es' ? 'Precio' : 'Price'}</p><p className="mt-1 font-bold text-white">{isFree ? (lang === 'es' ? 'Gratis' : 'Free') : `$${Number(form.generalTicketPrice || 0).toFixed(2)}`}</p></div>
                 <div className="rounded-xl border border-[rgba(77,117,151,0.62)] bg-[#112e47] p-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{lang === 'es' ? 'Capacidad' : 'Capacity'}</p><p className="mt-1 font-bold text-white">{form.generalTicketCapacity}</p></div>
               </div>
               <p className="mt-5 text-sm text-slate-300">{lang === 'es' ? 'No necesitas diseñar un mapa. Puedes terminar y administrar este evento desde Mis Eventos.' : 'No venue map is required. You can finish and manage this event from My Events.'}</p>
             </div>
           ) : createdEventId && (
+            <>
+            {isFree && <p className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-200">{lang === 'es' ? 'Evento gratis: todas las secciones y asientos se guardarán con precio $0, sin comisiones ni procesamiento.' : 'Free event: all sections and seats will be saved at $0, with no service or processing fees.'}</p>}
             <VenueMapBuilder
               eventId={createdEventId}
+              freeEvent={isFree}
               initialSections={[]}
               onSaved={() => router.push(returnPath)}
             />
+            </>
           )}
         </div>
       )}

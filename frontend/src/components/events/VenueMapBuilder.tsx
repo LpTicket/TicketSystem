@@ -26,6 +26,7 @@ import { formatDateInTimezone } from '@/lib/dateUtils';
 import type { MapStatistic } from '@/lib/exportVenueMapPdf';
 
 interface VenueMapBuilderProps {
+  freeEvent?: boolean;
   eventId: string;
   initialSections: VenueSection[];
   onSaved: (sections: VenueSection[]) => void;
@@ -95,9 +96,19 @@ function getRectangularTableDimensions(seatCount: number) {
   };
 }
 
-export default function VenueMapBuilder({ eventId, initialSections, onSaved, onChange, event, isAdmin, seatBuyers, seatHolders, inventory }: VenueMapBuilderProps) {
+export default function VenueMapBuilder({ eventId, initialSections, onSaved, onChange, event, isAdmin, seatBuyers, seatHolders, inventory, freeEvent = false }: VenueMapBuilderProps) {
   const { t, lang } = useLang();
   const [sections, setSections] = useState<Partial<VenueSection>[]>([]);
+  useEffect(() => {
+    if (!freeEvent) return;
+    const normalized = sections.map(section => {
+      let config: Record<string, any> = {};
+      try { config = JSON.parse(section.seatsConfig || '{}'); } catch { return Number(section.price || 0) === 0 ? section : { ...section, price: 0 }; }
+      if (Number(section.price || 0) === 0 && !Object.values(config).some((value: any) => value.price !== undefined && Number(value.price) !== 0)) return section;
+      return { ...section, price: 0, seatsConfig: section.seatsConfig ? JSON.stringify(Object.fromEntries(Object.entries(config).map(([key, value]) => [key, { ...(value as object), price: 0 }]))) : undefined };
+    });
+    if (normalized.some((section, index) => section !== sections[index])) setSections(normalized);
+  }, [freeEvent, sections]);
   const [dbTemplates, setDbTemplates] = useState<any[]>([]);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [dismissWelcome, setDismissWelcome] = useState(false);
@@ -1087,7 +1098,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       sectionType: type as any,
       rows: type === 'table' ? 1 : 5,
       seatsPerRow: type === 'table' ? 4 : 10,
-      price: (type === 'stage' || type === 'decor') ? 0 : 50,
+      price: (freeEvent || type === 'stage' || type === 'decor') ? 0 : 50,
       color: type === 'stage' ? '#1e293b' : (type === 'decor' ? '#f1f5f9' : SECTION_COLORS[colorIndex]),
       mapX: viewportRef.current 
         ? ((viewportRef.current.clientWidth / 2) - viewRef.current.x) / viewRef.current.scale - (w / 2)
@@ -1140,6 +1151,10 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const selectedNonPriceCount = Math.max(0, selectedIds.size - selectedPriceSections.length);
 
   const openBulkPriceEditor = () => {
+    if (freeEvent) {
+      toast(lang === 'es' ? 'Este evento es gratis. Todas las entradas tienen precio $0.' : 'This event is free. Every ticket costs $0.');
+      return;
+    }
     if (selectedPriceSections.length === 0) {
       toast.error(lang === 'es' ? 'Selecciona mesas, asientos o áreas con precio' : 'Select tables, seats, or priced areas');
       return;
@@ -1235,7 +1250,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           capacity: s.sectionType === 'standing'
             ? (Number(s.capacity) || 100)
             : (Number(s.capacity) || 0),
-          price: Number(s.price) || 0,
+          price: freeEvent ? 0 : Number(s.price) || 0,
           color: s.color || '#6366f1',
           mapX: s.mapX ? parseFloat(Number(s.mapX).toFixed(2)) : 0,
           mapY: s.mapY ? parseFloat(Number(s.mapY).toFixed(2)) : 0,
@@ -1247,7 +1262,9 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
           isWheelchair: !!s.isWheelchair,
           tableShape: s.tableShape || 'round',
           tablePurchaseMode: s.tablePurchaseMode || 'individual',
-          seatsConfig: s.seatsConfig || null,
+          seatsConfig: freeEvent && s.seatsConfig
+            ? JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(s.seatsConfig)).map(([key, value]) => [key, { ...(value as object), price: 0 }])))
+            : s.seatsConfig || null,
         };
         
         // Only include ID if it's a real database UUID (not a temp one)
@@ -1957,7 +1974,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                           <label className="text-[10px] text-gray-500 block">{lang === 'es' ? 'Precio Individual' : 'Individual Price'}</label>
                           <input 
                             type="number" 
-                            value={seatOverride.price !== undefined ? seatOverride.price : selectedSection.price || 0}
+                            value={freeEvent ? 0 : seatOverride.price !== undefined ? seatOverride.price : selectedSection.price || 0}
+                            disabled={freeEvent}
                             onChange={e => updateSeatConfig(selectedSection.id!, seatKey, 'price', +e.target.value)}
                             className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-bold text-blue-600"
                           />
@@ -2064,7 +2082,8 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
                       <input
                         type="number"
-                        value={selectedSection.price || 0}
+                        value={freeEvent ? 0 : selectedSection.price || 0}
+                        disabled={freeEvent}
                         onChange={e => updateSelected('price', +e.target.value)}
                         className="w-full bg-white border border-[#e5e7eb] rounded-[4px] pl-5 pr-2 py-1 text-[13px] focus:border-[#2563eb] outline-none font-bold text-[#1a73e8]"
                       />
@@ -2078,6 +2097,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
                         <input
                           type="number"
+                          disabled={freeEvent}
                           value={(() => {
                             const seatsCount = selectedSection.seatsPerRow || 0;
                             let total = 0;

@@ -12,12 +12,14 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const sessionId = searchParams.get('session_id');
+  const orderId = searchParams.get('order_id');
+  const isFreeRegistration = Boolean(orderId && !sessionId);
   const [loading, setLoading] = useState(true);
   const [tickets, setTickets] = useState<any[]>([]);
   const [order, setOrder] = useState<any>(null);
 
   useEffect(() => {
-    if (!sessionId) {
+    if (!sessionId && !orderId) {
       setLoading(false);
       return;
     }
@@ -33,10 +35,10 @@ function SuccessContent() {
         }
 
         // Wait a bit for the webhook to process
-        await new Promise(r => setTimeout(r, 2000));
+        if (!isFreeRegistration) await new Promise(r => setTimeout(r, 2000));
         
         const { data: myTickets } = await api.get('/orders/my-tickets', {
-          params: { sessionId }
+          params: isFreeRegistration ? { orderId, limit: 100 } : { sessionId }
         });
         const recentTickets = Array.isArray(myTickets) ? myTickets : (myTickets?.data || []);
         setTickets(recentTickets); // Show only recent ones from this session
@@ -46,6 +48,7 @@ function SuccessContent() {
           const eventIds = Array.from(new Set(recentTickets.map((t: any) => t.eventId)));
           eventIds.forEach(id => {
             localStorage.removeItem(`selectedSeats_${id}`);
+            if (isFreeRegistration) sessionStorage.removeItem(`freeRegistration_${id}`);
           });
           window.dispatchEvent(new Event('cart-updated'));
         }
@@ -58,13 +61,13 @@ function SuccessContent() {
     };
 
     fetchOrder();
-  }, [sessionId]);
+  }, [sessionId, orderId]);
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-gray-500 animate-pulse font-medium text-sm">Validando tu pago y generando tickets...</p>
+        <p className="text-gray-500 animate-pulse font-medium text-sm">{isFreeRegistration ? 'Cargando tus entradas gratuitas...' : 'Validando tu pago y generando tickets...'}</p>
       </div>
     );
   }
@@ -81,15 +84,15 @@ function SuccessContent() {
           <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-4 border border-white/30 shadow-xl">
             <HiOutlineCheckCircle className="w-12 h-12 text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold mb-2 tracking-tight">¡Pago Confirmado!</h1>
-          <p className="text-green-50/90 text-sm font-medium">Tu compra ha sido procesada exitosamente por Stripe.</p>
+          <h1 className="text-3xl font-extrabold mb-2 tracking-tight">{isFreeRegistration ? (tickets.length ? '¡Entradas gratuitas listas!' : 'Revisa tus entradas') : '¡Pago Confirmado!'}</h1>
+          <p className="text-green-50/90 text-sm font-medium">{isFreeRegistration ? (tickets.length ? 'Registro confirmado. Sin cobros, comisiones ni procesamiento.' : 'No pudimos mostrar entradas de este registro en tu cuenta.') : 'Tu compra ha sido procesada exitosamente por Stripe.'}</p>
         </div>
 
         <div className="p-8">
           <div className="space-y-6">
             <div className="text-center">
               <p className="text-gray-600 text-sm leading-relaxed">
-                Tus tickets digitales ya están disponibles. Hemos enviado una copia a tu correo electrónico y también puedes descargarlos ahora mismo.
+                {isFreeRegistration ? 'Tus entradas con QR están disponibles aquí y en Mis Tickets. Abre cada entrada para descargarla o imprimirla.' : 'Tus tickets digitales ya están disponibles. Hemos enviado una copia a tu correo electrónico y también puedes descargarlos ahora mismo.'}
               </p>
             </div>
 
@@ -104,7 +107,7 @@ function SuccessContent() {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: idx * 0.1 }}
-                      className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:bg-white hover:shadow-md transition-all group"
+                      className={`flex ${isFreeRegistration ? 'flex-wrap sm:flex-nowrap' : ''} items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:bg-white hover:shadow-md transition-all group`}
                     >
                       <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-gray-200 shadow-sm group-hover:border-primary-200 transition-colors">
                         <img src={ticket.qrData} alt="QR" className="w-10 h-10" />
@@ -113,10 +116,11 @@ function SuccessContent() {
                         <p className="text-sm font-bold text-gray-900 truncate">{ticket.event?.title}</p>
                         <p className="text-[10px] text-gray-500 font-mono">CODE: {ticket.ticketCode}</p>
                       </div>
-                      <div className="text-right">
+                      <div className={isFreeRegistration ? 'flex w-full items-center justify-between sm:block sm:w-auto sm:text-right' : 'text-right'}>
                         <p className="text-[10px] font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full inline-block">
                           {formatSeatLabel(ticket, ticket.sectionName)}
                         </p>
+                        {isFreeRegistration && <Link href={`/verify/${ticket.ticketCode}`} className="mt-2 flex min-h-11 items-center justify-end gap-1 text-xs font-bold text-primary-600"><HiOutlineDownload className="h-4 w-4" />Ver / descargar</Link>}
                       </div>
                     </motion.div>
                   ))}
@@ -132,7 +136,7 @@ function SuccessContent() {
             {/* Actions */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
               <Link 
-                href="/dashboard/tickets" 
+                href={isFreeRegistration ? '/dashboard?tab=tickets' : '/dashboard/tickets'}
                 className="flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-bold py-3.5 px-6 rounded-2xl shadow-lg shadow-primary-200 transition-all active:scale-95"
               >
                 <HiOutlineTicket className="w-5 h-5" />

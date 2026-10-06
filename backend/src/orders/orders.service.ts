@@ -17,6 +17,7 @@ import { isValidEmailFormat, suggestEmailFix } from '../common/utils/email-typo'
 import { MarketingService } from '../marketing/marketing.service';
 import { RevokeTicketsDto } from './dto/revoke-tickets.dto';
 import { IssueCourtesyTicketsDto } from './dto/issue-courtesy-tickets.dto';
+import { FreeRegistrationDto } from './dto/free-registration.dto';
 
 /**
  * Service constants for fee calculation.
@@ -1152,6 +1153,129 @@ export class OrdersService {
     }
   }
 
+  /** Zero-price registrations use existing orders/tickets, never Stripe. */
+  async registerFreeTickets(userId: string, dto: FreeRegistrationDto) {
+    const seatIds = dto.seatIds || [];
+    const quantity = seatIds.length || dto.quantity || 0;
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100
+      || new Set(seatIds).size !== seatIds.length
+      || (seatIds.length > 0 && (dto.sectionId || dto.quantity))
+      || (seatIds.length === 0 && !dto.sectionId)) {
+      throw new BadRequestException('Selecciona las entradas o una sección y una cantidad válida.');
+    }
+    const email = dto.buyerEmail.trim();
+    const name = dto.buyerName.trim();
+    if (!name || !isValidEmailFormat(email)) throw new BadRequestException('Revisa tu nombre y correo.');
+    const suggestion = suggestEmailFix(email);
+    if (suggestion) throw new BadRequestException(`Revisa tu correo: ¿quisiste decir ${suggestion}?`);
+
+    const result = await this.orderRepo.manager.transaction(async (manager) => {
+      const events = manager.getRepository(Event);
+      const orders = manager.getRepository(Order);
+      const sections = manager.getRepository(VenueSection);
+      const seatsRepo = manager.getRepository(Seat);
+      const ticketsRepo = manager.getRepository(Ticket);
+      // Serialize registrations for this event, including retries with the same request ID.
+      const event = await events.createQueryBuilder('event').setLock('pessimistic_write')
+        .where('event.id = :eventId', { eventId: dto.eventId }).getOne();
+      if (!event) throw new NotFoundException('Evento no encontrado.');
+      const duplicate = await orders.createQueryBuilder('order')
+        .where('order.eventId = :eventId', { eventId: dto.eventId })
+        .andWhere('order.userId = :userId', { userId })
+        .andWhere('order.salesChannel = :channel', { channel: 'free_registration' })
+        .andWhere('order.seatsData LIKE :requestId', { requestId: `%"registrationRequestId":"${dto.requestId}"%` })
+        .getOne();
+      if (duplicate) {
+        if (duplicate.status !== OrderStatus.PAID) throw new BadRequestException('Este registro ya no está activo.');
+        const previous = JSON.parse(duplicate.seatsData);
+        const previousSeats = previous.map((item: any) => item.seatId).filter(Boolean).sort();
+        if (previous.length !== quantity || JSON.stringify(previousSeats) !== JSON.stringify([...seatIds].sort())
+          || (!seatIds.length && previous[0]?.sectionId !== dto.sectionId)) {
+          throw new BadRequestException('La solicitud ya fue usada para otras entradas.');
+        }
+        return { order: duplicate, event, tickets: [], seats: [], duplicate: true };
+      }
+      const end = event.eventEndDate ? new Date(event.eventEndDate).getTime()
+        : new Date(event.eventDate).getTime() + 6 * 60 * 60 * 1000;
+      if (event.status !== EventStatus.PUBLISHED || event.publicVisible === false || !Number.isFinite(end) || end <= Date.now()) {
+        throw new BadRequestException('Este evento no está disponible para registro.');
+      }
+      if (quantity > (event.maxTicketsPerTransaction || 10)) {
+        throw new BadRequestException(`Máximo ${event.maxTicketsPerTransaction || 10} entradas por solicitud.`);
+      }
+
+      const selectedSeats: Seat[] = [];
+      const items: Array<{ seatId: string | null; sectionId: string; sectionName: string; rowLabel: string; seatNumber: number | null; price: number; registrationRequestId: string }> = [];
+      if (!seatIds.length) {
+        // Use the same section lock as courtesy issuance: concurrent requests cannot exceed capacity.
+        const section = await sections.createQueryBuilder('section').setLock('pessimistic_write')
+          .where('section.id = :sectionId', { sectionId: dto.sectionId })
+          .andWhere('section.eventId = :eventId', { eventId: dto.eventId }).getOne();
+        if (!section || section.sectionType !== 'standing' || Number(section.price) !== 0) {
+          throw new BadRequestException('La sección seleccionada no es una entrada gratuita.');
+        }
+        const issued = await ticketsRepo.count({ where: { sectionId: section.id, status: In([TicketStatus.ACTIVE, TicketStatus.USED]) } });
+        const capacity = Math.max(Number(section.capacity || 0), Number(section.rows || 0) * Number(section.seatsPerRow || 0));
+        if (capacity <= 0 || issued + quantity > capacity) throw new BadRequestException(`No hay suficientes entradas. Quedan ${Math.max(0, capacity - issued)}.`);
+        for (let index = 0; index < quantity; index++) items.push({ seatId: null, sectionId: section.id, sectionName: section.name, rowLabel: 'GA', seatNumber: null, price: 0, registrationRequestId: dto.requestId });
+      } else {
+        const seats = await seatsRepo.createQueryBuilder('seat').innerJoinAndSelect('seat.section', 'section')
+          .where('seat.id IN (:...ids)', { ids: [...seatIds].sort() }).orderBy('seat.id', 'ASC')
+          .setLock('pessimistic_write', undefined, ['seat', 'section']).getMany();
+        if (seats.length !== seatIds.length) throw new BadRequestException('Uno o más asientos no existen.');
+        for (const seat of seats) {
+          if (seat.section.eventId !== dto.eventId || !['seated', 'table', 'vip'].includes(seat.section.sectionType)
+            || this.getSeatPrice(seat) !== 0) throw new BadRequestException('Todas las entradas deben ser gratuitas y pertenecer a este evento.');
+          let config: Record<string, any> = {};
+          try { config = JSON.parse(seat.section.seatsConfig || '{}'); } catch { throw new BadRequestException('La configuración de asientos no es válida.'); }
+          const key = seat.section.sectionType === 'table' ? `seat-${seat.seatNumber}` : `${seat.rowLabel}-${seat.seatNumber}`;
+          const effectivePrice = config[key]?.price !== undefined && config[key]?.price !== null ? Number(config[key].price) : Number(seat.section.price);
+          if (effectivePrice !== 0) throw new BadRequestException('La entrada seleccionada no es gratuita.');
+          if (config[key]?.reserved || config[key]?.disabled || seat.status === SeatStatus.SOLD
+            || (seat.status === SeatStatus.LOCKED && (!seat.lockExpiresAt || (new Date(seat.lockExpiresAt).getTime() > Date.now() && seat.lockedBy !== userId)))) {
+            throw new BadRequestException('Uno o más asientos ya no están disponibles.');
+          }
+          if (seat.section.sectionType === 'table' && seat.section.tablePurchaseMode === 'whole') {
+            const tableSeats = await seatsRepo.find({ where: { sectionId: seat.sectionId } });
+            if (tableSeats.some(other => other.status !== SeatStatus.SOLD && !(other.status === SeatStatus.LOCKED && !other.lockExpiresAt) && !config[`seat-${other.seatNumber}`]?.reserved && !config[`seat-${other.seatNumber}`]?.disabled && !seatIds.includes(other.id))) {
+              throw new BadRequestException('Selecciona todos los asientos disponibles de la mesa.');
+            }
+          }
+          selectedSeats.push(seat);
+          items.push({ seatId: seat.id, sectionId: seat.sectionId, sectionName: seat.section.name, rowLabel: seat.rowLabel, seatNumber: seat.seatNumber, price: 0, registrationRequestId: dto.requestId });
+        }
+      }
+      const order = await orders.save(orders.create({ userId, eventId: dto.eventId, subtotal: 0, lpFee: 0, processingFee: 0, total: 0,
+        status: OrderStatus.PAID, paidAt: new Date(), ticketCount: quantity, salesChannel: 'free_registration',
+        paymentMethodType: 'free', stripeFeeReconciliationStatus: STRIPE_FEE_RECONCILIATION_NOT_REQUIRED,
+        seatsData: JSON.stringify(items) }));
+      const tickets: Ticket[] = [];
+      for (const item of items) {
+        const ticketCode = nanoid(12).toUpperCase();
+        const { registrationRequestId, ...ticketInfo } = item;
+        tickets.push(await ticketsRepo.save(ticketsRepo.create({ ...ticketInfo, seatNumber: ticketInfo.seatNumber as any, ticketCode, orderId: order.id,
+          eventId: dto.eventId, userId, status: TicketStatus.ACTIVE,
+          qrData: await QRCode.toDataURL(`${this.getPublicAppUrl()}/verify/${ticketCode}`) })));
+      }
+      if (selectedSeats.length) await seatsRepo.update({ id: In(seatIds) }, { status: SeatStatus.SOLD, lockedBy: null as any, lockExpiresAt: null });
+      return { order, event, tickets, seats: selectedSeats, duplicate: false };
+    });
+    // Ticket issuance remains successful even if a delivery/cache service is temporarily unavailable.
+    await Promise.allSettled([this.invalidateUserPurchasesCache(userId), this.cache.del(`event:seatmap:${dto.eventId}`),
+      this.cache.del(`organizer:stats:${result.event.organizerId}`)]);
+    if (!result.duplicate) {
+      try {
+        await this.mailService.sendTicketEmail(email, name, result.event.title, result.tickets, {
+          venueName: result.event.venueName, venueAddress: result.event.venueAddress,
+          eventDate: result.event.eventDate?.toString(), eventTimezone: result.event.eventTimezone,
+          currency: result.event.currency || 'USD', subtotal: 0, lpFee: 0, processingFee: 0, total: 0,
+        }, { includeOperationalCopies: false });
+      } catch { console.error('Free registration ticket email could not be delivered'); }
+    }
+    return { orderId: result.order.id, ticketCount: result.order.ticketCount, total: 0,
+      url: `${this.getPublicAppUrl().replace(/\/$/, '')}/checkout/success?order_id=${result.order.id}` };
+  }
+
   /**
    * Main entry point for creating a Stripe Checkout Session.
    * Handles:
@@ -2054,8 +2178,8 @@ export class OrdersService {
   /**
    * Retrieves all tickets for a specific user, optionally filtered by Stripe Session ID.
    */
-  async getUserTickets(userId: string, sessionId?: string, page: number = 1, limit: number = 12) {
-    const cacheKey = !sessionId && page === 1 && limit === 12
+  async getUserTickets(userId: string, sessionId?: string, page: number = 1, limit: number = 12, orderId?: string) {
+    const cacheKey = !sessionId && !orderId && page === 1 && limit === 12
       ? this.getUserPurchasesCacheKey('tickets', userId)
       : null;
     if (cacheKey) {
@@ -2077,6 +2201,8 @@ export class OrdersService {
       const order = await this.orderRepo.findOne({ where: { stripeSessionId: sessionId }, select: ['id'] });
       if (order) qb.andWhere('t.orderId = :orderId', { orderId: order.id });
     }
+
+    if (orderId) qb.andWhere('t.orderId = :registrationOrderId', { registrationOrderId: orderId });
 
     const [tickets, total] = await qb.getManyAndCount();
     const result = {

@@ -27,6 +27,7 @@ import { ValidateTicketDto } from './dto/validate-ticket.dto';
 import { TapPaymentStatusDto } from './dto/tap-payment-status.dto';
 import { RevokeTicketsDto } from './dto/revoke-tickets.dto';
 import { IssueCourtesyTicketsDto } from './dto/issue-courtesy-tickets.dto';
+import { FreeRegistrationDto } from './dto/free-registration.dto';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require('stripe');
 
@@ -48,6 +49,12 @@ export class OrdersController {
         apiVersion: '2024-12-18.acacia' as any,
       });
     }
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('free-registration')
+  registerFree(@Body() body: FreeRegistrationDto, @Request() req: any) {
+    return this.ordersService.registerFreeTickets(req.user.id, body);
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -242,9 +249,10 @@ export class OrdersController {
     @Request() req: any,
     @Query('sessionId') sessionId?: string,
     @Query('page') page: string = '1',
-    @Query('limit') limit: string = '12'
+    @Query('limit') limit: string = '12',
+    @Query('orderId') orderId?: string,
   ) {
-    return this.ordersService.getUserTickets(req.user.id, sessionId, parseInt(page, 10), parseInt(limit, 10));
+    return this.ordersService.getUserTickets(req.user.id, sessionId, parseInt(page, 10), parseInt(limit, 10), orderId);
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
