@@ -1,5 +1,11 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-05 - Flyers 6 × 8 al ras y datos más juntos
+
+- Marcos de imagen en proporción 3:4 (6 × 8); el flyer ocupa todo el marco. Los archivos de otra proporción se estiran visualmente conforme a la solicitud del usuario, sin modificar el archivo guardado.
+- Información más compacta: espacios de 3 px, fecha/hora en una línea, título de dos líneas y precio junto a acciones. Se mantienen importes, zona horaria, enlaces y controles de 44 px.
+- Validación local de las siete tarjetas en Inicio/Eventos y web de 320/390 px: mismo tamaño, proporción 3:4, imagen al ras, fecha sin desbordamiento y acceso al detalle. A 289 px de ancho, altura reducida de 619 a aproximadamente 573 px. Sin cambios de datos, ventas ni pagos.
+
 ## 2026-10-05 - Tarjetas de eventos compactas y sincronizadas
 
 - Inicio y Eventos usan marcos uniformes de flyer, con imagen completa centrada sobre fondo oscuro. La proporción del archivo ya no cambia la altura de cada tarjeta.

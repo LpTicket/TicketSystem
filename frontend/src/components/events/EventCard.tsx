@@ -62,7 +62,7 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
             decoding="async"
             fetchPriority={priority ? 'high' : 'auto'}
             onLoad={() => setImageLoaded(true)}
-            className="block h-full w-full object-contain transition-opacity duration-200"
+            className="absolute inset-0 h-full w-full object-fill transition-opacity duration-200"
             onError={() => { setImageError(true); setImageLoaded(true); }}
           />
         </div>
@@ -85,8 +85,7 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
           <div className="event-card-date flex items-center gap-1.5 text-sm font-semibold">
             <HiOutlineCalendar className="h-4 w-4 shrink-0" />
             <span className="min-w-0">
-              <span className="block">{eventDay}</span>
-              <span className="block text-xs text-slate-400">{eventTime}{eventTzAbbr && ` (${eventTzAbbr})`}</span>
+              {eventDay} · {eventTime}{eventTzAbbr && ` (${eventTzAbbr})`}
             </span>
           </div>
           <div className="event-card-location flex min-w-0 items-start gap-1.5 text-sm font-semibold text-gray-500">
@@ -105,7 +104,8 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
         <div className="flex min-w-0 items-center gap-1.5 text-white">
           <HiOutlineTag className="h-4 w-4 shrink-0 text-primary-500" />
           <span className="event-card-price text-sm font-semibold leading-tight">
-            {lang === 'es' ? 'Desde' : 'From'} {Number(event.minPrice || 0).toFixed(2)} {event.currency || 'USD'}
+            <span className="event-card-price-label block">{lang === 'es' ? 'Desde' : 'From'}</span>
+            <span className="block whitespace-nowrap">{Number(event.minPrice || 0).toFixed(2)} {event.currency || 'USD'}</span>
           </span>
         </div>
         <div className="event-card-actions flex w-full items-center">
