@@ -1,5 +1,10 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-05 - Transición suave de Herramientas móviles
+
+- Desvanecimiento cruzado de 240 ms entre encabezado global y panel de Herramientas, con desplazamiento del panel de 8 px y curva de desaceleración suave. Apertura y cierre conservan el panel durante la transición; cerrado queda oculto, aria-hidden e inert.
+- Compatibilidad con movimiento reducido. Comprobación local con datos ficticios en administrador y organizador: opacidades y duración, foco al abrir/cerrar, Escape, desplazamiento horizontal y escritorio. Sin cambios de acciones, rutas, permisos, ventas ni pagos.
+
 ## 2026-10-05 - Herramientas móviles sin encabezados superpuestos
 
 - El panel de Herramientas de administrador y organizador oculta temporalmente el encabezado global mientras está abierto. Encabezado propio, cierre de 44 px, espacio para áreas seguras y navegación con desplazamiento interno.

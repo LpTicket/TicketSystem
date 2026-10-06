@@ -6398,10 +6398,33 @@ html body:has(.lp-support-banner) header.site-header-future {
 
 /* Management tools are a separate mobile dialog, above the site chrome. */
 @media (max-width: 1023px) {
-  body:has(.lp-tools-overlay) header.site-header-future { visibility: hidden !important; pointer-events: none !important; }
-  .lp-tools-overlay { z-index: 2147483647 !important; height: 100dvh; }
-  .lp-tools-overlay [role="dialog"] { height: 100%; padding-bottom: env(safe-area-inset-bottom, 0px) !important; }
+  body:has(.lp-management-layout) header.site-header-future {
+    transition: opacity 240ms cubic-bezier(.22, 1, .36, 1), visibility 0s !important;
+  }
+  body:has(.lp-tools-overlay[data-open="true"]) header.site-header-future {
+    opacity: 0 !important; visibility: hidden !important; pointer-events: none !important;
+    transition: opacity 240ms cubic-bezier(.22, 1, .36, 1), visibility 0s 240ms !important;
+  }
+  .lp-tools-overlay {
+    z-index: 2147483647 !important; height: 100dvh;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 240ms cubic-bezier(.22, 1, .36, 1), visibility 0s 240ms;
+  }
+  .lp-tools-overlay[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+  .lp-tools-overlay [role="dialog"] {
+    height: 100%; padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    transform: translateX(-8px);
+    transition: transform 280ms cubic-bezier(.22, 1, .36, 1);
+  }
+  .lp-tools-overlay[data-open="true"] [role="dialog"] { transform: translateX(0); }
   .lp-tools-overlay .lp-tools-heading { flex-shrink: 0; padding-top: calc(1rem + env(safe-area-inset-top, 0px)); padding-bottom: 1rem; }
   .lp-tools-overlay .lp-tools-heading h2 { font-size: 1rem; line-height: 1.4; }
   .lp-tools-overlay [role="dialog"] > .overflow-y-auto { min-height: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:has(.lp-management-layout) header.site-header-future,
+  body:has(.lp-tools-overlay[data-open="true"]) header.site-header-future,
+  .lp-tools-overlay, .lp-tools-overlay [role="dialog"] { transition: none !important; }
+  .lp-tools-overlay [role="dialog"] { transform: none; }
 }
