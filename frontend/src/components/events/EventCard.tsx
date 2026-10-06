@@ -21,7 +21,6 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
   const { lang } = useLang();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [imageAspectRatio, setImageAspectRatio] = useState(3 / 4);
   const imgRef = useRef<HTMLImageElement>(null);
 
   const resolvedSrc = !imageError && event.imageUrl
@@ -30,10 +29,8 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
 
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
-      setImageAspectRatio(imgRef.current.naturalWidth / imgRef.current.naturalHeight);
       setImageLoaded(true);
     } else {
-      setImageAspectRatio(3 / 4);
       setImageLoaded(false);
     }
   }, [resolvedSrc]);
@@ -51,9 +48,9 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
   const navigationHref = `${eventHref}?returnTo=${encodeURIComponent(returnTo)}`;
 
   return (
-    <article className="event-signature-card group">
+    <article className="event-signature-card event-compact-card group">
       <Link href={navigationHref} className="block">
-        <div className="relative overflow-hidden bg-[#0A375A]" style={{ aspectRatio: imageAspectRatio }}>
+        <div className="event-card-media relative overflow-hidden">
           {!imageLoaded && (
             <div className="absolute inset-0 z-10 h-full w-full animate-shimmer" />
           )}
@@ -64,20 +61,14 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
             loading={priority ? 'eager' : 'lazy'}
             decoding="async"
             fetchPriority={priority ? 'high' : 'auto'}
-            onLoad={(e) => {
-              const image = e.currentTarget;
-              if (image.naturalWidth > 0 && image.naturalHeight > 0) {
-                setImageAspectRatio(image.naturalWidth / image.naturalHeight);
-              }
-              setImageLoaded(true);
-            }}
+            onLoad={() => setImageLoaded(true)}
             className="block h-full w-full object-contain transition-opacity duration-200"
             onError={() => { setImageError(true); setImageLoaded(true); }}
           />
         </div>
 
-        <div className="event-card-body space-y-3 p-4 pb-3">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="event-card-body p-4 pb-3">
+          <div className="event-card-badges flex items-center gap-2">
           <div className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-slate-200">
             <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
             {catLabel}
@@ -88,19 +79,22 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
             </div>
           )}
           </div>
-          <h3 className="line-clamp-2 min-h-[3rem] text-lg font-semibold leading-tight text-white">
+          <h3 title={event.title} className="line-clamp-2 min-h-[3rem] text-lg font-semibold leading-tight text-white">
             {event.title}
           </h3>
           <div className="event-card-date flex items-center gap-1.5 text-sm font-semibold">
             <HiOutlineCalendar className="h-4 w-4 shrink-0" />
-            <span>{`${eventDay} ${lang === 'es' ? 'a las' : 'at'} ${eventTime}`}{eventTzAbbr && <span className="ml-1 font-medium text-gray-500">({eventTzAbbr})</span>}</span>
+            <span className="min-w-0">
+              <span className="block">{eventDay}</span>
+              <span className="block text-xs text-slate-400">{eventTime}{eventTzAbbr && ` (${eventTzAbbr})`}</span>
+            </span>
           </div>
           <div className="event-card-location flex min-w-0 items-start gap-1.5 text-sm font-semibold text-gray-500">
             <HiOutlineLocationMarker className="mt-0.5 h-4 w-4 shrink-0" />
             <span className="min-w-0">
-              <span className="block truncate">{event.venueName}</span>
+              <span title={event.venueName} className="block truncate">{event.venueName}</span>
               {event.venueAddress && (
-                <span className="block truncate text-xs font-semibold text-gray-400">{event.venueAddress}</span>
+                <span title={event.venueAddress} className="block truncate text-xs font-semibold text-gray-400">{event.venueAddress}</span>
               )}
             </span>
           </div>
@@ -114,7 +108,7 @@ export default function EventCard({ event, priority = false, returnTo = '/' }: E
             {lang === 'es' ? 'Desde' : 'From'} {Number(event.minPrice || 0).toFixed(2)} {event.currency || 'USD'}
           </span>
         </div>
-        <div className="flex w-full items-center gap-3">
+        <div className="event-card-actions flex w-full items-center">
           <ShareEventButton
             eventTitle={event.title}
             eventPath={eventHref}

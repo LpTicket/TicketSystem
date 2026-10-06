@@ -1,5 +1,11 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-05 - Tarjetas de eventos compactas y sincronizadas
+
+- Inicio y Eventos usan marcos uniformes de flyer, con imagen completa centrada sobre fondo oscuro. La proporción del archivo ya no cambia la altura de cada tarjeta.
+- Filas uniformes para etiquetas, título de dos líneas, fecha/hora y ubicación; menos espacio entre bloques y pie de precio/acciones alineado. Enlaces, importes, horarios y archivos originales conservados.
+- Validación local con siete flyers de proporciones distintas: mismas alturas y coordenadas de títulos, fechas, ubicaciones y pies; Inicio y Eventos, escritorio y web de 390/320 px. Tarjetas contenidas en el ancho disponible y acceso al detalle comprobado. Sin modificaciones de compra, pagos, asientos o datos del evento.
+
 ## 2026-10-05 - Transición suave de Herramientas móviles
 
 - Desvanecimiento cruzado de 240 ms entre encabezado global y panel de Herramientas, con desplazamiento del panel de 8 px y curva de desaceleración suave. Apertura y cierre conservan el panel durante la transición; cerrado queda oculto, aria-hidden e inert.
