@@ -100,10 +100,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div id="admin-content" className="min-w-0">{children}</div>
       </div>
 
-      {sidebarOpen && <div className="lg:hidden fixed inset-0 z-[250]">
+      {sidebarOpen && <div className="lp-tools-overlay lg:hidden fixed inset-0 z-[250]">
         <div aria-hidden="true" className="absolute inset-0 bg-black/70" onClick={() => setSidebarOpen(false)} />
         <div ref={drawer} id="admin-navigation-drawer" role="dialog" aria-modal="true" aria-labelledby="admin-navigation-title" className="admin-navigation-drawer relative flex h-full w-[min(320px,calc(100vw-2rem))] flex-col bg-[#081f33] border-r border-white/10 shadow-xl">
-          <div className="flex items-center justify-between gap-3 p-5 border-b border-white/10"><h2 id="admin-navigation-title" className="text-base font-semibold text-white">{lang === 'es' ? 'Administración' : 'Administration'}</h2><button type="button" onClick={() => setSidebarOpen(false)} aria-label={lang === 'es' ? 'Cerrar herramientas' : 'Close tools'} className="p-2 rounded-lg text-white hover:bg-white/10"><HiOutlineX className="w-5 h-5" /></button></div>
+          <div className="lp-tools-heading flex items-center justify-between gap-3 p-5 border-b border-white/10"><h2 id="admin-navigation-title" className="text-base font-semibold text-white">{lang === 'es' ? 'Administración' : 'Administration'}</h2><button type="button" onClick={() => setSidebarOpen(false)} aria-label={lang === 'es' ? 'Cerrar herramientas' : 'Close tools'} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 text-white hover:bg-white/10"><HiOutlineX className="w-5 h-5" /></button></div>
           <div className="flex-1 overflow-y-auto overscroll-contain">{navigation}<Link href="/" onClick={() => setSidebarOpen(false)} className="flex items-center gap-2 p-5 text-sm text-slate-300"><HiOutlineArrowLeft />{lang === 'es' ? 'Ir al sitio público' : 'Open public site'}</Link></div>
         </div>
       </div>}

@@ -6395,3 +6395,13 @@ html body:has(.lp-support-banner) header.site-header-future {
   .venue-map-statistics:has(> :nth-child(6)) { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .venue-map-viewport[data-white-background="true"] { background-color: #ffffff !important; --map-grid-major: rgba(107,114,128,.22); --map-grid-minor: rgba(107,114,128,.10); }
 }
+
+/* Management tools are a separate mobile dialog, above the site chrome. */
+@media (max-width: 1023px) {
+  body:has(.lp-tools-overlay) header.site-header-future { visibility: hidden !important; pointer-events: none !important; }
+  .lp-tools-overlay { z-index: 2147483647 !important; height: 100dvh; }
+  .lp-tools-overlay [role="dialog"] { height: 100%; padding-bottom: env(safe-area-inset-bottom, 0px) !important; }
+  .lp-tools-overlay .lp-tools-heading { flex-shrink: 0; padding-top: calc(1rem + env(safe-area-inset-top, 0px)); padding-bottom: 1rem; }
+  .lp-tools-overlay .lp-tools-heading h2 { font-size: 1rem; line-height: 1.4; }
+  .lp-tools-overlay [role="dialog"] > .overflow-y-auto { min-height: 0; }
+}

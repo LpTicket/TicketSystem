@@ -1,5 +1,10 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-05 - Herramientas móviles sin encabezados superpuestos
+
+- El panel de Herramientas de administrador y organizador oculta temporalmente el encabezado global mientras está abierto. Encabezado propio, cierre de 44 px, espacio para áreas seguras y navegación con desplazamiento interno.
+- Probado con administrador ficticio en 390 y 320 px: cierre por botón, Escape y fondo exterior; restauración del logo, controles, foco y scroll al cerrar. Panel de organizador y barra lateral de escritorio comprobados. Sin cambios de rutas, permisos, autenticación, ventas o pagos.
+
 ## 2026-10-05 - Corrección del menú móvil web
 
 - Las reglas finales del menú apuntan al elemento nav actual, eliminando el panel estrecho y el contenido desplazado. Fondo opaco a todo el ancho, debajo del encabezado de 5.1 rem, y desplazamiento interno cuando falta altura.
