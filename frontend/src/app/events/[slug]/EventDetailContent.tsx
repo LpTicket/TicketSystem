@@ -242,12 +242,15 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
     }, 0);
   }, [selectedSeats, seatMap]);
 
+  const isFreeSelection = selectedSeats.length > 0 && getTotalPrice() === 0;
+
   const getServiceFee = useCallback(() => {
+    if (getTotalPrice() === 0) return 0;
     return roundMoney(selectedSeats.reduce((total, seat) => {
       const section = seatMap.find((s) => s.id === seat.sectionId);
       return total + getSeatPrice(seat, section) * LPTICKET_FEE_RATE + LPTICKET_FIXED_FEE_PER_TICKET;
     }, 0));
-  }, [selectedSeats, seatMap]);
+  }, [selectedSeats, seatMap, getTotalPrice]);
 
   const getProcessingFee = useCallback(() => {
     const subtotal = getTotalPrice();
@@ -458,7 +461,7 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
         <div className="lg:col-span-1">
           <div className="sticky top-20">
             <div id="event-summary" className="event-premium-panel p-6 space-y-4 scroll-mt-28">
-              <h3 className="font-black text-lg text-[#0A375A]">{t('purchaseSummary')}</h3>
+              <h3 className="font-black text-lg text-[#0A375A]">{isFreeSelection ? (lang === 'es' ? 'Resumen de registro gratuito' : 'Free registration summary') : t('purchaseSummary')}</h3>
 
               {seatMap.length > 0 && (
                 <details className="group border border-[rgba(246,198,95,0.18)] rounded-lg bg-[#0b2236] overflow-hidden shadow-sm">
@@ -541,10 +544,10 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
                       <span className="text-gray-500">{t('subtotal')}</span>
                       <span className="text-gray-800">${getTotalPrice().toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    {!isFreeSelection && <div className="flex justify-between text-sm">
                       <span className="text-gray-500">{t('serviceFee')}</span>
                       <span className="text-gray-800">${getServiceFee().toFixed(2)}</span>
-                    </div>
+                    </div>}
                     {getProcessingFee() > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">{lang === 'es' ? 'Tarifa de procesamiento' : 'Processing fee'}</span>
@@ -561,10 +564,10 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
               )}
 
               <button onClick={handleBuyTickets} className="btn-primary w-full py-3 rounded-lg font-black uppercase tracking-wide text-sm shadow-lg shadow-orange-500/20">
-                {t('buyTickets')}
+                {isFreeSelection ? (lang === 'es' ? 'Obtener entradas gratis' : 'Get free tickets') : t('buyTickets')}
               </button>
-              <p className="text-[10px] text-gray-400 text-center">{t('securePayments')}</p>
-              <TrustBadges compact />
+              <p className="text-[10px] text-gray-400 text-center">{isFreeSelection ? (lang === 'es' ? 'Sin comisiones ni procesamiento. Recibe tu entrada digital con QR.' : 'No service or processing fees. Receive your digital ticket with a QR code.') : t('securePayments')}</p>
+              {!isFreeSelection && <TrustBadges compact />}
             </div>
           </div>
         </div>
