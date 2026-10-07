@@ -1,5 +1,10 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-07 - Corrección del buscador administrativo de usuarios
+
+- Corregidas las referencias a nombre y apellido para que TypeORM genere el alias SQL entre comillas. La consulta anterior dejaba `user` sin comillas y fallaba al incluir cualquier término de búsqueda.
+- Validación: cuatro pruebas de regresión con el generador SQL real de PostgreSQL/TypeORM (todos, clientes, organizadores y administradores), fallidas antes del cambio y aprobadas después; compilación del backend aprobada. Sin cambios en permisos, datos ni contratos API. Prueba con sesión administrativa en producción pendiente.
+
 ## 2026-10-06 - Registro gratuito en la web, sin Stripe
 
 - Opción «Evento gratis» al crear eventos con entrada general o mapa: precios y ajustes individuales a $0. Se conserva el modelo de precios existente, sin columnas ni migraciones nuevas.

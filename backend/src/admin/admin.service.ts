@@ -532,9 +532,9 @@ export class AdminService {
 
     if (term) {
       query.andWhere(
-        `(user."firstName" ILIKE :term
-          OR user."lastName" ILIKE :term
-          OR CONCAT_WS(' ', user."firstName", user."lastName") ILIKE :term
+        `(user.firstName ILIKE :term
+          OR user.lastName ILIKE :term
+          OR CONCAT_WS(' ', user.firstName, user.lastName) ILIKE :term
           OR user.username ILIKE :term
           OR user.email ILIKE :term)`,
         { term: `%${term}%` },
