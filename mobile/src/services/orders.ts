@@ -13,13 +13,15 @@ export type CheckoutPayload = {
   seatIds?: string[];
   quantity?: number;
   specialCode?: string;
+  requestId?: string;
   buyerEmail?: string;
   buyerName?: string;
 };
 
 export type CheckoutSession = {
   url: string;
-  sessionId: string;
+  sessionId?: string;
+  orderId?: string;
 };
 
 /** Creates a real Stripe Checkout session on the backend and returns its URL. */
@@ -40,11 +42,13 @@ export async function unlockSeats(): Promise<void> {
 /** Fetches the invoice preview with real fees from the backend. */
 export type InvoicePreview = {
   baseTotal: number;
+  discountPercent?: number;
+  discountAmount?: number;
   lpFee: number;
   processingFee: number;
   total: number;
 };
 
-export async function previewInvoice(params: { eventId: string; seatIds?: string; sectionId?: string; quantity?: number }): Promise<InvoicePreview> {
+export async function previewInvoice(params: { eventId: string; seatIds?: string; sectionId?: string; quantity?: number; specialCode?: string }): Promise<InvoicePreview> {
   return apiGet<InvoicePreview>('/orders/preview-invoice', { ...params, quoteAt: Date.now() });
 }

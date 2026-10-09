@@ -13,6 +13,9 @@ interface InvoiceItem {
 
 export interface InvoiceData {
   baseTotal: number;
+  discountPercent?: number;
+  discountAmount?: number;
+  originalTotal?: number;
   lpFee: number;
   processingFee: number;
   total: number;
@@ -69,12 +72,16 @@ export default function InvoiceBreakdown({ invoice, eventTitle }: InvoiceBreakdo
 
         {/* Calculations */}
         <div className="space-y-2.5">
+          {!!invoice.discountPercent && <div className="flex justify-between text-xs text-green-600">
+            <span>Descuento {invoice.discountPercent}%</span>
+            <span>-{fmt(invoice.discountAmount || 0, cur)}</span>
+          </div>}
           <div className="flex justify-between text-xs">
             <span className="text-gray-400 font-medium">Subtotal</span>
             <span className="text-gray-700 font-bold">{fmt(invoice.baseTotal, cur)}</span>
           </div>
           
-          <div className="flex justify-between text-xs">
+          {Number(invoice.total) > 0 && <><div className="flex justify-between text-xs">
             <span className="text-gray-400 font-medium">Cargo por servicio</span>
             <span className="text-gray-700 font-bold">{fmt(invoice.lpFee, cur)}</span>
           </div>
@@ -83,6 +90,7 @@ export default function InvoiceBreakdown({ invoice, eventTitle }: InvoiceBreakdo
             <span className="text-gray-400 font-medium">Tarifa de procesamiento</span>
             <span className="text-gray-700 font-bold">{fmt(invoice.processingFee, cur)}</span>
           </div>
+          </>}
         </div>
 
         {/* Total Box */}

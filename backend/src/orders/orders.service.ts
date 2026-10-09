@@ -5,12 +5,13 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import { isUUID } from 'class-validator';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Stripe = require('stripe');
 import { Order, OrderStatus, Ticket, TicketStatus, TicketRevocation, TicketRevocationSeatAction, Seat, SeatStatus, Event, EventStatus, VenueSection, SpecialCode, EventReferral, ScannerAccess, ScannerAccessStatus, UserRole, PaymentMethod, PaymentMethodType, OrganizerPayout } from '../database/entities';
 import { User } from '../database/entities/user.entity';
 import { nanoid } from 'nanoid';
-import { createHash, createHmac, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, timingSafeEqual, randomUUID } from 'crypto';
 import * as QRCode from 'qrcode';
 import { MailService } from '../common/services/mail.service';
 import { isValidEmailFormat, suggestEmailFix } from '../common/utils/email-typo';
@@ -245,6 +246,18 @@ export class OrdersService {
     return { baseTotal, lpFee, processingFee, total };
   }
 
+  private applyReferralDiscount(items: Array<{ price: number; [key: string]: any }>, discountPercent: number) {
+    const originalTotal = this.roundMoney(items.reduce((sum, item) => sum + Number(item.price), 0));
+    if (discountPercent > 0) {
+      for (const item of items) {
+        item.originalPrice = Number(item.price);
+        item.discountPercent = discountPercent;
+        item.price = this.roundMoney(item.originalPrice * (100 - discountPercent) / 100);
+      }
+    }
+    return { originalTotal, discountPercent, discountAmount: this.roundMoney(originalTotal - items.reduce((sum, item) => sum + item.price, 0)) };
+  }
+
   private calculateDoorSaleFees(
     event: Event,
     amount: number,
@@ -331,18 +344,18 @@ export class OrdersService {
   }
 
   private async resolvePurchaseCode(eventId: string, rawCode?: string) {
-    const empty = { specialCode: null as string | null, specialCodeId: null as string | null, specialCodeOwnerId: null as string | null, referralCode: null as string | null };
+    const empty = { specialCode: null as string | null, specialCodeId: null as string | null, specialCodeOwnerId: null as string | null, referralCode: null as string | null, discountPercent: 0 };
     if (!rawCode?.trim()) return empty;
     const code = rawCode.trim().toUpperCase().replace(/\s+/g, '');
     const special = await this.specialCodeRepo.findOne({ where: { code } });
     if (special && (!special.eventId || special.eventId === eventId)) {
       if (!special.isActive) throw new BadRequestException('Este código especial no está activo.');
-      return { specialCode: code, specialCodeId: special.id, specialCodeOwnerId: special.ownerUserId, referralCode: null };
+      return { specialCode: code, specialCodeId: special.id, specialCodeOwnerId: special.ownerUserId, referralCode: null, discountPercent: 0 };
     }
     const referral = await this.referralRepo.findOne({ where: { eventId, code } });
     if (!referral) throw new BadRequestException('Código no válido para este evento.');
     if (!referral.isActive) throw new BadRequestException('Este código no está activo.');
-    return { ...empty, referralCode: referral.code };
+    return { ...empty, referralCode: referral.code, discountPercent: Number(referral.discountPercent || 0) };
   }
 
   private async saveCheckoutOrderWithReferralQuota(order: Order) {
@@ -1155,6 +1168,7 @@ export class OrdersService {
 
   /** Zero-price registrations use existing orders/tickets, never Stripe. */
   async registerFreeTickets(userId: string, dto: FreeRegistrationDto) {
+    if (!isUUID(dto.requestId)) throw new BadRequestException('La solicitud de registro no es válida.');
     const seatIds = dto.seatIds || [];
     const quantity = seatIds.length || dto.quantity || 0;
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100
@@ -1189,6 +1203,8 @@ export class OrdersService {
         if (duplicate.status !== OrderStatus.PAID) throw new BadRequestException('Este registro ya no está activo.');
         const previous = JSON.parse(duplicate.seatsData);
         const previousSeats = previous.map((item: any) => item.seatId).filter(Boolean).sort();
+        const normalizedCode = dto.specialCode?.trim().toUpperCase().replace(/\s+/g, '') || null;
+        if ((duplicate.referralCode || null) !== normalizedCode) throw new BadRequestException('La solicitud ya fue usada con otro código.');
         if (previous.length !== quantity || JSON.stringify(previousSeats) !== JSON.stringify([...seatIds].sort())
           || (!seatIds.length && previous[0]?.sectionId !== dto.sectionId)) {
           throw new BadRequestException('La solicitud ya fue usada para otras entradas.');
@@ -1204,6 +1220,25 @@ export class OrdersService {
         throw new BadRequestException(`Máximo ${event.maxTicketsPerTransaction || 10} entradas por solicitud.`);
       }
 
+      let referral: EventReferral | null = null;
+      if (dto.specialCode?.trim()) {
+        const code = dto.specialCode.trim().toUpperCase().replace(/\s+/g, '');
+        referral = await manager.getRepository(EventReferral).createQueryBuilder('referral')
+          .setLock('pessimistic_write').where('referral.eventId = :eventId AND referral.code = :code', { eventId: dto.eventId, code }).getOne();
+        if (!referral || !referral.isActive || Number(referral.discountPercent) !== 100) {
+          throw new BadRequestException('Este código no permite entradas con 100% de descuento.');
+        }
+        if (referral.maxTickets != null) {
+          const usage = await orders.createQueryBuilder('existingOrder')
+            .select('COALESCE(SUM(existingOrder.ticketCount), 0)', 'usedTickets')
+            .where('existingOrder.eventId = :eventId', { eventId: dto.eventId })
+            .andWhere('existingOrder.referralCode = :code', { code })
+            .andWhere('existingOrder.status IN (:...statuses)', { statuses: [OrderStatus.PAID, OrderStatus.PENDING] }).getRawOne();
+          const remaining = Math.max(0, referral.maxTickets - Number(usage?.usedTickets || 0));
+          if (quantity > remaining) throw new BadRequestException(`El código ${code} solo admite ${referral.maxTickets} entradas. Quedan ${remaining} disponibles.`);
+        }
+      }
+
       const selectedSeats: Seat[] = [];
       const items: Array<{ seatId: string | null; sectionId: string; sectionName: string; rowLabel: string; seatNumber: number | null; price: number; registrationRequestId: string }> = [];
       if (!seatIds.length) {
@@ -1211,7 +1246,7 @@ export class OrdersService {
         const section = await sections.createQueryBuilder('section').setLock('pessimistic_write')
           .where('section.id = :sectionId', { sectionId: dto.sectionId })
           .andWhere('section.eventId = :eventId', { eventId: dto.eventId }).getOne();
-        if (!section || section.sectionType !== 'standing' || Number(section.price) !== 0) {
+        if (!section || section.sectionType !== 'standing' || (!referral && Number(section.price) !== 0)) {
           throw new BadRequestException('La sección seleccionada no es una entrada gratuita.');
         }
         const issued = await ticketsRepo.count({ where: { sectionId: section.id, status: In([TicketStatus.ACTIVE, TicketStatus.USED]) } });
@@ -1225,12 +1260,12 @@ export class OrdersService {
         if (seats.length !== seatIds.length) throw new BadRequestException('Uno o más asientos no existen.');
         for (const seat of seats) {
           if (seat.section.eventId !== dto.eventId || !['seated', 'table', 'vip'].includes(seat.section.sectionType)
-            || this.getSeatPrice(seat) !== 0) throw new BadRequestException('Todas las entradas deben ser gratuitas y pertenecer a este evento.');
+            || (!referral && this.getSeatPrice(seat) !== 0)) throw new BadRequestException('Todas las entradas deben ser gratuitas y pertenecer a este evento.');
           let config: Record<string, any> = {};
           try { config = JSON.parse(seat.section.seatsConfig || '{}'); } catch { throw new BadRequestException('La configuración de asientos no es válida.'); }
           const key = seat.section.sectionType === 'table' ? `seat-${seat.seatNumber}` : `${seat.rowLabel}-${seat.seatNumber}`;
           const effectivePrice = config[key]?.price !== undefined && config[key]?.price !== null ? Number(config[key].price) : Number(seat.section.price);
-          if (effectivePrice !== 0) throw new BadRequestException('La entrada seleccionada no es gratuita.');
+          if (!referral && effectivePrice !== 0) throw new BadRequestException('La entrada seleccionada no es gratuita.');
           if (config[key]?.reserved || config[key]?.disabled || seat.status === SeatStatus.SOLD
             || (seat.status === SeatStatus.LOCKED && (!seat.lockExpiresAt || (new Date(seat.lockExpiresAt).getTime() > Date.now() && seat.lockedBy !== userId)))) {
             throw new BadRequestException('Uno o más asientos ya no están disponibles.');
@@ -1247,6 +1282,7 @@ export class OrdersService {
       }
       const order = await orders.save(orders.create({ userId, eventId: dto.eventId, subtotal: 0, lpFee: 0, processingFee: 0, total: 0,
         status: OrderStatus.PAID, paidAt: new Date(), ticketCount: quantity, salesChannel: 'free_registration',
+        referralCode: referral?.code || null,
         paymentMethodType: 'free', stripeFeeReconciliationStatus: STRIPE_FEE_RECONCILIATION_NOT_REQUIRED,
         seatsData: JSON.stringify(items) }));
       const tickets: Ticket[] = [];
@@ -1295,6 +1331,7 @@ export class OrdersService {
     buyerEmail?: string,
     buyerName?: string,
     requestedPaymentMethod?: 'card' | 'klarna',
+    requestId?: string,
   ) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
@@ -1307,6 +1344,18 @@ export class OrdersService {
 
     // Validate special code if provided
     const purchaseCode = await this.resolvePurchaseCode(eventId, rawSpecialCode);
+    if (purchaseCode.discountPercent === 100) {
+      if (seatIds?.[0]?.startsWith('standing-')) {
+        sectionId = sectionId || seatIds[0].slice('standing-'.length, 'standing-'.length + 36);
+        quantity = quantity || seatIds.length;
+        seatIds = [];
+      }
+      return this.registerFreeTickets(userId, {
+        eventId, seatIds: seatIds.length ? seatIds : undefined, sectionId, quantity,
+        specialCode: rawSpecialCode, requestId: requestId || randomUUID(),
+        buyerEmail: buyerEmail || '', buyerName: buyerName || '',
+      });
+    }
 
     const maxLimit = event.maxTicketsPerTransaction || 10;
     if (seatIds && seatIds.length > maxLimit) {
@@ -1346,6 +1395,7 @@ export class OrdersService {
           relations: ['section'],
         });
         if (!seat) throw new NotFoundException('Seat not found');
+        if (seat.section.eventId !== eventId) throw new BadRequestException('El asiento no pertenece a este evento.');
         if (seat.status === SeatStatus.SOLD) throw new BadRequestException('Seat already sold');
 
         // Enforcement of "Whole Table" purchase logic if applicable
@@ -1406,6 +1456,7 @@ export class OrdersService {
       // Logic for Standing/General Admission events
       const section = await this.sectionRepo.findOne({ where: { id: sectionId } });
       if (!section) throw new NotFoundException('Section not found');
+      if (section.eventId !== eventId) throw new BadRequestException('La sección no pertenece a este evento.');
 
       // Check capacity constraints
       if (section.capacity && section.capacity > 0) {
@@ -1439,6 +1490,7 @@ export class OrdersService {
       }
     }
 
+    const discount = this.applyReferralDiscount(seatsInfo, purchaseCode.discountPercent);
     const feeSummary = this.calculateOrderFees(event, seatsInfo);
     baseTotal = feeSummary.baseTotal;
     const { lpFee, processingFee, total } = feeSummary;
@@ -1498,6 +1550,7 @@ export class OrdersService {
     if (!this.stripe) throw new BadRequestException('Stripe no está configurado en el servidor.');
 
     // Persist order in DB, reserving referral capacity atomically when needed.
+    const { discountPercent: _discountPercent, ...attribution } = purchaseCode;
     const order = this.orderRepo.create({
       userId,
       eventId,
@@ -1508,7 +1561,7 @@ export class OrdersService {
       status: OrderStatus.PENDING,
       ticketCount: cleanSeatsInfo.length,
       seatsData: JSON.stringify(cleanSeatsInfo),
-      ...purchaseCode,
+      ...attribution,
       stripeFeeReconciliationStatus: paymentMethodTypes.includes('klarna')
         ? STRIPE_FEE_RECONCILIATION_PENDING
         : STRIPE_FEE_RECONCILIATION_NOT_REQUIRED,
@@ -1592,6 +1645,7 @@ export class OrdersService {
         lpFee,
         processingFee,
         total,
+        ...discount,
         seatsInfo: cleanSeatsInfo,
       },
     };
@@ -1606,9 +1660,11 @@ export class OrdersService {
     seatIds: string[],
     sectionId?: string,
     quantity?: number,
+    rawSpecialCode?: string,
   ) {
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
+    const purchaseCode = await this.resolvePurchaseCode(eventId, rawSpecialCode);
 
     const maxLimit = event.maxTicketsPerTransaction || 10;
     if (seatIds && seatIds.length > maxLimit) {
@@ -1638,6 +1694,7 @@ export class OrdersService {
           relations: ['section'],
         });
         if (!seat) throw new NotFoundException('Seat not found');
+        if (seat.section.eventId !== eventId) throw new BadRequestException('El asiento no pertenece a este evento.');
 
         // Check for table purchase constraints
         if (seat.section.sectionType === 'table' && seat.section.tablePurchaseMode === 'whole') {
@@ -1676,6 +1733,7 @@ export class OrdersService {
     } else if (sectionId && quantity) {
       const section = await this.sectionRepo.findOne({ where: { id: sectionId } });
       if (!section) throw new NotFoundException('Section not found');
+      if (section.eventId !== eventId) throw new BadRequestException('La sección no pertenece a este evento.');
       const price = Number(section.price);
       baseTotal = price * quantity;
       for (let i = 0; i < quantity; i++) {
@@ -1691,6 +1749,7 @@ export class OrdersService {
       }
     }
 
+    const discount = this.applyReferralDiscount(seatsInfo, purchaseCode.discountPercent);
     const feeSummary = this.calculateOrderFees(event, seatsInfo);
     baseTotal = feeSummary.baseTotal;
     const { lpFee, processingFee, total } = feeSummary;
@@ -1702,6 +1761,7 @@ export class OrdersService {
       lpFee,
       processingFee,
       total,
+      ...discount,
       seatsInfo: cleanSeatsInfo,
       paymentMethodTypes: this.getWebCheckoutPaymentMethodTypes((event.currency || 'USD').toLowerCase(), undefined, event.klarnaEnabled !== false),
     };

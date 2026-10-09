@@ -24,6 +24,11 @@ export class FreeRegistrationDto {
   @Max(100)
   quantity?: number;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  specialCode?: string;
+
   @IsEmail()
   @MaxLength(254)
   buyerEmail: string;

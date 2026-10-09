@@ -17,7 +17,7 @@ export class SpecialCodesController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('by-event/:eventId/referrals')
-  createEventReferral(@Param('eventId') eventId: string, @Body() body: { name: string; code: string }, @Request() req: any) {
+  createEventReferral(@Param('eventId') eventId: string, @Body() body: { name: string; code: string; discountPercent?: number }, @Request() req: any) {
     return this.specialCodesService.createEventReferral(eventId, req.user, body);
   }
 

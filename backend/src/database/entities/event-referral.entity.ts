@@ -20,6 +20,9 @@ export class EventReferral {
   @Column({ type: 'varchar', length: 100 })
   name: string;
 
+  @Column({ type: 'integer', default: 0 })
+  discountPercent: number;
+
   @Column({ default: true })
   isActive: boolean;
 

@@ -309,12 +309,14 @@ type EventReferral = {
   revenue: number;
   maxTickets: number | null;
   reservedTickets: number;
+  discountPercent: number;
   purchases: { id: string; buyerName: string | null; ticketCount: number }[];
 };
 
 function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string }) {
   const [referrals, setReferrals] = useState<EventReferral[]>([]);
   const [name, setName] = useState('');
+  const [discountPercent, setDiscountPercent] = useState('0');
   const [code, setCode] = useState('');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -335,10 +337,16 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
 
   const create = async () => {
     if (!name.trim() || !code.trim()) return;
+    const discount = Number(discountPercent);
+    if (!discountPercent.trim() || !Number.isInteger(discount) || discount < 0 || discount > 100) {
+      toast.error(lang === 'es' ? 'Ingresa un descuento entre 0 y 100.' : 'Enter a discount between 0 and 100.');
+      return;
+    }
     setSaving(true);
     try {
-      await api.post(`/special-codes/by-event/${eventId}/referrals`, { name: name.trim(), code: code.trim().toUpperCase() });
+      await api.post(`/special-codes/by-event/${eventId}/referrals`, { name: name.trim(), discountPercent: discount, code: code.trim().toUpperCase() });
       setName('');
+      setDiscountPercent('0');
       setCode('');
       await load();
       toast.success(lang === 'es' ? 'Referido creado' : 'Referral created');
@@ -400,9 +408,14 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
   return (
     <div className="rounded-2xl border border-slate-700 bg-[#102337] p-5 text-white">
       <h2 className="text-xl font-bold">{lang === 'es' ? 'Referidos del evento' : 'Event referrals'}</h2>
-      <p className="mt-1 text-sm text-slate-300">{lang === 'es' ? 'Crea un código para cada persona. Las compras pagadas quedarán atribuidas aquí. No genera comisiones.' : 'Create a code for each person. Paid purchases are tracked here. No commissions are generated.'}</p>
-      <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+      <p className="mt-1 text-sm text-slate-300">{lang === 'es' ? 'Crea un código para cada persona. Las entradas, incluidas las gratuitas, quedarán atribuidas aquí. Con 100% de descuento no hay cargos.' : 'Create a code for each person. Tickets, including free tickets, are tracked here. A 100% discount has no fees.'}</p>
+      <div className="mt-5 grid items-end gap-3 sm:grid-cols-[1fr_160px_1fr_auto]">
         <input className="rounded-lg border border-slate-600 bg-[#0b1c2d] px-3 py-2" placeholder={lang === 'es' ? 'Nombre, ej. Beatriz' : 'Name, e.g. Beatriz'} value={name} maxLength={100} onChange={e => setName(e.target.value)} />
+        <label className="relative">
+          <span className="mb-1 block text-xs text-slate-300">{lang === 'es' ? 'Descuento' : 'Discount'}</span>
+          <input type="number" min={0} max={100} step={1} inputMode="numeric" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} placeholder={lang === 'es' ? 'Descuento' : 'Discount'} className="w-full rounded-lg border border-slate-600 bg-[#0b1c2d] px-3 py-2 pr-8" />
+          <span className="pointer-events-none absolute bottom-2 right-3 text-slate-300">%</span>
+        </label>
         <input className="rounded-lg border border-slate-600 bg-[#0b1c2d] px-3 py-2 uppercase" placeholder={lang === 'es' ? 'Código, ej. BEATRIZ' : 'Code, e.g. BEATRIZ'} value={code} maxLength={40} onChange={e => setCode(e.target.value.toUpperCase().replace(/\s/g, ''))} />
         <button className="rounded-lg bg-orange-600 px-5 py-2 font-bold disabled:opacity-50" disabled={saving || !name.trim() || !code.trim()} onClick={create}>{lang === 'es' ? 'Crear código' : 'Create code'}</button>
       </div>
@@ -410,7 +423,7 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
         {referrals.map(referral => (
           <div key={referral.id} className="rounded-xl border border-slate-700 bg-[#0b1c2d] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><p className="font-bold">{referral.name} <span className="ml-2 text-orange-400">{referral.code}</span></p><p className="text-sm text-slate-300">{referral.orders} {lang === 'es' ? 'compras' : 'orders'} · {referral.tickets} {lang === 'es' ? 'entradas' : 'tickets'} · ${Number(referral.revenue || 0).toFixed(2)} {lang === 'es' ? 'en entradas' : 'in tickets'}</p><p className="mt-1 text-xs text-orange-300">{referral.maxTickets == null ? (lang === 'es' ? 'Sin límite de entradas' : 'No ticket limit') : `${referral.tickets + (referral.reservedTickets || 0)} / ${referral.maxTickets} ${lang === 'es' ? 'entradas usadas o reservadas' : 'tickets used or reserved'}`}</p></div>
+              <div><p className="font-bold">{referral.name} <span className="ml-2 text-orange-400">{referral.code}</span> <span className="ml-2 text-green-300">{referral.discountPercent || 0}% {lang === 'es' ? 'de descuento' : 'discount'}</span></p><p className="text-sm text-slate-300">{referral.orders} {lang === 'es' ? 'compras' : 'orders'} · {referral.tickets} {lang === 'es' ? 'entradas' : 'tickets'} · ${Number(referral.revenue || 0).toFixed(2)} {lang === 'es' ? 'en entradas' : 'in tickets'}</p><p className="mt-1 text-xs text-orange-300">{referral.maxTickets == null ? (lang === 'es' ? 'Sin límite de entradas' : 'No ticket limit') : `${referral.tickets + (referral.reservedTickets || 0)} / ${referral.maxTickets} ${lang === 'es' ? 'entradas usadas o reservadas' : 'tickets used or reserved'}`}</p></div>
               <div className="flex items-center gap-2">
                 <button className="rounded-lg border border-orange-500 px-3 py-1.5 text-sm text-orange-300" onClick={() => { setEditingLimitId(referral.id); setLimitDraft(referral.maxTickets == null ? '' : String(referral.maxTickets)); }}>{lang === 'es' ? 'Límite' : 'Limit'}</button>
                 <button className="rounded-lg border border-slate-500 px-3 py-1.5 text-sm" onClick={() => toggle(referral)}>{referral.isActive ? (lang === 'es' ? 'Pausar' : 'Pause') : (lang === 'es' ? 'Activar' : 'Activate')}</button>

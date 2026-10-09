@@ -99,6 +99,7 @@ describe('OrdersService critical ticket safeguards', () => {
       specialCodeId: null,
       specialCodeOwnerId: null,
       referralCode: 'BEATRIZ',
+      discountPercent: 0,
     });
     expect(referralRepo.findOne).toHaveBeenCalledWith({ where: { eventId: 'event-1', code: 'BEATRIZ' } });
   });
@@ -112,9 +113,65 @@ describe('OrdersService critical ticket safeguards', () => {
       specialCodeId: 'code-1',
       specialCodeOwnerId: 'owner-1',
       referralCode: null,
+      discountPercent: 0,
     });
     expect(referralRepo.findOne).not.toHaveBeenCalled();
   });
+  it.each([0, 20, 100])('previews tickets and fees for a %s percent discount', async discountPercent => {
+    const event = { id: 'event-1', currency: 'USD' };
+    const section = { id: 'section-1', eventId: 'event-1', sectionType: 'standing', name: 'GA', price: 50 };
+    const { service } = buildService({
+      eventRepo: { findOne: jest.fn().mockResolvedValue(event) },
+      sectionRepo: { findOne: jest.fn().mockResolvedValue(section) },
+      specialCodeRepo: { findOne: jest.fn().mockResolvedValue(null) },
+      referralRepo: { findOne: jest.fn().mockResolvedValue({ code: 'CODE', isActive: true, discountPercent }) },
+    });
+    const preview = await service.previewInvoice('event-1', [], 'section-1', 2, 'CODE');
+    expect(preview.baseTotal).toBe(100 * (100 - discountPercent) / 100);
+    expect(preview.discountAmount).toBe(discountPercent);
+    expect(preview.discountPercent).toBe(discountPercent);
+    if (discountPercent === 100) expect(preview).toMatchObject({ lpFee: 0, processingFee: 0, total: 0 });
+    else { expect(preview.lpFee).toBeGreaterThan(0); expect(preview.processingFee).toBeGreaterThan(0); }
+  });
+
+  it('charges Stripe exactly the discounted invoice and persists discounted ticket prices', async () => {
+    const event = { id: 'event-1', currency: 'USD' };
+    const section = { id: 'section-1', eventId: 'event-1', sectionType: 'standing', name: 'GA', price: 50 };
+    const quota = quotaTransaction(null, 0);
+    const { service, orderRepo } = buildService({
+      manager: quota.manager,
+      orderRepo: { create: jest.fn(data => ({ ...data, id: 'order-1' })), update: jest.fn() },
+      eventRepo: { findOne: jest.fn().mockResolvedValue(event) },
+      sectionRepo: { findOne: jest.fn().mockResolvedValue(section) },
+      specialCodeRepo: { findOne: jest.fn().mockResolvedValue(null) },
+      referralRepo: { findOne: jest.fn().mockResolvedValue({ code: 'CODE', isActive: true, discountPercent: 20 }) },
+    });
+    const create = jest.fn().mockResolvedValue({ id: 'session-1', url: 'https://checkout.example.invalid' });
+    (service as any).stripe = { checkout: { sessions: { create } } };
+    jest.spyOn(service as any, 'getOrCreateStripeCustomer').mockResolvedValue(null);
+    const preview = await service.previewInvoice('event-1', [], 'section-1', 2, 'CODE');
+    const checkout = await service.createCheckoutSession('buyer', 'event-1', [], 'section-1', 2, 'CODE', 'qa@example.invalid', 'QA', 'card');
+    expect(checkout).toHaveProperty('invoice', expect.objectContaining({ baseTotal: preview.baseTotal, lpFee: preview.lpFee, processingFee: preview.processingFee, total: preview.total }));
+    const saved = quota.transactionalOrders.save.mock.calls[0][0];
+    expect(saved).toMatchObject({ subtotal: 80, referralCode: 'CODE', specialCodeOwnerId: null, status: OrderStatus.PENDING });
+    expect(JSON.parse(saved.seatsData).map((item: any) => item.price)).toEqual([40, 40]);
+    const chargedCents = create.mock.calls[0][0].line_items.reduce((sum: number, line: any) => sum + line.price_data.unit_amount * line.quantity, 0);
+    expect(chargedCents).toBe(Math.round(preview.total * 100));
+    expect(orderRepo.update).toHaveBeenCalledWith('order-1', { stripeSessionId: 'session-1' });
+  });
+
+  it('routes full-discount legacy mobile checkout to free issuance without a payment session', async () => {
+    const { service } = buildService({
+      eventRepo: { findOne: jest.fn().mockResolvedValue({ id: 'event-1', currency: 'USD' }) },
+      specialCodeRepo: { findOne: jest.fn().mockResolvedValue(null) },
+      referralRepo: { findOne: jest.fn().mockResolvedValue({ code: 'CODE', isActive: true, discountPercent: 100 }) },
+    });
+    const register = jest.spyOn(service, 'registerFreeTickets').mockResolvedValue({ orderId: 'free-1', ticketCount: 1, total: 0, url: 'https://qa.example.invalid/checkout/success?order_id=free-1' });
+    const sectionId = '22222222-2222-4222-8222-222222222222';
+    await service.createCheckoutSession('buyer', 'event-1', [`standing-${sectionId}-1-123`], undefined, undefined, 'CODE', 'qa@example.invalid', 'QA');
+    expect(register).toHaveBeenCalledWith('buyer', expect.objectContaining({ sectionId, quantity: 1, seatIds: undefined, specialCode: 'CODE' }));
+  });
+
   it('returns active seat holders only to the event organizer', async () => {
     const query = {
       innerJoinAndSelect: jest.fn().mockReturnThis(),
@@ -1011,7 +1068,7 @@ describe('OrdersService critical ticket safeguards', () => {
   it.each([true, false])('returns current Klarna availability in the invoice preview (%s)', async (klarnaEnabled) => {
     const { service } = buildService({
       eventRepo: { findOne: jest.fn().mockResolvedValue({ id: 'event-1', currency: 'USD', klarnaEnabled }) },
-      sectionRepo: { findOne: jest.fn().mockResolvedValue({ id: 'section-1', name: 'General', price: 20 }) },
+      sectionRepo: { findOne: jest.fn().mockResolvedValue({ id: 'section-1', eventId: 'event-1', name: 'General', price: 20 }) },
     });
     const invoice = await service.previewInvoice('event-1', [], 'section-1', 1);
     expect(invoice.paymentMethodTypes).toEqual(klarnaEnabled ? ['card', 'klarna'] : ['card']);

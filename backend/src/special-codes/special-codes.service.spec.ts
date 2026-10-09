@@ -37,6 +37,18 @@ describe('event referrals', () => {
     expect(created).toMatchObject({ eventId: 'event-1', name: 'Beatriz', code: 'BEATRIZ', isActive: true });
   });
 
+  it.each([-1, 101, 20.5, '100', NaN])('rejects an invalid discount %s', async discountPercent => {
+    const { service, eventRepo, referralRepo } = makeService();
+    eventRepo.findOne.mockResolvedValue({ organizerId: 'organizer-1' });
+    await expect(service.createEventReferral('event-1', { id: 'organizer-1' }, { name: 'QA', code: 'TEST', discountPercent: discountPercent as number })).rejects.toBeInstanceOf(BadRequestException);
+    expect(referralRepo.save).not.toHaveBeenCalled();
+  });
+  it('allows an admin to create a full-discount referral for another organizer', async () => {
+    const { service, eventRepo } = makeService();
+    eventRepo.findOne.mockResolvedValue({ organizerId: 'organizer-1' });
+    await expect(service.createEventReferral('event-1', { id: 'admin', role: 'admin' }, { name: 'QA', code: 'TEST', discountPercent: 100 })).resolves.toMatchObject({ discountPercent: 100 });
+  });
+
   it('rejects a code already used by a global special code', async () => {
     const { service, referralRepo, eventRepo, specialCodeRepo } = makeService();
     eventRepo.findOne.mockResolvedValue({ id: 'event-1', organizerId: 'organizer-1' });

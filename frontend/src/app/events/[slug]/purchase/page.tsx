@@ -335,7 +335,7 @@ export default function PurchasePage() {
     setSpecialCodeError('');
     setInvoiceLoading(true);
     try {
-      const params: any = { eventId: event!.id };
+      const params: any = { eventId: event!.id, specialCode: specialCode.trim() || undefined };
       if (selectedSection?.sectionType === 'standing') {
         params.sectionId = selectedSection.id;
         params.quantity = standingQuantity;
@@ -357,7 +357,9 @@ export default function PurchasePage() {
       setStep('payment');
     } catch (err: any) {
       console.error('[previewInvoice error]', err);
-      toast.error(err.response?.data?.message || err.message || 'Error calculating invoice');
+      const message = err.response?.data?.message || err.message || 'Error calculating invoice';
+      setSpecialCodeError(message);
+      toast.error(message);
     } finally {
       setInvoiceLoading(false);
     }
@@ -387,8 +389,7 @@ export default function PurchasePage() {
       const free = paymentMethod === 'free';
       if (free) {
         delete payload.paymentMethod;
-        delete payload.specialCode;
-        const selection = JSON.stringify({ eventId: payload.eventId, sectionId: payload.sectionId, quantity: payload.quantity, seatIds: payload.seatIds });
+        const selection = JSON.stringify({ eventId: payload.eventId, sectionId: payload.sectionId, quantity: payload.quantity, seatIds: payload.seatIds, specialCode: payload.specialCode });
         if (freeRequest.current?.selection !== selection) {
           let previous: { selection: string; id: string } | null = null;
           try { previous = JSON.parse(sessionStorage.getItem(`freeRegistration_${event!.id}`) || 'null'); } catch {}
@@ -838,11 +839,15 @@ export default function PurchasePage() {
                 {invoice && (
                   <>
                     <div className="border-t border-gray-100 mt-2 pt-2 space-y-1">
+                      {!!invoice.discountPercent && <div className="flex justify-between text-xs text-green-600">
+                        <span>{lang === 'es' ? 'Descuento' : 'Discount'} {invoice.discountPercent}%</span>
+                        <span>-${Number(invoice.discountAmount).toFixed(2)}</span>
+                      </div>}
                       <div className="flex justify-between text-xs text-gray-500">
                         <span>Subtotal</span>
                         <span>${Number(invoice.baseTotal).toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between text-xs text-gray-500">
+                      {Number(invoice.total) > 0 && <><div className="flex justify-between text-xs text-gray-500">
                         <span>{lang === 'es' ? 'Cargo por servicio' : 'Service Fee'}</span>
                         <span>${Number(invoice.lpFee).toFixed(2)}</span>
                       </div>
@@ -850,6 +855,7 @@ export default function PurchasePage() {
                         <span>{lang === 'es' ? 'Tarifa de procesamiento' : 'Processing Fee'}</span>
                         <span>${Number(invoice.processingFee).toFixed(2)}</span>
                       </div>
+                      </>}
                       <div className="flex justify-between font-bold text-sm mt-1 pt-1 border-t border-dashed border-gray-100">
                         <span>Total</span>
                         <span className="text-[#F97316]">${Number(invoice.total).toFixed(2)} {event.currency || 'USD'}</span>

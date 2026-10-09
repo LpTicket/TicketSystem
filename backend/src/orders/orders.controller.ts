@@ -60,7 +60,7 @@ export class OrdersController {
   @UseGuards(AuthGuard('jwt'))
   @Post('checkout')
   createCheckout(
-    @Body() body: { eventId: string; seatIds?: string[]; sectionId?: string; quantity?: number; specialCode?: string; buyerEmail?: string; buyerName?: string; paymentMethod?: 'card' | 'klarna' },
+    @Body() body: { eventId: string; seatIds?: string[]; sectionId?: string; quantity?: number; specialCode?: string; buyerEmail?: string; buyerName?: string; paymentMethod?: 'card' | 'klarna'; requestId?: string },
     @Request() req: any,
   ) {
     return this.ordersService.createCheckoutSession(
@@ -73,6 +73,7 @@ export class OrdersController {
       body.buyerEmail,
       body.buyerName,
       body.paymentMethod,
+      body.requestId,
     );
   }
 
@@ -222,7 +223,7 @@ export class OrdersController {
   @Header('Pragma', 'no-cache')
   @Get('preview-invoice')
   previewInvoice(
-    @Query() query: { eventId: string; seatIds?: string; sectionId?: string; quantity?: string },
+    @Query() query: { eventId: string; seatIds?: string; sectionId?: string; quantity?: string; specialCode?: string },
   ) {
     const seatIds = query.seatIds ? query.seatIds.split(',').filter(Boolean) : [];
     return this.ordersService.previewInvoice(
@@ -230,6 +231,7 @@ export class OrdersController {
       seatIds,
       query.sectionId,
       query.quantity ? parseInt(query.quantity, 10) : undefined,
+      query.specialCode,
     );
   }
 

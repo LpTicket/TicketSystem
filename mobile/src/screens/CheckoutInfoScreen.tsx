@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../i18n/LanguageContext';
 import { AuthUser } from '../services/api';
-import { createCheckout, unlockSeats } from '../services/orders';
+import { createCheckout, unlockSeats, previewInvoice, InvoicePreview } from '../services/orders';
 import { ClientSeat } from '../components/events/ClientVenueMap';
 import { ReservationTimer } from '../components/events/ReservationTimer';
 
@@ -29,6 +30,8 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
   const [email, setEmail]         = useState(user?.email     || '');
   const [phone, setPhone]         = useState(user?.phone     || '');
   const [code, setCode]           = useState('');
+  const [invoice, setInvoice] = useState<InvoicePreview | null>(null);
+  const request = useRef<{ selection: string; id: string } | null>(null);
   const [paying, setPaying]       = useState(false);
   const [error, setError]         = useState('');
   const [reservationAddedAt, setReservationAddedAt] = useState<number | null>(null);
@@ -87,14 +90,17 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
         : null;
       if (!payload) { setError(t('Sin asientos seleccionados.', 'No seats selected.')); setPaying(false); return; }
       const buyerName = `${firstName} ${lastName}`.trim() || undefined;
-      const { url } = await createCheckout({
+      const selection = JSON.stringify({ ...payload, code: code.trim().toUpperCase() });
+      if (request.current?.selection !== selection) request.current = { selection, id: Crypto.randomUUID() };
+      const { url, orderId } = await createCheckout({
+        requestId: request.current.id,
         ...payload,
         buyerEmail: email.trim() || undefined,
         buyerName,
         ...(phone.trim() ? { buyerPhone: phone.trim() } : {}),
-        ...(code.trim()  ? { promoCode: code.trim()   } : {}),
+        ...(code.trim()  ? { specialCode: code.trim()   } : {}),
       });
-      await WebBrowser.openBrowserAsync(url);
+      if (!orderId) await WebBrowser.openBrowserAsync(url);
       // Clear persisted cart after redirect to Stripe
       try { await AsyncStorage.removeItem(`selectedSeats_${event.id}`); await AsyncStorage.removeItem('lp_active_cart_event'); } catch {}
       onPaid();
@@ -103,6 +109,19 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
     } finally {
       setPaying(false);
     }
+  };
+
+  const applyCode = async () => {
+    setError('');
+    setPaying(true);
+    try {
+      const standing = seats[0]?.id?.startsWith('standing-');
+      const selection = standing ? { sectionId: seats[0].sectionId, quantity: seats.length }
+        : seatCount > 0 ? { seatIds: seats.map(s => s.id).join(',') }
+        : { sectionId: gaSection?.id, quantity: gaQty };
+      setInvoice(await previewInvoice({ eventId: event.id, ...selection, specialCode: code.trim() || undefined }));
+    } catch (err: any) { setInvoice(null); setError(err?.message || t('Código no válido.', 'Invalid code.')); }
+    finally { setPaying(false); }
   };
 
   return (
@@ -186,7 +205,14 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
           </View>
           <View style={st.field}>
             <Text style={st.label}>{t('Código especial (opcional):', 'Special code (optional):')}</Text>
-            <TextInput value={code} onChangeText={setCode} placeholder="E.G. LPTICKET2026" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="characters" style={st.input} />
+            <TextInput value={code} onChangeText={value => { setCode(value); setInvoice(null); }} placeholder="E.G. LPTICKET2026" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="characters" style={st.input} />
+            <TouchableOpacity onPress={applyCode} disabled={paying}><Text style={st.summaryPrice}>{t('Aplicar código', 'Apply code')}</Text></TouchableOpacity>
+            {invoice && <View style={{ gap: 6 }}>
+              {!!invoice.discountPercent && <Text style={st.summaryPrice}>{t('Descuento', 'Discount')} {invoice.discountPercent}%</Text>}
+              <Text style={st.summaryLabel}>Subtotal: ${invoice.baseTotal.toFixed(2)}</Text>
+              {invoice.total > 0 && <><Text style={st.summaryLabel}>{t('Cargo por servicio', 'Service fee')}: ${invoice.lpFee.toFixed(2)}</Text><Text style={st.summaryLabel}>{t('Procesamiento', 'Processing')}: ${invoice.processingFee.toFixed(2)}</Text></>}
+              <Text style={st.summaryPrice}>Total: ${invoice.total.toFixed(2)}</Text>
+            </View>}
           </View>
         </View>
 
@@ -201,7 +227,7 @@ export function CheckoutInfoScreen({ event, user, onBack, onPaid, seats = [], ga
           <View pointerEvents="none" style={st.btnShine} />
           {paying
             ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={st.continueBtnText}>{t('CONTINUAR →', 'CONTINUE →')}</Text>
+            : <Text style={st.continueBtnText}>{invoice?.total === 0 ? t('OBTENER ENTRADAS GRATIS →', 'GET FREE TICKETS →') : t('CONTINUAR →', 'CONTINUE →')}</Text>
           }
         </TouchableOpacity>
 

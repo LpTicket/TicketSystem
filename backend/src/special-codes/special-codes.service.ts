@@ -85,8 +85,12 @@ export class SpecialCodesService {
     });
   }
 
-  async createEventReferral(eventId: string, user: { id: string; role?: string }, input: { name: string; code: string }) {
+  async createEventReferral(eventId: string, user: { id: string; role?: string }, input: { name: string; code: string; discountPercent?: number }) {
     await this.assertEventAccess(eventId, user);
+    const discountPercent = input.discountPercent ?? 0;
+    if (typeof discountPercent !== 'number' || !Number.isInteger(discountPercent) || discountPercent < 0 || discountPercent > 100) {
+      throw new BadRequestException('El descuento debe ser un número entero entre 0 y 100.');
+    }
     const name = String(input.name || '').trim();
     const code = this.normalizeCode(String(input.code || ''));
     if (!name || name.length > 100) throw new BadRequestException('Ingresa un nombre de hasta 100 caracteres.');
@@ -98,7 +102,7 @@ export class SpecialCodesService {
     if (sameEvent || (special && (!special.eventId || special.eventId === eventId))) {
       throw new BadRequestException('Este código ya está en uso para el evento.');
     }
-    return this.referralRepo.save(this.referralRepo.create({ eventId, name, code, isActive: true }));
+    return this.referralRepo.save(this.referralRepo.create({ eventId, name, code, discountPercent, isActive: true }));
   }
 
   async setEventReferralActive(eventId: string, referralId: string, user: { id: string; role?: string }, isActive: boolean) {
