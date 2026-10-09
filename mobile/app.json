@@ -3,7 +3,7 @@
     "name": "LPTicket",
     "slug": "lpticket-mobile",
     "scheme": "lpticket",
-    "version": "1.0.12",
+    "version": "1.0.13",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -93,6 +93,13 @@
         "projectId": "a5b889a9-3ba1-44f6-8f25-b808ef14143c"
       }
     },
-    "owner": "lpticket-app"
+    "owner": "lpticket-app",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a5b889a9-3ba1-44f6-8f25-b808ef14143c",
+      "enabled": true
+    }
   }
 }

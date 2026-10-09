@@ -9,20 +9,26 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ticketsystembackend.up.railway.app/api"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
-      "ios": { "simulator": true },
+      "ios": {
+        "simulator": true
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ticketsystembackend.up.railway.app/api"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ticketsystembackend.up.railway.app/api"
-      }
+      },
+      "channel": "production",
+      "environment": "production"
     }
   },
   "submit": {

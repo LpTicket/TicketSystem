@@ -1,0 +1,20 @@
+# EAS builds only need the mobile app from this repository.
+/*
+!/mobile
+/mobile/node_modules
+/mobile/ios
+/mobile/android
+/mobile/.expo
+/mobile/dist
+/mobile/web-build
+/mobile/.env*
+/mobile/AGENTS.md
+/mobile/*.tsbuildinfo
+**/*.p8
+**/*.p12
+**/*.pem
+**/*.key
+**/*.mobileprovision
+**/*.jks
+**/*.log
+**/.DS_Store
