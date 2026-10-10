@@ -334,3 +334,9 @@ Al finalizar una tarea, informar de forma clara y breve:
 ## Regla Final de Calidad
 
 Una tarea no está terminada solo porque compila. Debe haber una causa investigada, un cambio dentro del alcance, compatibilidad con la arquitectura, seguridad y experiencia existente, validación proporcional al riesgo y documentación cuando corresponda. Codex no debe entregar soluciones mediocres, genéricas, incompletas o improvisadas cuando sea posible una solución profesional y comprobable.
+
+## Regla obligatoria de diseño indicada por el usuario
+
+- Los títulos y nombres destacados deben ser blancos en todas las pantallas y páginas.
+- Nunca introducir fondos blancos en páginas, componentes, formularios, listas, modales ni estados nuevos. Utilizar superficies oscuras del diseño existente.
+- Verificar contraste en búsqueda, selección, carga, mensajes y estados de aprobación; no confiar solo en correcciones globales del tema.

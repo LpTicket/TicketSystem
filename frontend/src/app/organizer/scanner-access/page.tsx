@@ -163,9 +163,9 @@ export default function OrganizerScannerAccessPage() {
       : status === 'pending' ? (lang === 'es' ? 'Pendiente' : 'Pending')
         : status === 'rejected' ? (lang === 'es' ? 'Rechazado' : 'Rejected')
           : lang === 'es' ? 'Revocado' : 'Revoked';
-    const tone = status === 'approved' ? 'bg-green-100 text-green-700 border-green-200'
-      : status === 'pending' ? 'bg-orange-100 text-orange-700 border-orange-200'
-        : 'bg-red-100 text-red-700 border-red-200';
+    const tone = status === 'approved' ? 'bg-green-500/15 text-green-200 border-green-400/30'
+      : status === 'pending' ? 'bg-orange-500/15 text-orange-200 border-orange-400/30'
+        : 'bg-red-500/15 text-red-200 border-red-400/30';
     return <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${tone}`}>{label}</span>;
   };
 
@@ -187,38 +187,38 @@ export default function OrganizerScannerAccessPage() {
         </button>
       </div>
 
-      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
-      {success && <div role="status" className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700">{success}</div>}
+      {error && <div role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{error}</div>}
+      {success && <div role="status" className="rounded-xl border border-green-400/30 bg-green-500/10 px-4 py-3 text-sm font-bold text-green-200">{success}</div>}
 
       {user?.role === 'admin' && (
-        <section className="premium-section-card bg-white/95 p-5">
+        <section className="premium-section-card bg-[#081f33] p-5">
           <div className="mb-5 flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0A375A] text-white">
               <HiOutlineUserAdd className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="font-black text-gray-950">{lang === 'es' ? 'Solicitar acceso para un empleado' : 'Request access for a staff member'}</h2>
-              <p className="mt-1 text-sm font-medium text-gray-500">{lang === 'es' ? 'Selecciona una persona y un evento. La solicitud quedará pendiente hasta que la apruebes.' : 'Select a person and an event. The request remains pending until you approve it.'}</p>
+              <h2 className="font-black text-white">{lang === 'es' ? 'Solicitar acceso para un empleado' : 'Request access for a staff member'}</h2>
+              <p className="mt-1 text-sm font-medium text-slate-300">{lang === 'es' ? 'Selecciona una persona y un evento. La solicitud quedará pendiente hasta que la apruebes.' : 'Select a person and an event. The request remains pending until you approve it.'}</p>
             </div>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
             <div>
-              <label className="mb-2 block text-xs font-black uppercase tracking-wider text-gray-500">{lang === 'es' ? '1. Usuario empleado' : '1. Staff user'}</label>
+              <label className="mb-2 block text-xs font-black uppercase tracking-wider text-white">{lang === 'es' ? '1. Usuario empleado' : '1. Staff user'}</label>
               {selectedUser ? (
-                <button type="button" onClick={() => { setSelectedUser(null); setUserQuery(''); }} className="flex w-full items-center justify-between rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-left">
-                  <span><strong className="block text-sm text-gray-950">{[selectedUser.firstName, selectedUser.lastName].filter(Boolean).join(' ') || selectedUser.email}</strong><span className="text-xs font-medium text-gray-500">{selectedUser.email}</span></span>
-                  <span className="text-xs font-black text-green-700">{lang === 'es' ? 'Cambiar' : 'Change'}</span>
+                <button type="button" onClick={() => { setSelectedUser(null); setUserQuery(''); }} className="flex w-full items-center justify-between rounded-xl border border-green-400/30 bg-green-500/10 px-4 py-3 text-left">
+                  <span><strong className="staff-access-name block text-sm text-white">{[selectedUser.firstName, selectedUser.lastName].filter(Boolean).join(' ') || selectedUser.email}</strong><span className="text-xs font-medium text-slate-300">{selectedUser.email}</span></span>
+                  <span className="text-xs font-black text-green-200">{lang === 'es' ? 'Cambiar' : 'Change'}</span>
                 </button>
               ) : (
                 <div className="relative">
                   <HiOutlineSearch className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
-                  <input aria-label={lang === 'es' ? 'Buscar empleado' : 'Search staff member'} value={userQuery} onChange={(event) => setUserQuery(event.target.value)} placeholder={lang === 'es' ? 'Buscar por nombre o correo...' : 'Search by name or email...'} className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm text-gray-950 outline-none focus:border-[#F97316]" />
-                  <div className="mt-2 max-h-52 space-y-1 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-2">
-                    {searchingUsers ? <p className="px-3 py-2 text-xs font-bold text-gray-500">{lang === 'es' ? 'Buscando...' : 'Searching...'}</p> : userOptions.map((option) => (
-                      <button key={option.id} type="button" onClick={() => setSelectedUser(option)} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white">
-                        <span className="block text-sm font-black text-gray-900">{[option.firstName, option.lastName].filter(Boolean).join(' ') || option.email}</span>
-                        <span className="block truncate text-xs font-medium text-gray-500">{option.email}</span>
+                  <input aria-label={lang === 'es' ? 'Buscar empleado' : 'Search staff member'} value={userQuery} onChange={(event) => setUserQuery(event.target.value)} placeholder={lang === 'es' ? 'Buscar por nombre o correo...' : 'Search by name or email...'} className="w-full rounded-xl border border-white/15 bg-[#102337] py-3 pl-10 pr-4 text-sm text-white outline-none focus:border-[#F97316]" />
+                  <div className="mt-2 max-h-52 space-y-1 overflow-y-auto rounded-xl border border-white/10 bg-[#102337] p-2">
+                    {searchingUsers ? <p className="px-3 py-2 text-xs font-bold text-slate-300">{lang === 'es' ? 'Buscando...' : 'Searching...'}</p> : userOptions.map((option) => (
+                      <button key={option.id} type="button" onClick={() => setSelectedUser(option)} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/5">
+                        <span className="staff-access-name block text-sm font-black text-white">{[option.firstName, option.lastName].filter(Boolean).join(' ') || option.email}</span>
+                        <span className="block truncate text-xs font-medium text-slate-300">{option.email}</span>
                       </button>
                     ))}
                   </div>
@@ -227,21 +227,21 @@ export default function OrganizerScannerAccessPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-xs font-black uppercase tracking-wider text-gray-500">{lang === 'es' ? '2. Evento del organizador' : '2. Organizer event'}</label>
+              <label className="mb-2 block text-xs font-black uppercase tracking-wider text-white">{lang === 'es' ? '2. Evento del organizador' : '2. Organizer event'}</label>
               {selectedEvent ? (
-                <button type="button" onClick={() => { setSelectedEvent(null); setEventQuery(''); }} className="flex w-full items-center justify-between rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-left">
-                  <span><strong className="block text-sm text-gray-950">{selectedEvent.title}</strong><span className="text-xs font-medium text-gray-500">{selectedEvent.organizer?.email || selectedEvent.venueName || ''}</span></span>
-                  <span className="text-xs font-black text-orange-700">{lang === 'es' ? 'Cambiar' : 'Change'}</span>
+                <button type="button" onClick={() => { setSelectedEvent(null); setEventQuery(''); }} className="flex w-full items-center justify-between rounded-xl border border-orange-400/30 bg-orange-500/10 px-4 py-3 text-left">
+                  <span><strong className="staff-access-name block text-sm text-white">{selectedEvent.title}</strong><span className="text-xs font-medium text-slate-300">{selectedEvent.organizer?.email || selectedEvent.venueName || ''}</span></span>
+                  <span className="text-xs font-black text-orange-200">{lang === 'es' ? 'Cambiar' : 'Change'}</span>
                 </button>
               ) : (
                 <div className="relative">
                   <HiOutlineSearch className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
-                  <input aria-label={lang === 'es' ? 'Buscar evento' : 'Search event'} value={eventQuery} onChange={(event) => setEventQuery(event.target.value)} placeholder={lang === 'es' ? 'Buscar evento u organizador...' : 'Search event or organizer...'} className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm text-gray-950 outline-none focus:border-[#F97316]" />
-                  <div className="mt-2 max-h-52 space-y-1 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-2">
-                    {searchingEvents ? <p className="px-3 py-2 text-xs font-bold text-gray-500">{lang === 'es' ? 'Buscando...' : 'Searching...'}</p> : eventOptions.map((option) => (
-                      <button key={option.id} type="button" onClick={() => setSelectedEvent(option)} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white">
-                        <span className="block text-sm font-black text-gray-900">{option.title}</span>
-                        <span className="block truncate text-xs font-medium text-gray-500">{[[option.organizer?.firstName, option.organizer?.lastName].filter(Boolean).join(' '), option.organizer?.email].filter(Boolean).join(' · ')}</span>
+                  <input aria-label={lang === 'es' ? 'Buscar evento' : 'Search event'} value={eventQuery} onChange={(event) => setEventQuery(event.target.value)} placeholder={lang === 'es' ? 'Buscar evento u organizador...' : 'Search event or organizer...'} className="w-full rounded-xl border border-white/15 bg-[#102337] py-3 pl-10 pr-4 text-sm text-white outline-none focus:border-[#F97316]" />
+                  <div className="mt-2 max-h-52 space-y-1 overflow-y-auto rounded-xl border border-white/10 bg-[#102337] p-2">
+                    {searchingEvents ? <p className="px-3 py-2 text-xs font-bold text-slate-300">{lang === 'es' ? 'Buscando...' : 'Searching...'}</p> : eventOptions.map((option) => (
+                      <button key={option.id} type="button" onClick={() => setSelectedEvent(option)} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/5">
+                        <span className="staff-access-name block text-sm font-black text-white">{option.title}</span>
+                        <span className="block truncate text-xs font-medium text-slate-300">{[[option.organizer?.firstName, option.organizer?.lastName].filter(Boolean).join(' '), option.organizer?.email].filter(Boolean).join(' · ')}</span>
                       </button>
                     ))}
                   </div>
@@ -262,18 +262,18 @@ export default function OrganizerScannerAccessPage() {
           {[...Array(3)].map((_, index) => <div key={index} className="h-28 skeleton rounded-xl" />)}
         </div>
       ) : requestsLoadError && grouped.length === 0 ? null : grouped.length === 0 ? (
-        <div className="premium-section-card bg-white/95 p-10 text-center">
+        <div className="premium-section-card bg-[#081f33] p-10 text-center">
           <HiOutlineUserGroup className="mx-auto h-10 w-10 text-gray-300" />
-          <p className="mt-3 text-sm font-bold text-gray-500">{labels.empty}</p>
+          <p className="mt-3 text-sm font-bold text-slate-300">{labels.empty}</p>
         </div>
       ) : (
         <div className="space-y-5">
           {grouped.map((group) => (
-            <section key={group.event?.id || 'none'} className="premium-section-card bg-white/95 p-5">
+            <section key={group.event?.id || 'none'} className="premium-section-card bg-[#081f33] p-5">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h2 className="font-black text-gray-950">{group.event?.title || 'Evento'}</h2>
-                  <p className="text-xs font-medium text-gray-500">{[formatDate(group.event?.eventDate), group.event?.venueName].filter(Boolean).join(' · ')}</p>
+                  <h2 className="font-black text-white">{group.event?.title || 'Evento'}</h2>
+                  <p className="text-xs font-medium text-slate-300">{[formatDate(group.event?.eventDate), group.event?.venueName].filter(Boolean).join(' · ')}</p>
                 </div>
                 {group.event?.id && (
                   <Link href={`/organizer/events/${group.event.id}`} className="btn-outline inline-flex items-center justify-center gap-2 px-3 py-2 text-xs">
@@ -287,14 +287,14 @@ export default function OrganizerScannerAccessPage() {
                   const employeeName = [request.user?.firstName, request.user?.lastName].filter(Boolean).join(' ') || request.user?.email || 'Empleado';
                   const initial = employeeName.slice(0, 2).toUpperCase();
                   return (
-                    <div key={request.id} className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div key={request.id} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#102337] p-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0A375A] text-sm font-black text-white">
                           {initial}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-black text-gray-950">{employeeName}</p>
-                          <p className="truncate text-xs font-bold text-gray-500">{request.user?.email || '-'}</p>
+                          <p className="staff-access-name truncate text-sm font-black text-white">{employeeName}</p>
+                          <p className="truncate text-xs font-bold text-slate-300">{request.user?.email || '-'}</p>
                           <div className="mt-2">{statusBadge(request.status)}</div>
                         </div>
                       </div>
@@ -304,13 +304,13 @@ export default function OrganizerScannerAccessPage() {
                             <button disabled={busyId === request.id} onClick={() => decide(request.id, 'approve')} className="btn-primary inline-flex items-center gap-1 px-3 py-2 text-xs">
                               <HiOutlineCheck className="h-4 w-4" /> {labels.approve}
                             </button>
-                            <button disabled={busyId === request.id} onClick={() => decide(request.id, 'reject')} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-700">
+                            <button disabled={busyId === request.id} onClick={() => decide(request.id, 'reject')} className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-black text-red-200">
                               {labels.reject}
                             </button>
                           </>
                         )}
                         {request.status === 'approved' && (
-                          <button disabled={busyId === request.id} onClick={() => decide(request.id, 'revoke')} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-700 inline-flex items-center gap-1">
+                          <button disabled={busyId === request.id} onClick={() => decide(request.id, 'revoke')} className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-black text-red-200 inline-flex items-center gap-1">
                             <HiOutlineX className="h-4 w-4" /> {labels.revoke}
                           </button>
                         )}

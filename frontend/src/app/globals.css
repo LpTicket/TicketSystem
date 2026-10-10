@@ -1824,6 +1824,9 @@ html {
 .lp-management-layout .text-gray-700,
 .lp-management-layout .text-gray-800,
 .lp-management-layout .text-gray-900,
+.lp-management-layout .text-gray-950,
+.lp-management-layout .text-black,
+.lp-management-layout .text-slate-950,
 .lp-management-layout .text-slate-800,
 .lp-management-layout .text-slate-900,
 .lp-management-layout .text-\[\#0A375A\] {
@@ -6452,3 +6455,16 @@ html body:has(.lp-support-banner) header.site-header-future {
 .event-signature-card.event-compact-card .event-card-buy-button { padding: 0 6px; font-size: 11px; white-space: nowrap; }
 .event-signature-card.event-compact-card .event-card-footer :is(.event-card-buy-button,button) { height: 44px !important; min-height: 44px !important; }
 .event-signature-card.event-compact-card .event-card-footer button { width: 44px !important; min-width: 44px !important; }
+
+/* White page titles are part of the dark site theme, including future pages. */
+@media screen {
+  html body #main-content :is(h1, h2, h3, h4, h5, h6),
+  html body #main-content :is(h1, h2, h3, h4, h5, h6) :is(span, strong, b),
+  html body :is(header, footer, [role="dialog"]) :is(h1, h2, h3, h4, h5, h6) {
+    color: #ffffff !important;
+  }
+
+  .lp-management-layout .staff-access-name {
+    color: #ffffff !important;
+  }
+}
