@@ -290,6 +290,10 @@ export class EventsService {
     return event;
   }
 
+  async findForAdmin(id: string) {
+    return this.routeBase64EventImages(await this.findById(id));
+  }
+
   async getOgImageBySlug(slug: string, kind: 'image' | 'banner' = 'image') {
     this.logger.log(`[OG-IMAGE] Fetching ${kind} for slug: ${slug}`);
     const event = await this.eventRepo.findOne({ where: { slug } });

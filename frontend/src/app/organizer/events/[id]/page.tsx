@@ -962,9 +962,15 @@ export default function EventDetailPage() {
 
   const loadEvent = async () => {
     try {
-      // Load event details
-      const { data: events } = await api.get('/events', { params: { limit: 100, includePast: 'true' } });
-      const ev = (events.events || []).find((e: Event) => e.id === id);
+      // Administrators can load any event, regardless of public visibility or status.
+      let ev: Event | undefined;
+      if (user?.role === 'admin') {
+        const { data } = await api.get<Event>(`/events/admin/${id}`);
+        ev = data;
+      } else {
+        const { data: events } = await api.get('/events', { params: { limit: 100, includePast: 'true' } });
+        ev = (events.events || []).find((e: Event) => e.id === id);
+      }
       if (!ev || (ev.organizerId !== user?.id && user?.role !== 'admin')) { router.push(eventsPath); return; }
       setEvent(ev);
       setEditForm({
@@ -1300,7 +1306,7 @@ export default function EventDetailPage() {
       
       const isAutoApproved = user?.role === 'admin' || event?.status === 'draft';
       const successMsg = isAutoApproved 
-        ? (lang === 'es' ? '¡Cambios guardados y publicados con éxito!' : 'Changes saved and published successfully!')
+        ? (lang === 'es' ? '¡Cambios guardados con éxito!' : 'Changes saved successfully!')
         : (lang === 'es' ? '¡Cambios guardados! Debes esperar la aprobación del administrador.' : 'Changes saved! Waiting for admin approval.');
       
       toast.success(successMsg);

@@ -1,4 +1,7 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { EventsController } from './events.controller';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { EventStatus, UserRole } from '../database/entities';
 import { EventsService } from './events.service';
 import { validate } from 'class-validator';
@@ -41,5 +44,45 @@ describe('Event Klarna settings', () => {
     await service.update('event-1', { description: 'Updated details' }, 'editor-1');
     expect(eventRepo.update).toHaveBeenCalledWith('event-1', expect.objectContaining({ pendingDescription: 'Updated details' }));
     expect(eventRepo.update.mock.calls[0][1]).not.toHaveProperty('klarnaEnabled');
+  });
+});
+
+describe('Administrator event editing', () => {
+  it.each(Object.values(EventStatus))('loads and updates hidden, past %s events directly by ID', async (status) => {
+    const { service, eventRepo } = buildService(UserRole.ADMIN, status);
+    const event = await eventRepo.findOne();
+    Object.assign(event, {
+      organizerId: 'another-organizer',
+      publicVisible: false,
+      eventDate: new Date('2020-01-01'),
+    });
+
+    await expect(service.findForAdmin('event-1')).resolves.toMatchObject({
+      id: 'event-1', status, publicVisible: false,
+    });
+    expect(eventRepo.findOne).toHaveBeenCalledWith({ where: { id: 'event-1' } });
+
+    await expect(service.update('event-1', { title: 'Edited by admin' }, 'editor-1')).resolves.toMatchObject({
+      title: 'Edited by admin', status, publicVisible: false,
+    });
+    expect(eventRepo.update).toHaveBeenCalledWith('event-1', { title: 'Edited by admin' });
+  });
+
+  it('reports a missing event', async () => {
+    const { service, eventRepo } = buildService(UserRole.ADMIN);
+    eventRepo.findOne.mockResolvedValue(null);
+    await expect(service.findForAdmin('missing')).rejects.toThrow(NotFoundException);
+  });
+
+  it.each([UserRole.ADMIN, UserRole.CLIENT, undefined])('restricts the management read to administrators (%s)', (role) => {
+    const guard = new RolesGuard(new Reflector());
+    const context = {
+      getHandler: () => EventsController.prototype.findForAdmin,
+      getClass: () => EventsController,
+      switchToHttp: () => ({ getRequest: () => ({ user: role ? { role } : undefined }) }),
+    };
+    expect(guard.canActivate(context as any)).toBe(role === UserRole.ADMIN);
+    expect(Reflect.getMetadata('__guards__', EventsController.prototype.findForAdmin)).toContain(RolesGuard);
+    expect(Reflect.getMetadata('__guards__', EventsController.prototype.findForAdmin)).toHaveLength(2);
   });
 });

@@ -49,6 +49,13 @@ export class EventsController {
     return this.eventsService.getOrganizerEvents(req.user.id);
   }
 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('admin/:id')
+  findForAdmin(@Param('id') id: string) {
+    return this.eventsService.findForAdmin(id);
+  }
+
   @Get(':slug/og-image')
   async getOgImage(@Param('slug') slug: string, @Query('kind') kind: 'image' | 'banner' | undefined, @Res() res: any) {
     const image = await this.eventsService.getOgImageBySlug(slug, kind);

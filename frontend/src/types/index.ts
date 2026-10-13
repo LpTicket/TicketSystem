@@ -38,6 +38,11 @@ export enum EventStatus {
 }
 
 export interface Event {
+  eventEndDate?: string | null;
+  hasSeatMap?: boolean;
+  autoReminderEnabled?: boolean;
+  autoReminderDays?: number;
+  autoReminderMessage?: string | null;
   id: string;
   title: string;
   slug: string;
