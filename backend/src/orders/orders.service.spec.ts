@@ -49,6 +49,25 @@ function buildService(overrides: Record<string, any> = {}) {
   return { service, ticketRepo, eventRepo, orderRepo, mailService, cache };
 }
 
+describe('Administrator door sales for past events', () => {
+  it.each(['published', 'completed'])('allows an administrator to preview a past %s event from another organizer', async (status) => {
+    const event = { id: 'past-event', title: 'Past event', organizerId: 'other-organizer',
+      status, publicVisible: true, eventDate: new Date('2020-01-01'), currency: 'USD' };
+    const { service } = buildService({ eventRepo: { findOne: jest.fn().mockResolvedValue(event) } });
+    await expect(service.previewDoorSale({ id: 'admin', role: UserRole.ADMIN }, event.id, 20, 1))
+      .resolves.toMatchObject({ quantity: 1, unitPrice: 20, event: { id: event.id } });
+  });
+
+  it('still rejects an unrelated account without approved access', async () => {
+    const { service } = buildService({
+      eventRepo: { findOne: jest.fn().mockResolvedValue({ id: 'past-event', organizerId: 'other-organizer' }) },
+      scannerAccessRepo: { findOne: jest.fn().mockResolvedValue(null) },
+    });
+    await expect(service.previewDoorSale({ id: 'unrelated', role: UserRole.CLIENT }, 'past-event', 20))
+      .rejects.toThrow('permission');
+  });
+});
+
 describe('OrdersService critical ticket safeguards', () => {
   function quotaTransaction(maxTickets: number | null, usedTickets: number) {
     const referralQuery = {

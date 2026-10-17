@@ -678,9 +678,12 @@ export class AdminService {
     return { success: true };
   }
 
-  async getAllEvents(page: number, limit: number, status?: string) {
+  async getAllEvents(page: number, limit: number, status?: string, visibility?: string) {
     const where: any = {};
     if (status) where.status = status;
+    if (visibility === 'visible') where.publicVisible = true;
+    else if (visibility === 'hidden') where.publicVisible = false;
+    else if (visibility) throw new BadRequestException('Visibilidad no válida');
 
     const [events, total] = await this.eventRepo.findAndCount({
       where,
@@ -727,6 +730,7 @@ export class AdminService {
   }
 
   private async invalidateEventCache(event: Event) {
+    await this.cache.del(`organizer:events:${event.organizerId}`);
     await this.cache.del(`event:slug:${event.slug}`);
     await this.cache.del(`event:seatmap:${event.id}`);
     await this.cache.del('events:featured');
@@ -910,6 +914,8 @@ export class AdminService {
       // 5. Delete event
       await manager.delete(Event, { id: eventId });
     });
+
+    await this.invalidateEventCache(event);
     
     return { success: true };
   }

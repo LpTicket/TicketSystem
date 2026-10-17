@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-17 - Cobro administrativo y visibilidad de eventos
+
+- El administrador móvil puede seleccionar eventos publicados o finalizados de cualquier organizador, incluidos eventos pasados, con paginación completa.
+- La web permite ocultar eventos de las listas habituales y del selector de cobro móvil, conservando ventas, entradas y reportes. La pestaña «Ocultos» permite recuperarlos; se añade el filtro «Finalizados».
+- La visibilidad se conserva en accesos de empleados y se invalidan las listas relacionadas al ocultar, restaurar o eliminar un evento.
+- Validación: compilaciones de backend y frontend, TypeScript móvil, 71 pruebas de backend y 22 pruebas móviles aprobadas. Sin cambios de esquema ni migraciones; cobro real en iPhone pendiente de comprobación.
+
 ## 2026-10-07 - Corrección del buscador administrativo de usuarios
 
 - Corregidas las referencias a nombre y apellido para que TypeORM genere el alias SQL entre comillas. La consulta anterior dejaba `user` sin comillas y fallaba al incluir cualquier término de búsqueda.

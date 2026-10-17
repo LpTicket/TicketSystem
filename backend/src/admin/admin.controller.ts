@@ -111,8 +111,8 @@ export class AdminController {
 
   // Events management
   @Get('events')
-  getAllEvents(@Query('page') page?: number, @Query('limit') limit?: number, @Query('status') status?: string) {
-    return this.adminService.getAllEvents(page || 1, limit || 20, status);
+  getAllEvents(@Query('page') page?: number, @Query('limit') limit?: number, @Query('status') status?: string, @Query('visibility') visibility?: string) {
+    return this.adminService.getAllEvents(page || 1, limit || 20, status, visibility);
   }
 
   // Per-event financial breakdown (declared before ':id' routes to avoid clashes)

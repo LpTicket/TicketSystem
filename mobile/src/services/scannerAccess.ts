@@ -8,6 +8,7 @@ export type ScannerAccessEvent = {
   title: string;
   eventDate?: string | null;
   status?: string | null;
+  publicVisible?: boolean;
   imageUrl?: string | null;
   bannerImageUrl?: string | null;
   venueName?: string | null;
@@ -40,6 +41,7 @@ function normalizeEvent(event: any): ScannerAccessEvent {
     title: event.title || 'Evento',
     eventDate: event.eventDate,
     status: event.status,
+    publicVisible: event.publicVisible,
     venueName: event.venueName || event.venue,
     imageUrl: getImageUrl(event.imageUrl || event.bannerImageUrl),
     bannerImageUrl: getImageUrl(event.bannerImageUrl || event.imageUrl),

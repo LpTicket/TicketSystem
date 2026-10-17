@@ -30,7 +30,7 @@ import {
 import Link from 'next/link';
 
 // Stale-while-revalidate cache key for the admin events list
-const ADMIN_EVENTS_CACHE_KEY = 'admin_events_cache_v2';
+const ADMIN_EVENTS_CACHE_KEY = 'admin_events_cache_v3';
 
 type AdminEventsCache = {
   events: Event[];
@@ -90,7 +90,7 @@ function writeEventsCache(data: AdminEventsCache) {
 function AdminEventsPageBody() {
   const { t, lang } = useLang();
   const { getCategoryInfo } = useCategories();
-  const { page, filter, search, updateFilters } = useListNavigation('all', ['all', 'pending_approval', 'draft', 'published', 'cancelled']);
+  const { page, filter, search, updateFilters } = useListNavigation('all', ['all', 'pending_approval', 'draft', 'published', 'completed', 'cancelled', 'hidden']);
   const [loadError, setLoadError] = useState(false);
   const requestId = useRef(0);
 
@@ -277,7 +277,8 @@ function AdminEventsPageBody() {
       toast.success(lang === 'es' ? '¡Cambio aprobado con éxito!' : 'Change approved successfully!');
       
       const params: any = { page, limit: 15 };
-      if (filter !== 'all') params.status = filter;
+      params.visibility = filter === 'hidden' ? 'hidden' : 'visible';
+      if (filter !== 'all' && filter !== 'hidden') params.status = filter;
       const { data } = await api.get('/admin/events', { params });
       setEvents(data.events);
       
@@ -297,7 +298,8 @@ function AdminEventsPageBody() {
       toast.success(lang === 'es' ? '¡Cambio rechazado con éxito!' : 'Change rejected successfully!');
       
       const params: any = { page, limit: 15 };
-      if (filter !== 'all') params.status = filter;
+      params.visibility = filter === 'hidden' ? 'hidden' : 'visible';
+      if (filter !== 'all' && filter !== 'hidden') params.status = filter;
       const { data } = await api.get('/admin/events', { params });
       setEvents(data.events);
       
@@ -327,7 +329,8 @@ function AdminEventsPageBody() {
     }
     try {
       const params: any = { page, limit: 15 };
-      if (filter !== 'all') params.status = filter;
+      params.visibility = filter === 'hidden' ? 'hidden' : 'visible';
+      if (filter !== 'all' && filter !== 'hidden') params.status = filter;
       const { data } = await api.get('/admin/events', { params });
       if (currentRequest !== requestId.current) return;
       setEvents(data.events);
@@ -382,8 +385,8 @@ function AdminEventsPageBody() {
     })) return;
     try {
       await api.delete(`/admin/events/${id}`);
-      setEvents((current) => current.filter((event) => event.id !== id));
-      setTotal((current) => Math.max(0, current - 1));
+      sessionStorage.removeItem(ADMIN_EVENTS_CACHE_KEY);
+      await loadEvents();
       toast.success(lang === 'es' ? 'Evento eliminado' : 'Event deleted');
     }
     catch (err: any) { toast.error(err.response?.data?.message || 'Error'); }
@@ -400,8 +403,12 @@ function AdminEventsPageBody() {
 
   const handleTogglePublicVisibility = async (id: string) => {
     try {
-      await api.patch(`/admin/events/${id}/toggle-public-visibility`);
+      const { data } = await api.patch(`/admin/events/${id}/toggle-public-visibility`);
+      sessionStorage.removeItem(ADMIN_EVENTS_CACHE_KEY);
       await loadEvents();
+      toast.success(data.publicVisible === false
+        ? (lang === 'es' ? 'Evento oculto de las listas de la web y del cobro móvil. Sus ventas y entradas se conservan.' : 'Event hidden from web lists and mobile sales. Its sales and tickets are preserved.')
+        : (lang === 'es' ? 'Evento visible de nuevo' : 'Event visible again'));
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Error');
     }
@@ -442,6 +449,7 @@ function AdminEventsPageBody() {
       case 'draft': return { label: lang === 'es' ? 'Borrador' : 'Draft', classes: 'bg-yellow-100 text-yellow-700' };
       case 'pending_approval': return { label: lang === 'es' ? 'Por Aprobar' : 'Pending Approval', classes: 'bg-blue-100 text-blue-700' };
       case 'cancelled': return { label: lang === 'es' ? 'Rechazado' : 'Rejected', classes: 'bg-red-100 text-red-700' };
+      case 'completed': return { label: lang === 'es' ? 'Finalizado' : 'Completed', classes: 'bg-slate-700 text-white' };
       default: return { label: status, classes: 'bg-gray-100 text-gray-700' };
     }
   };
@@ -451,7 +459,9 @@ function AdminEventsPageBody() {
     { key: 'pending_approval', label: lang === 'es' ? 'Pendientes de Aprobación' : 'Pending Approval' },
     { key: 'draft', label: t('adminDrafts') },
     { key: 'published', label: t('adminPublished') },
+    { key: 'completed', label: lang === 'es' ? 'Finalizados' : 'Completed' },
     { key: 'cancelled', label: lang === 'es' ? 'Rechazados' : 'Rejected' },
+    { key: 'hidden', label: lang === 'es' ? 'Ocultos' : 'Hidden' },
   ];
 
   const filteredEvents = events.filter((event) => {
@@ -468,6 +478,7 @@ function AdminEventsPageBody() {
       <div>
         <h1 className="premium-page-title font-black text-2xl">{t('adminEventManagement')}</h1>
         <p className="text-sm text-gray-500 mt-1">{lang === 'es' ? 'Aprueba, rechaza y gestiona los eventos de la plataforma' : 'Approve, reject and manage platform events'}</p>
+        <p className="text-sm text-slate-300 mt-2">{lang === 'es' ? 'Oculta eventos para quitarlos de estas listas y del cobro móvil conservando sus ventas y entradas. Puedes recuperarlos desde Ocultos.' : 'Hide events to remove them from these lists and mobile sales while preserving sales and tickets. Restore them from Hidden.'}</p>
       </div>
 
       {/* Filters */}
@@ -492,7 +503,7 @@ function AdminEventsPageBody() {
             placeholder={lang === 'es' ? 'Buscar en esta página...' : 'Search this page...'}
             value={search}
             onChange={(e) => updateFilters({ search: e.target.value }, true)}
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
+            className="w-full pl-9 pr-4 py-2 text-sm bg-[#071b2d] text-white placeholder:text-slate-400 border border-white/15 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400"
           />
         </div>
       </div>
@@ -506,7 +517,7 @@ function AdminEventsPageBody() {
           <button type="button" onClick={loadEvents} className="btn-secondary">{lang === 'es' ? 'Reintentar' : 'Retry'}</button>
         </div>
       ) : filteredEvents.length > 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        <div className="bg-[#0b2238] rounded-xl border border-white/10 overflow-hidden shadow-sm">
           <div className="divide-y divide-white/10">
             {filteredEvents.map((ev) => {
               const badge = getStatusBadge(ev.status);
@@ -557,12 +568,12 @@ function AdminEventsPageBody() {
                           {ev.isFeatured ? <HiStar className="h-4 w-4 shrink-0" /> : <HiOutlineStar className="h-4 w-4 shrink-0" />}
                           {ev.isFeatured ? (lang === 'es' ? 'Banner activo' : 'Banner active') : (lang === 'es' ? 'Poner banner' : 'Set banner')}
                         </button>
-                        <button onClick={() => handleTogglePublicVisibility(ev.id)} title={ev.publicVisible === false ? (lang === 'es' ? 'Oculto de Home y Eventos' : 'Hidden from Home and Events') : (lang === 'es' ? 'Visible en Home y Eventos' : 'Visible on Home and Events')} className={`${actionClass} border-sky-400/30 bg-sky-400/10 text-sky-200 hover:bg-sky-400/20`}>
-                          {ev.publicVisible === false ? <HiOutlineEyeOff className="h-4 w-4 shrink-0" /> : <HiOutlineEye className="h-4 w-4 shrink-0" />}
-                          {ev.publicVisible === false ? (lang === 'es' ? 'Oculto' : 'Hidden') : (lang === 'es' ? 'Visible' : 'Visible')}
-                        </button>
                       </>
                     )}
+                    <button onClick={() => handleTogglePublicVisibility(ev.id)} title={lang === 'es' ? 'Controlar visibilidad en las listas de la web y del cobro móvil' : 'Control visibility in web lists and mobile sales'} className={`${actionClass} border-sky-400/30 bg-sky-400/10 text-sky-200 hover:bg-sky-400/20`}>
+                      {ev.publicVisible === false ? <HiOutlineEye className="h-4 w-4 shrink-0" /> : <HiOutlineEyeOff className="h-4 w-4 shrink-0" />}
+                      {ev.publicVisible === false ? (lang === 'es' ? 'Volver a mostrar' : 'Show again') : (lang === 'es' ? 'Ocultar de web y cobro móvil' : 'Hide from web and mobile sales')}
+                    </button>
                     {hasPendingChanges(ev) && <button onClick={() => setSelectedEventForChanges(ev)} className={`${actionClass} border-amber-400/40 bg-amber-400/15 text-amber-200 hover:bg-amber-400/25`}><HiOutlineCheckCircle className="h-4 w-4 shrink-0" />{lang === 'es' ? 'Ver cambios' : 'Review changes'}</button>}
                     <button onClick={() => handleOpenReportModal(ev)} title={lang === 'es' ? 'Enviar resumen final del evento' : 'Send final event report'} className={`${actionClass} border-orange-400 bg-[#f97316] text-white hover:bg-[#e9680d]`}><HiOutlineMail className="h-4 w-4 shrink-0" />{lang === 'es' ? 'Enviar resumen' : 'Send report'}</button>
                     <button onClick={() => handleOpenPricesModal(ev)} className={`${actionClass} border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/20`}><HiOutlineCurrencyDollar className="h-4 w-4 shrink-0" />{lang === 'es' ? 'Precios' : 'Prices'}</button>
@@ -579,7 +590,7 @@ function AdminEventsPageBody() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 px-6 py-16 text-center">
+        <div className="bg-[#0b2238] rounded-xl border border-white/10 px-6 py-16 text-center">
           <HiOutlineCalendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-600 font-medium">{t('adminNoEvents')}</p>
         </div>

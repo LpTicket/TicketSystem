@@ -29,6 +29,7 @@ type DoorEvent = {
   venueName?: string;
   imageUrl?: string;
   status?: string;
+  publicVisible?: boolean;
 };
 
 type PaymentMethod = 'qr' | 'link' | 'tap';
@@ -65,6 +66,7 @@ function normalizeDoorEvent(event: any): DoorEvent {
     venueName: event.venueName || event.venue || undefined,
     imageUrl: getImageUrl(event.imageUrl || event.bannerImageUrl),
     status: event.status || 'published',
+    publicVisible: event.publicVisible,
   };
 }
 
@@ -172,7 +174,23 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   useEffect(() => {
     let mounted = true;
     const loadEvents = async () => {
-      if (assignedEvents?.length) return assignedEvents;
+      if (user?.role === 'admin') {
+        const adminEvents: DoorEvent[] = [];
+        let page = 1;
+        let totalPages = 1;
+        do {
+          const data = await apiGet<{ events: DoorEvent[]; totalPages: number }>('/admin/events', {
+            page, limit: 50,
+          });
+          adminEvents.push(...listFrom(data)
+            .filter((event) => ['published', 'completed'].includes(event.status) && event.publicVisible !== false)
+            .map(normalizeDoorEvent));
+          totalPages = data.totalPages;
+          page += 1;
+        } while (page <= totalPages);
+        return adminEvents;
+      }
+      if (assignedEvents?.length) return assignedEvents.filter((event) => event.publicVisible !== false);
       if (eventSource === 'employee') {
         const [approvedResult, ownResult] = await Promise.allSettled([
           getMyScannerAccess(),
@@ -180,19 +198,19 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
         ]);
         const approvedEvents = approvedResult.status === 'fulfilled'
           ? approvedResult.value
-            .filter((grant) => grant.status === 'approved')
+            .filter((grant) => grant.status === 'approved' && grant.event.publicVisible !== false)
             .map((grant) => normalizeDoorEvent(grant.event))
           : [];
         const ownEvents = ownResult.status === 'fulfilled'
           ? listFrom(ownResult.value)
-            .filter((event) => (event.status || 'published') === 'published')
+            .filter((event) => (event.status || 'published') === 'published' && event.publicVisible !== false)
             .map((event) => normalizeDoorEvent({ ...event, organizerId: user?.id }))
           : [];
         return mergeDoorEvents(ownEvents, approvedEvents);
       }
       const data = await apiGet<any>('/events/mine/list');
       return listFrom(data)
-        .filter((event) => (event.status || 'published') === 'published')
+        .filter((event) => (event.status || 'published') === 'published' && event.publicVisible !== false)
         .map(normalizeDoorEvent);
     };
 
@@ -200,7 +218,9 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
       .then((items) => {
         if (!mounted) return;
         setEvents(items);
-        setSelectedEventId((current) => current || initialSelectedEventId || items[0]?.id || '');
+        setSelectedEventId((current) => current
+          || (items.some((event) => event.id === initialSelectedEventId) ? initialSelectedEventId : '')
+          || items[0]?.id || '');
       })
       .catch((err: any) => setError(err?.message || (
         eventSource === 'employee'
@@ -208,7 +228,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           : t('No se pudieron cargar tus eventos.', 'Could not load your events.')
       )));
     return () => { mounted = false; };
-  }, [assignedEvents, eventSource, initialSelectedEventId, t]);
+  }, [assignedEvents, eventSource, initialSelectedEventId, t, user?.id, user?.role]);
 
   useEffect(() => {
     setCheckout(null);

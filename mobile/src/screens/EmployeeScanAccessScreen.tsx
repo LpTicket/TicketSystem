@@ -66,7 +66,7 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
   const [canManageScannerRequests, setCanManageScannerRequests] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  const approved = useMemo(() => accessList.filter((item) => item.status === 'approved'), [accessList]);
+  const approved = useMemo(() => accessList.filter((item) => item.status === 'approved' && item.event.publicVisible !== false), [accessList]);
   const pending = useMemo(() => accessList.filter((item) => item.status === 'pending'), [accessList]);
   const rejected = useMemo(() => accessList.filter((item) => item.status === 'rejected'), [accessList]);
   const knownEventIds = useMemo(() => new Set(accessList.map((item) => item.event.id)), [accessList]);
@@ -238,6 +238,7 @@ export function EmployeeScanAccessScreen({ user, onBack }: Props) {
           venueName: activeDoorSaleEvent.venueName || undefined,
           imageUrl: activeDoorSaleEvent.imageUrl || activeDoorSaleEvent.bannerImageUrl || undefined,
           status: activeDoorSaleEvent.status || undefined,
+          publicVisible: activeDoorSaleEvent.publicVisible,
         }]}
         initialSelectedEventId={activeDoorSaleEvent.id}
         onBack={() => setActiveDoorSaleEvent(null)}
