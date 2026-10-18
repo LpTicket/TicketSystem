@@ -136,8 +136,15 @@ export class AdminController {
   async recordOrganizerPayout(@Param('id') id: string, @Body() dto: RecordOrganizerPayoutDto, @Request() req: any) {
     // Do not authorize a payout from stale pre-webhook or historical balances.
     // A Stripe outage fails closed: no payout record is created.
-    await this.ordersService.reconcileStripeDisputes(id);
-    return this.adminService.recordOrganizerPayout(id, dto, req.user.id);
+    const verification = await this.ordersService.verifyOrganizerPayout(id);
+    return this.adminService.recordOrganizerPayout(id, dto, req.user.id, verification);
+  }
+
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @Post('events/:id/organizer-payout-verification')
+  async verifyOrganizerPayout(@Param('id') id: string) {
+    const verification = await this.ordersService.verifyOrganizerPayout(id);
+    return this.adminService.getVerifiedOrganizerPayout(id, verification);
   }
 
   @Throttle({ default: { ttl: 60_000, limit: 5 } })

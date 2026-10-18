@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, ServiceUnavailableException, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -19,7 +19,8 @@ import { MarketingService } from '../marketing/marketing.service';
 import { RevokeTicketsDto } from './dto/revoke-tickets.dto';
 import { IssueCourtesyTicketsDto } from './dto/issue-courtesy-tickets.dto';
 import { FreeRegistrationDto } from './dto/free-registration.dto';
-import { organizerDisputeAdjustment } from '../common/utils/order-disputes';
+import { disputeWithholdsPayout, organizerDisputeAdjustment } from '../common/utils/order-disputes';
+import { OrganizerPayoutVerification, payoutOrderFingerprint } from '../common/utils/organizer-payout-verification';
 
 /**
  * Service constants for fee calculation.
@@ -1921,6 +1922,112 @@ export class OrdersService {
       startingAfter = page.has_more ? page.data[page.data.length - 1].id : undefined;
     } while (startingAfter);
     return { updated };
+  }
+
+  /** Administrative payout checks only. Never called by checkout or ticket issuance. */
+  async verifyOrganizerPayout(eventId: string): Promise<OrganizerPayoutVerification> {
+    if (!isUUID(eventId)) throw new BadRequestException('Evento inválido.');
+    if (!this.stripe) throw new ServiceUnavailableException('Por verificar: Stripe no está configurado.');
+    const stripeId = (value: any) => typeof value === 'string' ? value : value?.id;
+    const requestOptions = { timeout: 10_000, maxNetworkRetries: 0 };
+    const knownDisputedCharges = new Set<string>();
+    try {
+      // Read the dispute index without writing orders or holding event locks.
+      // This also catches inquiries even when the Charge's disputed flag is false.
+      let startingAfter: string | undefined;
+      const seen = new Set<string>();
+      do {
+        const page = await this.stripe.disputes.list({ limit: 100,
+          ...(startingAfter ? { starting_after: startingAfter } : {}) }, requestOptions);
+        for (const dispute of page.data) {
+          if (seen.has(dispute.id) || !stripeId(dispute.charge)) throw new Error('Invalid dispute page');
+          seen.add(dispute.id);
+          knownDisputedCharges.add(stripeId(dispute.charge));
+        }
+        if (page.has_more && !page.data.length) throw new Error('Empty dispute page');
+        startingAfter = page.has_more ? page.data[page.data.length - 1].id : undefined;
+      } while (startingAfter);
+    } catch {
+      throw new ServiceUnavailableException('Por verificar: no se pudo consultar Stripe. No se registró el pago al organizador.');
+    }
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Evento no encontrado.');
+    const currency = (event.currency || 'USD').toLowerCase();
+    const orders = await this.orderRepo.find({ where: { eventId, status: OrderStatus.PAID } });
+    const report: OrganizerPayoutVerification = { eventId, currency, verifiedAt: Date.now(), orders: [] };
+    const paymentIds = new Set<string>();
+    let cursor = 0;
+    let failed = false;
+    const check = async (order: Order) => {
+      const total = Math.round(Number(order.total) * 100);
+      const subtotal = Math.round(Number(order.subtotal) * 100);
+      const invalid = () => { throw new Error('Unverifiable Stripe payment'); };
+      if (!Number.isSafeInteger(total) || !Number.isSafeInteger(subtotal)
+        || total < 0 || subtotal < 0 || subtotal > total) invalid();
+      let excludedTicketAmount = 0;
+      if (total > 0) {
+        let paymentId = order.stripePaymentIntent;
+        if (!paymentId && order.stripeSessionId) {
+          const session = await this.stripe.checkout.sessions.retrieve(order.stripeSessionId, {}, requestOptions);
+          if (session.mode !== 'payment' || session.amount_total !== total || session.currency !== currency
+            || (session.metadata?.orderId && session.metadata.orderId !== order.id)) invalid();
+          paymentId = stripeId(session.payment_intent);
+        }
+        if (!paymentId || paymentIds.has(paymentId)) invalid();
+        paymentIds.add(paymentId);
+        const intent = await this.stripe.paymentIntents.retrieve(paymentId, { expand: ['latest_charge'] }, requestOptions);
+        if (intent.id !== paymentId || intent.amount !== total || intent.currency !== currency
+          || (intent.metadata?.orderId && intent.metadata.orderId !== order.id)
+          || (intent.metadata?.eventId && intent.metadata.eventId !== eventId)) invalid();
+        if (['canceled', 'requires_payment_method'].includes(intent.status) && intent.amount_received === 0) {
+          excludedTicketAmount = subtotal / 100;
+        } else {
+          // Processing/authorized payments are not available money. Fail closed
+          // instead of pretending that an uncertain payment is a settled sale.
+          if (intent.status !== 'succeeded' || intent.amount_received !== total) invalid();
+          const charge = typeof intent.latest_charge === 'object' ? intent.latest_charge
+            : intent.latest_charge ? await this.stripe.charges.retrieve(intent.latest_charge, {}, requestOptions) : null;
+          if (!charge || stripeId(charge.payment_intent) !== paymentId || charge.amount !== total
+            || charge.currency !== currency || charge.paid !== true || charge.captured !== true
+            || charge.amount_captured !== total || charge.status !== 'succeeded'
+            || !Number.isSafeInteger(charge.amount_refunded) || charge.amount_refunded < 0
+            || charge.amount_refunded > total) invalid();
+          let disputed = 0;
+          if (charge.disputed || knownDisputedCharges.has(charge.id)) {
+            let startingAfter: string | undefined;
+            const seen = new Set<string>();
+            do {
+              const page = await this.stripe.disputes.list({ charge: charge.id, limit: 100,
+                ...(startingAfter ? { starting_after: startingAfter } : {}) }, requestOptions);
+              if (!page.data.length && (charge.disputed || page.has_more || startingAfter)) invalid();
+              for (const dispute of page.data) {
+                if (seen.has(dispute.id) || stripeId(dispute.charge) !== charge.id
+                  || dispute.currency !== currency || !Number.isSafeInteger(dispute.amount)
+                  || dispute.amount < 0 || dispute.amount > total) invalid();
+                seen.add(dispute.id);
+                if (disputeWithholdsPayout(dispute.status)) disputed += dispute.amount;
+              }
+              startingAfter = page.has_more ? page.data[page.data.length - 1].id : undefined;
+            } while (startingAfter);
+          }
+          // Refund and dispute deductions share one cap and are never charged
+          // twice on top of the reserve already displayed in the dashboard.
+          excludedTicketAmount = Math.max(Number(order.organizerDisputeAdjustment || 0),
+            Math.round(subtotal * Math.min(total, charge.amount_refunded + disputed) / total) / 100);
+        }
+      }
+      report.orders.push({ id: order.id, fingerprint: payoutOrderFingerprint(order), excludedTicketAmount });
+    };
+    const results = await Promise.allSettled(Array.from({ length: Math.min(4, orders.length) }, async () => {
+      while (!failed && cursor < orders.length) {
+        const order = orders[cursor++];
+        try { await check(order); } catch (error) { failed = true; throw error; }
+      }
+    }));
+    if (results.some(result => result.status === 'rejected')) {
+      throw new ServiceUnavailableException('Por verificar: no se pudieron confirmar todos los cobros con Stripe. No se registró el pago al organizador.');
+    }
+    return report;
   }
 
   private async finalizePaidCheckoutSession(session: any) {

@@ -12,11 +12,12 @@ import { Injectable, NotFoundException, BadRequestException, ConflictException, 
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole, Event, EventStatus, Order, OrderStatus, Ticket, VenueSection, Seat, SeatStatus, OrganizerPayout } from '../database/entities';
 import { RecordOrganizerPayoutDto } from './dto/record-organizer-payout.dto';
 import { MailService } from '../common/services/mail.service';
+import { OrganizerPayoutVerification, payoutOrderFingerprint } from '../common/utils/organizer-payout-verification';
 
 @Injectable()
 export class AdminService {
@@ -451,7 +452,8 @@ export class AdminService {
    * Audits an external payout after the administrator has already paid it.
    * It never creates a transfer, charges Stripe, or changes order/ticket data.
    */
-  async recordOrganizerPayout(eventId: string, dto: RecordOrganizerPayoutDto, recordedByUserId: string) {
+  async recordOrganizerPayout(eventId: string, dto: RecordOrganizerPayoutDto, recordedByUserId: string,
+    verification: OrganizerPayoutVerification) {
     const amount = Number(dto.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new BadRequestException('El monto debe ser mayor a 0.');
@@ -465,42 +467,7 @@ export class AdminService {
       if (!event) throw new NotFoundException('Evento no encontrado.');
       if (!event.organizerId) throw new BadRequestException('Este evento no tiene un organizador asignado.');
 
-      const revenueRow = await manager.getRepository(Order)
-        .createQueryBuilder('ord')
-        .select('COALESCE(SUM(ord.subtotal), 0)', 'ticketRevenue')
-        .where('ord.eventId = :eventId', { eventId })
-        .andWhere('ord.status = :status', { status: OrderStatus.PAID })
-        .getRawOne();
-      const ticketRevenue = Number(revenueRow?.ticketRevenue || 0);
-
-      const adjustmentRow = await manager.getRepository(Order)
-        .createQueryBuilder('ord')
-        .select('COALESCE(SUM(ord."organizerProcessingAdjustment"), 0)', 'organizerAdjustments')
-        .addSelect('COALESCE(SUM(ord."organizerDisputeAdjustment"), 0)', 'disputeAdjustments')
-        .addSelect(
-          `COUNT(CASE WHEN LOWER(COALESCE(ord."paymentMethodType", '')) = 'klarna' AND COALESCE(ord."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`,
-          'pendingReconciliations',
-        )
-        .where('ord.eventId = :eventId', { eventId })
-        .andWhere('ord.status = :status', { status: OrderStatus.PAID })
-        .getRawOne();
-      const pendingReconciliations = Number(adjustmentRow?.pendingReconciliations || 0);
-      if (pendingReconciliations > 0) {
-        throw new BadRequestException(
-          'Espera a que Stripe confirme el costo de procesamiento de Klarna antes de registrar este pago.',
-        );
-      }
-      const organizerAdjustments = Number(adjustmentRow?.organizerAdjustments || 0);
-
-      const paidRow = await manager.getRepository(OrganizerPayout)
-        .createQueryBuilder('payout')
-        .select('COALESCE(SUM(payout.amount), 0)', 'totalPaid')
-        .where('payout.eventId = :eventId', { eventId })
-        .getRawOne();
-      const pending = Math.max(
-        0,
-        +(ticketRevenue - organizerAdjustments - Number(adjustmentRow?.disputeAdjustments || 0) - Number(paidRow?.totalPaid || 0)).toFixed(2),
-      );
+      const { organizerPending: pending } = await this.calculateVerifiedPayout(manager, event, verification);
 
       if (amount > pending + 0.001) {
         throw new BadRequestException('El pago no puede ser mayor al saldo pendiente del organizador.');
@@ -528,6 +495,49 @@ export class AdminService {
     } catch { /* The saved payout remains the source of truth. */ }
 
     return payout;
+  }
+
+  async getVerifiedOrganizerPayout(eventId: string, verification: OrganizerPayoutVerification) {
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Evento no encontrado.');
+    return this.calculateVerifiedPayout(this.orderRepo.manager, event, verification);
+  }
+
+  private async calculateVerifiedPayout(manager: EntityManager, event: Event, verification: OrganizerPayoutVerification) {
+    if (!verification || verification.eventId !== event.id
+      || verification.currency !== (event.currency || 'USD').toLowerCase()
+      || !Number.isFinite(verification.verifiedAt) || Date.now() - verification.verifiedAt > 5 * 60_000
+      || verification.verifiedAt > Date.now()) {
+      throw new BadRequestException('Por verificar: vuelve a consultar el saldo con Stripe.');
+    }
+    const orders = await manager.getRepository(Order).find({ where: { eventId: event.id, status: OrderStatus.PAID } });
+    const checked = new Map(verification.orders.map(order => [order.id, order]));
+    if (checked.size !== verification.orders.length || orders.length !== checked.size
+      || orders.some(order => checked.get(order.id)?.fingerprint !== payoutOrderFingerprint(order))) {
+      throw new BadRequestException('Por verificar: las ventas o los ajustes cambiaron durante la consulta. Vuelve a verificar el saldo.');
+    }
+    if (orders.some(order => order.paymentMethodType?.toLowerCase() === 'klarna'
+      && (order.stripeFeeReconciliationStatus || 'pending') !== 'reconciled')) {
+      throw new BadRequestException('Espera a que Stripe confirme el costo de procesamiento de Klarna antes de registrar este pago.');
+    }
+    let availableCents = 0;
+    let excludedCents = 0;
+    for (const order of orders) {
+      const excluded = checked.get(order.id)!.excludedTicketAmount;
+      if (!Number.isFinite(excluded) || excluded < Number(order.organizerDisputeAdjustment || 0)
+        || excluded < 0 || excluded > Number(order.subtotal)) {
+        throw new BadRequestException('Por verificar: importe de Stripe inválido.');
+      }
+      excludedCents += Math.round(excluded * 100);
+      availableCents += Math.round(Number(order.subtotal) * 100)
+        - Math.round(Number(order.organizerProcessingAdjustment || 0) * 100) - Math.round(excluded * 100);
+    }
+    const paid = await manager.getRepository(OrganizerPayout).createQueryBuilder('payout')
+      .select('COALESCE(SUM(payout.amount), 0)', 'totalPaid')
+      .where('payout.eventId = :eventId', { eventId: event.id }).getRawOne();
+    const balance = (availableCents - Math.round(Number(paid?.totalPaid || 0) * 100)) / 100;
+    return { organizerPending: Math.max(0, balance), organizerRecoverable: Math.max(0, -balance),
+      excludedTicketAmount: excludedCents / 100, verifiedAt: new Date(verification.verifiedAt).toISOString() };
   }
 
   async getUsers(page: number, limit: number, role?: string, search?: string) {

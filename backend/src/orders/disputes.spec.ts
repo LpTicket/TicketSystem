@@ -1,5 +1,6 @@
 import { Event, Order, OrderStatus } from '../database/entities';
 import { organizerDisputeAdjustment } from '../common/utils/order-disputes';
+import { payoutOrderFingerprint } from '../common/utils/organizer-payout-verification';
 import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 import { AdminController } from '../admin/admin.controller';
@@ -159,14 +160,15 @@ describe('Dispute delivery and payout safeguards', () => {
 
   it('refreshes Stripe before recording a payout, and fails closed on an outage', async () => {
     const admin = { recordOrganizerPayout: jest.fn() };
-    const orders = { reconcileStripeDisputes: jest.fn().mockRejectedValue(new Error('Stripe unavailable')) };
+    const orders = { verifyOrganizerPayout: jest.fn().mockRejectedValue(new Error('Stripe unavailable')) };
     const controller = new AdminController(admin as any, {} as any, orders as any, {} as any);
     await expect(controller.recordOrganizerPayout(eventId, { amount: 280 } as any, { user: { id: 'admin' } }))
       .rejects.toThrow('Stripe unavailable');
     expect(admin.recordOrganizerPayout).not.toHaveBeenCalled();
-    orders.reconcileStripeDisputes.mockResolvedValue({ updated: 1 });
+    const verification = { eventId, currency: 'usd', verifiedAt: Date.now(), orders: [] };
+    orders.verifyOrganizerPayout.mockResolvedValue(verification);
     await controller.recordOrganizerPayout(eventId, { amount: 210 } as any, { user: { id: 'admin' } });
-    expect(admin.recordOrganizerPayout).toHaveBeenCalledWith(eventId, { amount: 210 }, 'admin');
+    expect(admin.recordOrganizerPayout).toHaveBeenCalledWith(eventId, { amount: 210 }, 'admin', verification);
   });
 });
 
@@ -235,17 +237,18 @@ describe('Consistent dispute deductions in financial reports', () => {
   it.each([280, 210])('validates a requested $%s payout against the $210 after-dispute balance', async amount => {
     const payoutRepo = { createQueryBuilder: () => query({ totalPaid: 16445.32 }),
       create: jest.fn(value => value), save: jest.fn(async value => value) };
-    let orderQuery = 0;
-    const orderRepo = { createQueryBuilder: () => ++orderQuery % 2
-      ? query({ ticketRevenue: 16870 })
-      : query({ organizerAdjustments: 144.68, disputeAdjustments: 70, pendingReconciliations: 0 }) };
+    const order: any = { id: 'verified-order', eventId, status: OrderStatus.PAID, subtotal: 16870,
+      total: 18391.62, organizerProcessingAdjustment: 144.68, organizerDisputeAdjustment: 70 };
+    const orderRepo = { find: jest.fn().mockResolvedValue([order]) };
+    const verification = { eventId, currency: 'usd', verifiedAt: Date.now(),
+      orders: [{ id: order.id, fingerprint: payoutOrderFingerprint(order), excludedTicketAmount: 70 }] };
     const manager = { getRepository: entity => entity === Event
       ? { findOne: jest.fn().mockResolvedValue({ id: eventId, organizerId: 'organizer' }) }
       : entity === Order ? orderRepo : payoutRepo };
     const service = new AdminService({} as any, {} as any, {} as any, {} as any, {} as any, {} as any,
       { manager: { transaction: async run => run(manager) } } as any,
       { del: jest.fn() } as any, {} as any);
-    const result = service.recordOrganizerPayout(eventId, { amount } as any, 'admin');
+    const result = service.recordOrganizerPayout(eventId, { amount } as any, 'admin', verification);
     if (amount === 280) {
       await expect(result).rejects.toThrow('mayor al saldo');
       expect(payoutRepo.save).not.toHaveBeenCalled();

@@ -92,6 +92,10 @@ export default function AdminEventFinancialDetailPage() {
   const [payoutAmount, setPayoutAmount] = useState('');
   const [payoutNote, setPayoutNote] = useState('');
   const [payoutSaving, setPayoutSaving] = useState(false);
+  const [payoutVerifying, setPayoutVerifying] = useState(false);
+  const [payoutVerification, setPayoutVerification] = useState<{
+    organizerPending: number; excludedTicketAmount: number; organizerRecoverable: number;
+  } | null>(null);
   const [payoutError, setPayoutError] = useState('');
   const [disputesSyncing, setDisputesSyncing] = useState(false);
   const [disputesError, setDisputesError] = useState('');
@@ -127,12 +131,25 @@ export default function AdminEventFinancialDetailPage() {
     : '—';
   const discrepancy = detail ? detail.summary.extraIssuedTickets > 0 || detail.summary.missingTickets > 0 : false;
 
-  const openPayoutModal = () => {
+  const openPayoutModal = async () => {
     if (!detail || detail.summary.organizerPending <= 0 || detail.summary.pendingFeeReconciliations > 0) return;
-    setPayoutAmount(detail.summary.organizerPending.toFixed(2));
+    if (payoutVerifying || payoutSaving) return;
+    setPayoutVerification(null);
+    setPayoutAmount('');
     setPayoutNote('');
     setPayoutError('');
     setShowPayoutModal(true);
+    setPayoutVerifying(true);
+    try {
+      const { data } = await api.post(`/admin/events/${eventId}/organizer-payout-verification`);
+      setPayoutVerification(data);
+      setPayoutAmount(Number(data.organizerPending).toFixed(2));
+    } catch (requestError: any) {
+      setPayoutError(requestError.response?.data?.message || (lang === 'es'
+        ? 'Por verificar: no se pudo comprobar el saldo con Stripe.' : 'Verification required: could not check the Stripe balance.'));
+    } finally {
+      setPayoutVerifying(false);
+    }
   };
 
   const syncDisputes = async () => {
@@ -153,9 +170,9 @@ export default function AdminEventFinancialDetailPage() {
   };
 
   const recordPayout = async () => {
-    if (!eventId || !detail) return;
+    if (!eventId || !detail || !payoutVerification || payoutVerifying || payoutSaving) return;
     const amount = Number(payoutAmount);
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0 || amount > payoutVerification.organizerPending) {
       setPayoutError(lang === 'es' ? 'Ingresa un monto válido.' : 'Enter a valid amount.');
       return;
     }
@@ -167,6 +184,7 @@ export default function AdminEventFinancialDetailPage() {
       setDetail(data);
       setShowPayoutModal(false);
     } catch (requestError: any) {
+      setPayoutVerification(null);
       setPayoutError(requestError.response?.data?.message || (lang === 'es' ? 'No se pudo registrar el pago.' : 'Could not record the payout.'));
     } finally {
       setPayoutSaving(false);
@@ -288,7 +306,7 @@ export default function AdminEventFinancialDetailPage() {
           <div className="financial-tone-sky rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4"><p className="financial-card-label text-xs font-bold uppercase tracking-wide text-sky-300">{lang === 'es' ? 'Monto para organizador' : 'Organizer ticket revenue'}</p><p className="financial-card-value mt-2 text-2xl font-black text-sky-300">{money(summary.ticketRevenue)}</p><p className="financial-card-note mt-1 text-xs font-semibold text-sky-100/65">{lang === 'es' ? 'Ingresos por entradas, sin fees' : 'Ticket revenue, excluding fees'}</p></div>
           <div className="financial-tone-orange rounded-2xl border border-orange-400/35 bg-orange-500/15 p-4"><p className="financial-card-label text-xs font-bold uppercase tracking-wide text-orange-300">{lang === 'es' ? 'Ajuste adicional de Klarna' : 'Additional Klarna adjustment'}</p><p className="financial-card-value mt-2 text-2xl font-black text-orange-300">-{money(summary.organizerProcessingAdjustments)}</p><p className="financial-card-note mt-1 text-xs font-semibold text-orange-100/65">{summary.pendingFeeReconciliations > 0 ? `${summary.pendingFeeReconciliations} ${lang === 'es' ? 'orden(es) esperando el costo real de Stripe' : 'order(s) waiting for the actual Stripe fee'}` : (lang === 'es' ? 'Diferencia sobre la tarifa estándar de tarjeta' : 'Difference above the standard card fee')}</p></div>
           <div className="financial-tone-emerald rounded-2xl border border-emerald-400/35 bg-emerald-500/15 p-4"><p className="financial-card-label text-xs font-bold uppercase tracking-wide text-emerald-300">{lang === 'es' ? 'Pagado al organizador' : 'Paid to organizer'}</p><p className="financial-card-value mt-2 text-2xl font-black text-emerald-300">{money(summary.organizerPaid)}</p><p className="financial-card-note mt-1 text-xs font-semibold text-emerald-100/65">{detail.organizerPayouts.length} {lang === 'es' ? 'pago(s) registrado(s)' : 'recorded payout(s)'}</p></div>
-          <div className="financial-tone-red rounded-2xl border border-red-400/35 bg-red-500/15 p-4"><p className="financial-card-label text-xs font-bold uppercase tracking-wide text-red-300">{lang === 'es' ? 'Pendiente por pagar' : 'Pending payout'}</p><p className="financial-card-value mt-2 text-2xl font-black text-red-300">{money(summary.organizerPending)}</p><p className="financial-card-note mt-1 text-xs font-semibold text-red-100/65">{lang === 'es' ? 'Saldo que aún debes transferir' : 'Balance still to transfer'}</p></div>
+          <div className="financial-tone-red rounded-2xl border border-red-400/35 bg-red-500/15 p-4"><p className="financial-card-label text-xs font-bold uppercase tracking-wide text-red-300">{lang === 'es' ? 'Pendiente por pagar' : 'Pending payout'}</p><p className="financial-card-value mt-2 text-2xl font-black text-red-300">{money(summary.organizerPending)}</p><p className="financial-card-note mt-1 text-xs font-semibold text-red-100/65">{lang === 'es' ? 'Saldo registrado; se verifica con Stripe antes de registrar el pago' : 'Recorded balance; verified with Stripe before recording a payout'}</p></div>
         </div>
         {summary.pendingFeeReconciliations > 0 && <div className="mx-4 mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">{lang === 'es' ? 'El pago al organizador queda protegido hasta que Stripe confirme el costo real de las órdenes Klarna pendientes. Las ventas y las entradas no se detienen.' : 'Organizer payout is protected until Stripe confirms the actual cost of pending Klarna orders. Sales and ticket issuance continue.'}</div>}
         <div className="border-t border-gray-100 px-5 py-4">
@@ -301,7 +319,38 @@ export default function AdminEventFinancialDetailPage() {
 
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"><div className="border-b border-gray-100 px-5 py-4"><h2 className="font-black text-[#0A375A]">{lang === 'es' ? 'Órdenes pagadas y emisión' : 'Paid orders and issuance'}</h2><p className="mt-1 text-sm text-gray-500">{lang === 'es' ? 'Permite detectar diferencias por orden sin cambiar datos de venta. Se muestran hasta 10 órdenes; usa el scroll para ver las demás.' : 'Detects order-level differences without changing sales data. Up to 10 orders are visible; scroll for the rest.'}</p></div><div className="max-h-[708px] overflow-auto"><table className="min-w-[1080px] w-full text-left text-sm"><thead className="sticky top-0 z-10 bg-gray-50 text-xs font-black uppercase tracking-wide text-gray-500 shadow-[0_1px_0_0_rgba(229,231,235,1)]"><tr><th className="px-5 py-3">{lang === 'es' ? 'Comprador' : 'Buyer'}</th><th className="px-5 py-3">{lang === 'es' ? 'Fecha' : 'Date'}</th><th className="px-5 py-3 text-right">{lang === 'es' ? 'Pagadas' : 'Paid'}</th><th className="px-5 py-3 text-right">{lang === 'es' ? 'Emitidas' : 'Issued'}</th><th className="px-5 py-3 text-right">{lang === 'es' ? 'Entradas' : 'Tickets'}</th><th className="px-5 py-3 text-right">Fees</th><th className="px-5 py-3 text-right">{lang === 'es' ? 'Ajuste Klarna' : 'Klarna adjustment'}</th><th className="px-5 py-3 text-right">{lang === 'es' ? 'Total cobrado' : 'Total charged'}</th><th className="px-5 py-3">{lang === 'es' ? 'Canal' : 'Channel'}</th></tr></thead><tbody>{detail.orders.map((order) => { const buyer = order.buyer ? `${order.buyer.firstName || ''} ${order.buyer.lastName || ''}`.trim() || order.buyer.email : '—'; const prices = Object.entries(order.ticketPrices).map(([price, count]) => `${money(Number(price))} × ${count}`).join(', ') || '—'; return <tr key={order.id} className="border-t border-gray-100"><td className="px-5 py-3"><p className="font-bold text-gray-800">{buyer}</p><p className="text-xs text-gray-500">{order.buyer?.email || ''}</p></td><td className="px-5 py-3 text-gray-600">{new Intl.DateTimeFormat(lang === 'es' ? 'es-US' : 'en-US', { dateStyle: 'short', timeStyle: 'short', timeZone: detail.event.eventTimezone || undefined }).format(new Date(order.paidAt))}</td><td className="px-5 py-3 text-right font-semibold">{order.expectedTickets}</td><td className={`px-5 py-3 text-right font-black ${order.extraIssuedTickets ? 'text-amber-700' : 'text-gray-800'}`}>{order.issuedTickets}{order.extraIssuedTickets ? ` (+${order.extraIssuedTickets})` : ''}</td><td className="px-5 py-3 text-right text-gray-700">{prices}</td><td className="px-5 py-3 text-right text-gray-700">{money(order.lpFee + order.processingFee)}</td><td className="px-5 py-3 text-right"><p className="font-bold text-[#C65A09]">{order.organizerProcessingAdjustment > 0 ? `-${money(order.organizerProcessingAdjustment)}` : money(0)}</p>{order.stripeFeeReconciliationStatus === 'pending' && <p className="text-[11px] font-semibold text-amber-700">{lang === 'es' ? 'Esperando Stripe' : 'Waiting for Stripe'}</p>}</td><td className="px-5 py-3 text-right font-black text-[#0A375A]">{money(order.total)}</td><td className="px-5 py-3 text-gray-600"><p className="capitalize">{order.salesChannel || '—'}</p>{order.paymentMethodType && <p className="text-xs font-bold uppercase text-[#0A375A]">{order.paymentMethodType}</p>}</td></tr>; })}</tbody></table></div></section>
 
-      {showPayoutModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4"><div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => !payoutSaving && setShowPayoutModal(false)} /><div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl"><div className="flex items-start justify-between gap-4 bg-gradient-to-r from-[#0A375A] to-[#123f65] px-5 py-4 text-white"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-orange-300">{lang === 'es' ? 'Pago externo' : 'External payout'}</p><h2 className="mt-1 text-xl font-black">{lang === 'es' ? 'Registrar pago al organizador' : 'Record organizer payout'}</h2><p className="mt-1 text-sm text-white/75">{organizer}</p></div><button onClick={() => setShowPayoutModal(false)} disabled={payoutSaving} className="rounded-lg p-2 text-white/80 transition hover:bg-white/10 hover:text-white"><HiOutlineX className="h-5 w-5" /></button></div><div className="space-y-4 p-5"><div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-gray-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-gray-500">{lang === 'es' ? 'Pendiente' : 'Pending'}</p><p className="mt-1 text-lg font-black text-[#C65A09]">{money(summary.organizerPending)}</p></div><div className="rounded-xl bg-gray-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-gray-500">{lang === 'es' ? 'Se registrará' : 'Will be recorded'}</p><p className="mt-1 text-xs font-semibold text-gray-500">{lang === 'es' ? 'No envía dinero; valida el saldo con Stripe' : 'Does not send money; checks the balance with Stripe'}</p></div></div><label className="block text-sm font-black text-[#0A375A]"><span>{lang === 'es' ? 'Monto pagado (USD)' : 'Amount paid (USD)'}</span><input type="number" min="0.01" max={summary.organizerPending} step="0.01" value={payoutAmount} onChange={(event) => setPayoutAmount(event.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-bold text-[#0A375A] outline-none transition focus:border-[#F97316] focus:ring-2 focus:ring-orange-100" /></label><label className="block text-sm font-black text-[#0A375A]"><span>{lang === 'es' ? 'Referencia o nota (opcional)' : 'Reference or note (optional)'}</span><input value={payoutNote} maxLength={300} onChange={(event) => setPayoutNote(event.target.value)} placeholder={lang === 'es' ? 'Zelle, transferencia bancaria, efectivo...' : 'Zelle, bank transfer, cash...'} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-[#0A375A] outline-none transition placeholder:text-gray-400 focus:border-[#F97316] focus:ring-2 focus:ring-orange-100" /></label>{payoutError && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{payoutError}</p>}<div className="flex gap-3 pt-1"><button onClick={() => setShowPayoutModal(false)} disabled={payoutSaving} className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-black text-gray-600 transition hover:bg-gray-50 disabled:opacity-50">{lang === 'es' ? 'Cancelar' : 'Cancel'}</button><button onClick={recordPayout} disabled={payoutSaving} className="flex-1 rounded-xl bg-[#F97316] px-4 py-3 text-sm font-black text-white transition hover:bg-[#EA580C] disabled:opacity-60">{payoutSaving ? (lang === 'es' ? 'Guardando...' : 'Saving...') : (lang === 'es' ? 'Confirmar pago' : 'Confirm payout')}</button></div></div></div></div>}
+      {showPayoutModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => !payoutSaving && !payoutVerifying && setShowPayoutModal(false)} />
+        <div role="dialog" aria-modal="true" aria-labelledby="payout-title" className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 text-slate-200 shadow-2xl">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-700 px-5 py-4">
+            <div><p className="text-xs font-black uppercase tracking-[0.18em] text-orange-300">{lang === 'es' ? 'Pago externo' : 'External payout'}</p><h2 id="payout-title" className="mt-1 text-xl font-black text-white">{lang === 'es' ? 'Registrar pago al organizador' : 'Record organizer payout'}</h2><p className="mt-1 text-sm text-slate-300">{organizer}</p></div>
+            <button aria-label={lang === 'es' ? 'Cerrar' : 'Close'} onClick={() => setShowPayoutModal(false)} disabled={payoutSaving || payoutVerifying} className="rounded-lg p-2 text-white disabled:opacity-40"><HiOutlineX className="h-5 w-5" /></button>
+          </div>
+          <div className="space-y-4 p-5">
+            {payoutVerifying && <p role="status" className="rounded-xl border border-amber-400/30 bg-slate-950 p-4 text-amber-100">{lang === 'es' ? 'Verificando los cobros con Stripe. Espera antes de pagar al organizador.' : 'Checking payments with Stripe. Wait before paying the organizer.'}</p>}
+            {payoutVerification && <div className="rounded-xl border border-emerald-400/30 bg-slate-950 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-white">{lang === 'es' ? 'Disponible verificado con Stripe' : 'Available balance verified with Stripe'}</p>
+              <p className="mt-1 text-2xl font-black text-emerald-200">{money(payoutVerification.organizerPending)}</p>
+              <p className="mt-2 text-sm text-slate-300">{lang === 'es' ? 'Entradas excluidas por cobros fallidos, cancelaciones, reembolsos o disputas: ' : 'Ticket amounts excluded for failed payments, cancellations, refunds or disputes: '}{money(payoutVerification.excludedTicketAmount)}</p>
+              {payoutVerification.organizerRecoverable > 0 && <p className="mt-2 text-sm text-red-200">{lang === 'es' ? 'Pagos por compensar: ' : 'Payouts to offset: '}{money(payoutVerification.organizerRecoverable)}</p>}
+            </div>}
+            <p className="text-sm text-slate-300">{lang === 'es' ? 'No envía dinero. Registra una transferencia externa y vuelve a comprobar Stripe al confirmar.' : 'Does not send money. Records an external transfer and checks Stripe again on confirmation.'}</p>
+            <label className="block text-sm font-bold text-white"><span>{lang === 'es' ? 'Monto pagado' : 'Amount paid'} ({currency})</span>
+              <input type="number" min="0.01" max={payoutVerification?.organizerPending || 0} step="0.01" value={payoutAmount} disabled={!payoutVerification || payoutSaving || payoutVerifying} onChange={(event) => setPayoutAmount(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-bold text-white outline-none focus:border-orange-400 disabled:opacity-40" />
+            </label>
+            <label className="block text-sm font-bold text-white"><span>{lang === 'es' ? 'Referencia o nota (opcional)' : 'Reference or note (optional)'}</span>
+              <input value={payoutNote} maxLength={300} disabled={payoutSaving || payoutVerifying} onChange={(event) => setPayoutNote(event.target.value)} placeholder={lang === 'es' ? 'Zelle, transferencia bancaria, efectivo...' : 'Zelle, bank transfer, cash...'} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none [&&::placeholder]:!text-slate-300 focus:border-orange-400" />
+            </label>
+            {payoutError && <p role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200">{payoutError}</p>}
+            {!payoutVerification && !payoutVerifying && <button onClick={openPayoutModal} disabled={payoutSaving} className="w-full rounded-xl border border-amber-400/40 bg-slate-950 px-4 py-3 text-sm font-bold text-amber-100">{lang === 'es' ? 'Volver a verificar con Stripe' : 'Verify with Stripe again'}</button>}
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => setShowPayoutModal(false)} disabled={payoutSaving || payoutVerifying} className="flex-1 rounded-xl border border-slate-700 px-4 py-3 text-sm font-black text-white disabled:opacity-40">{lang === 'es' ? 'Cancelar' : 'Cancel'}</button>
+              <button onClick={recordPayout} disabled={payoutSaving || payoutVerifying || !payoutVerification || payoutVerification.organizerPending <= 0} className="flex-1 rounded-xl bg-[#F97316] px-4 py-3 text-sm font-black text-white disabled:opacity-40">{payoutSaving ? (lang === 'es' ? 'Verificando y guardando...' : 'Checking and saving...') : (lang === 'es' ? 'Confirmar pago' : 'Confirm payout')}</button>
+            </div>
+          </div>
+        </div>
+      </div>}
+
     </div>
   );
 }

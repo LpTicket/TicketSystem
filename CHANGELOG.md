@@ -2,6 +2,7 @@
 
 ## 2026-10-18 - Disputas y saldo del organizador
 
+- El registro administrativo de pagos al organizador comprueba cada cobro con Stripe, excluye fallos, cancelaciones, reembolsos y disputas, y muestra el saldo verificado antes de confirmar. Se vuelve a comprobar al registrar; si Stripe falla o cambian las ventas/ajustes durante la consulta, se bloquea el registro. Las consultas de Stripe no mantienen bloqueos de base de datos ni participan en checkout, Tap to Pay o entrega de entradas. Sin nuevas columnas ni migraciones.
 - Las disputas abiertas o perdidas descuentan del saldo a pagar la parte proporcional del precio de las entradas. Una disputa ganada libera esa retención; las ventas originales y las entradas se conservan.
 - Administración muestra estado, importe y vencimiento de las disputas, permite sincronizar el historial de Stripe y señala pagos anteriores por compensar. Los resúmenes del organizador reflejan el descuento.
 - Antes de registrar un pago al organizador se consulta Stripe; si falla la consulta, no se registra el pago. Las notificaciones duplicadas o fuera de orden consultan el estado vigente y no duplican descuentos.
