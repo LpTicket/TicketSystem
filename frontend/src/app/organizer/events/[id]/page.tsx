@@ -308,6 +308,7 @@ type EventReferral = {
   tickets: number;
   revenue: number;
   maxTickets: number | null;
+  maxTicketsPerUser: number;
   reservedTickets: number;
   discountPercent: number;
   purchases: { id: string; buyerName: string | null; ticketCount: number }[];
@@ -322,6 +323,8 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingLimitId, setEditingLimitId] = useState<string | null>(null);
   const [limitDraft, setLimitDraft] = useState('');
+  const [userLimitDraft, setUserLimitDraft] = useState('1');
+  const [newUserLimit, setNewUserLimit] = useState('1');
   const [limitSavingId, setLimitSavingId] = useState<string | null>(null);
 
   const load = async () => {
@@ -342,11 +345,17 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
       toast.error(lang === 'es' ? 'Ingresa un descuento entre 0 y 100.' : 'Enter a discount between 0 and 100.');
       return;
     }
+    const perUser = Number(newUserLimit);
+    if (!newUserLimit.trim() || !Number.isSafeInteger(perUser) || perUser < 1 || perUser > 1000000) {
+      toast.error(lang === 'es' ? 'Ingresa un máximo por usuario entre 1 y 1,000,000.' : 'Enter a per-user maximum between 1 and 1,000,000.');
+      return;
+    }
     setSaving(true);
     try {
-      await api.post(`/special-codes/by-event/${eventId}/referrals`, { name: name.trim(), discountPercent: discount, code: code.trim().toUpperCase() });
+      await api.post(`/special-codes/by-event/${eventId}/referrals`, { name: name.trim(), discountPercent: discount, code: code.trim().toUpperCase(), maxTicketsPerUser: perUser });
       setName('');
       setDiscountPercent('0');
+      setNewUserLimit('1');
       setCode('');
       await load();
       toast.success(lang === 'es' ? 'Referido creado' : 'Referral created');
@@ -372,9 +381,14 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
       toast.error(lang === 'es' ? 'Ingresa un número entero entre 1 y 1,000,000.' : 'Enter a whole number between 1 and 1,000,000.');
       return;
     }
+    const maxTicketsPerUser = Number(userLimitDraft);
+    if (!userLimitDraft.trim() || !Number.isSafeInteger(maxTicketsPerUser) || maxTicketsPerUser < 1 || maxTicketsPerUser > 1000000) {
+      toast.error(lang === 'es' ? 'Ingresa un máximo por usuario entre 1 y 1,000,000.' : 'Enter a per-user maximum between 1 and 1,000,000.');
+      return;
+    }
     setLimitSavingId(referral.id);
     try {
-      await api.patch(`/special-codes/by-event/${eventId}/referrals/${referral.id}/limit`, { maxTickets });
+      await api.patch(`/special-codes/by-event/${eventId}/referrals/${referral.id}/limit`, { maxTickets, maxTicketsPerUser });
       setEditingLimitId(null);
       await load();
       toast.success(lang === 'es' ? 'Límite actualizado' : 'Limit updated');
@@ -409,7 +423,7 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
     <div className="rounded-2xl border border-slate-700 bg-[#102337] p-5 text-white">
       <h2 className="text-xl font-bold">{lang === 'es' ? 'Referidos del evento' : 'Event referrals'}</h2>
       <p className="mt-1 text-sm text-slate-300">{lang === 'es' ? 'Crea un código para cada persona. Las entradas, incluidas las gratuitas, quedarán atribuidas aquí. Con 100% de descuento no hay cargos.' : 'Create a code for each person. Tickets, including free tickets, are tracked here. A 100% discount has no fees.'}</p>
-      <div className="mt-5 grid items-end gap-3 sm:grid-cols-[1fr_160px_1fr_auto]">
+      <div className="mt-5 grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_120px_1fr_140px_auto]">
         <input className="rounded-lg border border-slate-600 bg-[#0b1c2d] px-3 py-2" placeholder={lang === 'es' ? 'Nombre, ej. Beatriz' : 'Name, e.g. Beatriz'} value={name} maxLength={100} onChange={e => setName(e.target.value)} />
         <label className="relative">
           <span className="mb-1 block text-xs text-slate-300">{lang === 'es' ? 'Descuento' : 'Discount'}</span>
@@ -417,15 +431,20 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
           <span className="pointer-events-none absolute bottom-2 right-3 text-slate-300">%</span>
         </label>
         <input className="rounded-lg border border-slate-600 bg-[#0b1c2d] px-3 py-2 uppercase" placeholder={lang === 'es' ? 'Código, ej. BEATRIZ' : 'Code, e.g. BEATRIZ'} value={code} maxLength={40} onChange={e => setCode(e.target.value.toUpperCase().replace(/\s/g, ''))} />
+        <label className="text-xs text-slate-300">
+          <span className="mb-1 block">{lang === 'es' ? 'Máximo por usuario' : 'Maximum per user'}</span>
+          <input type="number" min={1} max={1000000} step={1} inputMode="numeric" value={newUserLimit} onChange={e => setNewUserLimit(e.target.value)} className="w-full rounded-lg border border-slate-600 bg-[#0b1c2d] px-3 py-2 text-sm text-white" />
+        </label>
         <button className="rounded-lg bg-orange-600 px-5 py-2 font-bold disabled:opacity-50" disabled={saving || !name.trim() || !code.trim()} onClick={create}>{lang === 'es' ? 'Crear código' : 'Create code'}</button>
       </div>
+      <p className="mt-3 text-xs text-slate-300">{lang === 'es' ? 'El máximo por usuario cuenta las entradas compradas o reservadas con cualquier código de referido de este evento. Cambiar de código no reinicia el beneficio; se respeta el menor límite de los códigos utilizados. Cada acompañante debe registrarse con su propia cuenta.' : 'The per-user maximum counts tickets purchased or reserved with any referral code for this event. Switching codes does not reset the benefit; the lowest limit of the codes used applies. Each guest must register with their own account.'}</p>
       <div className="mt-5 space-y-2">
         {referrals.map(referral => (
           <div key={referral.id} className="rounded-xl border border-slate-700 bg-[#0b1c2d] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><p className="font-bold">{referral.name} <span className="ml-2 text-orange-400">{referral.code}</span> <span className="ml-2 text-green-300">{referral.discountPercent || 0}% {lang === 'es' ? 'de descuento' : 'discount'}</span></p><p className="text-sm text-slate-300">{referral.orders} {lang === 'es' ? 'compras' : 'orders'} · {referral.tickets} {lang === 'es' ? 'entradas' : 'tickets'} · ${Number(referral.revenue || 0).toFixed(2)} {lang === 'es' ? 'en entradas' : 'in tickets'}</p><p className="mt-1 text-xs text-orange-300">{referral.maxTickets == null ? (lang === 'es' ? 'Sin límite de entradas' : 'No ticket limit') : `${referral.tickets + (referral.reservedTickets || 0)} / ${referral.maxTickets} ${lang === 'es' ? 'entradas usadas o reservadas' : 'tickets used or reserved'}`}</p></div>
-              <div className="flex items-center gap-2">
-                <button className="rounded-lg border border-orange-500 px-3 py-1.5 text-sm text-orange-300" onClick={() => { setEditingLimitId(referral.id); setLimitDraft(referral.maxTickets == null ? '' : String(referral.maxTickets)); }}>{lang === 'es' ? 'Límite' : 'Limit'}</button>
+              <div><p className="font-bold">{referral.name} <span className="ml-2 text-orange-400">{referral.code}</span> <span className="ml-2 text-green-300">{referral.discountPercent || 0}% {lang === 'es' ? 'de descuento' : 'discount'}</span></p><p className="text-sm text-slate-300">{referral.orders} {lang === 'es' ? 'compras' : 'orders'} · {referral.tickets} {lang === 'es' ? 'entradas' : 'tickets'} · ${Number(referral.revenue || 0).toFixed(2)} {lang === 'es' ? 'en entradas' : 'in tickets'}</p><p className="mt-1 text-xs text-orange-300">{referral.maxTickets == null ? (lang === 'es' ? 'Cupo total sin límite' : 'Unlimited total quota') : `${referral.tickets + (referral.reservedTickets || 0)} / ${referral.maxTickets} ${lang === 'es' ? 'entradas del cupo total usadas o reservadas' : 'total quota tickets used or reserved'}`}</p><p className="mt-1 text-xs text-slate-300">{referral.maxTicketsPerUser ?? 1} {lang === 'es' ? 'entrada(s) máximo por usuario' : 'ticket(s) maximum per user'}</p></div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button className="rounded-lg border border-orange-500 px-3 py-1.5 text-sm text-orange-300" onClick={() => { setEditingLimitId(referral.id); setLimitDraft(referral.maxTickets == null ? '' : String(referral.maxTickets)); setUserLimitDraft(String(referral.maxTicketsPerUser ?? 1)); }}>{lang === 'es' ? 'Límites' : 'Limits'}</button>
                 <button className="rounded-lg border border-slate-500 px-3 py-1.5 text-sm" onClick={() => toggle(referral)}>{referral.isActive ? (lang === 'es' ? 'Pausar' : 'Pause') : (lang === 'es' ? 'Activar' : 'Activate')}</button>
                 {referral.orders === 0 && !referral.reservedTickets && (
                   <button className="rounded-lg border border-red-400 px-3 py-1.5 text-sm font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50" disabled={deletingId === referral.id} onClick={() => remove(referral)}>
@@ -435,8 +454,10 @@ function EventReferralsBlock({ eventId, lang }: { eventId: string; lang: string 
               </div>
             </div>
             {editingLimitId === referral.id && <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-700 pt-3">
-              <label className="text-sm text-slate-200" htmlFor={`referral-limit-${referral.id}`}>{lang === 'es' ? 'Máximo de entradas' : 'Maximum tickets'}</label>
+              <label className="text-sm text-slate-200" htmlFor={`referral-limit-${referral.id}`}>{lang === 'es' ? 'Cupo total del código' : 'Total code quota'}</label>
               <input id={`referral-limit-${referral.id}`} type="number" min={1} max={1000000} step={1} inputMode="numeric" value={limitDraft} onChange={e => setLimitDraft(e.target.value)} placeholder={lang === 'es' ? 'Vacío = sin límite' : 'Blank = unlimited'} className="w-48 rounded-lg border border-slate-600 bg-[#102337] px-3 py-2 text-sm text-white" />
+              <label className="text-sm text-slate-200" htmlFor={`referral-user-limit-${referral.id}`}>{lang === 'es' ? 'Máximo por usuario' : 'Maximum per user'}</label>
+              <input id={`referral-user-limit-${referral.id}`} type="number" min={1} max={1000000} step={1} inputMode="numeric" value={userLimitDraft} onChange={e => setUserLimitDraft(e.target.value)} className="w-28 rounded-lg border border-slate-600 bg-[#102337] px-3 py-2 text-sm text-white" />
               <button onClick={() => saveLimit(referral)} disabled={limitSavingId === referral.id} className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold disabled:opacity-50">{lang === 'es' ? 'Guardar' : 'Save'}</button>
               <button onClick={() => setEditingLimitId(null)} className="rounded-lg border border-slate-600 px-4 py-2 text-sm">{lang === 'es' ? 'Cancelar' : 'Cancel'}</button>
             </div>}

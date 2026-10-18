@@ -1,3 +1,5 @@
+import { DataSource } from 'typeorm';
+import * as entities from '../database/entities';
 import {
   Event,
   EventReferral,
@@ -69,20 +71,22 @@ describe('Administrator door sales for past events', () => {
 });
 
 describe('OrdersService critical ticket safeguards', () => {
-  function quotaTransaction(maxTickets: number | null, usedTickets: number) {
+  function quotaTransaction(maxTickets: number | null, usedTickets: number, maxTicketsPerUser = 10, userTickets = 0, previousLimit: number | null = null) {
     const referralQuery = {
       setLock: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(),
-      getOne: jest.fn().mockResolvedValue({ code: 'BEATRIZ', isActive: true, maxTickets }),
+      getOne: jest.fn().mockResolvedValue({ eventId: 'event-1', code: 'BEATRIZ', isActive: true, maxTickets, maxTicketsPerUser }),
     };
     const orderQuery = {
+      leftJoin: jest.fn().mockReturnThis(), addSelect: jest.fn().mockReturnThis(),
       select: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(), getRawOne: jest.fn().mockResolvedValue({ usedTickets }),
+      andWhere: jest.fn().mockReturnThis(), getRawOne: jest.fn()
+        .mockResolvedValueOnce({ usedTickets: userTickets, previousLimit }).mockResolvedValue({ usedTickets }),
     };
     const transactionalOrders = { createQueryBuilder: jest.fn(() => orderQuery), save: jest.fn(async (order) => order) };
     const manager = { transaction: jest.fn(async (callback: any) => callback({
       getRepository: (entity: any) => entity === EventReferral
         ? { createQueryBuilder: () => referralQuery }
-        : entity === Order ? transactionalOrders : {},
+        : entity === Order ? transactionalOrders : { createQueryBuilder: () => referralQuery },
     })) };
     return { manager, referralQuery, orderQuery, transactionalOrders };
   }
@@ -107,6 +111,47 @@ describe('OrdersService critical ticket safeguards', () => {
 
     await expect((service as any).saveCheckoutOrderWithReferralQuota(order)).rejects.toThrow('Quedan 5 disponibles');
     expect(transactionalOrders.save).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [1, 0, 2, null], // multiple tickets in a single checkout
+    [1, 1, 1, null], // previous paid/pending purchase, with any code
+    [4, 1, 1, 1], // switching to a more generous code cannot bypass the first
+  ])('enforces the account quota (%s, %s, %s, %s) before saving or charging', async (limit, used, quantity, previousLimit) => {
+    const quota = quotaTransaction(null, 0, limit!, used!, previousLimit);
+    const { service } = buildService({ manager: quota.manager });
+    await expect((service as any).saveCheckoutOrderWithReferralQuota({ eventId: 'event-1', userId: 'buyer', referralCode: 'BEATRIZ', ticketCount: quantity }))
+      .rejects.toThrow('Cada acompañante debe registrarse');
+    expect(quota.transactionalOrders.save).not.toHaveBeenCalled();
+    expect(quota.orderQuery.andWhere).toHaveBeenCalledWith('existingOrder.userId = :userId', { userId: 'buyer' });
+    expect(quota.orderQuery.andWhere).toHaveBeenCalledWith('existingOrder.referralCode IS NOT NULL');
+    expect(quota.referralQuery.setLock).toHaveBeenCalledWith('pessimistic_write');
+  });
+
+  it('rejects a preview with multiple tickets when the referral defaults to one per user', async () => {
+    const { service } = buildService({
+      eventRepo: { findOne: jest.fn().mockResolvedValue({ id: 'event-1' }) },
+      sectionRepo: { findOne: jest.fn().mockResolvedValue({ id: 'section-1', eventId: 'event-1', price: 50 }) },
+      specialCodeRepo: { findOne: jest.fn().mockResolvedValue(null) },
+      referralRepo: { findOne: jest.fn().mockResolvedValue({ code: 'CODE', isActive: true, discountPercent: 20 }) },
+    });
+    await expect(service.previewInvoice('event-1', [], 'section-1', 2, 'CODE')).rejects.toThrow('máximo de 1');
+    await expect(service.previewInvoice('event-1', [], 'section-1', 1, 'CODE')).resolves.toMatchObject({ maxTicketsPerUser: 1 });
+  });
+
+  it('generates valid PostgreSQL aliases and parameters for the cross-code account quota', async () => {
+    const dataSource = new DataSource({ type: 'postgres', entities: Object.values(entities).filter(value => typeof value === 'function') });
+    await (dataSource as any).buildMetadatas();
+    const query = dataSource.getRepository(Order).createQueryBuilder('existingOrder');
+    jest.spyOn(query, 'getRawOne').mockResolvedValue({ usedTickets: 0, previousLimit: null });
+    const { service } = buildService();
+    await (service as any).assertReferralUserQuota({ getRepository: () => ({ createQueryBuilder: () => query }) }, { eventId: 'event-1', maxTicketsPerUser: 1 }, 'buyer', 1);
+    const [sql, parameters] = query.getQueryAndParameters();
+    expect(sql).toContain('MIN(COALESCE("usedReferral"."maxticketsperuser", 1))');
+    expect(sql).toContain('"usedReferral"."eventId" = "existingOrder"."eventId"');
+    expect(sql).toContain('"existingOrder"."referralCode" IS NOT NULL');
+    expect(sql).not.toMatch(/(?<!["\w])(?:usedReferral|existingOrder)\./);
+    expect(parameters).toEqual(['event-1', 'buyer', OrderStatus.PAID, OrderStatus.PENDING]);
   });
 
   it('attributes an event referral without creating a special-code commission owner', async () => {
@@ -143,7 +188,7 @@ describe('OrdersService critical ticket safeguards', () => {
       eventRepo: { findOne: jest.fn().mockResolvedValue(event) },
       sectionRepo: { findOne: jest.fn().mockResolvedValue(section) },
       specialCodeRepo: { findOne: jest.fn().mockResolvedValue(null) },
-      referralRepo: { findOne: jest.fn().mockResolvedValue({ code: 'CODE', isActive: true, discountPercent }) },
+      referralRepo: { findOne: jest.fn().mockResolvedValue({ code: 'CODE', isActive: true, discountPercent, maxTicketsPerUser: 2 }) },
     });
     const preview = await service.previewInvoice('event-1', [], 'section-1', 2, 'CODE');
     expect(preview.baseTotal).toBe(100 * (100 - discountPercent) / 100);
@@ -163,7 +208,7 @@ describe('OrdersService critical ticket safeguards', () => {
       eventRepo: { findOne: jest.fn().mockResolvedValue(event) },
       sectionRepo: { findOne: jest.fn().mockResolvedValue(section) },
       specialCodeRepo: { findOne: jest.fn().mockResolvedValue(null) },
-      referralRepo: { findOne: jest.fn().mockResolvedValue({ code: 'CODE', isActive: true, discountPercent: 20 }) },
+      referralRepo: { findOne: jest.fn().mockResolvedValue({ code: 'CODE', isActive: true, discountPercent: 20, maxTicketsPerUser: 2 }) },
     });
     const create = jest.fn().mockResolvedValue({ id: 'session-1', url: 'https://checkout.example.invalid' });
     (service as any).stripe = { checkout: { sessions: { create } } };

@@ -12,14 +12,19 @@ const dto = (overrides = {}): FreeRegistrationDto => ({ eventId, sectionId, requ
 function fixture() {
   const event: any = { id: eventId, title: 'Free QA', status: EventStatus.PUBLISHED, publicVisible: true, eventDate: new Date(Date.now() + 86400000), maxTicketsPerTransaction: 3, organizerId: 'organizer' };
   const section: any = { id: sectionId, eventId, sectionType: 'standing', name: 'General', price: 0, capacity: 3, rows: 0, seatsPerRow: 0 };
-  const referral: any = { eventId, code: 'FREE100', isActive: true, discountPercent: 100, maxTickets: null };
+  const referral: any = { eventId, code: 'FREE100', isActive: true, discountPercent: 100, maxTickets: null, maxTicketsPerUser: 3 };
   const state = { orders: [] as any[], tickets: [] as any[], seats: [] as any[] };
   const queries: any[] = [];
   function query(kind: string) {
     const params: any = {};
     const q: any = {
+      leftJoin: jest.fn().mockReturnThis(), addSelect: jest.fn().mockReturnThis(),
       select: jest.fn().mockReturnThis(),
-      getRawOne: jest.fn(async () => ({ usedTickets: state.orders.filter(o => o.referralCode === params.code && ['paid', 'pending'].includes(o.status)).reduce((sum, o) => sum + o.ticketCount, 0) })),
+      getRawOne: jest.fn(async () => {
+        const counted = state.orders.filter(o => (params.userId !== undefined ? o.userId === params.userId && o.eventId === params.eventId && o.referralCode != null : o.referralCode === params.code)
+          && ['paid', 'pending'].includes(o.status));
+        return { usedTickets: counted.reduce((sum, o) => sum + o.ticketCount, 0), previousLimit: counted.length ? Math.min(...counted.map(o => o.referralCode === referral.code ? referral.maxTicketsPerUser : 1)) : null };
+      }),
       setLock: jest.fn().mockReturnThis(), innerJoinAndSelect: jest.fn().mockReturnThis(), orderBy: jest.fn().mockReturnThis(),
       where: jest.fn((_sql, values) => { Object.assign(params, values); return q; }),
       andWhere: jest.fn((_sql, values) => { Object.assign(params, values); return q; }),
@@ -83,6 +88,40 @@ describe('Free registrations preserve paid checkout and inventory', () => {
     ]);
     expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
     expect(f.state.tickets).toHaveLength(3);
+  });
+  it('allows four different accounts to use a four-ticket code once each', async () => {
+    const f = fixture(); f.section.price = 50; f.section.capacity = 20;
+    f.referral.maxTickets = 4; f.referral.maxTicketsPerUser = 1;
+    for (let i = 0; i < 4; i++) {
+      await f.service.registerFreeTickets(`buyer-${i}`, dto({ specialCode: 'FREE100', quantity: 1 }));
+    }
+    expect(f.state.tickets).toHaveLength(4);
+    await expect(f.service.registerFreeTickets('buyer-5', dto({ specialCode: 'FREE100', quantity: 1 }))).rejects.toThrow('Quedan 0');
+  });
+  it('rejects multiple tickets and preserves an idempotent single-ticket retry', async () => {
+    const f = fixture(); f.section.price = 50; f.referral.maxTicketsPerUser = 1;
+    await expect(f.service.registerFreeTickets('buyer', dto({ specialCode: 'FREE100' }))).rejects.toThrow('máximo de 1');
+    const input = dto({ specialCode: 'FREE100', quantity: 1 });
+    const first = await f.service.registerFreeTickets('buyer', input);
+    expect((await f.service.registerFreeTickets('buyer', input)).orderId).toBe(first.orderId);
+    await expect(f.service.registerFreeTickets('buyer', dto({ ...input, requestId: seatId }))).rejects.toThrow('Te quedan 0');
+    expect(f.state.tickets).toHaveLength(1);
+  });
+  it.each([OrderStatus.PAID, OrderStatus.PENDING])('counts an earlier %s order with another referral code', async status => {
+    const f = fixture(); f.section.price = 50; f.referral.maxTicketsPerUser = 1;
+    f.state.orders.push({ userId: 'buyer', eventId, referralCode: 'OTHER', ticketCount: 1, status, salesChannel: 'web' });
+    await expect(f.service.registerFreeTickets('buyer', dto({ specialCode: 'FREE100', quantity: 1 }))).rejects.toThrow('Te quedan 0');
+    expect(f.state.tickets).toHaveLength(0);
+  });
+  it('serializes competing requests by the same account and ignores cancelled orders', async () => {
+    const f = fixture(); f.section.price = 50; f.section.capacity = 20; f.referral.maxTicketsPerUser = 1;
+    f.state.orders.push({ userId: 'buyer', eventId, referralCode: 'OTHER', ticketCount: 1, status: OrderStatus.CANCELLED, salesChannel: 'web' });
+    const results = await Promise.allSettled([
+      f.service.registerFreeTickets('buyer', dto({ specialCode: 'FREE100', quantity: 1 })),
+      f.service.registerFreeTickets('buyer', dto({ specialCode: 'FREE100', quantity: 1, requestId: seatId })),
+    ]);
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+    expect(f.state.tickets).toHaveLength(1);
   });
   it('consumes a paid seat with a full discount and cannot sell it twice', async () => {
     const f = fixture();

@@ -716,6 +716,7 @@ export default function PurchasePage() {
                     value={specialCode}
                     onChange={(e) => { setSpecialCode(e.target.value.toUpperCase()); setSpecialCodeError(''); }}
                   />
+                  {specialCode.trim() && <p className="mt-2 text-xs text-slate-300">{lang === 'es' ? 'Los referidos tienen un máximo de entradas por usuario en este evento. Cada acompañante debe registrarse con su propia cuenta.' : 'Referrals have a per-user ticket maximum for this event. Each guest must register with their own account.'}</p>}
                   {specialCodeError && (
                     <p className="text-xs text-red-500 mt-1">{specialCodeError}</p>
                   )}

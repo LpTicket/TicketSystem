@@ -17,7 +17,7 @@ export class SpecialCodesController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('by-event/:eventId/referrals')
-  createEventReferral(@Param('eventId') eventId: string, @Body() body: { name: string; code: string; discountPercent?: number }, @Request() req: any) {
+  createEventReferral(@Param('eventId') eventId: string, @Body() body: { name: string; code: string; discountPercent?: number; maxTicketsPerUser?: number }, @Request() req: any) {
     return this.specialCodesService.createEventReferral(eventId, req.user, body);
   }
 
@@ -29,8 +29,8 @@ export class SpecialCodesController {
 
   @UseGuards(AuthGuard('jwt'))
   @Patch('by-event/:eventId/referrals/:referralId/limit')
-  setEventReferralLimit(@Param('eventId') eventId: string, @Param('referralId') referralId: string, @Body() body: { maxTickets: number | null }, @Request() req: any) {
-    return this.specialCodesService.setEventReferralLimit(eventId, referralId, req.user, body.maxTickets);
+  setEventReferralLimit(@Param('eventId') eventId: string, @Param('referralId') referralId: string, @Body() body: { maxTickets: number | null; maxTicketsPerUser?: number }, @Request() req: any) {
+    return this.specialCodesService.setEventReferralLimit(eventId, referralId, req.user, body.maxTickets, body.maxTicketsPerUser);
   }
 
   @UseGuards(AuthGuard('jwt'))

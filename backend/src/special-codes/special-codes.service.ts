@@ -85,8 +85,10 @@ export class SpecialCodesService {
     });
   }
 
-  async createEventReferral(eventId: string, user: { id: string; role?: string }, input: { name: string; code: string; discountPercent?: number }) {
+  async createEventReferral(eventId: string, user: { id: string; role?: string }, input: { name: string; code: string; discountPercent?: number; maxTicketsPerUser?: number }) {
     await this.assertEventAccess(eventId, user);
+    const maxTicketsPerUser = input.maxTicketsPerUser === undefined ? 1 : input.maxTicketsPerUser;
+    this.validateReferralUserLimit(maxTicketsPerUser);
     const discountPercent = input.discountPercent ?? 0;
     if (typeof discountPercent !== 'number' || !Number.isInteger(discountPercent) || discountPercent < 0 || discountPercent > 100) {
       throw new BadRequestException('El descuento debe ser un número entero entre 0 y 100.');
@@ -102,7 +104,7 @@ export class SpecialCodesService {
     if (sameEvent || (special && (!special.eventId || special.eventId === eventId))) {
       throw new BadRequestException('Este código ya está en uso para el evento.');
     }
-    return this.referralRepo.save(this.referralRepo.create({ eventId, name, code, discountPercent, isActive: true }));
+    return this.referralRepo.save(this.referralRepo.create({ eventId, name, code, discountPercent, maxTicketsPerUser, isActive: true }));
   }
 
   async setEventReferralActive(eventId: string, referralId: string, user: { id: string; role?: string }, isActive: boolean) {
@@ -113,8 +115,15 @@ export class SpecialCodesService {
     return this.referralRepo.save(referral);
   }
 
-  async setEventReferralLimit(eventId: string, referralId: string, user: { id: string; role?: string }, maxTickets: number | null) {
+  private validateReferralUserLimit(limit: number) {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000000) {
+      throw new BadRequestException('El máximo por usuario debe ser un número entero entre 1 y 1,000,000.');
+    }
+  }
+
+  async setEventReferralLimit(eventId: string, referralId: string, user: { id: string; role?: string }, maxTickets: number | null, maxTicketsPerUser?: number) {
     await this.assertEventAccess(eventId, user);
+    if (maxTicketsPerUser !== undefined) this.validateReferralUserLimit(maxTicketsPerUser);
     if (maxTickets !== null && (!Number.isSafeInteger(maxTickets) || maxTickets < 1 || maxTickets > 1000000)) {
       throw new BadRequestException('El límite debe ser un número entero entre 1 y 1,000,000, o sin límite.');
     }
@@ -126,6 +135,7 @@ export class SpecialCodesService {
         .getOne();
       if (!referral) throw new NotFoundException('Referido no encontrado.');
       referral.maxTickets = maxTickets;
+      if (maxTicketsPerUser !== undefined) referral.maxTicketsPerUser = maxTicketsPerUser;
       return referralRepo.save(referral);
     });
   }

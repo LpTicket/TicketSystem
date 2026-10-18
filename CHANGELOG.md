@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-18 - Límite de referidos por usuario
+
+- Referidos separa el cupo total del código del máximo por usuario, configurable al crear o editar y con valor inicial de una entrada para códigos nuevos y existentes.
+- El backend cuenta compras pagadas y pendientes de la misma cuenta con cualquier código del evento. Cambiar de código no reinicia el beneficio ni evita el menor límite de los códigos utilizados; las solicitudes simultáneas se serializan antes de guardar la orden o emitir entradas gratuitas.
+- La cotización rechaza cantidades superiores al máximo e indica que cada acompañante debe registrarse con su propia cuenta. La protección también aplica a las apps instaladas mediante el backend compartido.
+- Migración aditiva `add-event-referral-user-limit.sql` aplicada antes del despliegue: 177 códigos con límite inicial 1 por usuario, cupos totales conservados, 1.175 órdenes y 2.572 entradas sin cambios. Validación: 135 pruebas aprobadas, incluida generación SQL real de PostgreSQL/TypeORM; compilaciones de backend/web y TypeScript móvil aprobados.
+
 ## 2026-10-18 - Disputas y saldo del organizador
 
 - El registro administrativo de pagos al organizador comprueba cada cobro con Stripe, excluye fallos, cancelaciones, reembolsos y disputas, y muestra el saldo verificado antes de confirmar. Se vuelve a comprobar al registrar; si Stripe falla o cambian las ventas/ajustes durante la consulta, se bloquea el registro. Las consultas de Stripe no mantienen bloqueos de base de datos ni participan en checkout, Tap to Pay o entrega de entradas. Sin nuevas columnas ni migraciones.

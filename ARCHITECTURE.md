@@ -312,3 +312,9 @@ Luego ejecutar las validaciones adecuadas y revisar si `origin/main` contiene ca
 - Estado actual: `/Users/sundingalue/Documents/TicketSystem/PROJECT_STATUS.md`
 - Historial: `/Users/sundingalue/Documents/TicketSystem/CHANGELOG.md`
 - Plan futuro: `/Users/sundingalue/Documents/TicketSystem/ROADMAP.md`
+
+### Referidos: cupo total y límite por cuenta (2026-10-18)
+
+`EventReferral.maxTickets` conserva el cupo total del código; `maxTicketsPerUser` configura el máximo por cuenta con valor inicial 1. La migración aditiva `backend/src/database/add-event-referral-user-limit.sql` debe ejecutarse antes del backend nuevo, con `synchronize: false`.
+
+El backend suma entradas de órdenes pagadas y pendientes del usuario con cualquier referido del evento y respeta el menor límite de los códigos utilizados. Checkout y registro gratuito adquieren primero el bloqueo del evento y después el del referido para serializar solicitudes concurrentes entre códigos. Las órdenes canceladas o reembolsadas dejan de consumir el beneficio. La cotización pública valida la cantidad de la selección; la validación por cuenta y el cupo total se comprueban al crear la orden. No modifica tickets emitidos ni requiere actualizar las apps instaladas.

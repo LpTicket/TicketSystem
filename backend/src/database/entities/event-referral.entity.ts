@@ -29,6 +29,9 @@ export class EventReferral {
   @Column({ name: 'maxtickets', type: 'integer', nullable: true })
   maxTickets: number | null;
 
+  @Column({ name: 'maxticketsperuser', type: 'integer', default: 1 })
+  maxTicketsPerUser: number;
+
   @CreateDateColumn()
   createdAt: Date;
 }

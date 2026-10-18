@@ -34,7 +34,7 @@ describe('event referrals', () => {
     referralRepo.findOne.mockResolvedValue(null);
     specialCodeRepo.findOne.mockResolvedValue(null);
     const created = await service.createEventReferral('event-1', { id: 'organizer-1' }, { name: ' Beatriz ', code: ' beatriz ' });
-    expect(created).toMatchObject({ eventId: 'event-1', name: 'Beatriz', code: 'BEATRIZ', isActive: true });
+    expect(created).toMatchObject({ eventId: 'event-1', name: 'Beatriz', code: 'BEATRIZ', isActive: true, maxTicketsPerUser: 1 });
   });
 
   it.each([-1, 101, 20.5, '100', NaN])('rejects an invalid discount %s', async discountPercent => {
@@ -96,6 +96,26 @@ describe('event referrals', () => {
     await expect(service.setEventReferralLimit('event-1', 'ref-1', { id: 'organizer-1' }, 1.5))
       .rejects.toBeInstanceOf(BadRequestException);
     expect(referralRepo.save).not.toHaveBeenCalled();
+  });
+
+  it.each([0, -1, 1.5, null, '1', 1000001])('rejects invalid per-user limit %s for creation and edits', async maxTicketsPerUser => {
+    const { service, referralRepo, eventRepo } = makeService();
+    eventRepo.findOne.mockResolvedValue({ organizerId: 'organizer-1' });
+    await expect(service.createEventReferral('event-1', { id: 'organizer-1' }, { name: 'QA', code: 'TEST', maxTicketsPerUser: maxTicketsPerUser as number })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.setEventReferralLimit('event-1', 'ref-1', { id: 'organizer-1' }, 4, maxTicketsPerUser as number)).rejects.toBeInstanceOf(BadRequestException);
+    expect(referralRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('saves the total code quota and the user maximum independently', async () => {
+    const { service, referralRepo, eventRepo } = makeService();
+    eventRepo.findOne.mockResolvedValue({ organizerId: 'organizer-1' });
+    const referral = { id: 'ref-1', eventId: 'event-1', maxTickets: 4, maxTicketsPerUser: 1 };
+    const query = { setLock: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValue(referral) };
+    referralRepo.manager = { transaction: jest.fn(async callback => callback({ getRepository: () => ({ createQueryBuilder: () => query, save: jest.fn(async x => x) }) })) };
+    await service.setEventReferralLimit('event-1', 'ref-1', { id: 'organizer-1' }, 4, 2);
+    expect(referral).toMatchObject({ maxTickets: 4, maxTicketsPerUser: 2 });
+    await service.setEventReferralLimit('event-1', 'ref-1', { id: 'organizer-1' }, null);
+    expect(referral).toMatchObject({ maxTickets: null, maxTicketsPerUser: 2 });
   });
 
   it('does not let another event owner change a referral limit', async () => {

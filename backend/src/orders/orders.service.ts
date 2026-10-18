@@ -3,7 +3,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { isUUID } from 'class-validator';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -360,11 +360,33 @@ export class OrdersService {
     return { ...empty, referralCode: referral.code, discountPercent: Number(referral.discountPercent || 0) };
   }
 
+  private async assertReferralUserQuota(manager: EntityManager, referral: EventReferral, userId: string, quantity: number) {
+    // Count every referral code for this event. A stricter previously used code
+    // remains binding, so switching codes cannot reset or increase the benefit.
+    const usage = await manager.getRepository(Order).createQueryBuilder('existingOrder')
+      .leftJoin(EventReferral, 'usedReferral', 'usedReferral.eventId = existingOrder.eventId AND usedReferral.code = existingOrder.referralCode')
+      .select('COALESCE(SUM(existingOrder.ticketCount), 0)', 'usedTickets')
+      .addSelect('MIN(COALESCE(usedReferral.maxTicketsPerUser, 1))', 'previousLimit')
+      .where('existingOrder.eventId = :eventId', { eventId: referral.eventId })
+      .andWhere('existingOrder.userId = :userId', { userId })
+      .andWhere('existingOrder.referralCode IS NOT NULL')
+      .andWhere('existingOrder.status IN (:...statuses)', { statuses: [OrderStatus.PAID, OrderStatus.PENDING] })
+      .getRawOne();
+    const limit = Math.min(referral.maxTicketsPerUser ?? 1, Number(usage?.previousLimit ?? referral.maxTicketsPerUser ?? 1));
+    const remaining = Math.max(0, limit - Number(usage?.usedTickets || 0));
+    if (quantity > remaining) {
+      throw new BadRequestException(`Este beneficio permite un máximo de ${limit} entrada(s) por usuario en este evento. Te quedan ${remaining}. Cada acompañante debe registrarse con su propia cuenta.`);
+    }
+  }
+
   private async saveCheckoutOrderWithReferralQuota(order: Order) {
     if (!order.referralCode) return this.orderRepo.save(order);
 
     return this.orderRepo.manager.transaction(async (manager) => {
-      // A row lock serializes checkout reservations and limit edits for this code.
+      // Match free registration's lock order. The event lock also serializes
+      // purchases by the same account using different referral codes.
+      await manager.getRepository(Event).createQueryBuilder('event')
+        .setLock('pessimistic_write').where('event.id = :eventId', { eventId: order.eventId }).getOne();
       const referral = await manager.getRepository(EventReferral)
         .createQueryBuilder('referral')
         .setLock('pessimistic_write')
@@ -375,6 +397,8 @@ export class OrdersService {
       if (!referral || !referral.isActive) {
         throw new BadRequestException('Este código de referido ya no está disponible.');
       }
+
+      await this.assertReferralUserQuota(manager, referral, order.userId, order.ticketCount);
 
       if (referral.maxTickets !== null && referral.maxTickets !== undefined) {
         const result = await manager.getRepository(Order)
@@ -1230,6 +1254,7 @@ export class OrdersService {
         if (!referral || !referral.isActive || Number(referral.discountPercent) !== 100) {
           throw new BadRequestException('Este código no permite entradas con 100% de descuento.');
         }
+        await this.assertReferralUserQuota(manager, referral, userId, quantity);
         if (referral.maxTickets != null) {
           const usage = await orders.createQueryBuilder('existingOrder')
             .select('COALESCE(SUM(existingOrder.ticketCount), 0)', 'usedTickets')
@@ -1751,6 +1776,15 @@ export class OrdersService {
       }
     }
 
+    let maxTicketsPerUser: number | undefined;
+    if (purchaseCode.referralCode) {
+      const referral = await this.referralRepo.findOne({ where: { eventId, code: purchaseCode.referralCode } });
+      maxTicketsPerUser = referral?.maxTicketsPerUser ?? 1;
+      if (seatsInfo.length > maxTicketsPerUser) {
+        throw new BadRequestException(`Este beneficio permite un máximo de ${maxTicketsPerUser} entrada(s) por usuario en este evento. Cada acompañante debe registrarse con su propia cuenta. Regresa a la selección y ajusta la cantidad de entradas.`);
+      }
+    }
+
     const discount = this.applyReferralDiscount(seatsInfo, purchaseCode.discountPercent);
     const feeSummary = this.calculateOrderFees(event, seatsInfo);
     baseTotal = feeSummary.baseTotal;
@@ -1765,6 +1799,7 @@ export class OrdersService {
       total,
       ...discount,
       seatsInfo: cleanSeatsInfo,
+      maxTicketsPerUser,
       paymentMethodTypes: this.getWebCheckoutPaymentMethodTypes((event.currency || 'USD').toLowerCase(), undefined, event.klarnaEnabled !== false),
     };
   }
