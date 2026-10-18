@@ -32,6 +32,8 @@ type FinancialOrder = {
   actualStripeFee: number | null;
   standardCardFee: number | null;
   organizerProcessingAdjustment: number;
+  organizerDisputeAdjustment: number;
+  stripeDisputes: Array<{ id: string; status: string; amount: number; evidenceDueBy: string | null }>;
   stripeFeeReconciliationStatus: string;
   ticketPrices: Record<string, number>;
 };
@@ -63,6 +65,8 @@ type FinancialDetail = {
     grossCharged: number;
     organizerPaid: number;
     organizerPending: number;
+    organizerDisputeAdjustments: number;
+    organizerRecoverable: number;
     organizerProcessingAdjustments: number;
     pendingFeeReconciliations: number;
   };
@@ -89,6 +93,9 @@ export default function AdminEventFinancialDetailPage() {
   const [payoutNote, setPayoutNote] = useState('');
   const [payoutSaving, setPayoutSaving] = useState(false);
   const [payoutError, setPayoutError] = useState('');
+  const [disputesSyncing, setDisputesSyncing] = useState(false);
+  const [disputesError, setDisputesError] = useState('');
+  const [disputesMessage, setDisputesMessage] = useState('');
 
   useEffect(() => {
     if (!eventId) return;
@@ -128,6 +135,23 @@ export default function AdminEventFinancialDetailPage() {
     setShowPayoutModal(true);
   };
 
+  const syncDisputes = async () => {
+    if (!eventId || disputesSyncing) return;
+    setDisputesSyncing(true);
+    setDisputesError('');
+    setDisputesMessage('');
+    try {
+      const { data: result } = await api.post(`/admin/events/${eventId}/reconcile-disputes`);
+      const { data } = await api.get(`/admin/events/${eventId}/financial-detail`);
+      setDetail(data);
+      setDisputesMessage(lang === 'es' ? `${result.updated} disputa(s) sincronizada(s).` : `${result.updated} dispute(s) synchronized.`);
+    } catch (requestError: any) {
+      setDisputesError(requestError.response?.data?.message || (lang === 'es' ? 'No se pudieron sincronizar las disputas.' : 'Could not synchronize disputes.'));
+    } finally {
+      setDisputesSyncing(false);
+    }
+  };
+
   const recordPayout = async () => {
     if (!eventId || !detail) return;
     const amount = Number(payoutAmount);
@@ -158,6 +182,16 @@ export default function AdminEventFinancialDetailPage() {
   }
 
   const { summary } = detail;
+  const disputedOrders = detail.orders.filter((order) => (order.stripeDisputes || []).length > 0);
+  const disputeStatus = (status: string) => ({
+    needs_response: lang === 'es' ? 'Por responder' : 'Needs response',
+    under_review: lang === 'es' ? 'En revisión' : 'Under review',
+    lost: lang === 'es' ? 'Perdida' : 'Lost',
+    won: lang === 'es' ? 'Ganada' : 'Won',
+    warning_needs_response: lang === 'es' ? 'Consulta por responder' : 'Inquiry needs response',
+    warning_under_review: lang === 'es' ? 'Consulta en revisión' : 'Inquiry under review',
+    warning_closed: lang === 'es' ? 'Consulta cerrada' : 'Inquiry closed',
+  }[status] || (lang === 'es' ? 'En verificación' : 'Being verified'));
   const lpticketFees = Math.max(0, summary.grossCharged - summary.ticketRevenue);
   const estimatedStripeFees = summary.grossCharged > 0
     ? +(summary.grossCharged * 0.029 + summary.paidOrders * 0.30).toFixed(2)
@@ -193,7 +227,7 @@ export default function AdminEventFinancialDetailPage() {
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-[#F97316]">{lang === 'es' ? 'Solo administración' : 'Admin only'}</p>
-            <h1 className="mt-1 text-3xl font-black text-[#0A375A]">{detail.event.title}</h1>
+            <h1 className="mt-1 text-3xl font-black text-white">{detail.event.title}</h1>
             <p className="mt-2 text-sm font-medium text-gray-500">{[date, detail.event.venueName, organizer].filter(Boolean).join(' · ')}</p>
           </div>
           <span className="inline-flex w-fit rounded-full border border-[#F97316]/25 bg-orange-50 px-3 py-1.5 text-xs font-black text-[#C65A09]">{lang === 'es' ? 'Auditoría financiera' : 'Financial audit'}</span>
@@ -201,6 +235,33 @@ export default function AdminEventFinancialDetailPage() {
       </div>
 
       {discrepancy && <div className="flex gap-3 rounded-2xl border border-[#EA580C] bg-[#F97316] p-4 !text-white shadow-sm shadow-orange-950/20"><HiOutlineExclamationCircle className="mt-0.5 h-5 w-5 shrink-0 !text-white" /><div><p className="font-black !text-white">{lang === 'es' ? 'Diferencia entre órdenes y entradas emitidas' : 'Difference between orders and issued tickets'}</p><p className="mt-1 text-sm font-medium !text-white">{summary.extraIssuedTickets > 0 ? `${summary.extraIssuedTickets} ${lang === 'es' ? 'entrada(s) adicional(es) emitida(s).' : 'extra ticket(s) issued.'}` : `${summary.missingTickets} ${lang === 'es' ? 'entrada(s) pendiente(s) de emitir.' : 'ticket(s) still missing.'}`} {lang === 'es' ? 'Los ingresos se calculan desde las órdenes pagadas, no desde estas entradas.' : 'Revenue is calculated from paid orders, not from these tickets.'}</p></div></div>}
+
+      <section className="rounded-2xl border border-amber-400/30 bg-slate-900 p-5 text-slate-200">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-black text-white">{lang === 'es' ? 'Disputas de pago' : 'Payment disputes'}</h2>
+          <button onClick={syncDisputes} disabled={disputesSyncing || payoutSaving} className="rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-2 text-sm font-bold text-amber-100 disabled:opacity-50">
+            {disputesSyncing ? (lang === 'es' ? 'Sincronizando...' : 'Synchronizing...') : (lang === 'es' ? 'Sincronizar con Stripe' : 'Synchronize with Stripe')}
+          </button>
+        </div>
+        <p className="mt-2 text-sm text-slate-300">{lang === 'es' ? 'Las entradas de compras disputadas se excluyen del saldo del organizador mientras la disputa esté abierta o perdida. Si se gana, el importe vuelve al saldo.' : 'Disputed ticket amounts are excluded from organizer payouts while open or lost. Winning restores the amount to the balance.'}</p>
+        <p className="mt-3 font-bold text-white">{lang === 'es' ? 'Entradas retenidas o descontadas: ' : 'Ticket amounts withheld or deducted: '}{money(summary.organizerDisputeAdjustments || 0)}</p>
+        {summary.organizerRecoverable > 0 && <p className="mt-2 rounded-xl border border-red-400/30 bg-red-500/10 p-3 font-bold text-red-200">{lang === 'es' ? 'Pagos ya registrados por compensar: ' : 'Recorded payouts to offset: '}{money(summary.organizerRecoverable)}</p>}
+        {disputesMessage && <p role="status" className="mt-3 text-sm text-emerald-200">{disputesMessage}</p>}
+        {disputesError && <p role="alert" className="mt-3 text-sm text-red-200">{disputesError}</p>}
+        <div className="mt-4 max-h-96 space-y-3 overflow-auto">
+          {disputedOrders.length === 0 ? <p className="text-sm text-slate-400">{lang === 'es' ? 'No hay disputas registradas. Sincroniza para comprobar también las anteriores.' : 'No disputes recorded. Synchronize to check historical disputes as well.'}</p> : disputedOrders.map((order) => (
+            <article key={order.id} className="rounded-xl border border-slate-700 bg-slate-950 p-4">
+              <h3 className="font-bold text-white">{[order.buyer?.firstName, order.buyer?.lastName].filter(Boolean).join(' ') || order.buyer?.email || order.id}</h3>
+              <p className="mt-1 text-sm text-slate-300">{lang === 'es' ? 'Excluido del saldo del organizador: ' : 'Excluded from organizer payout: '}{money(order.organizerDisputeAdjustment || 0)}</p>
+              {(order.stripeDisputes || []).map((dispute) => <div key={dispute.id} className="mt-3 border-t border-slate-700 pt-2 text-sm">
+                <p className="font-bold text-amber-100">{disputeStatus(dispute.status)} · {money(dispute.amount)}</p>
+                <p className="break-all text-xs text-slate-400">{dispute.id}</p>
+                {dispute.evidenceDueBy && ['needs_response', 'warning_needs_response'].includes(dispute.status) && <p className="mt-1 text-slate-300">{lang === 'es' ? 'Responder antes de: ' : 'Respond by: '}{new Intl.DateTimeFormat(lang === 'es' ? 'es-US' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(dispute.evidenceDueBy))}</p>}
+              </div>)}
+            </article>
+          ))}
+        </div>
+      </section>
 
       <section className="overflow-hidden rounded-2xl border border-[rgba(10,55,90,0.10)] bg-white shadow-sm">
         <div className="border-b border-gray-100 bg-gradient-to-r from-[#0A375A] to-[#123f65] px-5 py-4 text-white"><p className="text-xs font-black uppercase tracking-[0.18em] text-orange-300">{lang === 'es' ? 'Resumen exacto' : 'Exact summary'}</p><p className="mt-1 text-sm font-medium text-white/75">{lang === 'es' ? 'Los montos vienen de órdenes pagadas; las entradas emitidas se auditan aparte.' : 'Amounts come from paid orders; issued tickets are audited separately.'}</p></div>
@@ -213,12 +274,14 @@ export default function AdminEventFinancialDetailPage() {
             <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-300">{lang === 'es' ? 'Pagos al organizador' : 'Organizer payouts'}</p>
             <p className="mt-1 text-sm font-medium text-white/75">{lang === 'es' ? 'Registro interno de transferencias ya realizadas. No procesa ni mueve dinero.' : 'Internal record of completed transfers. It does not process or move money.'}</p>
           </div>
-          <button onClick={openPayoutModal} disabled={summary.organizerPending <= 0 || summary.pendingFeeReconciliations > 0} className="rounded-xl bg-[#F97316] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:opacity-50">
+          <button onClick={openPayoutModal} disabled={disputesSyncing || summary.organizerPending <= 0 || summary.pendingFeeReconciliations > 0} className="rounded-xl bg-[#F97316] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:opacity-50">
             {summary.pendingFeeReconciliations > 0
               ? (lang === 'es' ? 'Esperando costo de Stripe' : 'Waiting for Stripe fee')
               : summary.organizerPending > 0
                 ? (lang === 'es' ? 'Registrar pago' : 'Record payout')
-                : (lang === 'es' ? 'Saldo pagado' : 'Balance paid')}
+                : summary.organizerRecoverable > 0
+                  ? (lang === 'es' ? 'Saldo por compensar' : 'Balance to offset')
+                  : (lang === 'es' ? 'Saldo pagado' : 'Balance paid')}
           </button>
         </div>
         <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
@@ -238,7 +301,7 @@ export default function AdminEventFinancialDetailPage() {
 
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm"><div className="border-b border-gray-100 px-5 py-4"><h2 className="font-black text-[#0A375A]">{lang === 'es' ? 'Órdenes pagadas y emisión' : 'Paid orders and issuance'}</h2><p className="mt-1 text-sm text-gray-500">{lang === 'es' ? 'Permite detectar diferencias por orden sin cambiar datos de venta. Se muestran hasta 10 órdenes; usa el scroll para ver las demás.' : 'Detects order-level differences without changing sales data. Up to 10 orders are visible; scroll for the rest.'}</p></div><div className="max-h-[708px] overflow-auto"><table className="min-w-[1080px] w-full text-left text-sm"><thead className="sticky top-0 z-10 bg-gray-50 text-xs font-black uppercase tracking-wide text-gray-500 shadow-[0_1px_0_0_rgba(229,231,235,1)]"><tr><th className="px-5 py-3">{lang === 'es' ? 'Comprador' : 'Buyer'}</th><th className="px-5 py-3">{lang === 'es' ? 'Fecha' : 'Date'}</th><th className="px-5 py-3 text-right">{lang === 'es' ? 'Pagadas' : 'Paid'}</th><th className="px-5 py-3 text-right">{lang === 'es' ? 'Emitidas' : 'Issued'}</th><th className="px-5 py-3 text-right">{lang === 'es' ? 'Entradas' : 'Tickets'}</th><th className="px-5 py-3 text-right">Fees</th><th className="px-5 py-3 text-right">{lang === 'es' ? 'Ajuste Klarna' : 'Klarna adjustment'}</th><th className="px-5 py-3 text-right">{lang === 'es' ? 'Total cobrado' : 'Total charged'}</th><th className="px-5 py-3">{lang === 'es' ? 'Canal' : 'Channel'}</th></tr></thead><tbody>{detail.orders.map((order) => { const buyer = order.buyer ? `${order.buyer.firstName || ''} ${order.buyer.lastName || ''}`.trim() || order.buyer.email : '—'; const prices = Object.entries(order.ticketPrices).map(([price, count]) => `${money(Number(price))} × ${count}`).join(', ') || '—'; return <tr key={order.id} className="border-t border-gray-100"><td className="px-5 py-3"><p className="font-bold text-gray-800">{buyer}</p><p className="text-xs text-gray-500">{order.buyer?.email || ''}</p></td><td className="px-5 py-3 text-gray-600">{new Intl.DateTimeFormat(lang === 'es' ? 'es-US' : 'en-US', { dateStyle: 'short', timeStyle: 'short', timeZone: detail.event.eventTimezone || undefined }).format(new Date(order.paidAt))}</td><td className="px-5 py-3 text-right font-semibold">{order.expectedTickets}</td><td className={`px-5 py-3 text-right font-black ${order.extraIssuedTickets ? 'text-amber-700' : 'text-gray-800'}`}>{order.issuedTickets}{order.extraIssuedTickets ? ` (+${order.extraIssuedTickets})` : ''}</td><td className="px-5 py-3 text-right text-gray-700">{prices}</td><td className="px-5 py-3 text-right text-gray-700">{money(order.lpFee + order.processingFee)}</td><td className="px-5 py-3 text-right"><p className="font-bold text-[#C65A09]">{order.organizerProcessingAdjustment > 0 ? `-${money(order.organizerProcessingAdjustment)}` : money(0)}</p>{order.stripeFeeReconciliationStatus === 'pending' && <p className="text-[11px] font-semibold text-amber-700">{lang === 'es' ? 'Esperando Stripe' : 'Waiting for Stripe'}</p>}</td><td className="px-5 py-3 text-right font-black text-[#0A375A]">{money(order.total)}</td><td className="px-5 py-3 text-gray-600"><p className="capitalize">{order.salesChannel || '—'}</p>{order.paymentMethodType && <p className="text-xs font-bold uppercase text-[#0A375A]">{order.paymentMethodType}</p>}</td></tr>; })}</tbody></table></div></section>
 
-      {showPayoutModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4"><div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => !payoutSaving && setShowPayoutModal(false)} /><div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl"><div className="flex items-start justify-between gap-4 bg-gradient-to-r from-[#0A375A] to-[#123f65] px-5 py-4 text-white"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-orange-300">{lang === 'es' ? 'Pago externo' : 'External payout'}</p><h2 className="mt-1 text-xl font-black">{lang === 'es' ? 'Registrar pago al organizador' : 'Record organizer payout'}</h2><p className="mt-1 text-sm text-white/75">{organizer}</p></div><button onClick={() => setShowPayoutModal(false)} disabled={payoutSaving} className="rounded-lg p-2 text-white/80 transition hover:bg-white/10 hover:text-white"><HiOutlineX className="h-5 w-5" /></button></div><div className="space-y-4 p-5"><div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-gray-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-gray-500">{lang === 'es' ? 'Pendiente' : 'Pending'}</p><p className="mt-1 text-lg font-black text-[#C65A09]">{money(summary.organizerPending)}</p></div><div className="rounded-xl bg-gray-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-gray-500">{lang === 'es' ? 'Se registrará' : 'Will be recorded'}</p><p className="mt-1 text-xs font-semibold text-gray-500">{lang === 'es' ? 'No envía dinero ni usa Stripe' : 'Does not send money or use Stripe'}</p></div></div><label className="block text-sm font-black text-[#0A375A]"><span>{lang === 'es' ? 'Monto pagado (USD)' : 'Amount paid (USD)'}</span><input type="number" min="0.01" max={summary.organizerPending} step="0.01" value={payoutAmount} onChange={(event) => setPayoutAmount(event.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-bold text-[#0A375A] outline-none transition focus:border-[#F97316] focus:ring-2 focus:ring-orange-100" /></label><label className="block text-sm font-black text-[#0A375A]"><span>{lang === 'es' ? 'Referencia o nota (opcional)' : 'Reference or note (optional)'}</span><input value={payoutNote} maxLength={300} onChange={(event) => setPayoutNote(event.target.value)} placeholder={lang === 'es' ? 'Zelle, transferencia bancaria, efectivo...' : 'Zelle, bank transfer, cash...'} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-[#0A375A] outline-none transition placeholder:text-gray-400 focus:border-[#F97316] focus:ring-2 focus:ring-orange-100" /></label>{payoutError && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{payoutError}</p>}<div className="flex gap-3 pt-1"><button onClick={() => setShowPayoutModal(false)} disabled={payoutSaving} className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-black text-gray-600 transition hover:bg-gray-50 disabled:opacity-50">{lang === 'es' ? 'Cancelar' : 'Cancel'}</button><button onClick={recordPayout} disabled={payoutSaving} className="flex-1 rounded-xl bg-[#F97316] px-4 py-3 text-sm font-black text-white transition hover:bg-[#EA580C] disabled:opacity-60">{payoutSaving ? (lang === 'es' ? 'Guardando...' : 'Saving...') : (lang === 'es' ? 'Confirmar pago' : 'Confirm payout')}</button></div></div></div></div>}
+      {showPayoutModal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4"><div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => !payoutSaving && setShowPayoutModal(false)} /><div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl"><div className="flex items-start justify-between gap-4 bg-gradient-to-r from-[#0A375A] to-[#123f65] px-5 py-4 text-white"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-orange-300">{lang === 'es' ? 'Pago externo' : 'External payout'}</p><h2 className="mt-1 text-xl font-black">{lang === 'es' ? 'Registrar pago al organizador' : 'Record organizer payout'}</h2><p className="mt-1 text-sm text-white/75">{organizer}</p></div><button onClick={() => setShowPayoutModal(false)} disabled={payoutSaving} className="rounded-lg p-2 text-white/80 transition hover:bg-white/10 hover:text-white"><HiOutlineX className="h-5 w-5" /></button></div><div className="space-y-4 p-5"><div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-gray-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-gray-500">{lang === 'es' ? 'Pendiente' : 'Pending'}</p><p className="mt-1 text-lg font-black text-[#C65A09]">{money(summary.organizerPending)}</p></div><div className="rounded-xl bg-gray-50 p-3"><p className="text-xs font-bold uppercase tracking-wide text-gray-500">{lang === 'es' ? 'Se registrará' : 'Will be recorded'}</p><p className="mt-1 text-xs font-semibold text-gray-500">{lang === 'es' ? 'No envía dinero; valida el saldo con Stripe' : 'Does not send money; checks the balance with Stripe'}</p></div></div><label className="block text-sm font-black text-[#0A375A]"><span>{lang === 'es' ? 'Monto pagado (USD)' : 'Amount paid (USD)'}</span><input type="number" min="0.01" max={summary.organizerPending} step="0.01" value={payoutAmount} onChange={(event) => setPayoutAmount(event.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-bold text-[#0A375A] outline-none transition focus:border-[#F97316] focus:ring-2 focus:ring-orange-100" /></label><label className="block text-sm font-black text-[#0A375A]"><span>{lang === 'es' ? 'Referencia o nota (opcional)' : 'Reference or note (optional)'}</span><input value={payoutNote} maxLength={300} onChange={(event) => setPayoutNote(event.target.value)} placeholder={lang === 'es' ? 'Zelle, transferencia bancaria, efectivo...' : 'Zelle, bank transfer, cash...'} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-[#0A375A] outline-none transition placeholder:text-gray-400 focus:border-[#F97316] focus:ring-2 focus:ring-orange-100" /></label>{payoutError && <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{payoutError}</p>}<div className="flex gap-3 pt-1"><button onClick={() => setShowPayoutModal(false)} disabled={payoutSaving} className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-black text-gray-600 transition hover:bg-gray-50 disabled:opacity-50">{lang === 'es' ? 'Cancelar' : 'Cancel'}</button><button onClick={recordPayout} disabled={payoutSaving} className="flex-1 rounded-xl bg-[#F97316] px-4 py-3 text-sm font-black text-white transition hover:bg-[#EA580C] disabled:opacity-60">{payoutSaving ? (lang === 'es' ? 'Guardando...' : 'Saving...') : (lang === 'es' ? 'Confirmar pago' : 'Confirm payout')}</button></div></div></div></div>}
     </div>
   );
 }

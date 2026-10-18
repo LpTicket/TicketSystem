@@ -44,6 +44,8 @@ interface DashboardStats {
   organizerProcessingAdjustments: number;
   organizerPaid: number;
   organizerPending: number;
+  organizerDisputeAdjustments: number;
+  organizerRecoverable: number;
   klarnaOrders: number;
   klarnaTotalCharged: number;
   klarnaTicketSales: number;
@@ -79,6 +81,8 @@ interface EventFinancial {
   organizerProcessingAdjustments: number;
   organizerPaid: number;
   organizerPending: number;
+  organizerDisputeAdjustments: number;
+  organizerRecoverable: number;
   klarnaOrders: number;
   klarnaTotalCharged: number;
   pendingFeeReconciliations: number;
@@ -109,6 +113,8 @@ export default function AdminDashboard() {
         organizerProcessingAdjustments: Number(statsRes.data?.organizerProcessingAdjustments || 0),
         organizerPaid: Number(statsRes.data?.organizerPaid || 0),
         organizerPending: Number(statsRes.data?.organizerPending || 0),
+        organizerDisputeAdjustments: Number(statsRes.data?.organizerDisputeAdjustments || 0),
+        organizerRecoverable: Number(statsRes.data?.organizerRecoverable || 0),
         klarnaOrders: Number(statsRes.data?.klarnaOrders || 0),
         klarnaTotalCharged: Number(statsRes.data?.klarnaTotalCharged || 0),
         klarnaTicketSales: Number(statsRes.data?.klarnaTicketSales || 0),
@@ -120,6 +126,8 @@ export default function AdminDashboard() {
         organizerProcessingAdjustments: Number(event.organizerProcessingAdjustments || 0),
         organizerPaid: Number(event.organizerPaid || 0),
         organizerPending: Number(event.organizerPending || 0),
+        organizerDisputeAdjustments: Number(event.organizerDisputeAdjustments || 0),
+        organizerRecoverable: Number(event.organizerRecoverable || 0),
         klarnaOrders: Number(event.klarnaOrders || 0),
         klarnaTotalCharged: Number(event.klarnaTotalCharged || 0),
         pendingFeeReconciliations: Number(event.pendingFeeReconciliations || 0),
@@ -192,6 +200,8 @@ export default function AdminDashboard() {
         organizerProcessingAdjustments: selectedEvent.organizerProcessingAdjustments,
         organizerPaid: selectedEvent.organizerPaid,
         organizerPending: selectedEvent.organizerPending,
+        organizerDisputeAdjustments: selectedEvent.organizerDisputeAdjustments,
+        organizerRecoverable: selectedEvent.organizerRecoverable,
         klarnaOrders: selectedEvent.klarnaOrders,
         klarnaTotalCharged: selectedEvent.klarnaTotalCharged,
         pendingFeeReconciliations: selectedEvent.pendingFeeReconciliations,
@@ -205,6 +215,8 @@ export default function AdminDashboard() {
         organizerProcessingAdjustments: stats.organizerProcessingAdjustments,
         organizerPaid: stats.organizerPaid,
         organizerPending: stats.organizerPending,
+        organizerDisputeAdjustments: stats.organizerDisputeAdjustments,
+        organizerRecoverable: stats.organizerRecoverable,
         klarnaOrders: stats.klarnaOrders,
         klarnaTotalCharged: stats.klarnaTotalCharged,
         pendingFeeReconciliations: stats.pendingFeeReconciliations,
@@ -365,6 +377,12 @@ export default function AdminDashboard() {
             <p className="financial-card-label text-[11px] font-black uppercase tracking-wider text-amber-300">{lang === 'es' ? 'Ajuste adicional Klarna' : 'Additional Klarna adjustment'}</p>
             <p className="financial-card-value mt-1 text-2xl font-black text-amber-300">-${fin.organizerProcessingAdjustments.toFixed(2)}</p>
             <p className="financial-card-note mt-1 text-[11px] font-medium text-amber-100/65">{lang === 'es' ? 'Se descuenta del saldo del organizador' : 'Deducted from the organizer balance'}</p>
+          </div>
+          <div className="rounded-xl border border-amber-400/35 bg-slate-900 p-4">
+            <p className="text-[11px] font-black uppercase tracking-wider text-white">{lang === 'es' ? 'Entradas en disputa' : 'Disputed ticket amounts'}</p>
+            <p className="mt-1 text-2xl font-black text-amber-200">-${fin.organizerDisputeAdjustments.toFixed(2)}</p>
+            <p className="mt-1 text-[11px] text-slate-300">{lang === 'es' ? 'Excluidas del saldo del organizador' : 'Excluded from organizer payouts'}</p>
+            {fin.organizerRecoverable > 0 && <p className="mt-2 text-sm font-bold text-red-200">{lang === 'es' ? 'Pagos por compensar: ' : 'Payouts to offset: '}${fin.organizerRecoverable.toFixed(2)}</p>}
           </div>
           <div className="financial-tone-red rounded-xl border border-red-400/35 bg-red-500/15 p-4">
             <p className="financial-card-label text-[11px] font-black uppercase tracking-wider text-red-300">{lang === 'es' ? 'Pendiente al organizador' : 'Pending to organizer'}</p>

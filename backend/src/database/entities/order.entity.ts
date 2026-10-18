@@ -11,6 +11,14 @@ import {
 import { User } from './user.entity';
 import { Event } from './event.entity';
 
+export type OrderStripeDispute = {
+  id: string;
+  status: string;
+  amount: number;
+  currency: string;
+  evidenceDueBy: string | null;
+};
+
 /**
  * OrderStatus
  * Represents the current payment/fulfillment state of an order.
@@ -98,6 +106,14 @@ export class Order {
   /** Klarna-only cost above the standard card baseline, charged to the organizer. */
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   organizerProcessingAdjustment: number;
+
+  /** Stripe disputes keyed by ID. Original sales and issued tickets are preserved. */
+  @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
+  stripeDisputes: Record<string, OrderStripeDispute>;
+
+  /** Ticket-price share withheld for open or lost disputes, excluding platform fees. */
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  organizerDisputeAdjustment: number;
 
   /** not_required, pending, reconciled, or failed. Historical orders remain not_required. */
   @Column({ type: 'varchar', length: 20, default: 'not_required' })

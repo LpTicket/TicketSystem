@@ -96,6 +96,7 @@ export class AdminService {
         .select('COALESCE(SUM(ord.total), 0)', 'totalRevenue')
         .addSelect('COALESCE(SUM(ord.subtotal), 0)', 'ticketSales')
         .addSelect('COALESCE(SUM(ord."organizerProcessingAdjustment"), 0)', 'organizerProcessingAdjustments')
+        .addSelect('COALESCE(SUM(ord."organizerDisputeAdjustment"), 0)', 'organizerDisputeAdjustments')
         .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(ord."paymentMethodType", '')) = 'klarna' THEN 1 END)`, 'klarnaOrders')
         .addSelect(`COALESCE(SUM(CASE WHEN LOWER(COALESCE(ord."paymentMethodType", '')) = 'klarna' THEN ord.total ELSE 0 END), 0)`, 'klarnaTotalCharged')
         .addSelect(`COALESCE(SUM(CASE WHEN LOWER(COALESCE(ord."paymentMethodType", '')) = 'klarna' THEN ord.subtotal ELSE 0 END), 0)`, 'klarnaTicketSales')
@@ -137,10 +138,12 @@ export class AdminService {
     const totalRevenue = Number(revenueResult?.totalRevenue || 0); // total charged to buyers
     const ticketSales = Number(revenueResult?.ticketSales || 0);   // goes to organizers
     const organizerProcessingAdjustments = Number(revenueResult?.organizerProcessingAdjustments || 0);
+    const organizerDisputeAdjustments = Number(revenueResult?.organizerDisputeAdjustments || 0);
     const organizerPaid = Number(organizerPayoutResult?.organizerPaid || 0);
+    const organizerBalance = +(ticketSales - organizerProcessingAdjustments - organizerDisputeAdjustments - organizerPaid).toFixed(2);
     const organizerPending = Math.max(
       0,
-      +(ticketSales - organizerProcessingAdjustments - organizerPaid).toFixed(2),
+      organizerBalance,
     );
     const serviceFees = Math.max(0, +(totalRevenue - ticketSales).toFixed(2)); // LPTicket markup collected
     // Stripe standard pricing (US cards): 2.9% + $0.30 per successful charge.
@@ -168,6 +171,8 @@ export class AdminService {
       stripeFixed: STRIPE_FIXED,
       lpticketProfit,
       organizerProcessingAdjustments,
+      organizerDisputeAdjustments,
+      organizerRecoverable: Math.max(0, -organizerBalance),
       organizerPaid,
       organizerPending,
       klarnaOrders: Number(revenueResult?.klarnaOrders || 0),
@@ -217,6 +222,7 @@ export class AdminService {
       .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'ticketsSold')
       .addSelect('COUNT(o.id)', 'orders')
       .addSelect('COALESCE(SUM(o."organizerProcessingAdjustment"), 0)', 'organizerProcessingAdjustments')
+      .addSelect('COALESCE(SUM(o."organizerDisputeAdjustment"), 0)', 'organizerDisputeAdjustments')
       .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(o."paymentMethodType", '')) = 'klarna' THEN 1 END)`, 'klarnaOrders')
       .addSelect(`COALESCE(SUM(CASE WHEN LOWER(COALESCE(o."paymentMethodType", '')) = 'klarna' THEN o.total ELSE 0 END), 0)`, 'klarnaTotalCharged')
       .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(o."paymentMethodType", '')) = 'klarna' AND COALESCE(o."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`, 'pendingFeeReconciliations')
@@ -246,10 +252,12 @@ export class AdminService {
       const orders = Number(r?.orders || 0);
       const ticketsSold = Number(r?.ticketsSold || 0);
       const organizerProcessingAdjustments = Number(r?.organizerProcessingAdjustments || 0);
+      const organizerDisputeAdjustments = Number(r?.organizerDisputeAdjustments || 0);
       const organizerPaid = payoutsByEventId.get(ev.id) || 0;
+      const organizerBalance = +(ticketSales - organizerProcessingAdjustments - organizerDisputeAdjustments - organizerPaid).toFixed(2);
       const organizerPending = Math.max(
         0,
-        +(ticketSales - organizerProcessingAdjustments - organizerPaid).toFixed(2),
+        organizerBalance,
       );
       const serviceFees = Math.max(0, +(totalCharged - ticketSales).toFixed(2));
       const stripeFees = totalCharged > 0
@@ -269,6 +277,8 @@ export class AdminService {
         stripeFees,
         lpticketProfit,
         organizerProcessingAdjustments,
+        organizerDisputeAdjustments,
+        organizerRecoverable: Math.max(0, -organizerBalance),
         organizerPaid,
         organizerPending,
         klarnaOrders: Number(r?.klarnaOrders || 0),
@@ -348,9 +358,11 @@ export class AdminService {
     const cancelledTickets = paidTickets.filter((ticket) => ticket.status === 'cancelled').length;
     const buyers = new Set(orders.map((order) => order.userId)).size;
     const organizerPaid = organizerPayouts.reduce((sum, payout) => sum + Number(payout.amount || 0), 0);
+    const organizerDisputeAdjustments = orders.reduce((sum, order) => sum + Number(order.organizerDisputeAdjustment || 0), 0);
+    const organizerBalance = +(ticketRevenue - organizerProcessingAdjustments - organizerDisputeAdjustments - organizerPaid).toFixed(2);
     const organizerPending = Math.max(
       0,
-      +(ticketRevenue - organizerProcessingAdjustments - organizerPaid).toFixed(2),
+      organizerBalance,
     );
 
     const sectionMap = new Map<string, { name: string; issued: number; scanned: number; pending: number }>();
@@ -392,6 +404,8 @@ export class AdminService {
         pendingFeeReconciliations,
         organizerPaid: +organizerPaid.toFixed(2),
         organizerPending,
+        organizerDisputeAdjustments: +organizerDisputeAdjustments.toFixed(2),
+        organizerRecoverable: Math.max(0, -organizerBalance),
       },
       sections: Array.from(sectionMap.values()).sort((a, b) => b.issued - a.issued),
       organizerPayouts: organizerPayouts.map((payout) => ({
@@ -423,6 +437,8 @@ export class AdminService {
           actualStripeFee: order.actualStripeFee === null ? null : Number(order.actualStripeFee),
           standardCardFee: order.standardCardFee === null ? null : Number(order.standardCardFee),
           organizerProcessingAdjustment: Number(order.organizerProcessingAdjustment || 0),
+          organizerDisputeAdjustment: Number(order.organizerDisputeAdjustment || 0),
+          stripeDisputes: Object.values(order.stripeDisputes || {}),
           stripeFeeReconciliationStatus: order.stripeFeeReconciliationStatus || 'not_required',
           salesChannel: order.salesChannel || null,
           ticketPrices: prices,
@@ -460,6 +476,7 @@ export class AdminService {
       const adjustmentRow = await manager.getRepository(Order)
         .createQueryBuilder('ord')
         .select('COALESCE(SUM(ord."organizerProcessingAdjustment"), 0)', 'organizerAdjustments')
+        .addSelect('COALESCE(SUM(ord."organizerDisputeAdjustment"), 0)', 'disputeAdjustments')
         .addSelect(
           `COUNT(CASE WHEN LOWER(COALESCE(ord."paymentMethodType", '')) = 'klarna' AND COALESCE(ord."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`,
           'pendingReconciliations',
@@ -482,7 +499,7 @@ export class AdminService {
         .getRawOne();
       const pending = Math.max(
         0,
-        +(ticketRevenue - organizerAdjustments - Number(paidRow?.totalPaid || 0)).toFixed(2),
+        +(ticketRevenue - organizerAdjustments - Number(adjustmentRow?.disputeAdjustments || 0) - Number(paidRow?.totalPaid || 0)).toFixed(2),
       );
 
       if (amount > pending + 0.001) {

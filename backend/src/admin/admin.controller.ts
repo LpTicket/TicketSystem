@@ -133,8 +133,17 @@ export class AdminController {
 
   /** Records an external organizer payment for internal reconciliation only. */
   @Post('events/:id/organizer-payouts')
-  recordOrganizerPayout(@Param('id') id: string, @Body() dto: RecordOrganizerPayoutDto, @Request() req: any) {
+  async recordOrganizerPayout(@Param('id') id: string, @Body() dto: RecordOrganizerPayoutDto, @Request() req: any) {
+    // Do not authorize a payout from stale pre-webhook or historical balances.
+    // A Stripe outage fails closed: no payout record is created.
+    await this.ordersService.reconcileStripeDisputes(id);
     return this.adminService.recordOrganizerPayout(id, dto, req.user.id);
+  }
+
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @Post('events/:id/reconcile-disputes')
+  reconcileDisputes(@Param('id') id: string) {
+    return this.ordersService.reconcileStripeDisputes(id);
   }
 
   @Post('events/:id/post-event-report/send')

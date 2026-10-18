@@ -19,6 +19,7 @@ import { MarketingService } from '../marketing/marketing.service';
 import { RevokeTicketsDto } from './dto/revoke-tickets.dto';
 import { IssueCourtesyTicketsDto } from './dto/issue-courtesy-tickets.dto';
 import { FreeRegistrationDto } from './dto/free-registration.dto';
+import { organizerDisputeAdjustment } from '../common/utils/order-disputes';
 
 /**
  * Service constants for fee calculation.
@@ -1776,6 +1777,11 @@ export class OrdersService {
    * 4. Trigger confirmation email
    */
   async handleStripeWebhook(event: any) {
+    if (['charge.dispute.created', 'charge.dispute.updated', 'charge.dispute.closed',
+      'charge.dispute.funds_withdrawn', 'charge.dispute.funds_reinstated'].includes(event.type)) {
+      await this.syncStripeDispute(event.data.object);
+      return;
+    }
     if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
       const session = event.data.object as any;
 
@@ -1834,6 +1840,87 @@ export class OrdersService {
         await this.reconcileStripeFee(undefined, charge.payment_intent as string, charge);
       }
     }
+  }
+
+  /** Only Stripe's current dispute state may change the organizer's balance. */
+  private async syncStripeDispute(reference: any, eventId?: string): Promise<boolean> {
+    if (!this.stripe) throw new BadRequestException('Stripe no está configurado.');
+    const stripeId = (value: any): string | undefined => typeof value === 'string' ? value : value?.id;
+    const chargeId = stripeId(reference.charge);
+    let paymentIntentId = stripeId(reference.payment_intent);
+    if (!paymentIntentId && chargeId) {
+      const charge = await this.stripe.charges.retrieve(chargeId);
+      paymentIntentId = stripeId(charge.payment_intent);
+    }
+    if (!paymentIntentId) throw new BadRequestException('La disputa no tiene un pago identificable.');
+    const existing = await this.orderRepo.findOne({ where: { stripePaymentIntent: paymentIntentId } });
+    if (!existing || (eventId && existing.eventId !== eventId)) return false;
+
+    const organizerId = await this.orderRepo.manager.transaction(async (manager) => {
+      // Use the same event lock as payout recording so a persisted reserve cannot
+      // be missed by a concurrent payout. Lock order: event, then order.
+      const event = await manager.getRepository(Event).findOne({
+        where: { id: existing.eventId }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!event) throw new NotFoundException('Evento de la disputa no encontrado.');
+      const orders = manager.getRepository(Order);
+      const order = await orders.findOne({
+        where: { id: existing.id }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!order || order.stripePaymentIntent !== paymentIntentId) {
+        throw new BadRequestException('La disputa no coincide con la orden.');
+      }
+      // Fetch after acquiring the locks: duplicate/out-of-order notifications
+      // cannot restore an obsolete state over a later Stripe resolution.
+      const dispute = await this.stripe.disputes.retrieve(reference.id, { expand: ['charge'] });
+      const charge = typeof dispute.charge === 'object'
+        ? dispute.charge : await this.stripe.charges.retrieve(dispute.charge);
+      const currency = (event.currency || 'USD').toLowerCase();
+      if (stripeId(charge.payment_intent) !== order.stripePaymentIntent
+        || charge.amount !== Math.round(Number(order.total) * 100)
+        || dispute.currency !== currency || charge.currency !== currency
+        || !Number.isSafeInteger(dispute.amount) || dispute.amount < 0
+        || dispute.amount > charge.amount) {
+        throw new BadRequestException('El importe o la moneda de la disputa no coincide con la compra.');
+      }
+      const disputes = { ...(order.stripeDisputes || {}), [dispute.id]: {
+        id: dispute.id, status: dispute.status, amount: dispute.amount / 100, currency,
+        evidenceDueBy: dispute.evidence_details?.due_by
+          ? new Date(dispute.evidence_details.due_by * 1000).toISOString() : null,
+      } };
+      await orders.update(order.id, {
+        stripeDisputes: disputes,
+        organizerDisputeAdjustment: organizerDisputeAdjustment(order, disputes),
+      });
+      return event.organizerId;
+    });
+    // Failure is retried by Stripe; the persisted update itself is idempotent.
+    await Promise.all([
+      this.cache.del('admin:stats'), this.cache.del('admin:financials'),
+      this.cache.del(`organizer:stats:${organizerId}`),
+      this.cache.del(`organizer:events:${organizerId}`),
+    ]);
+    return true;
+  }
+
+  /** Explicit admin synchronization also covers disputes created before deployment. */
+  async reconcileStripeDisputes(eventId: string) {
+    if (!this.stripe) throw new BadRequestException('Stripe no está configurado.');
+    if (!isUUID(eventId)) throw new BadRequestException('Evento inválido.');
+    if (!await this.eventRepo.findOne({ where: { id: eventId }, select: ['id'] })) {
+      throw new NotFoundException('Evento no encontrado.');
+    }
+    let updated = 0;
+    let startingAfter: string | undefined;
+    do {
+      const page = await this.stripe.disputes.list({ limit: 100, ...(startingAfter ? { starting_after: startingAfter } : {}) });
+      for (const dispute of page.data) {
+        if (await this.syncStripeDispute(dispute, eventId)) updated++;
+      }
+      if (page.has_more && !page.data.length) throw new Error('Stripe returned an empty dispute page.');
+      startingAfter = page.has_more ? page.data[page.data.length - 1].id : undefined;
+    } while (startingAfter);
+    return { updated };
   }
 
   private async finalizePaidCheckoutSession(session: any) {
@@ -2614,7 +2701,9 @@ export class OrdersService {
       ? await this.seatRepo.find({ where: { sectionId: In(sectionIds) } })
       : [];
     const inventory = this.buildEventInventorySummary(sections, seats, tickets, orders);
-    return { orders, totalRevenue, totalTickets, totalOrders: orders.length, inventory };
+    const organizerDisputeAdjustments = orders.reduce((sum, order) => sum + Number(order.organizerDisputeAdjustment || 0), 0);
+    return { orders, totalRevenue, totalTickets, totalOrders: orders.length, inventory,
+      organizerDisputeAdjustments: +organizerDisputeAdjustments.toFixed(2) };
   }
 
   /**
@@ -2643,6 +2732,7 @@ export class OrdersService {
         .select('COALESCE(SUM(o.subtotal), 0)', 'totalRevenue')
         .addSelect('COALESCE(SUM(o.total), 0)', 'totalCharged')
         .addSelect('COALESCE(SUM(o."organizerProcessingAdjustment"), 0)', 'organizerProcessingAdjustments')
+        .addSelect('COALESCE(SUM(o."organizerDisputeAdjustment"), 0)', 'organizerDisputeAdjustments')
         .addSelect(`COUNT(CASE WHEN LOWER(COALESCE(o."paymentMethodType", '')) = 'klarna' AND COALESCE(o."stripeFeeReconciliationStatus", 'pending') <> 'reconciled' THEN 1 END)`, 'pendingFeeReconciliations')
         .addSelect('COALESCE(SUM(o."ticketCount"), 0)', 'totalTickets')
         .addSelect('COUNT(o.id)', 'totalOrders')
@@ -2678,10 +2768,12 @@ export class OrdersService {
     const totalCharged = Number(result?.totalCharged) || 0;
     const totalOrders = Number(result?.totalOrders) || 0;
     const organizerProcessingAdjustments = Number(result?.organizerProcessingAdjustments) || 0;
+    const organizerDisputeAdjustments = Number(result?.organizerDisputeAdjustments) || 0;
     const organizerPaid = Number(payoutResult?.organizerPaid) || 0;
+    const organizerBalance = +(totalRevenue - organizerProcessingAdjustments - organizerDisputeAdjustments - organizerPaid).toFixed(2);
     const organizerPending = Math.max(
       0,
-      +(totalRevenue - organizerProcessingAdjustments - organizerPaid).toFixed(2),
+      organizerBalance,
     );
     const serviceFees = Math.max(0, +(totalCharged - totalRevenue).toFixed(2));
     const stripeFees = totalCharged > 0
@@ -2694,6 +2786,8 @@ export class OrdersService {
       serviceFees,
       stripeFees,
       organizerProcessingAdjustments,
+      organizerDisputeAdjustments,
+      organizerRecoverable: Math.max(0, -organizerBalance),
       organizerPaid: +organizerPaid.toFixed(2),
       organizerPending,
       pendingFeeReconciliations: Number(result?.pendingFeeReconciliations) || 0,

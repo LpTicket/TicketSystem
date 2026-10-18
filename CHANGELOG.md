@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-18 - Disputas y saldo del organizador
+
+- Las disputas abiertas o perdidas descuentan del saldo a pagar la parte proporcional del precio de las entradas. Una disputa ganada libera esa retención; las ventas originales y las entradas se conservan.
+- Administración muestra estado, importe y vencimiento de las disputas, permite sincronizar el historial de Stripe y señala pagos anteriores por compensar. Los resúmenes del organizador reflejan el descuento.
+- Antes de registrar un pago al organizador se consulta Stripe; si falla la consulta, no se registra el pago. Las notificaciones duplicadas o fuera de orden consultan el estado vigente y no duplican descuentos.
+- Validación local: 29 pruebas nuevas, 63 pruebas existentes de órdenes y compilaciones de backend y frontend aprobadas. Migración aditiva autorizada aplicada en producción: se conservaron 1.173 órdenes, 2.562 entradas y 34 pagos registrados, con sus importes originales. La publicación y la sincronización histórica se verifican por separado.
+
 ## 2026-10-17 - Cobro administrativo y visibilidad de eventos
 
 - El administrador móvil puede seleccionar eventos publicados o finalizados de cualquier organizador, incluidos eventos pasados, con paginación completa.

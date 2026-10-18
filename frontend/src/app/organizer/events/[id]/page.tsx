@@ -1787,6 +1787,7 @@ export default function EventDetailPage() {
               </button>
             </div>
 
+            {Number(sales?.organizerDisputeAdjustments || 0) > 0 && <div className="mx-4 mt-4 rounded-xl border border-amber-400/30 bg-slate-900 p-4 text-sm text-amber-100"><strong className="text-white">{lang === 'es' ? 'Entradas en disputa: ' : 'Disputed ticket amounts: '}</strong>${Number(sales?.organizerDisputeAdjustments || 0).toFixed(2)}. {lang === 'es' ? 'Este importe queda excluido del saldo a pagar. Las ventas históricas se conservan.' : 'This amount is excluded from payouts. Historical sales are preserved.'}</div>}
             <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {[
                 {

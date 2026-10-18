@@ -29,6 +29,7 @@ export default function OrganizerDashboard() {
   const [stats, setStats] = useState({
     totalRevenue: 0, totalTickets: 0, activeEvents: 0, totalOrders: 0,
     organizerPaid: 0, organizerPending: 0, organizerProcessingAdjustments: 0,
+    organizerDisputeAdjustments: 0, organizerRecoverable: 0,
     pendingFeeReconciliations: 0, scannedTickets: 0, pendingTickets: 0,
     salesByDay: [] as { date: string; orders: number; tickets: number; revenue: number }[],
   });
@@ -57,6 +58,8 @@ export default function OrganizerDashboard() {
         activeEvents,
         organizerPaid: statsRes.data.organizerPaid || 0,
         organizerPending: statsRes.data.organizerPending || 0,
+        organizerDisputeAdjustments: Number(statsRes.data.organizerDisputeAdjustments || 0),
+        organizerRecoverable: Number(statsRes.data.organizerRecoverable || 0),
         organizerProcessingAdjustments: statsRes.data.organizerProcessingAdjustments || 0,
         pendingFeeReconciliations: statsRes.data.pendingFeeReconciliations || 0,
         scannedTickets: statsRes.data.scannedTickets || 0,
@@ -241,6 +244,8 @@ export default function OrganizerDashboard() {
               </div>
             </div>
             <p className="mt-3 text-[11px] text-gray-500">
+              {stats.organizerDisputeAdjustments > 0 && <span className="mb-2 block rounded-xl border border-amber-400/30 bg-slate-900 p-3 text-sm text-amber-100"><strong className="text-white">{lang === 'es' ? 'Entradas retenidas o descontadas por disputas: ' : 'Ticket amounts withheld or deducted for disputes: '}</strong>${stats.organizerDisputeAdjustments.toFixed(2)}</span>}
+              {stats.organizerRecoverable > 0 && <span className="mb-2 block rounded-xl border border-red-400/30 bg-slate-900 p-3 text-sm text-red-200"><strong className="text-white">{lang === 'es' ? 'Pagos registrados por compensar: ' : 'Recorded payouts to offset: '}</strong>${stats.organizerRecoverable.toFixed(2)}</span>}
               {lang === 'es'
                 ? 'Venta de entradas menos ajustes aplicables y pagos registrados.'
                 : 'Ticket sales minus applicable adjustments and recorded payouts.'}

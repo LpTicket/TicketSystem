@@ -201,6 +201,7 @@ export interface EventsResponse {
 export interface SalesReport {
   orders: Order[];
   totalRevenue: number;
+  organizerDisputeAdjustments?: number;
   totalTickets: number;
   totalOrders: number;
   inventory?: {
