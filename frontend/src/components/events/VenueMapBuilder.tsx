@@ -18,6 +18,7 @@ import {
   HiOutlinePencil,
   HiOutlineCamera,
   HiOutlineDuplicate,
+  HiOutlineRefresh,
 } from 'react-icons/hi';
 import { FaWheelchair } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -118,7 +119,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [bulkPrice, setBulkPrice] = useState('');
   const [bulkPriceTarget, setBulkPriceTarget] = useState<'all' | string>('all');
   const [selectionMode, setSelectionMode] = useState(true);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<{ ids: string[]; reset: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
   const [whiteBackground, setWhiteBackground] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -243,13 +244,24 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     handleDuplicateSections([sec]);
   }, [handleDuplicateSections]);
 
+  const requestRemoval = useCallback((reset = false) => {
+    if (!editModeRef.current || saving) return;
+    const ids = sections
+      .filter(section => reset || (section.id && (selectedIds.has(section.id) || section.id === selectedId)))
+      .map(section => section.id)
+      .filter((id): id is string => Boolean(id));
+    if (ids.length > 0) setPendingRemoval({ ids, reset });
+  }, [sections, selectedIds, selectedId, saving]);
+
   // Global Keyboard shortcuts for Ctrl+C, Ctrl+V, Backspace/Delete
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (saving) return;
       if (
         document.activeElement?.tagName === 'INPUT' ||
         document.activeElement?.tagName === 'SELECT' ||
-        document.activeElement?.tagName === 'TEXTAREA'
+        document.activeElement?.tagName === 'TEXTAREA' ||
+        (document.activeElement as HTMLElement | null)?.isContentEditable
       ) {
         return;
       }
@@ -278,16 +290,16 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
       // Backspace or Delete
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedId && !selectedSeat) {
+        if (editModeRef.current && !selectedSeat && !pendingRemoval && (selectedId || selectedIds.size > 0)) {
           e.preventDefault();
-          setShowConfirm(true);
+          requestRemoval();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, selectedIds, sections, copiedSections, lang, selectedSeat, handleDuplicateSections]);
+  }, [selectedId, selectedIds, sections, copiedSections, lang, selectedSeat, handleDuplicateSections, pendingRemoval, requestRemoval, saving]);
 
   // Multi-touch tracking
   const activePointersRef = useRef<Map<number, { x: number, y: number }>>(new Map());
@@ -482,6 +494,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     setSections(target);
     setSelectedSeat(null);
     setSelectedId((id) => (target.some((s) => s.id === id) ? id : null));
+    setSelectedIds(previous => new Set([...previous].filter(id => target.some(section => section.id === id))));
     setCanUndo(historyPast.current.length > 0);
     setCanRedo(true);
   }, []);
@@ -495,6 +508,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     setSections(target);
     setSelectedSeat(null);
     setSelectedId((id) => (target.some((s) => s.id === id) ? id : null));
+    setSelectedIds(previous => new Set([...previous].filter(id => target.some(section => section.id === id))));
     setCanRedo(historyFuture.current.length > 0);
     setCanUndo(true);
   }, []);
@@ -503,6 +517,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   // Ignored while typing in a field so native text-undo still works.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (saving) return;
       const el = document.activeElement as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
       const mod = e.ctrlKey || e.metaKey;
@@ -513,7 +528,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [undoMap, redoMap]);
+  }, [undoMap, redoMap, saving]);
 
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -1210,15 +1225,24 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
 
 
 
-  const handleDeleteSelected = () => {
-    setShowConfirm(true);
-  };
+  const handleDeleteSelected = () => requestRemoval();
 
   const confirmDelete = () => {
-    setSections(prev => prev.filter(s => s.id !== selectedId));
+    if (!pendingRemoval || saving) return;
+    const removedIds = new Set(pendingRemoval.ids);
+    setSections(prev => prev.filter(section => !section.id || !removedIds.has(section.id)));
+    if (pendingRemoval.reset) {
+      setShowStage(false);
+      centeredRef.current = false;
+      resetView();
+      setDismissWelcome(false);
+    }
     setSelectedId(null);
     setSelectedIds(new Set());
-    setShowConfirm(false);
+    setSelectedSeat(null);
+    setShowBulkPriceEditor(false);
+    setHoverInfo(null);
+    setPendingRemoval(null);
   };
 
   const handleSetDefaultView = () => {
@@ -1284,24 +1308,39 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
       };
 
       const { data } = await api.post(`/events/${eventId}/sections/bulk`, payload);
+      // Use server IDs for subsequent edits; saved deletions cannot be undone
+      // with stale IDs from a previous version of the map.
+      initializedRef.current = true;
+      historyPast.current = [];
+      historyFuture.current = [];
+      historyPrev.current = data;
+      historySkip.current = true;
+      setCanUndo(false);
+      setCanRedo(false);
+      setSections(data);
+      setSelectedId(null);
+      setSelectedIds(new Set());
+      setSelectedSeat(null);
       toast.success(lang === 'es' ? 'Mapa guardado correctamente' : 'Map saved successfully');
       onSaved(data);
     } catch (err: any) {
       // If a legacy map payload cannot be saved, reconcile only the permanent
       // blocks already stored in its configuration. This is an explicit,
       // owner-authorized recovery action; it never changes sold seats.
-      try {
-        const { data: recovery } = await api.post(`/events/${eventId}/sections/restore-saved-blocks`);
-        if (Number(recovery?.restored) > 0) {
-          toast.success(
-            lang === 'es'
-              ? `${recovery.restored} bloqueo(s) del mapa fueron restaurados. Los demás cambios no se guardaron.`
-              : `${recovery.restored} saved map block(s) were restored. Other map changes were not saved.`,
-          );
-          return;
+      if (!err.response || err.response.status >= 500) {
+        try {
+          const { data: recovery } = await api.post(`/events/${eventId}/sections/restore-saved-blocks`);
+          if (Number(recovery?.restored) > 0) {
+            toast.success(
+              lang === 'es'
+                ? `${recovery.restored} bloqueo(s) del mapa fueron restaurados. Los demás cambios no se guardaron.`
+                : `${recovery.restored} saved map block(s) were restored. Other map changes were not saved.`,
+            );
+            return;
+          }
+        } catch {
+          // Keep the original save error below when the recovery endpoint is unavailable.
         }
-      } catch {
-        // Keep the original save error below when the recovery endpoint is unavailable.
       }
       toast.error(err.response?.data?.message || 'Error saving map');
     } finally {
@@ -1489,7 +1528,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
   return (
-    <div className="venue-builder-dark flex flex-col h-[100vh] md:h-[calc(100vh-170px)] md:min-h-[800px] border border-gray-300 rounded-lg overflow-hidden bg-white relative font-sans">
+    <div inert={saving} aria-busy={saving} className="venue-builder-dark flex flex-col h-[100vh] md:h-[calc(100vh-170px)] md:min-h-[800px] border border-gray-300 rounded-lg overflow-hidden bg-white relative font-sans">
       {/* Map title and tools; inventory has its own row below. */}
       <div className="min-h-14 bg-white border-b border-gray-300 flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2 shrink-0 z-40 shadow-sm">
         <div className="flex items-center gap-3 min-w-0">
@@ -1588,6 +1627,20 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
               </div>
             )}
           </div>
+
+          {editMode && (
+            <>
+              <button type="button" onClick={() => requestRemoval(true)} disabled={saving || sections.length === 0} className="venue-map-action">
+                <HiOutlineRefresh className="h-4 w-4" />
+                {lang === 'es' ? 'Reiniciar mapa' : 'Reset map'}
+              </button>
+              <button type="button" onClick={handleDeleteSelected} disabled={saving || (!selectedId && selectedIds.size === 0)} className="venue-map-action">
+                <HiOutlineTrash className="h-4 w-4" />
+                {lang === 'es' ? 'Eliminar selección' : 'Delete selection'}
+                {selectedIds.size > 1 ? ` (${selectedIds.size})` : ''}
+              </button>
+            </>
+          )}
 
           {editMode && (
             <button
@@ -2341,6 +2394,16 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                 </button>
               </div>
 
+              <button
+                type="button"
+                onClick={handleDeleteSelected}
+                disabled={saving}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/50 bg-[#301b28] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#442032] disabled:opacity-40"
+              >
+                <HiOutlineTrash className="h-4 w-4" />
+                {lang === 'es' ? `Eliminar selección (${selectedIds.size})` : `Delete selection (${selectedIds.size})`}
+              </button>
+
               <p className="text-xs leading-relaxed text-slate-500">
                 {lang === 'es'
                   ? 'Dentro del editor puedes aplicar el valor a todo el grupo o únicamente a una mesa seleccionada. Luego pulsa Guardar para publicar los cambios del mapa.'
@@ -2994,36 +3057,46 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
             </motion.div>
           </div>
         )}
-        {showConfirm && (
+        {pendingRemoval && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowConfirm(false)}
+              onClick={() => setPendingRemoval(null)}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="map-removal-title"
+              className="relative bg-[#102b42] border border-[#365874] rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center"
             >
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <HiOutlineTrash className="w-8 h-8 text-red-600" />
+              <div className="w-16 h-16 bg-[#301b28] rounded-full flex items-center justify-center mx-auto mb-4">
+                <HiOutlineTrash className="w-8 h-8 text-red-400" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                {lang === 'es' ? '¿Eliminar sección?' : 'Delete section?'}
+              <h3 id="map-removal-title" className="text-xl font-bold text-white mb-2">
+                {pendingRemoval.reset
+                  ? (lang === 'es' ? '¿Reiniciar el mapa?' : 'Reset the map?')
+                  : (lang === 'es' ? `¿Eliminar selección (${pendingRemoval.ids.length})?` : `Delete selection (${pendingRemoval.ids.length})?`)}
               </h3>
-              <p className="text-gray-500 text-sm mb-6">
-                {lang === 'es' 
-                  ? 'Esta acción no se puede deshacer. Los asientos asociados también serán eliminados al guardar.' 
-                  : 'This action cannot be undone. Associated seats will also be removed upon saving.'}
+              <p className="text-slate-300 text-sm mb-3">
+                {pendingRemoval.reset
+                  ? (lang === 'es' ? 'Se quitarán todos los elementos del mapa para que puedas crear otro o cargar una plantilla en este mismo evento.' : 'All map items will be removed so you can create another map or load a template for this event.')
+                  : (lang === 'es' ? 'Se quitarán todos los elementos seleccionados y sus asientos.' : 'All selected items and their seats will be removed.')}
+              </p>
+              <p className="text-slate-300 text-sm mb-6">
+                {lang === 'es'
+                  ? 'Puedes deshacer antes de guardar. Los cambios se aplican al pulsar Guardar. No se permite borrar zonas con tickets emitidos o compras pendientes.'
+                  : 'You can undo before saving. Changes apply when you press Save. Areas with issued tickets or pending purchases cannot be deleted.'}
               </p>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowConfirm(false)}
-                  className="flex-1 btn-secondary py-2.5 justify-center"
+                  onClick={() => setPendingRemoval(null)}
+                  className="flex-1 rounded-xl border border-[#365874] bg-[#173951] py-2.5 font-bold text-white transition-colors hover:bg-[#204663]"
                 >
                   {t('orgCancel')}
                 </button>
@@ -3031,7 +3104,7 @@ export default function VenueMapBuilder({ eventId, initialSections, onSaved, onC
                   onClick={confirmDelete}
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl py-2.5 transition-all shadow-lg shadow-red-500/20"
                 >
-                  {lang === 'es' ? 'Eliminar' : 'Delete'}
+                  {pendingRemoval.reset ? (lang === 'es' ? 'Reiniciar mapa' : 'Reset map') : (lang === 'es' ? 'Eliminar selección' : 'Delete selection')}
                 </button>
               </div>
             </motion.div>

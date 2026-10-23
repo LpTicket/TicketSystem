@@ -10,7 +10,7 @@
  */
 import {
   Controller, Get, Post, Patch, Delete, Body, Param, Query,
-  UseGuards, Request, UseInterceptors, UploadedFile, Res,
+  UseGuards, Request, UseInterceptors, UploadedFile, Res, BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nest-lab/fastify-multer';
@@ -213,11 +213,13 @@ export class EventsController {
 
     if (Array.isArray(body)) {
       sections = body;
-    } else if (body && typeof body === 'object') {
-      sections = body.sections || [];
+    } else if (body && typeof body === 'object' && Array.isArray(body.sections)) {
+      sections = body.sections;
       defaultViewX = body.defaultViewX;
       defaultViewY = body.defaultViewY;
       defaultViewZoom = body.defaultViewZoom;
+    } else {
+      throw new BadRequestException('Debes enviar la lista de secciones del mapa.');
     }
 
     return this.eventsService.syncSections(eventId, sections, req.user.id, {
