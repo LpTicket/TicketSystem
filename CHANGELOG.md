@@ -1,5 +1,13 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-24 - Acompañamiento automático antes de cada evento
+
+- El backend programa dos correos independientes para cada evento publicado: al organizador propietario y a `ADMIN_EMAIL` (o `info@lpticket.com` si no está configurado). El organizador recibe una invitación a resolver dudas y solicitar acompañamiento o capacitación; administración recibe nombre completo, correo y teléfono disponible para contactar al organizador. Las respuestas del organizador llegan a `CONTACT_EMAIL`, con respaldo en `info@lpticket.com`.
+- Plantilla LP Ticket oscura, títulos blancos, logo, fecha y hora en la zona del evento y botón de contacto. No se envía a compradores ni a otros organizadores y no depende de sus recordatorios de entradas.
+- Revisión cada minuto a partir de las 24 horas anteriores al inicio; recupera pendientes tras una interrupción o publicación tardía, siempre antes del inicio. Guarda por separado cada aceptación SMTP y la fecha del evento cubierta; contempla reprogramaciones y evita envíos simultáneos entre réplicas mediante bloqueo PostgreSQL. Si el servidor de correo acepta el mensaje pero falla el registro en base de datos, un reintento podría repetirlo; la aceptación SMTP tampoco confirma la llegada a la bandeja de entrada.
+- Activación autorizada: migración aditiva `backend/src/database/add-event-support-reminders.sql` aplicada y verificada en PostgreSQL de producción; 21 eventos, 1.257 órdenes y 2.775 entradas conservados antes/después. El backend se publica después de esta migración. Recepción real de los avisos pendiente de comprobación.
+- Validación local: compilación del backend y 46 pruebas aprobadas entre recordatorios, correos y edición de eventos, incluida generación real de consultas TypeORM para PostgreSQL. Recepción y presentación en clientes de correo pendientes de comprobación real.
+
 ## 2026-10-18 - Límite de referidos por usuario
 
 - Referidos separa el cupo total del código del máximo por usuario, configurable al crear o editar y con valor inicial de una entrada para códigos nuevos y existentes.

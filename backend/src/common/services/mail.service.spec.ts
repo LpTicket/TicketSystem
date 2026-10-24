@@ -1,5 +1,85 @@
 import { MailService } from './mail.service';
 
+describe('MailService event support reminders', () => {
+  const data = {
+    eventTitle: 'Gala & Música <en vivo>', eventDate: new Date('2026-10-24T14:00:00Z'),
+    eventTimezone: 'America/Chicago', venueName: 'Salón Principal', venueAddress: '123 Main St',
+    organizerName: 'Ana <Pérez>', organizerEmail: 'owner@example.com', organizerPhone: '+15555550123',
+  };
+  function setup() {
+    const values: Record<string, string> = {
+      APP_URL: 'https://www.lpticket.com', SMTP_FROM: 'info@lpticket.com', CONTACT_EMAIL: 'support@lpticket.com',
+    };
+    const service = new MailService({ get: (key: string) => values[key] } as any);
+    const sendMail = jest.fn().mockImplementation(async ({ to }) => ({ accepted: [to], rejected: [] }));
+    (service as any).transporter = { sendMail };
+    return { service, sendMail };
+  }
+
+  it('sends the organizer a branded, dark reminder with a direct support reply and local event time', async () => {
+    const { service, sendMail } = setup();
+    await expect(service.sendEventSupportReminder('owner@example.com', data, 'organizer')).resolves.toBe(true);
+    const message = sendMail.mock.calls[0][0];
+    expect(message.to).toBe('owner@example.com');
+    expect(message.replyTo).toBe('support@lpticket.com');
+    expect(message.text).toContain('09:00');
+    expect(message.text).toContain('America/Chicago');
+    expect(message.text).toContain('capacitación');
+    expect(message.text).toContain('comunícate con nosotros hoy');
+    expect(message.html).toContain('Gala &amp; Música &lt;en vivo&gt;');
+    expect(message.html).toContain('Ana &lt;Pérez&gt;');
+    expect(message.html).toContain('logo-email-orange.png');
+    expect(message.html).toContain('Solicitar acompañamiento');
+    expect(message.html).toContain('background:#0a1420');
+    expect(message.html).not.toMatch(/background(?:-color)?:\s*(?:#fff(?:fff)?|white)\b/i);
+    expect(message.html).toMatch(/<h1[^>]*color:#ffffff/);
+    expect(message).not.toHaveProperty('cc');
+    expect(message).not.toHaveProperty('bcc');
+    expect(message.html).not.toContain('+15555550123');
+  });
+
+  it('sends administration the organizer full name, email and phone with a contact action', async () => {
+    const { service, sendMail } = setup();
+    await service.sendEventSupportReminder('admin@example.com', data, 'admin');
+    const message = sendMail.mock.calls[0][0];
+    expect(message.replyTo).toBe('owner@example.com');
+    expect(message.text).toContain('Organizador: Ana <Pérez>');
+    expect(message.text).toContain('Correo electrónico: owner@example.com');
+    expect(message.text).toContain('Teléfono: +15555550123');
+    expect(message.html).toContain('Contactar al organizador');
+    expect(message.html).toContain('mailto:owner%40example.com');
+    expect(message).not.toHaveProperty('cc');
+    expect(message).not.toHaveProperty('bcc');
+  });
+
+  it('shows missing phone information and uses UTC if a legacy event has an invalid timezone', async () => {
+    const { service, sendMail } = setup();
+    await service.sendEventSupportReminder('admin@example.com', {
+      ...data, organizerPhone: null, eventTimezone: 'Invalid/Timezone',
+    }, 'admin');
+    expect(sendMail.mock.calls[0][0].text).toContain('Teléfono: No registrado');
+    expect(sendMail.mock.calls[0][0].text).toContain('02:00 p.m. UTC');
+    expect(sendMail.mock.calls[0][0].text).toContain('(UTC)');
+  });
+
+  it.each([
+    { accepted: [], rejected: ['owner@example.com'] },
+    { accepted: ['other@example.com'], rejected: [] },
+    { accepted: ['owner@example.com'], rejected: ['owner@example.com'] },
+    {},
+  ])('does not mark delivery successful unless SMTP accepted the recipient (%j)', async (response) => {
+    const { service, sendMail } = setup();
+    sendMail.mockResolvedValue(response);
+    await expect(service.sendEventSupportReminder('owner@example.com', data, 'organizer')).resolves.toBe(false);
+  });
+
+  it('returns a pending delivery when SMTP is unavailable', async () => {
+    const { service, sendMail } = setup();
+    sendMail.mockRejectedValue(new Error('SMTP unavailable'));
+    await expect(service.sendEventSupportReminder('owner@example.com', data, 'organizer')).resolves.toBe(false);
+  });
+});
+
 describe('MailService ticket email', () => {
   const buildService = () => {
     const values: Record<string, string> = {

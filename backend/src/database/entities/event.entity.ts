@@ -210,6 +210,14 @@ export class Event {
   @Column({ type: 'timestamp', nullable: true })
   postEventReportSentAt: Date | null;
 
+  // Store the event date covered by each operational reminder. A reschedule
+  // automatically makes the new date eligible without resetting other emails.
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  organizerSupportReminderForDate: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  adminSupportReminderForDate: Date | null;
+
   @Column('uuid')
   organizerId: string;
 

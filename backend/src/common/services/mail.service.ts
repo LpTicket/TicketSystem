@@ -62,6 +62,17 @@ type EventApprovedEmail = {
   eventSlug: string;
 };
 
+type EventSupportReminderEmail = {
+  eventTitle: string;
+  eventDate: Date;
+  eventTimezone: string;
+  venueName?: string | null;
+  venueAddress?: string | null;
+  organizerName: string;
+  organizerEmail: string;
+  organizerPhone?: string | null;
+};
+
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
@@ -89,6 +100,99 @@ export class MailService {
     return rawAppUrl.startsWith('http://') || rawAppUrl.startsWith('https://')
       ? rawAppUrl.replace(/\/$/, '')
       : `https://${rawAppUrl.replace(/\/$/, '')}`;
+  }
+
+  async sendEventSupportReminder(
+    to: string,
+    data: EventSupportReminderEmail,
+    audience: 'organizer' | 'admin',
+  ): Promise<boolean> {
+    const safe = (value: unknown) => String(value ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    const supportEmail = String(this.configService.get('CONTACT_EMAIL') || 'info@lpticket.com').trim();
+    let timezone = data.eventTimezone || 'UTC';
+    try {
+      new Intl.DateTimeFormat('es-US', { timeZone: timezone });
+    } catch {
+      timezone = 'UTC';
+    }
+    const dateLabel = new Intl.DateTimeFormat('es-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true, timeZone: timezone,
+      timeZoneName: 'short',
+    }).format(data.eventDate);
+    const venue = [data.venueName, data.venueAddress].filter(Boolean).join(' — ') || 'Lugar por confirmar';
+    const isAdmin = audience === 'admin';
+    const title = isAdmin ? 'Contactar al organizador' : 'Preparémonos para tu evento';
+    const paragraphs = isAdmin ? [
+      `El evento «${data.eventTitle}» está próximo a comenzar. Es momento de contactar a su organizador y confirmar que cuenta con toda la información y las herramientas necesarias.`,
+      'Por favor, consulta si tiene dudas, necesita acompañamiento o requiere una sesión de capacitación sobre la plataforma, la venta de entradas o el escaneo de accesos. Coordina esa atención antes del evento para resolver cualquier pendiente con tiempo.',
+      'Este aviso forma parte del seguimiento personalizado de LP Ticket. El organizador recibe por separado una invitación a comunicarse con nuestro equipo.',
+    ] : [
+      `Hola ${data.organizerName}, se acerca tu evento «${data.eventTitle}» y en LP Ticket queremos acompañarte para que todo esté listo.`,
+      '¿Ya cuentas con toda la información y las herramientas que necesitas para el día del evento? Si tienes alguna duda o necesitas acompañamiento o capacitación sobre la plataforma, la venta de entradas o el escaneo de accesos, por favor comunícate con nosotros hoy, antes del evento.',
+      'Responde a este correo e indícanos qué necesitas revisar, tu número de contacto y el horario en que podemos comunicarnos contigo. Así podremos coordinar la atención con anticipación y ayudarte a resolver cualquier inquietud.',
+      'Gracias por confiar en LP Ticket. Queremos que llegues al día de tu evento con tranquilidad y todo preparado.',
+    ];
+    const details = [
+      ['Evento', data.eventTitle], ['Fecha y hora', `${dateLabel} (${timezone})`], ['Lugar', venue],
+      ...(isAdmin ? [
+        ['Organizador', data.organizerName],
+        ['Correo electrónico', data.organizerEmail || 'No registrado'],
+        ['Teléfono', data.organizerPhone?.trim() || 'No registrado'],
+      ] : []),
+    ];
+    const contactEmail = isAdmin ? data.organizerEmail : supportEmail;
+    const contactUrl = contactEmail
+      ? `mailto:${encodeURIComponent(contactEmail)}?subject=${encodeURIComponent(`Acompañamiento para el evento: ${data.eventTitle}`)}`
+      : `${this.getAppUrl()}/admin/events`;
+    const buttonLabel = isAdmin ? (contactEmail ? 'Contactar al organizador' : 'Revisar evento') : 'Solicitar acompañamiento';
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="color-scheme" content="dark"></head>
+<body bgcolor="#0a1420" style="margin:0;padding:0;background:#0a1420;color:#cbd5e1;">
+  <span style="display:none;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;">${safe(title)}: ${safe(data.eventTitle)}.</span>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a1420;padding:24px 12px;font-family:'Helvetica Neue',Arial,sans-serif;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#0b1622;border-radius:16px;overflow:hidden;border:1px solid #394133;">
+        <tr><td align="center" style="background:#0A375A;padding:24px;"><img src="${safe(this.getAppUrl())}/logo-email-orange.png" alt="LP Ticket" width="190" style="display:block;width:190px;max-width:100%;height:auto;border:0;"></td></tr>
+        <tr><td style="padding:30px 24px 12px;">
+          <p style="margin:0 0 10px;color:#f59e0b;font-size:11px;font-weight:800;letter-spacing:1px;">ACOMPAÑAMIENTO PREVIO AL EVENTO</p>
+          <h1 style="margin:0 0 20px;color:#ffffff;font-size:25px;line-height:1.25;">${safe(title)}</h1>
+          ${paragraphs.map((p) => `<p style="margin:0 0 16px;color:#cbd5e1;font-size:15px;line-height:1.7;overflow-wrap:anywhere;">${safe(p)}</p>`).join('')}
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #283647;border-bottom:1px solid #283647;">
+            ${details.map(([label, value]) => `<tr><td style="padding:12px 0;border-bottom:1px solid #1e2b3a;"><p style="margin:0 0 4px;color:#9fb2c6;font-size:12px;">${safe(label)}</p><p style="margin:0;color:#ffffff;font-size:14px;line-height:1.5;font-weight:600;overflow-wrap:anywhere;word-break:break-word;">${safe(value)}</p></td></tr>`).join('')}
+          </table>
+        </td></tr>
+        <tr><td align="center" style="padding:24px;">
+          <a href="${safe(contactUrl)}" style="display:inline-block;background:#F97316;border-radius:12px;padding:14px 24px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;">${safe(buttonLabel)}</a>
+          ${!isAdmin ? `<p style="margin:16px 0 0;color:#9fb2c6;font-size:13px;line-height:1.6;">También puedes responder directamente a este correo o escribirnos a <a href="mailto:${safe(encodeURIComponent(supportEmail))}" style="color:#f59e0b;overflow-wrap:anywhere;">${safe(supportEmail)}</a>.</p>` : ''}
+        </td></tr>
+        <tr><td align="center" style="background:#08111c;padding:20px 24px;"><p style="margin:0 0 6px;color:#ffffff;font-size:13px;font-weight:800;">LP Ticket · Estamos para acompañarte</p><p style="margin:0;color:#9fb2c6;font-size:11px;line-height:1.5;">© ${new Date().getFullYear()} LPTicket · Tus tickets. Tus eventos.</p></td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+    try {
+      const result = await this.transporter.sendMail({
+        from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
+        to,
+        replyTo: isAdmin ? (data.organizerEmail || supportEmail) : supportEmail,
+        subject: isAdmin
+          ? `Seguimiento del organizador: ${data.eventTitle} — LP Ticket`
+          : `Recordatorio y acompañamiento para tu evento: ${data.eventTitle} — LP Ticket`,
+        text: [title, ...paragraphs, ...details.map(([label, value]) => `${label}: ${value}`),
+          `Contacto: ${contactEmail || 'Revisar datos del organizador en administración'}`].join('\n\n'),
+        html,
+      });
+      const matches = (address: unknown) => String(address).trim().toLowerCase() === to.trim().toLowerCase();
+      return Array.isArray(result.accepted) && result.accepted.some(matches)
+        && !(Array.isArray(result.rejected) && result.rejected.some(matches));
+    } catch {
+      return false;
+    }
   }
 
   /**
