@@ -142,6 +142,9 @@ export class Event {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   processingFeeFixedPerTicket: number | null;
 
+  @Column({ type: 'int', default: 1 })
+  minTicketsPerTransaction: number;
+
   @Column({ type: 'int', default: 10 })
   maxTicketsPerTransaction: number;
 

@@ -115,11 +115,19 @@ export class EventsService {
     };
   }
 
+  private validateTicketLimits(minimum: number, maximum: number) {
+    if (!Number.isSafeInteger(minimum) || !Number.isSafeInteger(maximum)
+      || minimum < 1 || maximum < minimum) {
+      throw new BadRequestException('Los límites de entradas deben ser enteros positivos y el mínimo no puede superar el máximo.');
+    }
+  }
+
   /**
    * create
    * Initializes a new event in 'DRAFT' status.
    */
   async create(dto: CreateEventDto, organizerId: string) {
+    this.validateTicketLimits(dto.minTicketsPerTransaction ?? 1, dto.maxTicketsPerTransaction ?? 10);
     const slug = this.generateSlug(dto.title);
     const category = await this.ensureValidCategorySlug(dto.category);
     const event = this.eventRepo.create({
@@ -371,12 +379,21 @@ export class EventsService {
       throw new ForbiddenException('Solo un administrador puede activar o desactivar Klarna.');
     }
 
+    if (cleanDto.minTicketsPerTransaction !== undefined || cleanDto.maxTicketsPerTransaction !== undefined) {
+      this.validateTicketLimits(
+        cleanDto.minTicketsPerTransaction === undefined ? (event.minTicketsPerTransaction ?? 1) : cleanDto.minTicketsPerTransaction,
+        cleanDto.maxTicketsPerTransaction === undefined ? (event.maxTicketsPerTransaction ?? 10) : cleanDto.maxTicketsPerTransaction,
+      );
+    }
+
     // Approval flow for published events
     if (event.status === EventStatus.PUBLISHED && user?.role !== 'admin') {
       const pendingUpdate: Partial<Event> = {
         pendingTitle: cleanDto.title,
         pendingDescription: cleanDto.description,
         pendingVenueName: cleanDto.venueName,
+        ...(cleanDto.minTicketsPerTransaction !== undefined ? { minTicketsPerTransaction: cleanDto.minTicketsPerTransaction } : {}),
+        ...(cleanDto.maxTicketsPerTransaction !== undefined ? { maxTicketsPerTransaction: cleanDto.maxTicketsPerTransaction } : {}),
         ...(cleanDto.category !== undefined ? { category: cleanDto.category, pendingCategory: null } : {}),
         // Timezone is always updated immediately so the displayed time stays
         // consistent with whatever wall-clock time the organizer entered.

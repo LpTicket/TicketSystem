@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsDateString, IsBoolean, IsNumber, Min, IsUUID, ValidateIf } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsDateString, IsBoolean, IsNumber, IsInt, Min, IsUUID, ValidateIf } from 'class-validator';
 import { EventCategory } from '../../database/entities';
 
 export class CreateEventDto {
@@ -51,8 +51,13 @@ export class CreateEventDto {
   @IsString()
   bannerPosition?: string;
 
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(1)
+  minTicketsPerTransaction?: number;
+
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(1)
   maxTicketsPerTransaction?: number;
 }
@@ -128,8 +133,13 @@ export class UpdateEventDto {
   @IsString()
   bannerPosition?: string;
 
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(1)
+  minTicketsPerTransaction?: number;
+
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(1)
   maxTicketsPerTransaction?: number;
 }

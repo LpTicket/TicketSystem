@@ -86,6 +86,8 @@ export default function PurchasePage() {
   // Step 2: Selected seats or standing quantity
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [standingQuantity, setStandingQuantity] = useState<number>(1);
+  const minimumTickets = event?.minTicketsPerTransaction ?? 1;
+  const selectedTicketCount = selectedSection?.sectionType === 'standing' ? standingQuantity : selectedSeats.length;
   const [seatsLocked, setSeatsLocked] = useState(false);
 
   // Step 3: Identification & Personal Info
@@ -298,7 +300,7 @@ export default function PurchasePage() {
    * Locks the selected seats on the server to prevent other users from buying them.
    */
   const handleConfirmSeats = async () => {
-    if (selectedSeats.length === 0) return;
+    if (selectedSeats.length < minimumTickets) return;
     try {
       await api.post('/events/seats/lock', { seatIds: selectedSeats.map((s) => s.id) });
       setSeatsLocked(true);
@@ -582,10 +584,10 @@ export default function PurchasePage() {
                     </button>
                   </div>
 
-                  <p className="text-xs text-gray-500 font-semibold bg-[rgba(10,55,90,0.06)] border border-[rgba(10,55,90,0.14)] text-[#0A375A] px-4 py-1.5 rounded-full shadow-sm">
+                  <p className="text-xs text-slate-300 font-semibold bg-[#0b2033] border border-slate-700 px-4 py-1.5 rounded-full shadow-sm">
                     {lang === 'es' 
-                      ? `Puedes seleccionar un máximo de ${event?.maxTicketsPerTransaction || 10} entradas por transacción` 
-                      : `You can select a maximum of ${event?.maxTicketsPerTransaction || 10} tickets per transaction`}
+                      ? `Puedes seleccionar de ${minimumTickets} a ${event?.maxTicketsPerTransaction || 10} entradas por transacción`
+                      : `You can select ${minimumTickets} to ${event?.maxTicketsPerTransaction || 10} tickets per transaction`}
                   </p>
                 </div>
               ) : (
@@ -627,18 +629,24 @@ export default function PurchasePage() {
                 </>
               )}
 
+              {minimumTickets > 1 && <p className="mt-4 text-sm text-slate-300">
+                {lang === 'es' ? `Compra mínima: ${minimumTickets} entradas por transacción.` : `Minimum purchase: ${minimumTickets} tickets per transaction.`}
+              </p>}
               <button
                 onClick={() => {
+                  if (selectedTicketCount < minimumTickets) return;
                   if (selectedSection.sectionType === 'standing') {
                     setStep('info');
                   } else {
                     handleConfirmSeats();
                   }
                 }}
-                disabled={(selectedSection.sectionType === 'standing' && standingQuantity === 0) || (selectedSection.sectionType !== 'standing' && selectedSeats.length === 0)}
+                disabled={selectedTicketCount < minimumTickets}
                 className="btn-primary w-full py-3 mt-4 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed font-black shadow-lg shadow-orange-500/20"
               >
-                {selectedSection.sectionType === 'standing'
+                {selectedTicketCount < minimumTickets
+                  ? (lang === 'es' ? `Selecciona al menos ${minimumTickets} entrada(s)` : `Select at least ${minimumTickets} ticket(s)`)
+                  : selectedSection.sectionType === 'standing'
                   ? (standingQuantity === 0 ? (lang === 'es' ? 'Selecciona al menos 1 entrada' : 'Select at least 1 ticket') : 'Continuar →')
                   : selectedSeats.length === 0
                     ? (lang === 'es' ? 'Selecciona al menos 1 asiento' : 'Select at least 1 seat')

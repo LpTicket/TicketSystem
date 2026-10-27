@@ -260,6 +260,13 @@ export class OrdersService {
     return { originalTotal, discountPercent, discountAmount: this.roundMoney(originalTotal - items.reduce((sum, item) => sum + item.price, 0)) };
   }
 
+  private assertMinimumTickets(event: Event, quantity: number) {
+    const minimum = event.minTicketsPerTransaction ?? 1;
+    if (!Number.isSafeInteger(quantity) || quantity < minimum) {
+      throw new BadRequestException(`Debes seleccionar al menos ${minimum} entrada(s) por transacción.`);
+    }
+  }
+
   private calculateDoorSaleFees(
     event: Event,
     amount: number,
@@ -1242,6 +1249,7 @@ export class OrdersService {
       if (event.status !== EventStatus.PUBLISHED || event.publicVisible === false || !Number.isFinite(end) || end <= Date.now()) {
         throw new BadRequestException('Este evento no está disponible para registro.');
       }
+      this.assertMinimumTickets(event, quantity);
       if (quantity > (event.maxTicketsPerTransaction || 10)) {
         throw new BadRequestException(`Máximo ${event.maxTicketsPerTransaction || 10} entradas por solicitud.`);
       }
@@ -1413,6 +1421,11 @@ export class OrdersService {
       quantity = quantity || seatIds.length;
       seatIds = [];
     }
+
+    if (new Set(seatIds).size !== seatIds.length) {
+      throw new BadRequestException('Selecciona entradas diferentes.');
+    }
+    this.assertMinimumTickets(event, seatIds.length || quantity || 0);
 
     if (seatIds && seatIds.length > 0) {
       // Logic for Numbered/Seated events
@@ -1713,6 +1726,11 @@ export class OrdersService {
       quantity = quantity || seatIds.length;
       seatIds = [];
     }
+
+    if (new Set(seatIds).size !== seatIds.length) {
+      throw new BadRequestException('Selecciona entradas diferentes.');
+    }
+    this.assertMinimumTickets(event, seatIds.length || quantity || 0);
 
     if (seatIds && seatIds.length > 0) {
       for (const seatId of seatIds) {

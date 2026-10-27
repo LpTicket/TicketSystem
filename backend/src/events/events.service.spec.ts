@@ -5,7 +5,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { EventStatus, UserRole } from '../database/entities';
 import { EventsService } from './events.service';
 import { validate } from 'class-validator';
-import { UpdateEventDto } from './dto/event.dto';
+import { CreateEventDto, UpdateEventDto } from './dto/event.dto';
 
 function buildService(role: UserRole, status = EventStatus.PUBLISHED) {
   const event = { id: 'event-1', slug: 'event-one', organizerId: 'editor-1', status, klarnaEnabled: true };
@@ -84,5 +84,36 @@ describe('Administrator event editing', () => {
     expect(guard.canActivate(context as any)).toBe(role === UserRole.ADMIN);
     expect(Reflect.getMetadata('__guards__', EventsController.prototype.findForAdmin)).toContain(RolesGuard);
     expect(Reflect.getMetadata('__guards__', EventsController.prototype.findForAdmin)).toHaveLength(2);
+  });
+});
+
+
+describe('Event ticket purchase limits', () => {
+  it.each([0, -1, 1.5, null, '2'])("rejects an invalid minimum %s in create and update DTOs", async minimum => {
+    for (const Dto of [CreateEventDto, UpdateEventDto]) {
+      const errors = await validate(Object.assign(new Dto(), { minTicketsPerTransaction: minimum }));
+      expect(errors.some(error => error.property === 'minTicketsPerTransaction')).toBe(true);
+    }
+  });
+
+  it('rejects a minimum above the default maximum when creating an event', async () => {
+    const { service } = buildService(UserRole.CLIENT, EventStatus.DRAFT);
+    await expect(service.create({ title: 'QA', category: 'music', venueName: 'QA', eventDate: '2026-12-01', minTicketsPerTransaction: 11 }, 'editor-1'))
+      .rejects.toThrow('mínimo no puede superar el máximo');
+  });
+
+  it('compares partial updates against both saved limits before writing', async () => {
+    const { service, eventRepo } = buildService(UserRole.ADMIN);
+    Object.assign(await eventRepo.findOne(), { minTicketsPerTransaction: 3, maxTicketsPerTransaction: 6 });
+    await expect(service.update('event-1', { minTicketsPerTransaction: 7 }, 'editor-1')).rejects.toThrow('mínimo');
+    await expect(service.update('event-1', { maxTicketsPerTransaction: 2 }, 'editor-1')).rejects.toThrow('mínimo');
+    expect(eventRepo.update).not.toHaveBeenCalled();
+  });
+
+  it.each([UserRole.CLIENT, UserRole.ADMIN])('saves matching minimum and maximum for published events (%s)', async role => {
+    const { service, cache } = buildService(role);
+    await expect(service.update('event-1', { minTicketsPerTransaction: 6, maxTicketsPerTransaction: 6 }, 'editor-1'))
+      .resolves.toMatchObject({ minTicketsPerTransaction: 6, maxTicketsPerTransaction: 6 });
+    expect(cache.del).toHaveBeenCalledWith('event:slug:event-one');
   });
 });

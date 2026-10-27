@@ -55,6 +55,7 @@ type ApiEventDetail = {
   defaultViewX?: number;
   defaultViewY?: number;
   defaultViewZoom?: number;
+  minTicketsPerTransaction?: number;
   maxTicketsPerTransaction?: number;
 };
 
@@ -97,6 +98,7 @@ function mergeEvent(base: MobileEvent, data?: ApiEventDetail, lang?: string): Mo
     defaultViewX: data.defaultViewX ?? base.defaultViewX,
     defaultViewY: data.defaultViewY ?? base.defaultViewY,
     defaultViewZoom: data.defaultViewZoom ?? base.defaultViewZoom,
+    minTicketsPerTransaction: Number(data.minTicketsPerTransaction ?? base.minTicketsPerTransaction) || 1,
     maxTicketsPerTransaction: Number(data.maxTicketsPerTransaction ?? base.maxTicketsPerTransaction) || 10,
   };
 }
@@ -232,6 +234,7 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
 
   const mode: 'seats' | 'ga' | 'none' = seatedSections.length > 0 ? 'seats' : gaSections.length > 0 ? 'ga' : 'none';
   const ticketLimit = Math.max(1, Number(detail.maxTicketsPerTransaction || event.maxTicketsPerTransaction || 10));
+  const minimumTickets = detail.minTicketsPerTransaction ?? event.minTicketsPerTransaction ?? 1;
 
   useEffect(() => {
     if (mode === 'ga') {
@@ -260,7 +263,8 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
       ? { eventId, sectionId: gaSelected.id, quantity: gaQty }
       : null;
 
-    if (!params) {
+    const count = mode === 'seats' ? selectedSeats.length : gaQty;
+    if (!params || count < minimumTickets) {
       setInvoice(null);
       setInvoiceError(false);
       setInvoiceLoading(false);
@@ -276,14 +280,14 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
       .catch(() => { if (active) setInvoiceError(true); })
       .finally(() => { if (active) setInvoiceLoading(false); });
     return () => { active = false; };
-  }, [detail.id, event.id, gaQty, gaSelected?.id, mode, selectedSeatIds]);
+  }, [detail.id, event.id, gaQty, gaSelected?.id, mode, selectedSeatIds, minimumTickets]);
 
   const subtotal = Number(invoice?.baseTotal || 0);
   const serviceFee = Number(invoice?.lpFee || 0);
   const processingFee = Number(invoice?.processingFee || 0);
   const total = Number(invoice?.total || 0);
-  const canBuy = hasSelection && !!invoice && !invoiceLoading;
   const selectionCount = mode === 'seats' ? selectedSeats.length : mode === 'ga' && gaSelected ? gaQty : 0;
+  const canBuy = hasSelection && selectionCount >= minimumTickets && !!invoice && !invoiceLoading;
 
   useEffect(() => { onSelectionCountChange?.(selectionCount); }, [selectionCount, onSelectionCountChange]);
 
@@ -563,6 +567,9 @@ export function EventDetailScreen({ event, onBack, onBuy, onSelectionCountChange
           </>
         )}
 
+        {minimumTickets > 1 && <Text style={{ color: colors.textMuted, marginBottom: 12 }}>
+          {t(`Compra mínima: ${minimumTickets} entradas por transacción.`, `Minimum purchase: ${minimumTickets} tickets per transaction.`)}
+        </Text>}
         <TouchableOpacity
           style={[st.buyButton, (!canBuy || locking) && st.buyButtonDisabled]}
           onPress={async () => {

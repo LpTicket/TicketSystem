@@ -260,8 +260,9 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
   }, [getServiceFee, getTotalPrice]);
 
   const handleBuyTickets = () => {
-    if (selectedSeats.length === 0) {
-      setAlertMessage(lang === 'es' ? 'Por favor selecciona al menos un asiento.' : 'Please select at least one seat.');
+    const minimum = event?.minTicketsPerTransaction ?? 1;
+    if (selectedSeats.length < minimum) {
+      setAlertMessage(lang === 'es' ? `Selecciona al menos ${minimum} entrada(s) por compra.` : `Select at least ${minimum} ticket(s) per purchase.`);
       return;
     }
 
@@ -563,6 +564,9 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
                 </>
               )}
 
+              {(event.minTicketsPerTransaction ?? 1) > 1 && <p className="text-sm text-slate-300">
+                {lang === 'es' ? `Compra mínima: ${event.minTicketsPerTransaction} entradas por transacción.` : `Minimum purchase: ${event.minTicketsPerTransaction} tickets per transaction.`}
+              </p>}
               <button onClick={handleBuyTickets} className="btn-primary w-full py-3 rounded-lg font-black uppercase tracking-wide text-sm shadow-lg shadow-orange-500/20">
                 {isFreeSelection ? (lang === 'es' ? 'Obtener entradas gratis' : 'Get free tickets') : t('buyTickets')}
               </button>

@@ -236,3 +236,23 @@ describe('Free registrations preserve paid checkout and inventory', () => {
     expect(query.andWhere).toHaveBeenCalledWith('t.orderId = :registrationOrderId', { registrationOrderId: 'other-order' });
   });
 });
+
+
+describe('Free registration minimum tickets', () => {
+  it.each([undefined, 'FREE100'])('rejects quantities below the event minimum (code %s) without issuing tickets', async specialCode => {
+    const f = fixture(); f.event.minTicketsPerTransaction = 3;
+    await expect(f.service.registerFreeTickets('buyer', dto({ quantity: 2, specialCode }))).rejects.toThrow('al menos 3');
+    expect(f.state.orders).toHaveLength(0);
+    expect(f.state.tickets).toHaveLength(0);
+    expect(f.seats.update).not.toHaveBeenCalled();
+  });
+
+  it('issues the minimum quantity and preserves idempotent retries after a limit change', async () => {
+    const f = fixture(); f.event.minTicketsPerTransaction = 3;
+    const first = await f.service.registerFreeTickets('buyer', dto());
+    expect(first.ticketCount).toBe(3);
+    f.event.minTicketsPerTransaction = 4; f.event.maxTicketsPerTransaction = 4;
+    await expect(f.service.registerFreeTickets('buyer', dto())).resolves.toMatchObject({ orderId: first.orderId });
+    expect(f.state.tickets).toHaveLength(3);
+  });
+});

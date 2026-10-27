@@ -23,5 +23,6 @@ export type MobileEvent = {
   defaultViewX?: number;
   defaultViewY?: number;
   defaultViewZoom?: number;
+  minTicketsPerTransaction?: number;
   maxTicketsPerTransaction?: number;
 };

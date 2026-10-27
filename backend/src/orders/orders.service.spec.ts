@@ -199,7 +199,7 @@ describe('OrdersService critical ticket safeguards', () => {
   });
 
   it('charges Stripe exactly the discounted invoice and persists discounted ticket prices', async () => {
-    const event = { id: 'event-1', currency: 'USD' };
+    const event = { id: 'event-1', currency: 'USD', minTicketsPerTransaction: 2, maxTicketsPerTransaction: 2 };
     const section = { id: 'section-1', eventId: 'event-1', sectionType: 'standing', name: 'GA', price: 50 };
     const quota = quotaTransaction(null, 0);
     const { service, orderRepo } = buildService({
@@ -1391,5 +1391,56 @@ describe('Shared scanner totals', () => {
     });
     expect(tickets.where).toHaveBeenCalledWith('ticket.eventId = :eventId', { eventId: 'event-1' });
     expect(tickets.andWhere).toHaveBeenCalledWith('ticket.status IN (:...statuses)', { statuses: ['active', 'used'] });
+  });
+});
+
+
+describe('Minimum tickets per customer purchase', () => {
+  const event = { id: 'event-1', currency: 'USD', minTicketsPerTransaction: 3, maxTicketsPerTransaction: 6 };
+  const sectionId = '22222222-2222-4222-8222-222222222222';
+
+  it.each(['seats', 'standing', 'legacy-standing'])('rejects undersized %s selections before invoice or checkout side effects', async mode => {
+    const seatRepo = { findOne: jest.fn(), save: jest.fn() };
+    const { service, orderRepo } = buildService({ eventRepo: { findOne: jest.fn().mockResolvedValue(event) }, seatRepo });
+    const create = jest.fn();
+    (service as any).stripe = { checkout: { sessions: { create } } };
+    const seatIds = mode === 'seats' ? ['seat-1', 'seat-2'] : mode === 'legacy-standing'
+      ? [`standing-${sectionId}-1-123`, `standing-${sectionId}-2-123`] : [];
+    const section = mode === 'standing' ? sectionId : undefined;
+    const quantity = mode === 'standing' ? 2 : undefined;
+    await expect(service.previewInvoice(event.id, seatIds, section, quantity)).rejects.toThrow('al menos 3');
+    await expect(service.createCheckoutSession('buyer', event.id, seatIds, section, quantity)).rejects.toThrow('al menos 3');
+    expect(seatRepo.findOne).not.toHaveBeenCalled();
+    expect(seatRepo.save).not.toHaveBeenCalled();
+    expect(orderRepo.manager.transaction).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('uses the normalized legacy quantity and prevents counting duplicate seats', async () => {
+    const { service } = buildService({ eventRepo: { findOne: jest.fn().mockResolvedValue(event) } });
+    const legacyIds = [1, 2, 3].map(n => `standing-${sectionId}-${n}-123`);
+    await expect(service.previewInvoice(event.id, legacyIds, sectionId, 1)).rejects.toThrow('al menos 3');
+    await expect(service.createCheckoutSession('buyer', event.id, legacyIds, sectionId, 1)).rejects.toThrow('al menos 3');
+    await expect(service.previewInvoice(event.id, ['seat-1', 'seat-1', 'seat-2'])).rejects.toThrow('diferentes');
+    await expect(service.createCheckoutSession('buyer', event.id, ['seat-1', 'seat-1', 'seat-2'])).rejects.toThrow('diferentes');
+  });
+
+  it.each([3, 6])('quotes %s general-admission tickets within the allowed range', async quantity => {
+    const { service } = buildService({
+      eventRepo: { findOne: jest.fn().mockResolvedValue(event) },
+      sectionRepo: { findOne: jest.fn().mockResolvedValue({ id: sectionId, eventId: event.id, price: 20, name: 'General' }) },
+    });
+    await expect(service.previewInvoice(event.id, [], sectionId, quantity)).resolves.toMatchObject({ baseTotal: 20 * quantity });
+  });
+
+  it('preserves the maximum and the whole-table purchase rule', async () => {
+    const seat = { id: 'seat-1', sectionId: 'table-1', section: { eventId: event.id, sectionType: 'table', tablePurchaseMode: 'whole', name: 'VIP' } };
+    const { service } = buildService({
+      eventRepo: { findOne: jest.fn().mockResolvedValue(event) },
+      seatRepo: { findOne: jest.fn().mockResolvedValue(seat), find: jest.fn().mockResolvedValue([seat, { id: 'seat-4', seatNumber: 4 }]) },
+    });
+    await expect(service.previewInvoice(event.id, [], sectionId, 7)).rejects.toThrow('más de 6');
+    await expect(service.previewInvoice(event.id, ['seat-1', 'seat-2', 'seat-3'])).rejects.toThrow('sold as a whole');
+    await expect(service.createCheckoutSession('buyer', event.id, ['seat-1', 'seat-2', 'seat-3'])).rejects.toThrow('must be purchased entirely');
   });
 });

@@ -954,6 +954,7 @@ export default function EventDetailPage() {
     category: '',
     hasSeatMap: false,
     bannerPosition: 'center',
+    minTicketsPerTransaction: 1,
     maxTicketsPerTransaction: 10,
     klarnaEnabled: true,
   });
@@ -1006,6 +1007,7 @@ export default function EventDetailPage() {
         category: ev.pendingCategory || ev.category || '',
         hasSeatMap: ev.hasSeatMap || false,
         bannerPosition: ev.bannerPosition || 'center',
+        minTicketsPerTransaction: ev.minTicketsPerTransaction ?? 1,
         maxTicketsPerTransaction: ev.maxTicketsPerTransaction || 10,
         klarnaEnabled: ev.klarnaEnabled !== false,
       });
@@ -1272,6 +1274,12 @@ export default function EventDetailPage() {
       toast.error(lang === 'es' ? 'Selecciona una categoría antes de guardar' : 'Select a category before saving');
       return;
     }
+    const minimum = Number(editForm.minTicketsPerTransaction);
+    const maximum = Number(editForm.maxTicketsPerTransaction);
+    if (!Number.isSafeInteger(minimum) || !Number.isSafeInteger(maximum) || minimum < 1 || minimum > maximum) {
+      toast.error(lang === 'es' ? 'El mínimo debe ser un entero positivo y no puede superar el máximo.' : 'The minimum must be a positive integer and cannot exceed the maximum.');
+      return;
+    }
     setSavingEdit(true);
     try {
       // Build the optional end time. It shares the event's date; if the end
@@ -1300,7 +1308,8 @@ export default function EventDetailPage() {
         category: editForm.category,
         hasSeatMap: true,
         bannerPosition: editForm.bannerPosition,
-        maxTicketsPerTransaction: editForm.maxTicketsPerTransaction ? Number(editForm.maxTicketsPerTransaction) : 10,
+        minTicketsPerTransaction: minimum,
+        maxTicketsPerTransaction: maximum,
         ...(user?.role === 'admin' ? { klarnaEnabled: editForm.klarnaEnabled } : {}),
       });
 
@@ -3391,25 +3400,36 @@ export default function EventDetailPage() {
             </div>
 
             {/* Ticket limits */}
-            <div className="pt-4 border-t border-gray-100 space-y-1.5">
-              <label htmlFor="event-edit-ticket-limit" className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                {lang === 'es' ? 'Límite de Venta (Máx. entradas por transacción)' : 'Sale Limits (Max tickets per transaction)'}
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    id="event-edit-ticket-limit" value={editForm.maxTicketsPerTransaction}
-                    onChange={(e) => setEditForm({ ...editForm, maxTicketsPerTransaction: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-primary-500 text-base min-h-11 focus:border-primary-500 focus:outline-none"
-                    required
-                  />
-                  <p className="text-[10px] text-gray-400 font-medium">
-                    {lang === 'es' ? 'Establece el número máximo de entradas que un cliente puede comprar a la vez.' : 'Set the maximum number of tickets a customer can purchase at once.'}
-                  </p>
-                </div>
+            <div className="pt-4 border-t border-slate-700 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label htmlFor="event-edit-ticket-limit" className="text-xs font-bold text-white uppercase tracking-wider">
+                  {lang === 'es' ? 'Límite de venta (Máx. entradas por transacción)' : 'Sale limit (Max tickets per transaction)'}
+                </label>
+                <input
+                  type="number" min="1" max="100" step="1"
+                  id="event-edit-ticket-limit" value={editForm.maxTicketsPerTransaction}
+                  onChange={(e) => setEditForm({ ...editForm, maxTicketsPerTransaction: Number(e.target.value) })}
+                  className="w-full px-4 py-2.5 bg-[#0b2033] text-white border border-slate-700 rounded-xl focus:ring-1 focus:ring-primary-500 text-base min-h-11 focus:border-primary-500 focus:outline-none"
+                  required
+                />
+                <p className="text-[10px] text-slate-400 font-medium">
+                  {lang === 'es' ? 'Establece el número máximo de entradas que un cliente puede comprar a la vez.' : 'Set the maximum number of tickets a customer can purchase at once.'}
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="event-edit-ticket-minimum" className="text-xs font-bold text-white uppercase tracking-wider">
+                  {lang === 'es' ? 'Mínimo de venta (Mín. entradas por transacción)' : 'Sale minimum (Min tickets per transaction)'}
+                </label>
+                <input
+                  type="number" min="1" max={editForm.maxTicketsPerTransaction || 100} step="1"
+                  id="event-edit-ticket-minimum" value={editForm.minTicketsPerTransaction}
+                  onChange={(e) => setEditForm({ ...editForm, minTicketsPerTransaction: Number(e.target.value) })}
+                  className="w-full px-4 py-2.5 bg-[#0b2033] text-white border border-slate-700 rounded-xl focus:ring-1 focus:ring-primary-500 text-base min-h-11 focus:border-primary-500 focus:outline-none"
+                  required
+                />
+                <p className="text-[10px] text-slate-400 font-medium">
+                  {lang === 'es' ? 'Mínimo de entradas que un cliente debe comprar a la vez. Usa 1 para permitir compras individuales.' : 'Minimum tickets a customer must purchase at once. Use 1 to allow individual purchases.'}
+                </p>
               </div>
             </div>
 

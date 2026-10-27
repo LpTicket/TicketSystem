@@ -192,6 +192,7 @@ export default function CreateEventPage() {
     eventEndTime: '', // optional; combined with eventDate to set eventEndDate
     eventTimezone: 'UTC',
     doorsOpen: '',
+    minTicketsPerTransaction: '1',
     maxTicketsPerTransaction: '10',
     generalTicketName: '',
     generalTicketPrice: '',
@@ -266,12 +267,21 @@ export default function CreateEventPage() {
         }
       }
 
+      const minimum = Number(form.minTicketsPerTransaction);
+      const maximum = Number(form.maxTicketsPerTransaction);
+      if (!Number.isSafeInteger(minimum) || !Number.isSafeInteger(maximum) || minimum < 1 || minimum > maximum) {
+        setError(lang === 'es' ? 'El mínimo debe ser un entero positivo y no puede superar el máximo.' : 'The minimum must be a positive integer and cannot exceed the maximum.');
+        setCreating(false);
+        return;
+      }
+
       // Clean up empty optional fields
       const payload: any = { ...form, hasSeatMap: salesMode === 'map' };
       delete payload.generalTicketName;
       delete payload.generalTicketPrice;
       delete payload.generalTicketCapacity;
-      payload.maxTicketsPerTransaction = form.maxTicketsPerTransaction ? parseInt(form.maxTicketsPerTransaction, 10) : 10;
+      payload.minTicketsPerTransaction = minimum;
+      payload.maxTicketsPerTransaction = maximum;
       if (form.eventDate) {
         payload.eventDate = buildLocalEventDate(form.eventDate, form.eventTime, form.eventTimezone);
       }
@@ -578,10 +588,10 @@ export default function CreateEventPage() {
                     </div>
                   )}
 
-                  <h3 className="font-bold text-base text-gray-900 mb-4">{lang === 'es' ? 'Límites de Venta' : 'Sale Limits'}</h3>
+                  <h3 className="font-bold text-base text-white mb-4">{lang === 'es' ? 'Límites de Venta' : 'Sale Limits'}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
-                      <label htmlFor="event-create-field-14" className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label htmlFor="event-create-field-14" className="block text-sm font-semibold text-white mb-2">
                         {lang === 'es' ? 'Máx. entradas por persona/transacción *' : 'Max tickets per person/transaction *'}
                       </label>
                       <input id="event-create-field-14"
@@ -595,6 +605,21 @@ export default function CreateEventPage() {
                       />
                       <p className="text-xs text-gray-400 mt-1 font-medium">
                         {lang === 'es' ? 'Establece el número máximo de entradas que un cliente puede comprar a la vez.' : 'Set the maximum number of tickets a customer can purchase at once.'}
+                      </p>
+                    </div>
+                    <div>
+                      <label htmlFor="event-create-ticket-minimum" className="block text-sm font-semibold text-white mb-2">
+                        {lang === 'es' ? 'Mín. entradas por transacción *' : 'Min tickets per transaction *'}
+                      </label>
+                      <input id="event-create-ticket-minimum"
+                        type="number" min="1" max={form.maxTicketsPerTransaction || 100} step="1"
+                        value={form.minTicketsPerTransaction}
+                        onChange={(e) => updateForm('minTicketsPerTransaction', e.target.value)}
+                        className="input py-3 bg-[#0b2033] text-white border-slate-700"
+                        required
+                      />
+                      <p className="text-xs text-slate-400 mt-1 font-medium">
+                        {lang === 'es' ? 'Mínimo de entradas que un cliente debe comprar a la vez. Usa 1 para permitir compras individuales.' : 'Minimum tickets a customer must purchase at once. Use 1 to allow individual purchases.'}
                       </p>
                     </div>
                   </div>

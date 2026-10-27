@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-10-27 - Mínimo de entradas por compra
+
+- La web permite configurar el mínimo junto al máximo al crear o editar un evento. El mínimo inicial es 1; ambos deben ser enteros positivos y el mínimo no puede superar el máximo. Los límites también se guardan al editar eventos publicados.
+- El backend exige el mínimo en cotización, checkout y registro gratuito, incluidos clientes móviles existentes. Web y móvil muestran el mínimo y permiten seleccionar las entradas antes de continuar. Se conserva la regla de mesa completa y se rechazan asientos duplicados al cotizar o comprar.
+- Validación local: compilaciones de backend y web, TypeScript de web y móvil y 148 pruebas entre eventos, órdenes y registros gratuitos aprobadas. Comprobación visual en navegador y compra integrada pendientes.
+- Migración aditiva autorizada aplicada en producción antes del despliegue: `backend/src/database/add-event-min-tickets.sql`. Los 21 eventos mantienen todos sus datos anteriores con mínimo inicial 1; 1.286 órdenes, 2.822 entradas e importe total de órdenes sin cambios. Publicación de backend/web en curso.
+
 ## 2026-10-24 - Acompañamiento automático antes de cada evento
 
 - El backend programa dos correos independientes para cada evento publicado: al organizador propietario y a `ADMIN_EMAIL` (o `info@lpticket.com` si no está configurado). El organizador recibe una invitación a resolver dudas y solicitar acompañamiento o capacitación; administración recibe nombre completo, correo y teléfono disponible para contactar al organizador. Las respuestas del organizador llegan a `CONTACT_EMAIL`, con respaldo en `info@lpticket.com`.

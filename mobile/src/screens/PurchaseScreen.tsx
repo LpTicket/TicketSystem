@@ -53,6 +53,7 @@ function seatPrice(seat: ClientSeat, section: any): number {
 export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountChange, onCartChange, initialSeats, initialGa, initialGaQty }: Props) {
   const { t } = useLanguage();
   const ticketLimit = Math.max(1, Number(event.maxTicketsPerTransaction || 10));
+  const minimumTickets = event.minTicketsPerTransaction ?? 1;
   const [sections, setSections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -156,7 +157,7 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
   const processingFee = subtotal > 0 ? Math.round((total - amountBeforeProcessing) * 100) / 100 : 0;
   const service = serviceFee; // kept for legacy compat
 
-  const canPay = mode === 'seats' ? selectedSeats.length > 0 : mode === 'ga' ? !!gaSelected : false;
+  const canPay = (mode === 'seats' ? selectedSeats.length >= minimumTickets : mode === 'ga' ? !!gaSelected && gaQty >= minimumTickets : false);
 
   useEffect(() => {
     const count = mode === 'seats' ? selectedSeats.length : mode === 'ga' && gaSelected ? gaQty : 0;
@@ -197,6 +198,10 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
         ? { eventId: event.id, sectionId: ga.id, quantity: qty }
         : null;
       if (!payload) { setError(t('Selecciona asientos primero.', 'Select seats first.')); return; }
+      if ((seats.length || qty) < minimumTickets) {
+        setError(t(`Selecciona al menos ${minimumTickets} entrada(s) por compra.`, `Select at least ${minimumTickets} ticket(s) per purchase.`));
+        return;
+      }
       const { url } = await createCheckout({
         ...payload,
         buyerEmail: user?.email,
@@ -325,6 +330,9 @@ export function PurchaseScreen({ event, user, onBack, onPaid, onSelectionCountCh
         </>
       )}
 
+      {!loading && minimumTickets > 1 && <Text style={{ color: colors.textMuted, marginBottom: 12 }}>
+        {t(`Compra mínima: ${minimumTickets} entradas por transacción.`, `Minimum purchase: ${minimumTickets} tickets per transaction.`)}
+      </Text>}
       {!loading && mode !== 'none' && (
         <>
           {/* Order summary card */}
