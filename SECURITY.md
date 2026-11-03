@@ -2,6 +2,24 @@
 
 This document tracks security hardening done on LPTicket and known follow-ups.
 
+## Dependency hardening prepared locally - 2026-11-03
+
+Status: locally validated and publication authorized. Verify the active Railway commit before declaring the production rollout complete.
+
+- Web: Next.js 16.4.5, sharp 0.35.5 and compatible transitive patches. The production dependency audit changed from 2 critical / 7 high / 1 moderate package entries to zero reported entries.
+- Backend: compatible NestJS 11 / Fastify patches, updated mail/image dependencies, and targeted overrides for Fastify 5, Busboy 3, Joi 17 and brace-expansion 1. Removed the unused `@nestjs/serve-static` dependency; the existing direct Fastify static registration remains. Production audit changed from 14 high / 5 moderate entries to 5 moderate entries and no critical/high entries.
+- Backend and web Docker images use Node 22 LTS. Backend build and all 354 tests passed on Node 22. Additional isolated checks covered multipart middleware and Nest/Fastify plugin initialization/static file serving; neither connected to production data. The web production build also passed on Node 22.
+- Mobile: only compatible transitive security patches; native Expo / React Native package versions are preserved. iOS native fingerprint remains `ea1299b77d573e3358ca94477fec2f3b2ccc8760`. TypeScript, 42 recovery/door-sale tests and an iOS JavaScript export passed. Full npm audit changed from 1 critical / 14 high / 13 moderate / 2 low entries to 3 high / 13 moderate / 2 low entries.
+- Remaining mobile high entries concern Expo CLI, its Zod 3 dependency and Metro's image-size 1 dependency. They are build/development tooling. Do not apply npm's suggested incompatible Expo SDK downgrade/upgrade or force Zod 4 into a Zod 3 consumer. A coordinated toolchain upgrade is still required. Audit entries include affected parent packages and are not independent exploit counts.
+- Remaining backend moderate entries concern glob/minimatch and affected parent packages. Forced framework/ORM downgrades are not an acceptable audit fix.
+- GitHub dependency alerts, security-update proposals, malware alerts, private vulnerability reports, secret scanning and push protection were enabled. CodeQL JavaScript/TypeScript completed successfully and initially raised 17 findings for review. Swift default analysis could not build an Xcode project and requires separate native build configuration. Findings are not evidence of exploitation.
+- Apple mobile login now verifies the signature against Apple HTTPS public keys, issuer, exact mobile bundle audience, expiry, subject and verified signed email. A client-supplied email cannot choose the account; inactive accounts are rejected. Public keys are cached for 15 minutes and retrieval has a 5-second deadline. Local tests use ephemeral signing keys and cover forged/unsigned tokens, wrong issuer/audience, missing/expired claims and network failure. Real-device Apple login remains to be checked.
+- OAuth callback state must be a string. Web login/registration destinations are normalized and restricted to the same origin; event purchase route parameters are encoded. Administrative generated passwords use browser cryptographic randomness. Seat selections are real arrays bounded to 100 entries before database access. Marketing preheaders are escaped as text.
+- The backend image removes development dependencies after building; multer is retained as a runtime dependency because the upload controllers import it.
+- Private dispute evidence and generated review artifacts are excluded from Git so customer/payment documents cannot be included accidentally in the public repository.
+
+This review is not proof that an intrusion never occurred. Runtime access controls, account access history and provider notifications must be distinguished from dependency advisories. Existing browser-token storage and production database certificate validation still require separate integration work; this dependency patch does not alter authentication or database connectivity.
+
 ## Done
 
 - **Registration privilege escalation closed** — `role` is never accepted from

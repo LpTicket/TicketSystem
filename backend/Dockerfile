@@ -1,4 +1,4 @@
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 
 # Instalamos dependencias del sistema para módulos nativos (bcrypt, sodium-native, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -11,9 +11,9 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
-RUN npm run build
+RUN npm run build && npm prune --omit=dev
 
-FROM node:20-slim
+FROM node:22-slim
 
 WORKDIR /app
 

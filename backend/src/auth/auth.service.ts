@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { decode, verify, type JwtPayload } from 'jsonwebtoken';
 import { User, UserRole } from '../database/entities';
 import { RegisterDto, LoginDto, UpdateProfileDto } from './dto/auth.dto';
 import { ConfigService } from '@nestjs/config';
@@ -15,6 +16,7 @@ import { MailService } from '../common/services/mail.service';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private appleKeys?: { expiresAt: number; keys: (crypto.JsonWebKey & { kid?: string; alg?: string; use?: string })[] };
 
   constructor(
     @InjectRepository(User)
@@ -161,27 +163,51 @@ export class AuthService {
   }
 
   async validateAppleMobileUser(body: { identityToken: string; email?: string; firstName?: string; lastName?: string }, ip?: string) {
-    const { identityToken, email, firstName, lastName } = body;
-    if (!identityToken) throw new UnauthorizedException('Missing Apple identity token');
-
-    // Decode the JWT header+payload without verifying signature (Apple public keys rotate).
-    // We trust the token if email is present in it or passed from the client on first login.
-    let appleEmail = email;
-    try {
-      const [, payloadB64] = identityToken.split('.');
-      const decoded = JSON.parse(Buffer.from(payloadB64, 'base64').toString('utf8'));
-      if (decoded.email) appleEmail = decoded.email;
-    } catch {
+    const { identityToken, firstName, lastName } = body;
+    if (typeof identityToken !== 'string' || identityToken.length > 16_384) {
       throw new UnauthorizedException('Invalid Apple identity token');
     }
 
-    if (!appleEmail) throw new UnauthorizedException('Apple did not provide an email address');
+    let appleEmail: string;
+    try {
+      const decoded = decode(identityToken, { complete: true });
+      const algorithm = decoded?.header.alg;
+      const kid = decoded?.header.kid;
+      if (!kid || (algorithm !== 'RS256' && algorithm !== 'ES256')) throw new Error('Invalid Apple header');
+
+      // Fetch only Apple's fixed HTTPS endpoint; never use a URL supplied by a token.
+      if (!this.appleKeys || this.appleKeys.expiresAt <= Date.now()
+        || !this.appleKeys.keys.some((key) => key.kid === kid)) {
+        const response = await fetch('https://appleid.apple.com/auth/keys', { signal: AbortSignal.timeout(5_000) });
+        if (!response.ok) throw new Error('Apple keys unavailable');
+        const document = await response.json() as { keys?: (crypto.JsonWebKey & { kid?: string; alg?: string; use?: string })[] };
+        if (!Array.isArray(document.keys) || !document.keys.length) throw new Error('Invalid Apple keys');
+        this.appleKeys = { keys: document.keys, expiresAt: Date.now() + 15 * 60_000 };
+      }
+      const jwk = this.appleKeys.keys.find((key) => key.kid === kid && key.alg === algorithm && key.use === 'sig');
+      if (!jwk) throw new Error('Unknown Apple signing key');
+      const key = crypto.createPublicKey({ key: jwk, format: 'jwk' });
+      const claims = verify(identityToken, key, {
+        algorithms: [algorithm],
+        issuer: 'https://appleid.apple.com',
+        audience: 'com.inhoustontexas.lpticket',
+      }) as JwtPayload;
+      if (!claims.sub || !Number.isFinite(claims.exp)
+        || (claims.email_verified !== true && claims.email_verified !== 'true')
+        || typeof claims.email !== 'string' || !claims.email.trim()) {
+        throw new Error('Missing verified Apple identity');
+      }
+      // A client-provided email must never select the account to authenticate.
+      appleEmail = claims.email.trim().toLowerCase();
+    } catch {
+      throw new UnauthorizedException('Invalid Apple identity token');
+    }
 
     let user = await this.userRepo.findOne({ where: { email: appleEmail } });
     if (!user) {
       user = this.userRepo.create({
         email: appleEmail,
-        username: appleEmail.split('@')[0] + '_' + Math.floor(Math.random() * 1000),
+        username: appleEmail.split('@')[0] + '_' + crypto.randomInt(1000),
         firstName: firstName || 'Apple',
         lastName: lastName || 'User',
         role: UserRole.CLIENT,
@@ -198,6 +224,7 @@ export class AuthService {
         .catch(() => {});
     }
 
+    if (!user.isActive) throw new UnauthorizedException('Inactive user');
     return this.generateTokens(user);
   }
 
@@ -209,7 +236,7 @@ export class AuthService {
       // Create new user if not exists
       user = this.userRepo.create({
         email,
-        username: email.split('@')[0] + '_' + Math.floor(Math.random() * 1000),
+        username: email.split('@')[0] + '_' + crypto.randomInt(1000),
         firstName,
         lastName,
         role: UserRole.CLIENT,

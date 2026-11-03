@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { safeRedirectPath } from '@/lib/safeRedirect';
 import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 import { FaGoogle, FaFacebook } from 'react-icons/fa';
 
@@ -53,7 +54,7 @@ function LoginContent() {
       // Introduce a tiny 150ms delay. This gives browser credential managers
       // enough time to detect a successful form submit before Next.js changes the page state.
       setTimeout(() => {
-        router.push(redirect || '/');
+        router.push(safeRedirectPath(redirect));
       }, 150);
     } catch (err: any) {
       setError(getApiErrorMessage(err, lang, t('loginError')));

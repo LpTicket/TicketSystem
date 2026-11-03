@@ -1,5 +1,13 @@
 # LPTicket - Historial de Cambios
 
+## 2026-11-03 - Parches de dependencias y protecciones de seguridad
+
+- Preparados localmente parches de Next.js, Fastify/NestJS, correo, imágenes y dependencias transitivas; web y backend pasan a Node 22 LTS. Las auditorías de producción ya no detectan entradas críticas ni altas en web/backend; quedan cinco moderadas en backend.
+- Se cierra la validación incompleta del acceso Apple: firma, emisor, app destinataria, vigencia y correo verificado, sin confiar en el correo enviado por el cliente. También se restringen redirecciones web, se validan tipos OAuth y listas de asientos, y se generan contraseñas administrativas con criptografía.
+- Móvil conserva sus versiones nativas y su huella iOS; se corrigen dependencias compatibles sin cambiar Expo SDK 56. Quedan tres entradas altas en herramientas Expo CLI/Metro que requieren una actualización coordinada.
+- GitHub tiene activadas alertas de dependencias, propuestas de parches, detección de secretos, protección de subidas y configuración inicial de CodeQL. Los documentos privados de disputas quedan excluidos de Git.
+- Validación local: backend compilado y 354 pruebas aprobadas con Node 22; compatibilidad de subidas y plugins verificada con datos ficticios; compilación web con Node 22; TypeScript móvil, 42 pruebas y exportación JavaScript iOS correctos. Publicación autorizada por el usuario; el resultado del despliegue debe verificarse en Railway.
+
 ## 2026-11-03 - Recuperación de Tap to Pay ante cancelaciones y cortes de internet
 
 - La app guarda la solicitud antes de crear el pago y conserva una cancelación pendiente incluso si se pierde internet o se reinicia. Al reabrir ventas en puerta verifica la misma compra; solo permite reintentar el cobro cuando el backend lo autoriza.

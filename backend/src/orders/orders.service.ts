@@ -267,6 +267,13 @@ export class OrdersService {
     }
   }
 
+  private assertSeatIds(seatIds: unknown): asserts seatIds is string[] {
+    if (!Array.isArray(seatIds) || seatIds.length > 100
+      || seatIds.some((id) => typeof id !== 'string' || id.length > 128)) {
+      throw new BadRequestException('Selecciona una lista válida de hasta 100 entradas.');
+    }
+  }
+
   private calculateDoorSaleFees(
     event: Event,
     amount: number,
@@ -1248,6 +1255,7 @@ export class OrdersService {
   async registerFreeTickets(userId: string, dto: FreeRegistrationDto) {
     if (!isUUID(dto.requestId)) throw new BadRequestException('La solicitud de registro no es válida.');
     const seatIds = dto.seatIds || [];
+    this.assertSeatIds(seatIds);
     const quantity = seatIds.length || dto.quantity || 0;
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100
       || new Set(seatIds).size !== seatIds.length
@@ -1413,6 +1421,7 @@ export class OrdersService {
     requestedPaymentMethod?: 'card' | 'klarna',
     requestId?: string,
   ) {
+    this.assertSeatIds(seatIds);
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
 
@@ -1747,6 +1756,7 @@ export class OrdersService {
     quantity?: number,
     rawSpecialCode?: string,
   ) {
+    this.assertSeatIds(seatIds);
     const event = await this.eventRepo.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
     const purchaseCode = await this.resolvePurchaseCode(eventId, rawSpecialCode);

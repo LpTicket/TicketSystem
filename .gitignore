@@ -56,3 +56,7 @@ lp-ticket-daa331f792c5.json
 
 # Claude (Cowork) push credentials - NEVER commit
 .claude-github-token
+
+# Private payment-dispute evidence and generated review artifacts
+/dispute-evidence/
+/output/

@@ -976,7 +976,7 @@ export class MailService {
     const safeAppUrl = escapeHtml(appUrl);
     const trackingUrl = String(opts.trackingUrl || '').trim();
     const bodyHtml = formatMarketingBody(opts.preheader);
-    const preheaderText = escapeHtml((opts.preheader || opts.title || 'Novedades de LPTicket').replace(/<[^>]+>/g, '').slice(0, 160));
+    const preheaderText = escapeHtml((opts.preheader || opts.title || 'Novedades de LPTicket').slice(0, 160));
 
     const facebookUrl = 'https://www.facebook.com/profile.php?id=61590380706527';
     const instagramUrl = 'https://www.instagram.com/lpticket';

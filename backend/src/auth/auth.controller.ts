@@ -100,7 +100,7 @@ export class AuthController {
 
       // If the OAuth flow was initiated from the mobile app (?platform=mobile
       // or state contains "mobile"), redirect to the deep link scheme instead.
-      const state = req.query?.state || '';
+      const state = typeof req.query?.state === 'string' ? req.query.state : '';
       const isMobile = state.includes('mobile') || req.query?.platform === 'mobile';
 
       const result = await this.authService.validateOAuthUser(req.user, isMobile ? 'app' : 'web', 'Google', getClientIp(req));
@@ -135,7 +135,7 @@ export class AuthController {
         this.configService.get('FRONTEND_URL') ||
         'https://ticketsystem-jzgf.onrender.com';
 
-      const state = req.query?.state || '';
+      const state = typeof req.query?.state === 'string' ? req.query.state : '';
       const isMobile = state.includes('mobile') || req.query?.platform === 'mobile';
 
       const result = await this.authService.validateOAuthUser(req.user, isMobile ? 'app' : 'web', 'Facebook', getClientIp(req));

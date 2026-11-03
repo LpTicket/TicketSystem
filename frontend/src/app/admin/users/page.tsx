@@ -891,7 +891,7 @@ function AdminUsersPageBody() {
                     <button 
                       type="button" 
                       onClick={() => {
-                        const randomPass = Math.random().toString(36).slice(-8) + 'LP!';
+                        const randomPass = crypto.randomUUID().replaceAll('-', '') + 'LP!';
                         setCreatePassword(randomPass);
                         navigator.clipboard.writeText(randomPass);
                         toast.success(lang === 'es' ? 'Clave generada y copiada al portapapeles' : 'Password generated and copied to clipboard');

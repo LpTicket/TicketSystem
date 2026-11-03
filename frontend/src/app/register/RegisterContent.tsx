@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { useLang } from '@/context/LanguageContext';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { safeRedirectPath } from '@/lib/safeRedirect';
 import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 import VisualCaptcha, { VisualCaptchaHandle } from '@/components/auth/VisualCaptcha';
 
@@ -70,7 +71,7 @@ export default function RegisterContent() {
         // role is assigned server-side (always CLIENT on self-registration).
         lang,
       } as any);
-      router.push(redirect || '/');
+      router.push(safeRedirectPath(redirect));
     } catch (err: any) {
       setError(getApiErrorMessage(err, lang, t('registerError')));
       captchaRef.current?.refresh();

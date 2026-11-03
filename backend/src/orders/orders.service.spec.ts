@@ -51,6 +51,18 @@ function buildService(overrides: Record<string, any> = {}) {
   return { service, ticketRepo, eventRepo, orderRepo, mailService, cache };
 }
 
+describe('Untrusted seat selections', () => {
+  it.each([{}, { length: 2 ** 32 }, 'seat-1', [123], Array(101).fill('seat-1')])('rejects malformed or oversized selections before database access', async (seatIds) => {
+    const { service, eventRepo } = buildService();
+    await expect(service.createCheckoutSession('buyer', 'event', seatIds as any)).rejects.toThrow('lista válida');
+    await expect(service.previewInvoice('event', seatIds as any)).rejects.toThrow('lista válida');
+    await expect(service.registerFreeTickets('buyer', {
+      requestId: '33333333-3333-4333-8333-333333333333', seatIds,
+    } as any)).rejects.toThrow('lista válida');
+    expect(eventRepo.findOne).not.toHaveBeenCalled();
+  });
+});
+
 describe('Administrator door sales for past events', () => {
   it.each(['published', 'completed'])('allows an administrator to preview a past %s event from another organizer', async (status) => {
     const event = { id: 'past-event', title: 'Past event', organizerId: 'other-organizer',

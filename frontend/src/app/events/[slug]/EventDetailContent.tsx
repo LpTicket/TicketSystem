@@ -49,6 +49,7 @@ interface EventDetailContentProps {
 
 export default function EventDetailContent({ initialEvent, initialSeatMap }: EventDetailContentProps) {
   const { slug } = useParams<{ slug: string }>();
+  const purchasePath = `/events/${encodeURIComponent(slug)}/purchase`;
   const router = useRouter();
   const [returnTo, setReturnTo] = useState('/events');
   useEffect(() => {
@@ -281,10 +282,10 @@ export default function EventDetailContent({ initialEvent, initialSeatMap }: Eve
     }
     
     if (!isAuthenticated) { 
-      router.push(`/login?redirect=/events/${slug}/purchase`); 
+      router.push(`/login?redirect=${encodeURIComponent(purchasePath)}`);
       return; 
     }
-    router.push(`/events/${slug}/purchase`);
+    router.push(purchasePath);
   };
 
   if (loading) return <div className="event-premium-shell max-w-7xl mx-auto px-4 py-8"><div className="h-64 skeleton rounded-lg mb-6" /><div className="h-6 skeleton rounded w-1/2 mb-3" /></div>;
