@@ -139,6 +139,8 @@ async function persistTokens(tokens: { accessToken: string; refreshToken: string
 }
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  // POST owns a deadline through response-body consumption, not just headers.
+  if (options.signal) return fetch(url, options);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -148,7 +150,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   }
 }
 
-async function refreshAuthTokens() {
+async function refreshAuthTokens(signal?: AbortSignal | null) {
   await ensureAuthTokens();
   if (!refreshToken) return false;
   try {
@@ -159,6 +161,7 @@ async function refreshAuthTokens() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ refreshToken }),
+      signal,
     });
     if (!response.ok) return false;
     const data = await response.json();
@@ -182,7 +185,7 @@ async function requestWithAuth(url: string, options: RequestInit = {}, retryAuth
   );
   let response = await fetchWithTimeout(url, { ...options, headers: headersWithAuth }, timeoutMs);
   if (response.status === 401 && retryAuth) {
-    const refreshed = await refreshAuthTokens();
+    const refreshed = await refreshAuthTokens(options.signal);
     if (refreshed) {
       response = await fetchWithTimeout(
         url,
@@ -259,28 +262,35 @@ export async function apiGet<T>(path: string, params?: Record<string, any>): Pro
 export async function apiPost<T>(path: string, body?: unknown, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
   if (!API_URL) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  const response = await requestWithAuth(
-    `${API_URL}${cleanPath}`,
-    {
-      method: 'POST',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(body === undefined ? {} : body),
-    },
-    true,
-    timeoutMs,
-  );
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const response = await requestWithAuth(
+      `${API_URL}${cleanPath}`,
+      {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(body === undefined ? {} : body),
+        signal: controller.signal,
+      },
+      true,
+      timeoutMs,
+    );
 
-  if (!response.ok) {
-    let message: string | undefined;
-    try {
-      const data = await response.json();
-      message = data?.message;
-    } catch {}
-    throw buildApiError(response, Array.isArray(message) ? message.join(' ') : message);
+    if (!response.ok) {
+      let message: string | undefined;
+      try {
+        const data = await response.json();
+        message = data?.message;
+      } catch {}
+      throw buildApiError(response, Array.isArray(message) ? message.join(' ') : message);
+    }
+
+    return await readJsonResponse<T>(response);
+  } finally {
+    clearTimeout(timer);
   }
-
-  return readJsonResponse<T>(response);
 }
 
 export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {

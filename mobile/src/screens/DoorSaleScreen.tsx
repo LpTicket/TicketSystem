@@ -133,14 +133,25 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
     setPendingLoaded(false);
     setPendingTap(null);
     if (!user?.id) return;
-    getPendingTapPayment(user.id).then((pending) => {
+    getPendingTapPayment(user.id).then(async (pending) => {
       if (!active) return;
       setPendingTap(pending);
-      setPendingLoaded(true);
       if (pending) {
         setSelectedEventId(pending.eventId);
-        setTapResult({ success: false, message: t('Hay una compra pendiente. Verifica el pago antes de permitir el ingreso o volver a cobrar.', 'A purchase is pending. Verify payment before allowing entry or charging again.') });
+        setPaymentMethod('tap');
+        setCreating(true);
+        setTapPhase('processing');
+        setTapStatus(t('Recuperando el estado de la compra pendiente...', 'Recovering the pending purchase status...'));
+        try {
+          const result = await resolvePendingTapPayment(user.id);
+          if (active) await applyTapResult(result);
+        } catch (err) {
+          if (active) await showUncertainPayment(err);
+        } finally {
+          if (active) setCreating(false);
+        }
       }
+      if (active) setPendingLoaded(true);
     }).catch(() => { if (active) setError(t('No se pudo recuperar el estado del cobro. Reabre esta pantalla antes de cobrar.', 'Could not recover payment status. Reopen this screen before charging.')); });
     return () => { active = false; };
   }, [user?.id]);
@@ -251,7 +262,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
   // Keep the iPhone reader warm for the full door-sale session. The service
   // deduplicates concurrent requests and keeps the connected reader alive.
   useEffect(() => {
-    if (!selectedEventId) return;
+    if (!selectedEventId || !pendingLoaded || pendingTap) return;
     let active = true;
     prepareDoorSaleTapToPay({
       eventId: selectedEventId,
@@ -265,7 +276,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
       setTapStatus(err?.message || t('Tap to Pay necesita conexión para prepararse.', 'Tap to Pay needs an internet connection to get ready.'));
     });
     return () => { active = false; };
-  }, [selectedEventId, selectedEvent?.title, t, user?.role]);
+  }, [selectedEventId, selectedEvent?.title, pendingLoaded, pendingTap, t, user?.role]);
 
   // A successful sale should return the seller to the next ready-to-charge
   // transaction without requiring an extra tap. Choosing SMS or email stops
@@ -410,7 +421,7 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
       }
     } catch { setPendingLoaded(false); }
     setTapPhase('failed');
-    setTapResult({ success: false, message: t('No se pudo confirmar el pago. Mantén al cliente en la puerta y verifica esta compra; no vuelvas a cobrar.', 'Could not confirm payment. Keep the customer at the gate and verify this purchase; do not charge again.') });
+    setTapResult({ success: false, message: t('No se pudo confirmar el pago. Revisa tu conexión y toca VERIFICAR PAGO para recuperar esta misma compra. No vuelvas a cobrar ni permitas el ingreso todavía.', 'Could not confirm payment. Check your connection and tap VERIFY PAYMENT to recover this purchase. Do not charge again or allow entry yet.') });
   };
 
   const recoverTapPayment = async (action: 'verify' | 'retry' | 'cancel') => {
@@ -718,145 +729,152 @@ export function DoorSaleScreen({ user, onBack, onSaleCompleted, eventSource = 'o
           </TouchableOpacity>
         </View>
       )}
-      <Modal visible={showTapGuide} transparent animationType="fade" onRequestClose={acknowledgeTapGuide}>
-        <View style={styles.tapModalOverlay}>
-          <View style={styles.tapModal}>
-            <View style={styles.tapModalHeader}>
-              <View style={styles.tapModalIcon}>
-                <SymbolView name="wave.3.right.circle.fill" size={24} tintColor="#FFFFFF" />
+      {/* Reuse one native modal for the guide, progress and result so iOS never
+          has to present another modal while dismissing the previous one. */}
+      <Modal visible={showTapGuide || (creating && paymentMethod === 'tap') || Boolean(tapResult)} transparent animationType="fade" onRequestClose={() => {
+        if (creating) return;
+        if (tapResult?.success) finishSuccessfulSale();
+        else if (tapResult) setTapResult(null);
+        else acknowledgeTapGuide();
+      }}>
+        {showTapGuide && !creating && !tapResult ? (
+          <View style={styles.tapModalOverlay}>
+            <View style={styles.tapModal}>
+              <View style={styles.tapModalHeader}>
+                <View style={styles.tapModalIcon}>
+                  <SymbolView name="wave.3.right.circle.fill" size={24} tintColor="#FFFFFF" />
+                </View>
+                <View style={styles.tapModalHeaderText}>
+                  <Text style={styles.tapModalTitle}>{t('Configura Tap to Pay on iPhone', 'Set up Tap to Pay on iPhone')}</Text>
+                  <Text style={styles.tapModalSubtitle}>{t('Guía rápida para vender en puerta.', 'Quick guide for door sales.')}</Text>
+                </View>
+                <TouchableOpacity style={styles.tapModalClose} onPress={acknowledgeTapGuide} activeOpacity={0.78}>
+                  <Ionicons name="close" size={18} color="#CBD5E1" />
+                </TouchableOpacity>
               </View>
-              <View style={styles.tapModalHeaderText}>
-                <Text style={styles.tapModalTitle}>{t('Configura Tap to Pay on iPhone', 'Set up Tap to Pay on iPhone')}</Text>
-                <Text style={styles.tapModalSubtitle}>{t('Guía rápida para vender en puerta.', 'Quick guide for door sales.')}</Text>
-              </View>
-              <TouchableOpacity style={styles.tapModalClose} onPress={acknowledgeTapGuide} activeOpacity={0.78}>
-                <Ionicons name="close" size={18} color="#CBD5E1" />
+
+              <TapGuideStep
+                icon="checkmark-circle-outline"
+                title={t('Configuración autorizada', 'Authorized setup')}
+                copy={t(
+                  user?.role === 'admin'
+                    ? 'Como administrador de LPTicket, acepta los términos oficiales cuando iPhone los muestre antes de cobrar.'
+                    : 'El administrador principal de LPTicket debe configurar Tap to Pay antes de que el personal pueda cobrar.',
+                  user?.role === 'admin'
+                    ? 'As the LPTicket administrator, accept the official terms when iPhone displays them before taking payments.'
+                    : 'The primary LPTicket administrator must configure Tap to Pay before staff can take payments.'
+                )}
+              />
+              <TapGuideStep
+                icon="wifi-outline"
+                title={t('Cobra sin contacto', 'Accept contactless payments')}
+                copy={t(
+                  'Pide al cliente acercar tarjeta, Apple Pay u otra wallet digital a la parte superior del iPhone.',
+                  'Ask the customer to hold their card, Apple Pay, or another digital wallet near the top of the iPhone.'
+                )}
+              />
+              <TapGuideStep
+                icon="card-outline"
+                title={t('Usa respaldo si hace falta', 'Use a backup if needed')}
+                copy={t(
+                  'Si una tarjeta no se lee, usa otra tarjeta sin contacto, Apple Pay, QR o link de pago.',
+                  'If a card cannot be read, use another contactless card, Apple Pay, payment QR, or payment link.'
+                )}
+              />
+              <TapGuideStep
+                icon="receipt-outline"
+                title={t('Confirma el resultado', 'Confirm the result')}
+                copy={t(
+                  'Espera la pantalla de LPTicket: Pago confirmado · Puede ingresar. La lectura de la tarjeta todavía no autoriza el acceso.',
+                  'Wait for LPTicket: Payment confirmed · Entry allowed. Reading the card does not authorize entry yet.'
+                )}
+              />
+
+              <GradientButton height={48} onPress={openTapEducation} style={{ marginTop: 2 }}>
+                <Text style={styles.tapModalButtonText}>{t('VER EDUCACIÓN OFICIAL', 'VIEW OFFICIAL EDUCATION')}</Text>
+              </GradientButton>
+              <TouchableOpacity
+                style={[styles.tapGuideContinue, !selectedEventId && styles.tapGuideContinueDisabled]}
+                onPress={() => { acknowledgeTapGuide(); void prepareTapToPay(); }}
+                disabled={!selectedEventId}
+              >
+                <Text style={styles.tapGuideContinueText}>
+                  {selectedEventId
+                    ? t('CONTINUAR A CONFIGURACIÓN', 'CONTINUE TO SETUP')
+                    : t('SELECCIONA UN EVENTO PRIMERO', 'SELECT AN EVENT FIRST')}
+                </Text>
               </TouchableOpacity>
             </View>
-
-            <TapGuideStep
-              icon="checkmark-circle-outline"
-              title={t('Configuración autorizada', 'Authorized setup')}
-              copy={t(
-                user?.role === 'admin'
-                  ? 'Como administrador de LPTicket, acepta los términos oficiales cuando iPhone los muestre antes de cobrar.'
-                  : 'El administrador principal de LPTicket debe configurar Tap to Pay antes de que el personal pueda cobrar.',
-                user?.role === 'admin'
-                  ? 'As the LPTicket administrator, accept the official terms when iPhone displays them before taking payments.'
-                  : 'The primary LPTicket administrator must configure Tap to Pay before staff can take payments.'
-              )}
-            />
-            <TapGuideStep
-              icon="wifi-outline"
-              title={t('Cobra sin contacto', 'Accept contactless payments')}
-              copy={t(
-                'Pide al cliente acercar tarjeta, Apple Pay u otra wallet digital a la parte superior del iPhone.',
-                'Ask the customer to hold their card, Apple Pay, or another digital wallet near the top of the iPhone.'
-              )}
-            />
-            <TapGuideStep
-              icon="card-outline"
-              title={t('Usa respaldo si hace falta', 'Use a backup if needed')}
-              copy={t(
-                'Si una tarjeta no se lee, usa otra tarjeta sin contacto, Apple Pay, QR o link de pago.',
-                'If a card cannot be read, use another contactless card, Apple Pay, payment QR, or payment link.'
-              )}
-            />
-            <TapGuideStep
-              icon="receipt-outline"
-              title={t('Confirma el resultado', 'Confirm the result')}
-              copy={t(
-                'Espera la pantalla de LPTicket: Pago confirmado · Puede ingresar. La lectura de la tarjeta todavía no autoriza el acceso.',
-                'Wait for LPTicket: Payment confirmed · Entry allowed. Reading the card does not authorize entry yet.'
-              )}
-            />
-
-            <GradientButton height={48} onPress={openTapEducation} style={{ marginTop: 2 }}>
-              <Text style={styles.tapModalButtonText}>{t('VER EDUCACIÓN OFICIAL', 'VIEW OFFICIAL EDUCATION')}</Text>
-            </GradientButton>
-            <TouchableOpacity
-              style={[styles.tapGuideContinue, !selectedEventId && styles.tapGuideContinueDisabled]}
-              onPress={() => { acknowledgeTapGuide(); void prepareTapToPay(); }}
-              disabled={!selectedEventId}
-            >
-              <Text style={styles.tapGuideContinueText}>
-                {selectedEventId
-                  ? t('CONTINUAR A CONFIGURACIÓN', 'CONTINUE TO SETUP')
-                  : t('SELECCIONA UN EVENTO PRIMERO', 'SELECT AN EVENT FIRST')}
-              </Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-      <Modal visible={creating && paymentMethod === 'tap'} transparent animationType="fade">
-        <View style={styles.tapModalOverlay}>
-          <View style={styles.tapProgressModal}>
-            <ActivityIndicator size="large" color="#F97316" />
-            <Text style={styles.tapProgressTitle}>{tapPhase === 'processing' ? t('Procesando pago', 'Processing payment') : t('Preparando Tap to Pay', 'Preparing Tap to Pay')}</Text>
-            <Text style={styles.tapProgressCopy}>{t('Espera. Todavía no permitas el ingreso.', 'Wait. Do not allow entry yet.')}</Text>
-            <Text style={styles.tapProgressCopy}>{tapStatus || t('No cierres esta pantalla mientras se confirma la transacción.', 'Do not close this screen while the transaction is confirmed.')}</Text>
+        ) : creating && paymentMethod === 'tap' ? (
+          <View style={styles.tapModalOverlay}>
+            <View style={styles.tapProgressModal}>
+              <ActivityIndicator size="large" color="#F97316" />
+              <Text style={styles.tapProgressTitle}>{tapPhase === 'processing' ? t('Procesando pago', 'Processing payment') : t('Preparando Tap to Pay', 'Preparing Tap to Pay')}</Text>
+              <Text style={styles.tapProgressCopy}>{t('Espera. Todavía no permitas el ingreso.', 'Wait. Do not allow entry yet.')}</Text>
+              <Text style={styles.tapProgressCopy}>{tapStatus || t('No cierres esta pantalla mientras se confirma la transacción.', 'Do not close this screen while the transaction is confirmed.')}</Text>
+            </View>
           </View>
-        </View>
-      </Modal>
-      <Modal visible={Boolean(tapResult)} transparent animationType="fade" onRequestClose={() => tapResult?.success ? finishSuccessfulSale() : setTapResult(null)}>
-        <View style={styles.tapModalOverlay}>
-          <View style={styles.tapProgressModal}>
-            <Ionicons name={tapResult?.success ? 'checkmark-circle' : 'close-circle'} size={42} color={tapResult?.success ? '#34D399' : '#FCA5A5'} />
-            <Text style={styles.tapProgressTitle}>{tapResult?.success ? t('Pago confirmado · Puede ingresar', 'Payment confirmed · Entry allowed') : t('No permitir ingreso', 'Do not allow entry')}</Text>
-            <Text style={styles.tapProgressCopy}>{tapResult?.message}</Text>
-            {!tapResult?.success && pendingTap && <Text style={styles.tapProgressCopy}>{pendingTap.eventTitle || t('Compra pendiente', 'Pending purchase')} · {pendingTap.quantity} {t('entradas', 'tickets')}{pendingTap.total != null ? ` · ${money(pendingTap.total)} ${pendingTap.currency || ''}` : ''}</Text>}
-            {!tapResult?.success && pendingTap && <View style={styles.deliveryOptions}>
-              <GradientButton height={48} onPress={() => void recoverTapPayment('verify')} disabled={creating} style={{ alignSelf: 'stretch' }}><Text style={styles.tapModalButtonText}>{t('VERIFICAR PAGO', 'VERIFY PAYMENT')}</Text></GradientButton>
-              {tapResult?.retryAllowed && <TouchableOpacity style={styles.deliveryOption} disabled={creating} onPress={() => void recoverTapPayment('retry')}><Text style={styles.deliveryOptionText}>{t('Reintentar misma compra', 'Retry same purchase')}</Text></TouchableOpacity>}
-              <TouchableOpacity style={styles.deliverySkip} disabled={creating} onPress={confirmCancelTap}><Text style={styles.deliverySkipText}>{t('CANCELAR COMPRA', 'CANCEL PURCHASE')}</Text></TouchableOpacity>
-            </View>}
-            {tapResult?.success && !deliveryMode && !deliveryMessage ? (
-              <View style={styles.deliveryOptions}>
-                <TouchableOpacity style={styles.deliveryOption} onPress={() => { setDeliveryMode('sms'); setDeliveryRecipient(''); }}>
-                  <Ionicons name="chatbubble-outline" size={18} color="#F97316" />
-                  <Text style={styles.deliveryOptionText}>{t('Enviar por SMS', 'Send by SMS')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.deliveryOption} onPress={() => { setDeliveryMode('email'); setDeliveryRecipient(''); }}>
-                  <Ionicons name="mail-outline" size={18} color="#F97316" />
-                  <Text style={styles.deliveryOptionText}>{t('Enviar por correo', 'Send by email')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.deliverySkip} onPress={finishSuccessfulSale}>
-                  <Text style={styles.deliverySkipText}>{t('NO ENVIAR · SIGUIENTE', 'DO NOT SEND · NEXT')}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : tapResult?.success && deliveryMode && !deliveryMessage ? (
-              <View style={styles.deliveryForm}>
-                <TextInput
-                  value={deliveryRecipient}
-                  onChangeText={setDeliveryRecipient}
-                  placeholder={deliveryMode === 'sms' ? t('Número telefónico', 'Phone number') : t('Correo electrónico', 'Email address')}
-                  placeholderTextColor="rgba(226,232,240,0.42)"
-                  keyboardType={deliveryMode === 'sms' ? 'phone-pad' : 'email-address'}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={styles.buyerInput}
-                />
-                <GradientButton height={48} onPress={deliverTickets} disabled={!deliveryRecipient.trim() || deliverySending} style={{ alignSelf: 'stretch' }}>
-                  {deliverySending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.tapModalButtonText}>{t('ENVIAR ENTRADA', 'SEND TICKET')}</Text>}
+        ) : (
+          <View style={styles.tapModalOverlay}>
+            <View style={styles.tapProgressModal}>
+              <Ionicons name={tapResult?.success ? 'checkmark-circle' : 'close-circle'} size={42} color={tapResult?.success ? '#34D399' : '#FCA5A5'} />
+              <Text style={styles.tapProgressTitle}>{tapResult?.success ? t('Pago confirmado · Puede ingresar', 'Payment confirmed · Entry allowed') : t('No permitir ingreso', 'Do not allow entry')}</Text>
+              <Text style={styles.tapProgressCopy}>{tapResult?.message}</Text>
+              {!tapResult?.success && pendingTap && <Text style={styles.tapProgressCopy}>{pendingTap.eventTitle || t('Compra pendiente', 'Pending purchase')} · {pendingTap.quantity} {t('entradas', 'tickets')}{pendingTap.total != null ? ` · ${money(pendingTap.total)} ${pendingTap.currency || ''}` : ''}</Text>}
+              {!tapResult?.success && pendingTap && <View style={styles.deliveryOptions}>
+                <GradientButton height={48} onPress={() => void recoverTapPayment('verify')} disabled={creating} style={{ alignSelf: 'stretch' }}><Text style={styles.tapModalButtonText}>{t('VERIFICAR PAGO', 'VERIFY PAYMENT')}</Text></GradientButton>
+                {tapResult?.retryAllowed && <TouchableOpacity style={styles.deliveryOption} disabled={creating} onPress={() => void recoverTapPayment('retry')}><Text style={styles.deliveryOptionText}>{t('Reintentar misma compra', 'Retry same purchase')}</Text></TouchableOpacity>}
+                <TouchableOpacity style={styles.deliverySkip} disabled={creating} onPress={confirmCancelTap}><Text style={styles.deliverySkipText}>{t('CANCELAR COMPRA', 'CANCEL PURCHASE')}</Text></TouchableOpacity>
+              </View>}
+              {tapResult?.success && !deliveryMode && !deliveryMessage ? (
+                <View style={styles.deliveryOptions}>
+                  <TouchableOpacity style={styles.deliveryOption} onPress={() => { setDeliveryMode('sms'); setDeliveryRecipient(''); }}>
+                    <Ionicons name="chatbubble-outline" size={18} color="#F97316" />
+                    <Text style={styles.deliveryOptionText}>{t('Enviar por SMS', 'Send by SMS')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.deliveryOption} onPress={() => { setDeliveryMode('email'); setDeliveryRecipient(''); }}>
+                    <Ionicons name="mail-outline" size={18} color="#F97316" />
+                    <Text style={styles.deliveryOptionText}>{t('Enviar por correo', 'Send by email')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.deliverySkip} onPress={finishSuccessfulSale}>
+                    <Text style={styles.deliverySkipText}>{t('NO ENVIAR · SIGUIENTE', 'DO NOT SEND · NEXT')}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : tapResult?.success && deliveryMode && !deliveryMessage ? (
+                <View style={styles.deliveryForm}>
+                  <TextInput
+                    value={deliveryRecipient}
+                    onChangeText={setDeliveryRecipient}
+                    placeholder={deliveryMode === 'sms' ? t('Número telefónico', 'Phone number') : t('Correo electrónico', 'Email address')}
+                    placeholderTextColor="rgba(226,232,240,0.42)"
+                    keyboardType={deliveryMode === 'sms' ? 'phone-pad' : 'email-address'}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    style={styles.buyerInput}
+                  />
+                  <GradientButton height={48} onPress={deliverTickets} disabled={!deliveryRecipient.trim() || deliverySending} style={{ alignSelf: 'stretch' }}>
+                    {deliverySending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.tapModalButtonText}>{t('ENVIAR ENTRADA', 'SEND TICKET')}</Text>}
+                  </GradientButton>
+                  <TouchableOpacity style={styles.deliverySkip} onPress={() => { setDeliveryMode(null); setDeliveryRecipient(''); }} disabled={deliverySending}>
+                    <Text style={styles.deliverySkipText}>{t('VOLVER', 'BACK')}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : deliveryMessage ? (
+                <>
+                  <Text style={styles.deliveryResult}>{deliveryMessage}</Text>
+                  <GradientButton height={48} onPress={deliverySucceeded ? finishSuccessfulSale : deliverTickets} style={{ alignSelf: 'stretch', marginTop: 6 }}>
+                    <Text style={styles.tapModalButtonText}>{deliverySucceeded ? t('SIGUIENTE', 'NEXT') : t('REINTENTAR', 'TRY AGAIN')}</Text>
+                  </GradientButton>
+                </>
+              ) : (
+                <GradientButton height={48} onPress={() => setTapResult(null)} style={{ alignSelf: 'stretch', marginTop: 6 }}>
+                  <Text style={styles.tapModalButtonText}>{t('LISTO', 'DONE')}</Text>
                 </GradientButton>
-                <TouchableOpacity style={styles.deliverySkip} onPress={() => { setDeliveryMode(null); setDeliveryRecipient(''); }} disabled={deliverySending}>
-                  <Text style={styles.deliverySkipText}>{t('VOLVER', 'BACK')}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : deliveryMessage ? (
-              <>
-                <Text style={styles.deliveryResult}>{deliveryMessage}</Text>
-                <GradientButton height={48} onPress={deliverySucceeded ? finishSuccessfulSale : deliverTickets} style={{ alignSelf: 'stretch', marginTop: 6 }}>
-                  <Text style={styles.tapModalButtonText}>{deliverySucceeded ? t('SIGUIENTE', 'NEXT') : t('REINTENTAR', 'TRY AGAIN')}</Text>
-                </GradientButton>
-              </>
-            ) : (
-              <GradientButton height={48} onPress={() => setTapResult(null)} style={{ alignSelf: 'stretch', marginTop: 6 }}>
-                <Text style={styles.tapModalButtonText}>{t('LISTO', 'DONE')}</Text>
-              </GradientButton>
-            )}
+              )}
+            </View>
           </View>
-        </View>
+        )}
       </Modal>
       </ScrollView>
     </KeyboardAvoidingView>

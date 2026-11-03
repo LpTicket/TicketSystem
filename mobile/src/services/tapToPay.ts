@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 import { NativeEventEmitter, NativeModules, Platform } from 'react-native';
 import {
   verifyDoorSaleTapToPay,
@@ -190,13 +191,16 @@ export async function releaseDoorSaleTapToPay() {
 }
 
 export type PendingTapPayment = {
-  orderId: string;
-  paymentIntentId: string;
+  orderId?: string;
+  paymentIntentId?: string;
+  requestId?: string;
+  amount?: number;
   eventId: string;
   quantity: number;
   total?: number;
   currency?: string;
   eventTitle?: string;
+  cancellationRequested?: boolean;
 };
 
 // Store only identifiers, never client secrets or card/contact data. A pending
@@ -208,14 +212,48 @@ export async function getPendingTapPayment(userId: string): Promise<PendingTapPa
   const value = await AsyncStorage.getItem(pendingKey(userId));
   if (!value) return null;
   const pending = JSON.parse(value) as PendingTapPayment;
-  if (!pending.orderId || !pending.paymentIntentId || !pending.eventId || !pending.quantity) {
+  const hasPayment = pending.orderId && pending.paymentIntentId;
+  const hasRequest = pending.requestId && Number.isFinite(pending.amount) && Number(pending.amount) > 0;
+  if ((!hasPayment && !hasRequest) || !pending.eventId || !pending.quantity) {
     throw new Error('No se pudo recuperar la compra pendiente. Revisa el pago antes de volver a cobrar.');
   }
   return pending;
 }
 
+async function createPendingIntent(userId: string, pending: PendingTapPayment, buyerEmail?: string, buyerName?: string) {
+  if (!pending.requestId || pending.amount === undefined) {
+    throw new Error('No se pudo recuperar la solicitud de cobro. Verifica esta compra antes de volver a cobrar.');
+  }
+  const intent = await createDoorSaleTapToPayIntent({
+    requestId: pending.requestId, eventId: pending.eventId,
+    amount: pending.amount, quantity: pending.quantity, buyerEmail, buyerName,
+  });
+  Object.assign(pending, {
+    orderId: intent.orderId, paymentIntentId: intent.paymentIntentId,
+    quantity: intent.invoice.quantity, total: intent.invoice.total,
+    currency: intent.event?.currency, eventTitle: intent.event?.title,
+  });
+  // Never show the card reader until the exact server payment is saved locally.
+  await AsyncStorage.setItem(pendingKey(userId), JSON.stringify(pending));
+  return intent.clientSecret;
+}
+
 async function resolvePayment(userId: string, pending: PendingTapPayment, action: 'verify' | 'cancel' = 'verify') {
-  const result = await verifyDoorSaleTapToPay({ orderId: pending.orderId, paymentIntentId: pending.paymentIntentId, action });
+  // A failed request must not forget the operator's cancellation. Complete the
+  // same cancellation after navigation/restart before accepting another sale.
+  if (action === 'cancel' && !pending.cancellationRequested) {
+    pending.cancellationRequested = true;
+    await AsyncStorage.setItem(pendingKey(userId), JSON.stringify(pending));
+  }
+  // The server may have created the payment even if its response was lost.
+  // Repeating this saved request recovers that order instead of creating another.
+  if (!pending.orderId || !pending.paymentIntentId) await createPendingIntent(userId, pending);
+  if (!pending.orderId || !pending.paymentIntentId) throw new Error('No se pudo recuperar esta compra.');
+  const result = await verifyDoorSaleTapToPay({
+    orderId: pending.orderId,
+    paymentIntentId: pending.paymentIntentId,
+    action: pending.cancellationRequested ? 'cancel' : action,
+  });
   if (result.orderId !== pending.orderId) throw new Error('No se pudo confirmar esta compra.');
   if (result.success) {
     if (result.paymentStatus !== 'succeeded' || result.ticketCount !== pending.quantity) {
@@ -224,6 +262,14 @@ async function resolvePayment(userId: string, pending: PendingTapPayment, action
     await AsyncStorage.removeItem(pendingKey(userId));
   } else if (result.cancelled && result.paymentStatus === 'canceled') {
     await AsyncStorage.removeItem(pendingKey(userId));
+  }
+  if (pending.cancellationRequested && !result.success && !result.cancelled) {
+    return {
+      ...result,
+      retryAllowed: false,
+      clientSecret: undefined,
+      message: 'Cancelación pendiente de confirmación. Verifica esta compra antes de volver a cobrar.',
+    };
   }
   return result;
 }
@@ -252,18 +298,20 @@ export async function runDoorSaleTapToPay({
       onPhase?.('processing');
       onStatus?.('Verificando la compra pendiente. Espera para permitir el ingreso.');
       const result = await resolvePayment(userId, pending);
-      if (result.success || result.cancelled || !retryPending || !result.retryAllowed || !result.clientSecret) return result;
+      if (result.success || result.cancelled || pending.cancellationRequested || !retryPending || !result.retryAllowed || !result.clientSecret) return result;
       if (pending.eventId !== eventId) throw new Error('Resuelve la compra del evento anterior antes de cobrar otra.');
       clientSecret = result.clientSecret;
     } else {
       if (retryPending) throw new Error('La compra anterior ya fue resuelta.');
+      if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(quantity) || quantity < 1) {
+        throw new Error('Ingresa un monto y una cantidad válidos antes de cobrar.');
+      }
       // Warm the reader before creating the payment. No additional wait on the
       // normal path beyond Stripe processing and server confirmation.
       terminal = await ensureTapToPayReady({ eventId, merchantDisplayName, canAcceptTerms, onStatus, onPhase });
-      const intent = await createDoorSaleTapToPayIntent({ eventId, amount, quantity, buyerEmail, buyerName });
-      pending = { orderId: intent.orderId, paymentIntentId: intent.paymentIntentId, eventId, quantity: intent.invoice.quantity, total: intent.invoice.total, currency: intent.event?.currency, eventTitle: intent.event?.title };
+      pending = { requestId: Crypto.randomUUID(), eventId, amount, quantity };
       await AsyncStorage.setItem(pendingKey(userId), JSON.stringify(pending));
-      clientSecret = intent.clientSecret;
+      clientSecret = await createPendingIntent(userId, pending, buyerEmail, buyerName);
     }
 
     terminal ??= await ensureTapToPayReady({ eventId, merchantDisplayName, canAcceptTerms, onStatus, onPhase });
@@ -272,7 +320,8 @@ export async function runDoorSaleTapToPay({
     let cancelledByOperator = false;
     try {
       const retrieved = await terminal.retrievePaymentIntent(clientSecret);
-      if (retrieved.error || !retrieved.paymentIntent) throw new Error('No se pudo preparar el lector.');
+      if (retrieved.error) throw retrieved.error;
+      if (!retrieved.paymentIntent) throw new Error('No se pudo preparar el lector.');
       const processed = await terminal.processPaymentIntent({ paymentIntent: retrieved.paymentIntent });
       cancelledByOperator = processed.error?.code === 'CANCELED';
       // Even SDK errors/timeouts can mask a successful charge. Always reconcile

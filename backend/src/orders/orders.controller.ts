@@ -130,7 +130,7 @@ export class OrdersController {
   @Roles(UserRole.CLIENT, UserRole.ADMIN)
   @Post('door-sale/tap-to-pay-intent')
   createDoorSaleTapToPayIntent(
-    @Body() body: { eventId: string; amount: number; quantity?: number; buyerEmail?: string; buyerName?: string },
+    @Body() body: { eventId: string; amount: number; quantity?: number; buyerEmail?: string; buyerName?: string; requestId?: string },
     @Request() req: any,
   ) {
     return this.ordersService.createDoorSaleTapToPayIntent(
@@ -140,6 +140,7 @@ export class OrdersController {
       body.quantity || 1,
       body.buyerEmail,
       body.buyerName,
+      body.requestId,
     );
   }
 

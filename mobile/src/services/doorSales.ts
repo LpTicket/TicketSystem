@@ -69,6 +69,7 @@ export async function createDoorSaleCheckout(payload: {
 }
 
 export async function createDoorSaleTapToPayIntent(payload: {
+  requestId?: string;
   eventId: string;
   amount: number;
   quantity?: number;

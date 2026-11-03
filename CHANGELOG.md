@@ -1,5 +1,12 @@
 # LPTicket - Historial de Cambios
 
+## 2026-11-03 - Recuperación de Tap to Pay ante cancelaciones y cortes de internet
+
+- La app guarda la solicitud antes de crear el pago y conserva una cancelación pendiente incluso si se pierde internet o se reinicia. Al reabrir ventas en puerta verifica la misma compra; solo permite reintentar el cobro cuando el backend lo autoriza.
+- El backend admite un `requestId` opcional para recuperar una sola orden y un solo PaymentIntent, con bloqueo transaccional e idempotencia de Stripe. Conserva los datos originales del intento y mantiene compatibilidad con apps anteriores, sin cambios de esquema ni migraciones.
+- Una sola ventana nativa muestra guía, progreso y resultado. El límite de espera de las solicitudes POST también cubre la lectura de la respuesta y la renovación de sesión para evitar esperas indefinidas por cortes de red.
+- Validación local: 42 pruebas móviles y 84 de órdenes/recuperación del backend aprobadas con dependencias simuladas, TypeScript móvil y compilación del backend correctos. Pendientes las pruebas de cancelación y pérdida de conexión en un iPhone físico con Stripe en modo de prueba. Sin publicación ni cambios en producción; desplegar primero el backend compatible y después distribuir la app actualizada.
+
 ## 2026-10-27 - Mínimo de entradas por compra
 
 - La web permite configurar el mínimo junto al máximo al crear o editar un evento. El mínimo inicial es 1; ambos deben ser enteros positivos y el mínimo no puede superar el máximo. Los límites también se guardan al editar eventos publicados.

@@ -623,10 +623,12 @@ export class OrdersService {
     quantity = 1,
     buyerEmail?: string,
     buyerName?: string,
+    requestId?: string,
   ) {
     if (!this.stripe) throw new BadRequestException('Stripe not configured');
+    if (requestId && !isUUID(requestId)) throw new BadRequestException('La solicitud de cobro no es válida.');
     const event = await this.ensureCanSellAtDoor(user, eventId);
-    const invoice = this.calculateDoorSaleFees(event, amount, quantity, null);
+    let invoice = this.calculateDoorSaleFees(event, amount, quantity, null);
     const checkoutBuyerEmail = buyerEmail?.trim();
     const checkoutBuyerName = buyerName?.trim();
 
@@ -646,9 +648,19 @@ export class OrdersService {
       rowLabel: 'GA',
       seatNumber: index + 1,
       price: invoice.unitPrice,
+      ...(requestId && index === 0 ? {
+        tapRequestId: requestId,
+        tapRequest: {
+          quantity: Number(quantity),
+          currency: (event.currency || 'USD').toLowerCase(),
+          eventTitle: event.title,
+          buyerEmail: checkoutBuyerEmail || '',
+          buyerName: checkoutBuyerName || '',
+        },
+      } : {}),
     }));
 
-    const order = await this.orderRepo.save(this.orderRepo.create({
+    const orderData = {
       userId: user.id,
       eventId,
       subtotal: invoice.baseTotal,
@@ -659,25 +671,56 @@ export class OrdersService {
       ticketCount: invoice.quantity,
       seatsData: JSON.stringify(seatsInfo),
       salesChannel: DOOR_SALE_TAP_TO_PAY_CHANNEL,
-    }));
+    };
+    // Persist one order before contacting Stripe. The short event lock also
+    // serializes a retry arriving while the original mobile request is running.
+    const order = requestId ? await this.orderRepo.manager.transaction(async manager => {
+      await manager.getRepository(Event).createQueryBuilder('event').setLock('pessimistic_write')
+        .where('event.id = :eventId', { eventId }).getOne();
+      const orders = manager.getRepository(Order);
+      const existing = await orders.createQueryBuilder('order')
+        .where('order.eventId = :eventId', { eventId })
+        .andWhere('order.userId = :userId', { userId: user.id })
+        .andWhere('order.salesChannel = :channel', { channel: DOOR_SALE_TAP_TO_PAY_CHANNEL })
+        .andWhere('order.seatsData LIKE :requestId', { requestId: `%"tapRequestId":"${requestId}"%` })
+        .getOne();
+      if (existing) {
+        const first = JSON.parse(existing.seatsData || '[]')[0];
+        if (Number(first?.price) !== invoice.unitPrice
+          || Number(first?.tapRequest?.quantity ?? existing.ticketCount) !== Number(quantity)) {
+          throw new BadRequestException('Esta solicitud ya corresponde a otro monto o cantidad.');
+        }
+        return existing;
+      }
+      return orders.save(orders.create(orderData));
+    }) : await this.orderRepo.save(this.orderRepo.create(orderData));
     await this.invalidateUserPurchasesCache(user.id);
 
-    const currency = (event.currency || 'USD').toLowerCase();
-    const paymentIntent = await this.stripe.paymentIntents.create({
-      amount: Math.round(invoice.total * 100),
+    const first = JSON.parse(order.seatsData || '[]')[0];
+    const snapshot = first?.tapRequest;
+    invoice = {
+      unitPrice: Number(first.price), quantity: order.ticketCount,
+      baseTotal: Number(order.subtotal), lpFee: Number(order.lpFee),
+      processingFee: Number(order.processingFee), total: Number(order.total),
+    };
+    const currency = snapshot?.currency || (event.currency || 'USD').toLowerCase();
+    const paymentIntent = order.stripePaymentIntent
+      ? await this.stripe.paymentIntents.retrieve(order.stripePaymentIntent)
+      : await this.stripe.paymentIntents.create({
+      amount: Math.round(Number(order.total) * 100),
       currency,
       payment_method_types: ['card_present'],
       capture_method: 'automatic',
-      description: `LPTicket - ${event.title} · Entrada en puerta`,
+      description: `LPTicket - ${snapshot?.eventTitle || event.title} · Entrada en puerta`,
       metadata: {
         orderId: order.id,
         userId: user.id,
         eventId,
-        buyerEmail: checkoutBuyerEmail || '',
-        buyerName: checkoutBuyerName || '',
+        buyerEmail: snapshot?.buyerEmail ?? checkoutBuyerEmail ?? '',
+        buyerName: snapshot?.buyerName ?? checkoutBuyerName ?? '',
         source: 'door_sale_tap_to_pay',
       },
-    });
+    }, { idempotencyKey: `door-intent-${order.id}` });
 
     await this.orderRepo.update(order.id, { stripePaymentIntent: paymentIntent.id });
     return {
@@ -690,7 +733,7 @@ export class OrdersService {
         title: event.title,
         venueName: event.venueName,
         eventDate: event.eventDate,
-        currency: event.currency || 'USD',
+        currency: currency.toUpperCase(),
       },
     };
   }
@@ -723,8 +766,10 @@ export class OrdersService {
     if (paymentIntent.metadata?.orderId !== orderId) {
       throw new BadRequestException('PaymentIntent metadata does not match this order');
     }
+    const expectedCurrency = JSON.parse(order.seatsData || '[]')[0]?.tapRequest?.currency
+      || (order.event.currency || 'USD').toLowerCase();
     if (paymentIntent.amount !== Math.round(Number(order.total) * 100)
-      || paymentIntent.currency !== (order.event.currency || 'USD').toLowerCase()
+      || paymentIntent.currency !== expectedCurrency
       || paymentIntent.metadata?.eventId !== order.eventId
       || paymentIntent.metadata?.source !== DOOR_SALE_TAP_TO_PAY_CHANNEL) {
       throw new BadRequestException('El pago no coincide con la venta presencial.');
