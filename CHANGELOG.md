@@ -1389,3 +1389,10 @@ Resultado: build y typecheck pasaron; 3 pruebas críticas pasaron. Stripe, Twili
 ### Observaciones
 - No se modificó el checkout web, no se desplegó Railway y no se realizó commit ni push.
 - Se añadió una columna nullable de auditoría de entrega a órdenes; debe revisarse el cambio de esquema antes del despliegue.
+
+## 2026-11-03 — Centro administrativo de notificaciones
+
+- Nueva sección `Comunicación > Notificaciones` en `/admin/notifications`, con diseño oscuro, búsqueda, filtros por canal y destinatario, cambios individuales o por selección visible y guardado explícito.
+- Catálogo de 23 avisos: cuentas, accesos, tickets y copias, facturas, eventos, soporte y campañas por correo, SMS, WhatsApp y push. Los nuevos avisos de inicio de sesión empiezan desactivados; los envíos existentes conservan su comportamiento inicial.
+- Preferencias globales persistidas en backend con acceso exclusivo de administración y control de versión para evitar sobrescribir cambios concurrentes. Las comprobaciones de envío también se aplican a solicitudes de móvil y organizadores.
+- Preparación pendiente de base de datos: aplicar explícitamente `backend/src/database/add-notification-settings.sql` antes de habilitar el panel. No se ejecutó la migración ni se desplegó producción. Las notificaciones propias de Stripe y las campañas ya aceptadas por Zoho se gestionan en esos proveedores.

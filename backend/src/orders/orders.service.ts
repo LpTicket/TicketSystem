@@ -14,6 +14,7 @@ import { nanoid } from 'nanoid';
 import { createHash, createHmac, timingSafeEqual, randomUUID } from 'crypto';
 import * as QRCode from 'qrcode';
 import { MailService } from '../common/services/mail.service';
+import { NotificationSettingsService } from '../notifications/notification-settings.service';
 import { isValidEmailFormat, suggestEmailFix } from '../common/utils/email-typo';
 import { MarketingService } from '../marketing/marketing.service';
 import { RevokeTicketsDto } from './dto/revoke-tickets.dto';
@@ -60,6 +61,8 @@ type EventInventorySummary = {
  */
 @Injectable()
 export class OrdersService {
+  @Inject(NotificationSettingsService)
+  private readonly notifications: NotificationSettingsService;
   private stripe: any;
 
   constructor(
@@ -3764,11 +3767,13 @@ export class OrdersService {
     const organizerEmail = (event as any).organizer?.email;
     if (organizerEmail && organizerEmail !== email) {
       try {
-        const organizerName = [(event as any).organizer?.firstName, (event as any).organizer?.lastName].filter(Boolean).join(' ') || 'Organizador';
-        await this.mailService.sendTicketEmail(organizerEmail, organizerName, event.title, createdTickets, {
-          ...ticketEmailParams,
-          note: `Copia de las entradas enviadas a ${name} (${email})`,
-        } as any);
+        if (await this.notifications.isEnabled('ticket_copy_organizer')) {
+          const organizerName = [(event as any).organizer?.firstName, (event as any).organizer?.lastName].filter(Boolean).join(' ') || 'Organizador';
+          await this.mailService.sendTicketEmail(organizerEmail, organizerName, event.title, createdTickets, {
+            ...ticketEmailParams,
+            note: `Copia de las entradas enviadas a ${name} (${email})`,
+          } as any);
+        }
       } catch (e) {
         console.error('Error sending organizer copy email:', e);
       }
@@ -3809,6 +3814,9 @@ export class OrdersService {
         throw new ForbiddenException('No permission to send reminders for this event');
       }
     }
+
+    // Do not consume the scheduled reminder checkpoint while globally paused.
+    await this.notifications.requireEnabled('attendee_reminder');
 
     // Get all active ticket holders with their user info
     const { In } = require('typeorm');
@@ -4140,6 +4148,7 @@ export class OrdersService {
    */
   @Cron('0 */30 * * * *')
   async handleScheduledReminders() {
+    if (!await this.notifications.isEnabled('attendee_reminder')) return;
     console.log('[Cron] Checking scheduled email reminders...');
     const events = await this.eventRepo.find({
       where: {

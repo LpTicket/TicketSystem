@@ -28,6 +28,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { AnalyticsPageView } from './analytics/analytics-page-view.entity';
 import { ScannerAccessModule } from './scanner-access/scanner-access.module';
 import { ScannerAccess } from './database/entities';
+import { NotificationsModule } from './notifications/notifications.module';
+import { NotificationSettings } from './notifications/notification-settings.entity';
 
 @Module({
   imports: [
@@ -47,7 +49,7 @@ import { ScannerAccess } from './database/entities';
             password: config.get<string>('DB_PASSWORD'),
             database: config.get<string>('DB_NAME'),
           }),
-          entities: [MarketingBanner, PushToken, EmailCampaign, EmailCampaignRecipient, MarketingIntegration, AnalyticsPageView, User, Event, VenueSection, Seat, Order, Ticket, TicketRevocation, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout, EventReferral, OrganizerPayout, ScannerAccess],
+          entities: [NotificationSettings, MarketingBanner, PushToken, EmailCampaign, EmailCampaignRecipient, MarketingIntegration, AnalyticsPageView, User, Event, VenueSection, Seat, Order, Ticket, TicketRevocation, EventCategoryEntity, PaymentMethod, VenueTemplate, SocialMatchPreference, SocialMatchConnection, SocialMatchMessage, SpecialCode, SpecialCodePayout, EventReferral, OrganizerPayout, ScannerAccess],
           // Production schema changes must be reviewed and applied explicitly.
           // Never let an application restart alter or drop existing customer data.
           synchronize: false,
@@ -70,6 +72,7 @@ import { ScannerAccess } from './database/entities';
     CategoriesModule,
     PaymentsModule,
     CommonModule,
+    NotificationsModule,
     VenueTemplatesModule,
     AiSupportModule,
     SocialMatchModule,

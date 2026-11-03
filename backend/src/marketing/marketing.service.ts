@@ -24,6 +24,7 @@ import { MailService } from '../common/services/mail.service';
 import { randomBytes } from 'crypto';
 import { isEmail, isUUID } from 'class-validator';
 import { ZohoCampaignsService } from './zoho-campaigns.service';
+import { NotificationSettingsService } from '../notifications/notification-settings.service';
 
 type CampaignResult = { sent: number; failed: number; total: number; error?: string };
 const EMAIL_CAMPAIGN_BATCH_SIZE = 100;
@@ -54,6 +55,7 @@ export class MarketingService {
     private readonly zohoCampaigns: ZohoCampaignsService,
     private readonly config: ConfigService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly notifications: NotificationSettingsService,
   ) {}
 
   /** Active users we can reach (have an email/phone). */
@@ -175,6 +177,7 @@ export class MarketingService {
     link?: string;
     data?: Record<string, unknown>;
   }) {
+    await this.notifications.requireEnabled('marketing_push');
     const title = String(dto?.title || '').trim();
     const message = String(dto?.message || '').trim();
     const link = String(dto?.link || '').trim();
@@ -202,7 +205,10 @@ export class MarketingService {
     let lastError = '';
     const httpFetch: typeof fetch = (globalThis as any).fetch;
 
-    for (const chunk of chunks) {
+    for (const [index, chunk] of chunks.entries()) {
+      if (index > 0 && !await this.notifications.isEnabled('marketing_push')) {
+        return { sent, failed, total: uniqueTokens.length, error: 'Envío detenido por administración.' };
+      }
       const messages = chunk.map((to) => ({
         to,
         title,
@@ -301,6 +307,7 @@ export class MarketingService {
     subject?: string; title?: string; preheader?: string; imageData?: string | null; link?: string;
     recipients?: string[];
   }) {
+    await this.notifications.requireEnabled('marketing_email');
     const subject = String(dto.subject || dto.title || '').trim();
     if (!subject) throw new BadRequestException('El asunto de la campaña es obligatorio.');
     try {
@@ -448,6 +455,7 @@ export class MarketingService {
   }
 
   async sendNextEmailCampaignBatch(id: string) {
+    await this.notifications.requireEnabled('marketing_email');
     const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
     if (!campaign) throw new BadRequestException('Campaña no encontrada.');
     if (campaign.status === 'processing' || this.processingCampaigns.has(id)) {
@@ -468,6 +476,10 @@ export class MarketingService {
     try {
       const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
       if (!campaign) return;
+      if (!await this.notifications.isEnabled('marketing_email')) {
+        await this.emailCampaignRepo.update(id, { status: 'paused' });
+        return;
+      }
       await this.emailCampaignRepo.update(id, { status: 'processing' });
       const recipients = await this.emailCampaignRecipientRepo.find({
         where: { campaignId: id, status: 'queued' },
@@ -476,6 +488,10 @@ export class MarketingService {
       });
 
       for (let offset = 0; offset < recipients.length; offset += EMAIL_CAMPAIGN_CONCURRENCY) {
+        if (!await this.notifications.isEnabled('marketing_email')) {
+          await this.emailCampaignRepo.update(id, { status: 'paused' });
+          return;
+        }
         const group = recipients.slice(offset, offset + EMAIL_CAMPAIGN_CONCURRENCY);
         await Promise.all(group.map(async (recipient) => {
           try {
@@ -510,6 +526,7 @@ export class MarketingService {
     try {
       const campaign = await this.emailCampaignRepo.findOne({ where: { id } });
       if (!campaign || campaign.zohoCampaignKey) return;
+      await this.notifications.requireEnabled('marketing_email');
       // Do not replace Zoho's reason with a generic reconnect message. The
       // stored campaign history must identify the exact safe provider issue.
       await this.zohoCampaigns.verifyConnection();
@@ -542,6 +559,7 @@ export class MarketingService {
         return;
       }
       await this.emailCampaignRepo.update(id, { status: 'processing' });
+      await this.notifications.requireEnabled('marketing_email');
       const created = await this.zohoCampaigns.createAndSendCampaign({
         name: campaign.title || campaign.subject,
         subject: campaign.subject,
@@ -696,6 +714,7 @@ export class MarketingService {
     recipients?: string[],
     lang?: 'es' | 'en',
   ): Promise<CampaignResult> {
+    await this.notifications.requireEnabled(channel === 'sms' ? 'marketing_sms' : 'marketing_whatsapp');
     if (!message?.trim()) throw new BadRequestException('El mensaje es obligatorio');
     const sid = this.config.get<string>('TWILIO_ACCOUNT_SID');
     const token = this.config.get<string>('TWILIO_AUTH_TOKEN');
@@ -733,6 +752,9 @@ export class MarketingService {
     let sent = 0, failed = 0;
     let lastError = '';
     for (const phone of phones) {
+      if (!await this.notifications.isEnabled(channel === 'sms' ? 'marketing_sms' : 'marketing_whatsapp')) {
+        return { sent, failed, total: phones.length, error: 'Envío detenido por administración.' };
+      }
       try {
         if (channel === 'whatsapp' && contentSid) {
           await this.sendTwilioMessage(phone, channel, {
@@ -764,6 +786,7 @@ export class MarketingService {
 
   /** Transactional SMS requested by a customer after a completed door sale. */
   async sendTransactionalSms(rawPhone: string, message: string) {
+    await this.notifications.requireEnabled('transactional_sms');
     const phone = this.normalizePhone(rawPhone);
     if (!phone) throw new BadRequestException('Ingresa un número telefónico válido.');
     if (!message?.trim()) throw new BadRequestException('El mensaje es obligatorio.');
@@ -785,6 +808,7 @@ export class MarketingService {
    *  registers. Uses TWILIO_WHATSAPP_WELCOME_SID. Never throws — registration must
    *  not fail because messaging is down or unconfigured. */
   async sendWelcomeWhatsapp(rawPhone: string, firstName?: string, lang?: 'es' | 'en'): Promise<void> {
+    if (!await this.notifications.isEnabled('welcome_whatsapp')) return;
     const sid = this.config.get<string>('TWILIO_ACCOUNT_SID');
     const token = this.config.get<string>('TWILIO_AUTH_TOKEN');
     // Pick the language-specific welcome template, falling back to the single SID.

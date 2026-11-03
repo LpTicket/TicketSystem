@@ -1,5 +1,10 @@
 import { MailService } from './mail.service';
 
+const enabledNotifications = () => ({
+  isEnabled: jest.fn().mockResolvedValue(true),
+  requireEnabled: jest.fn().mockResolvedValue(undefined),
+});
+
 describe('MailService event support reminders', () => {
   const data = {
     eventTitle: 'Gala & Música <en vivo>', eventDate: new Date('2026-10-24T14:00:00Z'),
@@ -10,7 +15,7 @@ describe('MailService event support reminders', () => {
     const values: Record<string, string> = {
       APP_URL: 'https://www.lpticket.com', SMTP_FROM: 'info@lpticket.com', CONTACT_EMAIL: 'support@lpticket.com',
     };
-    const service = new MailService({ get: (key: string) => values[key] } as any);
+    const service = new MailService({ get: (key: string) => values[key] } as any, enabledNotifications() as any);
     const sendMail = jest.fn().mockImplementation(async ({ to }) => ({ accepted: [to], rejected: [] }));
     (service as any).transporter = { sendMail };
     return { service, sendMail };
@@ -89,7 +94,7 @@ describe('MailService ticket email', () => {
     };
     const service = new MailService({
       get: jest.fn((key: string) => values[key]),
-    } as any);
+    } as any, enabledNotifications() as any);
     const sendMail = jest.fn().mockResolvedValue({ messageId: 'message-1' });
     (service as any).transporter = { sendMail };
     return { service, sendMail };

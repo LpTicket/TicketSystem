@@ -1,4 +1,4 @@
-import { HiOutlineChartBar, HiOutlineCalendar, HiOutlineUsers, HiOutlineTag, HiOutlineSpeakerphone, HiOutlineTrendingUp, HiOutlineDocumentText, HiOutlineUserAdd } from 'react-icons/hi';
+import { HiOutlineChartBar, HiOutlineCalendar, HiOutlineUsers, HiOutlineTag, HiOutlineSpeakerphone, HiOutlineTrendingUp, HiOutlineDocumentText, HiOutlineUserAdd, HiOutlineBell } from 'react-icons/hi';
 
 export const adminNavigation = [
   { href: '/admin', es: 'Resumen', en: 'Overview', group: 'overview', icon: HiOutlineChartBar, descriptionEs: 'Actividad y resumen financiero de la plataforma.', descriptionEn: 'Platform activity and financial overview.' },
@@ -11,6 +11,7 @@ export const adminNavigation = [
   { href: '/admin/analytics', es: 'Analíticas', en: 'Analytics', group: 'finance', icon: HiOutlineTrendingUp, descriptionEs: 'Consulta visitas, actividad y estadísticas.', descriptionEn: 'Review visits, activity and statistics.' },
   { href: '/admin/invoices', es: 'Facturas', en: 'Invoices', group: 'finance', icon: HiOutlineDocumentText, descriptionEs: 'Consulta facturas y accede a la facturación manual.', descriptionEn: 'Review invoices and access manual invoicing.' },
   { href: '/admin/marketing', es: 'Marketing', en: 'Marketing', group: 'content', icon: HiOutlineSpeakerphone, descriptionEs: 'Prepara campañas y administra banners.', descriptionEn: 'Prepare campaigns and manage banners.' },
+  { href: '/admin/notifications', es: 'Notificaciones', en: 'Notifications', group: 'content', icon: HiOutlineBell, descriptionEs: 'Controla los avisos por correo, SMS, WhatsApp y push.', descriptionEn: 'Control email, SMS, WhatsApp and push notifications.' },
 ] as const;
 
 export const adminGroups = [

@@ -103,3 +103,11 @@ If/when this is done, the safe plan is:
 
 Until then, the main mitigation is keeping the app XSS-free (no unsanitized
 user HTML; the one `dangerouslySetInnerHTML` for JSON-LD is escaped).
+
+## Notification administration — 2026-11-03
+
+- `GET/PATCH /api/admin/notifications` requires JWT authentication and the existing administrator role guard. Clients, organizers and scanner users cannot read or change global delivery preferences.
+- The API validates notification identifiers and real boolean values, rejects extra fields and duplicate keys, and uses a database transaction with a row lock plus an expected version to reject stale edits. The modifying administrator ID and update time are stored without returning credentials or recipient lists.
+- Delivery checks run on the backend for transactional mail, marketing, SMS, WhatsApp and push. New sign-in alerts are disabled initially and do not run during session refresh or support-session creation; delivery failure never invalidates a login.
+- Deployment requires explicitly applying `backend/src/database/add-notification-settings.sql`; automatic schema synchronization stays disabled. Only a missing settings table during rollout preserves historical delivery defaults; other database errors do not bypass stored preferences. The administrative page remains unavailable until the table is prepared.
+- Disabling ticket delivery or password recovery is an explicit administrative choice, identified in the UI before saving. Messages already sent or accepted by external providers cannot be recalled by these controls.

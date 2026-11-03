@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import { NotificationSettingsService } from '../../notifications/notification-settings.service';
 
 type PostEventReportEmail = {
   organizerName: string;
@@ -77,7 +78,10 @@ type EventSupportReminderEmail = {
 export class MailService {
   private transporter: nodemailer.Transporter;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly notifications: NotificationSettingsService,
+  ) {
     this.transporter = nodemailer.createTransport({
       host: this.configService.get('SMTP_HOST'),
       port: this.configService.get('SMTP_PORT'),
@@ -107,6 +111,7 @@ export class MailService {
     data: EventSupportReminderEmail,
     audience: 'organizer' | 'admin',
   ): Promise<boolean> {
+    if (!await this.notifications.isEnabled(audience === 'admin' ? 'support_reminder_admin' : 'support_reminder_organizer')) return false;
     const safe = (value: unknown) => String(value ?? '')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
@@ -200,6 +205,7 @@ export class MailService {
    * The event remains pending even if SMTP is temporarily unavailable.
    */
   async sendEventApprovalRequestEmail(data: EventApprovalRequestEmail): Promise<boolean> {
+    if (!await this.notifications.isEnabled('event_approval_request')) return false;
     const configuredRecipient = String(this.configService.get('EVENT_APPROVAL_EMAIL') || '').trim();
     const to = configuredRecipient.toLowerCase() === 'info@elpitique.com'
       ? 'info@lpticket.com'
@@ -285,6 +291,7 @@ export class MailService {
 
   /** Notifies the organizer after an administrator publishes the event. */
   async sendEventApprovedEmail(data: EventApprovedEmail): Promise<boolean> {
+    if (!await this.notifications.isEnabled('event_approved')) return false;
     const to = String(data.organizerEmail || '').trim();
     if (!to) return false;
 
@@ -361,6 +368,7 @@ export class MailService {
     },
     deliveryOptions?: { includeOperationalCopies?: boolean },
   ) {
+    await this.notifications.requireEnabled('ticket_email');
     const appUrl = this.getAppUrl();
     const eventAddress = [eventInfo?.venueName, eventInfo?.venueAddress].filter(Boolean).join(' — ');
     const currency = eventInfo?.currency || 'USD';
@@ -608,11 +616,17 @@ export class MailService {
       </html>
     `;
 
+    const [adminCopy, organizerCopy] = deliveryOptions?.includeOperationalCopies === false
+      ? [false, false]
+      : await Promise.all([
+          this.notifications.isEnabled('ticket_copy_admin'),
+          this.notifications.isEnabled('ticket_copy_organizer'),
+        ]);
     const bccRecipients = deliveryOptions?.includeOperationalCopies === false
       ? []
       : Array.from(new Set([
-          this.configService.get('ADMIN_EMAIL'),
-          eventInfo?.organizerEmail,
+          adminCopy ? this.configService.get('ADMIN_EMAIL') : null,
+          organizerCopy ? eventInfo?.organizerEmail : null,
         ]
           .filter((email): email is string => Boolean(email && email.trim()))
           .map((email) => email.trim())))
@@ -628,6 +642,7 @@ export class MailService {
   }
 
   async sendManualInvoiceEmail(to: string, invoice: ManualInvoiceEmail) {
+    await this.notifications.requireEnabled('manual_invoice');
     const appUrl = this.getAppUrl();
     const currency = invoice.currency || 'USD';
     const money = (value: number) => `${Number(value || 0).toFixed(2)} ${currency}`;
@@ -751,6 +766,7 @@ export class MailService {
     daysUntilEvent: number,
     customMessage?: string,
   ) {
+    await this.notifications.requireEnabled('attendee_reminder');
     const appUrl = this.getAppUrl();
 
     const isHours = daysUntilEvent < 0;
@@ -895,6 +911,7 @@ export class MailService {
   }
 
   async sendContactEmail(name: string, email: string, subject: string, message: string) {
+    await this.notifications.requireEnabled('contact_email');
     const adminEmail = this.configService.get('ADMIN_EMAIL');
     const html = `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px;">
@@ -1128,6 +1145,7 @@ export class MailService {
     to: string,
     opts: { subject: string; title?: string; preheader?: string; imageData?: string | null; link?: string; trackingUrl?: string },
   ) {
+    await this.notifications.requireEnabled('marketing_email');
     const { html, attachments } = this.renderMarketingEmail(opts);
     await this.transporter.sendMail({
       from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
@@ -1140,6 +1158,7 @@ export class MailService {
 
   /** Branded welcome email sent right after a user registers. Never throws. */
   async sendWelcomeEmail(to: string, firstName?: string, lang: 'es' | 'en' = 'es') {
+    if (!await this.notifications.isEnabled('welcome_email')) return;
     if (!to) return;
     const appUrl = this.getAppUrl();
     const year = new Date().getFullYear();
@@ -1264,6 +1283,7 @@ export class MailService {
     provider: string = 'Email',
     ip?: string,
   ) {
+    if (!await this.notifications.isEnabled('new_user_admin')) return;
     const adminEmail = this.configService.get('ADMIN_EMAIL');
     if (!adminEmail) return;
     const appUrl = this.getAppUrl();
@@ -1373,6 +1393,7 @@ export class MailService {
 
   /** Branded password reset email. Never throws. */
   async sendPasswordResetEmail(to: string, firstName?: string, resetUrl?: string) {
+    if (!await this.notifications.isEnabled('password_reset')) return;
     if (!to || !resetUrl) return;
     const appUrl = this.getAppUrl();
     const year = new Date().getFullYear();
@@ -1449,7 +1470,9 @@ export class MailService {
   }
 
   async sendPostEventReportEmail(to: string, report: PostEventReportEmail) {
+    if (!await this.notifications.isEnabled('post_event_report')) return false;
     if (!to) return false;
+    const adminCopyEnabled = await this.notifications.isEnabled('post_event_copy_admin');
     const appUrl = this.getAppUrl();
     const year = new Date().getFullYear();
     const adminEmail = String(this.configService.get('ADMIN_EMAIL') || '').trim();
@@ -1730,7 +1753,7 @@ export class MailService {
       }
       if (accepted.length === 0 && rejected.length > 0) return false;
       let adminCopy: { accepted: string[]; rejected: string[]; messageId: string | null } | null = null;
-      if (adminEmail && adminEmail.toLowerCase() !== target) {
+      if (adminEmail && adminEmail.toLowerCase() !== target && adminCopyEnabled) {
         try {
           const adminInfo = await this.transporter.sendMail({
             from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
@@ -1757,4 +1780,28 @@ export class MailService {
     }
   }
 
+  /** Only explicit, successful sign-ins call this; refresh/support sessions do not. */
+  async sendLoginNotifications(user: { email: string; firstName?: string | null; lastName?: string | null }, provider: string) {
+    const [clientEnabled, adminEnabled] = await Promise.all([
+      this.notifications.isEnabled('login_client'),
+      this.notifications.isEnabled('login_admin'),
+    ]);
+    if (!clientEnabled && !adminEnabled) return;
+    const adminEmail = String(this.configService.get('ADMIN_EMAIL') || '').trim();
+    const time = new Date().toLocaleString('es-US', { timeZone: 'America/Chicago', dateStyle: 'medium', timeStyle: 'short' });
+    const escape = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
+    const name = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    const send = (to: string, internal: boolean) => this.transporter.sendMail({
+      from: `"LPTicket" <${this.configService.get('SMTP_FROM')}>`,
+      to,
+      subject: internal ? 'Inicio de sesión en LPTicket · aviso interno' : 'Nuevo inicio de sesión en tu cuenta LPTicket',
+      text: `${internal ? name + ' (' + user.email + ')' : 'Tu cuenta'} inició sesión con ${provider} el ${time} (America/Chicago).${internal ? '' : ' Si no fuiste tú, recupera tu contraseña desde LPTicket.'}`,
+      html: `<div style="background:#081827;color:#cbd5e1;padding:32px;font-family:Arial,sans-serif;border-radius:20px"><p style="color:#fb923c;letter-spacing:3px">LPTICKET</p><h1 style="color:#ffffff;font-size:24px">Inicio de sesión</h1><p>${internal ? escape(name) + ' · ' + escape(user.email) : 'Se inició sesión en tu cuenta.'}</p><p>Método: ${escape(provider)}<br>Fecha: ${escape(time)} (America/Chicago)</p>${internal ? '' : '<p>Si no fuiste tú, recupera tu contraseña desde LPTicket.</p>'}</div>`,
+    });
+    const sends: Promise<unknown>[] = [];
+    if (clientEnabled && user.email) sends.push(send(user.email, false));
+    if (adminEnabled && adminEmail) sends.push(send(adminEmail, true));
+    const results = await Promise.allSettled(sends);
+    if (results.some((result) => result.status === 'rejected')) throw new Error('No se pudo entregar un aviso de inicio de sesión');
+  }
 }

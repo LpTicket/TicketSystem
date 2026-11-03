@@ -83,7 +83,9 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    return this.generateTokens(user);
+    const result = this.generateTokens(user);
+    void this.notifyLogin(user, 'Email');
+    return result;
   }
 
   async getProfile(userId: string) {
@@ -204,6 +206,7 @@ export class AuthService {
     }
 
     let user = await this.userRepo.findOne({ where: { email: appleEmail } });
+    const isNewUser = !user;
     if (!user) {
       user = this.userRepo.create({
         email: appleEmail,
@@ -225,12 +228,15 @@ export class AuthService {
     }
 
     if (!user.isActive) throw new UnauthorizedException('Inactive user');
-    return this.generateTokens(user);
+    const result = this.generateTokens(user);
+    if (!isNewUser) void this.notifyLogin(user, 'Apple');
+    return result;
   }
 
   async validateOAuthUser(profile: any, platform: 'web' | 'app' = 'web', provider: string = 'Google', ip?: string) {
     const { email, firstName, lastName } = profile;
     let user = await this.userRepo.findOne({ where: { email } });
+    const isNewUser = !user;
 
     if (!user) {
       // Create new user if not exists
@@ -253,7 +259,9 @@ export class AuthService {
         .catch(() => {});
     }
 
-    return this.generateTokens(user);
+    const result = this.generateTokens(user);
+    if (!isNewUser) void this.notifyLogin(user, provider);
+    return result;
   }
 
   async validateUser(userId: string): Promise<User | null> {
@@ -347,6 +355,15 @@ export class AuthService {
     } as any);
 
     return { success: true };
+  }
+
+  private async notifyLogin(user: User, provider: string) {
+    // Delivery must never block or invalidate an authenticated session.
+    try {
+      await this.mailService.sendLoginNotifications(user, provider);
+    } catch {
+      this.logger.warn('No se pudo entregar el aviso de inicio de sesión');
+    }
   }
 
   private generateTokens(user: User) {
