@@ -559,8 +559,40 @@ export class EventsService {
   }
 
   async getOrganizerEvents(organizerId: string) {
+    const events = await this.getOrganizerEventList(organizerId);
+    if (!events.length) return events;
+
+    // The mobile event cards read soldTickets as the total assigned capacity.
+    // Read occupancy live so adding/removing a block is visible on refresh.
+    const counts: { eventId: string; occupied: string }[] = await this.eventRepo.manager.query(
+      `WITH issued AS (
+        SELECT t."eventId", t."seatId"
+        FROM tickets t
+        WHERE t."eventId" = ANY($1::uuid[]) AND t.status IN ($2, $3)
+      ), occupied AS (
+        SELECT "eventId" FROM issued
+        UNION ALL
+        SELECT section."eventId"
+        FROM venue_sections section
+        JOIN seats seat ON seat."sectionId" = section.id
+        WHERE section."eventId" = ANY($1::uuid[])
+          AND section."sectionType" NOT IN ('stage', 'decor')
+          AND (seat.status = $4 OR (seat.status = $5 AND seat."lockExpiresAt" IS NULL))
+          AND NOT EXISTS (
+            SELECT 1 FROM issued
+            WHERE issued."eventId" = section."eventId" AND issued."seatId" = seat.id
+          )
+      )
+      SELECT "eventId", COUNT(*) AS occupied FROM occupied GROUP BY "eventId"`,
+      [events.map((event) => event.id), TicketStatus.ACTIVE, TicketStatus.USED, SeatStatus.SOLD, SeatStatus.LOCKED],
+    );
+    const occupiedByEvent = new Map(counts.map(({ eventId, occupied }) => [eventId, Number(occupied)]));
+    return events.map((event) => ({ ...event, soldTickets: occupiedByEvent.get(event.id) ?? 0 }));
+  }
+
+  private async getOrganizerEventList(organizerId: string) {
     const cacheKey = `organizer:events:${organizerId}`;
-    const cached = await this.cache.get<any>(cacheKey);
+    const cached = await this.cache.get<(Event & { totalRevenue: number; categoryName: string; categoryNameEn: string })[]>(cacheKey);
     if (cached) return cached;
 
     const events = await this.eventRepo.find({
@@ -570,25 +602,18 @@ export class EventsService {
     if (!events.length) return [];
 
     const eventIds = events.map((event) => event.id);
-    const orderRows = await this.eventRepo.manager.getRepository(Order)
+    const revenueRows = await this.eventRepo.manager.getRepository(Order)
       .createQueryBuilder('o')
       .select('o."eventId"', 'eventId')
-      // Keep the organizer event card aligned with Analytics: "sold" means
-      // tickets from paid orders. Complimentary $0 tickets remain issued
-      // capacity, but are not reported as sales.
-      .addSelect(`COALESCE(SUM(CASE WHEN COALESCE(o.subtotal, 0) > 0 THEN o."ticketCount" ELSE 0 END), 0)`, 'soldTickets')
       .addSelect('COALESCE(SUM(o.subtotal), 0)', 'totalRevenue')
       .where('o."eventId" IN (:...eventIds)', { eventIds })
       .andWhere('o.status = :status', { status: OrderStatus.PAID })
       .groupBy('o."eventId"')
       .getRawMany();
 
-    const statsByEventId = new Map(orderRows.map((row) => [
+    const revenueByEventId = new Map(revenueRows.map((row) => [
       row.eventId,
-      {
-        soldTickets: Number(row.soldTickets || 0),
-        totalRevenue: Number(row.totalRevenue || 0),
-      },
+      Number(row.totalRevenue || 0),
     ]));
 
     const slugs = [...new Set(events.map((e) => e.category).filter(Boolean))];
@@ -601,8 +626,7 @@ export class EventsService {
       const cat = catBySlug.get(event.category);
       return {
         ...this.routeBase64EventImages(event),
-        soldTickets: statsByEventId.get(event.id)?.soldTickets || 0,
-        totalRevenue: statsByEventId.get(event.id)?.totalRevenue || 0,
+        totalRevenue: revenueByEventId.get(event.id) ?? 0,
         categoryName: cat?.labelEs || event.category,
         categoryNameEn: cat?.labelEn || event.category,
       };
