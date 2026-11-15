@@ -2723,6 +2723,50 @@ export class OrdersService {
     return this.sanitizeTicket(ticket);
   }
 
+  async getSharedTicketByCode(code: string) {
+    // Installed clients already share the random code printed in the entry QR.
+    if (!/^[A-Z0-9_-]{12}$/.test(code)) throw new NotFoundException('Entrada no disponible');
+
+    const ticket = await this.ticketRepo.findOne({
+      where: { ticketCode: code },
+      relations: ['event', 'order'],
+    });
+    const order = ticket?.order;
+    const event = ticket?.event;
+    if (!ticket || !event || event.status === EventStatus.CANCELLED
+      || order?.status !== OrderStatus.PAID
+      || order.salesChannel === DOOR_SALE_TAP_TO_PAY_CHANNEL
+      || order.salesChannel === 'complimentary'
+      || (ticket.status !== TicketStatus.ACTIVE && ticket.status !== TicketStatus.USED)) {
+      throw new NotFoundException('Entrada no disponible');
+    }
+
+    const orderSubtotal = Number(order.subtotal);
+    const feeShare = orderSubtotal > 0 ? Number(ticket.price) / orderSubtotal : 1;
+    return {
+      ticketCode: ticket.ticketCode,
+      status: ticket.status,
+      sectionName: ticket.sectionName,
+      rowLabel: ticket.rowLabel,
+      seatNumber: ticket.seatNumber,
+      price: ticket.price,
+      qrData: ticket.qrData,
+      createdAt: ticket.createdAt,
+      receiptAmounts: {
+        lpFee: Number(order.lpFee || 0) * feeShare,
+        processingFee: Number(order.processingFee || 0) * feeShare,
+      },
+      event: {
+        title: event.title,
+        eventDate: event.eventDate,
+        eventTimezone: event.eventTimezone,
+        venueName: event.venueName,
+        venueAddress: event.venueAddress,
+        currency: event.currency,
+      },
+    };
+  }
+
   /**
    * Authorization helper: ensure the requesting user owns the event (or is admin).
    * Prevents IDOR where any authenticated user could read another organizer's

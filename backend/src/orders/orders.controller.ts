@@ -275,6 +275,12 @@ export class OrdersController {
     return this.ordersService.getTicketForViewer(code, req.user);
   }
 
+  @Header('Cache-Control', 'no-store')
+  @Get('shared-ticket/:code')
+  getSharedTicket(@Param('code') code: string) {
+    return this.ordersService.getSharedTicketByCode(code);
+  }
+
   // Signed guest view created only after a successful Tap to Pay door sale.
   @Get('guest-ticket/:code')
   getGuestTicketByCode(@Param('code') code: string, @Query('access') access: string) {

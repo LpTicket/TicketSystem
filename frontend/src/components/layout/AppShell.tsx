@@ -69,9 +69,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
       {!standalone && !isCheckout && <><a href="#main-content" className="lp-skip-link">{lang === 'es' ? 'Ir al contenido' : 'Skip to content'}</a><Header /></>}
-      <Suspense fallback={null}>
-        <AnalyticsTracker />
-      </Suspense>
+      {!isTicketPage && (
+        <Suspense fallback={null}>
+          <AnalyticsTracker />
+        </Suspense>
+      )}
       <main id="main-content" tabIndex={-1} className={`min-h-screen w-full max-w-full overflow-x-clip ${refinePresentation ? 'lp-refined' : ''}`}>{children}</main>
       {!standalone && !isCheckout && <Footer />}
       {!standalone && !hideFloatingWidgets && <Chatbot />}

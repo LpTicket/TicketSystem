@@ -3,6 +3,7 @@ import * as entities from '../database/entities';
 import {
   Event,
   EventReferral,
+  EventStatus,
   Order,
   OrderStatus,
   Seat,
@@ -79,6 +80,75 @@ describe('Administrator door sales for past events', () => {
     });
     await expect(service.previewDoorSale({ id: 'unrelated', role: UserRole.CLIENT }, 'past-event', 20))
       .rejects.toThrow('permission');
+  });
+});
+
+describe('Shared ticket receipts', () => {
+  const code = 'AB_CD-EF1234';
+  const order = {
+    id: 'private-order-id',
+    status: OrderStatus.PAID,
+    salesChannel: 'online',
+    subtotal: 100,
+    lpFee: 10,
+    processingFee: 5,
+    total: 115,
+  };
+  const event = { id: 'event-1', title: 'Evento', status: EventStatus.PUBLISHED, currency: 'USD' };
+  const ticket = {
+    ticketCode: code,
+    status: TicketStatus.ACTIVE,
+    orderId: order.id,
+    order,
+    event,
+    price: 40,
+    qrData: 'data:image/png;base64,example',
+    seatNumber: 3,
+    user: { firstName: 'Private name', email: 'private@example.com' },
+  };
+
+  it.each([TicketStatus.ACTIVE, TicketStatus.USED])('returns only the %s ticket and its allocated fees', async (status) => {
+    const { service, ticketRepo } = buildService();
+    ticketRepo.findOne.mockResolvedValue({ ...ticket, status });
+
+    const receipt = await service.getSharedTicketByCode(code);
+
+    expect(receipt).toMatchObject({
+      ticketCode: code, status, qrData: ticket.qrData, seatNumber: 3, price: 40,
+      receiptAmounts: { lpFee: 4, processingFee: 2 },
+      event: { title: 'Evento', currency: 'USD' },
+    });
+    for (const field of ['user', 'userId', 'attendeeName', 'order', 'orderId', 'tickets']) {
+      expect(receipt).not.toHaveProperty(field);
+    }
+    expect(ticketRepo.findOne).toHaveBeenCalledWith({
+      where: { ticketCode: code },
+      relations: ['event', 'order'],
+    });
+  });
+
+  it.each([
+    { ...ticket, status: TicketStatus.CANCELLED },
+    { ...ticket, status: TicketStatus.REVOKED },
+    { ...ticket, order: { ...order, status: OrderStatus.PENDING } },
+    { ...ticket, order: { ...order, status: OrderStatus.REFUNDED } },
+    { ...ticket, order: { ...order, status: OrderStatus.CANCELLED } },
+    { ...ticket, order: { ...order, salesChannel: 'door_sale_tap_to_pay' } },
+    { ...ticket, order: { ...order, salesChannel: 'complimentary' } },
+    { ...ticket, event: { ...event, status: EventStatus.CANCELLED } },
+    null,
+  ])('rejects unavailable tickets and tickets outside the shared purchase flow (%#)', async (record) => {
+    const { service, ticketRepo } = buildService();
+    ticketRepo.findOne.mockResolvedValue(record);
+
+    await expect(service.getSharedTicketByCode(code)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('rejects malformed codes before looking up the ticket', async () => {
+    const { service, ticketRepo } = buildService();
+
+    await expect(service.getSharedTicketByCode('short')).rejects.toMatchObject({ status: 404 });
+    expect(ticketRepo.findOne).not.toHaveBeenCalled();
   });
 });
 

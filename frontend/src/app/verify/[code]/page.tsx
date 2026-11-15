@@ -1,31 +1,29 @@
 'use client';
 
-/**
- * Ticket verification page (web) — /verify/[code]
- * EN: Public gate-verification view. Loads a sanitized ticket by code (no buyer
- *     PII) and lets staff confirm/scan it at the door.
- * ES: Vista pública de verificación en puerta. Carga un ticket sanitizado por
- *     código (sin datos personales del comprador) y permite al personal
- *     confirmarlo/escanearlo en la entrada.
- */
 import { toast } from 'react-hot-toast';
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import api from '@/lib/api';
+import { API_URL } from '@/lib/api';
 import axios from 'axios';
 import { formatSeatLabel } from '@/lib/seatLabel';
+import { getSupportSession } from '@/lib/supportSession';
 import { Ticket } from '@/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { 
-  HiOutlineCheckCircle, 
   HiOutlineXCircle, 
-  HiOutlineTicket, 
   HiOutlinePrinter, 
   HiOutlineArrowLeft,
   HiOutlineShare
 } from 'react-icons/hi';
+
+type TicketReceipt = Omit<Ticket, 'id' | 'orderId'> & {
+  id?: string;
+  orderId?: string;
+  order?: { subtotal: number; lpFee: number; processingFee: number } | null;
+  receiptAmounts?: { lpFee: number; processingFee: number };
+};
 
 const parseSafeDate = (dateStr: any) => {
   if (!dateStr) return new Date();
@@ -42,37 +40,58 @@ export default function VerifyTicketPage() {
   const searchParams = useSearchParams();
   const openedFromMobileApp = searchParams.get('source') === 'mobile-app';
   const guestAccess = searchParams.get('access');
-  const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [ticket, setTicket] = useState<TicketReceipt | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [shareLabel, setShareLabel] = useState('Compartir');
 
-  useEffect(() => { 
-    loadTicket(); 
-  }, [code, guestAccess]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const options = { baseURL: API_URL, signal: controller.signal };
+    const ticketCode = encodeURIComponent(code);
 
-  const loadTicket = async () => {
-    try { 
-      const endpoint = guestAccess
-        ? `/orders/guest-ticket/${code}?access=${encodeURIComponent(guestAccess)}`
-        : `/orders/ticket/${code}`;
-      const { data } = await api.get(endpoint);
-      setTicket(data); 
+    const loadTicket = async () => {
+      setLoading(true);
+      setTicket(null);
       setLoadError('');
-    } catch (error) {
-      setTicket(null); 
-      if (!guestAccess && axios.isAxiosError(error) && error.response?.status === 401) {
-        const destination = `/verify/${encodeURIComponent(code)}`;
-        router.replace(`/login?redirect=${encodeURIComponent(destination)}`);
-        return;
+
+      try {
+        if (guestAccess !== null) {
+          const { data } = await axios.get<TicketReceipt>(`/orders/guest-ticket/${ticketCode}`, {
+            ...options, params: { access: guestAccess },
+          });
+          if (!controller.signal.aborted) setTicket(data);
+          return;
+        }
+
+        const token = getSupportSession()?.accessToken || localStorage.getItem('accessToken');
+        if (token) {
+          try {
+            const { data } = await axios.get<TicketReceipt>(`/orders/ticket/${ticketCode}`, {
+              ...options, headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!controller.signal.aborted) setTicket(data);
+            return;
+          } catch (error) {
+            const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+            if (status !== 401 && status !== 403) throw error;
+          }
+        }
+
+        const { data } = await axios.get<TicketReceipt>(`/orders/shared-ticket/${ticketCode}`, options);
+        if (!controller.signal.aborted) setTicket(data);
+      } catch {
+        if (controller.signal.aborted) return;
+        setLoadError(guestAccess !== null
+          ? 'Este enlace privado no es válido o ya venció. Solicita al vendedor que te envíe nuevamente la entrada.'
+          : 'No pudimos abrir esta entrada. Comprueba que el enlace esté completo.');
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
       }
-      setLoadError(guestAccess
-        ? 'Este enlace privado no es válido o ya venció. Solicita al vendedor que te envíe nuevamente la entrada.'
-        : 'No pudimos abrir esta entrada con tu cuenta.');
-    } finally { 
-      setLoading(false); 
-    }
-  };
+    };
+
+    void loadTicket();
+    return () => controller.abort();
+  }, [code, guestAccess]);
 
   const handlePrint = () => {
     const isMobilePrint = window.innerWidth <= 640;
@@ -113,7 +132,8 @@ export default function VerifyTicketPage() {
   }, []);
 
   const handleShare = async () => {
-    const ticketUrl = window.location.href;
+    const ticketUrl = new URL(`/verify/${encodeURIComponent(code)}`, window.location.origin);
+    if (guestAccess !== null) ticketUrl.searchParams.set('access', guestAccess);
     const title = ticket?.event?.title ? `${ticket.event.title} - LPTicket` : 'LPTicket';
 
     try {
@@ -121,12 +141,12 @@ export default function VerifyTicketPage() {
         await navigator.share({
           title,
           text: 'Aquí está mi entrada para el evento.',
-          url: ticketUrl,
+          url: ticketUrl.href,
         });
         return;
       }
 
-      await navigator.clipboard.writeText(ticketUrl);
+      await navigator.clipboard.writeText(ticketUrl.href);
       toast.success('¡Enlace de la entrada copiado al portapapeles!');
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
@@ -148,7 +168,7 @@ export default function VerifyTicketPage() {
         <div className="text-center bg-white p-8 rounded-3xl border border-gray-200 shadow-sm max-w-sm w-full">
           <HiOutlineXCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h1 className="font-extrabold text-2xl text-gray-900 mb-2">Ticket no encontrado</h1>
-          <p className="text-gray-500 text-sm mb-6">{loadError || <>El código <span className="font-mono text-red-500 font-bold">{code}</span> no corresponde a un boleto activo.</>}</p>
+          <p className="text-gray-500 text-sm mb-6">{loadError}</p>
           <button onClick={() => router.push('/')} className="btn-primary w-full py-2.5 rounded-xl">Ir al Inicio</button>
         </div>
       </div>
@@ -156,7 +176,6 @@ export default function VerifyTicketPage() {
   }
 
   const isUsed = ticket.status === 'used';
-  const isCancelled = ticket.status === 'cancelled';
   const isActive = ticket.status === 'active';
 
   const statusLabel = isActive ? 'ACTIVE' : isUsed ? 'USED' : 'CANCELLED';
@@ -171,15 +190,15 @@ export default function VerifyTicketPage() {
 
   const eventTz = ticket.event?.eventTimezone || 'UTC';
   const receiptCurrency = ticket.event?.currency || 'USD';
-  const receiptOrder = (ticket as any).order;
+  const receiptOrder = ticket.order;
   const orderSubtotal = Number(receiptOrder?.subtotal || 0);
   const individualSubtotal = Number(ticket.price || 0);
   const individualShare = orderSubtotal > 0 ? individualSubtotal / orderSubtotal : 1;
-  const individualLpFee = Number(receiptOrder?.lpFee || 0) * individualShare;
-  const individualProcessingFee = Number(receiptOrder?.processingFee || 0) * individualShare;
+  const individualLpFee = ticket.receiptAmounts?.lpFee ?? Number(receiptOrder?.lpFee || 0) * individualShare;
+  const individualProcessingFee = ticket.receiptAmounts?.processingFee ?? Number(receiptOrder?.processingFee || 0) * individualShare;
   const individualTotal = individualSubtotal + individualLpFee + individualProcessingFee;
   const isCourtesy = ticket.isCourtesy === true;
-  const attendeeName = ticket.attendeeName || [ticket.user?.firstName, ticket.user?.lastName].filter(Boolean).join(' ') || 'Invitado';
+  const attendeeName = ticket.attendeeName || [ticket.user?.firstName, ticket.user?.lastName].filter(Boolean).join(' ');
   const courtesyLabels: Record<string, string> = { courtesy: 'CORTESÍA', sponsor: 'SPONSOR', press: 'PRENSA', staff: 'STAFF' };
   const courtesyLabel = courtesyLabels[ticket.courtesyType || 'courtesy'] || courtesyLabels.courtesy;
 
@@ -646,14 +665,14 @@ export default function VerifyTicketPage() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleShare}
-              aria-label={shareLabel}
+              aria-label="Compartir"
               className="flex items-center gap-2 bg-[#0a375a] hover:bg-[#0a2a45] text-white text-xs font-semibold px-3 sm:px-4 py-2 rounded-xl transition-all shadow-sm"
             >
-              <HiOutlineShare className="w-4 h-4" /> <span className="hidden sm:inline">{shareLabel}</span>
+              <HiOutlineShare className="w-4 h-4" /> <span className="hidden sm:inline">Compartir</span>
             </button>
 
-            <a
-              href={`${api.defaults.baseURL}/orders/ticket/${code}/apple-wallet`}
+            {!ticket.receiptAmounts && <a
+              href={`${API_URL}/orders/ticket/${encodeURIComponent(code)}/apple-wallet`}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Apple Wallet"
@@ -662,7 +681,7 @@ export default function VerifyTicketPage() {
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M17.05 20.28c-.96.95-2.04 1.9-3.4 1.9-1.33 0-1.77-.82-3.32-.82-1.58 0-2.05.8-3.32.85-1.3.05-2.52-1.03-3.48-2.43-1.98-2.85-2.28-7.14-.8-9.15 1.05-1.4 2.5-2.3 4.1-2.3 1.25 0 2.22.8 3.03.8.78 0 2.05-.95 3.52-.8 1 .05 2.18.45 2.92 1.3-1.85 1.1-1.55 3.65.3 4.6-.9 1.35-2.05 2.7-3.05 3.75zm-3.08-15.65c.65-.8 1.1-1.9.98-3-.95.05-2.1.65-2.78 1.45-.62.7-1.12 1.85-.95 2.92 1.05.08 2.1-.58 2.75-1.37z"/>
               </svg> <span className="hidden sm:inline">Apple Wallet</span>
-            </a>
+            </a>}
 
             <button
               onClick={handlePrint}
@@ -725,7 +744,7 @@ export default function VerifyTicketPage() {
                     stored data-URL is missing, so the QR always renders. */}
                 <div className="flex flex-col items-center shrink-0">
                   <img
-                    src={ticket.qrData || `${api.defaults.baseURL}/orders/ticket/${ticket.ticketCode || code}/qr.png`}
+                    src={ticket.qrData || `${API_URL}/orders/ticket/${encodeURIComponent(ticket.ticketCode || code)}/qr.png`}
                     alt="QR Code"
                     className="qr-img w-36 h-36 object-contain border border-slate-200 rounded-xl p-2 bg-white shadow-sm"
                   />
@@ -757,12 +776,12 @@ export default function VerifyTicketPage() {
               {/* Info grid */}
               <div className="grid grid-cols-2 gap-4">
                 {/* Holder */}
-                <div className="col-span-2 sm:col-span-1 rounded-xl border border-slate-200 bg-white/80 p-4">
+                {attendeeName && <div className="col-span-2 sm:col-span-1 rounded-xl border border-slate-200 bg-white/80 p-4">
                   <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nombre / Name</span>
                   <span className="block text-lg font-black text-slate-950 uppercase leading-tight">
                     {attendeeName}
                   </span>
-                </div>
+                </div>}
 
                 {/* Seat */}
                 <div className="col-span-2 sm:col-span-1 rounded-xl border border-slate-200 bg-white/80 p-4">
@@ -789,12 +808,12 @@ export default function VerifyTicketPage() {
                 <div className="grid grid-cols-1 gap-1.5 text-sm text-slate-600">
                   <div className="flex gap-2">
                     <span className="font-black text-slate-900 w-32 shrink-0">TICKET ID:</span>
-                    <span className="font-mono text-slate-600 break-all">{ticket.id}</span>
+                    <span className="font-mono text-slate-600 break-all">{ticket.id || ticket.ticketCode}</span>
                   </div>
-                  <div className="flex gap-2">
+                  {attendeeName && <div className="flex gap-2">
                     <span className="font-black text-slate-900 w-32 shrink-0">{isCourtesy ? 'INVITADO:' : 'COMPRADO POR:'}</span>
                     <span>{attendeeName}</span>
-                  </div>
+                  </div>}
                   {ticket.createdAt && (
                     <div className="flex gap-2">
                       <span className="font-black text-slate-900 w-32 shrink-0">FECHA COMPRA:</span>
@@ -807,14 +826,14 @@ export default function VerifyTicketPage() {
                       <span>{ticket.sectionName}</span>
                     </div>
                   )}
-                  <div className="flex gap-2">
+                  {ticket.orderId && <div className="flex gap-2">
                     <span className="font-black text-slate-900 w-32 shrink-0">ORDER ID:</span>
                     <span className="font-mono text-slate-600 break-all">{ticket.orderId}</span>
-                  </div>
+                  </div>}
                 </div>
               </div>
 
-              {receiptOrder && (
+              {(receiptOrder || ticket.receiptAmounts) && (
                 <div className="receipt-summary rounded-2xl border border-slate-200 bg-white/90 p-4">
                   <p className="text-[10px] font-black text-[#0a375a] uppercase tracking-widest mb-3">Resumen de Pago</p>
                   <div className="space-y-1.5 text-sm text-slate-600">

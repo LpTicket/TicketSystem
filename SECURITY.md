@@ -35,10 +35,15 @@ This review is not proof that an intrusion never occurred. Runtime access contro
 - **Security headers** — `@fastify/helmet` (HSTS in prod, nosniff, frameguard).
 - **No internal error leakage** — exception filter hides stack traces / internal
   messages in production.
-- **Ticket lookup access-controlled** — the normal ticket route requires JWT
-  and ownership/event authorization. Only Tap to Pay door sales can create a
-  time-limited HMAC guest link; it returns a sanitized single-ticket view and
-  never grants scanning, account, contact or payment privileges.
+- **Ticket lookup access-controlled** — private ticket details and full order
+  receipts require JWT and the applicable ownership or event permissions.
+  Existing share links from the web and mobile use the random ticket code to
+  open one eligible ticket and its individual receipt. The share response
+  excludes buyer identity, order IDs and totals, and other tickets. Ticket pages
+  are excluded from page-view tracking and instruct browsers not to send their
+  URL as a referrer. Tap to Pay door sales use their time-limited HMAC guest
+  links. Admission remains subject to staff authorization and a single-use
+  ticket check.
 - **XSS in JSON-LD** — `<` is escaped so a crafted event title can't break out.
 - **429 UX** — web and mobile show a friendly "try again in N seconds" message.
 - **Door-sale delivery authorization** — only an admin, the event owner, or an
