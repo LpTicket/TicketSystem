@@ -30,7 +30,7 @@ const DOMAIN_FIXES: Record<string, string> = {
 // Generic top-level-domain typos (apply to any domain).
 const TLD_FIXES: Record<string, string> = {
   con: 'com', cmo: 'com', vom: 'com', xom: 'com', comm: 'com', cpm: 'com',
-  ocm: 'com', cim: 'com', om: 'com', co: 'com', net1: 'net',
+  ocm: 'com', cim: 'com', net1: 'net',
 };
 
 export function isValidEmailFormat(email: string): boolean {

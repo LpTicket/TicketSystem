@@ -31,6 +31,15 @@ describe('Sign-in notification triggers', () => {
     expect(mail.sendLoginNotifications).not.toHaveBeenCalled();
   });
 
+  it.each([null, '', undefined])('rejects password login when the account has no password hash (%s)', async (passwordHash) => {
+    const { service, repo, mail, user } = setup();
+    repo.findOne.mockResolvedValue({ ...user, passwordHash });
+
+    await expect(service.login({ email: user.email, password: 'test-only' }))
+      .rejects.toMatchObject({ status: 401, message: 'Credenciales inválidas' });
+    expect(mail.sendLoginNotifications).not.toHaveBeenCalled();
+  });
+
   it.each(['Google', 'Facebook'])('notifies existing %s users on sign-in', async (provider) => {
     const { service, mail, user } = setup();
     await service.validateOAuthUser(user, 'web', provider);

@@ -307,7 +307,7 @@ export class WalletService {
           value: ticket.ticketCode,
         },
         {
-          key: 'buyer',
+          key: 'buyerDetails',
           label: 'Ticket Holder',
           value: buyerName,
         },

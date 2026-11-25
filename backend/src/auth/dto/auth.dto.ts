@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MaxLength, MinLength, IsOptional } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -34,6 +34,7 @@ export class RegisterDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(50, { message: 'La dirección debe tener un máximo de 50 caracteres.' })
   address?: string;
 
   // SECURITY: `role` is intentionally NOT accepted from the registration body.
